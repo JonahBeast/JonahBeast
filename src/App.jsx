@@ -1,27 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2 } from 'lucide-react';
-
-
-/* ------------------------------------------------------------------ */
-/* ALMACENAMIENTO                                                      */
-/* Guarda en el navegador. En el siguiente paso lo cambiaremos por     */
-/* Supabase para que todos los alumnos compartan la misma información. */
-/* ------------------------------------------------------------------ */
-
-const storage = {
-  async get(key) {
-    const v = localStorage.getItem(key);
-    return v === null ? null : { key, value: v };
-  },
-  async set(key, value) {
-    localStorage.setItem(key, value);
-    return { key, value };
-  },
-  async delete(key) {
-    localStorage.removeItem(key);
-    return { key, deleted: true };
-  },
-};
+import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -720,24 +699,22 @@ export default function App() {
 
   async function init() {
     try {
-      const u = await storage.get('jb_users');
-      setUsers(u ? JSON.parse(u.value) : []);
+      const { data, error } = await supabase.from('alumnos').select('*').order('created_at');
+      if (error) throw error;
+      setUsers((data || []).map(u => ({
+        username: u.username, password: u.password, enabled: u.enabled, createdAt: u.created_at,
+      })));
     } catch { setUsers([]); }
     try {
-      const p = await storage.get('jb_admin_pass');
-      setAdminPass(p ? p.value : '');
+      const { data } = await supabase.from('config').select('value').eq('key', 'admin_password').maybeSingle();
+      setAdminPass(data ? data.value : '');
     } catch { setAdminPass(''); }
     setLoading(false);
   }
 
-  async function persistUsers(next) {
-    setUsers(next);
-    try { await storage.set('jb_users', JSON.stringify(next)); } catch {}
-  }
-
   async function handleAdminSetup(pass) {
     setBusy(true);
-    try { await storage.set('jb_admin_pass', pass); } catch {}
+    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch {}
     setAdminPass(pass);
     setBusy(false);
     setAdminAuthed(true);
@@ -756,8 +733,8 @@ export default function App() {
     setBusy(true);
     let data = null;
     try {
-      const r = await storage.get(`jb_student_${u.username}`);
-      data = r ? JSON.parse(r.value) : null;
+      const { data: row } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', u.username).maybeSingle();
+      data = row ? { form: row.form, mealPlan: row.meal_plan } : null;
     } catch {}
     setCurrentUser(u.username);
     setForm(data?.form || EMPTY_FORM);
@@ -775,7 +752,9 @@ export default function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await storage.set(`jb_student_${currentUser}`, JSON.stringify({ form, mealPlan }));
+        await supabase.from('datos_alumnos').upsert({
+          username: currentUser, form, meal_plan: mealPlan, updated_at: new Date().toISOString(),
+        });
       } catch {}
       setSaving(false);
     }, 700);
@@ -787,18 +766,27 @@ export default function App() {
     setViewingStudent(username);
     setViewingStudentData(null);
     try {
-      const r = await storage.get(`jb_student_${username}`);
-      setViewingStudentData(r ? JSON.parse(r.value) : {});
+      const { data } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', username).maybeSingle();
+      setViewingStudentData(data ? { form: data.form, mealPlan: data.meal_plan } : {});
     } catch { setViewingStudentData({}); }
   }
 
-  function addUser(u) { persistUsers([...users, u]); }
-  function toggleUser(username) {
-    persistUsers(users.map(u => u.username === username ? { ...u, enabled: !u.enabled } : u));
+  async function addUser(u) {
+    setUsers(prev => [...prev, u]);
+    try { await supabase.from('alumnos').insert({ username: u.username, password: u.password, enabled: true }); } catch {}
+  }
+  async function toggleUser(username) {
+    const target = users.find(u => u.username === username);
+    const nextEnabled = target ? !target.enabled : true;
+    setUsers(prev => prev.map(u => u.username === username ? { ...u, enabled: nextEnabled } : u));
+    try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch {}
   }
   async function deleteUser(username) {
-    persistUsers(users.filter(u => u.username !== username));
-    try { await storage.delete(`jb_student_${username}`); } catch {}
+    setUsers(prev => prev.filter(u => u.username !== username));
+    try {
+      await supabase.from('datos_alumnos').delete().eq('username', username);
+      await supabase.from('alumnos').delete().eq('username', username);
+    } catch {}
   }
 
   function logout() {

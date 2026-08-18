@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -104,7 +104,7 @@ const MEAL_NAMES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack / merienda'];
 const WHATSAPP_NUMBER = '51963760819';
 const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
-const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null };
+const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
 const EMPTY_MEALS = () => ({ Desayuno: [], Almuerzo: [], Cena: [], 'Snack / merienda': [] });
 const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS() });
 
@@ -767,6 +767,115 @@ function CalculatorTab({ form, setForm, results }) {
   );
 }
 
+function Dashboard({ form, setForm, results, mealPlan, targets }) {
+  const pesoActual = Number(form.peso) || 0;
+  const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
+  const pesoObjetivo = form.pesoObjetivo === null || form.pesoObjetivo === undefined || form.pesoObjetivo === '' ? null : Number(form.pesoObjetivo);
+
+  let progreso = null;
+  if (pesoInicial && pesoObjetivo && pesoInicial !== pesoObjetivo) {
+    progreso = ((pesoInicial - pesoActual) / (pesoInicial - pesoObjetivo)) * 100;
+    progreso = Math.max(Math.min(progreso, 100), 0);
+  }
+
+  const totalsHoy = { kcal: 0, protein: 0 };
+  Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+    const m = entryMacros(en);
+    totalsHoy.kcal += m.kcal; totalsHoy.protein += m.protein;
+  }));
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-4">COMPOSICIÓN CORPORAL</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Peso actual" value={pesoActual.toFixed(1) + ' kg'} />
+          <StatCard label="Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
+          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
+        <p className="jb-body text-xs text-zinc-500 mb-4">Registra tu punto de partida y tu meta para ver tu avance.</p>
+        <div className="grid sm:grid-cols-2 gap-3 mb-4">
+          <Field label="Peso inicial (kg)">
+            <input type="number" className={inputCls} value={form.pesoInicial ?? ''} placeholder={pesoActual || ''}
+              onChange={e => setForm(v => ({ ...v, pesoInicial: e.target.value === '' ? null : Number(e.target.value) }))} />
+          </Field>
+          <Field label="Peso objetivo (kg)">
+            <input type="number" className={inputCls} value={form.pesoObjetivo ?? ''} placeholder="Ej. 75"
+              onChange={e => setForm(v => ({ ...v, pesoObjetivo: e.target.value === '' ? null : Number(e.target.value) }))} />
+          </Field>
+        </div>
+        {progreso !== null ? (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="jb-body text-xs text-zinc-400">{pesoInicial} kg → {pesoObjetivo} kg</span>
+              <span className="jb-display text-lg text-orange-500">{Math.round(progreso)}%</span>
+            </div>
+            <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-full bg-orange-500 rounded-full" style={{ width: `${progreso}%` }} />
+            </div>
+            <p className="jb-body text-xs text-zinc-500 mt-2">
+              {progreso >= 100 ? '¡Llegaste a tu meta! Habla con tu entrenador para definir el siguiente paso.'
+                : `Te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg para tu meta.`}
+            </p>
+          </div>
+        ) : (
+          <p className="jb-body text-xs text-zinc-600">Completa ambos campos para ver tu progreso.</p>
+        )}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatCard label="Consumido hoy" value={Math.round(totalsHoy.kcal)} sub="kcal" />
+          <StatCard label="Objetivo diario" value={targets ? Math.round(targets.kcal) : mealPlan.targetKcal} sub="kcal" accent="text-amber-400" />
+          <StatCard label="Proteína hoy" value={Math.round(totalsHoy.protein) + ' g'} sub={targets ? `objetivo ${Math.round(targets.protein)} g` : ''} />
+        </div>
+        <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
+        <p className="jb-body text-xs text-zinc-600 mt-3">
+          Las tendencias semanales (promedios de varios días) estarán disponibles pronto, cuando la app empiece a guardar tu historial diario.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CalorieStatus({ consumed, target }) {
+  if (!target) return null;
+  const ratio = consumed / target;
+  let color, bg, border, text;
+  if (consumed === 0) {
+    return null;
+  } else if (ratio < 0.85) {
+    color = 'text-emerald-400'; bg = 'bg-emerald-950/40'; border = 'border-emerald-800/50';
+    text = 'Vas bien — aún tienes margen para tus próximas comidas.';
+  } else if (ratio <= 1.05) {
+    color = 'text-amber-400'; bg = 'bg-amber-950/40'; border = 'border-amber-800/50';
+    text = 'Ya casi llegas a tu objetivo del día.';
+  } else {
+    color = 'text-orange-400'; bg = 'bg-orange-950/30'; border = 'border-orange-800/40';
+    text = 'Pasaste tu objetivo de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.';
+  }
+  const pctFill = Math.min(ratio * 100, 100);
+  return (
+    <div className={`${bg} ${border} border rounded-xl p-3 mb-4`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`jb-display text-sm ${color}`}>{Math.round(consumed)} / {Math.round(target)} kcal</span>
+        <span className="jb-body text-[11px] text-zinc-400">{Math.round(ratio * 100)}%</span>
+      </div>
+      <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${ratio < 0.85 ? 'bg-emerald-500' : ratio <= 1.05 ? 'bg-amber-500' : 'bg-orange-500'}`}
+          style={{ width: `${pctFill}%` }} />
+      </div>
+      <p className="jb-body text-xs text-zinc-400 mt-2">{text}</p>
+    </div>
+  );
+}
+
 function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
@@ -905,6 +1014,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
 
       <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
         <h3 className="jb-display text-sm text-zinc-200 mb-3">TOTAL DEL DÍA VS. OBJETIVO</h3>
+        <CalorieStatus consumed={totals.kcal} target={mealPlan.targetKcal} />
         <div className="grid grid-cols-4 gap-3 text-center">
           {[
             ['Kcal', totals.kcal, mealPlan.targetKcal],
@@ -940,7 +1050,7 @@ function WhatsAppButton() {
 }
 
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving }) {
-  const [tab, setTab] = useState('calc');
+  const [tab, setTab] = useState('dash');
   const results = useMemo(() => calcAll({
     ...form,
     edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
@@ -958,7 +1068,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button onClick={() => setTab('dash')}
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <LayoutDashboard size={16} /> RESUMEN
+          </button>
           <button onClick={() => setTab('calc')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'calc' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <Dumbbell size={16} /> COMPOSICIÓN CORPORAL
@@ -979,6 +1093,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </div>
 
       <main className="max-w-4xl mx-auto px-6 pb-12">
+        {tab === 'dash' && <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />}
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}

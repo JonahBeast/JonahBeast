@@ -639,7 +639,7 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
 function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   return (
-    
+<a    
       href={url}
       target="_blank"
       rel="noopener noreferrer"

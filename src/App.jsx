@@ -470,8 +470,8 @@ function StudentDataModal({ username, data, onClose }) {
             <div className="grid grid-cols-2 gap-3 mb-5">
               <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
               <StatCard label="% Grasa" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-              <StatCard label="TMB" value={Math.round(results.tmb)} sub="kcal/día" />
-              <StatCard label="GET" value={Math.round(results.tdee)} sub="Gasto energético total · kcal/día" />
+                            <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día" />
+              <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" />
             </div>
             {totals && (
               <div className="border-t border-zinc-800 pt-4">
@@ -534,8 +534,8 @@ function CalculatorTab({ form, setForm, results }) {
           <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
           <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
           <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-          <StatCard label="TMB" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
-          <StatCard label="GET" value={Math.round(results.tdee)} sub="Gasto energético total · kcal/día con tu actividad" accent="text-amber-400" />
+                    <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
+                            <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día con tu actividad" accent="text-amber-400" />
           <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
           <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
         </div>

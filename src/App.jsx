@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -643,6 +643,18 @@ function StudentDataModal({ username, data, onClose }) {
 /* STUDENT DASHBOARD                                                    */
 /* ------------------------------------------------------------------ */
 
+function goalTargets(form, tdee) {
+  const goal = form.objetivo || '';
+  if (!goal) return null;
+  const defaultPct = GOALS[goal].pct;
+  const pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
+  const kcal = tdee * (1 + pct / 100);
+  const protein = (Number(form.peso) || 0) * 2;
+  const fat = (kcal * 0.25) / 9;
+  const carbs = Math.max((kcal - protein * 4 - fat * 9) / 4, 0);
+  return { goal, pct, kcal, protein, carbs, fat };
+}
+
 function GoalSelector({ form, setForm, tdee, peso }) {
   const goal = form.objetivo || '';
   const defaultPct = goal ? GOALS[goal].pct : 0;
@@ -652,13 +664,14 @@ function GoalSelector({ form, setForm, tdee, peso }) {
     setForm(v => ({ ...v, objetivo: g, ajustePct: GOALS[g].pct }));
   }
 
-  const targetKcal = tdee * (1 + pct / 100);
-  const proteinG = (Number(peso) || 0) * 2;
-  const fatG = (targetKcal * 0.25) / 9;
-  const carbsG = (targetKcal - proteinG * 4 - fatG * 9) / 4;
+  const t = goalTargets(form, tdee);
+  const targetKcal = t ? t.kcal : 0;
+  const proteinG = t ? t.protein : 0;
+  const fatG = t ? t.fat : 0;
+  const carbsG = t ? t.carbs : 0;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mt-2">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
       <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
 
@@ -750,14 +763,11 @@ function CalculatorTab({ form, setForm, results }) {
           <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
         </div>
       </div>
-      <div className="lg:col-span-2">
-        <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />
-      </div>
     </div>
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee }) {
+function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -785,10 +795,38 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
   }
 
+  function applyGoal() {
+    if (!targets || !targets.kcal) return;
+    setMealPlan(v => ({
+      ...v,
+      targetKcal: Math.round(targets.kcal),
+      macros: {
+        p: Math.round((targets.protein * 4 / targets.kcal) * 100) / 100,
+        c: Math.round((targets.carbs * 4 / targets.kcal) * 100) / 100,
+        f: Math.round((targets.fat * 9 / targets.kcal) * 100) / 100,
+      },
+    }));
+  }
+
+  const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <h2 className="jb-display text-base text-zinc-200 mb-4">OBJETIVO DIARIO</h2>
+        <h2 className="jb-display text-base text-zinc-200 mb-1">OBJETIVO DIARIO</h2>
+        {targets ? (
+          <p className="jb-body text-xs text-zinc-500 mb-4">
+            Tu objetivo es <span className="text-orange-500 font-semibold">{targets.goal}</span> · {Math.round(targets.kcal)} kcal · P {Math.round(targets.protein)}g · C {Math.round(targets.carbs)}g · G {Math.round(targets.fat)}g
+          </p>
+        ) : (
+          <p className="jb-body text-xs text-zinc-500 mb-4">Elige tu objetivo en la pestaña "Mi objetivo" para calcular estos valores automáticamente.</p>
+        )}
+        {goalMismatch && (
+          <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
+            <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+            <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
+          </div>
+        )}
         <div className="grid sm:grid-cols-5 gap-3 items-end">
           <Field label="Calorías objetivo (kcal)">
             <input type="number" className={inputCls} value={mealPlan.targetKcal}
@@ -806,11 +844,15 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
             <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
               onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
           </Field>
-          {tdee && (
-            <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
-              <Flame size={14} /> Usar mi GET ({Math.round(tdee)})
+          {targets ? (
+            <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
+              <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
             </button>
-          )}
+          ) : tdee ? (
+            <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
+              <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
+            </button>
+          ) : null}
         </div>
         {Math.abs(macroSum - 1) > 0.001 && (
           <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
@@ -921,6 +963,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'calc' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <Dumbbell size={16} /> COMPOSICIÓN CORPORAL
           </button>
+          <button onClick={() => setTab('goal')}
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'goal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <Target size={16} /> MI OBJETIVO
+          </button>
           <button onClick={() => setTab('meal')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'meal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <Salad size={16} /> PLAN DE ALIMENTACIÓN
@@ -933,9 +979,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </div>
 
       <main className="max-w-4xl mx-auto px-6 pb-12">
-        {tab === 'calc'
-          ? <CalculatorTab form={form} setForm={setForm} results={results} />
-          : <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} />}
+        {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
+        {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
       </main>
       <WhatsAppButton />
     </div>

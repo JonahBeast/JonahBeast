@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2 } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -89,6 +89,8 @@ const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
 const ACTIVITY_FACTORS = { Sedentario: 1.2, Ligero: 1.375, Moderado: 1.55, Intenso: 1.725, 'Muy intenso': 1.9 };
 const MEAL_NAMES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack / merienda'];
+const WHATSAPP_NUMBER = '51963760819';
+const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
 const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado' };
 const EMPTY_MEALS = () => ({ Desayuno: [], Almuerzo: [], Cena: [], 'Snack / merienda': [] });
@@ -439,7 +441,7 @@ function StudentDataModal({ username, data, onClose }) {
               <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
               <StatCard label="% Grasa" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
               <StatCard label="TMB" value={Math.round(results.tmb)} sub="kcal/día" />
-              <StatCard label="TDEE" value={Math.round(results.tdee)} sub="kcal/día" />
+              <StatCard label="GET" value={Math.round(results.tdee)} sub="Gasto energético total · kcal/día" />
             </div>
             {totals && (
               <div className="border-t border-zinc-800 pt-4">
@@ -503,7 +505,7 @@ function CalculatorTab({ form, setForm, results }) {
           <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
           <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
           <StatCard label="TMB" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
-          <StatCard label="TDEE" value={Math.round(results.tdee)} sub="kcal/día con tu actividad" accent="text-amber-400" />
+          <StatCard label="GET" value={Math.round(results.tdee)} sub="Gasto energético total · kcal/día con tu actividad" accent="text-amber-400" />
           <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
           <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
         </div>
@@ -567,7 +569,7 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
           </Field>
           {tdee && (
             <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
-              <Flame size={14} /> Usar mi TDEE ({Math.round(tdee)})
+              <Flame size={14} /> Usar mi GET ({Math.round(tdee)})
             </button>
           )}
         </div>
@@ -634,6 +636,21 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
   );
 }
 
+function WhatsAppButton() {
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  return (
+    
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Consultar por WhatsApp"
+      className="fixed bottom-6 right-6 z-50 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full p-4 shadow-lg shadow-emerald-500/20 flex items-center justify-center transition-transform hover:scale-105"
+    >
+      <MessageCircle size={26} strokeWidth={2.2} />
+    </a>
+  );
+}
+
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving }) {
   const [tab, setTab] = useState('calc');
   const results = useMemo(() => calcAll({
@@ -670,6 +687,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           ? <CalculatorTab form={form} setForm={setForm} results={results} />
           : <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} />}
       </main>
+      <WhatsAppButton />
     </div>
   );
 }

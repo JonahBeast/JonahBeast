@@ -178,10 +178,18 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, helpHref, children }) {
   return (
     <label className="flex flex-col gap-1.5 jb-body">
-      <span className="text-xs uppercase tracking-wider text-zinc-400">{label}</span>
+      <span className="text-xs uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+        {label}
+        {helpHref && (
+          <a href={helpHref} target="_blank" rel="noopener noreferrer"
+            className="text-orange-500 normal-case tracking-normal font-semibold text-[11px] underline hover:text-orange-400">
+            ¿Cómo medir?
+          </a>
+        )}
+      </span>
       {children}
     </label>
   );
@@ -339,6 +347,16 @@ function StudentAuth({ onBack, onLogin, busy }) {
 /* ADMIN DASHBOARD                                                     */
 /* ------------------------------------------------------------------ */
 
+function formatActivity(lastActivity) {
+  if (!lastActivity) return { text: 'Sin actividad', color: 'text-zinc-500', dot: 'bg-zinc-600' };
+  const days = Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24));
+  if (days < 1) return { text: 'Hoy', color: 'text-emerald-400', dot: 'bg-emerald-500' };
+  if (days === 1) return { text: 'Ayer', color: 'text-emerald-400', dot: 'bg-emerald-500' };
+  if (days < 7) return { text: `Hace ${days} días`, color: 'text-amber-400', dot: 'bg-amber-500' };
+  if (days < 30) return { text: `Hace ${days} días`, color: 'text-red-400', dot: 'bg-red-500' };
+  return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent }) {
   const [newUser, setNewUser] = useState({ username: '', password: '' });
   const [formErr, setFormErr] = useState('');
@@ -394,7 +412,19 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                     <div className={`w-2 h-2 rounded-full ${u.enabled ? 'bg-emerald-500' : 'bg-red-500'}`} />
                     <div>
                       <div className="text-zinc-100 font-medium">{u.username}</div>
-                      <div className="text-zinc-500 text-xs">{u.enabled ? 'Activo' : 'Deshabilitado'}</div>
+                      <div className="text-zinc-500 text-xs flex items-center gap-2">
+                        <span>{u.enabled ? 'Activo' : 'Deshabilitado'}</span>
+                        <span className="text-zinc-700">·</span>
+                        {(() => {
+                          const act = formatActivity(u.lastActivity);
+                          return (
+                            <span className={`flex items-center gap-1 ${act.color}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${act.dot}`} />
+                              {act.text}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -485,9 +515,9 @@ function CalculatorTab({ form, setForm, results }) {
           <Field label="Edad (años)"><input type="number" className={inputCls} {...num('edad')} /></Field>
           <Field label="Estatura (cm)"><input type="number" className={inputCls} {...num('estatura')} /></Field>
           <Field label="Peso (kg)"><input type="number" className={inputCls} {...num('peso')} /></Field>
-          <Field label="Cuello (cm)"><input type="number" className={inputCls} {...num('cuello')} /></Field>
-          <Field label="Cintura (cm)"><input type="number" className={inputCls} {...num('cintura')} /></Field>
-          <Field label="Cadera (cm)"><input type="number" className={inputCls} {...num('cadera')} /></Field>
+          <Field label="Cuello (cm)" helpHref="/guia-cuello.png"><input type="number" className={inputCls} {...num('cuello')} /></Field>
+          <Field label="Cintura (cm)" helpHref="/guia-cintura.png"><input type="number" className={inputCls} {...num('cintura')} /></Field>
+          <Field label="Cadera (cm)" helpHref="/guia-cadera.png"><input type="number" className={inputCls} {...num('cadera')} /></Field>
           <Field label="Actividad física">
             <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
               {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a}</option>)}
@@ -639,7 +669,7 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
 function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   return (
-<a    
+    <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
@@ -680,6 +710,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <Salad size={16} /> PLAN DE ALIMENTACIÓN
           </button>
         </div>
+        <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
+          <MessageCircle className="text-emerald-500 shrink-0" size={16} />
+          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escríbele a tu entrenador tocando el botón verde de WhatsApp, abajo a la derecha.</p>
+        </div>
       </div>
 
       <main className="max-w-4xl mx-auto px-6 pb-12">
@@ -716,13 +750,21 @@ export default function App() {
   useEffect(() => { init(); }, []);
 
   async function init() {
+    let usersList = [];
     try {
       const { data, error } = await supabase.from('alumnos').select('*').order('created_at');
       if (error) throw error;
-      setUsers((data || []).map(u => ({
-        username: u.username, password: u.password, enabled: u.enabled, createdAt: u.created_at,
-      })));
-    } catch { setUsers([]); }
+      usersList = (data || []).map(u => ({
+        username: u.username, password: u.password, enabled: u.enabled, createdAt: u.created_at, lastActivity: null,
+      }));
+    } catch { usersList = []; }
+    try {
+      const { data: activityData } = await supabase.from('datos_alumnos').select('username, updated_at');
+      const activityMap = {};
+      (activityData || []).forEach(a => { activityMap[a.username] = a.updated_at; });
+      usersList = usersList.map(u => ({ ...u, lastActivity: activityMap[u.username] || null }));
+    } catch {}
+    setUsers(usersList);
     try {
       const { data } = await supabase.from('config').select('value').eq('key', 'admin_password').maybeSingle();
       setAdminPass(data ? data.value : '');

@@ -88,11 +88,23 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
 const ACTIVITY_FACTORS = { Sedentario: 1.2, Ligero: 1.375, Moderado: 1.55, Intenso: 1.725, 'Muy intenso': 1.9 };
+const ACTIVITY_DESC = {
+  Sedentario: 'Poco o nada de actividad física',
+  Ligero: '1 a 2 días a la semana de actividad física',
+  Moderado: '3 a 5 días a la semana de actividad física',
+  Intenso: '6 a 7 días a la semana de actividad física',
+  'Muy intenso': '7 días a la semana + trabajo activo',
+};
+const GOALS = {
+  'Perder grasa': { emoji: '🔥', pct: -20, desc: 'Déficit calórico' },
+  'Mantener peso': { emoji: '⚖️', pct: 0, desc: 'Sin déficit ni superávit' },
+  'Ganar músculo': { emoji: '💪', pct: 10, desc: 'Superávit calórico' },
+};
 const MEAL_NAMES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack / merienda'];
 const WHATSAPP_NUMBER = '51963760819';
 const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
-const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado' };
+const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null };
 const EMPTY_MEALS = () => ({ Desayuno: [], Almuerzo: [], Cena: [], 'Snack / merienda': [] });
 const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS() });
 
@@ -155,6 +167,141 @@ function entryMacros(entry) {
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
+
+/* ------------------------------------------------------------------ */
+/* MOTOR DE RECOMENDACIONES — "¿Qué puedo comer?"                     */
+/* ------------------------------------------------------------------ */
+
+const GROUP_EMOJI = {
+  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
+  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
+};
+
+const PROTEIN_PICKS = ['Pollo pechuga', 'Bonito', 'Atún', 'Huevo de gallina', 'Carne de res (bistec)'];
+const CARB_PICKS = ['Arroz blanco', 'Papa', 'Camote', 'Quinua', 'Yuca'];
+
+function buildCombo(proteinFood, carbFood, remaining) {
+  const proteinTargetG = Math.max(remaining.protein, 15);
+  const carbTargetG = Math.max(remaining.carbs, 15);
+  let gP = proteinFood.protein > 0 ? (proteinTargetG / proteinFood.protein) * 100 : 100;
+  let gC = carbFood.carbs > 0 ? (carbTargetG / carbFood.carbs) * 100 : 100;
+  gP = Math.min(Math.max(gP, 60), 250);
+  gC = Math.min(Math.max(gC, 60), 300);
+  let kcal = (proteinFood.kcal * gP + carbFood.kcal * gC) / 100;
+  if (kcal > remaining.kcal * 1.05 && remaining.kcal > 0) {
+    const factor = remaining.kcal / kcal;
+    gP *= factor; gC *= factor; kcal *= factor;
+  }
+  const protein = (proteinFood.protein * gP + carbFood.protein * gC) / 100;
+  const carbs = (proteinFood.carbs * gP + carbFood.carbs * gC) / 100;
+  const fat = (proteinFood.fat * gP + carbFood.fat * gC) / 100;
+  const score = Math.abs(kcal - remaining.kcal) + Math.abs(protein - remaining.protein) * 2;
+  return {
+    id: `${proteinFood.key}__${carbFood.key}`,
+    emoji: GROUP_EMOJI[proteinFood.group] || '🍽️',
+    name: `${proteinFood.name} + ${carbFood.name}`,
+    items: [{ food: proteinFood, grams: Math.round(gP) }, { food: carbFood, grams: Math.round(gC) }],
+    kcal, protein, carbs, fat, score,
+  };
+}
+
+function generateCombos(remaining) {
+  if (remaining.kcal < 150) return [];
+  const proteins = FOODS.filter(f => PROTEIN_PICKS.includes(f.name) && (f.state.startsWith('Coci') || f.group === 'Huevos'));
+  const carbs = FOODS.filter(f => CARB_PICKS.includes(f.name) && f.state.startsWith('Coci'));
+  const combos = [];
+  proteins.forEach(p => carbs.forEach(c => combos.push(buildCombo(p, c, remaining))));
+  combos.sort((a, b) => a.score - b.score);
+  return combos.slice(0, 6);
+}
+
+function generateQuickOptions(remaining) {
+  if (remaining.kcal <= 0 || remaining.kcal > 400) return [];
+  return FOODS.filter(f => f.group === 'Frutas' || f.group === 'Lácteos').map(f => {
+    let grams = f.kcal > 0 ? (remaining.kcal / f.kcal) * 100 : 100;
+    grams = Math.min(Math.max(grams, 50), 300);
+    const kcal = (f.kcal * grams) / 100;
+    return {
+      id: f.key, emoji: GROUP_EMOJI[f.group] || '🍽️', name: f.name,
+      items: [{ food: f, grams: Math.round(grams) }],
+      kcal, protein: (f.protein * grams) / 100, carbs: (f.carbs * grams) / 100, fat: (f.fat * grams) / 100,
+    };
+  }).filter(o => o.kcal <= remaining.kcal * 1.1).slice(0, 3);
+}
+
+function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
+  const [open, setOpen] = useState(false);
+  const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
+  const [added, setAdded] = useState(null);
+
+  const combos = useMemo(() => generateCombos(remaining), [remaining]);
+  const quick = useMemo(() => generateQuickOptions(remaining), [remaining]);
+  const options = [...combos, ...quick];
+
+  function addToDay(option) {
+    setMealPlan(v => ({
+      ...v,
+      meals: {
+        ...v.meals,
+        [targetMeal]: [
+          ...v.meals[targetMeal],
+          ...option.items.map(it => ({ id: uid(), foodKey: it.food.key, grams: it.grams })),
+        ],
+      },
+    }));
+    setAdded(option.id);
+    setTimeout(() => { setAdded(null); setOpen(false); }, 900);
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
+      <button onClick={() => setOpen(v => !v)} className={btnPrimary + ' w-full text-base py-3'}>
+        🍽️ ¿Qué puedo comer?
+      </button>
+      {open && (
+        <div className="mt-4 flex flex-col gap-4">
+          {remaining.kcal <= 0 ? (
+            <p className="text-emerald-400 text-sm jb-body text-center py-4">🎉 Ya cubriste tu objetivo de calorías por hoy. ¡Bien hecho!</p>
+          ) : (
+            <>
+              <div className="text-center">
+                <span className="jb-display text-2xl text-orange-500">{Math.round(remaining.kcal)} kcal</span>
+                <p className="text-zinc-500 text-xs jb-body">disponibles · P {Math.round(remaining.protein)}g · C {Math.round(remaining.carbs)}g · G {Math.round(remaining.fat)}g</p>
+              </div>
+              <Field label="Agregar a">
+                <select value={targetMeal} onChange={e => setTargetMeal(e.target.value)} className={inputCls}>
+                  {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Field>
+              {options.length === 0 ? (
+                <p className="text-zinc-500 text-sm">Con tan pocas calorías disponibles, mejor espera a tu próxima comida.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {options.map(opt => (
+                    <div key={opt.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{opt.emoji}</span>
+                        <span className="jb-body text-sm text-zinc-100 font-medium">{opt.name}</span>
+                      </div>
+                      <div className="text-orange-500 jb-display text-lg">{Math.round(opt.kcal)} kcal</div>
+                      <div className="text-zinc-500 text-xs jb-body">P {Math.round(opt.protein)}g · C {Math.round(opt.carbs)}g · G {Math.round(opt.fat)}g</div>
+                      <div className="text-zinc-600 text-[11px] jb-body">
+                        {opt.items.map(it => `${it.grams}g ${it.food.name}`).join(' + ')}
+                      </div>
+                      <button onClick={() => addToDay(opt)} className={(added === opt.id ? 'bg-emerald-500 text-zinc-950' : btnGhost) + ' text-sm py-1.5 mt-1'}>
+                        {added === opt.id ? '✓ Agregado' : 'Agregar a mi día'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* SMALL UI PIECES                                                    */
@@ -470,7 +617,7 @@ function StudentDataModal({ username, data, onClose }) {
             <div className="grid grid-cols-2 gap-3 mb-5">
               <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
               <StatCard label="% Grasa" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-                            <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día" />
+              <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día" />
               <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" />
             </div>
             {totals && (
@@ -496,6 +643,65 @@ function StudentDataModal({ username, data, onClose }) {
 /* STUDENT DASHBOARD                                                    */
 /* ------------------------------------------------------------------ */
 
+function GoalSelector({ form, setForm, tdee, peso }) {
+  const goal = form.objetivo || '';
+  const defaultPct = goal ? GOALS[goal].pct : 0;
+  const pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
+
+  function pickGoal(g) {
+    setForm(v => ({ ...v, objetivo: g, ajustePct: GOALS[g].pct }));
+  }
+
+  const targetKcal = tdee * (1 + pct / 100);
+  const proteinG = (Number(peso) || 0) * 2;
+  const fatG = (targetKcal * 0.25) / 9;
+  const carbsG = (targetKcal - proteinG * 4 - fatG * 9) / 4;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mt-2">
+      <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
+      <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        {Object.entries(GOALS).map(([name, g]) => (
+          <button key={name} onClick={() => pickGoal(name)}
+            className={`rounded-xl p-4 text-left transition-colors border ${goal === name ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-950 border-zinc-800 hover:border-orange-500 text-zinc-100'}`}>
+            <div className="text-xl mb-1">{g.emoji}</div>
+            <div className="jb-display text-sm">{name.toUpperCase()}</div>
+            <div className={`jb-body text-[11px] mt-0.5 ${goal === name ? 'text-zinc-800' : 'text-zinc-500'}`}>{g.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {goal && (
+        <div className="mt-5 flex flex-col gap-4">
+          <div className="flex items-end gap-3 flex-wrap">
+            <Field label="Ajuste sobre mantenimiento (%)">
+              <input type="number" className={inputCls + ' w-32'} value={pct}
+                onChange={e => setForm(v => ({ ...v, ajustePct: e.target.value === '' ? 0 : Number(e.target.value) }))} />
+            </Field>
+            <p className="jb-body text-xs text-zinc-500 pb-2">
+              Recomendado: {GOALS[goal].pct > 0 ? '+' : ''}{GOALS[goal].pct}% · puedes ajustarlo
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label="Calorías objetivo" value={Math.round(targetKcal)} sub="kcal/día" accent="text-amber-400" />
+            <StatCard label="Proteína" value={Math.round(proteinG) + ' g'} sub="2 g por kg de peso" />
+            <StatCard label="Carbohidratos" value={Math.round(Math.max(carbsG, 0)) + ' g'} />
+            <StatCard label="Grasas" value={Math.round(fatG) + ' g'} sub="25% de las calorías" />
+          </div>
+
+          <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
+            <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+            <p className="text-amber-200 text-xs jb-body">Estos valores son una estimación de referencia, no una prescripción médica. Consúltalo con tu entrenador antes de aplicarlo.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CalculatorTab({ form, setForm, results }) {
   const num = (k) => ({
     value: form[k],
@@ -515,12 +721,12 @@ function CalculatorTab({ form, setForm, results }) {
           <Field label="Edad (años)"><input type="number" className={inputCls} {...num('edad')} /></Field>
           <Field label="Estatura (cm)"><input type="number" className={inputCls} {...num('estatura')} /></Field>
           <Field label="Peso (kg)"><input type="number" className={inputCls} {...num('peso')} /></Field>
-          <Field label="Cuello (cm)" helpHref="/guia-cuello.png"><input type="number" className={inputCls} {...num('cuello')} /></Field>
-          <Field label="Cintura (cm)" helpHref="/guia-cintura.png"><input type="number" className={inputCls} {...num('cintura')} /></Field>
-          <Field label="Cadera (cm)" helpHref="/guia-cadera.png"><input type="number" className={inputCls} {...num('cadera')} /></Field>
+          <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg"><input type="number" className={inputCls} {...num('cuello')} /></Field>
+          <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg"><input type="number" className={inputCls} {...num('cintura')} /></Field>
+          <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg"><input type="number" className={inputCls} {...num('cadera')} /></Field>
           <Field label="Actividad física">
             <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
-              {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a}</option>)}
+              {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
             </select>
           </Field>
         </div>
@@ -534,8 +740,8 @@ function CalculatorTab({ form, setForm, results }) {
           <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
           <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
           <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-                    <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
-                            <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día con tu actividad" accent="text-amber-400" />
+          <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
+          <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día con tu actividad" accent="text-amber-400" />
           <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
           <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
         </div>
@@ -543,6 +749,9 @@ function CalculatorTab({ form, setForm, results }) {
           <AlertTriangle className="text-amber-500 shrink-0" size={16} />
           <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
         </div>
+      </div>
+      <div className="lg:col-span-2">
+        <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />
       </div>
     </div>
   );
@@ -607,6 +816,13 @@ function MealTab({ mealPlan, setMealPlan, tdee }) {
           <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
         )}
       </div>
+
+      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} remaining={{
+        kcal: mealPlan.targetKcal - totals.kcal,
+        protein: objP - totals.protein,
+        carbs: objC - totals.carbs,
+        fat: objF - totals.fat,
+      }} />
 
       {MEAL_NAMES.map(meal => (
         <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">

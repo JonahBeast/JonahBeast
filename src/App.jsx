@@ -185,6 +185,13 @@ const GOALS = {
   'Ganar músculo': { emoji: '💪', pct: 10, desc: 'Superávit calórico' },
 };
 const MEAL_NAMES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack / merienda'];
+
+const ANGULOS = [
+  { id: 'frente', label: 'De frente', emoji: '🧍', tip: 'Brazos relajados a los costados, mirando a la cámara' },
+  { id: 'perfil', label: 'De perfil', emoji: '🧍‍♂️', tip: 'De lado, brazos relajados, mirando al frente' },
+  { id: 'espalda', label: 'De espalda', emoji: '🔙', tip: 'Dando la espalda, brazos relajados' },
+  { id: 'relajado', label: 'Libre', emoji: '💪', tip: 'La pose que quieras usar para comparar' },
+];
 const WHATSAPP_NUMBER = '51963760819';
 const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
@@ -1321,59 +1328,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   );
 }
 
-function FotosDelAlumno({ username }) {
-  const [porFecha, setPorFecha] = useState([]);
-  const [urls, setUrls] = useState({});
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => { cargar(); }, [username]);
-
-  async function cargar() {
-    try {
-      const { data } = await supabase.from('fotos_progreso').select('*')
-        .eq('username', username).order('fecha', { ascending: false });
-      const filas = data || [];
-      const g = {};
-      filas.forEach(f => { (g[f.fecha] = g[f.fecha] || []).push(f); });
-      setPorFecha(Object.entries(g).sort((a, b) => b[0].localeCompare(a[0])));
-      const mapa = {};
-      for (const f of filas) {
-        const { data: signed } = await supabase.storage.from('progreso').createSignedUrl(f.ruta, 3600);
-        if (signed) mapa[f.id] = signed.signedUrl;
-      }
-      setUrls(mapa);
-    } catch {}
-    setCargando(false);
-  }
-
-  if (cargando) return <Loader2 className="animate-spin text-orange-500 mx-auto" size={20} />;
-  if (!porFecha.length) return <p className="text-zinc-600 text-xs italic">Este alumno aún no ha subido fotos.</p>;
-
-  return (
-    <div className="flex flex-col gap-4">
-      {porFecha.map(([fecha, fotos]) => (
-        <div key={fecha}>
-          <p className="jb-body text-xs text-zinc-400 mb-2">
-            {new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}
-            {fotos[0].peso ? ` · ${fotos[0].peso} kg` : ''}
-            {fotos[0].grasa_pct ? ` · ${fotos[0].grasa_pct}% grasa` : ''}
-          </p>
-          <div className="grid grid-cols-4 gap-2">
-            {POSES.map(p => {
-              const f = fotos.find(x => x.pose === p.id);
-              return f && urls[f.id]
-                ? <a key={p.id} href={urls[f.id]} target="_blank" rel="noopener noreferrer">
-                    <img src={urls[f.id]} alt={p.label} className="w-full h-28 object-cover rounded-lg hover:opacity-80 transition-opacity" />
-                  </a>
-                : <div key={p.id} className="w-full h-28 bg-zinc-950 border border-zinc-800 rounded-lg" />;
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function StudentDataModal({ username, data, onClose }) {
   const results = useMemo(() => (data?.form ? calcAll(data.form) : null), [data]);
   const [fotos, setFotos] = useState([]);
@@ -1383,16 +1337,16 @@ function StudentDataModal({ username, data, onClose }) {
     (async () => {
       try {
         const { data: filas } = await supabase.from('fotos_progreso').select('*')
-          .eq('username', username).order('fecha', { ascending: false }).limit(40);
-        setFotos(filas || []);
-        const u = {};
-        for (const f of (filas || [])) {
-          try {
-            const { data: sg } = await supabase.storage.from('progreso').createSignedUrl(f.path, 3600);
-            if (sg) u[f.path] = sg.signedUrl;
-          } catch {}
+          .eq('username', username).order('fecha', { ascending: false }).limit(60);
+        const lista = filas || [];
+        setFotos(lista);
+        if (lista.length) {
+          const rutas = lista.map(f => f.ruta);
+          const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls(rutas, 3600);
+          const u = {};
+          (signed || []).forEach(s => { if (s.signedUrl) u[s.path] = s.signedUrl; });
+          setFotoUrls(u);
         }
-        setFotoUrls(u);
       } catch {}
     })();
   }, [username]);
@@ -1401,7 +1355,7 @@ function StudentDataModal({ username, data, onClose }) {
     const porFecha = {};
     fotos.forEach(f => {
       if (!porFecha[f.fecha]) porFecha[f.fecha] = { fecha: f.fecha, peso: f.peso, fotos: {} };
-      porFecha[f.fecha].fotos[f.tipo] = f;
+      porFecha[f.fecha].fotos[f.angulo] = f;
     });
     return Object.values(porFecha).sort((a, b) => b.fecha.localeCompare(a.fecha));
   }, [fotos]);
@@ -1511,15 +1465,15 @@ function StudentDataModal({ username, data, onClose }) {
                         {s2.peso && <span className="text-zinc-600"> · {s2.peso} kg</span>}
                       </p>
                       <div className="grid grid-cols-4 gap-2">
-                        {POSES.map(pose => {
-                          const f = s2.fotos[pose.id];
-                          return f && fotoUrls[f.path] ? (
-                            <a key={pose.id} href={fotoUrls[f.path]} target="_blank" rel="noopener noreferrer">
-                              <img src={fotoUrls[f.path]} alt={pose.nombre}
+                        {ANGULOS.map(a => {
+                          const f = s2.fotos[a.id];
+                          return f && fotoUrls[f.ruta] ? (
+                            <a key={a.id} href={fotoUrls[f.ruta]} target="_blank" rel="noopener noreferrer" title={a.label}>
+                              <img src={fotoUrls[f.ruta]} alt={a.label}
                                 className="w-full aspect-[3/4] object-cover rounded-lg hover:opacity-80 transition-opacity" />
                             </a>
                           ) : (
-                            <div key={pose.id} className="w-full aspect-[3/4] bg-zinc-950 rounded-lg" />
+                            <div key={a.id} className="w-full aspect-[3/4] bg-zinc-950 rounded-lg border border-zinc-800" />
                           );
                         })}
                       </div>
@@ -1529,10 +1483,6 @@ function StudentDataModal({ username, data, onClose }) {
               </div>
             )}
 
-            <div className="border-t border-zinc-800 pt-4 mt-4">
-              <h3 className="jb-display text-sm text-zinc-300 mb-3">📸 FOTOS DE PROGRESO</h3>
-              <FotosDelAlumno username={username} />
-            </div>
 
             {data.form?.pesoObjetivo && (
               <div className="border-t border-zinc-800 pt-4 mt-4">
@@ -1819,12 +1769,6 @@ function TrialBanner({ user }) {
 /* FOTOS DE PROGRESO                                                   */
 /* ------------------------------------------------------------------ */
 
-const ANGULOS = [
-  { id: 'frente', label: 'De frente', emoji: '🧍', tip: 'Brazos relajados a los costados, mirando a la cámara' },
-  { id: 'perfil', label: 'De perfil', emoji: '🧍‍♂️', tip: 'De lado, brazos relajados, mirando al frente' },
-  { id: 'espalda', label: 'De espalda', emoji: '🔙', tip: 'Dando la espalda, brazos relajados' },
-  { id: 'relajado', label: 'Libre', emoji: '💪', tip: 'La pose que quieras usar para comparar' },
-];
 
 /* Comprime la foto en el navegador antes de subirla:
    las fotos de celular pesan 3-8 MB y así bajan a ~200 KB */

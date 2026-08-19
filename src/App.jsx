@@ -705,44 +705,58 @@ function FreeCalculator({ onBack }) {
 }
 
 function TrialSignup({ onBack, onCreated }) {
-  const [f, setF] = useState({ nombre: '', usuario: '', password: '', password2: '', telefono: '' });
+  const [f, setF] = useState({ nombre: '', email: '', usuario: '', password: '', password2: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [aviso, setAviso] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    setErr('');
-    const user = f.usuario.trim().replace(/^@/, '');
+    setErr(''); setAviso('');
+    const user = f.usuario.trim().replace(/^@/, '').toLowerCase();
+    const email = f.email.trim().toLowerCase();
     if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
     if (!user) return setErr('Elige un nombre de usuario.');
-    if (/\s/.test(user)) return setErr('El usuario no puede tener espacios.');
-    if (f.password.length < 4) return setErr('La contraseña debe tener al menos 4 caracteres.');
+    if (/[^a-z0-9._-]/.test(user)) return setErr('El usuario solo puede tener letras, números, punto, guion o guion bajo.');
+    if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
     if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
 
     setBusy(true);
     try {
-      const { data: existe } = await supabase.from('alumnos').select('username').ilike('username', user).maybeSingle();
-      if (existe) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
+      const { data: tomado } = await supabase.from('profiles').select('username').ilike('username', user).maybeSingle();
+      if (tomado) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
     } catch {}
+
+    const { data, error } = await supabase.auth.signUp({
+      email, password: f.password,
+      options: { data: { username: user, nombre: f.nombre.trim() } },
+    });
+
+    if (error) {
+      setBusy(false);
+      if ((error.message || '').toLowerCase().includes('already registered'))
+        return setErr('Ese correo ya tiene una cuenta. Inicia sesión.');
+      return setErr('No se pudo crear tu cuenta: ' + error.message);
+    }
 
     const inicio = todayISO();
     const fin = new Date(); fin.setDate(fin.getDate() + TRIAL_DAYS);
     const finISO = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
-    const { hash, salt } = await hashPassword(f.password);
     try {
-      const { error } = await supabase.from('alumnos').insert({
-        username: user, password: '', pass_hash: hash, pass_salt: salt,
-        enabled: true, plan: 'trial',
-        nombre: f.nombre.trim(), telefono: f.telefono.trim().replace(/\s/g, '') || null,
-        fecha_inicio: inicio, fecha_vencimiento: finISO,
+      await supabase.from('alumnos').insert({
+        username: user, password: '', enabled: true, plan: 'trial',
+        nombre: f.nombre.trim(), fecha_inicio: inicio, fecha_vencimiento: finISO,
+        user_id: data.user ? data.user.id : null,
       });
-      if (error) throw error;
-    } catch (e) {
-      setBusy(false);
-      return setErr('No se pudo crear tu cuenta. Intenta de nuevo en un momento.');
-    }
+    } catch {}
+
     setBusy(false);
-    onCreated(user, f.password);
+    if (!data.session) {
+      setAviso('Revisa tu correo y confirma tu cuenta para entrar. Si no lo ves, mira en spam.');
+      return;
+    }
+    onCreated(user);
   }
 
   return (
@@ -763,28 +777,36 @@ function TrialSignup({ onBack, onCreated }) {
             ))}
           </div>
 
-          <form onSubmit={submit} className="flex flex-col gap-3">
-            <Field label="Tu nombre">
-              <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
-            </Field>
-            <Field label="Usuario (para entrar)">
-              <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
-            </Field>
-            <Field label="Contraseña">
-              <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} />
-            </Field>
-            <Field label="Repite tu contraseña">
-              <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
-            </Field>
-            <Field label="Celular (opcional)">
-              <input type="tel" inputMode="tel" value={f.telefono} onChange={e => setF(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
-            </Field>
-            {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
-            <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
-              {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
-            </button>
-            <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
-          </form>
+          {aviso ? (
+            <div className="text-center">
+              <MessageCircle className="text-emerald-400 mx-auto mb-3" size={32} />
+              <p className="jb-body text-sm text-zinc-200 mb-4">{aviso}</p>
+              <button onClick={onBack} className={btnGhost + ' w-full'}>Volver al inicio</button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="flex flex-col gap-3">
+              <Field label="Tu nombre">
+                <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+              </Field>
+              <Field label="Correo electrónico">
+                <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
+              </Field>
+              <Field label="Usuario (para entrar)">
+                <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+              </Field>
+              <Field label="Contraseña">
+                <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />
+              </Field>
+              <Field label="Repite tu contraseña">
+                <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
+              </Field>
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
+              </button>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -841,16 +863,29 @@ function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
 }
 
 function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  const [modo, setModo] = useState('login');
+  const [aviso, setAviso] = useState('');
 
   function submit(e) {
     e.preventDefault();
     setErr('');
     if (onClearExpired) onClearExpired();
-    if (!username || !password) return setErr('Completa usuario y contraseña.');
-    onLogin(username.trim(), password, setErr);
+    if (!email || !password) return setErr('Completa correo y contraseña.');
+    onLogin(email.trim().toLowerCase(), password, setErr);
+  }
+
+  async function recuperar(e) {
+    e.preventDefault();
+    setErr(''); setAviso('');
+    if (!email.trim()) return setErr('Escribe tu correo para enviarte el enlace.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: window.location.origin,
+    });
+    if (error) return setErr('No se pudo enviar el correo. Intenta de nuevo.');
+    setAviso('Te enviamos un enlace para crear una contraseña nueva. Revisa tu correo (y la carpeta de spam).');
   }
 
   if (expiredInfo) {
@@ -878,21 +913,39 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="jb-display text-xl text-zinc-50 mb-1">ACCESO ALUMNO</h2>
-          <p className="jb-body text-sm text-zinc-500 mb-5">Usa el usuario y contraseña que te dio tu entrenador.</p>
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label="Usuario">
-              <input value={username} onChange={e => setUsername(e.target.value)} className={inputCls} autoFocus />
-            </Field>
-            <Field label="Contraseña">
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
-            </Field>
-            {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
-            <button type="submit" disabled={busy} className={btnPrimary}>
-              {busy ? <Loader2 className="animate-spin" size={18} /> : 'Entrar'}
-            </button>
-            <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
-          </form>
+          <h2 className="jb-display text-xl text-zinc-50 mb-1">
+            {modo === 'login' ? 'ENTRAR A MI CUENTA' : 'RECUPERAR CONTRASEÑA'}
+          </h2>
+          <p className="jb-body text-sm text-zinc-500 mb-5">
+            {modo === 'login' ? 'Ingresa con el correo que registraste.' : 'Te enviaremos un enlace a tu correo.'}
+          </p>
+
+          {aviso ? (
+            <div className="text-center">
+              <p className="jb-body text-sm text-emerald-300 mb-4">{aviso}</p>
+              <button onClick={() => { setAviso(''); setModo('login'); }} className={btnGhost + ' w-full'}>Volver</button>
+            </div>
+          ) : (
+            <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
+              <Field label="Correo electrónico">
+                <input type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus placeholder="tucorreo@gmail.com" />
+              </Field>
+              {modo === 'login' && (
+                <Field label="Contraseña">
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                </Field>
+              )}
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busy} className={btnPrimary}>
+                {busy ? <Loader2 className="animate-spin" size={18} /> : (modo === 'login' ? 'Entrar' : 'Enviar enlace')}
+              </button>
+              <button type="button" onClick={() => { setModo(modo === 'login' ? 'recuperar' : 'login'); setErr(''); }}
+                className="jb-body text-xs text-orange-500 hover:text-orange-400">
+                {modo === 'login' ? '¿Olvidaste tu contraseña?' : '← Volver a iniciar sesión'}
+              </button>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300">← Volver</button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -2126,7 +2179,24 @@ export default function App() {
   const saveTimer = useRef(null);
   const skipNextSave = useRef(true);
 
-  useEffect(() => { init(); }, []);
+  useEffect(() => { init(); restoreSession(); }, []);
+
+  async function restoreSession() {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return;
+      const { data: p } = await supabase.from('profiles').select('username, role').eq('id', data.session.user.id).maybeSingle();
+      if (!p) return;
+      if (p.role === 'admin') { setAdminAuthed(true); setView('admin'); return; }
+      const { data: a } = await supabase.from('alumnos').select('*').eq('username', p.username).maybeSingle();
+      if (a) {
+        const u = { username: a.username, enabled: a.enabled, plan: a.plan || 'pago',
+          fechaInicio: a.fecha_inicio, fechaVencimiento: a.fecha_vencimiento };
+        if (!u.enabled || !membershipActive(u)) return;
+      }
+      await loadStudentSession(p.username);
+    } catch {}
+  }
 
   async function init() {
     let usersList = [];
@@ -2168,7 +2238,20 @@ export default function App() {
     else setErr('Contraseña incorrecta.');
   }
 
-  async function handleTrialCreated(username, password) {
+  async function loadStudentSession(username) {
+    let data = null;
+    try {
+      const { data: row } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', username).maybeSingle();
+      data = row ? { form: row.form, mealPlan: row.meal_plan } : null;
+    } catch {}
+    setCurrentUser(username);
+    setForm(data?.form || EMPTY_FORM);
+    setMealPlan(data?.mealPlan || EMPTY_MEALPLAN());
+    skipNextSave.current = true;
+    setView('student');
+  }
+
+  async function handleTrialCreated(username) {
     await init();
     setCurrentUser(username);
     setForm(EMPTY_FORM);
@@ -2177,48 +2260,59 @@ export default function App() {
     setView('student');
   }
 
-  async function handleStudentLogin(username, password, setErr) {
-    const u = users.find(x => x.username.toLowerCase() === username.toLowerCase());
-    if (!u) return setErr('Usuario o contraseña incorrectos.');
-
+  async function handleStudentLogin(email, password, setErr) {
     setBusy(true);
-    let ok = false;
-    if (u.passHash && u.passSalt) {
-      ok = await verifyPassword(password, u.passHash, u.passSalt);
-    } else if (u.password) {
-      // Cuentas antiguas: si acierta, migramos su contraseña a cifrada
-      ok = u.password === password;
-      if (ok) {
-        try {
-          const { hash, salt } = await hashPassword(password);
-          await supabase.from('alumnos').update({ pass_hash: hash, pass_salt: salt, password: '' }).eq('username', u.username);
-          setUsers(prev => prev.map(x => x.username === u.username ? { ...x, passHash: hash, passSalt: salt, password: '' } : x));
-        } catch {}
-      }
-    }
-    if (!ok) { setBusy(false); return setErr('Usuario o contraseña incorrectos.'); }
-    if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
-    if (!membershipActive(u)) {
-      if (u.plan === 'trial') {
-        const stats = await fetchTrialStats(u.username);
-        setBusy(false);
-        setExpiredInfo({ stats, nombre: u.nombre });
-        return;
-      }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
       setBusy(false);
-      return setErr('Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('email not confirmed'))
+        return setErr('Aún no confirmaste tu correo. Revisa tu bandeja (y spam).');
+      return setErr('Correo o contraseña incorrectos.');
     }
-    let data = null;
+
+    let perfil = null;
     try {
-      const { data: row } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', u.username).maybeSingle();
-      data = row ? { form: row.form, mealPlan: row.meal_plan } : null;
+      const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.user.id).maybeSingle();
+      perfil = p;
     } catch {}
-    setCurrentUser(u.username);
-    setForm(data?.form || EMPTY_FORM);
-    setMealPlan(data?.mealPlan || EMPTY_MEALPLAN());
-    skipNextSave.current = true;
+    if (!perfil) { setBusy(false); return setErr('No encontramos tu perfil. Escríbenos por WhatsApp.'); }
+
+    if (perfil.role === 'admin') {
+      setAdminAuthed(true);
+      setBusy(false);
+      await init();
+      setView('admin');
+      return;
+    }
+
+    let cuenta = null;
+    try {
+      const { data: a } = await supabase.from('alumnos').select('*').eq('username', perfil.username).maybeSingle();
+      cuenta = a;
+    } catch {}
+
+    if (cuenta) {
+      const u = {
+        username: cuenta.username, enabled: cuenta.enabled, plan: cuenta.plan || 'pago',
+        nombre: cuenta.nombre || perfil.nombre, fechaInicio: cuenta.fecha_inicio,
+        fechaVencimiento: cuenta.fecha_vencimiento,
+      };
+      if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
+      if (!membershipActive(u)) {
+        if (u.plan === 'trial') {
+          const stats = await fetchTrialStats(u.username);
+          setBusy(false);
+          setExpiredInfo({ stats, nombre: u.nombre });
+          return;
+        }
+        setBusy(false);
+        return setErr('Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
+      }
+    }
+
+    await loadStudentSession(perfil.username);
     setBusy(false);
-    setView('student');
   }
 
   // autosave student data (debounced)
@@ -2319,7 +2413,8 @@ export default function App() {
     } catch {}
   }
 
-  function logout() {
+  async function logout() {
+    try { await supabase.auth.signOut(); } catch {}
     setAdminAuthed(false);
     setCurrentUser(null);
     setForm(EMPTY_FORM);

@@ -862,6 +862,60 @@ function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
   );
 }
 
+function ResetPassword({ onDone }) {
+  const [pass, setPass] = useState('');
+  const [pass2, setPass2] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [listo, setListo] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setErr('');
+    if (pass.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
+    if (pass !== pass2) return setErr('Las contraseñas no coinciden.');
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pass });
+    setBusy(false);
+    if (error) return setErr('No se pudo cambiar la contraseña. Pide un enlace nuevo.');
+    setListo(true);
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
+      <div className="max-w-sm w-full">
+        <div className="mb-8"><Logo size="lg" /></div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          {listo ? (
+            <div className="text-center">
+              <h2 className="jb-display text-xl text-emerald-400 mb-2">¡LISTO!</h2>
+              <p className="jb-body text-sm text-zinc-400 mb-5">Tu contraseña quedó actualizada.</p>
+              <button onClick={onDone} className={btnPrimary + ' w-full py-3'}>Entrar a mi cuenta</button>
+            </div>
+          ) : (
+            <>
+              <h2 className="jb-display text-xl text-zinc-50 mb-1">CREA TU CONTRASEÑA NUEVA</h2>
+              <p className="jb-body text-sm text-zinc-500 mb-5">Elige una que recuerdes fácilmente.</p>
+              <form onSubmit={submit} className="flex flex-col gap-4">
+                <Field label="Contraseña nueva">
+                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus placeholder="Mínimo 6 caracteres" />
+                </Field>
+                <Field label="Repite la contraseña">
+                  <input type="password" value={pass2} onChange={e => setPass2(e.target.value)} className={inputCls} />
+                </Field>
+                {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+                <button type="submit" disabled={busy} className={btnPrimary + ' py-3'}>
+                  {busy ? <Loader2 className="animate-spin" size={18} /> : 'Guardar contraseña'}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -2179,7 +2233,16 @@ export default function App() {
   const saveTimer = useRef(null);
   const skipNextSave = useRef(true);
 
-  useEffect(() => { init(); restoreSession(); }, []);
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setView('resetPassword');
+    });
+    const hash = window.location.hash || '';
+    if (hash.includes('type=recovery')) setView('resetPassword');
+    init();
+    if (!hash.includes('type=recovery')) restoreSession();
+    return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
+  }, []);
 
   async function restoreSession() {
     try {
@@ -2430,6 +2493,7 @@ export default function App() {
   return (
     <>
       {FONT_STYLE}
+      {view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
       {view === 'landing' && <Landing onChoose={setView} />}
       {view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -1289,6 +1289,165 @@ function CalculatorTab({ form, setForm, results }) {
   );
 }
 
+function MiniChart({ points, color = '#f97316', suffix = '' }) {
+  if (!points || points.length < 2) return null;
+  const vals = points.map(p => p.v);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const w = 300, h = 80, pad = 4;
+  const coords = points.map((p, i) => {
+    const x = pad + (i / (points.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((p.v - min) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  });
+  const first = points[0].v, last = points[points.length - 1].v;
+  const delta = last - first;
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20">
+        <polyline points={coords.join(' ')} fill="none" stroke={color} strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round" />
+        {coords.map((c, i) => {
+          const [x, y] = c.split(',');
+          return <circle key={i} cx={x} cy={y} r="2.5" fill={color} />;
+        })}
+      </svg>
+      <div className="flex justify-between text-[11px] text-zinc-500 jb-body">
+        <span>{first.toFixed(1)}{suffix}</span>
+        <span className={delta === 0 ? 'text-zinc-500' : delta < 0 ? 'text-emerald-400' : 'text-amber-400'}>
+          {delta > 0 ? '+' : ''}{delta.toFixed(1)}{suffix}
+        </span>
+        <span>{last.toFixed(1)}{suffix}</span>
+      </div>
+    </div>
+  );
+}
+
+function ProgressTab({ username }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rango, setRango] = useState(30);
+
+  useEffect(() => { load(); }, [username]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('historial').select('*')
+        .eq('username', username).order('fecha', { ascending: true }).limit(365);
+      setRows(data || []);
+    } catch { setRows([]); }
+    setLoading(false);
+  }
+
+  const filtrados = useMemo(() => {
+    const limite = new Date();
+    limite.setDate(limite.getDate() - rango);
+    return rows.filter(r => new Date(r.fecha + 'T00:00:00') >= limite);
+  }, [rows, rango]);
+
+  const stats = useMemo(() => {
+    if (!filtrados.length) return null;
+    const conComida = filtrados.filter(r => Number(r.kcal_consumidas) > 0);
+    const promKcal = conComida.length ? conComida.reduce((a, r) => a + Number(r.kcal_consumidas), 0) / conComida.length : 0;
+    const promProt = conComida.length ? conComida.reduce((a, r) => a + Number(r.proteina_g || 0), 0) / conComida.length : 0;
+    const objetivos = conComida.filter(r => Number(r.kcal_objetivo) > 0);
+    const promObj = objetivos.length ? objetivos.reduce((a, r) => a + Number(r.kcal_objetivo), 0) / objetivos.length : 0;
+    // Adherencia: días dentro del ±15% de su objetivo
+    const enRango = objetivos.filter(r => {
+      const ratio = Number(r.kcal_consumidas) / Number(r.kcal_objetivo);
+      return ratio >= 0.85 && ratio <= 1.15;
+    }).length;
+    const adherencia = objetivos.length ? (enRango / objetivos.length) * 100 : null;
+    return { promKcal, promProt, promObj, adherencia, diasRegistrados: conComida.length, totalDias: filtrados.length, enRango, objetivos: objetivos.length };
+  }, [filtrados]);
+
+  const serie = (campo) => filtrados
+    .filter(r => r[campo] !== null && r[campo] !== undefined)
+    .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
+
+  if (loading) {
+    return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-orange-500" size={28} /></div>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+        <TrendingUp className="text-zinc-700 mx-auto mb-3" size={40} />
+        <h2 className="jb-display text-lg text-zinc-200 mb-2">TU PROGRESO EMPIEZA HOY</h2>
+        <p className="jb-body text-sm text-zinc-500">
+          Cada vez que registres tu peso o tus comidas, se guarda automáticamente.
+          En unos días verás aquí tus tendencias y promedios.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex gap-2 flex-wrap">
+        {[7, 30, 90, 180, 365].map(d => (
+          <button key={d} onClick={() => setRango(d)}
+            className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${rango === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            {d === 7 ? '7 días' : d === 30 ? '30 días' : d === 90 ? '3 meses' : d === 180 ? '6 meses' : '1 año'}
+          </button>
+        ))}
+      </div>
+
+      {stats && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label="Promedio consumido" value={Math.round(stats.promKcal)} sub="kcal/día" />
+            <StatCard label="Objetivo promedio" value={Math.round(stats.promObj)} sub="kcal/día" accent="text-amber-400" />
+            <StatCard label="Proteína promedio" value={Math.round(stats.promProt) + ' g'} sub="al día" />
+            <StatCard label="Días registrados" value={stats.diasRegistrados} sub={`de ${stats.totalDias}`} />
+          </div>
+          {stats.adherencia !== null && (
+            <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="jb-body text-sm text-zinc-300">Adherencia a tu objetivo</span>
+                <span className="jb-display text-xl text-orange-500">{Math.round(stats.adherencia)}%</span>
+              </div>
+              <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${stats.adherencia}%` }} />
+              </div>
+              <p className="jb-body text-xs text-zinc-400 mt-2">
+                Estuviste cerca de tu objetivo en {stats.enRango} de {stats.objetivos} días registrados. ¡Eso es lo que construye resultados!
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        {[
+          ['peso', 'PESO', ' kg', '#f97316'],
+          ['grasa_pct', '% GRASA CORPORAL', '%', '#fbbf24'],
+          ['masa_muscular', 'MASA MUSCULAR', ' kg', '#34d399'],
+          ['kcal_consumidas', 'CALORÍAS DIARIAS', '', '#60a5fa'],
+        ].map(([campo, titulo, sufijo, color]) => {
+          const pts = serie(campo);
+          return (
+            <div key={campo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <h3 className="jb-display text-xs text-zinc-400 mb-2">{titulo}</h3>
+              {pts.length < 2 ? (
+                <p className="jb-body text-xs text-zinc-600 py-6 text-center">Necesitas al menos 2 días de registro.</p>
+              ) : (
+                <MiniChart points={pts} color={color} suffix={sufijo} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="jb-body text-xs text-zinc-600 text-center">
+        Tu historial se guarda solo cada vez que usas la app. Mientras más registres, más claro verás tu avance.
+      </p>
+    </div>
+  );
+}
+
 function Dashboard({ form, setForm, results, mealPlan, targets }) {
   const pesoActual = Number(form.peso) || 0;
   const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
@@ -1359,7 +1518,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
         </div>
         <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
         <p className="jb-body text-xs text-zinc-600 mt-3">
-          Las tendencias semanales (promedios de varios días) estarán disponibles pronto, cuando la app empiece a guardar tu historial diario.
+          Mira tus promedios y tendencias de varios días en la pestaña "Mi progreso".
         </p>
       </div>
     </div>
@@ -1619,6 +1778,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'meal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <Salad size={16} /> PLAN DE ALIMENTACIÓN
           </button>
+          <button onClick={() => setTab('progress')}
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'progress' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <TrendingUp size={16} /> MI PROGRESO
+          </button>
         </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
@@ -1631,6 +1794,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
+        {tab === 'progress' && <ProgressTab username={username} />}
       </main>
       <WhatsAppButton />
     </div>
@@ -1729,6 +1893,33 @@ export default function App() {
         await supabase.from('datos_alumnos').upsert({
           username: currentUser, form, meal_plan: mealPlan, updated_at: new Date().toISOString(),
         });
+      } catch {}
+      // Guardar foto del día para el historial de progreso
+      try {
+        const r = calcAll({
+          ...form,
+          edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
+          cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
+        });
+        const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+        Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+          const m = entryMacros(en);
+          t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
+        }));
+        await supabase.from('historial').upsert({
+          username: currentUser, fecha: todayISO(),
+          peso: Number(form.peso) || null,
+          grasa_pct: Number(r.bf.toFixed(1)),
+          masa_muscular: Number(r.muscleKg.toFixed(1)),
+          masa_magra: Number(r.leanKg.toFixed(1)),
+          imc: Number(r.bmi.toFixed(1)),
+          kcal_consumidas: Math.round(t.kcal),
+          proteina_g: Math.round(t.protein),
+          carbos_g: Math.round(t.carbs),
+          grasas_g: Math.round(t.fat),
+          kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'username,fecha' });
       } catch {}
       setSaving(false);
     }, 700);

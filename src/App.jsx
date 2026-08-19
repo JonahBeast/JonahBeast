@@ -1796,10 +1796,15 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 /* ------------------------------------------------------------------ */
 
 const PLANES = [
-  { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 180, badge: null },
-  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 460, badge: 'MÁS ELEGIDO' },
-  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 810, badge: 'MEJOR PRECIO' },
+  { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 29.90, badge: null },
+  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 79.90, badge: null },
+  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 149.90, badge: 'MÁS ELEGIDO' },
+  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 249.90, badge: 'MEJOR PRECIO' },
 ];
+
+function fmtS(n) {
+  return 'S/' + Number(n).toFixed(2);
+}
 
 const BENEFICIOS = [
   'Composición corporal completa y actualizada',
@@ -1893,7 +1898,7 @@ function PagosPanel({ onAprobado }) {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
           <div className="grid grid-cols-3 gap-3 mb-4">
             <StatCard label="Por revisar" value={pendientes.length} />
-            <StatCard label="Ingresos del mes" value={'S/' + ingresoMes.toFixed(0)} accent="text-emerald-400" />
+            <StatCard label="Ingresos del mes" value={fmtS(ingresoMes)} accent="text-emerald-400" />
             <StatCard label="Total pagos" value={pagos.filter(p => p.estado === 'aprobado').length} sub="aprobados" />
           </div>
 
@@ -1927,7 +1932,7 @@ function PagosPanel({ onAprobado }) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="jb-display text-xl text-orange-500">S/{Number(p.monto).toFixed(0)}</div>
+                      <div className="jb-display text-xl text-orange-500">{fmtS(p.monto)}</div>
                       <div className="text-zinc-500 text-xs jb-body">{p.plan_meses} mes(es)</div>
                     </div>
                   </div>
@@ -2073,7 +2078,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
           <div>
             <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
             <p className="jb-body text-xs text-amber-300/80 mt-0.5">
-              Recibimos tu comprobante por S/{Number(pendiente.monto).toFixed(0)} ({pendiente.plan_meses} mes(es)).
+              Recibimos tu comprobante por {fmtS(pendiente.monto)} ({pendiente.plan_meses} mes(es)).
               Lo confirmamos en menos de 24 horas y tu acceso se activa solo.
             </p>
           </div>
@@ -2087,7 +2092,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {PLANES.map(plan => {
               const precio = precioDe(plan);
               const porMes = precio / plan.meses;
@@ -2104,9 +2109,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                     </span>
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
-                  <div className="jb-display text-4xl text-orange-500 mb-0.5">S/{precio}</div>
+                  <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(precio)}</div>
                   <div className="jb-body text-xs text-zinc-500 mb-1">
-                    {plan.meses === 1 ? 'por mes' : `S/${Math.round(porMes)} por mes`}
+                    {plan.meses === 1 ? 'por mes' : `${fmtS(porMes)} por mes`}
                   </div>
                   {ahorro > 0 && (
                     <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>
@@ -2143,7 +2148,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5 text-center">
             <div className="jb-body text-xs text-zinc-500">Plan {seleccion.nombre}</div>
-            <div className="jb-display text-3xl text-orange-500 my-1">S/{precioDe(seleccion)}</div>
+            <div className="jb-display text-3xl text-orange-500 my-1">{fmtS(precioDe(seleccion))}</div>
             <div className="jb-body text-xs text-zinc-500">{seleccion.meses} mes(es) de acceso</div>
           </div>
 
@@ -2173,12 +2178,14 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             ) : (
               <div className="text-center">
                 <div className="jb-body text-xs text-zinc-500 mb-1">Número de {metodo}</div>
-                <div className="jb-display text-2xl text-zinc-50 tracking-wider">{datosPago.yape_numero}</div>
+                <div className="jb-display text-2xl text-zinc-50 tracking-wider">
+                  {metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero}
+                </div>
                 <div className="jb-body text-xs text-zinc-400 mt-1">{datosPago.yape_titular}</div>
               </div>
             )}
             <p className="jb-body text-xs text-zinc-600 mt-3 text-center">
-              Monto exacto: <span className="text-orange-500 font-semibold">S/{precioDe(seleccion)}</span>
+              Monto exacto: <span className="text-orange-500 font-semibold">{fmtS(precioDe(seleccion))}</span>
             </p>
           </div>
 
@@ -2220,7 +2227,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             {misPagos.map(p => (
               <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-2 flex-wrap">
                 <div>
-                  <div className="jb-body text-sm text-zinc-200">S/{Number(p.monto).toFixed(0)} · {p.plan_meses} mes(es)</div>
+                  <div className="jb-body text-sm text-zinc-200">{fmtS(p.monto)} · {p.plan_meses} mes(es)</div>
                   <div className="jb-body text-xs text-zinc-500">
                     {p.metodo} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
                   </div>

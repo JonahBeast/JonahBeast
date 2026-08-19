@@ -79,6 +79,54 @@ const RAW_FOODS = [
   ["Otros","Pan francés","-",274,9.1,55.5,1.7,2.3],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
+  ["Bebidas","Café negro","Con azúcar",15,0.3,3.4,0.0,0.0],
+  ["Bebidas","Café con leche","Con azúcar",58,2.2,7.2,2.2,0.0],
+  ["Bebidas","Té / infusión","Con azúcar",14,0.0,3.6,0.0,0.0],
+  ["Bebidas","Jugo de papaya","Con azúcar",58,0.5,14.3,0.2,0.8],
+  ["Bebidas","Jugo de piña","Con azúcar",66,0.4,16.5,0.1,0.3],
+  ["Bebidas","Jugo de naranja","Con azúcar",63,0.7,15.0,0.2,0.2],
+  ["Bebidas","Jugo de maracuyá","Con azúcar",70,0.6,17.1,0.2,0.4],
+  ["Bebidas","Jugo surtido","Con azúcar",63,0.6,15.4,0.2,0.6],
+  ["Bebidas","Limonada","Sin azúcar",8,0.1,2.1,0.0,0.1],
+  ["Bebidas","Emoliente","Con azúcar",26,0.1,6.5,0.0,0.0],
+  ["Bebidas","Avena / quinua de bebida","Con azúcar",68,1.8,13.5,0.9,0.9],
+  ["Bebidas","Chicha morada","Sin azúcar",18,0.1,4.5,0.0,0.1],
+  ["Pescados y mariscos","Atún en lata en agua (escurrido)","-",116,25.5,0.0,0.8,0.0],
+  ["Pescados y mariscos","Atún en lata en aceite (escurrido)","-",198,29.1,0.0,8.2,0.0],
+  ["Pescados y mariscos","Atún en lata en aceite (sin escurrir)","-",250,24.0,0.0,17.0,0.0],
+  ["Huevos","Clara de huevo","Cocida",52,10.9,0.7,0.2,0.0],
+  ["Huevos","Yema de huevo","Cocida",322,15.9,3.6,26.5,0.0],
+  ["Platos preparados","Ají de gallina","-",165,9.0,12.0,9.0,1.0],
+  ["Platos preparados","Arroz con pollo","-",150,8.0,19.0,4.5,1.2],
+  ["Platos preparados","Pollo a la brasa (con piel)","-",215,25.0,0.5,12.5,0.0],
+  ["Platos preparados","Pollada (pollo frito)","-",250,22.0,10.0,14.0,0.8],
+  ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
+  ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
+  ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
+  ["Platos preparados","Tallarines rojos con pollo","-",170,9.5,20.0,5.5,1.5],
+  ["Platos preparados","Tallarines verdes","-",185,8.0,22.0,7.5,1.8],
+  ["Platos preparados","Causa limeña","-",145,4.5,20.0,5.5,1.8],
+  ["Platos preparados","Papa a la huancaína","-",150,4.5,15.0,8.0,1.6],
+  ["Platos preparados","Ocopa arequipeña","-",160,5.0,15.0,9.0,1.8],
+  ["Platos preparados","Seco de res con frejoles","-",160,12.0,14.0,6.5,3.0],
+  ["Platos preparados","Cau cau","-",120,9.0,12.0,4.0,1.5],
+  ["Platos preparados","Tacu tacu","-",200,7.0,28.0,7.0,4.0],
+  ["Platos preparados","Rocoto relleno","-",180,8.0,14.0,10.0,1.8],
+  ["Platos preparados","Anticucho de corazón","-",150,20.0,3.0,6.5,0.3],
+  ["Platos preparados","Chicharrón de pollo","-",260,20.0,14.0,14.0,0.8],
+  ["Platos preparados","Milanesa de pollo","-",250,19.0,16.0,12.5,1.0],
+  ["Platos preparados","Pescado frito","-",200,22.0,7.0,9.5,0.4],
+  ["Platos preparados","Sudado de pescado","-",95,15.0,4.5,1.8,0.9],
+  ["Platos preparados","Escabeche de pollo","-",130,13.0,7.0,5.5,1.4],
+  ["Platos preparados","Salchipapa","-",270,8.0,28.0,14.0,2.5],
+  ["Platos preparados","Pollo al horno","-",190,26.0,1.0,9.0,0.2],
+  ["Platos preparados","Estofado de pollo","-",130,13.0,10.0,4.0,1.3],
+  ["Platos preparados","Aguadito de pollo","-",70,5.5,7.5,2.0,0.8],
+  ["Platos preparados","Caldo de gallina","-",65,6.5,5.0,2.2,0.4],
+  ["Platos preparados","Sopa a la minuta","-",80,5.0,8.5,2.8,0.6],
+  ["Platos preparados","Menestrón","-",90,4.5,11.0,3.0,2.2],
+  ["Platos preparados","Ensalada de pollo","-",110,12.0,6.0,4.5,1.8],
+  ["Platos preparados","Sándwich de pollo","-",230,14.0,26.0,8.0,1.6],
   ["Cereales","Fideos / pasta","Crudos",371,13.0,74.7,1.5,3.2],
   ["Cereales","Fideos / pasta","Cocidos",131,5.0,25.0,0.9,1.3],
   ["Cereales","Fideos integrales","Cocidos",124,5.3,26.5,0.5,3.9],
@@ -192,6 +240,16 @@ const UNITS_BY_NAME = {
   'Queque simple': [['tajada', 70], ['porción', 90]],
   'Chocolate con leche': [['barra pequeña', 40], ['cuadrito', 8]],
   'Galleta dulce rellena': [['unidad', 12], ['paquete', 43]],
+  'Clara de huevo': [['unidad', 33]],
+  'Yema de huevo': [['unidad', 17]],
+  'Atún en lata en agua (escurrido)': [['lata pequeña', 100], ['lata grande', 140]],
+  'Atún en lata en aceite (escurrido)': [['lata pequeña', 100], ['lata grande', 140]],
+  'Atún en lata en aceite (sin escurrir)': [['lata pequeña', 100], ['lata grande', 140]],
+  'Pollo a la brasa (con piel)': [['1/4 de pollo', 250], ['1/8 de pollo', 125], ['porción', 200]],
+  'Anticucho de corazón': [['palito', 80], ['porción (2 palitos)', 160]],
+  'Ceviche de pescado': [['porción', 250], ['plato', 300]],
+  'Salchipapa': [['porción', 300]],
+  'Sándwich de pollo': [['unidad', 150]],
 };
 const UNITS_BY_GROUP = {
   'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
@@ -199,6 +257,7 @@ const UNITS_BY_GROUP = {
   'Cereales': [['taza', 160]],
   'Menestras': [['taza', 180]],
   'Postres': [['porción', 150]],
+  'Platos preparados': [['plato', 400], ['media porción', 200], ['porción grande', 500]],
 };
 
 function unitsFor(food) {
@@ -2795,6 +2854,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
       <datalist id="jb-foods">
         {FOODS.map(f => <option key={f.key} value={f.key} />)}
       </datalist>
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
+        <AlertTriangle className="text-zinc-500 shrink-0" size={14} />
+        <p className="jb-body text-[11px] text-zinc-500">
+          Los platos preparados (ají de gallina, ceviche, pollo a la brasa…) son estimaciones promedio.
+          La receta de cada casa o restaurante puede variar. Úsalos como referencia, no como medida exacta.
+        </p>
+      </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">OBJETIVO DIARIO</h2>
         {targets ? (

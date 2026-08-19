@@ -79,6 +79,31 @@ const RAW_FOODS = [
   ["Otros","Pan francés","-",274,9.1,55.5,1.7,2.3],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
+  ["Cereales","Fideos / pasta","Crudos",371,13.0,74.7,1.5,3.2],
+  ["Cereales","Fideos / pasta","Cocidos",131,5.0,25.0,0.9,1.3],
+  ["Cereales","Fideos integrales","Cocidos",124,5.3,26.5,0.5,3.9],
+  ["Cereales","Tallarín saltado (plato)","-",168,8.5,22.0,5.0,1.5],
+  ["Bebidas","Jugo de papaya natural","-",40,0.5,9.8,0.2,0.8],
+  ["Bebidas","Jugo de piña natural","-",48,0.4,12.0,0.1,0.3],
+  ["Bebidas","Jugo de maracuyá natural","-",52,0.6,12.6,0.2,0.4],
+  ["Bebidas","Jugo de fresa natural","-",35,0.5,8.4,0.2,0.9],
+  ["Bebidas","Jugo surtido (papaya+piña+naranja)","-",45,0.6,10.9,0.2,0.6],
+  ["Bebidas","Limonada con azúcar","-",40,0.1,10.2,0.0,0.1],
+  ["Postres","Picarón","-",290,3.5,45.0,10.5,1.2],
+  ["Postres","Mazamorra morada","-",105,0.5,25.5,0.2,0.6],
+  ["Postres","Arroz con leche","-",130,2.8,24.0,2.6,0.3],
+  ["Postres","Combinado (mazamorra + arroz con leche)","-",118,1.7,24.8,1.4,0.5],
+  ["Postres","Suspiro a la limeña","-",330,5.5,52.0,11.0,0.0],
+  ["Postres","Turrón de Doña Pepa","-",395,4.0,68.0,12.0,1.5],
+  ["Postres","Alfajor","-",425,5.0,58.0,19.0,1.5],
+  ["Postres","Torta de chocolate","-",370,4.5,52.0,16.0,1.8],
+  ["Postres","Helado de vainilla","-",207,3.5,23.6,11.0,0.7],
+  ["Postres","Gelatina preparada","-",62,1.2,14.0,0.0,0.0],
+  ["Postres","Flan / crema volteada","-",190,4.5,28.0,6.5,0.0],
+  ["Postres","Churro relleno","-",380,5.0,48.0,18.5,1.5],
+  ["Postres","Queque simple","-",340,5.0,50.0,13.0,1.0],
+  ["Postres","Chocolate con leche","-",535,7.6,59.4,29.7,3.4],
+  ["Postres","Galleta dulce rellena","-",480,5.0,66.0,21.0,2.0],
   ["Bebidas","Café negro sin azúcar","-",2,0.3,0.0,0.0,0.0],
   ["Bebidas","Café con leche","-",42,2.2,3.3,2.2,0.0],
   ["Bebidas","Té / infusión sin azúcar","-",1,0.0,0.2,0.0,0.0],
@@ -149,12 +174,31 @@ const UNITS_BY_NAME = {
   'Queso fresco': [['tajada', 30]],
   'Queso parmesano': [['cucharada', 5]],
   'Jamón de pavo': [['tajada', 25]],
+  'Fideos / pasta': [['taza', 140], ['plato', 220]],
+  'Fideos integrales': [['taza', 140], ['plato', 220]],
+  'Tallarín saltado (plato)': [['plato', 350], ['porción', 250]],
+  'Picarón': [['unidad', 60], ['porción (3 unidades)', 180]],
+  'Mazamorra morada': [['porción', 200], ['taza', 240], ['vaso', 200]],
+  'Arroz con leche': [['porción', 180], ['taza', 240]],
+  'Combinado (mazamorra + arroz con leche)': [['porción', 250], ['vaso', 200]],
+  'Suspiro a la limeña': [['porción', 120], ['copa', 100]],
+  'Turrón de Doña Pepa': [['porción', 90], ['tajada', 70]],
+  'Alfajor': [['unidad', 40]],
+  'Torta de chocolate': [['tajada', 100], ['porción', 120]],
+  'Helado de vainilla': [['bola', 60], ['porción', 120], ['taza', 130]],
+  'Gelatina preparada': [['porción', 150], ['taza', 240]],
+  'Flan / crema volteada': [['porción', 130]],
+  'Churro relleno': [['unidad', 70]],
+  'Queque simple': [['tajada', 70], ['porción', 90]],
+  'Chocolate con leche': [['barra pequeña', 40], ['cuadrito', 8]],
+  'Galleta dulce rellena': [['unidad', 12], ['paquete', 43]],
 };
 const UNITS_BY_GROUP = {
   'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
   'Lácteos': [['taza', 240], ['vaso', 200]],
   'Cereales': [['taza', 160]],
   'Menestras': [['taza', 180]],
+  'Postres': [['porción', 150]],
 };
 
 function unitsFor(food) {
@@ -2170,7 +2214,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                   <div><span className="text-zinc-500">Banco:</span> {datosPago.banco_nombre}</div>
                   <div><span className="text-zinc-500">Cuenta:</span> {datosPago.banco_cuenta}</div>
                   {datosPago.banco_cci && <div><span className="text-zinc-500">CCI:</span> {datosPago.banco_cci}</div>}
-                  <div><span className="text-zinc-500">Titular:</span> {datosPago.yape_titular}</div>
+                  <div><span className="text-zinc-500">Titular:</span> {datosPago.banco_titular || datosPago.yape_titular}</div>
                 </div>
               ) : (
                 <p className="jb-body text-sm text-zinc-500">Escríbenos por WhatsApp para darte los datos bancarios.</p>
@@ -2181,7 +2225,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                 <div className="jb-display text-2xl text-zinc-50 tracking-wider">
                   {metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero}
                 </div>
-                <div className="jb-body text-xs text-zinc-400 mt-1">{datosPago.yape_titular}</div>
+                <div className="jb-body text-xs text-zinc-400 mt-1">
+                  {metodo === 'Plin' ? datosPago.plin_titular : datosPago.yape_titular}
+                </div>
               </div>
             )}
             <p className="jb-body text-xs text-zinc-600 mt-3 text-center">

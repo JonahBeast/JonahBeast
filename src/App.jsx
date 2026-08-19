@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -1321,8 +1321,90 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   );
 }
 
+function FotosDelAlumno({ username }) {
+  const [porFecha, setPorFecha] = useState([]);
+  const [urls, setUrls] = useState({});
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => { cargar(); }, [username]);
+
+  async function cargar() {
+    try {
+      const { data } = await supabase.from('fotos_progreso').select('*')
+        .eq('username', username).order('fecha', { ascending: false });
+      const filas = data || [];
+      const g = {};
+      filas.forEach(f => { (g[f.fecha] = g[f.fecha] || []).push(f); });
+      setPorFecha(Object.entries(g).sort((a, b) => b[0].localeCompare(a[0])));
+      const mapa = {};
+      for (const f of filas) {
+        const { data: signed } = await supabase.storage.from('progreso').createSignedUrl(f.ruta, 3600);
+        if (signed) mapa[f.id] = signed.signedUrl;
+      }
+      setUrls(mapa);
+    } catch {}
+    setCargando(false);
+  }
+
+  if (cargando) return <Loader2 className="animate-spin text-orange-500 mx-auto" size={20} />;
+  if (!porFecha.length) return <p className="text-zinc-600 text-xs italic">Este alumno aún no ha subido fotos.</p>;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {porFecha.map(([fecha, fotos]) => (
+        <div key={fecha}>
+          <p className="jb-body text-xs text-zinc-400 mb-2">
+            {new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}
+            {fotos[0].peso ? ` · ${fotos[0].peso} kg` : ''}
+            {fotos[0].grasa_pct ? ` · ${fotos[0].grasa_pct}% grasa` : ''}
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {POSES.map(p => {
+              const f = fotos.find(x => x.pose === p.id);
+              return f && urls[f.id]
+                ? <a key={p.id} href={urls[f.id]} target="_blank" rel="noopener noreferrer">
+                    <img src={urls[f.id]} alt={p.label} className="w-full h-28 object-cover rounded-lg hover:opacity-80 transition-opacity" />
+                  </a>
+                : <div key={p.id} className="w-full h-28 bg-zinc-950 border border-zinc-800 rounded-lg" />;
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StudentDataModal({ username, data, onClose }) {
   const results = useMemo(() => (data?.form ? calcAll(data.form) : null), [data]);
+  const [fotos, setFotos] = useState([]);
+  const [fotoUrls, setFotoUrls] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: filas } = await supabase.from('fotos_progreso').select('*')
+          .eq('username', username).order('fecha', { ascending: false }).limit(40);
+        setFotos(filas || []);
+        const u = {};
+        for (const f of (filas || [])) {
+          try {
+            const { data: sg } = await supabase.storage.from('progreso').createSignedUrl(f.path, 3600);
+            if (sg) u[f.path] = sg.signedUrl;
+          } catch {}
+        }
+        setFotoUrls(u);
+      } catch {}
+    })();
+  }, [username]);
+
+  const sesionesFotos = useMemo(() => {
+    const porFecha = {};
+    fotos.forEach(f => {
+      if (!porFecha[f.fecha]) porFecha[f.fecha] = { fecha: f.fecha, peso: f.peso, fotos: {} };
+      porFecha[f.fecha].fotos[f.tipo] = f;
+    });
+    return Object.values(porFecha).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }, [fotos]);
   const totals = useMemo(() => {
     if (!data?.mealPlan) return null;
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
@@ -1416,6 +1498,40 @@ function StudentDataModal({ username, data, onClose }) {
               {sinRegistrar && (
                 <p className="text-zinc-600 text-xs italic mt-2">Este alumno todavía no ha registrado ninguna comida.</p>
               )}
+            </div>
+
+            {sesionesFotos.length > 0 && (
+              <div className="border-t border-zinc-800 pt-4 mt-4">
+                <h3 className="jb-display text-sm text-zinc-300 mb-3">📸 FOTOS DE PROGRESO</h3>
+                <div className="flex flex-col gap-3">
+                  {sesionesFotos.slice(0, 4).map(s2 => (
+                    <div key={s2.fecha}>
+                      <p className="jb-body text-xs text-zinc-400 mb-1.5">
+                        {new Date(s2.fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        {s2.peso && <span className="text-zinc-600"> · {s2.peso} kg</span>}
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {POSES.map(pose => {
+                          const f = s2.fotos[pose.id];
+                          return f && fotoUrls[f.path] ? (
+                            <a key={pose.id} href={fotoUrls[f.path]} target="_blank" rel="noopener noreferrer">
+                              <img src={fotoUrls[f.path]} alt={pose.nombre}
+                                className="w-full aspect-[3/4] object-cover rounded-lg hover:opacity-80 transition-opacity" />
+                            </a>
+                          ) : (
+                            <div key={pose.id} className="w-full aspect-[3/4] bg-zinc-950 rounded-lg" />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-zinc-800 pt-4 mt-4">
+              <h3 className="jb-display text-sm text-zinc-300 mb-3">📸 FOTOS DE PROGRESO</h3>
+              <FotosDelAlumno username={username} />
             </div>
 
             {data.form?.pesoObjetivo && (
@@ -1698,36 +1814,255 @@ function TrialBanner({ user }) {
   );
 }
 
-function MiniChart({ points, color = '#f97316', suffix = '' }) {
-  if (!points || points.length < 2) return null;
-  const vals = points.map(p => p.v);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = max - min || 1;
-  const w = 300, h = 80, pad = 4;
-  const coords = points.map((p, i) => {
-    const x = pad + (i / (points.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((p.v - min) / range) * (h - pad * 2);
-    return `${x},${y}`;
+
+/* ------------------------------------------------------------------ */
+/* FOTOS DE PROGRESO                                                   */
+/* ------------------------------------------------------------------ */
+
+const ANGULOS = [
+  { id: 'frente', label: 'De frente', emoji: '🧍', tip: 'Brazos relajados a los costados, mirando a la cámara' },
+  { id: 'perfil', label: 'De perfil', emoji: '🧍‍♂️', tip: 'De lado, brazos relajados, mirando al frente' },
+  { id: 'espalda', label: 'De espalda', emoji: '🔙', tip: 'Dando la espalda, brazos relajados' },
+  { id: 'relajado', label: 'Libre', emoji: '💪', tip: 'La pose que quieras usar para comparar' },
+];
+
+/* Comprime la foto en el navegador antes de subirla:
+   las fotos de celular pesan 3-8 MB y así bajan a ~200 KB */
+function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer la foto'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Formato de imagen no compatible'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxLado) { height = height * (maxLado / width); width = maxLado; }
+        else if (height > maxLado) { width = width * (maxLado / height); height = maxLado; }
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width); canvas.height = Math.round(height);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo procesar la foto')), 'image/jpeg', calidad);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
   });
-  const first = points[0].v, last = points[points.length - 1].v;
-  const delta = last - first;
+}
+
+function PhotosTab({ username, pesoActual }) {
+  const [fotos, setFotos] = useState([]);
+  const [urls, setUrls] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [subiendo, setSubiendo] = useState(null);
+  const [err, setErr] = useState('');
+  const [verGrande, setVerGrande] = useState(null);
+  const [comparar, setComparar] = useState(false);
+
+  useEffect(() => { cargar(); }, [username]);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('fotos_progreso').select('*')
+        .eq('username', username).order('fecha', { ascending: false }).limit(200);
+      const lista = data || [];
+      setFotos(lista);
+      if (lista.length) {
+        const rutas = lista.map(f => f.ruta);
+        const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls(rutas, 3600);
+        const mapa = {};
+        (signed || []).forEach(s => { if (s.signedUrl) mapa[s.path] = s.signedUrl; });
+        setUrls(mapa);
+      }
+    } catch { setFotos([]); }
+    setLoading(false);
+  }
+
+  async function subir(angulo, file) {
+    if (!file) return;
+    setErr(''); setSubiendo(angulo);
+    try {
+      const blob = await comprimirImagen(file);
+      const hoy = todayISO();
+      const ruta = `${username}/${hoy}_${angulo}_${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage.from('fotos-progreso')
+        .upload(ruta, blob, { contentType: 'image/jpeg', upsert: false });
+      if (upErr) throw upErr;
+      await supabase.from('fotos_progreso').insert({
+        username, fecha: hoy, angulo, ruta, peso: Number(pesoActual) || null,
+      });
+      await cargar();
+    } catch (e) {
+      setErr('No se pudo subir la foto. Revisa tu conexión e intenta de nuevo.');
+    }
+    setSubiendo(null);
+  }
+
+  async function borrar(foto) {
+    if (!window.confirm('¿Borrar esta foto? No se puede recuperar.')) return;
+    try {
+      await supabase.storage.from('fotos-progreso').remove([foto.ruta]);
+      await supabase.from('fotos_progreso').delete().eq('id', foto.id);
+      await cargar();
+    } catch {}
+  }
+
+  const porFecha = useMemo(() => {
+    const m = {};
+    fotos.forEach(f => { (m[f.fecha] = m[f.fecha] || []).push(f); });
+    return Object.entries(m).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [fotos]);
+
+  const hoy = todayISO();
+  const deHoy = fotos.filter(f => f.fecha === hoy);
+  const faltantes = ANGULOS.filter(a => !deHoy.some(f => f.angulo === a.id));
+
+  function fmtFecha(f) {
+    const [y, m, d] = f.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
   return (
-    <div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20">
-        <polyline points={coords.join(' ')} fill="none" stroke={color} strokeWidth="2.5"
-          strokeLinecap="round" strokeLinejoin="round" />
-        {coords.map((c, i) => {
-          const [x, y] = c.split(',');
-          return <circle key={i} cx={x} cy={y} r="2.5" fill={color} />;
-        })}
-      </svg>
-      <div className="flex justify-between text-[11px] text-zinc-500 jb-body">
-        <span>{first.toFixed(1)}{suffix}</span>
-        <span className={delta === 0 ? 'text-zinc-500' : delta < 0 ? 'text-emerald-400' : 'text-amber-400'}>
-          {delta > 0 ? '+' : ''}{delta.toFixed(1)}{suffix}
-        </span>
-        <span>{last.toFixed(1)}{suffix}</span>
+    <div className="flex flex-col gap-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-1">📸 FOTOS DE HOY</h2>
+        <p className="jb-body text-xs text-zinc-500 mb-4">
+          Toma 4 fotos: de frente, de perfil, de espalda y una libre. La cámara de tu celular es suficiente.
+        </p>
+
+        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-4">
+          <p className="jb-body text-xs text-zinc-400 mb-2 font-semibold">Para que la comparación sirva:</p>
+          {['Misma ropa (ajustada o deportiva)', 'Mismo lugar y misma luz', 'A la misma hora, de preferencia en ayunas', 'Celular a la altura del pecho, a 2 pasos de distancia'].map(t => (
+            <div key={t} className="flex items-start gap-2 text-[11px] text-zinc-500 jb-body py-0.5">
+              <span className="text-orange-500 shrink-0">•</span> {t}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {ANGULOS.map(a => {
+            const ya = deHoy.find(f => f.angulo === a.id);
+            const cargando = subiendo === a.id;
+            return (
+              <div key={a.id}>
+                <label className={`block cursor-pointer rounded-xl border-2 border-dashed transition-colors overflow-hidden
+                  ${ya ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'}`}>
+                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={e => { subir(a.id, e.target.files[0]); e.target.value = ''; }} />
+                  <div className="aspect-[3/4] flex flex-col items-center justify-center p-2 text-center">
+                    {cargando ? (
+                      <Loader2 className="animate-spin text-orange-500" size={24} />
+                    ) : ya && urls[ya.ruta] ? (
+                      <img src={urls[ya.ruta]} alt={a.label} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <>
+                        <span className="text-2xl mb-1">{a.emoji}</span>
+                        <span className="jb-body text-xs text-zinc-300 font-medium">{a.label}</span>
+                        <span className="jb-body text-[10px] text-zinc-600 mt-1 leading-tight">{a.tip}</span>
+                      </>
+                    )}
+                  </div>
+                </label>
+                {ya && (
+                  <button onClick={() => borrar(ya)} className="jb-body text-[10px] text-zinc-600 hover:text-red-400 mt-1 w-full text-center">
+                    Volver a tomar
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {err && <p className="text-red-400 text-sm jb-body mt-3 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+
+        {faltantes.length === 0 && deHoy.length > 0 && (
+          <p className="jb-body text-sm text-emerald-400 mt-4 text-center">
+            ✓ Completaste tus 4 fotos de hoy. Repítelo cada 2 semanas para ver el cambio real.
+          </p>
+        )}
       </div>
+
+      {porFecha.length > 1 && (
+        <button onClick={() => setComparar(v => !v)} className={btnGhost + ' w-full py-3'}>
+          {comparar ? 'Ver todas mis fotos' : '🔄 Comparar primera vs. última'}
+        </button>
+      )}
+
+      {comparar && porFecha.length > 1 ? (
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
+          <h2 className="jb-display text-base text-zinc-200 mb-4">TU CAMBIO</h2>
+          {ANGULOS.map(a => {
+            const primera = porFecha[porFecha.length - 1][1].find(f => f.angulo === a.id);
+            const ultima = porFecha[0][1].find(f => f.angulo === a.id);
+            if (!primera || !ultima || primera.id === ultima.id) return null;
+            return (
+              <div key={a.id} className="mb-5">
+                <h3 className="jb-display text-xs text-orange-500 mb-2">{a.label.toUpperCase()}</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[[primera, 'Antes'], [ultima, 'Ahora']].map(([f, etiqueta]) => (
+                    <div key={f.id}>
+                      {urls[f.ruta] && (
+                        <img src={urls[f.ruta]} alt={etiqueta} onClick={() => setVerGrande(urls[f.ruta])}
+                          className="w-full aspect-[3/4] object-cover rounded-xl cursor-pointer" />
+                      )}
+                      <p className="jb-body text-[11px] text-zinc-400 mt-1 text-center">
+                        {etiqueta} · {fmtFecha(f.fecha)}{f.peso ? ` · ${f.peso} kg` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : loading ? (
+        <div className="flex justify-center py-8"><Loader2 className="animate-spin text-orange-500" size={28} /></div>
+      ) : porFecha.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+          <p className="jb-body text-sm text-zinc-500">
+            Aún no tienes fotos. Las de hoy serán tu punto de partida — en unas semanas vas a agradecer haberlas tomado.
+          </p>
+        </div>
+      ) : (
+        porFecha.map(([fecha, lista]) => (
+          <div key={fecha} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="jb-display text-sm text-zinc-300">{fmtFecha(fecha)}</h3>
+              {lista[0].peso && <span className="jb-body text-xs text-zinc-500">{lista[0].peso} kg</span>}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {ANGULOS.map(a => {
+                const f = lista.find(x => x.angulo === a.id);
+                return (
+                  <div key={a.id}>
+                    {f && urls[f.ruta] ? (
+                      <img src={urls[f.ruta]} alt={a.label} onClick={() => setVerGrande(urls[f.ruta])}
+                        className="w-full aspect-[3/4] object-cover rounded-lg cursor-pointer" />
+                    ) : (
+                      <div className="w-full aspect-[3/4] rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center">
+                        <span className="text-zinc-700 text-xs">—</span>
+                      </div>
+                    )}
+                    <p className="jb-body text-[10px] text-zinc-600 mt-1 text-center">{a.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
+
+      {verGrande && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" onClick={() => setVerGrande(null)}>
+          <img src={verGrande} alt="" className="max-w-full max-h-full object-contain rounded-xl" />
+          <button className="absolute top-4 right-4 text-white p-2"><X size={28} /></button>
+        </div>
+      )}
+
+      <p className="jb-body text-[11px] text-zinc-600 text-center">
+        Tus fotos son privadas. Solo tú y tu entrenador pueden verlas.
+      </p>
     </div>
   );
 }
@@ -2192,6 +2527,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'progress' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <TrendingUp size={16} /> MI PROGRESO
           </button>
+          <button onClick={() => setTab('photos')}
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'photos' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <Camera size={16} /> MIS FOTOS
+          </button>
         </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
@@ -2205,6 +2544,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
         {tab === 'progress' && <ProgressTab username={username} />}
+        {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
       </main>
       <WhatsAppButton />
     </div>

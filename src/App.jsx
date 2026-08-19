@@ -468,7 +468,24 @@ function Landing({ onChoose }) {
             <Dumbbell className="text-zinc-950" size={40} strokeWidth={2.5} />
           </div>
         </div>
-        <h1 className="jb-display text-6xl sm:text-7xl text-zinc-50 leading-none mb-3">JONAH BEAST</h1>
+        <h1 className="jb-display text-6xl sm:text-7xl text-zinc-50 leading-none mb-4">JONAH BEAST</h1>
+
+        <div className="relative mb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
+            <Flame className="text-orange-500 shrink-0" size={20} />
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
+          </div>
+          <h2 className="jb-display text-2xl sm:text-3xl text-orange-500 leading-tight my-3 px-2">
+            EL FITNESS NO TIENE<br className="sm:hidden" /> QUE SER COMPLICADO
+          </h2>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
+            <Dumbbell className="text-orange-500 shrink-0" size={20} />
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
+          </div>
+        </div>
+
         <p className="jb-body text-zinc-400 text-base mb-10">Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
 
         <div className="grid sm:grid-cols-2 gap-4">
@@ -1043,9 +1060,14 @@ function StudentDataModal({ username, data, onClose }) {
     return t;
   }, [data]);
 
+  const objetivoAlumno = data?.form?.objetivo || '';
+  const diffKcal = totals && data?.mealPlan ? totals.kcal - data.mealPlan.targetKcal : 0;
+  const sinRegistrar = !data?.mealPlan?.meals
+    || MEAL_NAMES.every(m => !(data.mealPlan.meals[m] || []).length);
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 jb-body" onClick={e => e.stopPropagation()}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto p-6 jb-body" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-xl text-zinc-50">{username}</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={20} /></button>
@@ -1069,7 +1091,67 @@ function StudentDataModal({ username, data, onClose }) {
                   <div><div className="text-orange-500 jb-display text-lg">{Math.round(totals.carbs)}</div><div className="text-zinc-500 text-xs">carb g</div></div>
                   <div><div className="text-orange-500 jb-display text-lg">{Math.round(totals.fat)}</div><div className="text-zinc-500 text-xs">grasa g</div></div>
                 </div>
-                <p className="text-zinc-500 text-xs mt-2">Objetivo: {data.mealPlan.targetKcal} kcal/día</p>
+                <p className="text-zinc-500 text-xs mt-2">
+                  Objetivo: {data.mealPlan.targetKcal} kcal/día
+                  {objetivoAlumno && ` · Meta: ${objetivoAlumno}`}
+                  {' · '}
+                  <span className={diffKcal > 0 ? 'text-amber-400' : 'text-emerald-400'}>
+                    {diffKcal > 0 ? '+' : ''}{Math.round(diffKcal)} kcal vs. objetivo
+                  </span>
+                </p>
+              </div>
+            )}
+
+            <div className="border-t border-zinc-800 pt-4 mt-4">
+              <h3 className="jb-display text-sm text-zinc-300 mb-3">QUÉ ESTÁ COMIENDO</h3>
+              {MEAL_NAMES.map(meal => {
+                const entries = (data.mealPlan?.meals?.[meal]) || [];
+                const mt = entries.reduce((acc, en) => {
+                  const m = entryMacros(en);
+                  return { kcal: acc.kcal + m.kcal, protein: acc.protein + m.protein };
+                }, { kcal: 0, protein: 0 });
+                return (
+                  <div key={meal} className="mb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="jb-display text-xs text-orange-500">{meal.toUpperCase()}</span>
+                      {entries.length > 0 && (
+                        <span className="text-zinc-500 text-xs">{Math.round(mt.kcal)} kcal · P {Math.round(mt.protein)}g</span>
+                      )}
+                    </div>
+                    {entries.length === 0 ? (
+                      <p className="text-zinc-600 text-xs italic">Sin registrar</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {entries.map(en => {
+                          const m = entryMacros(en);
+                          const food = FOODS.find(f => f.key === en.foodKey);
+                          const cant = en.unit ? `${en.qty} ${en.unit}` : `${en.grams} g`;
+                          return (
+                            <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 flex items-center justify-between gap-2 text-xs">
+                              <span className="text-zinc-200">{food ? food.name : en.foodKey} <span className="text-zinc-500">({cant})</span></span>
+                              <span className="text-zinc-400 shrink-0">
+                                {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {sinRegistrar && (
+                <p className="text-zinc-600 text-xs italic mt-2">Este alumno todavía no ha registrado ninguna comida.</p>
+              )}
+            </div>
+
+            {data.form?.pesoObjetivo && (
+              <div className="border-t border-zinc-800 pt-4 mt-4">
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">META DE PESO</h3>
+                <p className="text-zinc-400 text-sm">
+                  {data.form.pesoInicial ? `${data.form.pesoInicial} kg → ` : ''}
+                  <span className="text-zinc-100">{data.form.peso} kg</span> → {data.form.pesoObjetivo} kg objetivo
+                </p>
               </div>
             )}
           </>

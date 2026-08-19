@@ -840,7 +840,7 @@ function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
   );
 }
 
-function StudentAuth({ onBack, onLogin, busy }) {
+function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -848,8 +848,29 @@ function StudentAuth({ onBack, onLogin, busy }) {
   function submit(e) {
     e.preventDefault();
     setErr('');
+    if (onClearExpired) onClearExpired();
     if (!username || !password) return setErr('Completa usuario y contraseña.');
     onLogin(username.trim(), password, setErr);
+  }
+
+  if (expiredInfo) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10">
+        <div className="max-w-md w-full">
+          <div className="mb-6"><Logo size="lg" /></div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-4">
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">TU PRUEBA GRATIS TERMINÓ</h2>
+            <p className="jb-body text-sm text-zinc-400">
+              Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.
+            </p>
+          </div>
+          <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} />
+          <button onClick={onClearExpired} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4 w-full text-center">
+            ← Volver a intentar
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1434,38 +1455,137 @@ function CalculatorTab({ form, setForm, results }) {
   );
 }
 
-function TrialBanner({ user, stats }) {
+async function fetchTrialStats(username) {
+  try {
+    const { data } = await supabase.from('historial').select('*')
+      .eq('username', username).order('fecha', { ascending: true }).limit(60);
+    if (!data || !data.length) return null;
+    const conRegistro = data.filter(r => Number(r.alimentos_count) > 0 || Number(r.kcal_consumidas) > 0);
+    const comidas = data.reduce((a, r) => a + (Number(r.comidas_count) || 0), 0);
+    const alimentos = data.reduce((a, r) => a + (Number(r.alimentos_count) || 0), 0);
+    const objetivos = conRegistro.filter(r => Number(r.kcal_objetivo) > 0);
+    const enRango = objetivos.filter(r => {
+      const ratio = Number(r.kcal_consumidas) / Number(r.kcal_objetivo);
+      return ratio >= 0.85 && ratio <= 1.15;
+    }).length;
+    const adherencia = objetivos.length ? Math.round((enRango / objetivos.length) * 100) : null;
+    const pesos = data.filter(r => r.peso).map(r => Number(r.peso));
+    const grasas = data.filter(r => r.grasa_pct).map(r => Number(r.grasa_pct));
+    return {
+      dias: conRegistro.length,
+      comidas, alimentos, adherencia, enRango, totalObjetivos: objetivos.length,
+      deltaPeso: pesos.length >= 2 ? pesos[pesos.length - 1] - pesos[0] : null,
+      deltaGrasa: grasas.length >= 2 ? grasas[grasas.length - 1] - grasas[0] : null,
+    };
+  } catch { return null; }
+}
+
+function TrialSummary({ stats, nombre, compacto }) {
+  if (!stats) return null;
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    `Hola, terminé mi prueba en Jonah Beast. Registré ${stats.comidas} comidas${stats.adherencia !== null ? ` y cumplí mi objetivo el ${stats.adherencia}% de los días` : ''}. Quiero continuar, ¿cuáles son los planes?`)}`;
+
+  return (
+    <div className={`rounded-2xl border border-orange-500/50 bg-orange-950/30 ${compacto ? 'p-4' : 'p-6'}`}>
+      <h3 className={`jb-display text-orange-400 mb-3 ${compacto ? 'text-sm' : 'text-lg'}`}>
+        ESTO CONSTRUISTE {nombre ? `, ${nombre.split(' ')[0].toUpperCase()}` : ''}
+      </h3>
+
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-zinc-950/60 rounded-xl p-3 text-center">
+          <div className="jb-display text-2xl text-orange-500">{stats.comidas}</div>
+          <div className="jb-body text-[11px] text-zinc-400">comidas registradas</div>
+        </div>
+        <div className="bg-zinc-950/60 rounded-xl p-3 text-center">
+          <div className="jb-display text-2xl text-orange-500">{stats.dias}</div>
+          <div className="jb-body text-[11px] text-zinc-400">días de seguimiento</div>
+        </div>
+        <div className="bg-zinc-950/60 rounded-xl p-3 text-center">
+          <div className="jb-display text-2xl text-orange-500">
+            {stats.adherencia !== null ? stats.adherencia + '%' : '—'}
+          </div>
+          <div className="jb-body text-[11px] text-zinc-400">cumpliste tu objetivo</div>
+        </div>
+      </div>
+
+      {(stats.deltaPeso !== null || stats.deltaGrasa !== null) && (
+        <div className="flex gap-3 mb-4 flex-wrap">
+          {stats.deltaPeso !== null && Math.abs(stats.deltaPeso) >= 0.1 && (
+            <span className="jb-body text-xs text-zinc-300">
+              Peso: <span className={stats.deltaPeso < 0 ? 'text-emerald-400' : 'text-amber-400'}>
+                {stats.deltaPeso > 0 ? '+' : ''}{stats.deltaPeso.toFixed(1)} kg
+              </span>
+            </span>
+          )}
+          {stats.deltaGrasa !== null && Math.abs(stats.deltaGrasa) >= 0.1 && (
+            <span className="jb-body text-xs text-zinc-300">
+              Grasa corporal: <span className={stats.deltaGrasa < 0 ? 'text-emerald-400' : 'text-amber-400'}>
+                {stats.deltaGrasa > 0 ? '+' : ''}{stats.deltaGrasa.toFixed(1)}%
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+
+      <p className="jb-body text-sm text-zinc-300 mb-4">
+        {stats.adherencia !== null && stats.adherencia >= 70
+          ? `Cumpliste tu objetivo ${stats.enRango} de ${stats.totalObjetivos} días. Esa constancia es exactamente lo que cambia un cuerpo — y apenas empezaste.`
+          : stats.dias >= 3
+            ? `Ya conoces tus números y sabes qué comer. Lo difícil (empezar) ya lo hiciste.`
+            : `Tienes tus números y tu plan listos. Ahora viene la parte donde se ven los resultados.`}
+      </p>
+
+      <p className="jb-body text-xs text-zinc-400 mb-4">
+        Si continúas, conservas tu historial completo, tus gráficos de progreso y tus recomendaciones diarias. Si no, todo esto se queda aquí.
+      </p>
+
+      <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3'}>
+        <MessageCircle size={18} /> QUIERO CONTINUAR
+      </a>
+    </div>
+  );
+}
+
+function TrialBanner({ user }) {
   const dia = trialDayOf(user);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    if (dia && dia >= 5 && user) fetchTrialStats(user.username).then(setStats);
+  }, [dia, user?.username]);
+
   if (!dia) return null;
   const j = TRIAL_JOURNEY[dia];
   const restantes = TRIAL_DAYS - dia;
   const urgente = dia >= 6;
-  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, estoy en el día ${dia} de mi prueba gratis en Jonah Beast y quiero continuar. ¿Cuáles son los planes?`)}`;
 
   let texto = j.texto;
   if (dia === 5) {
     texto = stats && stats.adherencia !== null
-      ? `Vas al ${Math.round(stats.adherencia)}% de adherencia a tu objetivo. Sigue así y los resultados llegan solos.`
+      ? `Vas al ${stats.adherencia}% de adherencia a tu objetivo, con ${stats.comidas} comidas registradas. Sigue así y los resultados llegan solos.`
       : 'Entra a "Mi progreso" y mira cuánto has avanzado en estos días.';
   }
 
   return (
-    <div className={`rounded-2xl p-4 mb-6 border ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
-      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-        <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
-        <span className="jb-body text-xs text-zinc-500">
-          {restantes > 0 ? `${restantes} día(s) restantes` : 'Último día'}
-        </span>
+    <div className="mb-6">
+      <div className={`rounded-2xl p-4 border ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+          <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
+          <span className="jb-body text-xs text-zinc-500">
+            {restantes > 0 ? `${restantes} día(s) restantes` : 'Último día'}
+          </span>
+        </div>
+        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
+          <div className={`h-full rounded-full ${urgente ? 'bg-orange-500' : 'bg-emerald-500'}`}
+            style={{ width: `${(dia / TRIAL_DAYS) * 100}%` }} />
+        </div>
+        <p className="jb-body text-sm text-zinc-300">{texto}</p>
       </div>
-      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
-        <div className={`h-full rounded-full ${urgente ? 'bg-orange-500' : 'bg-emerald-500'}`}
-          style={{ width: `${(dia / TRIAL_DAYS) * 100}%` }} />
-      </div>
-      <p className="jb-body text-sm text-zinc-300">{texto}</p>
-      {j.cta && (
-        <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full mt-3 py-2.5'}>
-          <MessageCircle size={16} /> {j.cta}
-        </a>
+
+      {urgente && stats && (
+        <div className="mt-3">
+          <TrialSummary stats={stats} nombre={user.nombre} />
+        </div>
       )}
     </div>
   );
@@ -1943,7 +2063,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
-        <TrialBanner user={userRecord} stats={null} />
+        <TrialBanner user={userRecord} />
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setTab('dash')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -1996,6 +2116,7 @@ export default function App() {
   const [adminPass, setAdminPass] = useState('');
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [viewingStudent, setViewingStudent] = useState(null);
+  const [expiredInfo, setExpiredInfo] = useState(null);
   const [viewingStudentData, setViewingStudentData] = useState(null);
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -2078,10 +2199,14 @@ export default function App() {
     if (!ok) { setBusy(false); return setErr('Usuario o contraseña incorrectos.'); }
     if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
     if (!membershipActive(u)) {
+      if (u.plan === 'trial') {
+        const stats = await fetchTrialStats(u.username);
+        setBusy(false);
+        setExpiredInfo({ stats, nombre: u.nombre });
+        return;
+      }
       setBusy(false);
-      return setErr(u.plan === 'trial'
-        ? 'Tu prueba gratis de 7 días terminó. Escríbenos por WhatsApp para continuar y conservar todo tu historial.'
-        : 'Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
+      return setErr('Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
     }
     let data = null;
     try {
@@ -2116,10 +2241,16 @@ export default function App() {
           cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
         });
         const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-        Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
-          const m = entryMacros(en);
-          t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
-        }));
+        let comidas = 0, alimentos = 0;
+        Object.values(mealPlan.meals).forEach(entries => {
+          const conAlimento = entries.filter(en => en.foodKey);
+          if (conAlimento.length) comidas += 1;
+          alimentos += conAlimento.length;
+          entries.forEach(en => {
+            const m = entryMacros(en);
+            t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
+          });
+        });
         await supabase.from('historial').upsert({
           username: currentUser, fecha: todayISO(),
           peso: Number(form.peso) || null,
@@ -2132,6 +2263,8 @@ export default function App() {
           carbos_g: Math.round(t.carbs),
           grasas_g: Math.round(t.fat),
           kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
+          comidas_count: comidas,
+          alimentos_count: alimentos,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'username,fecha' });
       } catch {}
@@ -2214,7 +2347,8 @@ export default function App() {
           onSetup={handleAdminSetup} onLogin={handleAdminLogin} />
       )}
       {view === 'studentAuth' && (
-        <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin} />
+        <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}
+          expiredInfo={expiredInfo} onClearExpired={() => setExpiredInfo(null)} />
       )}
       {view === 'admin' && adminAuthed && (
         <>

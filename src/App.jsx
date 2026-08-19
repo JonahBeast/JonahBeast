@@ -507,6 +507,9 @@ function Landing({ onChoose }) {
 function FreeCalculator({ onBack }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [step, setStep] = useState('form');
+  const [gate, setGate] = useState({ usuario: '', red: 'Instagram', codigo: '' });
+  const [gateErr, setGateErr] = useState('');
+  const [checking, setChecking] = useState(false);
 
   const results = useMemo(() => calcAll({
     ...form,
@@ -515,6 +518,34 @@ function FreeCalculator({ onBack }) {
   }), [form]);
 
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, acabo de medir mi composición corporal en la web y quiero saber más sobre la asesoría.')}`;
+
+  async function unlock() {
+    setGateErr('');
+    const user = gate.usuario.trim().replace(/^@/, '');
+    if (!user) return setGateErr('Escribe tu usuario para continuar.');
+    if (!gate.codigo.trim()) return setGateErr('Ingresa el código que se compartió en el live.');
+    setChecking(true);
+    let valid = '';
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
+      valid = data ? data.value : '';
+    } catch {}
+    if (!valid || gate.codigo.trim().toUpperCase() !== valid.trim().toUpperCase()) {
+      setChecking(false);
+      return setGateErr('El código no es válido. Sígueme en Instagram o TikTok para obtenerlo.');
+    }
+    try {
+      await supabase.from('leads').insert({
+        usuario: user, red: gate.red, codigo: gate.codigo.trim().toUpperCase(),
+        sexo: form.sexo, edad: Number(form.edad) || null, peso: Number(form.peso) || null,
+        estatura: Number(form.estatura) || null,
+        grasa_pct: Number(results.bf.toFixed(1)), imc: Number(results.bmi.toFixed(1)),
+        tmb: Math.round(results.tmb), tdee: Math.round(results.tdee),
+      });
+    } catch {}
+    setChecking(false);
+    setStep('results');
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
@@ -568,9 +599,40 @@ function FreeCalculator({ onBack }) {
                 </select>
               </Field>
             </div>
-            <button onClick={() => setStep('results')} className={btnPrimary + ' w-full mt-5 py-3 text-base'}>
+            <button onClick={() => setStep('gate')} className={btnPrimary + ' w-full mt-5 py-3 text-base'}>
               VER MIS RESULTADOS
             </button>
+          </div>
+        ) : step === 'gate' ? (
+          <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full mx-auto">
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">🔓 ÚLTIMO PASO</h2>
+            <p className="jb-body text-sm text-zinc-400 mb-5">
+              Ingresa el código que comparto en mis lives y tu usuario para desbloquear tus resultados.
+            </p>
+            <div className="flex flex-col gap-4">
+              <Field label="¿Dónde me sigues?">
+                <select value={gate.red} onChange={e => setGate(v => ({ ...v, red: e.target.value }))} className={inputCls}>
+                  <option value="Instagram">Instagram</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="Ambos">Ambos</option>
+                </select>
+              </Field>
+              <Field label="Tu usuario">
+                <input value={gate.usuario} onChange={e => setGate(v => ({ ...v, usuario: e.target.value }))}
+                  className={inputCls} placeholder="@tuusuario" />
+              </Field>
+              <Field label="Código de acceso">
+                <input value={gate.codigo} onChange={e => setGate(v => ({ ...v, codigo: e.target.value }))}
+                  className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
+              </Field>
+              {gateErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{gateErr}</p>}
+              <button onClick={unlock} disabled={checking} className={btnPrimary + ' py-3 text-base'}>
+                {checking ? <Loader2 className="animate-spin" size={18} /> : 'DESBLOQUEAR MIS RESULTADOS'}
+              </button>
+              <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300">
+                ← Volver a mis datos
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -709,6 +771,93 @@ function formatActivity(lastActivity) {
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
 }
 
+function LeadsPanel() {
+  const [leads, setLeads] = useState([]);
+  const [code, setCode] = useState('');
+  const [savedCode, setSavedCode] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    try {
+      const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(100);
+      setLeads(data || []);
+    } catch { setLeads([]); }
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
+      const c = data ? data.value : '';
+      setCode(c); setSavedCode(c);
+    } catch {}
+    setLoading(false);
+  }
+
+  async function saveCode() {
+    const c = code.trim().toUpperCase();
+    if (!c) return;
+    try { await supabase.from('config').upsert({ key: 'access_code', value: c }); } catch {}
+    setCode(c); setSavedCode(c);
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">📏 CALCULADORA GRATIS · {leads.length} personas medidas</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓDIGO DE ACCESO</h3>
+            <p className="jb-body text-xs text-zinc-500 mb-3">Compártelo solo en tus lives o stories. Cámbialo cuando quieras.</p>
+            <div className="flex gap-2 items-end flex-wrap">
+              <input value={code} onChange={e => setCode(e.target.value)}
+                className={inputCls + ' uppercase w-40'} placeholder="Ej. BEAST" />
+              <button onClick={saveCode} disabled={code.trim().toUpperCase() === savedCode} className={btnPrimary + ' text-sm'}>
+                {code.trim().toUpperCase() === savedCode ? 'Guardado' : 'Guardar código'}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="jb-display text-sm text-zinc-300">PERSONAS QUE SE MIDIERON</h3>
+              <button onClick={load} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
+            </div>
+            {loading ? (
+              <Loader2 className="animate-spin text-orange-500" size={20} />
+            ) : leads.length === 0 ? (
+              <p className="text-zinc-500 text-sm">Aún nadie se ha medido con el código.</p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+                {leads.map(l => (
+                  <div key={l.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-zinc-100 text-sm font-medium">@{l.usuario}</div>
+                      <div className="text-zinc-500 text-xs">
+                        {l.red} · {new Date(l.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                      </div>
+                    </div>
+                    <div className="text-xs text-zinc-400 jb-body">
+                      {l.grasa_pct}% grasa · IMC {l.imc} · {l.tdee} kcal
+                    </div>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`Hola @${l.usuario}, vi que te mediste en Jonah Beast. ¿Quieres que revisemos tus resultados juntos?`)}`}
+                      target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
+                      <MessageCircle size={13} /> Contactar
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent }) {
   const [newUser, setNewUser] = useState({ username: '', password: '' });
   const [formErr, setFormErr] = useState('');
@@ -735,6 +884,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DEL ENTRENADOR</h1>
           <p className="text-zinc-500 text-sm">Crea, habilita o deshabilita el acceso de tus alumnos.</p>
         </div>
+
+        <LeadsPanel />
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4 flex items-center gap-2"><UserPlus size={18} className="text-orange-500" /> NUEVO ALUMNO</h2>

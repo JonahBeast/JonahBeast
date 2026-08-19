@@ -507,7 +507,7 @@ function Landing({ onChoose }) {
 function FreeCalculator({ onBack }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [step, setStep] = useState('form');
-  const [gate, setGate] = useState({ usuario: '', red: 'Instagram', codigo: '' });
+  const [gate, setGate] = useState({ usuario: '', red: 'Instagram', codigo: '', nombre: '', telefono: '', nacimiento: '' });
   const [gateErr, setGateErr] = useState('');
   const [checking, setChecking] = useState(false);
 
@@ -522,7 +522,9 @@ function FreeCalculator({ onBack }) {
   async function unlock() {
     setGateErr('');
     const user = gate.usuario.trim().replace(/^@/, '');
+    if (!gate.nombre.trim()) return setGateErr('Escribe tu nombre.');
     if (!user) return setGateErr('Escribe tu usuario para continuar.');
+    if (!gate.telefono.trim()) return setGateErr('Escribe tu número de celular.');
     if (!gate.codigo.trim()) return setGateErr('Ingresa el código que se compartió en el live.');
     setChecking(true);
     let valid = '';
@@ -536,7 +538,10 @@ function FreeCalculator({ onBack }) {
     }
     try {
       await supabase.from('leads').insert({
-        usuario: user, red: gate.red, codigo: gate.codigo.trim().toUpperCase(),
+        nombre: gate.nombre.trim(), usuario: user, red: gate.red,
+        telefono: gate.telefono.trim().replace(/\s/g, ''),
+        fecha_nacimiento: gate.nacimiento || null,
+        codigo: gate.codigo.trim().toUpperCase(),
         sexo: form.sexo, edad: Number(form.edad) || null, peso: Number(form.peso) || null,
         estatura: Number(form.estatura) || null,
         grasa_pct: Number(results.bf.toFixed(1)), imc: Number(results.bmi.toFixed(1)),
@@ -610,6 +615,10 @@ function FreeCalculator({ onBack }) {
               Ingresa el código que comparto en mis lives y tu usuario para desbloquear tus resultados.
             </p>
             <div className="flex flex-col gap-4">
+              <Field label="Tu nombre">
+                <input value={gate.nombre} onChange={e => setGate(v => ({ ...v, nombre: e.target.value }))}
+                  className={inputCls} placeholder="Ej. María" />
+              </Field>
               <Field label="¿Dónde me sigues?">
                 <select value={gate.red} onChange={e => setGate(v => ({ ...v, red: e.target.value }))} className={inputCls}>
                   <option value="Instagram">Instagram</option>
@@ -621,10 +630,23 @@ function FreeCalculator({ onBack }) {
                 <input value={gate.usuario} onChange={e => setGate(v => ({ ...v, usuario: e.target.value }))}
                   className={inputCls} placeholder="@tuusuario" />
               </Field>
+              <Field label="Celular (WhatsApp)">
+                <input type="tel" inputMode="tel" value={gate.telefono}
+                  onChange={e => setGate(v => ({ ...v, telefono: e.target.value }))}
+                  className={inputCls} placeholder="Ej. 999888777" />
+              </Field>
+              <Field label="Fecha de nacimiento (opcional)">
+                <input type="date" value={gate.nacimiento}
+                  onChange={e => setGate(v => ({ ...v, nacimiento: e.target.value }))}
+                  className={inputCls} />
+              </Field>
               <Field label="Código de acceso">
                 <input value={gate.codigo} onChange={e => setGate(v => ({ ...v, codigo: e.target.value }))}
                   className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
               </Field>
+              <p className="jb-body text-[11px] text-zinc-600">
+                Al continuar aceptas que Jonah Beast guarde estos datos para contactarte sobre la asesoría y enviarte saludos. Puedes pedir que los eliminemos cuando quieras.
+              </p>
               {gateErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{gateErr}</p>}
               <button onClick={unlock} disabled={checking} className={btnPrimary + ' py-3 text-base'}>
                 {checking ? <Loader2 className="animate-spin" size={18} /> : 'DESBLOQUEAR MIS RESULTADOS'}
@@ -771,12 +793,34 @@ function formatActivity(lastActivity) {
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
 }
 
+function birthdaysThisMonth(leads) {
+  const now = new Date();
+  const mes = now.getMonth();
+  const hoy = now.getDate();
+  return leads
+    .filter(l => l.fecha_nacimiento)
+    .map(l => {
+      const [y, m, d] = l.fecha_nacimiento.split('-').map(Number);
+      return { ...l, bMes: m - 1, bDia: d };
+    })
+    .filter(l => l.bMes === mes)
+    .sort((a, b) => a.bDia - b.bDia)
+    .map(l => ({ ...l, esHoy: l.bDia === hoy }));
+}
+
+function waLink(telefono, texto) {
+  const num = (telefono || '').replace(/\D/g, '');
+  const full = num.length <= 9 ? '51' + num : num;
+  return `https://wa.me/${full}?text=${encodeURIComponent(texto)}`;
+}
+
 function LeadsPanel() {
   const [leads, setLeads] = useState([]);
   const [code, setCode] = useState('');
   const [savedCode, setSavedCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [broadcast, setBroadcast] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -822,6 +866,53 @@ function LeadsPanel() {
           </div>
 
           <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">📣 SALUDO POR FESTIVIDAD</h3>
+            <p className="jb-body text-xs text-zinc-500 mb-3">
+              Escribe tu mensaje y abre el chat de cada persona con el texto ya listo. WhatsApp no permite envíos automáticos desde un número personal, así que se envía uno por uno.
+            </p>
+            <textarea value={broadcast} onChange={e => setBroadcast(e.target.value)}
+              className={inputCls + ' w-full h-20 resize-none'}
+              placeholder="Ej. ¡Feliz Navidad de parte de Jonah Beast! 🎄" />
+            {broadcast.trim() && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {leads.filter(l => l.telefono).map(l => (
+                  <a key={l.id} href={waLink(l.telefono, broadcast.replace('{nombre}', l.nombre || ''))}
+                    target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
+                    {l.nombre || '@' + l.usuario}
+                  </a>
+                ))}
+              </div>
+            )}
+            <p className="jb-body text-[11px] text-zinc-600 mt-2">Truco: escribe {'{nombre}'} en tu mensaje y se reemplaza por el nombre de cada persona.</p>
+          </div>
+
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">🎂 CUMPLEAÑOS DE ESTE MES</h3>
+            {birthdaysThisMonth(leads).length === 0 ? (
+              <p className="text-zinc-500 text-sm">Nadie cumple años este mes (o aún no registran su fecha).</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {birthdaysThisMonth(leads).map(l => (
+                  <div key={l.id} className={`border rounded-lg p-3 flex flex-wrap items-center justify-between gap-2 ${l.esHoy ? 'bg-orange-950/30 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
+                    <div>
+                      <div className="text-zinc-100 text-sm font-medium">
+                        {l.nombre || '@' + l.usuario} {l.esHoy && <span className="text-orange-400">· ¡HOY!</span>}
+                      </div>
+                      <div className="text-zinc-500 text-xs">Día {l.bDia} · @{l.usuario}</div>
+                    </div>
+                    {l.telefono && (
+                      <a href={waLink(l.telefono, `¡Feliz cumpleaños ${l.nombre || ''}! 🎉 De parte de todo Jonah Beast, que tengas un gran día. 💪`)}
+                        target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs'}>
+                        <MessageCircle size={13} /> Saludar
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="jb-display text-sm text-zinc-300">PERSONAS QUE SE MIDIERON</h3>
               <button onClick={load} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
@@ -835,15 +926,17 @@ function LeadsPanel() {
                 {leads.map(l => (
                   <div key={l.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-zinc-100 text-sm font-medium">@{l.usuario}</div>
+                      <div className="text-zinc-100 text-sm font-medium">{l.nombre ? `${l.nombre} · @${l.usuario}` : '@' + l.usuario}</div>
                       <div className="text-zinc-500 text-xs">
-                        {l.red} · {new Date(l.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                        {l.red}{l.telefono ? ` · ${l.telefono}` : ''} · {new Date(l.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
                       </div>
                     </div>
                     <div className="text-xs text-zinc-400 jb-body">
                       {l.grasa_pct}% grasa · IMC {l.imc} · {l.tdee} kcal
                     </div>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Hola @${l.usuario}, vi que te mediste en Jonah Beast. ¿Quieres que revisemos tus resultados juntos?`)}`}
+                    <a href={l.telefono
+                      ? waLink(l.telefono, `Hola ${l.nombre || ''}, vi que te mediste en Jonah Beast. ¿Quieres que revisemos tus resultados juntos?`)
+                      : `https://wa.me/?text=${encodeURIComponent(`Hola @${l.usuario}, vi que te mediste en Jonah Beast.`)}`}
                       target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
                       <MessageCircle size={13} /> Contactar
                     </a>

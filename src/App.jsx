@@ -489,6 +489,12 @@ function Landing({ onChoose }) {
             </div>
           </button>
         </div>
+
+        <button onClick={() => onChoose('free')}
+          className="mt-4 w-full group bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors">
+          <div className="jb-display text-lg text-zinc-950">📏 MIDE TU COMPOSICIÓN CORPORAL GRATIS</div>
+          <p className="jb-body text-sm text-zinc-800 mt-1">Sin registro · Resultados al instante</p>
+        </button>
       </div>
     </div>
   );
@@ -497,6 +503,112 @@ function Landing({ onChoose }) {
 /* ------------------------------------------------------------------ */
 /* AUTH SCREENS                                                        */
 /* ------------------------------------------------------------------ */
+
+function FreeCalculator({ onBack }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [step, setStep] = useState('form');
+
+  const results = useMemo(() => calcAll({
+    ...form,
+    edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
+    cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
+  }), [form]);
+
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, acabo de medir mi composición corporal en la web y quiero saber más sobre la asesoría.')}`;
+
+  return (
+    <div className="min-h-screen bg-zinc-950 jb-body">
+      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+        <Logo />
+        <button onClick={onBack} className={btnGhost + ' py-1.5 px-3 text-sm'}>← Volver</button>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
+        <div className="text-center">
+          <h1 className="jb-display text-3xl sm:text-4xl text-zinc-50 mb-2">MIDE TU COMPOSICIÓN CORPORAL</h1>
+          <p className="jb-body text-sm text-zinc-400">Gratis, sin registro. Solo necesitas una cinta métrica y una balanza.</p>
+        </div>
+
+        {step === 'form' ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Sexo">
+                <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls}>
+                  <option value="M">Hombre</option>
+                  <option value="F">Mujer</option>
+                </select>
+              </Field>
+              <Field label="Edad (años)">
+                <input type="number" inputMode="numeric" className={inputCls} value={form.edad}
+                  onChange={e => setForm(v => ({ ...v, edad: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Estatura (cm)">
+                <input type="number" inputMode="decimal" className={inputCls} value={form.estatura}
+                  onChange={e => setForm(v => ({ ...v, estatura: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Peso (kg)">
+                <input type="number" inputMode="decimal" className={inputCls} value={form.peso}
+                  onChange={e => setForm(v => ({ ...v, peso: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg">
+                <input type="number" inputMode="decimal" className={inputCls} value={form.cuello}
+                  onChange={e => setForm(v => ({ ...v, cuello: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg">
+                <input type="number" inputMode="decimal" className={inputCls} value={form.cintura}
+                  onChange={e => setForm(v => ({ ...v, cintura: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg">
+                <input type="number" inputMode="decimal" className={inputCls} value={form.cadera}
+                  onChange={e => setForm(v => ({ ...v, cadera: e.target.value === '' ? '' : Number(e.target.value) }))} />
+              </Field>
+              <Field label="Actividad física">
+                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
+                  {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
+                </select>
+              </Field>
+            </div>
+            <button onClick={() => setStep('results')} className={btnPrimary + ' w-full mt-5 py-3 text-base'}>
+              VER MIS RESULTADOS
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <StatCard label="% Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
+              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
+              <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
+              <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+              <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+              <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
+              <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
+              <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" accent="text-amber-400" />
+              <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
+            </div>
+
+            <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
+              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+              <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo. Estos valores son estimaciones de referencia, no un diagnóstico médico.</p>
+            </div>
+
+            <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
+              <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
+              <p className="jb-body text-sm text-zinc-400 mb-5">
+                Con la asesoría Jonah Beast recibes tu plan de alimentación con comida peruana, seguimiento de tu progreso y acompañamiento directo conmigo.
+              </p>
+              <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 text-base'}>
+                <MessageCircle size={18} /> QUIERO MI ASESORÍA
+              </a>
+              <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4">
+                ← Cambiar mis datos
+              </button>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
 
 function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
   const [pass, setPass] = useState('');
@@ -1088,22 +1200,27 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
                 const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 return (
-                  <div key={en.id} className="grid grid-cols-12 gap-2 items-center bg-zinc-950 border border-zinc-800 rounded-lg p-2">
+                  <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col sm:flex-row sm:items-center gap-2">
                     <input list="jb-foods" value={en.foodKey}
                       onChange={e => updateEntry(meal, en.id, { foodKey: e.target.value, unit: 'gramos', qty: currentQty || 100, grams: undefined })}
-                      className={inputCls + ' col-span-4 py-1.5'} placeholder="Escribe para buscar…" />
-                    <input type="number" value={currentQty}
-                      onChange={e => updateEntry(meal, en.id, { qty: e.target.value, unit: currentUnit, grams: undefined })}
-                      className={inputCls + ' col-span-2 py-1.5'} placeholder="Cant." />
-                    <select value={currentUnit}
-                      onChange={e => updateEntry(meal, en.id, { unit: e.target.value, qty: currentQty || 1, grams: undefined })}
-                      className={inputCls + ' col-span-2 py-1.5'}>
-                      {units.map(u => <option key={u[0]} value={u[0]}>{u[0]}</option>)}
-                    </select>
-                    <div className="col-span-3 text-xs text-zinc-400 jb-body text-center">
+                      className={inputCls + ' py-2 sm:flex-[3] min-w-0'} placeholder="Escribe para buscar…" />
+                    <div className="flex gap-2 items-center">
+                      <input type="number" inputMode="decimal" value={currentQty}
+                        onChange={e => updateEntry(meal, en.id, { qty: e.target.value, unit: currentUnit, grams: undefined })}
+                        className={inputCls + ' py-2 w-20 shrink-0'} placeholder="Cant." />
+                      <select value={currentUnit}
+                        onChange={e => updateEntry(meal, en.id, { unit: e.target.value, qty: currentQty || 1, grams: undefined })}
+                        className={inputCls + ' py-2 flex-1 sm:w-32 min-w-0'}>
+                        {units.map(u => <option key={u[0]} value={u[0]}>{u[0]}</option>)}
+                      </select>
+                      <button onClick={() => removeEntry(meal, en.id)}
+                        className="sm:hidden text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={18} /></button>
+                    </div>
+                    <div className="text-xs text-zinc-400 jb-body sm:flex-[2] sm:text-center">
                       {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
                     </div>
-                    <button onClick={() => removeEntry(meal, en.id)} className="col-span-1 text-zinc-600 hover:text-red-400 flex justify-center"><Trash2 size={15} /></button>
+                    <button onClick={() => removeEntry(meal, en.id)}
+                      className="hidden sm:flex text-zinc-600 hover:text-red-400 justify-center shrink-0"><Trash2 size={15} /></button>
                   </div>
                 );
               })}
@@ -1347,6 +1464,7 @@ export default function App() {
     <>
       {FONT_STYLE}
       {view === 'landing' && <Landing onChoose={setView} />}
+      {view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {view === 'adminAuth' && (
         <AdminAuth adminPassExists={!!adminPass} onBack={() => setView('landing')} busy={busy}
           onSetup={handleAdminSetup} onLogin={handleAdminLogin} />

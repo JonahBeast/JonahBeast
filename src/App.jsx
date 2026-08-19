@@ -79,6 +79,41 @@ const RAW_FOODS = [
   ["Otros","Pan francés","-",274,9.1,55.5,1.7,2.3],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
+  ["Bebidas","Café negro sin azúcar","-",2,0.3,0.0,0.0,0.0],
+  ["Bebidas","Café con leche","-",42,2.2,3.3,2.2,0.0],
+  ["Bebidas","Té / infusión sin azúcar","-",1,0.0,0.2,0.0,0.0],
+  ["Bebidas","Agua","-",0,0.0,0.0,0.0,0.0],
+  ["Bebidas","Jugo de naranja natural","-",45,0.7,10.4,0.2,0.2],
+  ["Bebidas","Gaseosa regular","-",42,0.0,10.6,0.0,0.0],
+  ["Bebidas","Gaseosa dietética","-",0,0.0,0.0,0.0,0.0],
+  ["Bebidas","Chicha morada con azúcar","-",55,0.1,13.8,0.0,0.1],
+  ["Bebidas","Emoliente sin azúcar","-",8,0.1,2.0,0.0,0.0],
+  ["Bebidas","Leche de almendras sin azúcar","-",15,0.6,0.6,1.2,0.3],
+  ["Bebidas","Yogur bebible","-",70,3.0,11.0,1.5,0.0],
+  ["Otros","Azúcar blanca","-",387,0.0,100.0,0.0,0.0],
+  ["Otros","Miel de abeja","-",304,0.3,82.4,0.0,0.2],
+  ["Otros","Mermelada","-",278,0.4,68.9,0.1,1.1],
+  ["Otros","Galleta de soda","-",421,9.5,71.0,10.6,2.6],
+  ["Otros","Avena instantánea en polvo","-",379,13.2,67.7,6.5,10.1],
+  ["Otros","Proteína en polvo (whey)","-",400,80.0,8.0,6.0,1.0],
+  ["Grasas","Aceite de oliva","-",884,0.0,0.0,100.0,0.0],
+  ["Grasas","Almendras","Crudas",579,21.2,21.6,49.9,12.5],
+  ["Grasas","Nueces","Crudas",654,15.2,13.7,65.2,6.7],
+  ["Frutas","Arándanos","Crudos",57,0.7,14.5,0.3,2.4],
+  ["Frutas","Sandía","Cruda",30,0.6,7.6,0.2,0.4],
+  ["Frutas","Melón","Crudo",34,0.8,8.2,0.2,0.9],
+  ["Frutas","Pera","Cruda",57,0.4,15.2,0.1,3.1],
+  ["Verduras","Pepino","Crudo",15,0.7,3.6,0.1,0.5],
+  ["Verduras","Pimiento","Crudo",31,1.0,6.0,0.3,2.1],
+  ["Verduras","Cebolla","Cruda",40,1.1,9.3,0.1,1.7],
+  ["Verduras","Apio","Crudo",16,0.7,3.0,0.2,1.6],
+  ["Carnes y aves","Pollo pierna (sin piel)","Cocida",177,24.2,0.0,8.1,0.0],
+  ["Carnes y aves","Pavo pechuga","Cocida",135,29.0,0.0,1.7,0.0],
+  ["Carnes y aves","Jamón de pavo","-",104,16.9,2.6,3.0,0.0],
+  ["Pescados","Trucha","Cocida",148,20.8,0.0,6.6,0.0],
+  ["Pescados","Langostinos","Cocidos",99,20.9,0.2,1.4,0.0],
+  ["Lácteos","Queso parmesano","-",392,35.8,3.2,25.8,0.0],
+  ["Lácteos","Yogur griego natural","-",59,10.0,3.6,0.4,0.0],
 ];
 
 const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fiber]) => ({
@@ -86,6 +121,55 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 }));
 
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
+
+/* Unidades caseras: cuántos gramos equivale cada medida.
+   Se resuelve por nombre exacto primero, luego por grupo. */
+const UNITS_BY_NAME = {
+  'Huevo de gallina': [['unidad', 50]],
+  'Plátano de seda': [['unidad', 120]],
+  'Manzana': [['unidad', 180]],
+  'Naranja': [['unidad', 150]],
+  'Pera': [['unidad', 170]],
+  'Palta': [['unidad', 200], ['mitad', 100]],
+  'Pan francés': [['unidad', 55]],
+  'Pan integral': [['rebanada', 30]],
+  'Galleta de soda': [['unidad', 6], ['paquete', 34]],
+  'Aceite vegetal': [['cucharada', 14], ['cucharadita', 5]],
+  'Aceite de oliva': [['cucharada', 14], ['cucharadita', 5]],
+  'Mantequilla': [['cucharada', 14], ['cucharadita', 5]],
+  'Azúcar blanca': [['cucharada', 12], ['cucharadita', 4]],
+  'Miel de abeja': [['cucharada', 21], ['cucharadita', 7]],
+  'Mermelada': [['cucharada', 20]],
+  'Maní': [['puñado', 30], ['cucharada', 16]],
+  'Almendras': [['puñado', 30], ['unidad', 1.2]],
+  'Nueces': [['puñado', 30], ['unidad', 5]],
+  'Chía': [['cucharada', 12], ['cucharadita', 4]],
+  'Proteína en polvo (whey)': [['scoop', 30], ['cucharada', 15]],
+  'Avena instantánea en polvo': [['cucharada', 9], ['taza', 80]],
+  'Queso fresco': [['tajada', 30]],
+  'Queso parmesano': [['cucharada', 5]],
+  'Jamón de pavo': [['tajada', 25]],
+};
+const UNITS_BY_GROUP = {
+  'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
+  'Lácteos': [['taza', 240], ['vaso', 200]],
+  'Cereales': [['taza', 160]],
+  'Menestras': [['taza', 180]],
+};
+
+function unitsFor(food) {
+  const list = [['gramos', 1]];
+  const byName = UNITS_BY_NAME[food.name];
+  const byGroup = UNITS_BY_GROUP[food.group];
+  if (byName) list.push(...byName);
+  else if (byGroup) list.push(...byGroup);
+  return list;
+}
+
+function gramsPerUnit(food, unit) {
+  const found = unitsFor(food).find(u => u[0] === unit);
+  return found ? found[1] : 1;
+}
 
 const ACTIVITY_FACTORS = { Sedentario: 1.2, Ligero: 1.375, Moderado: 1.55, Intenso: 1.725, 'Muy intenso': 1.9 };
 const ACTIVITY_DESC = {
@@ -158,9 +242,18 @@ function calcAll(f) {
   return { bmi, bmiCat, bf, bfCat, fatKg, leanKg, muscleKg, tmb, tdee, iccVal, iccCat, idealMin, idealMax, water };
 }
 
+function entryGrams(entry) {
+  const food = FOODS.find(f => f.key === entry.foodKey);
+  if (!food) return 0;
+  // Compatibilidad: registros antiguos guardaban solo gramos
+  if (entry.unit === undefined || entry.unit === null) return Number(entry.grams) || 0;
+  const qty = Number(entry.qty) || 0;
+  return qty * gramsPerUnit(food, entry.unit);
+}
+
 function entryMacros(entry) {
   const food = FOODS.find(f => f.key === entry.foodKey);
-  const g = Number(entry.grams) || 0;
+  const g = entryGrams(entry);
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
   return { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
@@ -245,7 +338,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
         ...v.meals,
         [targetMeal]: [
           ...v.meals[targetMeal],
-          ...option.items.map(it => ({ id: uid(), foodKey: it.food.key, grams: it.grams })),
+          ...option.items.map(it => ({ id: uid(), foodKey: it.food.key, qty: it.grams, unit: 'gramos' })),
         ],
       },
     }));
@@ -898,7 +991,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
     }));
   }
   function addEntry(meal) {
-    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], { id: uid(), foodKey: '', grams: 100 }] } }));
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], { id: uid(), foodKey: '', qty: 100, unit: 'gramos' }] } }));
   }
   function removeEntry(meal, id) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
@@ -921,6 +1014,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <datalist id="jb-foods">
+        {FOODS.map(f => <option key={f.key} value={f.key} />)}
+      </datalist>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">OBJETIVO DIARIO</h2>
         {targets ? (
@@ -987,21 +1083,25 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
             <div className="flex flex-col gap-2">
               {mealPlan.meals[meal].map(en => {
                 const m = entryMacros(en);
+                const food = FOODS.find(f => f.key === en.foodKey);
+                const units = food ? unitsFor(food) : [['gramos', 1]];
+                const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
+                const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 return (
                   <div key={en.id} className="grid grid-cols-12 gap-2 items-center bg-zinc-950 border border-zinc-800 rounded-lg p-2">
-                    <select value={en.foodKey} onChange={e => updateEntry(meal, en.id, { foodKey: e.target.value })}
-                      className={inputCls + ' col-span-5 py-1.5'}>
-                      <option value="">Selecciona un alimento…</option>
-                      {FOOD_GROUPS.map(g => (
-                        <optgroup key={g} label={g}>
-                          {FOODS.filter(f => f.group === g).map(f => <option key={f.key} value={f.key}>{f.key}</option>)}
-                        </optgroup>
-                      ))}
+                    <input list="jb-foods" value={en.foodKey}
+                      onChange={e => updateEntry(meal, en.id, { foodKey: e.target.value, unit: 'gramos', qty: currentQty || 100, grams: undefined })}
+                      className={inputCls + ' col-span-4 py-1.5'} placeholder="Escribe para buscar…" />
+                    <input type="number" value={currentQty}
+                      onChange={e => updateEntry(meal, en.id, { qty: e.target.value, unit: currentUnit, grams: undefined })}
+                      className={inputCls + ' col-span-2 py-1.5'} placeholder="Cant." />
+                    <select value={currentUnit}
+                      onChange={e => updateEntry(meal, en.id, { unit: e.target.value, qty: currentQty || 1, grams: undefined })}
+                      className={inputCls + ' col-span-2 py-1.5'}>
+                      {units.map(u => <option key={u[0]} value={u[0]}>{u[0]}</option>)}
                     </select>
-                    <input type="number" value={en.grams} onChange={e => updateEntry(meal, en.id, { grams: e.target.value })}
-                      className={inputCls + ' col-span-2 py-1.5'} placeholder="g" />
-                    <div className="col-span-4 text-xs text-zinc-400 jb-body text-center">
-                      {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)}g · C {m.carbs.toFixed(0)}g · G {m.fat.toFixed(0)}g
+                    <div className="col-span-3 text-xs text-zinc-400 jb-body text-center">
+                      {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
                     </div>
                     <button onClick={() => removeEntry(meal, en.id)} className="col-span-1 text-zinc-600 hover:text-red-400 flex justify-center"><Trash2 size={15} /></button>
                   </div>

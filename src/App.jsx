@@ -1888,13 +1888,17 @@ function PhotosTab({ username, pesoActual }) {
       const ruta = `${username}/${hoy}_${angulo}_${Date.now()}.jpg`;
       const { error: upErr } = await supabase.storage.from('fotos-progreso')
         .upload(ruta, blob, { contentType: 'image/jpeg', upsert: false });
-      if (upErr) throw upErr;
-      await supabase.from('fotos_progreso').insert({
+      if (upErr) throw new Error('Al subir: ' + upErr.message);
+      const { error: dbErr } = await supabase.from('fotos_progreso').insert({
         username, fecha: hoy, angulo, ruta, peso: Number(pesoActual) || null,
       });
+      if (dbErr) {
+        await supabase.storage.from('fotos-progreso').remove([ruta]);
+        throw new Error('Al guardar: ' + dbErr.message);
+      }
       await cargar();
     } catch (e) {
-      setErr('No se pudo subir la foto. Revisa tu conexión e intenta de nuevo.');
+      setErr(e.message || 'No se pudo subir la foto. Revisa tu conexión e intenta de nuevo.');
     }
     setSubiendo(null);
   }

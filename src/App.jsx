@@ -492,15 +492,15 @@ function Landing({ onChoose }) {
           <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
             <User className="text-orange-500 mb-3" size={28} />
             <div className="jb-display text-xl text-zinc-50 mb-1">SOY ALUMNO</div>
-            <p className="jb-body text-sm text-zinc-500">Ingresa con tu usuario y contraseña</p>
+            <p className="jb-body text-sm text-zinc-500">Ingresa con tu correo y contraseña</p>
             <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
               Entrar <ChevronRight size={16} />
             </div>
           </button>
-          <button onClick={() => onChoose('adminAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
+          <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
             <ShieldCheck className="text-orange-500 mb-3" size={28} />
             <div className="jb-display text-xl text-zinc-50 mb-1">SOY ENTRENADOR</div>
-            <p className="jb-body text-sm text-zinc-500">Gestiona el acceso de tus alumnos</p>
+            <p className="jb-body text-sm text-zinc-500">Entra con tu correo de administrador</p>
             <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
               Entrar <ChevronRight size={16} />
             </div>
@@ -745,7 +745,7 @@ function TrialSignup({ onBack, onCreated }) {
     const finISO = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
     try {
       await supabase.from('alumnos').insert({
-        username: user, password: '', enabled: true, plan: 'trial',
+        username: user, enabled: true, plan: 'trial',
         nombre: f.nombre.trim(), fecha_inicio: inicio, fecha_vencimiento: finISO,
         user_id: data.user ? data.user.id : null,
       });
@@ -2217,10 +2217,6 @@ export default function App() {
       usersList = usersList.map(u => ({ ...u, lastActivity: activityMap[u.username] || null }));
     } catch {}
     setUsers(usersList);
-    try {
-      const { data } = await supabase.from('config').select('value').eq('key', 'admin_password').maybeSingle();
-      setAdminPass(data ? data.value : '');
-    } catch { setAdminPass(''); }
     setLoading(false);
   }
 

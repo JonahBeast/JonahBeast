@@ -770,6 +770,45 @@ function StudentAuth({ onBack, onLogin, busy }) {
 /* ADMIN DASHBOARD                                                     */
 /* ------------------------------------------------------------------ */
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addMonthsISO(iso, months) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1 + months, d);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function daysLeft(vencimiento) {
+  if (!vencimiento) return null;
+  const [y, m, d] = vencimiento.split('-').map(Number);
+  const fin = new Date(y, m - 1, d);
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return Math.round((fin - hoy) / (1000 * 60 * 60 * 24));
+}
+
+/* Un alumno puede entrar solo si el entrenador lo tiene habilitado
+   Y su membresía no ha vencido. */
+function membershipActive(u) {
+  if (!u.enabled) return false;
+  const dl = daysLeft(u.fechaVencimiento);
+  if (dl === null) return true;
+  return dl >= 0;
+}
+
+function membershipLabel(u) {
+  if (!u.enabled) return { text: 'Deshabilitado por ti', color: 'text-red-400', dot: 'bg-red-500' };
+  const dl = daysLeft(u.fechaVencimiento);
+  if (dl === null) return { text: 'Activo · sin vencimiento', color: 'text-emerald-400', dot: 'bg-emerald-500' };
+  if (dl < 0) return { text: `Vencido hace ${Math.abs(dl)} día(s)`, color: 'text-red-400', dot: 'bg-red-500' };
+  if (dl === 0) return { text: 'Vence hoy', color: 'text-amber-400', dot: 'bg-amber-500' };
+  if (dl <= 7) return { text: `Vence en ${dl} día(s)`, color: 'text-amber-400', dot: 'bg-amber-500' };
+  return { text: `Activo · ${dl} días restantes`, color: 'text-emerald-400', dot: 'bg-emerald-500' };
+}
+
 function formatActivity(lastActivity) {
   if (!lastActivity) return { text: 'Sin actividad', color: 'text-zinc-500', dot: 'bg-zinc-600' };
   const days = Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24));
@@ -867,8 +906,8 @@ function LeadsPanel() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent }) {
-  const [newUser, setNewUser] = useState({ username: '', password: '' });
+function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew }) {
+  const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
 
   function submitNew(e) {
@@ -876,9 +915,16 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     setFormErr('');
     const uname = newUser.username.trim();
     if (!uname || !newUser.password) return setFormErr('Completa usuario y contraseña.');
+    if (!newUser.telefono.trim()) return setFormErr('Ingresa el celular del alumno.');
     if (users.some(u => u.username.toLowerCase() === uname.toLowerCase())) return setFormErr('Ese usuario ya existe.');
-    onAddUser({ username: uname, password: newUser.password, enabled: true, createdAt: new Date().toISOString() });
-    setNewUser({ username: '', password: '' });
+    const inicio = newUser.fechaInicio || todayISO();
+    const meses = Number(newUser.meses) || 1;
+    onAddUser({
+      username: uname, password: newUser.password, enabled: true, createdAt: new Date().toISOString(),
+      nombre: newUser.nombre.trim(), telefono: newUser.telefono.trim().replace(/\s/g, ''),
+      fechaInicio: inicio, fechaVencimiento: addMonthsISO(inicio, meses),
+    });
+    setNewUser({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   }
 
   return (
@@ -899,13 +945,31 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4 flex items-center gap-2"><UserPlus size={18} className="text-orange-500" /> NUEVO ALUMNO</h2>
           <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
+            <Field label="Nombre completo">
+              <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+            </Field>
+            <Field label="Celular (WhatsApp)">
+              <input type="tel" inputMode="tel" value={newUser.telefono} onChange={e => setNewUser(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
+            </Field>
             <Field label="Usuario">
               <input value={newUser.username} onChange={e => setNewUser(v => ({ ...v, username: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
             </Field>
             <Field label="Contraseña">
               <input value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Contraseña temporal" />
             </Field>
-            <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar</button>
+            <Field label="Inicio de membresía">
+              <input type="date" value={newUser.fechaInicio} onChange={e => setNewUser(v => ({ ...v, fechaInicio: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Duración">
+              <select value={newUser.meses} onChange={e => setNewUser(v => ({ ...v, meses: Number(e.target.value) }))} className={inputCls}>
+                <option value={1}>1 mes</option>
+                <option value={2}>2 meses</option>
+                <option value={3}>3 meses</option>
+                <option value={6}>6 meses</option>
+                <option value={12}>12 meses</option>
+              </select>
+            </Field>
+            <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar alumno</button>
           </form>
           {formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
         </div>
@@ -918,28 +982,38 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <p className="text-zinc-500 text-sm px-5 py-8 text-center">Aún no has agregado alumnos.</p>
           ) : (
             <div className="divide-y divide-zinc-800">
-              {users.map(u => (
+              {users.map(u => {
+                const ms = membershipLabel(u);
+                const act = formatActivity(u.lastActivity);
+                const activo = membershipActive(u);
+                return (
                 <div key={u.username} className="px-5 py-3.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${u.enabled ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${activo ? 'bg-emerald-500' : 'bg-red-500'}`} />
                     <div>
-                      <div className="text-zinc-100 font-medium">{u.username}</div>
-                      <div className="text-zinc-500 text-xs flex items-center gap-2">
-                        <span>{u.enabled ? 'Activo' : 'Deshabilitado'}</span>
+                      <div className="text-zinc-100 font-medium">
+                        {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+                      </div>
+                      <div className="text-zinc-500 text-xs flex items-center gap-2 flex-wrap">
+                        <span className={`flex items-center gap-1 ${ms.color}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${ms.dot}`} />
+                          {ms.text}
+                        </span>
                         <span className="text-zinc-700">·</span>
-                        {(() => {
-                          const act = formatActivity(u.lastActivity);
-                          return (
-                            <span className={`flex items-center gap-1 ${act.color}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${act.dot}`} />
-                              {act.text}
-                            </span>
-                          );
-                        })()}
+                        <span className={act.color}>{act.text}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {u.telefono && (
+                      <a href={`https://wa.me/${u.telefono.replace(/\D/g, '').length <= 9 ? '51' + u.telefono.replace(/\D/g, '') : u.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${u.nombre || u.username}, te escribo de Jonah Beast.`)}`}
+                        target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1.5 px-3 text-sm'}>
+                        <MessageCircle size={14} />
+                      </a>
+                    )}
+                    <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-sm'} title="Renovar 1 mes">
+                      +1 mes
+                    </button>
                     <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Eye size={14} /> Ver datos</button>
                     <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-sm'}>
                       {u.enabled ? 'Deshabilitar' : 'Habilitar'}
@@ -947,7 +1021,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                     <button onClick={() => onDeleteUser(u.username)} className="text-zinc-600 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1510,6 +1585,8 @@ export default function App() {
       if (error) throw error;
       usersList = (data || []).map(u => ({
         username: u.username, password: u.password, enabled: u.enabled, createdAt: u.created_at, lastActivity: null,
+        nombre: u.nombre || '', telefono: u.telefono || '',
+        fechaInicio: u.fecha_inicio || null, fechaVencimiento: u.fecha_vencimiento || null,
       }));
     } catch { usersList = []; }
     try {
@@ -1544,6 +1621,7 @@ export default function App() {
     const u = users.find(x => x.username.toLowerCase() === username.toLowerCase());
     if (!u || u.password !== password) return setErr('Usuario o contraseña incorrectos.');
     if (!u.enabled) return setErr('Tu acceso fue deshabilitado por tu entrenador. Contáctalo para más información.');
+    if (!membershipActive(u)) return setErr('Tu membresía venció. Escríbele a tu entrenador para renovarla y seguir usando la app.');
     setBusy(true);
     let data = null;
     try {
@@ -1587,7 +1665,25 @@ export default function App() {
 
   async function addUser(u) {
     setUsers(prev => [...prev, u]);
-    try { await supabase.from('alumnos').insert({ username: u.username, password: u.password, enabled: true }); } catch {}
+    try {
+      await supabase.from('alumnos').insert({
+        username: u.username, password: u.password, enabled: true,
+        nombre: u.nombre || null, telefono: u.telefono || null,
+        fecha_inicio: u.fechaInicio || null, fecha_vencimiento: u.fechaVencimiento || null,
+      });
+    } catch {}
+  }
+
+  async function renewUser(username, meses) {
+    const target = users.find(u => u.username === username);
+    if (!target) return;
+    const base = target.fechaVencimiento && daysLeft(target.fechaVencimiento) > 0
+      ? target.fechaVencimiento : todayISO();
+    const nuevo = addMonthsISO(base, meses);
+    setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo, enabled: true } : u));
+    try {
+      await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
+    } catch {}
   }
   async function toggleUser(username) {
     const target = users.find(u => u.username === username);
@@ -1635,7 +1731,7 @@ export default function App() {
       {view === 'admin' && adminAuthed && (
         <>
           <AdminDashboard users={users} onAddUser={addUser} onToggleUser={toggleUser}
-            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} />
+            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} />
           {viewingStudent && (
             <StudentDataModal username={viewingStudent} data={viewingStudentData}
               onClose={() => { setViewingStudent(null); setViewingStudentData(null); }} />

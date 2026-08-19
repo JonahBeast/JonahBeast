@@ -747,16 +747,8 @@ function TrialSignup({ onBack, onCreated }) {
       return setErr('No se pudo crear tu cuenta: ' + error.message);
     }
 
-    const inicio = todayISO();
-    const fin = new Date(); fin.setDate(fin.getDate() + TRIAL_DAYS);
-    const finISO = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
-    try {
-      await supabase.from('alumnos').insert({
-        username: user, enabled: true, plan: 'trial',
-        nombre: f.nombre.trim(), fecha_inicio: inicio, fecha_vencimiento: finISO,
-        user_id: data.user ? data.user.id : null,
-      });
-    } catch {}
+    // El registro de alumno y su prueba de 7 días se crean
+    // automáticamente en la base de datos al confirmarse la cuenta.
 
     setBusy(false);
     if (!data.session) {

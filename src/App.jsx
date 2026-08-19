@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -454,7 +454,7 @@ function Logo({ size = 'md' }) {
       <div className="bg-orange-500 rounded-md p-1.5">
         <Dumbbell className="text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} />
       </div>
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-lg'}`}>JONAH BEAST</span>
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-lg'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }
@@ -475,7 +475,8 @@ function Landing({ onChoose }) {
             <Dumbbell className="text-zinc-950" size={40} strokeWidth={2.5} />
           </div>
         </div>
-        <h1 className="jb-display text-6xl sm:text-7xl text-zinc-50 leading-none mb-4">JONAH BEAST</h1>
+        <h1 className="jb-display text-5xl sm:text-7xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
+        <div className="jb-display text-4xl sm:text-6xl text-orange-500 leading-none mb-4 tracking-widest">FUEL</div>
 
         <div className="relative mb-5">
           <div className="flex items-center gap-3">
@@ -483,8 +484,8 @@ function Landing({ onChoose }) {
             <Flame className="text-orange-500 shrink-0" size={20} />
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
-          <h2 className="jb-display text-2xl sm:text-3xl text-orange-500 leading-tight my-3 px-2">
-            EL FITNESS NO TIENE<br className="sm:hidden" /> QUE SER COMPLICADO
+          <h2 className="jb-display text-xl sm:text-2xl text-zinc-50 leading-tight my-3 px-2">
+            LA ALIMENTACIÓN QUE<br className="sm:hidden" /> IMPULSA TU OBJETIVO
           </h2>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
@@ -492,6 +493,8 @@ function Landing({ onChoose }) {
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
         </div>
+
+        <p className="jb-body text-orange-500/90 text-sm mb-2 tracking-wide">EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
         <p className="jb-body text-zinc-400 text-base mb-10">Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
 
@@ -1229,6 +1232,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <p className="text-zinc-500 text-sm">Crea, habilita o deshabilita el acceso de tus alumnos.</p>
         </div>
 
+        <PagosPanel />
+
         <LeadsPanel />
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -1784,6 +1789,454 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* PLANES Y PAGOS                                                       */
+/* ------------------------------------------------------------------ */
+
+const PLANES = [
+  { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 180, badge: null },
+  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 460, badge: 'MÁS ELEGIDO' },
+  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 810, badge: 'MEJOR PRECIO' },
+];
+
+const BENEFICIOS = [
+  'Composición corporal completa y actualizada',
+  'Plan de alimentación con comida peruana',
+  'Recomendaciones diarias de qué comer',
+  'Historial y gráficos de tu progreso',
+  'Fotos de progreso con comparación',
+  'Soporte directo por WhatsApp',
+];
+
+function PagosPanel({ onAprobado }) {
+  const [pagos, setPagos] = useState([]);
+  const [urls, setUrls] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(true);
+  const [procesando, setProcesando] = useState(null);
+  const [verGrande, setVerGrande] = useState(null);
+  const [filtro, setFiltro] = useState('pendiente');
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('pagos').select('*')
+        .order('creado_en', { ascending: false }).limit(100);
+      const lista = data || [];
+      setPagos(lista);
+      const rutas = lista.filter(p => p.comprobante_ruta).map(p => p.comprobante_ruta);
+      if (rutas.length) {
+        const { data: signed } = await supabase.storage.from('comprobantes').createSignedUrls(rutas, 3600);
+        const m = {};
+        (signed || []).forEach(s => { if (s.signedUrl) m[s.path] = s.signedUrl; });
+        setUrls(m);
+      }
+    } catch { setPagos([]); }
+    setLoading(false);
+  }
+
+  async function aprobar(pago) {
+    setProcesando(pago.id);
+    try {
+      const { data: al } = await supabase.from('alumnos').select('fecha_vencimiento')
+        .eq('username', pago.username).maybeSingle();
+      const base = al?.fecha_vencimiento && daysLeft(al.fecha_vencimiento) > 0
+        ? al.fecha_vencimiento : todayISO();
+      const nuevo = addMonthsISO(base, pago.plan_meses);
+      await supabase.from('alumnos')
+        .update({ fecha_vencimiento: nuevo, enabled: true, plan: 'pago' })
+        .eq('username', pago.username);
+      await supabase.from('pagos')
+        .update({ estado: 'aprobado', revisado_en: new Date().toISOString() })
+        .eq('id', pago.id);
+      await cargar();
+      if (onAprobado) onAprobado();
+    } catch {}
+    setProcesando(null);
+  }
+
+  async function rechazar(pago) {
+    const nota = window.prompt('Motivo del rechazo (lo verá el alumno):', 'No pudimos verificar el pago');
+    if (nota === null) return;
+    setProcesando(pago.id);
+    try {
+      await supabase.from('pagos')
+        .update({ estado: 'rechazado', nota_admin: nota, revisado_en: new Date().toISOString() })
+        .eq('id', pago.id);
+      await cargar();
+    } catch {}
+    setProcesando(null);
+  }
+
+  const pendientes = pagos.filter(p => p.estado === 'pendiente');
+  const visibles = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
+  const ingresoMes = pagos
+    .filter(p => p.estado === 'aprobado' && new Date(p.creado_en).getMonth() === new Date().getMonth())
+    .reduce((a, p) => a + Number(p.monto), 0);
+
+  return (
+    <div className={`rounded-2xl overflow-hidden border ${pendientes.length ? 'bg-zinc-900 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">
+          💰 PAGOS {pendientes.length > 0 && (
+            <span className="ml-2 bg-orange-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{pendientes.length} por revisar</span>
+          )}
+        </h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <StatCard label="Por revisar" value={pendientes.length} />
+            <StatCard label="Ingresos del mes" value={'S/' + ingresoMes.toFixed(0)} accent="text-emerald-400" />
+            <StatCard label="Total pagos" value={pagos.filter(p => p.estado === 'aprobado').length} sub="aprobados" />
+          </div>
+
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {[['pendiente', 'Por revisar'], ['aprobado', 'Aprobados'], ['rechazado', 'Rechazados'], ['todos', 'Todos']].map(([v, l]) => (
+              <button key={v} onClick={() => setFiltro(v)}
+                className={`jb-body text-xs px-3 py-1.5 rounded-lg ${filtro === v ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                {l}
+              </button>
+            ))}
+            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs ml-auto'}>Actualizar</button>
+          </div>
+
+          {loading ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : visibles.length === 0 ? (
+            <p className="text-zinc-500 text-sm py-4 text-center">
+              {filtro === 'pendiente' ? 'No hay pagos por revisar.' : 'Sin registros.'}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {visibles.map(p => (
+                <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                    <div>
+                      <div className="text-zinc-100 font-medium jb-body">
+                        {p.nombre ? `${p.nombre} · ${p.username}` : p.username}
+                      </div>
+                      <div className="text-zinc-500 text-xs jb-body mt-0.5">
+                        {p.metodo} · Op. {p.operacion} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="jb-display text-xl text-orange-500">S/{Number(p.monto).toFixed(0)}</div>
+                      <div className="text-zinc-500 text-xs jb-body">{p.plan_meses} mes(es)</div>
+                    </div>
+                  </div>
+
+                  {p.comprobante_ruta && urls[p.comprobante_ruta] && (
+                    p.comprobante_ruta.endsWith('.pdf') ? (
+                      <a href={urls[p.comprobante_ruta]} target="_blank" rel="noopener noreferrer"
+                        className={btnGhost + ' w-full py-2 text-sm mb-3'}>Ver comprobante (PDF)</a>
+                    ) : (
+                      <img src={urls[p.comprobante_ruta]} alt="Comprobante"
+                        onClick={() => setVerGrande(urls[p.comprobante_ruta])}
+                        className="w-full max-h-56 object-contain rounded-lg bg-zinc-900 cursor-pointer mb-3" />
+                    )
+                  )}
+
+                  {p.estado === 'pendiente' ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => aprobar(p)} disabled={procesando === p.id}
+                        className={btnPrimary + ' flex-1 py-2 text-sm'}>
+                        {procesando === p.id ? <Loader2 className="animate-spin" size={16} /> : '✓ Aprobar y activar'}
+                      </button>
+                      <button onClick={() => rechazar(p)} disabled={procesando === p.id}
+                        className={btnDanger + ' py-2 px-4'}>Rechazar</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className={`jb-body text-xs px-2.5 py-1 rounded-full ${p.estado === 'aprobado'
+                        ? 'bg-emerald-950/60 text-emerald-400' : 'bg-red-950/60 text-red-400'}`}>
+                        {p.estado === 'aprobado' ? '✓ Aprobado' : '✕ Rechazado'}
+                        {p.revisado_en && ` · ${new Date(p.revisado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}`}
+                      </span>
+                      {p.nota_admin && <span className="jb-body text-xs text-zinc-500">{p.nota_admin}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {verGrande && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" onClick={() => setVerGrande(null)}>
+          <img src={verGrande} alt="" className="max-w-full max-h-full object-contain rounded-xl" />
+          <button className="absolute top-4 right-4 text-white p-2"><X size={28} /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
+  const [precios, setPrecios] = useState({});
+  const [datosPago, setDatosPago] = useState({});
+  const [seleccion, setSeleccion] = useState(null);
+  const [metodo, setMetodo] = useState('Yape');
+  const [operacion, setOperacion] = useState('');
+  const [archivo, setArchivo] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+  const [err, setErr] = useState('');
+  const [misPagos, setMisPagos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { cargar(); }, [username]);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('config').select('key, value');
+      const m = {};
+      (data || []).forEach(c => { m[c.key] = c.value; });
+      setPrecios(m); setDatosPago(m);
+    } catch {}
+    try {
+      const { data } = await supabase.from('pagos').select('*')
+        .eq('username', username).order('creado_en', { ascending: false }).limit(10);
+      setMisPagos(data || []);
+    } catch {}
+    setLoading(false);
+  }
+
+  function precioDe(plan) {
+    const v = Number(precios[plan.configKey]);
+    return v > 0 ? v : plan.precioDefault;
+  }
+
+  async function enviarPago() {
+    setErr('');
+    if (!seleccion) return setErr('Elige un plan.');
+    if (!operacion.trim()) return setErr('Escribe el número de operación de tu pago.');
+    if (!archivo) return setErr('Adjunta la captura de tu pago.');
+    setEnviando(true);
+    let ruta = null;
+    try {
+      const blob = archivo.type === 'application/pdf' ? archivo : await comprimirImagen(archivo, 1400, 0.8);
+      const ext = archivo.type === 'application/pdf' ? 'pdf' : 'jpg';
+      ruta = `${username}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('comprobantes')
+        .upload(ruta, blob, { contentType: archivo.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg' });
+      if (upErr) throw new Error('Al subir el comprobante: ' + upErr.message);
+
+      const { error: dbErr } = await supabase.from('pagos').insert({
+        username, nombre: nombre || '', plan_meses: seleccion.meses,
+        monto: precioDe(seleccion), metodo, operacion: operacion.trim(),
+        comprobante_ruta: ruta, estado: 'pendiente',
+      });
+      if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
+
+      setSeleccion(null); setOperacion(''); setArchivo(null);
+      await cargar();
+      if (onPagoEnviado) onPagoEnviado();
+    } catch (e) {
+      if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch {} }
+      setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
+    }
+    setEnviando(false);
+  }
+
+  const pendiente = misPagos.find(p => p.estado === 'pendiente');
+  const dl = userRecord ? daysLeft(userRecord.fechaVencimiento) : null;
+  const esTrial = userRecord?.plan === 'trial';
+
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    `Hola, soy ${nombre || username} y tengo una consulta sobre los planes de Jonah Beast.`)}`;
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-orange-500" size={28} /></div>;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {userRecord && dl !== null && (
+        <div className={`rounded-2xl p-4 border ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+          <p className="jb-body text-sm text-zinc-300">
+            {esTrial
+              ? dl >= 0 ? `Estás en tu prueba gratis · ${dl} día(s) restantes` : 'Tu prueba gratis terminó'
+              : dl >= 0 ? `Tu plan está activo · ${dl} día(s) restantes` : `Tu plan venció hace ${Math.abs(dl)} día(s)`}
+          </p>
+        </div>
+      )}
+
+      {pendiente && (
+        <div className="bg-amber-950/40 border border-amber-800/50 rounded-2xl p-4 flex gap-3">
+          <Loader2 className="text-amber-500 shrink-0 animate-spin" size={20} />
+          <div>
+            <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
+            <p className="jb-body text-xs text-amber-300/80 mt-0.5">
+              Recibimos tu comprobante por S/{Number(pendiente.monto).toFixed(0)} ({pendiente.plan_meses} mes(es)).
+              Lo confirmamos en menos de 24 horas y tu acceso se activa solo.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!seleccion ? (
+        <>
+          <div className="text-center">
+            <h2 className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</h2>
+            <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4">
+            {PLANES.map(plan => {
+              const precio = precioDe(plan);
+              const porMes = precio / plan.meses;
+              const ahorro = plan.meses > 1
+                ? Math.round((1 - porMes / precioDe(PLANES[0])) * 100) : 0;
+              return (
+                <div key={plan.meses}
+                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.badge === 'MÁS ELEGIDO'
+                    ? 'bg-zinc-900 border-orange-500 shadow-lg shadow-orange-500/10'
+                    : 'bg-zinc-900 border-zinc-800'}`}>
+                  {plan.badge && (
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-orange-500 text-zinc-950 jb-display text-[10px] px-3 py-0.5 rounded-full whitespace-nowrap">
+                      {plan.badge}
+                    </span>
+                  )}
+                  <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
+                  <div className="jb-display text-4xl text-orange-500 mb-0.5">S/{precio}</div>
+                  <div className="jb-body text-xs text-zinc-500 mb-1">
+                    {plan.meses === 1 ? 'por mes' : `S/${Math.round(porMes)} por mes`}
+                  </div>
+                  {ahorro > 0 && (
+                    <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>
+                  )}
+                  {ahorro === 0 && <div className="mb-3" />}
+                  <button onClick={() => setSeleccion(plan)}
+                    className={(plan.badge === 'MÁS ELEGIDO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
+                    Elegir
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <h3 className="jb-display text-sm text-zinc-300 mb-3">TODOS LOS PLANES INCLUYEN</h3>
+            <div className="grid sm:grid-cols-2 gap-y-1.5">
+              {BENEFICIOS.map(b => (
+                <div key={b} className="flex items-start gap-2 jb-body text-sm text-zinc-400">
+                  <span className="text-emerald-400 shrink-0">✓</span> {b}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-3'}>
+            <MessageCircle size={16} /> Tengo una consulta antes de pagar
+          </a>
+        </>
+      ) : (
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
+          <button onClick={() => { setSeleccion(null); setErr(''); }}
+            className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mb-4">← Cambiar de plan</button>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5 text-center">
+            <div className="jb-body text-xs text-zinc-500">Plan {seleccion.nombre}</div>
+            <div className="jb-display text-3xl text-orange-500 my-1">S/{precioDe(seleccion)}</div>
+            <div className="jb-body text-xs text-zinc-500">{seleccion.meses} mes(es) de acceso</div>
+          </div>
+
+          <h3 className="jb-display text-sm text-zinc-300 mb-3">1 · REALIZA TU PAGO</h3>
+          <div className="flex gap-2 mb-3">
+            {['Yape', 'Plin', 'Transferencia'].map(m => (
+              <button key={m} onClick={() => setMetodo(m)}
+                className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${metodo === m
+                  ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5">
+            {metodo === 'Transferencia' ? (
+              datosPago.banco_cuenta ? (
+                <div className="jb-body text-sm text-zinc-300 flex flex-col gap-1">
+                  <div><span className="text-zinc-500">Banco:</span> {datosPago.banco_nombre}</div>
+                  <div><span className="text-zinc-500">Cuenta:</span> {datosPago.banco_cuenta}</div>
+                  {datosPago.banco_cci && <div><span className="text-zinc-500">CCI:</span> {datosPago.banco_cci}</div>}
+                  <div><span className="text-zinc-500">Titular:</span> {datosPago.yape_titular}</div>
+                </div>
+              ) : (
+                <p className="jb-body text-sm text-zinc-500">Escríbenos por WhatsApp para darte los datos bancarios.</p>
+              )
+            ) : (
+              <div className="text-center">
+                <div className="jb-body text-xs text-zinc-500 mb-1">Número de {metodo}</div>
+                <div className="jb-display text-2xl text-zinc-50 tracking-wider">{datosPago.yape_numero}</div>
+                <div className="jb-body text-xs text-zinc-400 mt-1">{datosPago.yape_titular}</div>
+              </div>
+            )}
+            <p className="jb-body text-xs text-zinc-600 mt-3 text-center">
+              Monto exacto: <span className="text-orange-500 font-semibold">S/{precioDe(seleccion)}</span>
+            </p>
+          </div>
+
+          <h3 className="jb-display text-sm text-zinc-300 mb-3">2 · CONFIRMA TU PAGO</h3>
+          <div className="flex flex-col gap-3">
+            <Field label="Número de operación">
+              <input value={operacion} onChange={e => setOperacion(e.target.value)}
+                className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
+            </Field>
+
+            <label className="cursor-pointer">
+              <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">Captura del pago</span>
+              <input type="file" accept="image/*,application/pdf" className="hidden"
+                onChange={e => setArchivo(e.target.files[0] || null)} />
+              <div className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${archivo
+                ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'}`}>
+                <p className="jb-body text-sm text-zinc-300">
+                  {archivo ? `✓ ${archivo.name}` : 'Toca para adjuntar tu captura'}
+                </p>
+              </div>
+            </label>
+
+            {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+
+            <button onClick={enviarPago} disabled={enviando} className={btnPrimary + ' py-3 text-base'}>
+              {enviando ? <Loader2 className="animate-spin" size={18} /> : 'ENVIAR MI PAGO'}
+            </button>
+            <p className="jb-body text-[11px] text-zinc-600 text-center">
+              Revisamos tu pago en menos de 24 horas. Te avisamos por WhatsApp cuando se active.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {misPagos.length > 0 && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h3 className="jb-display text-sm text-zinc-300 mb-3">MIS PAGOS</h3>
+          <div className="flex flex-col gap-2">
+            {misPagos.map(p => (
+              <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="jb-body text-sm text-zinc-200">S/{Number(p.monto).toFixed(0)} · {p.plan_meses} mes(es)</div>
+                  <div className="jb-body text-xs text-zinc-500">
+                    {p.metodo} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                  </div>
+                </div>
+                <span className={`jb-body text-xs px-2.5 py-1 rounded-full ${p.estado === 'aprobado'
+                  ? 'bg-emerald-950/60 text-emerald-400' : p.estado === 'rechazado'
+                    ? 'bg-red-950/60 text-red-400' : 'bg-amber-950/60 text-amber-400'}`}>
+                  {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'En revisión'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PhotosTab({ username, pesoActual }) {
@@ -2471,6 +2924,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'photos' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <Camera size={16} /> MIS FOTOS
           </button>
+          <button onClick={() => setTab('planes')}
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'planes' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <CreditCard size={16} /> MI PLAN
+          </button>
         </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
@@ -2485,6 +2942,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
         {tab === 'progress' && <ProgressTab username={username} />}
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
+        {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
       <WhatsAppButton />
     </div>

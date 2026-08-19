@@ -507,10 +507,16 @@ function Landing({ onChoose }) {
           </button>
         </div>
 
+        <button onClick={() => onChoose('trial')}
+          className="mt-4 w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors">
+          <div className="jb-display text-lg text-zinc-950">🚀 PRUEBA GRATIS 7 DÍAS</div>
+          <p className="jb-body text-sm text-zinc-800 mt-1">Sin tarjeta · Acceso completo a la app</p>
+        </button>
+
         <button onClick={() => onChoose('free')}
-          className="mt-4 w-full group bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors">
-          <div className="jb-display text-lg text-zinc-950">📏 MIDE TU COMPOSICIÓN CORPORAL GRATIS</div>
-          <p className="jb-body text-sm text-zinc-800 mt-1">Sin registro · Resultados al instante</p>
+          className="mt-3 w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-4 transition-colors">
+          <div className="jb-display text-sm text-zinc-200">📏 SOLO MEDIR MI COMPOSICIÓN CORPORAL</div>
+          <p className="jb-body text-xs text-zinc-500 mt-1">Sin registro · Resultados al instante</p>
         </button>
       </div>
     </div>
@@ -698,6 +704,95 @@ function FreeCalculator({ onBack }) {
   );
 }
 
+function TrialSignup({ onBack, onCreated }) {
+  const [f, setF] = useState({ nombre: '', usuario: '', password: '', password2: '', telefono: '' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setErr('');
+    const user = f.usuario.trim().replace(/^@/, '');
+    if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
+    if (!user) return setErr('Elige un nombre de usuario.');
+    if (/\s/.test(user)) return setErr('El usuario no puede tener espacios.');
+    if (f.password.length < 4) return setErr('La contraseña debe tener al menos 4 caracteres.');
+    if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
+
+    setBusy(true);
+    try {
+      const { data: existe } = await supabase.from('alumnos').select('username').ilike('username', user).maybeSingle();
+      if (existe) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
+    } catch {}
+
+    const inicio = todayISO();
+    const fin = new Date(); fin.setDate(fin.getDate() + TRIAL_DAYS);
+    const finISO = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`;
+    const { hash, salt } = await hashPassword(f.password);
+    try {
+      const { error } = await supabase.from('alumnos').insert({
+        username: user, password: '', pass_hash: hash, pass_salt: salt,
+        enabled: true, plan: 'trial',
+        nombre: f.nombre.trim(), telefono: f.telefono.trim().replace(/\s/g, '') || null,
+        fecha_inicio: inicio, fecha_vencimiento: finISO,
+      });
+      if (error) throw error;
+    } catch (e) {
+      setBusy(false);
+      return setErr('No se pudo crear tu cuenta. Intenta de nuevo en un momento.');
+    }
+    setBusy(false);
+    onCreated(user, f.password);
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10">
+      <div className="max-w-md w-full">
+        <div className="mb-6"><Logo size="lg" /></div>
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6">
+          <div className="text-center mb-5">
+            <div className="jb-display text-2xl text-orange-500 mb-1">7 DÍAS GRATIS</div>
+            <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-5">
+            {['Mide tu composición corporal', 'Arma tu plan con comida peruana', 'Descubre qué comer según lo que te queda', 'Sigue tu progreso día a día'].map(t => (
+              <div key={t} className="flex items-center gap-2 text-xs text-zinc-300 jb-body py-0.5">
+                <span className="text-emerald-400">✓</span> {t}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={submit} className="flex flex-col gap-3">
+            <Field label="Tu nombre">
+              <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+            </Field>
+            <Field label="Usuario (para entrar)">
+              <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+            </Field>
+            <Field label="Contraseña">
+              <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Repite tu contraseña">
+              <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Celular (opcional)">
+              <input type="tel" inputMode="tel" value={f.telefono} onChange={e => setF(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
+            </Field>
+            {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+            <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
+              {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
+            </button>
+            <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrialSignupPlaceholder() { return null; }
+
 function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
   const [pass, setPass] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -824,6 +919,56 @@ function membershipLabel(u) {
   if (dl === 0) return { text: 'Vence hoy', color: 'text-amber-400', dot: 'bg-amber-500' };
   if (dl <= 7) return { text: `Vence en ${dl} día(s)`, color: 'text-amber-400', dot: 'bg-amber-500' };
   return { text: `Activo · ${dl} días restantes`, color: 'text-emerald-400', dot: 'bg-emerald-500' };
+}
+
+/* ------------------------------------------------------------------ */
+/* SEGURIDAD DE CONTRASEÑAS (PBKDF2 con Web Crypto)                    */
+/* ------------------------------------------------------------------ */
+
+function bufToHex(buf) {
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPassword(password, saltHex) {
+  const salt = saltHex
+    ? Uint8Array.from(saltHex.match(/.{2}/g).map(h => parseInt(h, 16)))
+    : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, key, 256);
+  return { hash: bufToHex(bits), salt: bufToHex(salt) };
+}
+
+async function verifyPassword(password, hashHex, saltHex) {
+  if (!hashHex || !saltHex) return false;
+  const { hash } = await hashPassword(password, saltHex);
+  return hash === hashHex;
+}
+
+/* ------------------------------------------------------------------ */
+/* PRUEBA GRATIS DE 7 DÍAS                                             */
+/* ------------------------------------------------------------------ */
+
+const TRIAL_DAYS = 7;
+
+const TRIAL_JOURNEY = {
+  1: { titulo: 'Día 1 · Define tu objetivo', texto: 'Empieza midiendo tu composición corporal, elige tu objetivo y registra tus primeras comidas.', cta: null },
+  2: { titulo: 'Día 2 · ¿Cómo vas comiendo?', texto: 'Revisa tu plan de alimentación: mira cuántas calorías llevas frente a tu objetivo del día.', cta: null },
+  3: { titulo: 'Día 3 · Recomendaciones para ti', texto: 'Usa el botón "¿Qué puedo comer?" y descubre combinaciones que encajan con lo que te queda del día.', cta: null },
+  4: { titulo: 'Día 4 · Tus patrones', texto: 'Ya tienes varios días registrados. Entra a "Mi progreso" y observa cómo se comporta tu alimentación.', cta: null },
+  5: { titulo: 'Día 5 · Mira tu avance', texto: null, cta: null },
+  6: { titulo: 'Día 6 · Tu prueba termina mañana', texto: 'Todo lo que registraste se queda contigo si continúas. Conserva tu historial y sigue viendo tu progreso.', cta: 'Ver planes' },
+  7: { titulo: 'Día 7 · Último día de tu prueba', texto: 'Hoy termina tu acceso gratuito. Continúa y no pierdas nada de lo que has construido estos días.', cta: 'Continuar con Jonah Beast' },
+};
+
+function trialDayOf(u) {
+  if (!u || u.plan !== 'trial' || !u.fechaInicio) return null;
+  const [y, m, d] = u.fechaInicio.split('-').map(Number);
+  const inicio = new Date(y, m - 1, d);
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const dia = Math.floor((hoy - inicio) / 86400000) + 1;
+  return Math.max(1, Math.min(dia, TRIAL_DAYS));
 }
 
 function formatActivity(lastActivity) {
@@ -1289,6 +1434,43 @@ function CalculatorTab({ form, setForm, results }) {
   );
 }
 
+function TrialBanner({ user, stats }) {
+  const dia = trialDayOf(user);
+  if (!dia) return null;
+  const j = TRIAL_JOURNEY[dia];
+  const restantes = TRIAL_DAYS - dia;
+  const urgente = dia >= 6;
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, estoy en el día ${dia} de mi prueba gratis en Jonah Beast y quiero continuar. ¿Cuáles son los planes?`)}`;
+
+  let texto = j.texto;
+  if (dia === 5) {
+    texto = stats && stats.adherencia !== null
+      ? `Vas al ${Math.round(stats.adherencia)}% de adherencia a tu objetivo. Sigue así y los resultados llegan solos.`
+      : 'Entra a "Mi progreso" y mira cuánto has avanzado en estos días.';
+  }
+
+  return (
+    <div className={`rounded-2xl p-4 mb-6 border ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
+        <span className="jb-body text-xs text-zinc-500">
+          {restantes > 0 ? `${restantes} día(s) restantes` : 'Último día'}
+        </span>
+      </div>
+      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
+        <div className={`h-full rounded-full ${urgente ? 'bg-orange-500' : 'bg-emerald-500'}`}
+          style={{ width: `${(dia / TRIAL_DAYS) * 100}%` }} />
+      </div>
+      <p className="jb-body text-sm text-zinc-300">{texto}</p>
+      {j.cta && (
+        <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full mt-3 py-2.5'}>
+          <MessageCircle size={16} /> {j.cta}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function MiniChart({ points, color = '#f97316', suffix = '' }) {
   if (!points || points.length < 2) return null;
   const vals = points.map(p => p.v);
@@ -1742,7 +1924,7 @@ function WhatsAppButton() {
   );
 }
 
-function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving }) {
+function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
   const results = useMemo(() => calcAll({
     ...form,
@@ -1761,6 +1943,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
+        <TrialBanner user={userRecord} stats={null} />
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setTab('dash')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -1831,7 +2014,8 @@ export default function App() {
       if (error) throw error;
       usersList = (data || []).map(u => ({
         username: u.username, password: u.password, enabled: u.enabled, createdAt: u.created_at, lastActivity: null,
-        nombre: u.nombre || '', telefono: u.telefono || '',
+        nombre: u.nombre || '', telefono: u.telefono || '', plan: u.plan || 'pago',
+        passHash: u.pass_hash || null, passSalt: u.pass_salt || null,
         fechaInicio: u.fecha_inicio || null, fechaVencimiento: u.fecha_vencimiento || null,
       }));
     } catch { usersList = []; }
@@ -1863,12 +2047,42 @@ export default function App() {
     else setErr('Contraseña incorrecta.');
   }
 
+  async function handleTrialCreated(username, password) {
+    await init();
+    setCurrentUser(username);
+    setForm(EMPTY_FORM);
+    setMealPlan(EMPTY_MEALPLAN());
+    skipNextSave.current = true;
+    setView('student');
+  }
+
   async function handleStudentLogin(username, password, setErr) {
     const u = users.find(x => x.username.toLowerCase() === username.toLowerCase());
-    if (!u || u.password !== password) return setErr('Usuario o contraseña incorrectos.');
-    if (!u.enabled) return setErr('Tu acceso fue deshabilitado por tu entrenador. Contáctalo para más información.');
-    if (!membershipActive(u)) return setErr('Tu membresía venció. Escríbele a tu entrenador para renovarla y seguir usando la app.');
+    if (!u) return setErr('Usuario o contraseña incorrectos.');
+
     setBusy(true);
+    let ok = false;
+    if (u.passHash && u.passSalt) {
+      ok = await verifyPassword(password, u.passHash, u.passSalt);
+    } else if (u.password) {
+      // Cuentas antiguas: si acierta, migramos su contraseña a cifrada
+      ok = u.password === password;
+      if (ok) {
+        try {
+          const { hash, salt } = await hashPassword(password);
+          await supabase.from('alumnos').update({ pass_hash: hash, pass_salt: salt, password: '' }).eq('username', u.username);
+          setUsers(prev => prev.map(x => x.username === u.username ? { ...x, passHash: hash, passSalt: salt, password: '' } : x));
+        } catch {}
+      }
+    }
+    if (!ok) { setBusy(false); return setErr('Usuario o contraseña incorrectos.'); }
+    if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
+    if (!membershipActive(u)) {
+      setBusy(false);
+      return setErr(u.plan === 'trial'
+        ? 'Tu prueba gratis de 7 días terminó. Escríbenos por WhatsApp para continuar y conservar todo tu historial.'
+        : 'Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
+    }
     let data = null;
     try {
       const { data: row } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', u.username).maybeSingle();
@@ -1994,6 +2208,7 @@ export default function App() {
       {FONT_STYLE}
       {view === 'landing' && <Landing onChoose={setView} />}
       {view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
+      {view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
       {view === 'adminAuth' && (
         <AdminAuth adminPassExists={!!adminPass} onBack={() => setView('landing')} busy={busy}
           onSetup={handleAdminSetup} onLogin={handleAdminLogin} />
@@ -2013,7 +2228,8 @@ export default function App() {
       )}
       {view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
-          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving} />
+          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
+          userRecord={users.find(u => u.username === currentUser)} />
       )}
     </>
   );

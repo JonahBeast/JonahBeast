@@ -643,7 +643,7 @@ function Landing({ onChoose }) {
 function FreeCalculator({ onBack }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [step, setStep] = useState('form');
-  const [gate, setGate] = useState({ usuario: '', red: 'Instagram', codigo: '', nombre: '' });
+  const [gate, setGate] = useState({ telefono: '', red: 'Instagram', codigo: '', nombre: '' });
   const [gateErr, setGateErr] = useState('');
   const [checking, setChecking] = useState(false);
 
@@ -657,9 +657,9 @@ function FreeCalculator({ onBack }) {
 
   async function unlock() {
     setGateErr('');
-    const user = gate.usuario.trim().replace(/^@/, '');
+    const tel = gate.telefono.replace(/\D/g, '');
     if (!gate.nombre.trim()) return setGateErr('Escribe tu nombre.');
-    if (!user) return setGateErr('Escribe tu usuario para continuar.');
+    if (tel.length < 9) return setGateErr('Escribe tu número de celular (9 dígitos).');
     if (!gate.codigo.trim()) return setGateErr('Ingresa el código que se compartió en el live.');
     setChecking(true);
     let valid = '';
@@ -673,7 +673,7 @@ function FreeCalculator({ onBack }) {
     }
     try {
       await supabase.from('leads').insert({
-        nombre: gate.nombre.trim(), usuario: user, red: gate.red,
+        nombre: gate.nombre.trim(), telefono: tel, red: gate.red,
         codigo: gate.codigo.trim().toUpperCase(),
         sexo: form.sexo, edad: Number(form.edad) || null, peso: Number(form.peso) || null,
         estatura: Number(form.estatura) || null,
@@ -745,30 +745,31 @@ function FreeCalculator({ onBack }) {
           <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full mx-auto">
             <h2 className="jb-display text-xl text-zinc-50 mb-2">🔓 ÚLTIMO PASO</h2>
             <p className="jb-body text-sm text-zinc-400 mb-5">
-              Ingresa el código que comparto en mis lives y tu usuario para desbloquear tus resultados.
+              Ingresa el código que compartimos en los lives y tu celular para desbloquear tus resultados.
             </p>
             <div className="flex flex-col gap-4">
               <Field label="Tu nombre">
                 <input value={gate.nombre} onChange={e => setGate(v => ({ ...v, nombre: e.target.value }))}
                   className={inputCls} placeholder="Ej. María" />
               </Field>
-              <Field label="¿Dónde me sigues?">
+              <Field label="¿Dónde nos sigues?">
                 <select value={gate.red} onChange={e => setGate(v => ({ ...v, red: e.target.value }))} className={inputCls}>
                   <option value="Instagram">Instagram</option>
                   <option value="TikTok">TikTok</option>
                   <option value="Ambos">Ambos</option>
                 </select>
               </Field>
-              <Field label="Tu usuario">
-                <input value={gate.usuario} onChange={e => setGate(v => ({ ...v, usuario: e.target.value }))}
-                  className={inputCls} placeholder="@tuusuario" />
+              <Field label="Tu celular (WhatsApp)">
+                <input type="tel" inputMode="tel" value={gate.telefono}
+                  onChange={e => setGate(v => ({ ...v, telefono: e.target.value }))}
+                  className={inputCls} placeholder="999 888 777" />
               </Field>
               <Field label="Código de acceso">
                 <input value={gate.codigo} onChange={e => setGate(v => ({ ...v, codigo: e.target.value }))}
                   className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
               </Field>
               <p className="jb-body text-[11px] text-zinc-600">
-                Al continuar aceptas que Jonah Beast guarde estos datos para contactarte sobre la asesoría. Puedes pedir que los eliminemos cuando quieras.
+                Al continuar aceptas que Jonah Beast Fuel guarde estos datos para contactarte. Puedes pedir que los eliminemos cuando quieras.
               </p>
               {gateErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{gateErr}</p>}
               <button onClick={unlock} disabled={checking} className={btnPrimary + ' py-3 text-base'}>
@@ -818,7 +819,7 @@ function FreeCalculator({ onBack }) {
 }
 
 function TrialSignup({ onBack, onCreated }) {
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', password: '', password2: '' });
+  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -831,6 +832,8 @@ function TrialSignup({ onBack, onCreated }) {
     if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
     if (!user) return setErr('Elige un nombre de usuario.');
+    const tel = f.telefono.replace(/\D/g, '');
+    if (tel.length < 9) return setErr('Escribe tu celular de WhatsApp (9 dígitos).');
     if (/[^a-z0-9._-]/.test(user)) return setErr('El usuario solo puede tener letras, números, punto, guion o guion bajo.');
     if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
     if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
@@ -843,7 +846,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim() } },
+      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel } },
     });
 
     if (error) {
@@ -898,6 +901,11 @@ function TrialSignup({ onBack, onCreated }) {
               </Field>
               <Field label="Usuario (para entrar)">
                 <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+              </Field>
+              <Field label="Celular (WhatsApp)">
+                <input type="tel" inputMode="tel" value={f.telefono}
+                  onChange={e => setF(v => ({ ...v, telefono: e.target.value }))}
+                  className={inputCls} placeholder="999 888 777" />
               </Field>
               <Field label="Contraseña">
                 <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />
@@ -1278,15 +1286,17 @@ function LeadsPanel() {
                 {leads.map(l => (
                   <div key={l.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-zinc-100 text-sm font-medium">{l.nombre ? `${l.nombre} · @${l.usuario}` : '@' + l.usuario}</div>
+                      <div className="text-zinc-100 text-sm font-medium">{l.nombre || 'Sin nombre'}</div>
                       <div className="text-zinc-500 text-xs">
-                        {l.red} · {new Date(l.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                        {l.telefono || 'sin celular'} · {l.red} · {new Date(l.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
                       </div>
                     </div>
                     <div className="text-xs text-zinc-400 jb-body">
                       {l.grasa_pct}% grasa · IMC {l.imc} · {l.tdee} kcal
                     </div>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Hola @${l.usuario}, vi que te mediste en Jonah Beast. ¿Quieres que revisemos tus resultados juntos?`)}`}
+                    <a href={l.telefono
+                      ? `https://wa.me/${l.telefono.replace(/\D/g,'').length <= 9 ? '51' + l.telefono.replace(/\D/g,'') : l.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${l.nombre || ''}, vi que te mediste en Jonah Beast Fuel. ¿Quieres que revisemos tus resultados juntos?`)}`
+                      : `https://wa.me/?text=${encodeURIComponent('Hola, vi que te mediste en Jonah Beast Fuel.')}`}
                       target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
                       <MessageCircle size={13} /> Contactar
                     </a>
@@ -2204,6 +2214,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   const [seleccion, setSeleccion] = useState(null);
   const [metodo, setMetodo] = useState('Yape');
   const [operacion, setOperacion] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [archivo, setArchivo] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [err, setErr] = useState('');
@@ -2236,6 +2247,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   async function enviarPago() {
     setErr('');
     if (!seleccion) return setErr('Elige un plan.');
+    const tel = telefono.replace(/\D/g, '');
+    if (!userRecord?.telefono && tel.length < 9) return setErr('Escribe tu celular de WhatsApp (9 dígitos).');
     if (!operacion.trim()) return setErr('Escribe el número de operación de tu pago.');
     if (!archivo) return setErr('Adjunta la captura de tu pago.');
     setEnviando(true);
@@ -2255,7 +2268,11 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       });
       if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
 
-      setSeleccion(null); setOperacion(''); setArchivo(null);
+      if (!userRecord?.telefono && tel.length >= 9) {
+        try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch {}
+      }
+
+      setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
       await cargar();
       if (onPagoEnviado) onPagoEnviado();
     } catch (e) {
@@ -2266,6 +2283,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   }
 
   const pendiente = misPagos.find(p => p.estado === 'pendiente');
+  const faltaTelefono = !userRecord?.telefono;
   const dl = userRecord ? daysLeft(userRecord.fechaVencimiento) : null;
   const esTrial = userRecord?.plan === 'trial';
 
@@ -2407,6 +2425,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
           <h3 className="jb-display text-sm text-zinc-300 mb-3">2 · CONFIRMA TU PAGO</h3>
           <div className="flex flex-col gap-3">
+            {faltaTelefono && (
+              <Field label="Tu celular (WhatsApp)">
+                <input type="tel" inputMode="tel" value={telefono}
+                  onChange={e => setTelefono(e.target.value)}
+                  className={inputCls} placeholder="999 888 777" />
+              </Field>
+            )}
             <Field label="Número de operación">
               <input value={operacion} onChange={e => setOperacion(e.target.value)}
                 className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />

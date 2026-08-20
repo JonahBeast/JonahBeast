@@ -653,7 +653,7 @@ function FreeCalculator({ onBack }) {
     cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
   }), [form]);
 
-  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, acabo de medir mi composición corporal en la web y quiero saber más sobre la asesoría.')}`;
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, acabo de medir mi composición corporal en la web y quiero saber más sobre Jonah Beast Fuel.')}`;
 
   async function unlock() {
     setGateErr('');
@@ -802,10 +802,10 @@ function FreeCalculator({ onBack }) {
             <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
               <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">
-                Con la asesoría Jonah Beast recibes tu plan de alimentación con comida peruana, seguimiento de tu progreso y acompañamiento directo conmigo.
+                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Pruébala 7 días gratis.
               </p>
               <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 text-base'}>
-                <MessageCircle size={18} /> QUIERO MI ASESORÍA
+                <MessageCircle size={18} /> QUIERO PROBARLA GRATIS
               </a>
               <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4">
                 ← Cambiar mis datos
@@ -1645,7 +1645,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-      <AyudaTab texto="Elige qué quieres lograr y la app calcula cuántas calorías y proteína necesitas al día. Puedes ajustar el porcentaje si tu entrenador te indica otro." />
+      <AyudaTab texto="Elige qué quieres lograr y la app calcula cuántas calorías y proteína necesitas al día. Puedes ajustar el porcentaje si un profesional te indica otro." />
       <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
 
@@ -1681,7 +1681,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
           <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
             <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-            <p className="text-amber-200 text-xs jb-body">Estos valores son una estimación de referencia, no una prescripción médica. Consúltalo con tu entrenador antes de aplicarlo.</p>
+            <p className="text-amber-200 text-xs jb-body">Estos valores son una estimación de referencia, no una prescripción médica. Consúltalo con un profesional de la salud antes de aplicarlo.</p>
           </div>
         </div>
       )}
@@ -2706,7 +2706,7 @@ function PhotosTab({ username, pesoActual }) {
       )}
 
       <p className="jb-body text-[11px] text-zinc-600 text-center">
-        Tus fotos son privadas. Solo tú y tu entrenador pueden verlas.
+        Tus fotos son privadas. Solo tú y el equipo de soporte pueden verlas.
       </p>
     </div>
   );
@@ -3079,7 +3079,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
               <div className="h-full bg-orange-500 rounded-full" style={{ width: `${progreso}%` }} />
             </div>
             <p className="jb-body text-xs text-zinc-500 mt-2">
-              {progreso >= 100 ? '¡Llegaste a tu meta! Habla con tu entrenador para definir el siguiente paso.'
+              {progreso >= 100 ? '¡Llegaste a tu meta! Escríbenos por WhatsApp para definir el siguiente paso.'
                 : `Te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg para tu meta.`}
             </p>
           </div>
@@ -3405,7 +3405,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
-          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escríbele a tu entrenador tocando el botón verde de WhatsApp, abajo a la derecha.</p>
+          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escribe a nuestro soporte tocando el botón verde de WhatsApp, abajo a la derecha.</p>
         </div>
       </div>
 

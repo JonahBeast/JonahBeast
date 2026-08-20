@@ -2716,22 +2716,65 @@ function PhotosTab({ username, pesoActual }) {
 /* COACH DIGITAL — análisis de tendencia                               */
 /* ------------------------------------------------------------------ */
 
+function MiniChart({ points, color = '#f97316', suffix = '' }) {
+  if (!Array.isArray(points) || points.length < 2) return null;
+  const limpios = points.filter(p => Number.isFinite(Number(p.v)));
+  if (limpios.length < 2) return null;
+
+  const vals = limpios.map(p => Number(p.v));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max - min) || 1;
+  const w = 300, h = 80, pad = 6;
+
+  const coords = limpios.map((p, i) => {
+    const x = pad + (i / (limpios.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((Number(p.v) - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const first = vals[0], last = vals[vals.length - 1];
+  const delta = last - first;
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20" preserveAspectRatio="none">
+        <polyline points={coords.join(' ')} fill="none" stroke={color} strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="flex justify-between text-[11px] text-zinc-500 jb-body mt-1">
+        <span>{first.toFixed(1)}{suffix}</span>
+        <span className={delta === 0 ? 'text-zinc-500' : delta < 0 ? 'text-emerald-400' : 'text-amber-400'}>
+          {delta > 0 ? '+' : ''}{delta.toFixed(1)}{suffix}
+        </span>
+        <span>{last.toFixed(1)}{suffix}</span>
+      </div>
+    </div>
+  );
+}
+
 function promedioSemana(rows, desde, hasta) {
-  const trozo = rows.slice(desde, hasta).filter(r => Number(r.peso) > 0);
+  if (!Array.isArray(rows)) return null;
+  const ini = Math.max(0, Math.min(desde, rows.length));
+  const fin = Math.max(ini, Math.min(hasta, rows.length));
+  const trozo = rows.slice(ini, fin).filter(r => Number(r.peso) > 0);
   if (!trozo.length) return null;
-  return trozo.reduce((a, r) => a + Number(r.peso), 0) / trozo.length;
+  const suma = trozo.reduce((a, r) => a + Number(r.peso), 0);
+  const prom = suma / trozo.length;
+  return Number.isFinite(prom) ? prom : null;
 }
 
 function analizarProgreso(rows, form) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
   const conPeso = rows.filter(r => Number(r.peso) > 0);
   const conComida = rows.filter(r => Number(r.kcal_consumidas) > 0);
 
   // Días transcurridos desde el primer registro
   let diasRango = 0;
   if (rows.length >= 2) {
-    const a = new Date(rows[0].fecha + 'T00:00:00');
-    const b = new Date(rows[rows.length - 1].fecha + 'T00:00:00');
-    diasRango = Math.round((b - a) / 86400000) + 1;
+    const a = new Date(String(rows[0].fecha).slice(0, 10) + 'T00:00:00');
+    const b = new Date(String(rows[rows.length - 1].fecha).slice(0, 10) + 'T00:00:00');
+    const calc = Math.round((b - a) / 86400000) + 1;
+    diasRango = Number.isFinite(calc) && calc > 0 ? calc : rows.length;
   }
 
   // Adherencia
@@ -2773,7 +2816,8 @@ function analizarProgreso(rows, form) {
   const separacion = Math.max(conPeso.length - ventana, 1);
   const factorTiempo = separacion / Math.max(conPeso.length - 1, 1);
   const semanasEfectivas = Math.max(semanas * factorTiempo, 0.5);
-  const porSemana = cambio / semanasEfectivas;
+  const porSemanaCalc = cambio / semanasEfectivas;
+  const porSemana = Number.isFinite(porSemanaCalc) ? porSemanaCalc : 0;
   const pctSemana = (Math.abs(porSemana) / pesoInicial) * 100;
   const objetivo = form.objetivo || '';
   const perder = objetivo === 'Perder grasa';
@@ -2840,8 +2884,8 @@ function analizarProgreso(rows, form) {
 }
 
 function CoachCard({ analisis }) {
-  if (!analisis) return null;
-  const c = analisis.color;
+  if (!analisis || !analisis.titulo) return null;
+  const c = ['emerald', 'amber', 'zinc'].includes(analisis.color) ? analisis.color : 'zinc';
   const estilos = {
     emerald: 'bg-emerald-950/30 border-emerald-700/50',
     amber: 'bg-amber-950/30 border-amber-700/50',
@@ -2881,7 +2925,7 @@ function CoachCard({ analisis }) {
               Días registrados: <span className="text-zinc-200 font-semibold">{analisis.constancia}%</span>
             </span>
           )}
-          {analisis.porSemana !== undefined && (
+          {Number.isFinite(analisis.porSemana) && (
             <span className="jb-body text-xs text-zinc-400">
               Ritmo: <span className="text-zinc-200 font-semibold">
                 {analisis.porSemana > 0 ? '+' : ''}{analisis.porSemana.toFixed(2)} kg/sem
@@ -2923,7 +2967,10 @@ function ProgressTab({ username, form }) {
   const filtrados = useMemo(() => {
     const limite = new Date();
     limite.setDate(limite.getDate() - rango);
-    return rows.filter(r => new Date(r.fecha + 'T00:00:00') >= limite);
+    return rows.filter(r => {
+      const d = new Date(String(r.fecha).slice(0, 10) + 'T00:00:00');
+      return !isNaN(d) && d >= limite;
+    });
   }, [rows, rango]);
 
   const stats = useMemo(() => {
@@ -2942,10 +2989,17 @@ function ProgressTab({ username, form }) {
     return { promKcal, promProt, promObj, adherencia, diasRegistrados: conComida.length, totalDias: filtrados.length, enRango, objetivos: objetivos.length };
   }, [filtrados]);
 
-  const analisis = useMemo(() => rows.length ? analizarProgreso(rows, form || {}) : null, [rows, form]);
+  const analisis = useMemo(() => {
+    try {
+      return rows.length ? analizarProgreso(rows, form || {}) : null;
+    } catch (e) {
+      console.error('Error al analizar el progreso:', e);
+      return null;
+    }
+  }, [rows, form]);
 
   const serie = (campo) => filtrados
-    .filter(r => r[campo] !== null && r[campo] !== undefined)
+    .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
     .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
 
   if (loading) {

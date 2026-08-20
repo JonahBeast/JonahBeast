@@ -1645,6 +1645,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <AyudaTab texto="Elige qué quieres lograr y la app calcula cuántas calorías y proteína necesitas al día. Puedes ajustar el porcentaje si tu entrenador te indica otro." />
       <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
 
@@ -1695,6 +1696,9 @@ function CalculatorTab({ form, setForm, results }) {
   });
   return (
     <div className="grid lg:grid-cols-2 gap-6">
+      <div className="lg:col-span-2">
+        <AyudaTab texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. Con esto la app calcula tu % de grasa y cuántas calorías quema tu cuerpo." />
+      </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">TUS DATOS</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -2833,6 +2837,169 @@ function ProgressTab({ username }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* GUÍA DE PRIMEROS PASOS                                              */
+/* ------------------------------------------------------------------ */
+
+function AyudaTab({ texto }) {
+  return (
+    <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2 mb-4">
+      <span className="text-orange-500 shrink-0 text-sm">💡</span>
+      <p className="jb-body text-xs text-zinc-400">{texto}</p>
+    </div>
+  );
+}
+
+function BienvenidaModal({ nombre, onClose }) {
+  const [paso, setPaso] = useState(0);
+  const pasos = [
+    {
+      emoji: '👋', titulo: `¡BIENVENIDO${nombre ? ', ' + nombre.split(' ')[0].toUpperCase() : ''}!`,
+      texto: 'Jonah Beast Fuel te ayuda a saber exactamente cuánto comer y qué comer para llegar a tu objetivo. Te explico en 30 segundos cómo usarla.',
+    },
+    {
+      emoji: '📏', titulo: 'PRIMERO: TUS NÚMEROS',
+      texto: 'Ingresa tus medidas con una cinta métrica (cuello, cintura, cadera). La app calcula tu % de grasa y cuántas calorías quema tu cuerpo al día. Hay guías con fotos para medirte bien.',
+    },
+    {
+      emoji: '🎯', titulo: 'SEGUNDO: TU OBJETIVO',
+      texto: 'Elige si quieres perder grasa, ganar músculo o mantenerte. La app calcula sola cuántas calorías y proteína necesitas cada día.',
+    },
+    {
+      emoji: '🍽️', titulo: 'TERCERO: REGISTRA LO QUE COMES',
+      texto: 'Anota tus comidas con medidas de casa: "1 taza de arroz", "2 huevos", "1 plato de lomo saltado". Sin pesar nada. Verás al instante cuánto te queda del día.',
+    },
+    {
+      emoji: '💪', titulo: '¿NO SABES QUÉ COMER?',
+      texto: 'Toca el botón "¿Qué puedo comer?" y la app te sugiere combinaciones reales con comida peruana que encajan con las calorías que te quedan.',
+    },
+    {
+      emoji: '📸', titulo: 'MIDE TU AVANCE',
+      texto: 'Toma tus fotos cada 2 semanas y registra tu peso. En "Mi progreso" verás tus gráficos y en "Mis fotos" podrás comparar el antes y el ahora.',
+    },
+  ];
+  const p = pasos[paso];
+  const ultimo = paso === pasos.length - 1;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6">
+        <div className="text-center mb-5">
+          <div className="text-5xl mb-3">{p.emoji}</div>
+          <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
+          <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
+        </div>
+
+        <div className="flex justify-center gap-1.5 mb-5">
+          {pasos.map((_, i) => (
+            <div key={i} className={`h-1.5 rounded-full transition-all ${i === paso ? 'w-6 bg-orange-500' : 'w-1.5 bg-zinc-700'}`} />
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          {paso > 0 && (
+            <button onClick={() => setPaso(paso - 1)} className={btnGhost + ' py-2.5 px-4'}>Atrás</button>
+          )}
+          <button onClick={() => ultimo ? onClose() : setPaso(paso + 1)} className={btnPrimary + ' flex-1 py-2.5'}>
+            {ultimo ? '¡Empecemos!' : 'Siguiente'}
+          </button>
+        </div>
+
+        {!ultimo && (
+          <button onClick={onClose} className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
+            Saltar guía
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
+  const [oculto, setOculto] = useState(false);
+
+  const midio = Number(form.cuello) > 0 && Number(form.cintura) > 0
+    && Number(form.peso) > 0 && Number(form.estatura) > 0
+    && !(Number(form.peso) === 70 && Number(form.estatura) === 170 && Number(form.cintura) === 85);
+  const eligioObjetivo = !!form.objetivo;
+  const registroComida = Object.values(mealPlan.meals || {}).some(e => e.some(x => x.foodKey));
+
+  const pasos = [
+    { id: 'calc', hecho: midio, titulo: 'Ingresa tus medidas', texto: 'Cuello, cintura, cadera y peso', tab: 'calc' },
+    { id: 'goal', hecho: eligioObjetivo, titulo: 'Elige tu objetivo', texto: 'Perder grasa, ganar músculo o mantener', tab: 'goal' },
+    { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Con medidas de casa: taza, plato, unidad', tab: 'meal' },
+    { id: 'photo', hecho: tieneFotos, titulo: 'Toma tus fotos de inicio', texto: 'Tu punto de partida para comparar después', tab: 'photos' },
+  ];
+
+  const completados = pasos.filter(p => p.hecho).length;
+  const todoListo = completados === pasos.length;
+
+  if (todoListo || oculto) {
+    return (
+      <button onClick={onVerGuia}
+        className="jb-body text-xs text-zinc-500 hover:text-orange-500 flex items-center gap-1.5 mb-4">
+        <AlertTriangle size={13} /> ¿Cómo funciona la app?
+      </button>
+    );
+  }
+
+  const siguiente = pasos.find(p => !p.hecho);
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5 mb-6">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="jb-display text-base text-zinc-200">🚀 PRIMEROS PASOS</h2>
+        <span className="jb-body text-xs text-zinc-500">{completados} de {pasos.length}</span>
+      </div>
+      <p className="jb-body text-xs text-zinc-500 mb-3">
+        Completa estos pasos para sacarle provecho a la app.
+      </p>
+
+      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
+        <div className="h-full bg-orange-500 rounded-full transition-all"
+          style={{ width: `${(completados / pasos.length) * 100}%` }} />
+      </div>
+
+      <div className="flex flex-col gap-2 mb-4">
+        {pasos.map((p, i) => (
+          <button key={p.id} onClick={() => onIr(p.tab)}
+            className={`flex items-center gap-3 rounded-xl p-3 text-left transition-colors border ${p.hecho
+              ? 'bg-emerald-950/20 border-emerald-800/40'
+              : p.id === siguiente?.id
+                ? 'bg-zinc-950 border-orange-500/50 hover:border-orange-500'
+                : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 jb-display text-xs ${p.hecho
+              ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400'}`}>
+              {p.hecho ? '✓' : i + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className={`jb-body text-sm ${p.hecho ? 'text-zinc-500 line-through' : 'text-zinc-100'}`}>
+                {p.titulo}
+              </div>
+              {!p.hecho && <div className="jb-body text-xs text-zinc-600">{p.texto}</div>}
+            </div>
+            {!p.hecho && <ChevronRight size={16} className="text-zinc-600 shrink-0" />}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        {siguiente && (
+          <button onClick={() => onIr(siguiente.tab)} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>
+            Continuar: {siguiente.titulo}
+          </button>
+        )}
+        <button onClick={onVerGuia} className={btnGhost + ' py-2.5 px-4 text-sm'}>Ver guía</button>
+      </div>
+
+      <button onClick={() => setOculto(true)}
+        className="jb-body text-[11px] text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
+        Ocultar por ahora
+      </button>
+    </div>
+  );
+}
+
 function Dashboard({ form, setForm, results, mealPlan, targets }) {
   const pesoActual = Number(form.peso) || 0;
   const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
@@ -2990,6 +3157,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
       <datalist id="jb-foods">
         {FOODS.map(f => <option key={f.key} value={f.key} />)}
       </datalist>
+      <AyudaTab texto="Escribe lo que comiste y elige la medida de casa (taza, plato, unidad). No necesitas pesar nada. Abajo verás cuánto llevas del día y cuánto te queda." />
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
         <AlertTriangle className="text-zinc-500 shrink-0" size={14} />
         <p className="jb-body text-[11px] text-zinc-500">
@@ -3136,6 +3304,28 @@ function WhatsAppButton() {
 
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
+  const [verGuia, setVerGuia] = useState(false);
+  const [tieneFotos, setTieneFotos] = useState(false);
+  const [guiaVista, setGuiaVista] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { count } = await supabase.from('fotos_progreso')
+          .select('id', { count: 'exact', head: true }).eq('username', username);
+        setTieneFotos((count || 0) > 0);
+      } catch {}
+      try {
+        const vista = localStorage.getItem('jb_guia_' + username);
+        if (!vista) { setVerGuia(true); setGuiaVista(false); }
+      } catch {}
+    })();
+  }, [username]);
+
+  function cerrarGuia() {
+    setVerGuia(false);
+    try { localStorage.setItem('jb_guia_' + username, '1'); } catch {}
+  }
   const results = useMemo(() => calcAll({
     ...form,
     edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
@@ -3153,6 +3343,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
+        {verGuia && <BienvenidaModal nombre={userRecord?.nombre} onClose={cerrarGuia} />}
         <TrialBanner user={userRecord} />
         <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
         <div className="flex flex-wrap gap-2 mb-6">
@@ -3192,7 +3383,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </div>
 
       <main className="max-w-4xl mx-auto px-6 pb-12">
-        {tab === 'dash' && <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />}
+        {tab === 'dash' && (
+          <>
+            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
+              onIr={setTab} onVerGuia={() => setVerGuia(true)} />
+            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />
+          </>
+        )}
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}

@@ -2712,7 +2712,198 @@ function PhotosTab({ username, pesoActual }) {
   );
 }
 
-function ProgressTab({ username }) {
+/* ------------------------------------------------------------------ */
+/* COACH DIGITAL — análisis de tendencia                               */
+/* ------------------------------------------------------------------ */
+
+function promedioSemana(rows, desde, hasta) {
+  const trozo = rows.slice(desde, hasta).filter(r => Number(r.peso) > 0);
+  if (!trozo.length) return null;
+  return trozo.reduce((a, r) => a + Number(r.peso), 0) / trozo.length;
+}
+
+function analizarProgreso(rows, form) {
+  const conPeso = rows.filter(r => Number(r.peso) > 0);
+  const conComida = rows.filter(r => Number(r.kcal_consumidas) > 0);
+
+  // Días transcurridos desde el primer registro
+  let diasRango = 0;
+  if (rows.length >= 2) {
+    const a = new Date(rows[0].fecha + 'T00:00:00');
+    const b = new Date(rows[rows.length - 1].fecha + 'T00:00:00');
+    diasRango = Math.round((b - a) / 86400000) + 1;
+  }
+
+  // Adherencia
+  const conObjetivo = conComida.filter(r => Number(r.kcal_objetivo) > 0);
+  const enRango = conObjetivo.filter(r => {
+    const ratio = Number(r.kcal_consumidas) / Number(r.kcal_objetivo);
+    return ratio >= 0.85 && ratio <= 1.15;
+  }).length;
+  const adherencia = conObjetivo.length >= 3 ? Math.round((enRango / conObjetivo.length) * 100) : null;
+
+  // Constancia del registro
+  const constancia = diasRango > 0 ? Math.round((conComida.length / diasRango) * 100) : 0;
+
+  // Aún no hay datos suficientes
+  if (diasRango < 10 || conPeso.length < 4) {
+    return {
+      estado: 'inicial',
+      titulo: 'ESTAMOS CONOCIENDO TU CUERPO',
+      mensaje: `Llevas ${conComida.length} día(s) registrados. Con unas dos semanas de datos podré decirte si tu plan está funcionando o si conviene ajustarlo.`,
+      accion: 'Sigue registrando tus comidas cada día. Es lo único que necesito.',
+      color: 'zinc', adherencia, constancia,
+    };
+  }
+
+  // Tendencia: promedio de los primeros 7 registros vs. los últimos 7.
+  // Usar ventanas fijas (no mitades) evita subestimar el ritmo real.
+  const ventana = Math.min(7, Math.max(2, Math.floor(conPeso.length / 3)));
+  const pesoInicial = promedioSemana(conPeso, 0, ventana);
+  const pesoActual = promedioSemana(conPeso, conPeso.length - ventana, conPeso.length);
+  if (pesoInicial === null || pesoActual === null) {
+    return { estado: 'inicial', titulo: 'FALTAN DATOS DE PESO',
+      mensaje: 'Registra tu peso al menos 2 veces por semana para poder analizar tu tendencia.',
+      accion: 'Actualiza tu peso en "Composición corporal".', color: 'zinc', adherencia, constancia };
+  }
+
+  const cambio = pesoActual - pesoInicial;
+  const semanas = Math.max(diasRango / 7, 1);
+  // Distancia real entre los centros de las dos ventanas comparadas
+  const separacion = Math.max(conPeso.length - ventana, 1);
+  const factorTiempo = separacion / Math.max(conPeso.length - 1, 1);
+  const semanasEfectivas = Math.max(semanas * factorTiempo, 0.5);
+  const porSemana = cambio / semanasEfectivas;
+  const pctSemana = (Math.abs(porSemana) / pesoInicial) * 100;
+  const objetivo = form.objetivo || '';
+  const perder = objetivo === 'Perder grasa';
+  const ganar = objetivo === 'Ganar músculo';
+  const estancado = Math.abs(porSemana) < 0.15;
+
+  const base = { adherencia, constancia, cambio, porSemana, semanas: Math.round(semanas * 10) / 10 };
+
+  // Prioridad 1: bajada demasiado rápida (riesgo de perder músculo)
+  if (perder && porSemana < 0 && pctSemana > 1.2) {
+    return { ...base, estado: 'rapido', color: 'amber',
+      titulo: 'ESTÁS BAJANDO MUY RÁPIDO',
+      mensaje: `Bajaste ${Math.abs(porSemana).toFixed(1)} kg por semana. A este ritmo se pierde músculo junto con la grasa, y el metabolismo se resiente.`,
+      accion: 'Sube tus calorías objetivo un 10% y prioriza la proteína. Bajar entre 0.4 y 0.8 kg por semana es más sostenible.' };
+  }
+
+  // Prioridad 2: constancia baja — no se puede analizar bien
+  if (constancia < 50) {
+    return { ...base, estado: 'constancia', color: 'zinc',
+      titulo: 'NECESITO MÁS REGISTROS',
+      mensaje: `Registraste ${conComida.length} de ${diasRango} días. Con menos de la mitad de los días es difícil saber si el plan funciona o no.`,
+      accion: 'Intenta registrar todos los días, aunque sea rápido. Los días que no anotas son los que suelen desviar el resultado.' };
+  }
+
+  // Prioridad 3: estancamiento
+  if (estancado) {
+    if (adherencia !== null && adherencia < 65) {
+      return { ...base, estado: 'estancado_adherencia', color: 'amber',
+        titulo: 'TU PROGRESO SE ESTANCÓ',
+        mensaje: `Tu peso casi no cambió en ${Math.round(semanas)} semana(s). Antes de tocar tu plan: cumpliste tu objetivo de calorías solo el ${adherencia}% de los días.`,
+        accion: 'El plan probablemente está bien; el reto es la constancia. Enfócate en acercarte a tu objetivo esta semana antes de cambiar nada.' };
+    }
+    return { ...base, estado: 'estancado', color: 'amber',
+      titulo: 'TU PROGRESO SE ESTANCÓ',
+      mensaje: `Tu peso se mantuvo estable en ${Math.round(semanas)} semana(s) y tu adherencia es buena${adherencia !== null ? ` (${adherencia}%)` : ''}. Tu cuerpo se adaptó a las calorías actuales.`,
+      accion: perder
+        ? 'Ajusta tu objetivo: baja entre 100 y 150 kcal, o aumenta tu actividad diaria. Cambios pequeños, no drásticos.'
+        : ganar
+          ? 'Sube tu objetivo entre 100 y 200 kcal para retomar el avance.'
+          : 'Si tu meta es mantenerte, esto es exactamente lo que buscabas.' };
+  }
+
+  // Prioridad 4: va en la dirección correcta
+  if (perder && porSemana < 0) {
+    return { ...base, estado: 'bien', color: 'emerald',
+      titulo: 'VAS PROGRESANDO CORRECTAMENTE',
+      mensaje: `Bajaste ${Math.abs(cambio).toFixed(1)} kg en ${Math.round(semanas)} semana(s), un ritmo de ${Math.abs(porSemana).toFixed(1)} kg por semana. Es un ritmo saludable y sostenible.`,
+      accion: 'Mantén tu plan tal como está. No cambies nada mientras siga funcionando.' };
+  }
+  if (ganar && porSemana > 0) {
+    return { ...base, estado: 'bien', color: 'emerald',
+      titulo: 'VAS PROGRESANDO CORRECTAMENTE',
+      mensaje: `Subiste ${cambio.toFixed(1)} kg en ${Math.round(semanas)} semana(s). Vas en la dirección de tu objetivo.`,
+      accion: 'Mantén tu plan y tu entrenamiento de fuerza. Así el peso ganado es músculo, no solo grasa.' };
+  }
+
+  // Prioridad 5: va en dirección contraria
+  return { ...base, estado: 'contrario', color: 'amber',
+    titulo: 'VAS EN DIRECCIÓN CONTRARIA',
+    mensaje: `Tu objetivo es ${objetivo.toLowerCase() || 'mantenerte'}, pero tu peso ${porSemana > 0 ? 'subió' : 'bajó'} ${Math.abs(cambio).toFixed(1)} kg en ${Math.round(semanas)} semana(s).${adherencia !== null ? ` Tu adherencia fue del ${adherencia}%.` : ''}`,
+    accion: adherencia !== null && adherencia < 65
+      ? 'Antes de cambiar tu objetivo, prueba una semana acercándote a tus calorías. Suele bastar con eso.'
+      : 'Revisa las porciones de lo que registras: a veces el cálculo se queda corto. Escríbenos si quieres que lo revisemos juntos.' };
+}
+
+function CoachCard({ analisis }) {
+  if (!analisis) return null;
+  const c = analisis.color;
+  const estilos = {
+    emerald: 'bg-emerald-950/30 border-emerald-700/50',
+    amber: 'bg-amber-950/30 border-amber-700/50',
+    zinc: 'bg-zinc-900 border-zinc-800',
+  }[c];
+  const textoTitulo = {
+    emerald: 'text-emerald-400', amber: 'text-amber-400', zinc: 'text-zinc-200',
+  }[c];
+  const emoji = { emerald: '✅', amber: '⚠️', zinc: '📊' }[c];
+
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    'Hola, revisé mi análisis en Jonah Beast Fuel y quiero una recomendación sobre mi plan.')}`;
+
+  return (
+    <div className={`rounded-2xl border p-5 ${estilos}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">{emoji}</span>
+        <h2 className={`jb-display text-base ${textoTitulo}`}>{analisis.titulo}</h2>
+      </div>
+
+      <p className="jb-body text-sm text-zinc-300 mb-3">{analisis.mensaje}</p>
+
+      <div className="bg-zinc-950/60 rounded-xl p-3 mb-3">
+        <p className="jb-body text-[11px] text-zinc-500 mb-1 uppercase tracking-wider">Qué hacer ahora</p>
+        <p className="jb-body text-sm text-zinc-200">{analisis.accion}</p>
+      </div>
+
+      {(analisis.adherencia !== null || analisis.constancia > 0) && (
+        <div className="flex gap-4 flex-wrap mb-3">
+          {analisis.adherencia !== null && (
+            <span className="jb-body text-xs text-zinc-400">
+              Adherencia: <span className="text-zinc-200 font-semibold">{analisis.adherencia}%</span>
+            </span>
+          )}
+          {analisis.constancia > 0 && (
+            <span className="jb-body text-xs text-zinc-400">
+              Días registrados: <span className="text-zinc-200 font-semibold">{analisis.constancia}%</span>
+            </span>
+          )}
+          {analisis.porSemana !== undefined && (
+            <span className="jb-body text-xs text-zinc-400">
+              Ritmo: <span className="text-zinc-200 font-semibold">
+                {analisis.porSemana > 0 ? '+' : ''}{analisis.porSemana.toFixed(2)} kg/sem
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+
+      <a href={waUrl} target="_blank" rel="noopener noreferrer"
+        className="jb-body text-xs text-orange-500 hover:text-orange-400 flex items-center gap-1.5">
+        <MessageCircle size={13} /> Consultar con soporte
+      </a>
+
+      <p className="jb-body text-[10px] text-zinc-600 mt-3">
+        Análisis automático basado en tus registros. No reemplaza la evaluación de un profesional de la salud.
+      </p>
+    </div>
+  );
+}
+
+function ProgressTab({ username, form }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rango, setRango] = useState(30);
@@ -2751,6 +2942,8 @@ function ProgressTab({ username }) {
     return { promKcal, promProt, promObj, adherencia, diasRegistrados: conComida.length, totalDias: filtrados.length, enRango, objetivos: objetivos.length };
   }, [filtrados]);
 
+  const analisis = useMemo(() => rows.length ? analizarProgreso(rows, form || {}) : null, [rows, form]);
+
   const serie = (campo) => filtrados
     .filter(r => r[campo] !== null && r[campo] !== undefined)
     .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
@@ -2782,6 +2975,8 @@ function ProgressTab({ username }) {
           </button>
         ))}
       </div>
+
+      {analisis && <CoachCard analisis={analisis} />}
 
       {stats && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -3420,7 +3615,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
-        {tab === 'progress' && <ProgressTab username={username} />}
+        {tab === 'progress' && <ProgressTab username={username} form={form} />}
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>

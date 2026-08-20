@@ -612,8 +612,8 @@ function Landing({ onChoose }) {
           </button>
           <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
             <ShieldCheck className="text-orange-500 mb-3" size={28} />
-            <div className="jb-display text-xl text-zinc-50 mb-1">SOY ENTRENADOR</div>
-            <p className="jb-body text-sm text-zinc-500">Entra con tu correo de administrador</p>
+            <div className="jb-display text-xl text-zinc-50 mb-1">ADMINISTRACIÓN</div>
+            <p className="jb-body text-sm text-zinc-500">Acceso del equipo Jonah Beast Fuel</p>
             <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
               Entrar <ChevronRight size={16} />
             </div>
@@ -950,7 +950,7 @@ function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="jb-display text-xl text-zinc-50 mb-1">{adminPassExists ? 'ACCESO ENTRENADOR' : 'CREA TU ACCESO'}</h2>
+          <h2 className="jb-display text-xl text-zinc-50 mb-1">{adminPassExists ? 'ACCESO ADMINISTRACIÓN' : 'CREA TU ACCESO'}</h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
             {adminPassExists ? 'Ingresa tu contraseña de administrador.' : 'Primera vez aquí: define tu contraseña de administrador.'}
           </p>
@@ -1341,8 +1341,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>
-          <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DEL ENTRENADOR</h1>
-          <p className="text-zinc-500 text-sm">Crea, habilita o deshabilita el acceso de tus alumnos.</p>
+          <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
+          <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
         </div>
 
         <VencimientosPanel users={users} onRenew={onRenew} />

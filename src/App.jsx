@@ -1335,6 +1335,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <p className="text-zinc-500 text-sm">Crea, habilita o deshabilita el acceso de tus alumnos.</p>
         </div>
 
+        <VencimientosPanel users={users} onRenew={onRenew} />
+
         <PagosPanel />
 
         <LeadsPanel />
@@ -1815,6 +1817,115 @@ function TrialSummary({ stats, nombre, compacto }) {
       <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3'}>
         <MessageCircle size={18} /> QUIERO CONTINUAR
       </a>
+    </div>
+  );
+}
+
+function RenewalBanner({ user, onRenovar }) {
+  if (!user || user.plan === 'trial') return null;
+  const dl = daysLeft(user.fechaVencimiento);
+  if (dl === null || dl > 7) return null;
+
+  const vencido = dl < 0;
+  const hoy = dl === 0;
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    `Hola, soy ${user.nombre || user.username} y quiero renovar mi plan de Jonah Beast Fuel.`)}`;
+
+  return (
+    <div className={`rounded-2xl p-4 mb-6 border ${vencido || hoy
+      ? 'bg-orange-950/40 border-orange-500/60' : 'bg-amber-950/30 border-amber-700/50'}`}>
+      <div className="flex items-start gap-3">
+        <CreditCard className={vencido || hoy ? 'text-orange-400 shrink-0' : 'text-amber-400 shrink-0'} size={20} />
+        <div className="flex-1">
+          <p className={`jb-display text-sm mb-1 ${vencido || hoy ? 'text-orange-400' : 'text-amber-400'}`}>
+            {vencido ? 'TU PLAN VENCIÓ' : hoy ? 'TU PLAN VENCE HOY' : `TU PLAN VENCE EN ${dl} DÍA${dl > 1 ? 'S' : ''}`}
+          </p>
+          <p className="jb-body text-sm text-zinc-300">
+            {vencido
+              ? 'Renueva para seguir registrando tus comidas y no perder el seguimiento de tu progreso.'
+              : 'Renueva ahora y sigue sin interrupciones. Tu historial y tus fotos se mantienen intactos.'}
+          </p>
+          <div className="flex gap-2 mt-3 flex-wrap">
+            <button onClick={onRenovar} className={btnPrimary + ' py-2 px-4 text-sm'}>
+              Renovar mi plan
+            </button>
+            <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-2 px-4 text-sm'}>
+              <MessageCircle size={14} /> Consultar
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VencimientosPanel({ users, onRenew }) {
+  const [open, setOpen] = useState(true);
+
+  const porVencer = useMemo(() => {
+    return (users || [])
+      .filter(u => u.fechaVencimiento && u.enabled)
+      .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento) }))
+      .filter(u => u.dl !== null && u.dl <= 7)
+      .sort((a, b) => a.dl - b.dl);
+  }, [users]);
+
+  if (porVencer.length === 0) return null;
+
+  function waLinkAlumno(u) {
+    const num = (u.telefono || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const dl = u.dl;
+    const texto = dl < 0
+      ? `Hola ${u.nombre || u.username}, tu plan de Jonah Beast Fuel venció hace ${Math.abs(dl)} día(s). ¿Te ayudo a renovarlo para que no pierdas tu progreso?`
+      : dl === 0
+        ? `Hola ${u.nombre || u.username}, tu plan de Jonah Beast Fuel vence hoy. ¿Lo renovamos para que sigas sin interrupciones?`
+        : `Hola ${u.nombre || u.username}, te escribo porque tu plan de Jonah Beast Fuel vence en ${dl} día(s). ¿Quieres renovarlo?`;
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-amber-700/50 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">
+          ⏰ POR VENCER
+          <span className="ml-2 bg-amber-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{porVencer.length}</span>
+        </h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          <p className="jb-body text-xs text-zinc-500 mb-3">
+            Escríbeles antes de que venzan. Un mensaje a tiempo evita que se caigan.
+          </p>
+          <div className="flex flex-col gap-2">
+            {porVencer.map(u => (
+              <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-zinc-100 text-sm font-medium jb-body">
+                    {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+                  </div>
+                  <div className={`text-xs jb-body ${u.dl < 0 ? 'text-red-400' : u.dl <= 2 ? 'text-orange-400' : 'text-amber-400'}`}>
+                    {u.dl < 0 ? `Venció hace ${Math.abs(u.dl)} día(s)` : u.dl === 0 ? 'Vence hoy' : `Vence en ${u.dl} día(s)`}
+                    {u.plan === 'trial' ? ' · prueba gratis' : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a href={waLinkAlumno(u)} target="_blank" rel="noopener noreferrer"
+                    className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                    <MessageCircle size={13} /> Recordar
+                  </a>
+                  <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+                    +1 mes
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3018,6 +3129,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <TrialBanner user={userRecord} />
+        <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setTab('dash')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>

@@ -1697,7 +1697,7 @@ function CalculatorTab({ form, setForm, results }) {
   return (
     <div className="grid lg:grid-cols-2 gap-6">
       <div className="lg:col-span-2">
-        <AyudaTab texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. Con esto la app calcula tu % de grasa y cuántas calorías quema tu cuerpo." />
+        <AyudaTab texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. No necesitas hacerlo todos los días: tus datos quedan guardados y solo debes actualizarlos cada 2 semanas o cuando cambie tu peso." />
       </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">TUS DATOS</h2>
@@ -2573,7 +2573,7 @@ function PhotosTab({ username, pesoActual }) {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">📸 FOTOS DE HOY</h2>
         <p className="jb-body text-xs text-zinc-500 mb-4">
-          Toma 4 fotos: de frente, de perfil, de espalda y una libre. La cámara de tu celular es suficiente.
+          Toma 4 fotos: de frente, de perfil, de espalda y una libre. La cámara de tu celular es suficiente. No es diario: hazlo cada 2 semanas para notar el cambio.
         </p>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-4">
@@ -2877,6 +2877,15 @@ function BienvenidaModal({ nombre, onClose }) {
       emoji: '📸', titulo: 'MIDE TU AVANCE',
       texto: 'Toma tus fotos cada 2 semanas y registra tu peso. En "Mi progreso" verás tus gráficos y en "Mis fotos" podrás comparar el antes y el ahora.',
     },
+    {
+      emoji: '📅', titulo: 'TU RUTINA DIARIA ES SIMPLE',
+      texto: 'Solo registra tus comidas cada día. Nada más. Tus medidas quedan guardadas y no cambian hasta que tú las actualices.',
+      extra: [
+        ['Todos los días', 'Registra lo que comes'],
+        ['Cada 2 semanas', 'Vuelve a medirte y toma fotos'],
+        ['Cuando quieras', 'Revisa tu progreso'],
+      ],
+    },
   ];
   const p = pasos[paso];
   const ultimo = paso === pasos.length - 1;
@@ -2888,6 +2897,16 @@ function BienvenidaModal({ nombre, onClose }) {
           <div className="text-5xl mb-3">{p.emoji}</div>
           <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
+          {p.extra && (
+            <div className="mt-4 flex flex-col gap-2">
+              {p.extra.map(([cuando, que]) => (
+                <div key={cuando} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 flex items-center gap-3 text-left">
+                  <span className="jb-display text-[11px] text-orange-500 w-24 shrink-0">{cuando.toUpperCase()}</span>
+                  <span className="jb-body text-xs text-zinc-300">{que}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-center gap-1.5 mb-5">
@@ -2952,7 +2971,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
         <span className="jb-body text-xs text-zinc-500">{completados} de {pasos.length}</span>
       </div>
       <p className="jb-body text-xs text-zinc-500 mb-3">
-        Completa estos pasos para sacarle provecho a la app.
+        Haz esto una sola vez al empezar. Después, tu única tarea diaria es registrar tus comidas.
       </p>
 
       <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
@@ -3019,6 +3038,14 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
+        <span className="text-orange-500 shrink-0 text-sm">📅</span>
+        <p className="jb-body text-xs text-zinc-400">
+          <span className="text-zinc-200 font-semibold">Tu única tarea diaria es registrar lo que comes.</span> Tus
+          medidas quedan guardadas y no cambian hasta que las actualices. Vuelve a medirte cada 2 semanas.
+        </p>
+      </div>
+
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">COMPOSICIÓN CORPORAL</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

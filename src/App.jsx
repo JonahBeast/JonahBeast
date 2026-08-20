@@ -1129,8 +1129,14 @@ function todayISO() {
 }
 
 function addMonthsISO(iso, months) {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1 + months, d);
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  // Si el día no existe en el mes destino (ej. 31 de enero + 1 mes),
+  // se ajusta al último día de ese mes en vez de saltar al siguiente.
+  const anioDestino = y + Math.floor((m - 1 + months) / 12);
+  const mesDestino = ((m - 1 + months) % 12 + 12) % 12;
+  const ultimoDia = new Date(anioDestino, mesDestino + 1, 0).getDate();
+  const dia = Math.min(d, ultimoDia);
+  const dt = new Date(anioDestino, mesDestino, dia);
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
@@ -2506,7 +2512,7 @@ function PhotosTab({ username, pesoActual }) {
     setLoading(true);
     try {
       const { data } = await supabase.from('fotos_progreso').select('*')
-        .eq('username', username).order('fecha', { ascending: false }).limit(200);
+        .eq('username', username).order('fecha', { ascending: false }).limit(600);
       const lista = data || [];
       setFotos(lista);
       if (lista.length) {
@@ -2958,7 +2964,7 @@ function ProgressTab({ username, form }) {
     setLoading(true);
     try {
       const { data } = await supabase.from('historial').select('*')
-        .eq('username', username).order('fecha', { ascending: true }).limit(365);
+        .eq('username', username).order('fecha', { ascending: true }).limit(1500);
       setRows(data || []);
     } catch { setRows([]); }
     setLoading(false);

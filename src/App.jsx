@@ -819,7 +819,7 @@ function FreeCalculator({ onBack }) {
 }
 
 function TrialSignup({ onBack, onCreated }) {
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '' });
+  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '', referido: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -846,7 +846,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel } },
+      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, codigo_referido: f.referido.trim().toUpperCase() } },
     });
 
     if (error) {
@@ -912,6 +912,10 @@ function TrialSignup({ onBack, onCreated }) {
               </Field>
               <Field label="Repite tu contraseña">
                 <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
+              </Field>
+              <Field label="Código de referido (opcional)">
+                <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
+                  className={inputCls + ' uppercase'} placeholder="Si alguien te recomendó, escríbelo aquí" />
               </Field>
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
@@ -1228,6 +1232,258 @@ function formatActivity(lastActivity) {
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
 }
 
+function ReferidosPanel({ users, onCambio }) {
+  const [refs, setRefs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', comision: 5 });
+  const [err, setErr] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [expandido, setExpandido] = useState(null);
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('referidores').select('*').order('created_at', { ascending: false });
+      setRefs(data || []);
+    } catch { setRefs([]); }
+    setLoading(false);
+  }
+
+  async function crear(e) {
+    e.preventDefault();
+    setErr('');
+    const cod = nuevo.codigo.trim().toUpperCase().replace(/\s/g, '');
+    if (!cod) return setErr('Escribe el código.');
+    if (!/^[A-Z0-9._-]+$/.test(cod)) return setErr('El código solo puede tener letras, números, punto, guion o guion bajo.');
+    if (!nuevo.nombre.trim()) return setErr('Escribe el nombre de la persona.');
+    if (refs.some(r => r.codigo.toUpperCase() === cod)) return setErr('Ese código ya existe.');
+    setGuardando(true);
+    try {
+      const { error } = await supabase.from('referidores').insert({
+        codigo: cod, nombre: nuevo.nombre.trim(),
+        telefono: nuevo.telefono.trim().replace(/\s/g, '') || null,
+        comision: Number(nuevo.comision) || 5, activo: true,
+      });
+      if (error) throw error;
+      setNuevo({ codigo: '', nombre: '', telefono: '', comision: 5 });
+      await cargar();
+    } catch (e2) { setErr('No se pudo crear: ' + (e2.message || '')); }
+    setGuardando(false);
+  }
+
+  async function alternar(r) {
+    try {
+      await supabase.from('referidores').update({ activo: !r.activo }).eq('codigo', r.codigo);
+      await cargar();
+    } catch {}
+  }
+
+  async function marcarPagada(username) {
+    try {
+      await supabase.from('alumnos')
+        .update({ comision_pagada: true, comision_pagada_en: new Date().toISOString() })
+        .eq('username', username);
+      if (onCambio) await onCambio();
+    } catch {}
+  }
+
+  async function revertirPago(username) {
+    try {
+      await supabase.from('alumnos')
+        .update({ comision_pagada: false, comision_pagada_en: null })
+        .eq('username', username);
+      if (onCambio) await onCambio();
+    } catch {}
+  }
+
+  // Agrupar alumnos por código de referido
+  const porCodigo = useMemo(() => {
+    const m = {};
+    (users || []).forEach(u => {
+      if (!u.codigoReferido) return;
+      const c = u.codigoReferido.toUpperCase();
+      (m[c] = m[c] || []).push(u);
+    });
+    return m;
+  }, [users]);
+
+  const totalPendiente = refs.reduce((acc, r) => {
+    const lista = porCodigo[r.codigo.toUpperCase()] || [];
+    return acc + lista.filter(u => u.plan === 'pago' && !u.comisionPagada).length * Number(r.comision);
+  }, 0);
+
+  const totalReferidos = Object.values(porCodigo).reduce((a, l) => a + l.length, 0);
+
+  function waRef(r, monto, cantidad) {
+    const num = (r.telefono || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const texto = `Hola ${r.nombre}, te escribo de Jonah Beast Fuel. Tienes ${cantidad} referido(s) que ya pagaron su plan. Tu comisión es de S/${monto.toFixed(2)}.`;
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  return (
+    <div className={`rounded-2xl overflow-hidden border ${totalPendiente > 0 ? 'bg-zinc-900 border-emerald-700/50' : 'bg-zinc-900 border-zinc-800'}`}>
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">
+          🤝 REFERIDOS · {totalReferidos} inscritos
+          {totalPendiente > 0 && (
+            <span className="ml-2 bg-emerald-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">
+              S/{totalPendiente.toFixed(0)} por pagar
+            </span>
+          )}
+        </h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-5">
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">CREAR CÓDIGO</h3>
+            <p className="jb-body text-xs text-zinc-500 mb-3">
+              Entrégale el código a la persona. Cuando alguien se registre con él, aparecerá aquí.
+            </p>
+            <form onSubmit={crear} className="grid sm:grid-cols-5 gap-2 items-end">
+              <Field label="Código">
+                <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value }))}
+                  className={inputCls + ' uppercase'} placeholder="COACHJUAN" />
+              </Field>
+              <Field label="Nombre">
+                <input value={nuevo.nombre} onChange={e => setNuevo(v => ({ ...v, nombre: e.target.value }))}
+                  className={inputCls} placeholder="Juan Pérez" />
+              </Field>
+              <Field label="Celular">
+                <input type="tel" inputMode="tel" value={nuevo.telefono}
+                  onChange={e => setNuevo(v => ({ ...v, telefono: e.target.value }))}
+                  className={inputCls} placeholder="999888777" />
+              </Field>
+              <Field label="Comisión S/">
+                <input type="number" step="0.5" value={nuevo.comision}
+                  onChange={e => setNuevo(v => ({ ...v, comision: e.target.value }))}
+                  className={inputCls} />
+              </Field>
+              <button type="submit" disabled={guardando} className={btnPrimary}>
+                {guardando ? <Loader2 className="animate-spin" size={16} /> : <><Plus size={16} /> Crear</>}
+              </button>
+            </form>
+            {err && <p className="text-red-400 text-sm jb-body mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="jb-display text-sm text-zinc-300">CÓDIGOS ACTIVOS</h3>
+              <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
+            </div>
+
+            {loading ? (
+              <Loader2 className="animate-spin text-orange-500" size={20} />
+            ) : refs.length === 0 ? (
+              <p className="text-zinc-500 text-sm">Aún no has creado códigos.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {refs.map(r => {
+                  const lista = porCodigo[r.codigo.toUpperCase()] || [];
+                  const pagaron = lista.filter(u => u.plan === 'pago');
+                  const porPagar = pagaron.filter(u => !u.comisionPagada);
+                  const yaPagados = pagaron.filter(u => u.comisionPagada);
+                  const montoPend = porPagar.length * Number(r.comision);
+                  const abierto = expandido === r.codigo;
+
+                  return (
+                    <div key={r.codigo} className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+                      <div className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="jb-display text-sm text-orange-500">{r.codigo}</span>
+                            <span className="text-zinc-100 text-sm jb-body">{r.nombre}</span>
+                            {!r.activo && <span className="text-red-400 text-xs jb-body">(desactivado)</span>}
+                          </div>
+                          <div className="text-zinc-500 text-xs jb-body mt-0.5">
+                            {lista.length} inscrito(s) · {pagaron.length} pagaron · S/{Number(r.comision).toFixed(2)} c/u
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {montoPend > 0 && (
+                            <>
+                              <span className="jb-display text-sm text-emerald-400">S/{montoPend.toFixed(2)}</span>
+                              <a href={waRef(r, montoPend, porPagar.length)} target="_blank" rel="noopener noreferrer"
+                                className={btnGhost + ' py-1.5 px-3 text-xs'}>
+                                <MessageCircle size={13} />
+                              </a>
+                            </>
+                          )}
+                          {lista.length > 0 && (
+                            <button onClick={() => setExpandido(abierto ? null : r.codigo)}
+                              className={btnGhost + ' py-1.5 px-3 text-xs'}>
+                              {abierto ? 'Ocultar' : 'Ver referidos'}
+                            </button>
+                          )}
+                          <button onClick={() => alternar(r)}
+                            className={(r.activo ? btnDanger : btnGhost) + ' py-1.5 px-3 text-xs'}>
+                            {r.activo ? 'Desactivar' : 'Activar'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {abierto && (
+                        <div className="border-t border-zinc-800 p-3 flex flex-col gap-2">
+                          {lista.map(u => {
+                            const pago = u.plan === 'pago';
+                            return (
+                              <div key={u.username} className="flex items-center justify-between gap-3 flex-wrap bg-zinc-900 rounded-lg p-2.5">
+                                <div>
+                                  <div className="text-zinc-100 text-sm jb-body">{u.nombre || u.username}</div>
+                                  <div className="text-xs jb-body">
+                                    <span className={pago ? 'text-emerald-400' : 'text-zinc-500'}>
+                                      {pago ? '✓ Pagó su plan' : 'En prueba gratis'}
+                                    </span>
+                                    {u.comisionPagada && (
+                                      <span className="text-zinc-500"> · comisión pagada</span>
+                                    )}
+                                  </div>
+                                </div>
+                                {pago && (
+                                  u.comisionPagada ? (
+                                    <button onClick={() => revertirPago(u.username)}
+                                      className="jb-body text-xs text-zinc-600 hover:text-zinc-400">
+                                      Revertir
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => marcarPagada(u.username)}
+                                      className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                                      Pagué S/{Number(r.comision).toFixed(2)}
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
+                          {yaPagados.length > 0 && (
+                            <p className="jb-body text-[11px] text-zinc-600 mt-1">
+                              {yaPagados.length} comisión(es) ya liquidada(s) con este código.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <p className="jb-body text-[11px] text-zinc-600">
+            La comisión se marca como pagada solo cuando el alumno ya pagó su plan. Los que están en prueba gratis aún no generan comisión.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeadsPanel() {
   const [leads, setLeads] = useState([]);
   const [code, setCode] = useState('');
@@ -1317,7 +1573,7 @@ function LeadsPanel() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew }) {
+function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
 
@@ -1350,6 +1606,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
         </div>
+
+        <ReferidosPanel users={users} onCambio={onRecargar} />
 
         <VencimientosPanel users={users} onRenew={onRenew} />
 
@@ -1416,6 +1674,12 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                         </span>
                         <span className="text-zinc-700">·</span>
                         <span className={act.color}>{act.text}</span>
+                        {u.codigoReferido && (
+                          <>
+                            <span className="text-zinc-700">·</span>
+                            <span className="text-orange-500">ref: {u.codigoReferido}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -3744,6 +4008,7 @@ export default function App() {
         nombre: u.nombre || '', telefono: u.telefono || '', plan: u.plan || 'pago',
         passHash: u.pass_hash || null, passSalt: u.pass_salt || null,
         fechaInicio: u.fecha_inicio || null, fechaVencimiento: u.fecha_vencimiento || null,
+        codigoReferido: u.codigo_referido || null, comisionPagada: !!u.comision_pagada,
       }));
     } catch { usersList = []; }
     try {
@@ -3981,7 +4246,7 @@ export default function App() {
       {view === 'admin' && adminAuthed && (
         <>
           <AdminDashboard users={users} onAddUser={addUser} onToggleUser={toggleUser}
-            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} />
+            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onRecargar={init} />
           {viewingStudent && (
             <StudentDataModal username={viewingStudent} data={viewingStudentData}
               onClose={() => { setViewingStudent(null); setViewingStudentData(null); }} />

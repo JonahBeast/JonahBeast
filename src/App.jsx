@@ -823,6 +823,23 @@ function TrialSignup({ onBack, onCreated }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
+  const [refEstado, setRefEstado] = useState(null); // {ok, nombre} | {ok:false}
+  const [refConfirmado, setRefConfirmado] = useState(false);
+
+  // Verifica el código mientras escribe
+  useEffect(() => {
+    const cod = f.referido.trim().toUpperCase();
+    setRefConfirmado(false);
+    if (!cod) { setRefEstado(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.from('referidores')
+          .select('codigo, nombre, activo').ilike('codigo', cod).maybeSingle();
+        setRefEstado(data && data.activo ? { ok: true, nombre: data.nombre } : { ok: false });
+      } catch { setRefEstado(null); }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [f.referido]);
 
   async function submit(e) {
     e.preventDefault();
@@ -837,6 +854,10 @@ function TrialSignup({ onBack, onCreated }) {
     if (/[^a-z0-9._-]/.test(user)) return setErr('El usuario solo puede tener letras, números, punto, guion o guion bajo.');
     if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
     if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
+    if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
+      setRefConfirmado(true);
+      return setErr('Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
+    }
 
     setBusy(true);
     try {
@@ -846,7 +867,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, codigo_referido: f.referido.trim().toUpperCase() } },
+      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
     if (error) {
@@ -917,6 +938,18 @@ function TrialSignup({ onBack, onCreated }) {
                 <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
                   className={inputCls + ' uppercase'} placeholder="Si alguien te recomendó, escríbelo aquí" />
               </Field>
+              {f.referido.trim() && refEstado && (
+                refEstado.ok ? (
+                  <p className="text-emerald-400 text-xs jb-body -mt-2">
+                    ✓ Código válido · te recomendó {refEstado.nombre}
+                  </p>
+                ) : (
+                  <p className="text-amber-400 text-xs jb-body -mt-2 flex items-start gap-1.5">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span>Ese código no existe o ya no está activo. Puedes corregirlo o continuar sin él.</span>
+                  </p>
+                )
+              )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
                 {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}

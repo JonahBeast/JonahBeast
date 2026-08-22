@@ -454,56 +454,166 @@ const GROUP_EMOJI = {
   'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
 };
 
-const PROTEIN_PICKS = ['Pollo pechuga', 'Bonito', 'Atún', 'Huevo de gallina', 'Carne de res (bistec)'];
-const CARB_PICKS = ['Arroz blanco', 'Papa', 'Camote', 'Quinua', 'Yuca'];
+/* ------------------------------------------------------------------ */
+/* COMBINACIONES REALES                                                 */
+/* Platos que un peruano sí arma en casa, no cruces al azar.            */
+/* ------------------------------------------------------------------ */
 
-function buildCombo(proteinFood, carbFood, remaining) {
-  const proteinTargetG = Math.max(remaining.protein, 15);
-  const carbTargetG = Math.max(remaining.carbs, 15);
-  let gP = proteinFood.protein > 0 ? (proteinTargetG / proteinFood.protein) * 100 : 100;
-  let gC = carbFood.carbs > 0 ? (carbTargetG / carbFood.carbs) * 100 : 100;
-  gP = Math.min(Math.max(gP, 60), 250);
-  gC = Math.min(Math.max(gC, 60), 300);
-  let kcal = (proteinFood.kcal * gP + carbFood.kcal * gC) / 100;
-  if (kcal > remaining.kcal * 1.05 && remaining.kcal > 0) {
-    const factor = remaining.kcal / kcal;
-    gP *= factor; gC *= factor; kcal *= factor;
+const COMBOS_REALES = [
+  /* ---------- DESAYUNO ---------- */
+  { comida: 'Desayuno', emoji: '🍳', nombre: 'Pan con huevo y café con leche',
+    items: [['Huevo de gallina (Cocido)', 100], ['Pan integral (-)', 60], ['Café con leche (-)', 200]] },
+  { comida: 'Desayuno', emoji: '🥣', nombre: 'Avena con plátano',
+    items: [['Avena (Cocida)', 250], ['Plátano de seda (Cruda)', 120], ['Leche descremada (-)', 150]] },
+  { comida: 'Desayuno', emoji: '🥑', nombre: 'Pan con palta y huevo',
+    items: [['Pan integral (-)', 60], ['Palta (Cruda)', 60], ['Huevo de gallina (Cocido)', 100]] },
+  { comida: 'Desayuno', emoji: '🥛', nombre: 'Yogur con avena y fruta',
+    items: [['Yogur natural (-)', 200], ['Avena en hojuelas (Cruda)', 40], ['Papaya (Cruda)', 150]] },
+  { comida: 'Desayuno', emoji: '🧀', nombre: 'Pan con queso y quinua',
+    items: [['Pan francés (-)', 55], ['Queso fresco (-)', 40], ['Quinua (Cocida)', 200]] },
+  { comida: 'Desayuno', emoji: '🍳', nombre: 'Huevos revueltos con pan',
+    items: [['Huevo de gallina (Cocido)', 150], ['Pan francés (-)', 55], ['Tomate (Crudo)', 80]] },
+
+  /* ---------- ALMUERZO ---------- */
+  { comida: 'Almuerzo', emoji: '🍗', nombre: 'Pollo a la plancha con arroz y ensalada',
+    items: [['Pollo pechuga (Cocida)', 150], ['Arroz blanco (Cocido)', 200], ['Lechuga (Cruda)', 60], ['Tomate (Crudo)', 80]] },
+  { comida: 'Almuerzo', emoji: '🐟', nombre: 'Pescado con arroz y ensalada',
+    items: [['Bonito (Cocido)', 150], ['Arroz blanco (Cocido)', 200], ['Zanahoria (Cocida)', 80], ['Vainita (Cocida)', 80]] },
+  { comida: 'Almuerzo', emoji: '🫘', nombre: 'Lentejas con arroz y pollo',
+    items: [['Lenteja (Cocida)', 200], ['Arroz blanco (Cocido)', 150], ['Pollo pechuga (Cocida)', 100]] },
+  { comida: 'Almuerzo', emoji: '🥩', nombre: 'Bistec con papa y ensalada',
+    items: [['Carne de res (bistec) (Cocida)', 150], ['Papa (Cocida)', 250], ['Lechuga (Cruda)', 60], ['Tomate (Crudo)', 80]] },
+  { comida: 'Almuerzo', emoji: '🐟', nombre: 'Ceviche con camote y choclo',
+    items: [['Ceviche de pescado (-)', 250], ['Camote (Cocido)', 100], ['Choclo (maíz) (Cocido)', 80]] },
+  { comida: 'Almuerzo', emoji: '🍛', nombre: 'Arroz con pollo y ensalada',
+    items: [['Arroz con pollo (-)', 350], ['Lechuga (Cruda)', 60], ['Tomate (Crudo)', 60]] },
+  { comida: 'Almuerzo', emoji: '🍲', nombre: 'Frejoles con arroz y pescado',
+    items: [['Frejol canario (Cocido)', 200], ['Arroz blanco (Cocido)', 150], ['Bonito (Cocido)', 120]] },
+  { comida: 'Almuerzo', emoji: '🍝', nombre: 'Fideos con pollo y verduras',
+    items: [['Fideos / pasta (Cocidos)', 220], ['Pollo pechuga (Cocida)', 130], ['Brócoli (Cocido)', 100]] },
+  { comida: 'Almuerzo', emoji: '🥘', nombre: 'Estofado de pollo con arroz',
+    items: [['Estofado de pollo (-)', 250], ['Arroz blanco (Cocido)', 180]] },
+
+  /* ---------- CENA ---------- */
+  { comida: 'Cena', emoji: '🍗', nombre: 'Pollo con camote y ensalada',
+    items: [['Pollo pechuga (Cocida)', 130], ['Camote (Cocido)', 150], ['Lechuga (Cruda)', 80]] },
+  { comida: 'Cena', emoji: '🥗', nombre: 'Ensalada de atún con palta',
+    items: [['Atún en lata en agua (escurrido) (-)', 120], ['Palta (Cruda)', 70], ['Lechuga (Cruda)', 80], ['Tomate (Crudo)', 80]] },
+  { comida: 'Cena', emoji: '🍳', nombre: 'Huevos con palta y pan integral',
+    items: [['Huevo de gallina (Cocido)', 100], ['Palta (Cruda)', 70], ['Pan integral (-)', 60]] },
+  { comida: 'Cena', emoji: '🍲', nombre: 'Caldo de gallina',
+    items: [['Caldo de gallina (-)', 400], ['Pan francés (-)', 55]] },
+  { comida: 'Cena', emoji: '🐟', nombre: 'Pescado al vapor con verduras',
+    items: [['Sudado de pescado (-)', 250], ['Papa (Cocida)', 150], ['Brócoli (Cocido)', 100]] },
+  { comida: 'Cena', emoji: '🥪', nombre: 'Sándwich de pollo con té',
+    items: [['Sándwich de pollo (-)', 150], ['Té / infusión sin azúcar (-)', 200]] },
+  { comida: 'Cena', emoji: '🥗', nombre: 'Ensalada de pollo',
+    items: [['Ensalada de pollo (-)', 300], ['Pan integral (-)', 30]] },
+
+  /* ---------- SNACK ---------- */
+  { comida: 'Snack / merienda', emoji: '🍎', nombre: 'Fruta con maní',
+    items: [['Manzana (Cruda)', 180], ['Maní (Crudo)', 25]] },
+  { comida: 'Snack / merienda', emoji: '🥛', nombre: 'Yogur griego con fruta',
+    items: [['Yogur griego natural (-)', 170], ['Fresa (Cruda)', 120]] },
+  { comida: 'Snack / merienda', emoji: '🥑', nombre: 'Pan con palta',
+    items: [['Pan integral (-)', 30], ['Palta (Cruda)', 50]] },
+  { comida: 'Snack / merienda', emoji: '🥚', nombre: 'Huevo cocido con fruta',
+    items: [['Huevo de gallina (Cocido)', 50], ['Plátano de seda (Cruda)', 120]] },
+  { comida: 'Snack / merienda', emoji: '🌰', nombre: 'Puñado de frutos secos',
+    items: [['Almendras (Crudas)', 30]] },
+  { comida: 'Snack / merienda', emoji: '🍌', nombre: 'Plátano con avena',
+    items: [['Plátano de seda (Cruda)', 120], ['Avena (Cocida)', 200]] },
+];
+
+/* Arma la opción ajustando las porciones a lo que le queda del día */
+function armarOpcion(combo, restante) {
+  const items = [];
+  for (const [clave, base] of combo.items) {
+    const food = FOODS.find(f => f.key === clave);
+    if (food) items.push({ food, grams: base });
   }
-  const protein = (proteinFood.protein * gP + carbFood.protein * gC) / 100;
-  const carbs = (proteinFood.carbs * gP + carbFood.carbs * gC) / 100;
-  const fat = (proteinFood.fat * gP + carbFood.fat * gC) / 100;
-  const score = Math.abs(kcal - remaining.kcal) + Math.abs(protein - remaining.protein) * 2;
+  if (!items.length) return null;
+
+  const totalBase = items.reduce((a, it) => a + (it.food.kcal * it.grams) / 100, 0);
+  if (totalBase <= 0) return null;
+
+  // Escalar entre 60% y 130% para que siga siendo una porción realista
+  let factor = restante.kcal > 0 ? restante.kcal / totalBase : 1;
+  factor = Math.min(Math.max(factor, 0.6), 1.3);
+
+  const finales = items.map(it => ({
+    food: it.food,
+    grams: Math.max(10, Math.round((it.grams * factor) / 5) * 5),
+  }));
+
+  const t = finales.reduce((a, it) => ({
+    kcal: a.kcal + (it.food.kcal * it.grams) / 100,
+    protein: a.protein + (it.food.protein * it.grams) / 100,
+    carbs: a.carbs + (it.food.carbs * it.grams) / 100,
+    fat: a.fat + (it.food.fat * it.grams) / 100,
+  }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+
+  // Qué tan bien encaja: calorías y proteína pesan más
+  const score = Math.abs(t.kcal - restante.kcal) + Math.abs(t.protein - restante.protein) * 3;
+
   return {
-    id: `${proteinFood.key}__${carbFood.key}`,
-    emoji: GROUP_EMOJI[proteinFood.group] || '🍽️',
-    name: `${proteinFood.name} + ${carbFood.name}`,
-    items: [{ food: proteinFood, grams: Math.round(gP) }, { food: carbFood, grams: Math.round(gC) }],
-    kcal, protein, carbs, fat, score,
+    id: combo.nombre,
+    emoji: combo.emoji,
+    name: combo.nombre,
+    comida: combo.comida,
+    items: finales,
+    ...t,
+    score,
   };
 }
 
-function generateCombos(remaining) {
-  if (remaining.kcal < 150) return [];
-  const proteins = FOODS.filter(f => PROTEIN_PICKS.includes(f.name) && (f.state.startsWith('Coci') || f.group === 'Huevos'));
-  const carbs = FOODS.filter(f => CARB_PICKS.includes(f.name) && f.state.startsWith('Coci'));
-  const combos = [];
-  proteins.forEach(p => carbs.forEach(c => combos.push(buildCombo(p, c, remaining))));
-  combos.sort((a, b) => a.score - b.score);
-  return combos.slice(0, 6);
+/* Sugiere combinaciones apropiadas para la comida en curso */
+function generateCombos(remaining, comida) {
+  if (remaining.kcal < 120) return [];
+  const propias = COMBOS_REALES.filter(c => !comida || c.comida === comida);
+  const base = propias.length ? propias : COMBOS_REALES;
+
+  const opciones = base
+    .map(c => armarOpcion(c, remaining))
+    .filter(Boolean)
+    // Descartar lo que se pase mucho de lo que le queda
+    .filter(o => o.kcal <= remaining.kcal * 1.25 || remaining.kcal < 200);
+
+  opciones.sort((a, b) => a.score - b.score);
+  return opciones.slice(0, 5);
 }
 
+/* Opciones sueltas para cuando queda poco margen */
 function generateQuickOptions(remaining) {
-  if (remaining.kcal <= 0 || remaining.kcal > 400) return [];
-  return FOODS.filter(f => f.group === 'Frutas' || f.group === 'Lácteos').map(f => {
-    let grams = f.kcal > 0 ? (remaining.kcal / f.kcal) * 100 : 100;
-    grams = Math.min(Math.max(grams, 50), 300);
-    const kcal = (f.kcal * grams) / 100;
-    return {
-      id: f.key, emoji: GROUP_EMOJI[f.group] || '🍽️', name: f.name,
-      items: [{ food: f, grams: Math.round(grams) }],
-      kcal, protein: (f.protein * grams) / 100, carbs: (f.carbs * grams) / 100, fat: (f.fat * grams) / 100,
-    };
-  }).filter(o => o.kcal <= remaining.kcal * 1.1).slice(0, 3);
+  if (remaining.kcal <= 0 || remaining.kcal > 350) return [];
+  const sueltos = [
+    ['Manzana (Cruda)', 180, '🍎'], ['Plátano de seda (Cruda)', 120, '🍌'],
+    ['Papaya (Cruda)', 200, '🍈'], ['Yogur natural (-)', 200, '🥛'],
+    ['Huevo de gallina (Cocido)', 100, '🥚'], ['Almendras (Crudas)', 25, '🌰'],
+    ['Queso fresco (-)', 50, '🧀'], ['Piña (Cruda)', 200, '🍍'],
+  ];
+  const salida = [];
+  for (const [clave, base, emoji] of sueltos) {
+    const food = FOODS.find(f => f.key === clave);
+    if (!food) continue;
+    let grams = base;
+    const kcalBase = (food.kcal * grams) / 100;
+    if (kcalBase > remaining.kcal) {
+      grams = Math.round(((remaining.kcal / food.kcal) * 100) / 5) * 5;
+    }
+    if (grams < 15) continue;
+    const kcal = (food.kcal * grams) / 100;
+    if (kcal > remaining.kcal * 1.1) continue;
+    salida.push({
+      id: food.key, emoji, name: food.name,
+      items: [{ food, grams }],
+      kcal,
+      protein: (food.protein * grams) / 100,
+      carbs: (food.carbs * grams) / 100,
+      fat: (food.fat * grams) / 100,
+    });
+  }
+  return salida.sort((a, b) => b.protein - a.protein).slice(0, 4);
 }
 
 function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
@@ -511,7 +621,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
   const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
   const [added, setAdded] = useState(null);
 
-  const combos = useMemo(() => generateCombos(remaining), [remaining]);
+  const combos = useMemo(() => generateCombos(remaining, targetMeal), [remaining, targetMeal]);
   const quick = useMemo(() => generateQuickOptions(remaining), [remaining]);
   const options = [...combos, ...quick];
 
@@ -545,7 +655,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                 <span className="jb-display text-2xl text-orange-500">{Math.round(remaining.kcal)} kcal</span>
                 <p className="text-zinc-500 text-xs jb-body">disponibles · P {Math.round(remaining.protein)}g · C {Math.round(remaining.carbs)}g · G {Math.round(remaining.fat)}g</p>
               </div>
-              <Field label="Agregar a">
+              <Field label="¿Para qué comida?">
                 <select value={targetMeal} onChange={e => setTargetMeal(e.target.value)} className={inputCls}>
                   {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>

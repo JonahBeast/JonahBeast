@@ -352,13 +352,22 @@ function calcAll(f) {
   return { bmi, bmiCat, bf, bfCat, fatKg, leanKg, muscleKg, tmb, tdee, iccVal, iccCat, idealMin, idealMax, water };
 }
 
+/* Tope de seguridad: 5 kg de un mismo alimento en una comida.
+   Evita que un error de tipeo (ej. 10000 g) arruine el historial. */
+const MAX_GRAMOS_ENTRADA = 5000;
+
 function entryGrams(entry) {
   const food = FOODS.find(f => f.key === entry.foodKey);
   if (!food) return 0;
-  // Compatibilidad: registros antiguos guardaban solo gramos
-  if (entry.unit === undefined || entry.unit === null) return Number(entry.grams) || 0;
-  const qty = Number(entry.qty) || 0;
-  return qty * gramsPerUnit(food, entry.unit);
+  let g;
+  if (entry.unit === undefined || entry.unit === null) {
+    g = Number(entry.grams) || 0;
+  } else {
+    const qty = Number(entry.qty) || 0;
+    g = qty * gramsPerUnit(food, entry.unit);
+  }
+  if (!Number.isFinite(g) || g < 0) return 0;
+  return Math.min(g, MAX_GRAMOS_ENTRADA);
 }
 
 function entryMacros(entry) {
@@ -3737,7 +3746,214 @@ function CalorieStatus({ consumed, target }) {
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
+/* ------------------------------------------------------------------ */
+/* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
+/* ------------------------------------------------------------------ */
+
+function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
+  const [abierto, setAbierto] = useState(null); // 'ayer' | 'guardadas' | 'frecuentes'
+  const [ayer, setAyer] = useState(null);
+  const [guardadas, setGuardadas] = useState([]);
+  const [frecuentes, setFrecuentes] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  const entradasActuales = (mealPlan.meals[meal] || []).filter(e => e.foodKey);
+
+  async function cargarTodo() {
+    setCargando(true);
+    // Comida de ayer
+    try {
+      const d = new Date(); d.setDate(d.getDate() - 1);
+      const ayerISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const { data } = await supabase.from('historial')
+        .select('meal_plan').eq('username', username).eq('fecha', ayerISO).maybeSingle();
+      const items = data?.meal_plan?.meals?.[meal] || [];
+      setAyer(items.filter(e => e.foodKey));
+    } catch { setAyer([]); }
+    // Comidas guardadas
+    try {
+      const { data } = await supabase.from('comidas_guardadas')
+        .select('*').eq('username', username).order('created_at', { ascending: false }).limit(30);
+      setGuardadas(data || []);
+    } catch { setGuardadas([]); }
+    // Alimentos más usados (últimos 45 días)
+    try {
+      const { data } = await supabase.from('historial')
+        .select('meal_plan').eq('username', username)
+        .not('meal_plan', 'is', null).order('fecha', { ascending: false }).limit(45);
+      const conteo = {};
+      (data || []).forEach(r => {
+        Object.values(r.meal_plan?.meals || {}).forEach(lista => {
+          (lista || []).forEach(e => {
+            if (!e.foodKey) return;
+            const k = JSON.stringify({ f: e.foodKey, u: e.unit ?? null, q: e.qty ?? e.grams });
+            conteo[k] = (conteo[k] || 0) + 1;
+          });
+        });
+      });
+      const top = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 8)
+        .map(([k, n]) => ({ ...JSON.parse(k), veces: n }));
+      setFrecuentes(top);
+    } catch { setFrecuentes([]); }
+    setCargando(false);
+  }
+
+  function abrir(cual) {
+    if (abierto === cual) { setAbierto(null); return; }
+    setAbierto(cual);
+    if (ayer === null) cargarTodo();
+  }
+
+  function agregar(items) {
+    if (!items || !items.length) return;
+    const nuevos = items.map(it => ({
+      id: uid(),
+      foodKey: it.foodKey ?? it.f,
+      qty: it.qty ?? it.q ?? it.grams ?? 100,
+      unit: it.unit ?? it.u ?? 'gramos',
+    }));
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], ...nuevos] } }));
+    setAbierto(null);
+  }
+
+  async function guardarComida() {
+    const nom = nombreNuevo.trim();
+    if (!nom || !entradasActuales.length) return;
+    setGuardando(true);
+    try {
+      await supabase.from('comidas_guardadas').insert({
+        username, nombre: nom,
+        items: entradasActuales.map(e => ({ foodKey: e.foodKey, qty: e.qty ?? e.grams, unit: e.unit ?? 'gramos' })),
+      });
+      setNombreNuevo('');
+      await cargarTodo();
+      setAbierto('guardadas');
+    } catch {}
+    setGuardando(false);
+  }
+
+  async function borrarGuardada(id) {
+    try {
+      await supabase.from('comidas_guardadas').delete().eq('id', id);
+      setGuardadas(g => g.filter(x => x.id !== id));
+    } catch {}
+  }
+
+  function resumen(items) {
+    return (items || []).slice(0, 3).map(it => {
+      const key = it.foodKey ?? it.f;
+      const food = FOODS.find(f => f.key === key);
+      return food ? food.name : key;
+    }).join(', ') + ((items || []).length > 3 ? ` +${items.length - 3}` : '');
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => abrir('ayer')}
+          className={(abierto === 'ayer' ? btnPrimary : btnGhost) + ' py-1.5 px-3 text-xs'}>
+          ↩ Repetir ayer
+        </button>
+        <button onClick={() => abrir('guardadas')}
+          className={(abierto === 'guardadas' ? btnPrimary : btnGhost) + ' py-1.5 px-3 text-xs'}>
+          ★ Mis comidas
+        </button>
+        <button onClick={() => abrir('frecuentes')}
+          className={(abierto === 'frecuentes' ? btnPrimary : btnGhost) + ' py-1.5 px-3 text-xs'}>
+          ⟳ Frecuentes
+        </button>
+        {entradasActuales.length > 0 && (
+          <button onClick={() => abrir('guardar')}
+            className={(abierto === 'guardar' ? btnPrimary : btnGhost) + ' py-1.5 px-3 text-xs'}>
+            + Guardar esta comida
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <div className="mt-2 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+          {cargando ? (
+            <Loader2 className="animate-spin text-orange-500" size={18} />
+          ) : abierto === 'ayer' ? (
+            !ayer || ayer.length === 0 ? (
+              <p className="jb-body text-xs text-zinc-500">No registraste {meal.toLowerCase()} ayer.</p>
+            ) : (
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="jb-body text-sm text-zinc-200">{resumen(ayer)}</p>
+                  <p className="jb-body text-[11px] text-zinc-500">{ayer.length} alimento(s)</p>
+                </div>
+                <button onClick={() => agregar(ayer)} className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                  Agregar todo
+                </button>
+              </div>
+            )
+          ) : abierto === 'guardadas' ? (
+            guardadas.length === 0 ? (
+              <p className="jb-body text-xs text-zinc-500">
+                Aún no guardas comidas. Arma una y toca "Guardar esta comida".
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {guardadas.map(g => (
+                  <div key={g.id} className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="jb-body text-sm text-zinc-200">{g.nombre}</p>
+                      <p className="jb-body text-[11px] text-zinc-500 truncate">{resumen(g.items)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={() => agregar(g.items)} className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                        Agregar
+                      </button>
+                      <button onClick={() => borrarGuardada(g.id)}
+                        className="text-zinc-600 hover:text-red-400 p-1"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : abierto === 'frecuentes' ? (
+            frecuentes.length === 0 ? (
+              <p className="jb-body text-xs text-zinc-500">
+                Cuando registres unos días, aquí aparecerán tus alimentos más usados.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {frecuentes.map((fr, i) => {
+                  const food = FOODS.find(f => f.key === fr.f);
+                  return (
+                    <button key={i} onClick={() => agregar([fr])}
+                      className="bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-lg px-3 py-2 text-left transition-colors">
+                      <div className="jb-body text-xs text-zinc-200">{food ? food.name : fr.f}</div>
+                      <div className="jb-body text-[10px] text-zinc-500">
+                        {fr.q} {fr.u || 'g'} · {fr.veces}×
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <div className="flex items-end gap-2 flex-wrap">
+              <Field label={`Nombre para tu ${meal.toLowerCase()}`}>
+                <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value)}
+                  className={inputCls + ' py-2'} placeholder="Ej. Mi desayuno de siempre" />
+              </Field>
+              <button onClick={guardarComida} disabled={guardando || !nombreNuevo.trim()}
+                className={btnPrimary + ' py-2 px-4 text-sm'}>
+                {guardando ? <Loader2 className="animate-spin" size={14} /> : 'Guardar'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -3853,6 +4069,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
             <h3 className="jb-display text-sm text-orange-500 tracking-wide">{meal.toUpperCase()}</h3>
             <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
+          {username && (
+            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+          )}
+          <div className="mt-3" />
           {mealPlan.meals[meal].length === 0 ? (
             <p className="text-zinc-600 text-sm">Sin alimentos agregados.</p>
           ) : (
@@ -3880,8 +4100,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets }) {
                       <button onClick={() => removeEntry(meal, en.id)}
                         className="sm:hidden text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={18} /></button>
                     </div>
-                    <div className="text-xs text-zinc-400 jb-body sm:flex-[2] sm:text-center">
-                      {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
+                    <div className="text-xs jb-body sm:flex-[2] sm:text-center">
+                      <span className="text-zinc-400">
+                        {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
+                      </span>
+                      {food && entryGrams(en) >= MAX_GRAMOS_ENTRADA && (
+                        <span className="text-amber-400 block text-[10px]">Cantidad muy alta, revísala</span>
+                      )}
                     </div>
                     <button onClick={() => removeEntry(meal, en.id)}
                       className="hidden sm:flex text-zinc-600 hover:text-red-400 justify-center shrink-0"><Trash2 size={15} /></button>
@@ -4020,7 +4245,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         )}
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} />}
         {tab === 'progress' && <ProgressTab username={username} form={form} />}
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
@@ -4122,12 +4347,27 @@ export default function App() {
   async function loadStudentSession(username) {
     let data = null;
     try {
-      const { data: row } = await supabase.from('datos_alumnos').select('form, meal_plan').eq('username', username).maybeSingle();
-      data = row ? { form: row.form, mealPlan: row.meal_plan } : null;
+      const { data: row } = await supabase.from('datos_alumnos')
+        .select('form, meal_plan, meal_plan_fecha').eq('username', username).maybeSingle();
+      data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha } : null;
     } catch {}
+
+    const hoy = todayISO();
+    let plan = data?.mealPlan || EMPTY_MEALPLAN();
+
+    // Si el plan abierto es de un día anterior, se archiva y empieza uno nuevo
+    if (data?.mealPlan && data.fecha && data.fecha !== hoy) {
+      try {
+        await supabase.from('historial')
+          .update({ meal_plan: data.mealPlan })
+          .eq('username', username).eq('fecha', data.fecha);
+      } catch {}
+      plan = { ...data.mealPlan, meals: EMPTY_MEALS() };
+    }
+
     setCurrentUser(username);
     setForm(data?.form || EMPTY_FORM);
-    setMealPlan(data?.mealPlan || EMPTY_MEALPLAN());
+    setMealPlan(plan);
     skipNextSave.current = true;
     setView('student');
   }
@@ -4205,7 +4445,8 @@ export default function App() {
     saveTimer.current = setTimeout(async () => {
       try {
         await supabase.from('datos_alumnos').upsert({
-          username: currentUser, form, meal_plan: mealPlan, updated_at: new Date().toISOString(),
+          username: currentUser, form, meal_plan: mealPlan,
+          meal_plan_fecha: todayISO(), updated_at: new Date().toISOString(),
         });
       } catch {}
       // Guardar foto del día para el historial de progreso
@@ -4240,6 +4481,7 @@ export default function App() {
           kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
           comidas_count: comidas,
           alimentos_count: alimentos,
+          meal_plan: mealPlan,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'username,fecha' });
       } catch {}

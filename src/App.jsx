@@ -1269,7 +1269,7 @@ function ReferidosPanel({ users, onCambio }) {
   const [refs, setRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', comision: 5 });
+  const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45 });
   const [err, setErr] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [expandido, setExpandido] = useState(null);
@@ -1298,10 +1298,12 @@ function ReferidosPanel({ users, onCambio }) {
       const { error } = await supabase.from('referidores').insert({
         codigo: cod, nombre: nuevo.nombre.trim(),
         telefono: nuevo.telefono.trim().replace(/\s/g, '') || null,
-        comision: Number(nuevo.comision) || 5, activo: true,
+        comision_1: Number(nuevo.c1) || 0, comision_3: Number(nuevo.c3) || 0,
+        comision_6: Number(nuevo.c6) || 0, comision_12: Number(nuevo.c12) || 0,
+        activo: true,
       });
       if (error) throw error;
-      setNuevo({ codigo: '', nombre: '', telefono: '', comision: 5 });
+      setNuevo({ codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45 });
       await cargar();
     } catch (e2) { setErr('No se pudo crear: ' + (e2.message || '')); }
     setGuardando(false);
@@ -1345,7 +1347,9 @@ function ReferidosPanel({ users, onCambio }) {
 
   const totalPendiente = refs.reduce((acc, r) => {
     const lista = porCodigo[r.codigo.toUpperCase()] || [];
-    return acc + lista.filter(u => u.plan === 'pago' && !u.comisionPagada).length * Number(r.comision);
+    return acc + lista
+      .filter(u => u.plan === 'pago' && !u.comisionPagada && u.comisionMonto)
+      .reduce((a, u) => a + Number(u.comisionMonto), 0);
   }, 0);
 
   const totalReferidos = Object.values(porCodigo).reduce((a, l) => a + l.length, 0);
@@ -1379,27 +1383,39 @@ function ReferidosPanel({ users, onCambio }) {
             <p className="jb-body text-xs text-zinc-500 mb-3">
               Entrégale el código a la persona. Cuando alguien se registre con él, aparecerá aquí.
             </p>
-            <form onSubmit={crear} className="grid sm:grid-cols-5 gap-2 items-end">
-              <Field label="Código">
-                <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value }))}
-                  className={inputCls + ' uppercase'} placeholder="COACHJUAN" />
-              </Field>
-              <Field label="Nombre">
-                <input value={nuevo.nombre} onChange={e => setNuevo(v => ({ ...v, nombre: e.target.value }))}
-                  className={inputCls} placeholder="Juan Pérez" />
-              </Field>
-              <Field label="Celular">
-                <input type="tel" inputMode="tel" value={nuevo.telefono}
-                  onChange={e => setNuevo(v => ({ ...v, telefono: e.target.value }))}
-                  className={inputCls} placeholder="999888777" />
-              </Field>
-              <Field label="Comisión S/">
-                <input type="number" step="0.5" value={nuevo.comision}
-                  onChange={e => setNuevo(v => ({ ...v, comision: e.target.value }))}
-                  className={inputCls} />
-              </Field>
-              <button type="submit" disabled={guardando} className={btnPrimary}>
-                {guardando ? <Loader2 className="animate-spin" size={16} /> : <><Plus size={16} /> Crear</>}
+            <form onSubmit={crear} className="flex flex-col gap-3">
+              <div className="grid sm:grid-cols-3 gap-2">
+                <Field label="Código">
+                  <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value }))}
+                    className={inputCls + ' uppercase'} placeholder="COACHJUAN" />
+                </Field>
+                <Field label="Nombre">
+                  <input value={nuevo.nombre} onChange={e => setNuevo(v => ({ ...v, nombre: e.target.value }))}
+                    className={inputCls} placeholder="Juan Pérez" />
+                </Field>
+                <Field label="Celular">
+                  <input type="tel" inputMode="tel" value={nuevo.telefono}
+                    onChange={e => setNuevo(v => ({ ...v, telefono: e.target.value }))}
+                    className={inputCls} placeholder="999888777" />
+                </Field>
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
+                  Comisión según el plan que compre el referido (S/)
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {[['c1', '1 mes'], ['c3', '3 meses'], ['c6', '6 meses'], ['c12', '12 meses']].map(([k, l]) => (
+                    <div key={k}>
+                      <span className="jb-body text-[11px] text-zinc-500 block mb-1">{l}</span>
+                      <input type="number" step="0.5" value={nuevo[k]}
+                        onChange={e => setNuevo(v => ({ ...v, [k]: e.target.value }))}
+                        className={inputCls + ' py-2'} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button type="submit" disabled={guardando} className={btnPrimary + ' self-start'}>
+                {guardando ? <Loader2 className="animate-spin" size={16} /> : <><Plus size={16} /> Crear código</>}
               </button>
             </form>
             {err && <p className="text-red-400 text-sm jb-body mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -1420,9 +1436,9 @@ function ReferidosPanel({ users, onCambio }) {
                 {refs.map(r => {
                   const lista = porCodigo[r.codigo.toUpperCase()] || [];
                   const pagaron = lista.filter(u => u.plan === 'pago');
-                  const porPagar = pagaron.filter(u => !u.comisionPagada);
+                  const porPagar = pagaron.filter(u => !u.comisionPagada && u.comisionMonto);
                   const yaPagados = pagaron.filter(u => u.comisionPagada);
-                  const montoPend = porPagar.length * Number(r.comision);
+                  const montoPend = porPagar.reduce((a, u) => a + Number(u.comisionMonto), 0);
                   const abierto = expandido === r.codigo;
 
                   return (
@@ -1435,7 +1451,10 @@ function ReferidosPanel({ users, onCambio }) {
                             {!r.activo && <span className="text-red-400 text-xs jb-body">(desactivado)</span>}
                           </div>
                           <div className="text-zinc-500 text-xs jb-body mt-0.5">
-                            {lista.length} inscrito(s) · {pagaron.length} pagaron · S/{Number(r.comision).toFixed(2)} c/u
+                            {lista.length} inscrito(s) · {pagaron.length} pagaron
+                          </div>
+                          <div className="text-zinc-600 text-[11px] jb-body mt-0.5">
+                            1m S/{Number(r.comision_1 || 0).toFixed(0)} · 3m S/{Number(r.comision_3 || 0).toFixed(0)} · 6m S/{Number(r.comision_6 || 0).toFixed(0)} · 12m S/{Number(r.comision_12 || 0).toFixed(0)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1473,6 +1492,9 @@ function ReferidosPanel({ users, onCambio }) {
                                     <span className={pago ? 'text-emerald-400' : 'text-zinc-500'}>
                                       {pago ? '✓ Pagó su plan' : 'En prueba gratis'}
                                     </span>
+                                    {u.planMesesReferido && (
+                                      <span className="text-zinc-500"> · plan de {u.planMesesReferido} mes(es)</span>
+                                    )}
                                     {u.comisionPagada && (
                                       <span className="text-zinc-500"> · comisión pagada</span>
                                     )}
@@ -1480,15 +1502,22 @@ function ReferidosPanel({ users, onCambio }) {
                                 </div>
                                 {pago && (
                                   u.comisionPagada ? (
-                                    <button onClick={() => revertirPago(u.username)}
-                                      className="jb-body text-xs text-zinc-600 hover:text-zinc-400">
-                                      Revertir
-                                    </button>
-                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      {u.comisionMonto && (
+                                        <span className="jb-body text-xs text-zinc-500">S/{Number(u.comisionMonto).toFixed(2)}</span>
+                                      )}
+                                      <button onClick={() => revertirPago(u.username)}
+                                        className="jb-body text-xs text-zinc-600 hover:text-zinc-400">
+                                        Revertir
+                                      </button>
+                                    </div>
+                                  ) : u.comisionMonto ? (
                                     <button onClick={() => marcarPagada(u.username)}
                                       className={btnPrimary + ' py-1.5 px-3 text-xs'}>
-                                      Pagué S/{Number(r.comision).toFixed(2)}
+                                      Pagué S/{Number(u.comisionMonto).toFixed(2)}
                                     </button>
+                                  ) : (
+                                    <span className="jb-body text-xs text-zinc-600">Pagó antes del programa</span>
                                   )
                                 )}
                               </div>
@@ -2383,9 +2412,29 @@ function PagosPanel({ onAprobado }) {
       const base = al?.fecha_vencimiento && daysLeft(al.fecha_vencimiento) > 0
         ? al.fecha_vencimiento : todayISO();
       const nuevo = addMonthsISO(base, pago.plan_meses);
-      await supabase.from('alumnos')
-        .update({ fecha_vencimiento: nuevo, enabled: true, plan: 'pago' })
-        .eq('username', pago.username);
+      const cambios = { fecha_vencimiento: nuevo, enabled: true, plan: 'pago' };
+
+      // Si vino por referido y aún no tiene comisión asignada, calcularla
+      // según el plan que compró (solo la primera vez)
+      try {
+        const { data: al } = await supabase.from('alumnos')
+          .select('codigo_referido, comision_monto').eq('username', pago.username).maybeSingle();
+        if (al && al.codigo_referido && (al.comision_monto === null || al.comision_monto === undefined)) {
+          const { data: ref } = await supabase.from('referidores')
+            .select('comision_1, comision_3, comision_6, comision_12')
+            .ilike('codigo', al.codigo_referido).maybeSingle();
+          if (ref) {
+            const tabla = { 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 };
+            const monto = tabla[pago.plan_meses];
+            if (monto !== undefined && monto !== null) {
+              cambios.comision_monto = Number(monto);
+              cambios.plan_meses_referido = pago.plan_meses;
+            }
+          }
+        }
+      } catch {}
+
+      await supabase.from('alumnos').update(cambios).eq('username', pago.username);
       await supabase.from('pagos')
         .update({ estado: 'aprobado', revisado_en: new Date().toISOString() })
         .eq('id', pago.id);
@@ -4042,6 +4091,8 @@ export default function App() {
         passHash: u.pass_hash || null, passSalt: u.pass_salt || null,
         fechaInicio: u.fecha_inicio || null, fechaVencimiento: u.fecha_vencimiento || null,
         codigoReferido: u.codigo_referido || null, comisionPagada: !!u.comision_pagada,
+        comisionMonto: u.comision_monto === null || u.comision_monto === undefined ? null : Number(u.comision_monto),
+        planMesesReferido: u.plan_meses_referido || null,
       }));
     } catch { usersList = []; }
     try {

@@ -260,6 +260,63 @@ const UNITS_BY_GROUP = {
   'Platos preparados': [['plato', 400], ['media porción', 200], ['porción grande', 500]],
 };
 
+/* Quita tildes y pasa a minúsculas para que "platano" encuentre "Plátano"
+   y "cafe" encuentre "Café". */
+function normalizar(txt) {
+  return String(txt || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* Sinónimos y nombres alternativos que la gente usa. */
+const SINONIMOS = {
+  'frijol': 'frejol', 'frijoles': 'frejol', 'poroto': 'frejol',
+  'yogurt': 'yogur', 'yoghurt': 'yogur',
+  'palta': 'palta aguacate', 'aguacate': 'palta',
+  'maiz': 'choclo', 'elote': 'choclo',
+  'camote': 'camote batata', 'batata': 'camote',
+  'chancho': 'cerdo', 'res': 'res carne',
+  'gaseosa': 'gaseosa refresco', 'refresco': 'gaseosa',
+  'pan de molde': 'pan integral', 'galletas': 'galleta',
+  'menestra': 'lenteja frejol garbanzo', 'menestras': 'lenteja frejol garbanzo',
+  'avena': 'avena', 'quaker': 'avena',
+  'clara': 'clara huevo', 'claras': 'clara huevo',
+  'atun': 'atun', 'pechuga': 'pechuga pollo',
+  'papa': 'papa', 'arroz': 'arroz',
+};
+
+/* Busca alimentos por palabras sueltas y en cualquier orden:
+   "pollo pechuga" encuentra "Pechuga de pollo". */
+function buscarAlimentos(lista, texto, limite = 40) {
+  let q = normalizar(texto);
+  if (!q) return lista.slice(0, limite);
+  if (SINONIMOS[q]) q = normalizar(SINONIMOS[q]);
+  const palabras = q.split(' ').filter(Boolean);
+  const conPuntaje = [];
+  for (const f of lista) {
+    const objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
+    if (!palabras.every(w => objetivo.includes(w))) continue;
+    const nombreNorm = normalizar(f.name);
+    let puntaje = 3;
+    if (nombreNorm.startsWith(q)) puntaje = 0;
+    else if (nombreNorm.includes(q)) puntaje = 1;
+    else if (objetivo.includes(q)) puntaje = 2;
+    conPuntaje.push({ f, puntaje });
+  }
+  conPuntaje.sort((a, b) => a.puntaje - b.puntaje || a.f.name.localeCompare(b.f.name));
+  if (conPuntaje.length === 0 && palabras.length > 1) {
+    // Nada coincidió con todo: buscar solo por la palabra más larga
+    const clave = palabras.slice().sort((a, b) => b.length - a.length)[0];
+    return lista
+      .filter(f => normalizar(f.key + ' ' + f.name).includes(clave))
+      .slice(0, limite);
+  }
+  return conPuntaje.slice(0, limite).map(x => x.f);
+}
+
 function unitsFor(food) {
   const list = [['gramos', 1]];
   const byName = UNITS_BY_NAME[food.name];
@@ -356,8 +413,16 @@ function calcAll(f) {
    Evita que un error de tipeo (ej. 10000 g) arruine el historial. */
 const MAX_GRAMOS_ENTRADA = 5000;
 
+/* Alimentos creados por el alumno. Se registran aquí para que
+   entryMacros los encuentre igual que los de la base. */
+let FOODS_PERSONALES = [];
+function setFoodsPersonales(lista) { FOODS_PERSONALES = lista || []; }
+function buscarFood(key) {
+  return FOODS.find(f => f.key === key) || FOODS_PERSONALES.find(f => f.key === key);
+}
+
 function entryGrams(entry) {
-  const food = FOODS.find(f => f.key === entry.foodKey);
+  const food = buscarFood(entry.foodKey);
   if (!food) return 0;
   let g;
   if (entry.unit === undefined || entry.unit === null) {
@@ -371,7 +436,7 @@ function entryGrams(entry) {
 }
 
 function entryMacros(entry) {
-  const food = FOODS.find(f => f.key === entry.foodKey);
+  const food = buscarFood(entry.foodKey);
   const g = entryGrams(entry);
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
@@ -3750,6 +3815,138 @@ function CalorieStatus({ consumed, target }) {
 /* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
 /* ------------------------------------------------------------------ */
 
+function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra }) {
+  const [texto, setTexto] = useState(valor || '');
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => { setTexto(valor || ''); }, [valor]);
+
+  const resultados = useMemo(
+    () => (abierto ? buscarAlimentos(alimentos, texto, 12) : []),
+    [abierto, texto, alimentos]
+  );
+
+  return (
+    <div className="relative sm:flex-[3] min-w-0">
+      <input
+        value={texto}
+        onChange={e => { setTexto(e.target.value); setAbierto(true); }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setTimeout(() => setAbierto(false), 180)}
+        className={inputCls + ' py-2 w-full'}
+        placeholder="Escribe para buscar…"
+      />
+      {abierto && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+          {resultados.length === 0 ? (
+            <div className="p-3">
+              <p className="jb-body text-xs text-zinc-400 mb-2">
+                No encontramos "{texto}".
+              </p>
+              <button type="button" onMouseDown={e => e.preventDefault()}
+                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
+                className={btnPrimary + ' w-full py-2 text-xs'}>
+                + Crear mi alimento
+              </button>
+            </div>
+          ) : (
+            <>
+              {resultados.map(f => (
+                <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
+                  onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
+                  className="w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
+                  <div className="jb-body text-sm text-zinc-100">{f.name}</div>
+                  <div className="jb-body text-[11px] text-zinc-500">
+                    {f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
+                    {f.esPersonal ? ' · tuyo' : ''}
+                  </div>
+                </button>
+              ))}
+              <button type="button" onMouseDown={e => e.preventDefault()}
+                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
+                className="w-full text-left px-3 py-2 text-orange-500 jb-body text-xs hover:bg-zinc-800">
+                + No está en la lista, crearlo
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
+  const [f, setF] = useState({ nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function guardar() {
+    setErr('');
+    if (!f.nombre.trim()) return setErr('Escribe el nombre del alimento.');
+    const kcal = Number(f.kcal);
+    if (!(kcal > 0)) return setErr('Escribe las calorías por cada 100 g.');
+    if (kcal > 900) return setErr('Revisa las calorías: ningún alimento pasa de 900 kcal por 100 g.');
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('alimentos_personales').insert({
+        username, nombre: f.nombre.trim(),
+        kcal, proteina: Number(f.proteina) || 0,
+        carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0,
+      });
+      if (error) throw error;
+      await onCreado();
+      onCerrar();
+    } catch (e) { setErr('No se pudo guardar. Intenta de nuevo.'); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-5 jb-body"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="jb-display text-lg text-zinc-50">CREAR MI ALIMENTO</h2>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300"><X size={20} /></button>
+        </div>
+        <p className="jb-body text-xs text-zinc-500 mb-4">
+          Copia los datos de la etiqueta del producto. Deben ser los valores <span className="text-zinc-300">por cada 100 g</span>.
+          Solo tú verás este alimento.
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <Field label="Nombre">
+            <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))}
+              className={inputCls} placeholder="Ej. Barra proteica marca X" />
+          </Field>
+          <Field label="Calorías por 100 g">
+            <input type="number" inputMode="decimal" value={f.kcal}
+              onChange={e => setF(v => ({ ...v, kcal: e.target.value }))}
+              className={inputCls} placeholder="Ej. 350" />
+          </Field>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Proteína g">
+              <input type="number" inputMode="decimal" value={f.proteina}
+                onChange={e => setF(v => ({ ...v, proteina: e.target.value }))} className={inputCls} placeholder="0" />
+            </Field>
+            <Field label="Carbos g">
+              <input type="number" inputMode="decimal" value={f.carbos}
+                onChange={e => setF(v => ({ ...v, carbos: e.target.value }))} className={inputCls} placeholder="0" />
+            </Field>
+            <Field label="Grasas g">
+              <input type="number" inputMode="decimal" value={f.grasas}
+                onChange={e => setF(v => ({ ...v, grasas: e.target.value }))} className={inputCls} placeholder="0" />
+            </Field>
+          </div>
+          {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+          <button onClick={guardar} disabled={busy} className={btnPrimary + ' py-2.5'}>
+            {busy ? <Loader2 className="animate-spin" size={16} /> : 'Guardar alimento'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
   const [abierto, setAbierto] = useState(null); // 'ayer' | 'guardadas' | 'frecuentes'
   const [ayer, setAyer] = useState(null);
@@ -3954,6 +4151,26 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
 }
 
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
+  const [personales, setPersonales] = useState([]);
+  const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
+
+  useEffect(() => { if (username) cargarPersonales(); }, [username]);
+
+  async function cargarPersonales() {
+    try {
+      const { data } = await supabase.from('alimentos_personales')
+        .select('*').eq('username', username).order('created_at', { ascending: false }).limit(200);
+      const lista = (data || []).map(a => ({
+        key: a.nombre + ' (mío)', name: a.nombre, group: 'Mis alimentos', state: '-',
+        kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos),
+        fat: Number(a.grasas), fiber: 0, esPersonal: true,
+      }));
+      setPersonales(lista);
+      setFoodsPersonales(lista);
+    } catch {}
+  }
+
+  const todosLosAlimentos = useMemo(() => [...personales, ...FOODS], [personales]);
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -3998,9 +4215,18 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <datalist id="jb-foods">
-        {FOODS.map(f => <option key={f.key} value={f.key} />)}
-      </datalist>
+      {crearPara && (
+        <CrearAlimentoModal
+          username={username}
+          nombreInicial={crearPara.texto}
+          onCerrar={() => setCrearPara(null)}
+          onCreado={async () => {
+            await cargarPersonales();
+            const nuevo = crearPara.texto.trim() + ' (mío)';
+            updateEntry(crearPara.meal, crearPara.id, { foodKey: nuevo, unit: 'gramos', qty: 100, grams: undefined });
+          }}
+        />
+      )}
       <AyudaTab texto="Escribe lo que comiste y elige la medida de casa (taza, plato, unidad). No necesitas pesar nada. Abajo verás cuánto llevas del día y cuánto te queda." />
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
         <AlertTriangle className="text-zinc-500 shrink-0" size={14} />
@@ -4079,15 +4305,18 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
             <div className="flex flex-col gap-2">
               {mealPlan.meals[meal].map(en => {
                 const m = entryMacros(en);
-                const food = FOODS.find(f => f.key === en.foodKey);
+                const food = buscarFood(en.foodKey);
                 const units = food ? unitsFor(food) : [['gramos', 1]];
                 const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 return (
                   <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                    <input list="jb-foods" value={en.foodKey}
-                      onChange={e => updateEntry(meal, en.id, { foodKey: e.target.value, unit: 'gramos', qty: currentQty || 100, grams: undefined })}
-                      className={inputCls + ' py-2 sm:flex-[3] min-w-0'} placeholder="Escribe para buscar…" />
+                    <BuscadorAlimento
+                      valor={en.foodKey}
+                      alimentos={todosLosAlimentos}
+                      onElegir={key => updateEntry(meal, en.id, { foodKey: key, unit: 'gramos', qty: currentQty || 100, grams: undefined })}
+                      onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
+                    />
                     <div className="flex gap-2 items-center">
                       <input type="number" inputMode="decimal" value={currentQty}
                         onChange={e => updateEntry(meal, en.id, { qty: e.target.value, unit: currentUnit, grams: undefined })}

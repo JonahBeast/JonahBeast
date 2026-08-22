@@ -2357,7 +2357,6 @@ function InstalarBanner() {
   const [verPasos, setVerPasos] = useState(false);
 
   useEffect(() => {
-    // Si ya está instalada, no mostrar nada
     const instalada = window.matchMedia('(display-mode: standalone)').matches
       || window.navigator.standalone === true;
     if (instalada) return;
@@ -2366,16 +2365,23 @@ function InstalarBanner() {
 
     const ua = window.navigator.userAgent || '';
     const ios = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-    setEsIOS(ios);
-    if (ios) { setOculto(false); return; }
+    if (ios) { setEsIOS(true); setOculto(false); return; }
 
-    function alPoder(e) {
-      e.preventDefault();
-      setEvento(e);
-      setOculto(false);
+    // El evento pudo haberse disparado antes de que cargue React:
+    // se guarda en index.html y lo recogemos aquí.
+    if (window.__jbInstall) { setEvento(window.__jbInstall); setOculto(false); }
+
+    function alListo() {
+      if (window.__jbInstall) { setEvento(window.__jbInstall); setOculto(false); }
     }
-    window.addEventListener('beforeinstallprompt', alPoder);
-    return () => window.removeEventListener('beforeinstallprompt', alPoder);
+    function alInstalado() { setOculto(true); }
+
+    window.addEventListener('jb-install-listo', alListo);
+    window.addEventListener('jb-install-hecho', alInstalado);
+    return () => {
+      window.removeEventListener('jb-install-listo', alListo);
+      window.removeEventListener('jb-install-hecho', alInstalado);
+    };
   }, []);
 
   function cerrar() {
@@ -2384,14 +2390,26 @@ function InstalarBanner() {
   }
 
   async function instalar() {
-    if (!evento) return;
-    evento.prompt();
-    try { await evento.userChoice; } catch {}
+    const ev = evento || window.__jbInstall;
+    if (!ev) { setVerPasos(true); return; }
+    try {
+      ev.prompt();
+      await ev.userChoice;
+    } catch {}
+    window.__jbInstall = null;
     setEvento(null);
     setOculto(true);
   }
 
   if (oculto) return null;
+
+  const pasos = esIOS
+    ? ['Toca el botón Compartir de Safari (el cuadrito con la flecha hacia arriba)',
+       'Desliza y elige "Agregar a pantalla de inicio"',
+       'Toca "Agregar" y listo']
+    : ['Toca el menú del navegador (los tres puntos, arriba a la derecha)',
+       'Elige "Instalar aplicación" o "Agregar a pantalla principal"',
+       'Confirma y listo'];
 
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-6">
@@ -2403,27 +2421,28 @@ function InstalarBanner() {
             Instálala y ábrela con un toque, como cualquier app. Ocupa casi nada.
           </p>
 
-          {esIOS ? (
-            verPasos ? (
-              <div className="mt-3 flex flex-col gap-1.5">
-                {['Toca el botón Compartir de Safari (el cuadrito con la flecha hacia arriba)',
-                  'Desliza y elige "Agregar a pantalla de inicio"',
-                  'Toca "Agregar" y listo'].map((t, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="jb-display text-[11px] text-orange-500 shrink-0 mt-0.5">{i + 1}.</span>
-                    <span className="jb-body text-xs text-zinc-400">{t}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <button onClick={() => setVerPasos(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+          {verPasos ? (
+            <div className="mt-3 flex flex-col gap-1.5">
+              {pasos.map((t, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="jb-display text-[11px] text-orange-500 shrink-0 mt-0.5">{i + 1}.</span>
+                  <span className="jb-body text-xs text-zinc-400">{t}</span>
+                </div>
+              ))}
+            </div>
+          ) : esIOS ? (
+            <button onClick={() => setVerPasos(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+              Ver cómo
+            </button>
+          ) : (
+            <div className="flex gap-2 mt-3 flex-wrap">
+              <button onClick={instalar} className={btnPrimary + ' py-2 px-4 text-sm'}>
+                Instalar app
+              </button>
+              <button onClick={() => setVerPasos(true)} className={btnGhost + ' py-2 px-4 text-sm'}>
                 Ver cómo
               </button>
-            )
-          ) : (
-            <button onClick={instalar} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
-              Instalar app
-            </button>
+            </div>
           )}
         </div>
         <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1">

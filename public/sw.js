@@ -49,3 +49,38 @@ self.addEventListener('fetch', (e) => {
     }
   })());
 });
+
+/* ---------- Notificaciones ---------- */
+
+self.addEventListener('push', (e) => {
+  let datos = { titulo: 'Jonah Beast Fuel', cuerpo: '¿Ya registraste tus comidas de hoy?' };
+  try {
+    if (e.data) datos = { ...datos, ...e.data.json() };
+  } catch {}
+
+  e.waitUntil(
+    self.registration.showNotification(datos.titulo, {
+      body: datos.cuerpo,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'jb-recordatorio',
+      renotify: false,
+      data: { url: datos.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const destino = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil((async () => {
+    const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const v of ventanas) {
+      if (v.url.includes(self.location.origin)) {
+        await v.focus();
+        return;
+      }
+    }
+    await self.clients.openWindow(destino);
+  })());
+});

@@ -2350,6 +2350,135 @@ function VencimientosPanel({ users, onRenew }) {
   );
 }
 
+const VAPID_PUBLIC = 'BBVoBIHo8KaDMnmsBybEz5OllErvA1jFVQYqr15p2wiWbZuT-1M8lS-4Dh0MkGfvFl_P8jZ7G5Hay1-JaGDBQ0k';
+
+function base64ToUint8(base64) {
+  const pad = '='.repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(b64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function RecordatorioBanner({ username }) {
+  const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado
+  const [ocultoManual, setOcultoManual] = useState(false);
+  const [trabajando, setTrabajando] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setEstado('nosoportado'); return;
+      }
+      try { if (localStorage.getItem('jb_notif_no')) { setOcultoManual(true); } } catch {}
+
+      if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setEstado(sub ? 'activo' : 'disponible');
+      } catch { setEstado('disponible'); }
+    })();
+  }, [username]);
+
+  async function activar() {
+    setTrabajando(true);
+    try {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== 'granted') {
+        setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
+        setTrabajando(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
+        });
+      }
+      const j = sub.toJSON();
+      await supabase.from('push_subs').upsert({
+        username,
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        activa: true,
+      }, { onConflict: 'endpoint' });
+      setEstado('activo');
+    } catch (e) {
+      setEstado('disponible');
+    }
+    setTrabajando(false);
+  }
+
+  async function desactivar() {
+    setTrabajando(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const j = sub.toJSON();
+        await supabase.from('push_subs').update({ activa: false }).eq('endpoint', j.endpoint);
+        await sub.unsubscribe();
+      }
+      setEstado('disponible');
+    } catch {}
+    setTrabajando(false);
+  }
+
+  function cerrar() {
+    setOcultoManual(true);
+    try { localStorage.setItem('jb_notif_no', '1'); } catch {}
+  }
+
+  if (estado === 'cargando' || estado === 'nosoportado') return null;
+  if (estado === 'activo') {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center justify-between gap-3 flex-wrap">
+        <p className="jb-body text-xs text-zinc-400">
+          🔔 Recordatorio diario activado. Te avisamos si no registraste tus comidas.
+        </p>
+        <button onClick={desactivar} disabled={trabajando}
+          className="jb-body text-xs text-zinc-600 hover:text-zinc-400">
+          Desactivar
+        </button>
+      </div>
+    );
+  }
+  if (ocultoManual) return null;
+  if (estado === 'bloqueado') {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6">
+        <p className="jb-body text-xs text-zinc-500">
+          🔕 Bloqueaste las notificaciones. Si quieres el recordatorio diario, habilítalas
+          en los ajustes de tu navegador para este sitio.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-6">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl shrink-0">🔔</span>
+        <div className="flex-1">
+          <p className="jb-display text-sm text-orange-500 mb-1">QUE NO SE TE PASE EL DÍA</p>
+          <p className="jb-body text-sm text-zinc-300">
+            Activa un recordatorio diario. Solo te avisamos los días que no registraste tus comidas.
+          </p>
+          <button onClick={activar} disabled={trabajando} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+            {trabajando ? <Loader2 className="animate-spin" size={16} /> : 'Activar recordatorio'}
+          </button>
+        </div>
+        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function InstalarBanner() {
   const [evento, setEvento] = useState(null);
   const [oculto, setOculto] = useState(true);
@@ -4759,6 +4888,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} onClose={cerrarGuia} />}
         <InstalarBanner />
+        <RecordatorioBanner username={username} />
         <TrialBanner user={userRecord} />
         <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
         <div className="flex flex-wrap gap-2 mb-6">

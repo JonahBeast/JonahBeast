@@ -3373,7 +3373,234 @@ function CoachCard({ analisis }) {
   );
 }
 
-function ProgressTab({ username, form }) {
+/* ------------------------------------------------------------------ */
+/* TARJETA PARA COMPARTIR                                              */
+/* ------------------------------------------------------------------ */
+
+function cargarImagen(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/* Dibuja una imagen recortada al centro para llenar el recuadro */
+function dibujarRecortada(ctx, img, x, y, w, h) {
+  const escala = Math.max(w / img.width, h / img.height);
+  const nw = img.width * escala, nh = img.height * escala;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.drawImage(img, x + (w - nw) / 2, y + (h - nh) / 2, nw, nh);
+  ctx.restore();
+}
+
+async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Fondo
+  ctx.fillStyle = '#0D0D0F';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#2A1508';
+  ctx.beginPath();
+  ctx.arc(W - 60, -80, 320, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Marca
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 52px Arial';
+  ctx.fillText('JONAH BEAST', 70, 120);
+  ctx.fillStyle = '#F97316';
+  ctx.font = 'bold 52px Arial';
+  ctx.fillText('FUEL', 70, 185);
+
+  // Título
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 76px Arial';
+  ctx.fillText('MI PROGRESO', 70, 315);
+  if (nombre) {
+    ctx.fillStyle = '#9CA3AF';
+    ctx.font = '34px Arial';
+    ctx.fillText(nombre.split(' ')[0], 70, 365);
+  }
+
+  // Fotos antes / después
+  let yStats = 430;
+  let imgA = null, imgB = null;
+  try {
+    if (fotoAntes) imgA = await cargarImagen(fotoAntes);
+    if (fotoDespues) imgB = await cargarImagen(fotoDespues);
+  } catch {}
+
+  if (imgA && imgB) {
+    const fw = 440, fh = 520, y = 420;
+    dibujarRecortada(ctx, imgA, 70, y, fw, fh);
+    dibujarRecortada(ctx, imgB, 570, y, fw, fh);
+    ctx.strokeStyle = '#2E2E33'; ctx.lineWidth = 3;
+    ctx.strokeRect(70, y, fw, fh);
+    ctx.strokeRect(570, y, fw, fh);
+    ctx.fillStyle = '#9CA3AF'; ctx.font = 'bold 30px Arial';
+    ctx.fillText('ANTES', 70, y + fh + 46);
+    ctx.fillStyle = '#F97316';
+    ctx.fillText('AHORA', 570, y + fh + 46);
+    yStats = y + fh + 110;
+  }
+
+  // Bloques de datos
+  const cajas = datos.slice(0, 4);
+  const cols = cajas.length <= 2 ? cajas.length : 2;
+  const bw = cols === 2 ? 440 : 940;
+  const bh = 190;
+  cajas.forEach((d, i) => {
+    const cx = 70 + (i % cols) * (bw + 60);
+    const cy = yStats + Math.floor(i / cols) * (bh + 30);
+    ctx.fillStyle = '#1A1A1D';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, bw, bh, 20);
+      ctx.fill();
+    } else {
+      ctx.fillRect(cx, cy, bw, bh);
+    }
+    ctx.fillStyle = d.color || '#FFFFFF';
+    ctx.font = 'bold 72px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(d.valor, cx + bw / 2, cy + 100);
+    ctx.fillStyle = '#9CA3AF';
+    ctx.font = '28px Arial';
+    ctx.fillText(d.etiqueta, cx + bw / 2, cy + 150);
+    ctx.textAlign = 'left';
+  });
+
+  // Pie
+  ctx.fillStyle = '#F97316';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText('jonah-beast.vercel.app', 70, H - 70);
+
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('sin imagen')), 'image/png');
+    } catch (e) { reject(e); }
+  });
+}
+
+function BotonCompartir({ username, nombre, rows, stats }) {
+  const [generando, setGenerando] = useState(false);
+  const [err, setErr] = useState('');
+
+  const hayDatos = rows && rows.length >= 2;
+
+  async function compartir() {
+    setErr(''); setGenerando(true);
+    try {
+      // Datos a mostrar
+      const conPeso = rows.filter(r => Number(r.peso) > 0);
+      const conGrasa = rows.filter(r => Number(r.grasa_pct) > 0);
+      const datos = [];
+
+      if (conPeso.length >= 2) {
+        const d = Number(conPeso[conPeso.length - 1].peso) - Number(conPeso[0].peso);
+        if (Math.abs(d) >= 0.1) {
+          datos.push({
+            valor: (d > 0 ? '+' : '') + d.toFixed(1) + ' kg',
+            etiqueta: 'de cambio en tu peso',
+            color: d < 0 ? '#34D399' : '#FBBF24',
+          });
+        }
+      }
+      if (conGrasa.length >= 2) {
+        const d = Number(conGrasa[conGrasa.length - 1].grasa_pct) - Number(conGrasa[0].grasa_pct);
+        if (Math.abs(d) >= 0.1) {
+          datos.push({
+            valor: (d > 0 ? '+' : '') + d.toFixed(1) + '%',
+            etiqueta: 'de grasa corporal',
+            color: d < 0 ? '#34D399' : '#FBBF24',
+          });
+        }
+      }
+      if (stats && stats.diasRegistrados) {
+        datos.push({ valor: String(stats.diasRegistrados), etiqueta: 'días registrados' });
+      }
+      if (stats && stats.adherencia !== null && stats.adherencia !== undefined) {
+        datos.push({ valor: Math.round(stats.adherencia) + '%', etiqueta: 'cumpliste tu objetivo', color: '#F97316' });
+      }
+      if (datos.length === 0) {
+        setGenerando(false);
+        return setErr('Aún no hay suficientes datos para armar tu tarjeta.');
+      }
+
+      // Fotos: primera y última del mismo ángulo
+      let fotoAntes = null, fotoDespues = null;
+      try {
+        const { data: fotos } = await supabase.from('fotos_progreso')
+          .select('*').eq('username', username).order('fecha', { ascending: true }).limit(200);
+        if (fotos && fotos.length >= 2) {
+          for (const ang of ['frente', 'perfil', 'espalda', 'relajado']) {
+            const delAngulo = fotos.filter(f => f.angulo === ang);
+            if (delAngulo.length >= 2) {
+              const rutas = [delAngulo[0].ruta, delAngulo[delAngulo.length - 1].ruta];
+              const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls(rutas, 600);
+              if (signed && signed.length === 2) {
+                fotoAntes = signed[0].signedUrl; fotoDespues = signed[1].signedUrl;
+              }
+              break;
+            }
+          }
+        }
+      } catch {}
+
+      let blob;
+      try {
+        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues });
+      } catch {
+        // Si las fotos bloquean la exportación, se genera sin ellas
+        blob = await generarTarjeta({ nombre, datos });
+      }
+
+      const archivo = new File([blob], 'mi-progreso-jonah-beast.png', { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        await navigator.share({
+          files: [archivo],
+          title: 'Mi progreso en Jonah Beast Fuel',
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'mi-progreso-jonah-beast.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') { setGenerando(false); return; }
+      setErr('No se pudo generar la tarjeta. Intenta de nuevo.');
+    }
+    setGenerando(false);
+  }
+
+  if (!hayDatos) return null;
+
+  return (
+    <div>
+      <button onClick={compartir} disabled={generando} className={btnPrimary + ' w-full py-3'}>
+        {generando ? <Loader2 className="animate-spin" size={18} /> : <>📤 Compartir mi progreso</>}
+      </button>
+      {err && <p className="text-amber-400 text-xs jb-body mt-2 text-center">{err}</p>}
+      <p className="jb-body text-[11px] text-zinc-600 mt-2 text-center">
+        Genera una imagen con tus resultados para compartir donde quieras.
+      </p>
+    </div>
+  );
+}
+
+function ProgressTab({ username, form, nombre }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rango, setRango] = useState(30);
@@ -3457,6 +3684,8 @@ function ProgressTab({ username, form }) {
       </div>
 
       {analisis && <CoachCard analisis={analisis} />}
+
+      <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
 
       {stats && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -4475,7 +4704,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} />}
-        {tab === 'progress' && <ProgressTab username={username} form={form} />}
+        {tab === 'progress' && <ProgressTab username={username} form={form} nombre={userRecord?.nombre} />}
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>

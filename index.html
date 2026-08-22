@@ -24,6 +24,20 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      // Capturar el evento de instalación apenas ocurre.
+      // Chrome lo dispara muy temprano, antes de que cargue la app,
+      // por eso hay que guardarlo aquí y no dentro de React.
+      window.__jbInstall = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__jbInstall = e;
+        window.dispatchEvent(new Event('jb-install-listo'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__jbInstall = null;
+        window.dispatchEvent(new Event('jb-install-hecho'));
+      });
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('/sw.js').catch(function () {});

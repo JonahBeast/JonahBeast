@@ -2350,6 +2350,90 @@ function VencimientosPanel({ users, onRenew }) {
   );
 }
 
+function InstalarBanner() {
+  const [evento, setEvento] = useState(null);
+  const [oculto, setOculto] = useState(true);
+  const [esIOS, setEsIOS] = useState(false);
+  const [verPasos, setVerPasos] = useState(false);
+
+  useEffect(() => {
+    // Si ya está instalada, no mostrar nada
+    const instalada = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    if (instalada) return;
+
+    try { if (localStorage.getItem('jb_instalar_no')) return; } catch {}
+
+    const ua = window.navigator.userAgent || '';
+    const ios = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    setEsIOS(ios);
+    if (ios) { setOculto(false); return; }
+
+    function alPoder(e) {
+      e.preventDefault();
+      setEvento(e);
+      setOculto(false);
+    }
+    window.addEventListener('beforeinstallprompt', alPoder);
+    return () => window.removeEventListener('beforeinstallprompt', alPoder);
+  }, []);
+
+  function cerrar() {
+    setOculto(true);
+    try { localStorage.setItem('jb_instalar_no', '1'); } catch {}
+  }
+
+  async function instalar() {
+    if (!evento) return;
+    evento.prompt();
+    try { await evento.userChoice; } catch {}
+    setEvento(null);
+    setOculto(true);
+  }
+
+  if (oculto) return null;
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-6">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl shrink-0">📲</span>
+        <div className="flex-1">
+          <p className="jb-display text-sm text-orange-500 mb-1">TENLA EN TU PANTALLA DE INICIO</p>
+          <p className="jb-body text-sm text-zinc-300">
+            Instálala y ábrela con un toque, como cualquier app. Ocupa casi nada.
+          </p>
+
+          {esIOS ? (
+            verPasos ? (
+              <div className="mt-3 flex flex-col gap-1.5">
+                {['Toca el botón Compartir de Safari (el cuadrito con la flecha hacia arriba)',
+                  'Desliza y elige "Agregar a pantalla de inicio"',
+                  'Toca "Agregar" y listo'].map((t, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="jb-display text-[11px] text-orange-500 shrink-0 mt-0.5">{i + 1}.</span>
+                    <span className="jb-body text-xs text-zinc-400">{t}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button onClick={() => setVerPasos(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+                Ver cómo
+              </button>
+            )
+          ) : (
+            <button onClick={instalar} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+              Instalar app
+            </button>
+          )}
+        </div>
+        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TrialBanner({ user }) {
   const dia = trialDayOf(user);
   const [stats, setStats] = useState(null);
@@ -4655,6 +4739,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} onClose={cerrarGuia} />}
+        <InstalarBanner />
         <TrialBanner user={userRecord} />
         <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
         <div className="flex flex-wrap gap-2 mb-6">

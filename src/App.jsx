@@ -2137,11 +2137,57 @@ function goalTargets(form, tdee) {
   if (!goal) return null;
   const defaultPct = GOALS[goal].pct;
   const pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
-  const kcal = tdee * (1 + pct / 100);
-  const protein = (Number(form.peso) || 0) * 2;
-  const fat = (kcal * 0.25) / 9;
-  const carbs = Math.max((kcal - protein * 4 - fat * 9) / 4, 0);
-  return { goal, pct, kcal, protein, carbs, fat };
+  const kcal = Math.max(tdee * (1 + pct / 100), 800);
+  const peso = Number(form.peso) || 0;
+
+  /* Proteína sobre MASA MAGRA, no sobre peso total.
+     En alguien con sobrepeso, 2 g por kilo total da cifras imposibles
+     que se comen todo el presupuesto de calorías.                     */
+  let magra = peso * 0.75; // respaldo si aún no hay medidas
+  try {
+    const r = calcAll(form);
+    if (r && Number.isFinite(r.leanKg) && r.leanKg > 0) magra = r.leanKg;
+  } catch {}
+
+  let protein = magra * 2.2;
+
+  /* Topes de seguridad: la proteína nunca puede pasar del 40% de las
+     calorías, ni bajar de 1.6 g por kilo de masa magra.               */
+  const maxProtKcal = kcal * 0.40;
+  if (protein * 4 > maxProtKcal) protein = maxProtKcal / 4;
+  const minProt = magra * 1.6;
+  if (protein < minProt) protein = minProt;
+
+  /* Grasa: 25% de las calorías, con piso de 20% (por debajo afecta
+     las hormonas).                                                    */
+  let fat = (kcal * 0.25) / 9;
+  const minFat = (kcal * 0.20) / 9;
+
+  /* Los carbohidratos absorben el resto, con un piso del 12%.
+     Si no alcanza, se recortan primero la grasa y luego la proteína,
+     para que los tres macros SIEMPRE sumen las calorías objetivo.     */
+  const minCarbsKcal = kcal * 0.12;
+  let carbsKcal = kcal - protein * 4 - fat * 9;
+
+  if (carbsKcal < minCarbsKcal) {
+    const falta = minCarbsKcal - carbsKcal;
+    const puedeGrasa = Math.max(fat * 9 - minFat * 9, 0);
+    const recorteGrasa = Math.min(falta, puedeGrasa);
+    fat -= recorteGrasa / 9;
+    const resto = falta - recorteGrasa;
+    if (resto > 0) protein = Math.max(protein - resto / 4, magra * 1.2);
+    carbsKcal = kcal - protein * 4 - fat * 9;
+  }
+
+  const carbs = Math.max(carbsKcal / 4, 0);
+
+  /* Ajuste final: si por redondeos algo no cuadra, la grasa absorbe
+     la diferencia para que la suma sea exacta.                        */
+  const suma = protein * 4 + carbs * 4 + fat * 9;
+  const dif = kcal - suma;
+  if (Math.abs(dif) > 1) fat = Math.max(fat + dif / 9, minFat * 0.9);
+
+  return { goal, pct, kcal, protein, carbs, fat, magra };
 }
 
 function GoalSelector({ form, setForm, tdee, peso }) {
@@ -2190,9 +2236,9 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Calorías objetivo" value={Math.round(targetKcal)} sub="kcal/día" accent="text-amber-400" />
-            <StatCard label="Proteína" value={Math.round(proteinG) + ' g'} sub="2 g por kg de peso" />
+            <StatCard label="Proteína" value={Math.round(proteinG) + ' g'} sub="según tu masa magra" />
             <StatCard label="Carbohidratos" value={Math.round(Math.max(carbsG, 0)) + ' g'} />
-            <StatCard label="Grasas" value={Math.round(fatG) + ' g'} sub="25% de las calorías" />
+            <StatCard label="Grasas" value={Math.round(fatG) + ' g'} sub="~25% de las calorías" />
           </div>
 
           <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">

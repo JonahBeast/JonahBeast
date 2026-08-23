@@ -5773,6 +5773,21 @@ export default function App() {
     setView('landing');
   }
 
+  /* El panel del referidor no depende de los datos internos de la app,
+     así que se muestra sin esperar la carga inicial. */
+  if (tokenRef) {
+    return (
+      <>
+        {FONT_STYLE}
+        <PanelReferidor token={tokenRef} onSalir={() => {
+          window.history.replaceState({}, '', '/');
+          setTokenRef(null);
+          init();
+        }} />
+      </>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">

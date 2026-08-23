@@ -4,5 +4,11 @@
       "path": "/api/recordatorios",
       "schedule": "0 18 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

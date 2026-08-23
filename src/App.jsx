@@ -1516,11 +1516,158 @@ function formatActivity(lastActivity) {
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
 }
 
+function PanelReferidor({ token, onSalir }) {
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.rpc('panel_referidor', { p_token: token });
+        setDatos(data && data.ok ? data : { ok: false });
+      } catch { setDatos({ ok: false }); }
+      setCargando(false);
+    })();
+  }, [token]);
+
+  if (cargando) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="animate-spin text-orange-500" size={32} />
+      </div>
+    );
+  }
+
+  if (!datos || !datos.ok) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
+        <div className="max-w-sm w-full text-center">
+          <div className="mb-6"><Logo size="lg" /></div>
+          <p className="jb-body text-zinc-400 mb-4">
+            Este enlace no es válido o fue desactivado. Escríbenos si crees que es un error.
+          </p>
+          <button onClick={onSalir} className={btnGhost + ' w-full'}>Ir al inicio</button>
+        </div>
+      </div>
+    );
+  }
+
+  const refs = datos.referidos || [];
+  const pagaron = refs.filter(r => r.pago);
+  const enPrueba = refs.filter(r => !r.pago);
+  const esPct = datos.tipo === 'influencer' && datos.comision_pct;
+
+  function fmtFecha(f) {
+    if (!f) return '';
+    const [y, m, d] = String(f).slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 jb-body">
+      <header className="border-b border-zinc-800 px-6 py-4">
+        <Logo />
+      </header>
+
+      <main className="max-w-3xl mx-auto px-6 py-8 flex flex-col gap-6">
+        <div>
+          <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Panel de referidos</p>
+          <h1 className="jb-display text-3xl text-zinc-50">{datos.nombre}</h1>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="jb-display text-sm text-orange-500 bg-orange-950/40 border border-orange-500/40 rounded-lg px-3 py-1">
+              {datos.codigo}
+            </span>
+            <span className="jb-body text-xs text-zinc-500">
+              {esPct
+                ? `${datos.comision_pct}% de comisión` +
+                  (Number(datos.descuento_pct) > 0 ? ` · ${datos.descuento_pct}% de descuento para tus referidos` : '')
+                : `1m S/${Number(datos.tarifas.m1 || 0).toFixed(0)} · 3m S/${Number(datos.tarifas.m3 || 0).toFixed(0)} · 6m S/${Number(datos.tarifas.m6 || 0).toFixed(0)} · 12m S/${Number(datos.tarifas.m12 || 0).toFixed(0)}`}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Se registraron" value={refs.length} />
+          <StatCard label="Ya pagaron" value={pagaron.length} accent="text-emerald-400" />
+          <StatCard label="Por cobrar" value={'S/' + Number(datos.total_pendiente).toFixed(2)} accent="text-emerald-400" />
+          <StatCard label="Ya cobrado" value={'S/' + Number(datos.total_pagado).toFixed(2)} />
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="jb-display text-base text-zinc-200 mb-1">TUS REFERIDOS</h2>
+          <p className="jb-body text-xs text-zinc-500 mb-4">
+            Actualizado en tiempo real. Por privacidad de cada persona, solo mostramos su nombre y la inicial de su apellido.
+          </p>
+
+          {refs.length === 0 ? (
+            <p className="jb-body text-sm text-zinc-500">
+              Todavía nadie se ha registrado con tu código. Compártelo y aparecerán aquí al instante.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {refs.map((r, i) => (
+                <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-zinc-100 text-sm">{r.nombre}</div>
+                    <div className="text-xs">
+                      <span className={r.pago ? 'text-emerald-400' : 'text-zinc-500'}>
+                        {r.pago ? `✓ Pagó plan de ${r.meses || '—'} mes(es)` : 'En prueba gratis'}
+                      </span>
+                      <span className="text-zinc-600"> · {fmtFecha(r.fecha)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {r.pago ? (
+                      <>
+                        <div className="jb-display text-sm text-zinc-100">S/{Number(r.monto).toFixed(2)}</div>
+                        <div className={`text-[11px] ${r.pagada ? 'text-zinc-500' : 'text-emerald-400'}`}>
+                          {r.pagada ? 'ya te lo pagamos' : 'por cobrar'}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="jb-body text-[11px] text-zinc-600">aún no genera comisión</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {enPrueba.length > 0 && (
+            <p className="jb-body text-[11px] text-zinc-600 mt-4">
+              {enPrueba.length} persona(s) están probando la app. La comisión se genera cuando adquieren un plan.
+            </p>
+          )}
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓMO COMPARTIR TU CÓDIGO</h3>
+          <p className="jb-body text-sm text-zinc-400 mb-3">
+            Diles que entren a <span className="text-orange-500">jonah-beast.vercel.app</span>, toquen
+            "Prueba gratis 7 días" y escriban <span className="text-orange-500">{datos.codigo}</span> en
+            el campo de código de referido.
+          </p>
+          <a href={`https://wa.me/?text=${encodeURIComponent(
+            `Entra a jonah-beast.vercel.app y prueba 7 días gratis. Usa mi código ${datos.codigo} al registrarte` +
+            (Number(datos.descuento_pct) > 0 ? ` y obtén ${datos.descuento_pct}% de descuento.` : '.'))}`}
+            target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5'}>
+            <MessageCircle size={16} /> Compartir por WhatsApp
+          </a>
+        </div>
+
+        <p className="jb-body text-[11px] text-zinc-600 text-center">
+          Guarda este enlace, es tu acceso personal. No lo compartas: quien lo tenga puede ver esta información.
+        </p>
+      </main>
+    </div>
+  );
+}
+
 function ReferidosPanel({ users, onCambio }) {
   const [refs, setRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45 });
+  const [nuevo, setNuevo] = useState({ tipo: 'entrenador', codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45, pct: 10, desc: 10 });
   const [err, setErr] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [expandido, setExpandido] = useState(null);
@@ -1546,15 +1693,23 @@ function ReferidosPanel({ users, onCambio }) {
     if (refs.some(r => r.codigo.toUpperCase() === cod)) return setErr('Ese código ya existe.');
     setGuardando(true);
     try {
+      const esInfl = nuevo.tipo === 'influencer';
+      const token = cod.toLowerCase() + '-' +
+        Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
       const { error } = await supabase.from('referidores').insert({
         codigo: cod, nombre: nuevo.nombre.trim(),
         telefono: nuevo.telefono.trim().replace(/\s/g, '') || null,
-        comision_1: Number(nuevo.c1) || 0, comision_3: Number(nuevo.c3) || 0,
-        comision_6: Number(nuevo.c6) || 0, comision_12: Number(nuevo.c12) || 0,
+        tipo: nuevo.tipo, token,
+        comision_1: esInfl ? 0 : Number(nuevo.c1) || 0,
+        comision_3: esInfl ? 0 : Number(nuevo.c3) || 0,
+        comision_6: esInfl ? 0 : Number(nuevo.c6) || 0,
+        comision_12: esInfl ? 0 : Number(nuevo.c12) || 0,
+        comision_pct: esInfl ? Number(nuevo.pct) || 10 : null,
+        descuento_pct: esInfl ? Number(nuevo.desc) || 0 : 0,
         activo: true,
       });
       if (error) throw error;
-      setNuevo({ codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45 });
+      setNuevo({ tipo: 'entrenador', codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45, pct: 10, desc: 10 });
       await cargar();
     } catch (e2) { setErr('No se pudo crear: ' + (e2.message || '')); }
     setGuardando(false);
@@ -1651,19 +1806,60 @@ function ReferidosPanel({ users, onCambio }) {
                 </Field>
               </div>
               <div>
-                <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
-                  Comisión según el plan que compre el referido (S/)
-                </span>
-                <div className="grid grid-cols-4 gap-2">
-                  {[['c1', '1 mes'], ['c3', '3 meses'], ['c6', '6 meses'], ['c12', '12 meses']].map(([k, l]) => (
-                    <div key={k}>
-                      <span className="jb-body text-[11px] text-zinc-500 block mb-1">{l}</span>
-                      <input type="number" step="0.5" value={nuevo[k]}
-                        onChange={e => setNuevo(v => ({ ...v, [k]: e.target.value }))}
-                        className={inputCls + ' py-2'} />
-                    </div>
+                <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">Tipo de acuerdo</span>
+                <div className="flex gap-2 mb-3">
+                  {[['entrenador', 'Entrenador', 'monto fijo por plan'],
+                    ['influencer', 'Influencer', '% + descuento']].map(([v, l, d]) => (
+                    <button key={v} type="button" onClick={() => setNuevo(n => ({ ...n, tipo: v }))}
+                      className={`flex-1 rounded-lg p-2.5 text-left transition-colors border ${nuevo.tipo === v
+                        ? 'bg-orange-500 border-orange-500 text-zinc-950'
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-orange-500'}`}>
+                      <div className="jb-display text-xs">{l}</div>
+                      <div className={`jb-body text-[10px] ${nuevo.tipo === v ? 'text-zinc-800' : 'text-zinc-500'}`}>{d}</div>
+                    </button>
                   ))}
                 </div>
+
+                {nuevo.tipo === 'entrenador' ? (
+                  <>
+                    <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
+                      Comisión fija según el plan (S/)
+                    </span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[['c1', '1 mes'], ['c3', '3 meses'], ['c6', '6 meses'], ['c12', '12 meses']].map(([k, l]) => (
+                        <div key={k}>
+                          <span className="jb-body text-[11px] text-zinc-500 block mb-1">{l}</span>
+                          <input type="number" step="0.5" value={nuevo[k]}
+                            onChange={e => setNuevo(v => ({ ...v, [k]: e.target.value }))}
+                            className={inputCls + ' py-2'} />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="jb-body text-[11px] text-zinc-500 block mb-1">Comisión para él (%)</span>
+                        <input type="number" step="1" value={nuevo.pct}
+                          onChange={e => setNuevo(v => ({ ...v, pct: e.target.value }))}
+                          className={inputCls + ' py-2'} />
+                      </div>
+                      <div>
+                        <span className="jb-body text-[11px] text-zinc-500 block mb-1">Descuento al cliente (%)</span>
+                        <input type="number" step="1" value={nuevo.desc}
+                          onChange={e => setNuevo(v => ({ ...v, desc: e.target.value }))}
+                          className={inputCls + ' py-2'} />
+                      </div>
+                    </div>
+                    <p className="jb-body text-[11px] text-zinc-600 mt-2">
+                      Con {nuevo.pct || 0}% y {nuevo.desc || 0}% de descuento, en un plan de S/29.90 el
+                      cliente paga S/{(29.90 * (1 - (Number(nuevo.desc) || 0) / 100)).toFixed(2)},
+                      él gana S/{(29.90 * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)} y
+                      te quedan S/{(29.90 * (1 - (Number(nuevo.desc) || 0) / 100) - 29.90 * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)}.
+                    </p>
+                  </>
+                )}
               </div>
               <button type="submit" disabled={guardando} className={btnPrimary + ' self-start'}>
                 {guardando ? <Loader2 className="animate-spin" size={16} /> : <><Plus size={16} /> Crear código</>}
@@ -1705,8 +1901,21 @@ function ReferidosPanel({ users, onCambio }) {
                             {lista.length} inscrito(s) · {pagaron.length} pagaron
                           </div>
                           <div className="text-zinc-600 text-[11px] jb-body mt-0.5">
-                            1m S/{Number(r.comision_1 || 0).toFixed(0)} · 3m S/{Number(r.comision_3 || 0).toFixed(0)} · 6m S/{Number(r.comision_6 || 0).toFixed(0)} · 12m S/{Number(r.comision_12 || 0).toFixed(0)}
+                            {r.tipo === 'influencer'
+                              ? `Influencer · ${Number(r.comision_pct || 0)}% comisión · ${Number(r.descuento_pct || 0)}% dcto al cliente`
+                              : `Entrenador · 1m S/${Number(r.comision_1 || 0).toFixed(0)} · 3m S/${Number(r.comision_3 || 0).toFixed(0)} · 6m S/${Number(r.comision_6 || 0).toFixed(0)} · 12m S/${Number(r.comision_12 || 0).toFixed(0)}`}
                           </div>
+                          {r.token && (
+                            <button
+                              onClick={() => {
+                                const url = window.location.origin + '/r/' + r.token;
+                                try { navigator.clipboard.writeText(url); } catch {}
+                                window.alert('Enlace copiado:\n' + url + '\n\nEnvíaselo para que vea sus referidos en tiempo real.');
+                              }}
+                              className="jb-body text-[11px] text-orange-500 hover:text-orange-400 mt-1">
+                              📋 Copiar su enlace de panel
+                            </button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           {montoPend > 0 && (
@@ -3010,13 +3219,23 @@ function PagosPanel({ onAprobado }) {
           .select('codigo_referido, comision_monto').eq('username', pago.username).maybeSingle();
         if (al && al.codigo_referido && (al.comision_monto === null || al.comision_monto === undefined)) {
           const { data: ref } = await supabase.from('referidores')
-            .select('comision_1, comision_3, comision_6, comision_12')
+            .select('tipo, comision_pct, descuento_pct, comision_1, comision_3, comision_6, comision_12')
             .ilike('codigo', al.codigo_referido).maybeSingle();
           if (ref) {
-            const tabla = { 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 };
-            const monto = tabla[pago.plan_meses];
+            let monto = null;
+            if (ref.tipo === 'influencer' && Number(ref.comision_pct) > 0) {
+              // Porcentaje sobre el precio de lista, no sobre el ya descontado
+              const dctoRef = Number(ref.descuento_pct) || 0;
+              const listaAprox = dctoRef > 0
+                ? Number(pago.monto) / (1 - dctoRef / 100)
+                : Number(pago.monto);
+              monto = listaAprox * (Number(ref.comision_pct) / 100);
+            } else {
+              const tabla = { 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 };
+              monto = tabla[pago.plan_meses];
+            }
             if (monto !== undefined && monto !== null) {
-              cambios.comision_monto = Number(monto);
+              cambios.comision_monto = Math.round(Number(monto) * 100) / 100;
               cambios.plan_meses_referido = pago.plan_meses;
             }
           }
@@ -3155,6 +3374,8 @@ function PagosPanel({ onAprobado }) {
 
 function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   const [precios, setPrecios] = useState({});
+  const [dcto, setDcto] = useState(0);
+  const [refNombre, setRefNombre] = useState('');
   const [datosPago, setDatosPago] = useState({});
   const [seleccion, setSeleccion] = useState(null);
   const [metodo, setMetodo] = useState('Yape');
@@ -3181,12 +3402,25 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
         .eq('username', username).order('creado_en', { ascending: false }).limit(10);
       setMisPagos(data || []);
     } catch {}
+    // Descuento si entró con código de influencer
+    try {
+      if (userRecord && userRecord.codigoReferido) {
+        const { data } = await supabase.rpc('validar_codigo', { p_codigo: userRecord.codigoReferido });
+        if (data && data.ok && Number(data.descuento_pct) > 0) {
+          setDcto(Number(data.descuento_pct));
+          setRefNombre(data.nombre || '');
+        }
+      }
+    } catch {}
     setLoading(false);
   }
 
-  function precioDe(plan) {
+  function precioBase(plan) {
     const v = Number(precios[plan.configKey]);
     return v > 0 ? v : plan.precioDefault;
+  }
+  function precioDe(plan) {
+    return precioBase(plan) * (1 - dcto / 100);
   }
 
   async function enviarPago() {
@@ -3269,6 +3503,16 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
           </div>
 
+          {dcto > 0 && (
+            <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
+              <span className="text-lg">🎁</span>
+              <p className="jb-body text-sm text-emerald-300">
+                Tienes <span className="font-semibold">{dcto}% de descuento</span> en todos los planes
+                {refNombre ? ` por venir de ${refNombre}` : ''}. Ya está aplicado en los precios.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {PLANES.map(plan => {
               const precio = precioDe(plan);
@@ -3286,6 +3530,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                     </span>
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
+                  {dcto > 0 && (
+                    <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan))}</div>
+                  )}
                   <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(precio)}</div>
                   <div className="jb-body text-xs text-zinc-500 mb-1">
                     {plan.meses === 1 ? 'por mes' : `${fmtS(porMes)} por mes`}
@@ -5252,7 +5499,13 @@ export default function App() {
   const saveTimer = useRef(null);
   const skipNextSave = useRef(true);
 
+  const [tokenRef, setTokenRef] = useState(null);
+
   useEffect(() => {
+    // Enlace del referidor: jonah-beast.vercel.app/r/su-token
+    const m = window.location.pathname.match(/^\/r\/([A-Za-z0-9._-]+)/);
+    if (m) { setTokenRef(m[1]); return; }
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setView('resetPassword');
     });
@@ -5532,19 +5785,23 @@ export default function App() {
   return (
     <>
       {FONT_STYLE}
-      {view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
-      {view === 'landing' && <Landing onChoose={setView} />}
-      {view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
-      {view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
-      {view === 'adminAuth' && (
+      {tokenRef && <PanelReferidor token={tokenRef} onSalir={() => {
+        window.history.replaceState({}, '', '/');
+        setTokenRef(null);
+      }} />}
+      {!tokenRef && view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
+      {!tokenRef && view === 'landing' && <Landing onChoose={setView} />}
+      {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
+      {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
+      {!tokenRef && view === 'adminAuth' && (
         <AdminAuth adminPassExists={!!adminPass} onBack={() => setView('landing')} busy={busy}
           onSetup={handleAdminSetup} onLogin={handleAdminLogin} />
       )}
-      {view === 'studentAuth' && (
+      {!tokenRef && view === 'studentAuth' && (
         <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}
           expiredInfo={expiredInfo} onClearExpired={() => setExpiredInfo(null)} />
       )}
-      {view === 'admin' && adminAuthed && (
+      {!tokenRef && view === 'admin' && adminAuthed && (
         <>
           <AdminDashboard users={users} onAddUser={addUser} onToggleUser={toggleUser}
             onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onRecargar={init} />
@@ -5554,7 +5811,7 @@ export default function App() {
           )}
         </>
       )}
-      {view === 'student' && currentUser && (
+      {!tokenRef && view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
           mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
           userRecord={users.find(u => u.username === currentUser)} />

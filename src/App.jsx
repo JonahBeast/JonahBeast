@@ -2136,7 +2136,17 @@ function goalTargets(form, tdee) {
   const goal = form.objetivo || '';
   if (!goal) return null;
   const defaultPct = GOALS[goal].pct;
-  const pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
+  let pct = form.ajustePct === null || form.ajustePct === undefined
+    ? defaultPct : Number(form.ajustePct);
+  if (!Number.isFinite(pct)) pct = defaultPct;
+
+  /* El signo lo manda el objetivo, no lo que se haya guardado antes:
+     "perder grasa" siempre resta, "ganar músculo" siempre suma.       */
+  const magnitud = Math.min(Math.abs(pct), 40);
+  if (goal === 'Perder grasa') pct = -magnitud;
+  else if (goal === 'Ganar músculo') pct = magnitud;
+  else pct = 0;
+
   const kcal = Math.max(tdee * (1 + pct / 100), 800);
   const peso = Number(form.peso) || 0;
 
@@ -2193,7 +2203,10 @@ function goalTargets(form, tdee) {
 function GoalSelector({ form, setForm, tdee, peso }) {
   const goal = form.objetivo || '';
   const defaultPct = goal ? GOALS[goal].pct : 0;
-  const pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
+  let pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
+  if (!Number.isFinite(pct)) pct = defaultPct;
+  const mag = Math.min(Math.abs(pct), 40);
+  pct = goal === 'Perder grasa' ? -mag : goal === 'Ganar músculo' ? mag : 0;
 
   function pickGoal(g) {
     setForm(v => ({ ...v, objetivo: g, ajustePct: GOALS[g].pct }));
@@ -2224,13 +2237,60 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
       {goal && (
         <div className="mt-5 flex flex-col gap-4">
-          <div className="flex items-end gap-3 flex-wrap">
-            <Field label="Ajuste sobre mantenimiento (%)">
-              <input type="number" className={inputCls + ' w-32'} value={pct}
-                onChange={e => setForm(v => ({ ...v, ajustePct: e.target.value === '' ? 0 : Number(e.target.value) }))} />
-            </Field>
-            <p className="jb-body text-xs text-zinc-500 pb-2">
-              Recomendado: {GOALS[goal].pct > 0 ? '+' : ''}{GOALS[goal].pct}% · puedes ajustarlo
+          <div>
+            <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
+              {goal === 'Perder grasa' ? 'Cuánto quieres bajar de tu mantenimiento'
+                : goal === 'Ganar músculo' ? 'Cuánto quieres subir de tu mantenimiento'
+                : 'Ajuste sobre tu mantenimiento'}
+            </span>
+
+            {goal === 'Mantener peso' ? (
+              <p className="jb-body text-sm text-zinc-400">
+                Comes lo mismo que gastas: {Math.round(tdee)} kcal al día.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {[10, 15, 20, 25].map(n => {
+                    const valor = goal === 'Perder grasa' ? -n : n;
+                    const activo = Math.abs(pct) === n;
+                    return (
+                      <button key={n}
+                        onClick={() => setForm(v => ({ ...v, ajustePct: valor }))}
+                        className={`jb-body text-sm px-4 py-2 rounded-lg transition-colors ${activo
+                          ? 'bg-orange-500 text-zinc-950 font-semibold'
+                          : 'bg-zinc-950 text-zinc-300 border border-zinc-800 hover:border-orange-500'}`}>
+                        {goal === 'Perder grasa' ? '−' : '+'}{n}%
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="jb-body text-xs text-zinc-500">O escribe otro valor:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="jb-display text-lg text-orange-500">
+                      {goal === 'Perder grasa' ? '−' : '+'}
+                    </span>
+                    <input type="number" inputMode="numeric" min="0" max="40"
+                      className={inputCls + ' w-20 py-2'}
+                      value={Math.abs(pct) || ''}
+                      onChange={e => {
+                        const n = Math.min(Math.abs(Number(e.target.value) || 0), 40);
+                        setForm(v => ({ ...v, ajustePct: goal === 'Perder grasa' ? -n : n }));
+                      }} />
+                    <span className="jb-body text-sm text-zinc-400">%</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <p className="jb-body text-xs text-zinc-500 mt-2">
+              {goal === 'Perder grasa'
+                ? `Recomendado: −${Math.abs(GOALS[goal].pct)}%. Más de −25% es difícil de sostener.`
+                : goal === 'Ganar músculo'
+                  ? `Recomendado: +${GOALS[goal].pct}%. Más de +20% suele ganar grasa además de músculo.`
+                  : ''}
             </p>
           </div>
 

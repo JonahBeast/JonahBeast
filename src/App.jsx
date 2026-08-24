@@ -147,7 +147,8 @@ const RAW_FOODS = [
   ["Huevos","Yema de huevo","Cocida",322,15.9,3.6,26.5,0.0],
   ["Platos preparados","Ají de gallina","-",165,9.0,12.0,9.0,1.0],
   ["Platos preparados","Arroz con pollo","-",150,8.0,19.0,4.5,1.2],
-  ["Platos preparados","Pollo a la brasa (con piel)","-",215,25.0,0.5,12.5,0.0],
+  ["Platos preparados","Pollo a la brasa (solo la presa)","-",215,25.0,0.5,12.5,0.0],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","-",232,14.5,17.0,12.0,1.6],
   ["Platos preparados","Pollada (pollo frito)","-",250,22.0,10.0,14.0,0.8],
   ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
@@ -294,7 +295,8 @@ const UNITS_BY_NAME = {
   'Atún en lata en agua (escurrido)': [['lata pequeña', 100], ['lata grande', 140]],
   'Atún en lata en aceite (escurrido)': [['lata pequeña', 100], ['lata grande', 140]],
   'Atún en lata en aceite (sin escurrir)': [['lata pequeña', 100], ['lata grande', 140]],
-  'Pollo a la brasa (con piel)': [['1/4 de pollo', 250], ['1/8 de pollo', 125], ['porción', 200]],
+  'Pollo a la brasa (solo la presa)': [['1/4 de pollo', 250], ['1/8 de pollo', 125], ['porción', 200]],
+  'Pollo a la brasa con papas y ensalada': [['1/4 con papas', 470], ['1/8 con papas', 300], ['plato', 470]],
   'Pollo pierna (con piel)': [['presa', 130], ['unidad', 130]],
   'Pollo pierna (sin piel)': [['presa', 110], ['unidad', 110]],
   'Pollo encuentro (con piel)': [['presa', 150], ['unidad', 150]],
@@ -391,6 +393,44 @@ function unitsFor(food) {
   if (byName) list.push(...byName);
   else if (byGroup) list.push(...byGroup);
   return list;
+}
+
+/* Al elegir un alimento, propone la medida más natural.
+   Para una torta: "1 tajada", no "100 gramos".                */
+function unidadPorDefecto(food) {
+  if (!food) return { unit: 'gramos', qty: 100 };
+  const lista = unitsFor(food);
+
+  // Si solo existe "gramos", se usa una cantidad razonable según el grupo
+  if (lista.length <= 1) {
+    const porGrupo = {
+      'Grasas': 15, 'Otros': 30, 'Bebidas': 200, 'Postres': 120,
+      'Platos preparados': 350, 'Verduras': 100, 'Frutas': 150,
+      'Cereales': 150, 'Menestras': 180, 'Lácteos': 200,
+      'Carnes y aves': 150, 'Pescados y mariscos': 150, 'Huevos': 100,
+      'Tubérculos': 150,
+    };
+    return { unit: 'gramos', qty: porGrupo[food.group] || 100 };
+  }
+
+  /* Se prefiere la medida de casa más común, en este orden */
+  const preferidas = [
+    '1/4 con papas', '1/4 de pollo', 'presa', 'plato', 'tajada', 'unidad',
+    'porción', 'taza', 'vaso', 'rebanada', 'bola', 'scoop', 'puñado',
+    'lata pequeña', 'cucharada', 'palito', 'mitad',
+  ];
+  for (const pref of preferidas) {
+    const encontrada = lista.find(u => u[0] === pref);
+    if (!encontrada) continue;
+    // Descartar medidas demasiado pequeñas para ser una porción real
+    // (ej. "1 almendra" = 1 g). Se pide al menos 10 g.
+    if (encontrada[1] < 10) continue;
+    return { unit: encontrada[0], qty: 1 };
+  }
+
+  // Si no hay ninguna conocida, se usa la primera que no sea gramos
+  const otra = lista.find(u => u[0] !== 'gramos');
+  return otra ? { unit: otra[0], qty: 1 } : { unit: 'gramos', qty: 100 };
 }
 
 function gramsPerUnit(food, unit) {
@@ -5305,7 +5345,11 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                     <BuscadorAlimento
                       valor={en.foodKey}
                       alimentos={todosLosAlimentos}
-                      onElegir={key => updateEntry(meal, en.id, { foodKey: key, unit: 'gramos', qty: currentQty || 100, grams: undefined })}
+                      onElegir={key => {
+                        const f = buscarFood(key);
+                        const d = unidadPorDefecto(f);
+                        updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+                      }}
                       onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
                     />
                     <div className="flex gap-2 items-center">

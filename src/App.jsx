@@ -3165,9 +3165,15 @@ function TrialBanner({ user }) {
 
   return (
     <div className="mb-6">
-      <div className={`rounded-2xl p-4 border ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+      <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${urgente ? 'bg-orange-500' : 'bg-zinc-700'}`} />
         <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-          <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${urgente ? 'bg-orange-500' : 'bg-zinc-700'}`}>
+              {urgente ? '🔥' : '📅'}
+            </div>
+            <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
+          </div>
           <span className="jb-body text-xs text-zinc-500">
             {restantes > 0 ? `${restantes} día(s) restantes` : 'Último día'}
           </span>

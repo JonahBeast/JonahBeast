@@ -2253,7 +2253,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 return (
                 <div key={u.username} className="px-5 py-3.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${activo ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <div className={`relative w-9 h-9 rounded-full flex items-center justify-center jb-display text-xs shrink-0 ${activo ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
+                      {(u.nombre || u.username).slice(0, 2).toUpperCase()}
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${activo ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    </div>
                     <div>
                       <div className="text-zinc-100 font-medium">
                         {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
@@ -3026,9 +3029,10 @@ function RecordatorioBanner({ username }) {
   }
 
   return (
-    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-6">
+    <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
       <div className="flex items-start gap-3">
-        <span className="text-2xl shrink-0">🔔</span>
+        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-base shrink-0">🔔</div>
         <div className="flex-1">
           <p className="jb-display text-sm text-orange-500 mb-1">QUE NO SE TE PASE EL DÍA</p>
           <p className="jb-body text-sm text-zinc-300">
@@ -3915,14 +3919,17 @@ function PhotosTab({ username, pesoActual }) {
               <div key={a.id} className="mb-5">
                 <h3 className="jb-display text-xs text-orange-500 mb-2">{a.label.toUpperCase()}</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  {[[primera, 'Antes'], [ultima, 'Ahora']].map(([f, etiqueta]) => (
-                    <div key={f.id}>
+                  {[[primera, 'ANTES', 'bg-zinc-700'], [ultima, 'AHORA', 'bg-emerald-500']].map(([f, etiqueta, color]) => (
+                    <div key={f.id} className="relative">
                       {urls[f.ruta] && (
                         <img src={urls[f.ruta]} alt={etiqueta} onClick={() => setVerGrande(urls[f.ruta])}
                           className="w-full aspect-[3/4] object-cover rounded-xl cursor-pointer" />
                       )}
+                      <span className={`absolute top-2 left-2 jb-display text-[10px] px-2 py-1 rounded-full text-zinc-950 ${color}`}>
+                        {etiqueta}
+                      </span>
                       <p className="jb-body text-[11px] text-zinc-400 mt-1 text-center">
-                        {etiqueta} · {fmtFecha(f.fecha)}{f.peso ? ` · ${f.peso} kg` : ''}
+                        {fmtFecha(f.fecha)}{f.peso ? ` · ${f.peso} kg` : ''}
                       </p>
                     </div>
                   ))}
@@ -5391,10 +5398,17 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         fat: objF - totals.fat,
       }} />
 
-      {MEAL_NAMES.map(meal => (
+      {MEAL_NAMES.map(meal => {
+        const mealIcon = { 'Desayuno': '☀️', 'Almuerzo': '🍽️', 'Cena': '🌙', 'Snack / merienda': '🍎' }[meal] || '🍴';
+        return (
         <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="jb-display text-sm text-orange-500 tracking-wide">{meal.toUpperCase()}</h3>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">
+                {mealIcon}
+              </div>
+              <h3 className="jb-display text-sm text-orange-500 tracking-wide">{meal.toUpperCase()}</h3>
+            </div>
             <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
           {username && (
@@ -5451,7 +5465,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
 
       <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
         <h3 className="jb-display text-sm text-zinc-200 mb-3">TOTAL DEL DÍA VS. OBJETIVO</h3>

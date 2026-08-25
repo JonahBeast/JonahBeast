@@ -2813,10 +2813,13 @@ function RenewalBanner({ user, onRenovar }) {
     `Hola, soy ${user.nombre || user.username} y quiero renovar mi plan de Jonah Beast Fuel.`)}`;
 
   return (
-    <div className={`rounded-2xl p-4 mb-6 border ${vencido || hoy
+    <div className={`relative rounded-2xl p-4 pl-5 mb-6 border overflow-hidden ${vencido || hoy
       ? 'bg-orange-950/40 border-orange-500/60' : 'bg-amber-950/30 border-amber-700/50'}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${vencido || hoy ? 'bg-orange-500' : 'bg-amber-500'}`} />
       <div className="flex items-start gap-3">
-        <CreditCard className={vencido || hoy ? 'text-orange-400 shrink-0' : 'text-amber-400 shrink-0'} size={20} />
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${vencido || hoy ? 'bg-orange-500' : 'bg-amber-500'}`}>
+          <CreditCard className="text-zinc-950" size={17} />
+        </div>
         <div className="flex-1">
           <p className={`jb-display text-sm mb-1 ${vencido || hoy ? 'text-orange-400' : 'text-amber-400'}`}>
             {vencido ? 'TU PLAN VENCIÓ' : hoy ? 'TU PLAN VENCE HOY' : `TU PLAN VENCE EN ${dl} DÍA${dl > 1 ? 'S' : ''}`}
@@ -2869,10 +2872,13 @@ function VencimientosPanel({ users, onRenew }) {
   return (
     <div className="bg-zinc-900 border border-amber-700/50 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">
-          ⏰ POR VENCER
-          <span className="ml-2 bg-amber-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{porVencer.length}</span>
-        </h2>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-sm shrink-0">⏰</div>
+          <h2 className="jb-display text-base text-zinc-200">
+            POR VENCER
+            <span className="ml-2 bg-amber-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{porVencer.length}</span>
+          </h2>
+        </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
 
@@ -3102,9 +3108,10 @@ function InstalarBanner() {
        'Confirma y listo'];
 
   return (
-    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-6">
+    <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
       <div className="flex items-start gap-3">
-        <span className="text-2xl shrink-0">📲</span>
+        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-lg shrink-0">📲</div>
         <div className="flex-1">
           <p className="jb-display text-sm text-orange-500 mb-1">TENLA EN TU PANTALLA DE INICIO</p>
           <p className="jb-body text-sm text-zinc-300">

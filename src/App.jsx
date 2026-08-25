@@ -772,9 +772,13 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {options.map(opt => (
-                    <div key={opt.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{opt.emoji}</span>
+                    <div key={opt.id}
+                      className={`bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : 'border-zinc-800 hover:border-orange-500/40'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #f97316, #a78bfa)' }}>
+                          {opt.emoji}
+                        </div>
                         <span className="jb-body text-sm text-zinc-100 font-medium">{opt.name}</span>
                       </div>
                       <div className="text-orange-500 jb-display text-lg">{Math.round(opt.kcal)} kcal</div>
@@ -815,6 +819,31 @@ function StatCard({ label, value, sub, accent }) {
       <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
       <span className={`jb-display text-3xl ${accent || 'text-orange-500'}`}>{value}</span>
       {sub && <span className="jb-body text-xs text-zinc-400">{sub}</span>}
+    </div>
+  );
+}
+
+/* Anillo de progreso circular para macros (kcal / proteína / carbos).
+   color: clase de color Tailwind para el trazo (usa valores hex vía style). */
+function MacroRing({ pct, value, label, colorHex, size = 92, stroke = 9 }) {
+  const clamped = Math.max(0, Math.min(100, pct || 0));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (clamped / 100) * c;
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size / 2} cy={size / 2} r={r} stroke="#27272a" strokeWidth={stroke} fill="none" />
+          <circle cx={size / 2} cy={size / 2} r={r} stroke={colorHex} strokeWidth={stroke} fill="none"
+            strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="jb-display text-base text-zinc-50">{value}</span>
+        </div>
+      </div>
+      <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
     </div>
   );
 }
@@ -4119,6 +4148,9 @@ function CoachCard({ analisis }) {
     amber: 'bg-amber-950/30 border-amber-700/50',
     zinc: 'bg-zinc-900 border-zinc-800',
   }[c];
+  const badgeBg = {
+    emerald: 'bg-emerald-500', amber: 'bg-amber-500', zinc: 'bg-zinc-700',
+  }[c];
   const textoTitulo = {
     emerald: 'text-emerald-400', amber: 'text-amber-400', zinc: 'text-zinc-200',
   }[c];
@@ -4128,9 +4160,12 @@ function CoachCard({ analisis }) {
     'Hola, revisé mi análisis en Jonah Beast Fuel y quiero una recomendación sobre mi plan.')}`;
 
   return (
-    <div className={`rounded-2xl border p-5 ${estilos}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">{emoji}</span>
+    <div className={`relative rounded-2xl border p-5 pl-6 overflow-hidden ${estilos}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${badgeBg}`} />
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 ${badgeBg}`}>
+          {emoji}
+        </div>
         <h2 className={`jb-display text-base ${textoTitulo}`}>{analisis.titulo}</h2>
       </div>
 
@@ -4492,11 +4527,13 @@ function ProgressTab({ username, form, nombre }) {
       {stats && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Promedio consumido" value={Math.round(stats.promKcal)} sub="kcal/día" />
-            <StatCard label="Objetivo promedio" value={Math.round(stats.promObj)} sub="kcal/día" accent="text-amber-400" />
-            <StatCard label="Proteína promedio" value={Math.round(stats.promProt) + ' g'} sub="al día" />
-            <StatCard label="Días registrados" value={stats.diasRegistrados} sub={`de ${stats.totalDias}`} />
+          <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+            <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" />
+            <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
+              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" />
+            <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
+              value={stats.diasRegistrados} label="Días registrados" colorHex="#a78bfa" />
           </div>
           {stats.adherencia !== null && (
             <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
@@ -4754,11 +4791,17 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">COMPOSICIÓN CORPORAL</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Peso actual" value={pesoActual.toFixed(1) + ' kg'} />
-          <StatCard label="Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
-          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+        <div className="flex items-center gap-5 bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 mb-3">
+          <MacroRing pct={Math.min(100, results.bf * 2.5)} value={results.bf.toFixed(1) + '%'}
+            label="Grasa corporal" colorHex="#fbbf24" size={84} stroke={8} />
+          <div className="flex-1">
+            <p className="jb-display text-sm text-zinc-100">{results.bfCat}</p>
+            <p className="jb-body text-xs text-zinc-500 mt-1">Peso actual: {pesoActual.toFixed(1)} kg</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} accent="text-emerald-400" />
+          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} accent="text-violet-400" />
         </div>
       </div>
 
@@ -4796,11 +4839,26 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard label="Consumido hoy" value={Math.round(totalsHoy.kcal)} sub="kcal" />
-          <StatCard label="Objetivo diario" value={targets ? Math.round(targets.kcal) : mealPlan.targetKcal} sub="kcal" accent="text-amber-400" />
-          <StatCard label="Proteína hoy" value={Math.round(totalsHoy.protein) + ' g'} sub={targets ? `objetivo ${Math.round(targets.protein)} g` : ''} />
-        </div>
+        {(() => {
+          const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
+          const protObjetivo = targets ? targets.protein : null;
+          const carbObjetivo = targets ? targets.carbs : null;
+          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0 };
+          Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+            const m = entryMacros(en);
+            totalsHoyFull.carbs += m.carbs;
+          }));
+          return (
+            <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+              <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" />
+              <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" />
+              <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" />
+            </div>
+          );
+        })()}
         <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
         <p className="jb-body text-xs text-zinc-600 mt-3">
           Mira tus promedios y tendencias de varios días en la pestaña "Mi progreso".

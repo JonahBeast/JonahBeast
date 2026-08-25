@@ -962,6 +962,15 @@ function Logo({ size = 'md' }) {
 /* ------------------------------------------------------------------ */
 
 function Landing({ onChoose }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
+
+  const step = (delay) => ({
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? 'translateY(0)' : 'translateY(10px)',
+    transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
+  });
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
@@ -970,15 +979,17 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6" style={step(0)}>
           <div className="bg-orange-500 rounded-2xl p-4">
             <Dumbbell className="text-zinc-950" size={40} strokeWidth={2.5} />
           </div>
         </div>
-        <h1 className="jb-display text-5xl sm:text-7xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
-        <div className="jb-display text-4xl sm:text-6xl text-orange-500 leading-none mb-4 tracking-widest">FUEL</div>
+        <div style={step(120)}>
+          <h1 className="jb-display text-5xl sm:text-7xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
+          <div className="jb-display text-4xl sm:text-6xl text-orange-500 leading-none mb-4 tracking-widest">FUEL</div>
+        </div>
 
-        <div className="relative mb-5">
+        <div className="relative mb-5" style={step(220)}>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
             <Flame className="text-orange-500 shrink-0" size={20} />
@@ -994,43 +1005,60 @@ function Landing({ onChoose }) {
           </div>
         </div>
 
-        <p className="jb-body text-orange-500/90 text-sm mb-2 tracking-wide">EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-orange-500/90 text-sm mb-2 tracking-wide" style={step(300)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-zinc-400 text-base mb-6" style={step(340)}>Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
 
-        <p className="jb-body text-zinc-400 text-base mb-10">Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
+        {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40" style={step(420)}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
+          </div>
+          <div className="flex justify-around py-2">
+            <MacroRing pct={72} value="1840" label="Kcal" colorHex="#f97316" size={72} stroke={7} />
+            <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={72} stroke={7} />
+            <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={72} stroke={7} />
+          </div>
+        </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
-            <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mb-3">
-              <User className="text-orange-500" size={20} />
-            </div>
-            <div className="jb-display text-xl text-zinc-50 mb-1">SOY ALUMNO</div>
-            <p className="jb-body text-sm text-zinc-500">Ingresa con tu correo y contraseña</p>
-            <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              Entrar <ChevronRight size={16} />
+        <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
+          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
+        </p>
+
+        {/* CTA principal — es la acción que más conviene, así que va primero y más grande */}
+        <button onClick={() => onChoose('trial')} style={step(540)}
+          className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors shadow-lg shadow-orange-500/20">
+          <div className="jb-display text-lg text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</div>
+          <p className="jb-body text-sm text-zinc-800 mt-1">7 días · sin tarjeta · acceso completo</p>
+        </button>
+
+        <div className="grid sm:grid-cols-2 gap-3 mt-3" style={step(600)}>
+          <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <User className="text-orange-500" size={16} />
+              </div>
+              <div>
+                <div className="jb-display text-sm text-zinc-50">SOY ALUMNO</div>
+                <p className="jb-body text-[11px] text-zinc-500">Ya tengo cuenta</p>
+              </div>
             </div>
           </button>
-          <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
-            <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mb-3">
-              <ShieldCheck className="text-orange-500" size={20} />
-            </div>
-            <div className="jb-display text-xl text-zinc-50 mb-1">ADMINISTRACIÓN</div>
-            <p className="jb-body text-sm text-zinc-500">Acceso del equipo Jonah Beast Fuel</p>
-            <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              Entrar <ChevronRight size={16} />
+          <button onClick={() => onChoose('free')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+                <span className="text-sm">📏</span>
+              </div>
+              <div>
+                <div className="jb-display text-sm text-zinc-50">SOLO MEDIRME</div>
+                <p className="jb-body text-[11px] text-zinc-500">Sin registro</p>
+              </div>
             </div>
           </button>
         </div>
 
-        <button onClick={() => onChoose('trial')}
-          className="mt-4 w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors">
-          <div className="jb-display text-lg text-zinc-950">🚀 PRUEBA GRATIS 7 DÍAS</div>
-          <p className="jb-body text-sm text-zinc-800 mt-1">Sin tarjeta · Acceso completo a la app</p>
-        </button>
-
-        <button onClick={() => onChoose('free')}
-          className="mt-3 w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-4 transition-colors">
-          <div className="jb-display text-sm text-zinc-200">📏 SOLO MEDIR MI COMPOSICIÓN CORPORAL</div>
-          <p className="jb-body text-xs text-zinc-500 mt-1">Sin registro · Resultados al instante</p>
+        <button onClick={() => onChoose('studentAuth')} style={step(660)}
+          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-6">
+          Acceso de administración →
         </button>
       </div>
     </div>

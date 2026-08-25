@@ -1466,12 +1466,15 @@ function ResetPassword({ onDone }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
-      <div className="max-w-sm w-full">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <div className="max-w-sm w-full relative">
         <div className="mb-8"><Logo size="lg" /></div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
           {listo ? (
             <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl mx-auto mb-3">✅</div>
               <h2 className="jb-display text-xl text-emerald-400 mb-2">¡LISTO!</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">Tu contraseña quedó actualizada.</p>
               <button onClick={onDone} className={btnPrimary + ' w-full py-3'}>Entrar a mi cuenta</button>
@@ -2820,15 +2823,19 @@ function CalculatorTab({ form, setForm, results }) {
       </div>
 
       <div className="flex flex-col gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
+            <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={80} stroke={7} />
+            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={80} stroke={7} />
+            <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantenimiento" colorHex="#34d399" size={80} stroke={7} />
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
-          <StatCard label="% Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
           <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
           <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
           <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
           <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-          <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
-          <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día con tu actividad" accent="text-amber-400" />
           <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
           <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
         </div>
@@ -3579,7 +3586,9 @@ function PagosPanel({ onAprobado }) {
       {verGrande && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" onClick={() => setVerGrande(null)}>
           <img src={verGrande} alt="" className="max-w-full max-h-full object-contain rounded-xl" />
-          <button className="absolute top-4 right-4 text-white p-2"><X size={28} /></button>
+          <button className="absolute top-4 right-4 bg-zinc-900/80 hover:bg-zinc-800 text-white rounded-full p-2.5 transition-colors">
+            <X size={22} />
+          </button>
         </div>
       )}
     </div>
@@ -3893,21 +3902,25 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="jb-display text-sm text-zinc-300 mb-3">MIS PAGOS</h3>
           <div className="flex flex-col gap-2">
-            {misPagos.map(p => (
-              <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-2 flex-wrap">
-                <div>
-                  <div className="jb-body text-sm text-zinc-200">{fmtS(p.monto)} · {p.plan_meses} mes(es)</div>
-                  <div className="jb-body text-xs text-zinc-500">
-                    {p.metodo} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+            {misPagos.map(p => {
+              const color = p.estado === 'aprobado' ? 'emerald' : p.estado === 'rechazado' ? 'red' : 'amber';
+              return (
+                <div key={p.id} className={`relative bg-zinc-950 border rounded-lg p-3 pl-4 overflow-hidden flex items-center justify-between gap-2 flex-wrap ${color === 'emerald' ? 'border-emerald-800/50' : color === 'red' ? 'border-red-800/50' : 'border-amber-700/50'}`}>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${color === 'emerald' ? 'bg-emerald-500' : color === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                  <div>
+                    <div className="jb-body text-sm text-zinc-200">{fmtS(p.monto)} · {p.plan_meses} mes(es)</div>
+                    <div className="jb-body text-xs text-zinc-500">
+                      {p.metodo} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                    </div>
                   </div>
+                  <span className={`jb-body text-xs px-2.5 py-1 rounded-full ${p.estado === 'aprobado'
+                    ? 'bg-emerald-950/60 text-emerald-400' : p.estado === 'rechazado'
+                      ? 'bg-red-950/60 text-red-400' : 'bg-amber-950/60 text-amber-400'}`}>
+                    {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'En revisión'}
+                  </span>
                 </div>
-                <span className={`jb-body text-xs px-2.5 py-1 rounded-full ${p.estado === 'aprobado'
-                  ? 'bg-emerald-950/60 text-emerald-400' : p.estado === 'rechazado'
-                    ? 'bg-red-950/60 text-red-400' : 'bg-amber-950/60 text-amber-400'}`}>
-                  {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'En revisión'}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -4131,7 +4144,9 @@ function PhotosTab({ username, pesoActual }) {
       {verGrande && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" onClick={() => setVerGrande(null)}>
           <img src={verGrande} alt="" className="max-w-full max-h-full object-contain rounded-xl" />
-          <button className="absolute top-4 right-4 text-white p-2"><X size={28} /></button>
+          <button className="absolute top-4 right-4 bg-zinc-900/80 hover:bg-zinc-800 text-white rounded-full p-2.5 transition-colors">
+            <X size={22} />
+          </button>
         </div>
       )}
 
@@ -4781,8 +4796,8 @@ function ProgressTab({ username, form, nombre }) {
 
 function AyudaTab({ texto }) {
   return (
-    <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2 mb-4">
-      <span className="text-orange-500 shrink-0 text-sm">💡</span>
+    <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-center gap-2.5 mb-4">
+      <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0">💡</span>
       <p className="jb-body text-xs text-zinc-400">{texto}</p>
     </div>
   );

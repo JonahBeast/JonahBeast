@@ -825,8 +825,68 @@ const FONT_STYLE = (
   `}</style>
 );
 
-function StatCard({ label, value, sub, accent }) {
+/* Sistema simple de notificaciones flotantes (toasts).
+   Cualquier componente puede llamar showToast('mensaje') sin necesidad
+   de pasar props; se comunica vía CustomEvent y un solo <ToastHost/>
+   montado en la raíz de la app se encarga de mostrarlas. */
+function showToast(message, tipo = 'success') {
+  window.dispatchEvent(new CustomEvent('jb-toast', { detail: { message, tipo, id: Math.random().toString(36).slice(2) } }));
+}
+
+function ToastHost() {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    function onToast(e) {
+      const t = e.detail;
+      setToasts(list => [...list, t]);
+      setTimeout(() => setToasts(list => list.filter(x => x.id !== t.id)), 2800);
+    }
+    window.addEventListener('jb-toast', onToast);
+    return () => window.removeEventListener('jb-toast', onToast);
+  }, []);
+
+  if (toasts.length === 0) return null;
+
   return (
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 items-center pointer-events-none">
+      {toasts.map(t => (
+        <div key={t.id}
+          className={`jb-body text-sm px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 ${t.tipo === 'error' ? 'bg-red-500 text-zinc-950' : 'bg-emerald-500 text-zinc-950'}`}>
+          <span>{t.tipo === 'error' ? '⚠️' : '✓'}</span> {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Bloques "esqueleto" animados para estados de carga, en vez de un spinner suelto */
+function Skeleton({ className }) {
+  return <div className={`bg-zinc-800 rounded-lg animate-pulse ${className || ''}`} />;
+}
+
+function SkeletonDashboard() {
+  return (
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto px-6 py-8">
+      <Skeleton className="h-20 w-full rounded-2xl" />
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+        <Skeleton className="h-4 w-40" />
+        <div className="flex justify-around py-4">
+          <Skeleton className="h-20 w-20 rounded-full" />
+          <Skeleton className="h-20 w-20 rounded-full" />
+          <Skeleton className="h-20 w-20 rounded-full" />
+        </div>
+      </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, accent }) {  return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-1">
       <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
       <span className={`jb-display text-3xl ${accent || 'text-orange-500'}`}>{value}</span>
@@ -3554,9 +3614,11 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
       await cargar();
       if (onPagoEnviado) onPagoEnviado();
+      showToast('Pago enviado, lo revisamos en menos de 24h');
     } catch (e) {
       if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch {} }
       setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
+      showToast('No se pudo enviar el pago', 'error');
     }
     setEnviando(false);
   }
@@ -4048,10 +4110,19 @@ function MiniChart({ points, color = '#f97316', suffix = '' }) {
 
   const first = vals[0], last = vals[vals.length - 1];
   const delta = last - first;
+  const areaPath = `M${coords[0]} L${coords.join(' L')} L${w - pad},${h} L${pad},${h} Z`;
+  const gradId = `mc-grad-${color.replace('#', '')}`;
 
   return (
     <div>
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill={`url(#${gradId})`} stroke="none" />
         <polyline points={coords.join(' ')} fill="none" stroke={color} strokeWidth="2.5"
           strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       </svg>
@@ -4550,7 +4621,20 @@ function ProgressTab({ username, form, nombre }) {
     .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
 
   if (loading) {
-    return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-orange-500" size={28} /></div>;
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+          <Skeleton className="h-4 w-48" />
+          <div className="flex justify-around py-2">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <Skeleton className="h-16 w-16 rounded-full" />
+          </div>
+        </div>
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      </div>
+    );
   }
 
   if (rows.length === 0) {
@@ -4694,7 +4778,9 @@ function BienvenidaModal({ nombre, onClose }) {
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6">
         <div className="text-center mb-5">
-          <div className="text-5xl mb-3">{p.emoji}</div>
+          <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
+            {p.emoji}
+          </div>
           <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
           {p.extra && (
@@ -5182,6 +5268,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
       setNombreNuevo('');
       await cargarTodo();
       setAbierto('guardadas');
+      showToast('Comida guardada para la próxima');
     } catch {}
     setGuardando(false);
   }
@@ -5586,7 +5673,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm">
         <Logo />
         <div className="flex items-center gap-3">
           <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
@@ -5969,9 +6056,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-950">
         {FONT_STYLE}
-        <Loader2 className="animate-spin text-orange-500" size={32} />
+        <div className="border-b border-zinc-800 px-6 py-4"><Logo /></div>
+        <SkeletonDashboard />
       </div>
     );
   }
@@ -5979,6 +6067,7 @@ export default function App() {
   return (
     <>
       {FONT_STYLE}
+      <ToastHost />
       {tokenRef && <PanelReferidor token={tokenRef} onSalir={() => {
         window.history.replaceState({}, '', '/');
         setTokenRef(null);

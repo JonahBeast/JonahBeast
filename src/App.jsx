@@ -762,11 +762,22 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                 <span className="jb-display text-2xl text-orange-500">{Math.round(remaining.kcal)} kcal</span>
                 <p className="text-zinc-500 text-xs jb-body">disponibles · P {Math.round(remaining.protein)}g · C {Math.round(remaining.carbs)}g · G {Math.round(remaining.fat)}g</p>
               </div>
-              <Field label="¿Para qué comida?">
-                <select value={targetMeal} onChange={e => setTargetMeal(e.target.value)} className={inputCls}>
-                  {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </Field>
+              <div>
+                <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
+                <div className="flex gap-2 flex-wrap">
+                  {MEAL_NAMES.map(m => {
+                    const mealIcon = { 'Desayuno': '☀️', 'Almuerzo': '🍽️', 'Cena': '🌙', 'Snack / merienda': '🍎' }[m] || '🍴';
+                    return (
+                      <button key={m} onClick={() => setTargetMeal(m)}
+                        className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${targetMeal === m
+                          ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                        <span>{mealIcon}</span>{m}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {options.length === 0 ? (
                 <p className="text-zinc-500 text-sm">Con tan pocas calorías disponibles, mejor espera a tu próxima comida.</p>
               ) : (
@@ -1433,10 +1444,12 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
-      <div className="max-w-sm w-full">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <div className="max-w-sm w-full relative">
         <div className="mb-8"><Logo size="lg" /></div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
           <h2 className="jb-display text-xl text-zinc-50 mb-1">
             {modo === 'login' ? 'ENTRAR A MI CUENTA' : 'RECUPERAR CONTRASEÑA'}
           </h2>
@@ -3664,10 +3677,17 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
           <h3 className="jb-display text-sm text-zinc-300 mb-3">1 · REALIZA TU PAGO</h3>
           <div className="flex gap-2 mb-3">
-            {['Yape', 'Plin', 'Transferencia'].map(m => (
+            {[
+              ['Yape', '🟣', 'bg-[#7c2ae8]'],
+              ['Plin', '🔵', 'bg-[#00c2d1]'],
+              ['Transferencia', '🏦', 'bg-zinc-600'],
+            ].map(([m, emoji, dot]) => (
               <button key={m} onClick={() => setMetodo(m)}
-                className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${metodo === m
+                className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 flex items-center justify-center gap-1.5 transition-colors ${metodo === m
                   ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${metodo === m ? 'bg-zinc-950/20' : dot}`}>
+                  {emoji}
+                </span>
                 {m}
               </button>
             ))}
@@ -3677,7 +3697,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             {metodo === 'Transferencia' ? (
               datosPago.banco_cuenta ? (
                 <div className="jb-body text-sm text-zinc-300 flex flex-col gap-1">
-                  <div><span className="text-zinc-500">Banco:</span> {datosPago.banco_nombre}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs">🏦</span>
+                    <span className="text-zinc-200 font-medium">{datosPago.banco_nombre}</span>
+                  </div>
                   <div><span className="text-zinc-500">Cuenta:</span> {datosPago.banco_cuenta}</div>
                   {datosPago.banco_cci && <div><span className="text-zinc-500">CCI:</span> {datosPago.banco_cci}</div>}
                   <div><span className="text-zinc-500">Titular:</span> {datosPago.banco_titular || datosPago.yape_titular}</div>
@@ -3687,6 +3710,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
               )
             ) : (
               <div className="text-center">
+                <div className={`w-9 h-9 rounded-full mx-auto mb-2 flex items-center justify-center text-sm ${metodo === 'Plin' ? 'bg-[#00c2d1]' : 'bg-[#7c2ae8]'}`}>
+                  {metodo === 'Plin' ? '🔵' : '🟣'}
+                </div>
                 <div className="jb-body text-xs text-zinc-500 mb-1">Número de {metodo}</div>
                 <div className="jb-display text-2xl text-zinc-50 tracking-wider">
                   {metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero}
@@ -4840,14 +4866,23 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
         </div>
         {progreso !== null ? (
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="jb-body text-xs text-zinc-400">{pesoInicial} kg → {pesoObjetivo} kg</span>
               <span className="jb-display text-lg text-orange-500">{Math.round(progreso)}%</span>
             </div>
-            <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full bg-orange-500 rounded-full" style={{ width: `${progreso}%` }} />
+            <div className="relative pt-3 pb-1">
+              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, Math.max(0, progreso))}%` }} />
+              </div>
+              <div className="absolute left-0 -top-0.5 w-3 h-3 rounded-full bg-zinc-500 border-2 border-zinc-900" title="Inicio" />
+              <div className="absolute right-0 -top-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-900" title="Meta" />
+              <div className="absolute -bottom-0.5 flex items-center gap-1 text-[10px] text-zinc-400"
+                style={{ left: `${Math.min(96, Math.max(0, progreso))}%`, transform: 'translateX(-50%)' }}>
+                📍 {pesoActual} kg
+              </div>
             </div>
-            <p className="jb-body text-xs text-zinc-500 mt-2">
+            <p className="jb-body text-xs text-zinc-500 mt-4">
               {progreso >= 100 ? '¡Llegaste a tu meta! Escríbenos por WhatsApp para definir el siguiente paso.'
                 : `Te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg para tu meta.`}
             </p>

@@ -797,8 +797,9 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                       <div className="text-zinc-600 text-[11px] jb-body">
                         {opt.items.map(it => `${it.grams}g ${it.food.name}`).join(' + ')}
                       </div>
-                      <button onClick={() => addToDay(opt)} className={(added === opt.id ? 'bg-emerald-500 text-zinc-950' : btnGhost) + ' text-sm py-1.5 mt-1'}>
-                        {added === opt.id ? '✓ Agregado' : 'Agregar a mi día'}
+                      <button onClick={() => addToDay(opt)}
+                        className={(added === opt.id ? 'bg-emerald-500 text-zinc-950 scale-105' : btnGhost) + ' text-sm py-1.5 mt-1 transition-all duration-200'}>
+                        {added === opt.id ? <span className="inline-flex items-center gap-1"><span className="animate-bounce">✓</span> Agregado</span> : 'Agregar a mi día'}
                       </button>
                     </div>
                   ))}
@@ -3573,12 +3574,19 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   return (
     <div className="flex flex-col gap-6">
       {userRecord && dl !== null && (
-        <div className={`rounded-2xl p-4 border ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
-          <p className="jb-body text-sm text-zinc-300">
-            {esTrial
-              ? dl >= 0 ? `Estás en tu prueba gratis · ${dl} día(s) restantes` : 'Tu prueba gratis terminó'
-              : dl >= 0 ? `Tu plan está activo · ${dl} día(s) restantes` : `Tu plan venció hace ${Math.abs(dl)} día(s)`}
-          </p>
+        <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden flex items-center gap-4 ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
+          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`} />
+          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-lg shrink-0 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`}>
+            {esTrial ? '🎁' : dl <= 3 ? '⏰' : '✅'}
+          </div>
+          <div>
+            <p className="jb-display text-xs text-zinc-400 mb-0.5">{esTrial ? 'PRUEBA GRATIS' : 'TU PLAN'}</p>
+            <p className="jb-body text-sm text-zinc-200">
+              {esTrial
+                ? dl >= 0 ? `${dl} día(s) restantes` : 'Tu prueba gratis terminó'
+                : dl >= 0 ? `Activo · ${dl} día(s) restantes` : `Venció hace ${Math.abs(dl)} día(s)`}
+            </p>
+          </div>
         </div>
       )}
 
@@ -3968,6 +3976,9 @@ function PhotosTab({ username, pesoActual }) {
         <div className="flex justify-center py-8"><Loader2 className="animate-spin text-orange-500" size={28} /></div>
       ) : porFecha.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
+            📸
+          </div>
           <p className="jb-body text-sm text-zinc-500">
             Aún no tienes fotos. Las de hoy serán tu punto de partida — en unas semanas vas a agradecer haberlas tomado.
           </p>
@@ -4776,9 +4787,9 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
               : p.id === siguiente?.id
                 ? 'bg-zinc-950 border-orange-500/50 hover:border-orange-500'
                 : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 jb-display text-xs ${p.hecho
-              ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400'}`}>
-              {p.hecho ? '✓' : i + 1}
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 jb-display text-xs transition-all duration-300 ${p.hecho
+              ? 'bg-emerald-500 text-zinc-950 scale-110' : 'bg-zinc-800 text-zinc-400'}`}>
+              {p.hecho ? <span className="animate-bounce">✓</span> : i + 1}
             </div>
             <div className="flex-1 min-w-0">
               <div className={`jb-body text-sm ${p.hecho ? 'text-zinc-500 line-through' : 'text-zinc-100'}`}>
@@ -5451,7 +5462,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           )}
           <div className="mt-3" />
           {mealPlan.meals[meal].length === 0 ? (
-            <p className="text-zinc-600 text-sm">Sin alimentos agregados.</p>
+            <div className="flex items-center gap-2.5 py-3 text-zinc-600">
+              <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs shrink-0">🍽️</div>
+              <p className="jb-body text-sm">Sin alimentos agregados todavía.</p>
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               {mealPlan.meals[meal].map(en => {

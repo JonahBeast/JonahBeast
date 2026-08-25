@@ -4785,11 +4785,17 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-4">COMPOSICIÓN CORPORAL</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Peso actual" value={pesoActual.toFixed(1) + ' kg'} />
-          <StatCard label="Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
-          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+        <div className="flex items-center gap-5 bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 mb-3">
+          <MacroRing pct={Math.min(100, results.bf * 2.5)} value={results.bf.toFixed(1) + '%'}
+            label="Grasa corporal" colorHex="#fbbf24" size={84} stroke={8} />
+          <div className="flex-1">
+            <p className="jb-display text-sm text-zinc-100">{results.bfCat}</p>
+            <p className="jb-body text-xs text-zinc-500 mt-1">Peso actual: {pesoActual.toFixed(1)} kg</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} accent="text-emerald-400" />
+          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} accent="text-violet-400" />
         </div>
       </div>
 

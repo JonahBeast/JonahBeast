@@ -967,6 +967,8 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
         <div className="flex justify-center mb-6">
           <div className="bg-orange-500 rounded-2xl p-4">
@@ -998,7 +1000,9 @@ function Landing({ onChoose }) {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
-            <User className="text-orange-500 mb-3" size={28} />
+            <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mb-3">
+              <User className="text-orange-500" size={20} />
+            </div>
             <div className="jb-display text-xl text-zinc-50 mb-1">SOY ALUMNO</div>
             <p className="jb-body text-sm text-zinc-500">Ingresa con tu correo y contraseña</p>
             <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1006,7 +1010,9 @@ function Landing({ onChoose }) {
             </div>
           </button>
           <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-2xl p-6 text-left transition-colors">
-            <ShieldCheck className="text-orange-500 mb-3" size={28} />
+            <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mb-3">
+              <ShieldCheck className="text-orange-500" size={20} />
+            </div>
             <div className="jb-display text-xl text-zinc-50 mb-1">ADMINISTRACIÓN</div>
             <p className="jb-body text-sm text-zinc-500">Acceso del equipo Jonah Beast Fuel</p>
             <div className="flex items-center gap-1 text-orange-500 text-sm jb-body mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1284,11 +1290,16 @@ function TrialSignup({ onBack, onCreated }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
-        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6">
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
           <div className="text-center mb-5">
+            <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
+              🚀
+            </div>
             <div className="jb-display text-2xl text-orange-500 mb-1">7 DÍAS GRATIS</div>
             <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
           </div>
@@ -1716,19 +1727,24 @@ function PanelReferidor({ token, onSalir }) {
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 flex flex-col gap-6">
-        <div>
-          <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Panel de referidos</p>
-          <h1 className="jb-display text-3xl text-zinc-50">{datos.nombre}</h1>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="jb-display text-sm text-orange-500 bg-orange-950/40 border border-orange-500/40 rounded-lg px-3 py-1">
-              {datos.codigo}
-            </span>
-            <span className="jb-body text-xs text-zinc-500">
-              {esPct
-                ? `${datos.comision_pct}% de comisión` +
-                  (Number(datos.descuento_pct) > 0 ? ` · ${datos.descuento_pct}% de descuento para tus referidos` : '')
-                : `1m S/${Number(datos.tarifas.m1 || 0).toFixed(0)} · 3m S/${Number(datos.tarifas.m3 || 0).toFixed(0)} · 6m S/${Number(datos.tarifas.m6 || 0).toFixed(0)} · 12m S/${Number(datos.tarifas.m12 || 0).toFixed(0)}`}
-            </span>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center jb-display text-lg text-orange-500 shrink-0">
+            {(datos.nombre || '??').slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Panel de referidos</p>
+            <h1 className="jb-display text-3xl text-zinc-50">{datos.nombre}</h1>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="jb-display text-sm text-orange-500 bg-orange-950/40 border border-orange-500/40 rounded-lg px-3 py-1">
+                {datos.codigo}
+              </span>
+              <span className="jb-body text-xs text-zinc-500">
+                {esPct
+                  ? `${datos.comision_pct}% de comisión` +
+                    (Number(datos.descuento_pct) > 0 ? ` · ${datos.descuento_pct}% de descuento para tus referidos` : '')
+                  : `1m S/${Number(datos.tarifas.m1 || 0).toFixed(0)} · 3m S/${Number(datos.tarifas.m3 || 0).toFixed(0)} · 6m S/${Number(datos.tarifas.m6 || 0).toFixed(0)} · 12m S/${Number(datos.tarifas.m12 || 0).toFixed(0)}`}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1752,8 +1768,9 @@ function PanelReferidor({ token, onSalir }) {
           ) : (
             <div className="flex flex-col gap-2">
               {refs.map((r, i) => (
-                <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
-                  <div>
+                <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center gap-3 flex-wrap">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${r.pago ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                  <div className="flex-1 min-w-0">
                     <div className="text-zinc-100 text-sm">{r.nombre}</div>
                     <div className="text-xs">
                       <span className={r.pago ? 'text-emerald-400' : 'text-zinc-500'}>
@@ -2655,8 +2672,10 @@ function GoalSelector({ form, setForm, tdee, peso }) {
       <div className="grid sm:grid-cols-3 gap-3">
         {Object.entries(GOALS).map(([name, g]) => (
           <button key={name} onClick={() => pickGoal(name)}
-            className={`rounded-xl p-4 text-left transition-colors border ${goal === name ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-950 border-zinc-800 hover:border-orange-500 text-zinc-100'}`}>
-            <div className="text-xl mb-1">{g.emoji}</div>
+            className={`rounded-xl p-4 text-left transition-all border ${goal === name ? 'bg-orange-500 border-orange-500 text-zinc-950 scale-[1.02]' : 'bg-zinc-950 border-zinc-800 hover:border-orange-500 text-zinc-100'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg mb-2 ${goal === name ? 'bg-zinc-950/15' : 'bg-zinc-800'}`}>
+              {g.emoji}
+            </div>
             <div className="jb-display text-sm">{name.toUpperCase()}</div>
             <div className={`jb-body text-[11px] mt-0.5 ${goal === name ? 'text-zinc-800' : 'text-zinc-500'}`}>{g.desc}</div>
           </button>
@@ -5158,7 +5177,10 @@ function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-5 jb-body"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
-          <h2 className="jb-display text-lg text-zinc-50">CREAR MI ALIMENTO</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-sm shrink-0">🍴</div>
+            <h2 className="jb-display text-lg text-zinc-50">CREAR MI ALIMENTO</h2>
+          </div>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300"><X size={20} /></button>
         </div>
         <p className="jb-body text-xs text-zinc-500 mb-4">

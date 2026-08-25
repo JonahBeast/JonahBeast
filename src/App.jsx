@@ -1000,6 +1000,64 @@ function RachaCard({ username }) {
   );
 }
 
+/* Botón "Repetir ayer": si el alumno no registró nada hoy pero sí ayer,
+   ofrece copiar exactamente lo mismo con un toque. Reduce la fricción
+   de tener que buscar y tipear todo de nuevo. */
+function RepetirAyerCard({ username, mealPlan, setMealPlan }) {
+  const [ayer, setAyer] = useState(null); // meal_plan de ayer, o null si no hay
+  const [copiando, setCopiando] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const hoyVacio = Object.values(mealPlan.meals || {}).every(arr => arr.length === 0);
+
+  useEffect(() => {
+    if (!hoyVacio) { setLoading(false); return; }
+    (async () => {
+      try {
+        const fechaAyer = addDaysISO(todayISO(), -1);
+        const { data } = await supabase.from('historial')
+          .select('meal_plan').eq('username', username).eq('fecha', fechaAyer).maybeSingle();
+        const meals = data?.meal_plan?.meals;
+        const tieneAlgo = meals && Object.values(meals).some(arr => Array.isArray(arr) && arr.length > 0);
+        setAyer(tieneAlgo ? meals : null);
+      } catch { setAyer(null); }
+      setLoading(false);
+    })();
+  }, [username, hoyVacio]);
+
+  if (loading || !hoyVacio || !ayer) return null;
+
+  const totalItems = Object.values(ayer).reduce((a, arr) => a + arr.length, 0);
+
+  function repetir() {
+    setCopiando(true);
+    // Nuevos ids para cada entrada, para no chocar con las de ayer
+    const nuevos = {};
+    Object.entries(ayer).forEach(([meal, entries]) => {
+      nuevos[meal] = entries.map(en => ({ ...en, id: uid() }));
+    });
+    setMealPlan(v => ({ ...v, meals: nuevos }));
+    showToast(`Copiamos tus ${totalItems} alimento(s) de ayer`);
+    setCopiando(false);
+  }
+
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-base shrink-0">🔁</div>
+        <div className="flex-1">
+          <p className="jb-display text-sm text-orange-500 mb-0.5">¿COMISTE PARECIDO A AYER?</p>
+          <p className="jb-body text-sm text-zinc-300">Copia tu registro de ayer con un toque y ajusta lo que cambió.</p>
+        </div>
+        <button onClick={repetir} disabled={copiando} className={btnPrimary + ' py-2 px-4 text-sm shrink-0'}>
+          {copiando ? <Loader2 className="animate-spin" size={16} /> : 'Repetir ayer'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, sub, accent }) {  return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-1">
       <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
@@ -2437,6 +2495,32 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
         </div>
 
+        {(() => {
+          const total = users.length;
+          const activos = users.filter(membershipActive).length;
+          const enPrueba = users.filter(u => u.plan === 'trial').length;
+          const vencidos = total - activos;
+          const stats = [
+            ['👥', total, 'Alumnos totales', 'text-zinc-100'],
+            ['✅', activos, 'Activos', 'text-emerald-400'],
+            ['🎁', enPrueba, 'En prueba gratis', 'text-orange-400'],
+            ['⏰', vencidos, 'Vencidos', 'text-red-400'],
+          ];
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {stats.map(([emoji, valor, label, color]) => (
+                <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg shrink-0">{emoji}</div>
+                  <div>
+                    <div className={`jb-display text-xl ${color}`}>{valor}</div>
+                    <div className="jb-body text-[11px] text-zinc-500">{label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         <ReferidosPanel users={users} onCambio={onRecargar} />
 
         <VencimientosPanel users={users} onRenew={onRenew} />
@@ -2446,7 +2530,12 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <LeadsPanel />
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <h2 className="jb-display text-base text-zinc-200 mb-4 flex items-center gap-2"><UserPlus size={18} className="text-orange-500" /> NUEVO ALUMNO</h2>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+              <UserPlus size={16} className="text-orange-500" />
+            </div>
+            <h2 className="jb-display text-base text-zinc-200">NUEVO ALUMNO</h2>
+          </div>
           <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
             <Field label="Nombre completo">
               <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
@@ -4676,6 +4765,19 @@ function BotonCompartir({ username, nombre, rows, stats }) {
       if (stats && stats.adherencia !== null && stats.adherencia !== undefined) {
         datos.push({ valor: Math.round(stats.adherencia) + '%', etiqueta: 'cumpliste tu objetivo', color: '#F97316' });
       }
+      // Racha actual de días seguidos (calculada a partir de los mismos registros)
+      try {
+        const porFecha = {};
+        rows.forEach(r => { porFecha[r.fecha] = Number(r.comidas_count) || 0; });
+        const hoy = todayISO();
+        const registro = (iso) => (porFecha[iso] || 0) > 0;
+        let racha = 0;
+        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+        while (registro(cursor)) { racha++; cursor = addDaysISO(cursor, -1); }
+        if (racha >= 2) {
+          datos.unshift({ valor: `🔥 ${racha}`, etiqueta: racha === 1 ? 'día seguido' : 'días seguidos', color: '#F97316' });
+        }
+      } catch {}
       if (datos.length === 0) {
         setGenerando(false);
         return setErr('Aún no hay suficientes datos para armar tu tarjeta.');
@@ -5918,6 +6020,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'dash' && (
           <>
             <RachaCard username={username} />
+            <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />

@@ -779,7 +779,10 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                 </div>
               </div>
               {options.length === 0 ? (
-                <p className="text-zinc-500 text-sm">Con tan pocas calorías disponibles, mejor espera a tu próxima comida.</p>
+                <div className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                  <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-base shrink-0">😴</div>
+                  <p className="text-zinc-500 text-sm jb-body">Con tan pocas calorías disponibles, mejor espera a tu próxima comida.</p>
+                </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {options.map(opt => (
@@ -1914,14 +1917,17 @@ function ReferidosPanel({ users, onCambio }) {
   return (
     <div className={`rounded-2xl overflow-hidden border ${totalPendiente > 0 ? 'bg-zinc-900 border-emerald-700/50' : 'bg-zinc-900 border-zinc-800'}`}>
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">
-          🤝 REFERIDOS · {totalReferidos} inscritos
-          {totalPendiente > 0 && (
-            <span className="ml-2 bg-emerald-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">
-              S/{totalPendiente.toFixed(0)} por pagar
-            </span>
-          )}
-        </h2>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-sm shrink-0">🤝</div>
+          <h2 className="jb-display text-base text-zinc-200">
+            REFERIDOS · {totalReferidos} inscritos
+            {totalPendiente > 0 && (
+              <span className="ml-2 bg-emerald-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">
+                S/{totalPendiente.toFixed(0)} por pagar
+              </span>
+            )}
+          </h2>
+        </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
 
@@ -3469,7 +3475,8 @@ function PagosPanel({ onAprobado }) {
           ) : (
             <div className="flex flex-col gap-3">
               {visibles.map(p => (
-                <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                <div key={p.id} className={`relative bg-zinc-950 border rounded-xl p-4 pl-5 overflow-hidden ${p.estado === 'pendiente' ? 'border-amber-700/50' : p.estado === 'aprobado' ? 'border-emerald-800/50' : 'border-zinc-800'}`}>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${p.estado === 'pendiente' ? 'bg-amber-500' : p.estado === 'aprobado' ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
                   <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
                     <div>
                       <div className="text-zinc-100 font-medium jb-body">
@@ -5095,11 +5102,16 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra }) {
               {resultados.map(f => (
                 <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
                   onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
-                  className="w-full text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
-                  <div className="jb-body text-sm text-zinc-100">{f.name}</div>
-                  <div className="jb-body text-[11px] text-zinc-500">
-                    {f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
-                    {f.esPersonal ? ' · tuyo' : ''}
+                  className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
+                  <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
+                    {GROUP_EMOJI[f.group] || '🍴'}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="jb-body text-sm text-zinc-100 truncate">{f.name}</div>
+                    <div className="jb-body text-[11px] text-zinc-500">
+                      {f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
+                      {f.esPersonal ? ' · tuyo' : ''}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -5634,9 +5646,12 @@ function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Consultar por WhatsApp"
-      className="fixed bottom-6 right-6 z-50 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full p-4 shadow-lg shadow-emerald-500/20 flex items-center justify-center transition-transform hover:scale-105"
+      className="fixed bottom-6 right-6 z-50 flex items-center justify-center"
     >
-      <MessageCircle size={26} strokeWidth={2.2} />
+      <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
+      <span className="relative bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full p-4 shadow-lg shadow-emerald-500/20 flex items-center justify-center transition-transform hover:scale-105">
+        <MessageCircle size={26} strokeWidth={2.2} />
+      </span>
     </a>
   );
 }

@@ -889,6 +889,117 @@ function SkeletonDashboard() {
   );
 }
 
+function addDaysISO(iso, days) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+const RACHA_HITOS = [3, 7, 14, 30, 60, 90];
+
+/* Tarjeta de racha: cuántos días seguidos registró comidas, la semana
+   actual (L-D) y la insignia del último hito alcanzado. Se calcula a
+   partir de la tabla `historial` (comidas_count por fecha). */
+function RachaCard({ username }) {
+  const [dias, setDias] = useState(null); // { [fechaISO]: comidas_count }
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const desde = addDaysISO(todayISO(), -60);
+        const { data } = await supabase.from('historial')
+          .select('fecha, comidas_count')
+          .eq('username', username).gte('fecha', desde)
+          .order('fecha', { ascending: false });
+        const m = {};
+        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
+        setDias(m);
+      } catch { setDias({}); }
+      setLoading(false);
+    })();
+  }, [username]);
+
+  if (loading || !dias) return null;
+
+  const hoy = todayISO();
+  const registro = (iso) => (dias[iso] || 0) > 0;
+
+  // Racha: días consecutivos con registro, contando desde hoy hacia atrás.
+  // Si hoy todavía no registró, la racha se cuenta desde ayer (no se
+  // rompe hasta que termine el día).
+  let racha = 0;
+  let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+  while (registro(cursor)) { racha++; cursor = addDaysISO(cursor, -1); }
+
+  if (racha === 0) return null; // sin racha activa: no mostramos la tarjeta
+
+  // Semana actual (lunes a domingo) con estado de cada día
+  const dow = new Date().getDay(); // 0=domingo..6=sábado
+  const offsetLunes = dow === 0 ? -6 : 1 - dow;
+  const lunes = addDaysISO(hoy, offsetLunes);
+  const semana = Array.from({ length: 7 }, (_, i) => {
+    const fecha = addDaysISO(lunes, i);
+    if (fecha > hoy) return { fecha, estado: null };
+    return { fecha, estado: registro(fecha) };
+  });
+  const registrados = semana.filter(d => d.estado === true).length;
+  const totalPasados = semana.filter(d => d.estado !== null).length;
+
+  const hitoActual = [...RACHA_HITOS].reverse().find(h => racha >= h);
+
+  return (
+    <div className="mb-6 flex flex-col gap-3">
+      <div className="rounded-2xl p-4 flex items-center gap-3.5"
+        style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', boxShadow: '0 10px 30px -12px rgba(249,115,22,0.5)' }}>
+        <div className="text-3xl leading-none shrink-0">🔥</div>
+        <div className="flex-1">
+          <div className="jb-display text-xl text-zinc-950">{racha} día{racha === 1 ? '' : 's'} seguidos</div>
+          <div className="jb-body text-xs text-orange-950">
+            {racha >= 3 ? '¡No la rompas hoy!' : 'Sigue así, la racha recién empieza'}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider">Esta semana</span>
+          <span className="jb-body text-[11px] text-emerald-400">{registrados}/{totalPasados || 1} días</span>
+        </div>
+        <div className="flex justify-between gap-1.5">
+          {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((letra, i) => {
+            const d = semana[i];
+            const esHoy = d.fecha === hoy;
+            const bg = d.estado === true ? 'bg-emerald-500 border-emerald-500'
+              : d.estado === false ? 'bg-red-950/40 border-red-800/50'
+              : 'bg-zinc-800 border-zinc-700';
+            return (
+              <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
+                <div className={`w-full aspect-square max-w-9 rounded-lg border flex items-center justify-center text-xs ${bg} ${esHoy ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-zinc-900' : ''}`}>
+                  {d.estado === true ? '✓' : d.estado === false ? '✕' : ''}
+                </div>
+                <span className={`jb-body text-[10px] ${esHoy ? 'text-orange-500 font-semibold' : 'text-zinc-500'}`}>{letra}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {hitoActual && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0"
+            style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>🏅</div>
+          <div>
+            <div className="jb-body text-sm text-zinc-100 font-medium">Racha de {hitoActual} días</div>
+            <div className="jb-body text-xs text-zinc-500">Logro desbloqueado</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatCard({ label, value, sub, accent }) {  return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-1">
       <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
@@ -5806,6 +5917,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <main className="max-w-4xl mx-auto px-6 pb-12">
         {tab === 'dash' && (
           <>
+            <RachaCard username={username} />
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />

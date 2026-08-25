@@ -772,9 +772,13 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {options.map(opt => (
-                    <div key={opt.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{opt.emoji}</span>
+                    <div key={opt.id}
+                      className={`bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : 'border-zinc-800 hover:border-orange-500/40'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"
+                          style={{ background: 'linear-gradient(135deg, #f97316, #a78bfa)' }}>
+                          {opt.emoji}
+                        </div>
                         <span className="jb-body text-sm text-zinc-100 font-medium">{opt.name}</span>
                       </div>
                       <div className="text-orange-500 jb-display text-lg">{Math.round(opt.kcal)} kcal</div>
@@ -4517,11 +4521,13 @@ function ProgressTab({ username, form, nombre }) {
       {stats && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Promedio consumido" value={Math.round(stats.promKcal)} sub="kcal/día" />
-            <StatCard label="Objetivo promedio" value={Math.round(stats.promObj)} sub="kcal/día" accent="text-amber-400" />
-            <StatCard label="Proteína promedio" value={Math.round(stats.promProt) + ' g'} sub="al día" />
-            <StatCard label="Días registrados" value={stats.diasRegistrados} sub={`de ${stats.totalDias}`} />
+          <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+            <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" />
+            <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
+              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" />
+            <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
+              value={stats.diasRegistrados} label="Días registrados" colorHex="#a78bfa" />
           </div>
           {stats.adherencia !== null && (
             <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">

@@ -1222,11 +1222,11 @@ function Landing({ onChoose }) {
               <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
                 <div className="grid grid-cols-2">
                   <div className="relative">
-                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover" />
+                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover object-top" />
                     <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
                   </div>
                   <div className="relative">
-                    <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover" />
+                    <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
                     <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950">AHORA</span>
                   </div>
                 </div>

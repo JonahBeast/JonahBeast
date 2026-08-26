@@ -245,6 +245,45 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
+/* Sustitución inteligente: grupos de alimentos que cumplen el mismo rol
+   nutricional y se pueden intercambiar entre sí. Por ahora, el grupo de
+   proteínas animales (pollo, res, cerdo, pescado, atún, huevos...) —
+   se puede ampliar a carbohidratos u otros roles más adelante. */
+const SUSTITUCION_GRUPOS = [
+  ['Carnes y aves', 'Pescados', 'Huevos'],
+];
+
+function grupoDeSustitucion(food) {
+  if (!food) return null;
+  return SUSTITUCION_GRUPOS.find(g => g.includes(food.group)) || null;
+}
+
+/* Nombres distintos de alimentos disponibles como sustituto de "food",
+   dentro del mismo grupo de sustitución, sin repetir el nombre actual. */
+function opcionesDeSustitucion(food) {
+  const grupo = grupoDeSustitucion(food);
+  if (!grupo) return [];
+  const candidatos = FOODS.filter(f => grupo.includes(f.group) && f.name !== food.name);
+  const vistos = new Set();
+  const resultado = [];
+  for (const f of candidatos) {
+    if (vistos.has(f.name)) continue;
+    vistos.add(f.name);
+    resultado.push(f);
+  }
+  return resultado;
+}
+
+/* Dado el alimento actual + su nueva versión elegida, calcula los
+   gramos necesarios para igualar la proteína total que aportaba el
+   alimento original (intercambio isoproteico, el estándar nutricional
+   para sustituir una fuente de proteína por otra). */
+function gramosEquivalentes(proteinaObjetivo, nuevoFood) {
+  if (!nuevoFood || !nuevoFood.protein) return 100;
+  const gramos = (proteinaObjetivo / nuevoFood.protein) * 100;
+  return Math.max(10, Math.round(gramos / 5) * 5);
+}
+
 /* Unidades caseras: cuántos gramos equivale cada medida.
    Se resuelve por nombre exacto primero, luego por grupo. */
 const UNITS_BY_NAME = {
@@ -6043,6 +6082,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
+  const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
 
   useEffect(() => { if (username) cargarPersonales(); }, [username]);
 
@@ -6210,7 +6250,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                 const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 return (
-                  <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <BuscadorAlimento
                       valor={en.foodKey}
                       alimentos={todosLosAlimentos}
@@ -6241,8 +6282,47 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                         <span className="text-amber-400 block text-[10px]">Cantidad muy alta, revísala</span>
                       )}
                     </div>
+                    {food && grupoDeSustitucion(food) && (
+                      <button onClick={() => setSustituyendo(v => v === en.id ? null : en.id)}
+                        className={`hidden sm:flex items-center gap-1 text-xs shrink-0 px-2 py-1 rounded-lg transition-colors ${sustituyendo === en.id ? 'bg-violet-500 text-zinc-950' : 'text-violet-400 hover:bg-violet-500/10'}`}>
+                        🔄 Cambiar
+                      </button>
+                    )}
                     <button onClick={() => removeEntry(meal, en.id)}
                       className="hidden sm:flex text-zinc-600 hover:text-red-400 justify-center shrink-0"><Trash2 size={15} /></button>
+                  </div>
+
+                  {food && grupoDeSustitucion(food) && (
+                    <button onClick={() => setSustituyendo(v => v === en.id ? null : en.id)}
+                      className="sm:hidden flex items-center gap-1 text-xs w-fit px-2 py-1 rounded-lg text-violet-400">
+                      🔄 Cambiar por otra proteína
+                    </button>
+                  )}
+
+                  {sustituyendo === en.id && food && (
+                    <div className="bg-zinc-900 border border-violet-500/30 rounded-lg p-3">
+                      <p className="jb-body text-[11px] text-zinc-500 mb-2">
+                        Elige un reemplazo — la cantidad se ajusta sola para mantener la misma proteína ({m.protein.toFixed(0)}g)
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {opcionesDeSustitucion(food).map(opt => {
+                          const nuevosGramos = gramosEquivalentes(m.protein, opt);
+                          return (
+                            <button key={opt.key}
+                              onClick={() => {
+                                updateEntry(meal, en.id, { foodKey: opt.key, unit: 'gramos', qty: nuevosGramos, grams: undefined });
+                                setSustituyendo(null);
+                                vibrar(20);
+                                showToast(`🔄 Cambiado a ${opt.name} · ${nuevosGramos}g para igualar tu proteína`);
+                              }}
+                              className="jb-body text-xs bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-full px-3 py-1.5 text-zinc-200">
+                              {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {nuevosGramos}g</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   </div>
                 );
               })}

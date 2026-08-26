@@ -732,6 +732,17 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
   const quick = useMemo(() => generateQuickOptions(remaining), [remaining]);
   const options = [...combos, ...quick];
 
+  // "Combo sorpresa del día": mismo índice todo el día para un mismo
+  // usuario/comida (cambia mañana), le da un toque de sorpresa sin ser
+  // aleatorio en cada render.
+  const idxSorpresa = useMemo(() => {
+    if (options.length === 0) return -1;
+    const semilla = todayISO() + targetMeal;
+    let hash = 0;
+    for (let i = 0; i < semilla.length; i++) hash = (hash * 31 + semilla.charCodeAt(i)) >>> 0;
+    return hash % options.length;
+  }, [options.length, targetMeal]);
+
   function addToDay(option) {
     setMealPlan(v => ({
       ...v,
@@ -785,9 +796,15 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                 </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {options.map(opt => (
+                  {options.map((opt, i) => (
                     <div key={opt.id}
-                      className={`bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : 'border-zinc-800 hover:border-orange-500/40'}`}>
+                      className={`relative bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : i === idxSorpresa ? 'border-violet-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
+                      {i === idxSorpresa && (
+                        <span className="absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md"
+                          style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>
+                          🎲 SORPRESA DEL DÍA
+                        </span>
+                      )}
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"
                           style={{ background: 'linear-gradient(135deg, #f97316, #a78bfa)' }}>
@@ -827,6 +844,53 @@ const FONT_STYLE = (
     .jb-body { font-family: 'Inter', sans-serif; }
   `}</style>
 );
+
+/* Mascota "Beast": un gorilita reactivo que cambia de expresión según
+   el contexto. Reutilizable en loaders, estados vacíos y celebraciones. */
+const BEAST_MOODS = {
+  sleepy: '😴', flex: '💪', happy: '😄', shock: '😱', proud: '🦍',
+  thinking: '🤔', fire: '🔥', wink: '😏',
+};
+function BeastMascot({ mood = 'happy', size = 40, className = '' }) {
+  return (
+    <span className={className} style={{ fontSize: size, lineHeight: 1, display: 'inline-block' }}>
+      {BEAST_MOODS[mood] || BEAST_MOODS.happy}
+    </span>
+  );
+}
+
+/* Frases rotativas para reemplazar el típico "Cargando..." — le dan
+   personalidad peruana a la espera en vez de un spinner genérico. */
+const FRASES_CARGA = [
+  'Calentando el ají...',
+  'Contando arrocitos...',
+  'Pesando la papita...',
+  'Afilando el cuchillo del cebiche...',
+  'Avivando la brasa del pollo...',
+  'Batiendo la chicha morada...',
+  'Sazonando tu progreso...',
+  'Preparando tu próximo combo...',
+];
+function fraseDeCarga() {
+  return FRASES_CARGA[Math.floor(Math.random() * FRASES_CARGA.length)];
+}
+
+/* Vibración sutil de celular al lograr algo — no falla si el
+   dispositivo/navegador no lo soporta. */
+function vibrar(patron = 30) {
+  try { if (navigator.vibrate) navigator.vibrate(patron); } catch {}
+}
+
+/* Expresión de la mascota según la hora del día — un detalle vivo en
+   el header, sin depender de datos de comidas. */
+function moodPorHora() {
+  const h = new Date().getHours();
+  if (h < 7) return 'sleepy';
+  if (h < 12) return 'flex';
+  if (h < 18) return 'fire';
+  if (h < 22) return 'happy';
+  return 'wink';
+}
 
 /* Sistema simple de notificaciones flotantes (toasts).
    Cualquier componente puede llamar showToast('mensaje') sin necesidad
@@ -869,8 +933,13 @@ function Skeleton({ className }) {
 }
 
 function SkeletonDashboard() {
+  const [frase] = useState(fraseDeCarga);
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto px-6 py-8">
+      <div className="flex items-center gap-2 justify-center py-2">
+        <BeastMascot mood="thinking" size={22} />
+        <span className="jb-body text-xs text-zinc-500">{frase}</span>
+      </div>
       <Skeleton className="h-20 w-full rounded-2xl" />
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
         <Skeleton className="h-4 w-40" />
@@ -934,7 +1003,7 @@ function RetoSemanalCard({ username }) {
     const nuevo = !hecho;
     setHecho(nuevo);
     try { localStorage.setItem(storageKey, nuevo ? '1' : '0'); } catch {}
-    if (nuevo) showToast('¡Reto de la semana completado! 🎉');
+    if (nuevo) { vibrar([20, 40, 20]); showToast('¡Reto de la semana completado! 🎉'); }
   }
 
   return (
@@ -5377,6 +5446,8 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
   const [racha, setRacha] = useState(0);
   const [celebrado, setCelebrado] = useState(false);
   const [mostrarConfeti, setMostrarConfeti] = useState(false);
+  const [subioNivel, setSubioNivel] = useState(false);
+  const nivelAnteriorRef = useRef(null);
 
   useEffect(() => {
     if (!username) return;
@@ -5407,23 +5478,39 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
 
   const dentroDeRango = objetivoKcal && ratio >= 0.85 && ratio <= 1.15;
 
+  const nivel = score >= 90 ? { txt: '¡Modo bestia total!', emoji: '🦍', key: 'bestia' }
+    : score >= 70 ? { txt: 'Vas con todo hoy', emoji: '🔥', key: 'fuego' }
+    : score >= 40 ? { txt: 'Aún puedes con más', emoji: '💪', key: 'medio' }
+    : { txt: 'El día recién empieza', emoji: '🌱', key: 'inicio' };
+
+  // Animación al subir de nivel (no en la primera carga)
+  useEffect(() => {
+    if (nivelAnteriorRef.current !== null && nivelAnteriorRef.current !== nivel.key) {
+      const orden = ['inicio', 'medio', 'fuego', 'bestia'];
+      if (orden.indexOf(nivel.key) > orden.indexOf(nivelAnteriorRef.current)) {
+        setSubioNivel(true);
+        vibrar([20, 40, 20]);
+        showToast(`${nivel.emoji} ¡Subiste a "${nivel.txt}"!`);
+        const t = setTimeout(() => setSubioNivel(false), 1200);
+        return () => clearTimeout(t);
+      }
+    }
+    nivelAnteriorRef.current = nivel.key;
+  }, [nivel.key]);
+
   useEffect(() => {
     if (dentroDeRango && !celebrado && totalsHoy.kcal > 0) {
       setCelebrado(true);
       setMostrarConfeti(true);
+      vibrar([20, 40, 20, 40, 20]);
       showToast('🔥 ¡Completaste tu objetivo de hoy!');
       const t = setTimeout(() => setMostrarConfeti(false), 2600);
       return () => clearTimeout(t);
     }
   }, [dentroDeRango, celebrado, totalsHoy.kcal]);
 
-  const nivel = score >= 90 ? { txt: '¡Modo bestia total!', emoji: '🦍' }
-    : score >= 70 ? { txt: 'Vas con todo hoy', emoji: '🔥' }
-    : score >= 40 ? { txt: 'Aún puedes con más', emoji: '💪' }
-    : { txt: 'El día recién empieza', emoji: '🌱' };
-
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
+    <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 transition-transform duration-300 ${subioNivel ? 'scale-[1.03]' : ''}`}>
       {mostrarConfeti && <Confetti />}
       <div className="relative w-16 h-16 shrink-0">
         <svg width={64} height={64} style={{ transform: 'rotate(-90deg)' }}>
@@ -6224,7 +6311,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm">
-        <Logo />
+        <div className="flex items-center gap-2.5">
+          <Logo />
+          <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
           <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>

@@ -246,24 +246,30 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
 /* Sustitución inteligente: grupos de alimentos que cumplen el mismo rol
-   nutricional y se pueden intercambiar entre sí. Por ahora, el grupo de
-   proteínas animales (pollo, res, cerdo, pescado, atún, huevos...) —
-   se puede ampliar a carbohidratos u otros roles más adelante. */
+   nutricional y se pueden intercambiar entre sí, igualando el macro que
+   corresponde a cada rol (proteína, carbohidratos o grasa). */
 const SUSTITUCION_GRUPOS = [
-  ['Carnes y aves', 'Pescados', 'Huevos'],
+  { grupos: ['Carnes y aves', 'Pescados', 'Pescados y mariscos', 'Huevos'], macro: 'protein' },
+  { grupos: ['Cereales', 'Tubérculos'], macro: 'carbs' },
+  { grupos: ['Menestras'], macro: 'protein' },
+  { grupos: ['Frutas'], macro: 'carbs' },
+  { grupos: ['Lácteos'], macro: 'protein' },
+  { grupos: ['Grasas'], macro: 'fat' },
 ];
+
+const MACRO_LABEL = { protein: 'proteína', carbs: 'carbohidratos', fat: 'grasa' };
 
 function grupoDeSustitucion(food) {
   if (!food) return null;
-  return SUSTITUCION_GRUPOS.find(g => g.includes(food.group)) || null;
+  return SUSTITUCION_GRUPOS.find(g => g.grupos.includes(food.group)) || null;
 }
 
 /* Nombres distintos de alimentos disponibles como sustituto de "food",
    dentro del mismo grupo de sustitución, sin repetir el nombre actual. */
 function opcionesDeSustitucion(food) {
-  const grupo = grupoDeSustitucion(food);
-  if (!grupo) return [];
-  const candidatos = FOODS.filter(f => grupo.includes(f.group) && f.name !== food.name);
+  const bucket = grupoDeSustitucion(food);
+  if (!bucket) return [];
+  const candidatos = FOODS.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name);
   const vistos = new Set();
   const resultado = [];
   for (const f of candidatos) {
@@ -274,14 +280,21 @@ function opcionesDeSustitucion(food) {
   return resultado;
 }
 
-/* Dado el alimento actual + su nueva versión elegida, calcula los
-   gramos necesarios para igualar la proteína total que aportaba el
-   alimento original (intercambio isoproteico, el estándar nutricional
-   para sustituir una fuente de proteína por otra). */
-function gramosEquivalentes(proteinaObjetivo, nuevoFood) {
-  if (!nuevoFood || !nuevoFood.protein) return 100;
-  const gramos = (proteinaObjetivo / nuevoFood.protein) * 100;
-  return Math.max(10, Math.round(gramos / 5) * 5);
+/* Dado el valor objetivo del macro relevante (proteína, carbohidratos o
+   grasa) que aportaba el alimento original, calcula cuánto del nuevo
+   alimento hace falta para igualarlo — el estándar nutricional para
+   sustituir una fuente por otra del mismo rol. Devuelve la cantidad ya
+   en la unidad más natural para ese alimento (gramos, unidades, tazas...). */
+function sustitucionEquivalente(valorObjetivo, nuevoFood, macro) {
+  const porGramo = (nuevoFood[macro] || 0) / 100;
+  const gramos = porGramo > 0 ? Math.max(10, valorObjetivo / porGramo) : 100;
+  const d = unidadPorDefecto(nuevoFood);
+  if (d.unit === 'gramos') {
+    return { unit: 'gramos', qty: Math.max(5, Math.round(gramos / 5) * 5) };
+  }
+  const porUnidad = gramsPerUnit(nuevoFood, d.unit) || 1;
+  const qtyEnUnidad = Math.max(0.5, Math.round((gramos / porUnidad) * 2) / 2);
+  return { unit: d.unit, qty: qtyEnUnidad };
 }
 
 /* Unidades caseras: cuántos gramos equivale cada medida.
@@ -6295,34 +6308,39 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                   {food && grupoDeSustitucion(food) && (
                     <button onClick={() => setSustituyendo(v => v === en.id ? null : en.id)}
                       className="sm:hidden flex items-center gap-1 text-xs w-fit px-2 py-1 rounded-lg text-violet-400">
-                      🔄 Cambiar por otra proteína
+                      🔄 Cambiar por otro alimento equivalente
                     </button>
                   )}
 
-                  {sustituyendo === en.id && food && (
+                  {sustituyendo === en.id && food && (() => {
+                    const bucket = grupoDeSustitucion(food);
+                    const macro = bucket.macro;
+                    const valorObjetivo = m[macro];
+                    return (
                     <div className="bg-zinc-900 border border-violet-500/30 rounded-lg p-3">
                       <p className="jb-body text-[11px] text-zinc-500 mb-2">
-                        Elige un reemplazo — la cantidad se ajusta sola para mantener la misma proteína ({m.protein.toFixed(0)}g)
+                        Elige un reemplazo — la cantidad se ajusta sola para mantener la misma {MACRO_LABEL[macro]} ({valorObjetivo.toFixed(0)}g)
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {opcionesDeSustitucion(food).map(opt => {
-                          const nuevosGramos = gramosEquivalentes(m.protein, opt);
+                          const eq = sustitucionEquivalente(valorObjetivo, opt, macro);
                           return (
                             <button key={opt.key}
                               onClick={() => {
-                                updateEntry(meal, en.id, { foodKey: opt.key, unit: 'gramos', qty: nuevosGramos, grams: undefined });
+                                updateEntry(meal, en.id, { foodKey: opt.key, unit: eq.unit, qty: eq.qty, grams: undefined });
                                 setSustituyendo(null);
                                 vibrar(20);
-                                showToast(`🔄 Cambiado a ${opt.name} · ${nuevosGramos}g para igualar tu proteína`);
+                                showToast(`🔄 Cambiado a ${opt.name} · ${eq.qty} ${eq.unit} para igualar tu ${MACRO_LABEL[macro]}`);
                               }}
                               className="jb-body text-xs bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-full px-3 py-1.5 text-zinc-200">
-                              {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {nuevosGramos}g</span>
+                              {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                   </div>
                 );
               })}

@@ -1244,7 +1244,7 @@ function Landing({ onChoose }) {
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
           <h2 className="jb-display text-xl sm:text-2xl text-zinc-50 leading-tight my-3 px-2">
-            COME COMO PERUANO.<br className="sm:hidden" /> LUCE COMO BESTIA 🦍
+            COME COMO PERUANO.<br className="sm:hidden" /> RESULTADOS DE BESTIA 🦍
           </h2>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />

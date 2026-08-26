@@ -1145,6 +1145,13 @@ const TESTIMONIOS = [
     dato: 'Cambios notables en 6 meses',
     quote: 'Aplicando un déficit calórico logré cambios notables. Esto en una app va a ser un boom para quienes buscan cambios verdaderos.',
   },
+  {
+    nombre: 'César C.',
+    antes: '/testimonios/cesar-antes.jpg',
+    despues: '/testimonios/cesar-despues.jpg',
+    dato: 'Mejoró su composición corporal en 1 año',
+    quote: 'No bastaba con ir al gimnasio — el 70% de los resultados están en la comida. Aprendí a comer estratégicamente.',
+  },
 ];
 
 function Landing({ onChoose }) {
@@ -1217,7 +1224,7 @@ function Landing({ onChoose }) {
           <div className="grid grid-cols-2 gap-3 sm:hidden">
             {/* En móvil: scroll horizontal de tarjetas */}
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2">
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
             {TESTIMONIOS.map(t => (
               <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
                 <div className="grid grid-cols-2">

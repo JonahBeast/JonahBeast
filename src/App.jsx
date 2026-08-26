@@ -1768,7 +1768,7 @@ function Landing({ onChoose }) {
         <button onClick={() => onChoose('trial')} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors shadow-lg shadow-orange-500/20">
           <div className="jb-display text-lg text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</div>
-          <p className="jb-body text-sm text-zinc-800 mt-1">7 días · sin tarjeta · acceso completo</p>
+          <p className="jb-body text-sm text-zinc-800 mt-1">15 días · sin tarjeta · acceso completo</p>
         </button>
 
         <div className="grid sm:grid-cols-2 gap-3 mt-3" style={step(600)}>
@@ -1971,7 +1971,7 @@ function FreeCalculator({ onBack }) {
             <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
               <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">
-                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Pruébala 7 días gratis.
+                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Pruébala 15 días gratis.
               </p>
               <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 text-base'}>
                 <MessageCircle size={18} /> QUIERO PROBARLA GRATIS
@@ -2046,7 +2046,7 @@ function TrialSignup({ onBack, onCreated }) {
       return setErr('No se pudo crear tu cuenta: ' + error.message);
     }
 
-    // El registro de alumno y su prueba de 7 días se crean
+    // El registro de alumno y su prueba de 15 días se crean
     // automáticamente en la base de datos al confirmarse la cuenta.
 
     setBusy(false);
@@ -2068,7 +2068,7 @@ function TrialSignup({ onBack, onCreated }) {
             <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
               🚀
             </div>
-            <div className="jb-display text-2xl text-orange-500 mb-1">7 DÍAS GRATIS</div>
+            <div className="jb-display text-2xl text-orange-500 mb-1">15 DÍAS GRATIS</div>
             <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
           </div>
 
@@ -2409,10 +2409,10 @@ async function verifyPassword(password, hashHex, saltHex) {
 }
 
 /* ------------------------------------------------------------------ */
-/* PRUEBA GRATIS DE 7 DÍAS                                             */
+/* PRUEBA GRATIS DE 15 DÍAS                                            */
 /* ------------------------------------------------------------------ */
 
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 15;
 
 const TRIAL_JOURNEY = {
   1: { titulo: 'Día 1 · Define tu objetivo', texto: 'Empieza midiendo tu composición corporal, elige tu objetivo y registra tus primeras comidas.', cta: null },
@@ -2578,11 +2578,11 @@ function PanelReferidor({ token, onSalir }) {
           <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓMO COMPARTIR TU CÓDIGO</h3>
           <p className="jb-body text-sm text-zinc-400 mb-3">
             Diles que entren a <span className="text-orange-500">jonah-beast.vercel.app</span>, toquen
-            "Prueba gratis 7 días" y escriban <span className="text-orange-500">{datos.codigo}</span> en
+            "Prueba gratis 15 días" y escriban <span className="text-orange-500">{datos.codigo}</span> en
             el campo de código de referido.
           </p>
           <a href={`https://wa.me/?text=${encodeURIComponent(
-            `Entra a jonah-beast.vercel.app y prueba 7 días gratis. Usa mi código ${datos.codigo} al registrarte` +
+            `Entra a jonah-beast.vercel.app y prueba 15 días gratis. Usa mi código ${datos.codigo} al registrarte` +
             (Number(datos.descuento_pct) > 0 ? ` y obtén ${datos.descuento_pct}% de descuento.` : '.'))}`}
             target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5'}>
             <MessageCircle size={16} /> Compartir por WhatsApp

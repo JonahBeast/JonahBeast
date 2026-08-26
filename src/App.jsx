@@ -1198,7 +1198,7 @@ const TESTIMONIOS = [
     antes: '/testimonios/andrea-antes.jpg',
     despues: '/testimonios/andrea-despues.jpg',
     dato: 'Cambios notables en 6 meses',
-    quote: 'Aplicando un déficit calórico logré cambios notables. Esto en una app va a ser un boom para quienes buscan cambios verdaderos.',
+    quote: 'Apliqué un déficit calórico y logré cambios notables. Esta app va a ser un boom para quienes buscan cambios verdaderos.',
   },
   {
     nombre: 'César C.',

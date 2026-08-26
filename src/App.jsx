@@ -266,10 +266,10 @@ function grupoDeSustitucion(food) {
 
 /* Nombres distintos de alimentos disponibles como sustituto de "food",
    dentro del mismo grupo de sustitución, sin repetir el nombre actual. */
-function opcionesDeSustitucion(food) {
+function opcionesDeSustitucion(food, restricciones = []) {
   const bucket = grupoDeSustitucion(food);
   if (!bucket) return [];
-  const candidatos = FOODS.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name);
+  const candidatos = FOODS.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name && !restricciones.includes(f.name));
   const vistos = new Set();
   const resultado = [];
   for (const f of candidatos) {
@@ -516,7 +516,7 @@ const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
 const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
 const EMPTY_MEALS = () => ({ Desayuno: [], Almuerzo: [], Cena: [], 'Snack / merienda': [] });
-const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS() });
+const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS(), restricciones: [] });
 
 /* ------------------------------------------------------------------ */
 /* CALCULATIONS                                                       */
@@ -726,8 +726,9 @@ function armarOpcion(combo, restante) {
   };
 }
 
-/* Sugiere combinaciones apropiadas para la comida en curso */
-function generateCombos(remaining, comida) {
+/* Sugiere combinaciones apropiadas para la comida en curso, evitando
+   los alimentos que el alumno marcó como "nunca me sugieras". */
+function generateCombos(remaining, comida, restricciones = []) {
   if (remaining.kcal < 120) return [];
   const propias = COMBOS_REALES.filter(c => !comida || c.comida === comida);
   const base = propias.length ? propias : COMBOS_REALES;
@@ -736,14 +737,15 @@ function generateCombos(remaining, comida) {
     .map(c => armarOpcion(c, remaining))
     .filter(Boolean)
     // Descartar lo que se pase mucho de lo que le queda
-    .filter(o => o.kcal <= remaining.kcal * 1.25 || remaining.kcal < 200);
+    .filter(o => o.kcal <= remaining.kcal * 1.25 || remaining.kcal < 200)
+    .filter(o => !restricciones.length || !o.items.some(it => restricciones.includes(it.food.name)));
 
   opciones.sort((a, b) => a.score - b.score);
   return opciones.slice(0, 5);
 }
 
 /* Opciones sueltas para cuando queda poco margen */
-function generateQuickOptions(remaining) {
+function generateQuickOptions(remaining, restricciones = []) {
   if (remaining.kcal <= 0 || remaining.kcal > 350) return [];
   const sueltos = [
     ['Manzana (Cruda)', 180, '🍎'], ['Plátano de seda (Cruda)', 120, '🍌'],
@@ -755,6 +757,7 @@ function generateQuickOptions(remaining) {
   for (const [clave, base, emoji] of sueltos) {
     const food = FOODS.find(f => f.key === clave);
     if (!food) continue;
+    if (restricciones.includes(food.name)) continue;
     let grams = base;
     const kcalBase = (food.kcal * grams) / 100;
     if (kcalBase > remaining.kcal) {
@@ -775,14 +778,150 @@ function generateQuickOptions(remaining) {
   return salida.sort((a, b) => b.protein - a.protein).slice(0, 4);
 }
 
-function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
+/* Aprendizaje de patrones: recuerda qué sustituto elige más seguido el
+   alumno para cada alimento, guardado localmente en su dispositivo. */
+function registrarPreferenciaSustituto(username, originalName, nuevoName) {
+  try {
+    const key = `jb-prefsub-${username}`;
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    data[originalName] = data[originalName] || {};
+    data[originalName][nuevoName] = (data[originalName][nuevoName] || 0) + 1;
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {}
+}
+
+function sustitutoPreferido(username, originalName) {
+  try {
+    const key = `jb-prefsub-${username}`;
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    const mapa = data[originalName];
+    if (!mapa) return null;
+    let mejor = null, max = 0;
+    for (const [nombre, veces] of Object.entries(mapa)) {
+      if (veces > max) { max = veces; mejor = nombre; }
+    }
+    return max >= 2 ? mejor : null;
+  } catch { return null; }
+}
+
+/* Orden de sustitutos: el preferido del alumno primero (si eligió el
+   mismo reemplazo 2+ veces antes), luego el resto tal cual. */
+function opcionesOrdenadasPorPreferencia(food, username, restricciones = []) {
+  const opciones = opcionesDeSustitucion(food, restricciones);
+  const preferido = username ? sustitutoPreferido(username, food.name) : null;
+  if (!preferido) return opciones.map(o => ({ ...o, esPreferido: false }));
+  return [...opciones]
+    .sort((a, b) => (a.name === preferido ? -1 : 0) - (b.name === preferido ? -1 : 0))
+    .map(o => ({ ...o, esPreferido: o.name === preferido }));
+}
+
+/* Explicación nutricional breve al comparar el sustituto (en su
+   cantidad equivalente) contra el alimento original — el detalle que
+   hace que la sugerencia se sienta razonada, no aleatoria. */
+function explicarSustituto(original, gramosOriginal, opt, eq, macro) {
+  const factorOpt = eq.unit === 'gramos' ? eq.qty : eq.qty * gramsPerUnit(opt, eq.unit);
+  const kcalOrig = (original.kcal * gramosOriginal) / 100;
+  const kcalOpt = (opt.kcal * factorOpt) / 100;
+  const fatOrig = (original.fat * gramosOriginal) / 100;
+  const fatOpt = (opt.fat * factorOpt) / 100;
+  const fiberOpt = ((opt.fiber || 0) * factorOpt) / 100;
+  const fiberOrig = ((original.fiber || 0) * gramosOriginal) / 100;
+
+  const partes = [];
+  const dKcal = kcalOpt - kcalOrig;
+  if (Math.abs(dKcal) >= 25) partes.push(dKcal < 0 ? `${Math.abs(Math.round(dKcal))} kcal menos` : `${Math.round(dKcal)} kcal más`);
+  const dFat = fatOpt - fatOrig;
+  if (macro !== 'fat' && Math.abs(dFat) >= 2) partes.push(dFat < 0 ? 'menos grasa' : 'más grasa');
+  if (fiberOpt - fiberOrig >= 1.5) partes.push('más fibra');
+  if (partes.length === 0) return `misma ${MACRO_LABEL[macro]}, similar en todo lo demás`;
+  return `misma ${MACRO_LABEL[macro]}, ${partes.slice(0, 2).join(' · ')}`;
+}
+
+/* "Nunca me sugieras esto": restricciones permanentes del alumno.
+   Se guardan dentro del mismo mealPlan (autosave ya existente) y filtran
+   tanto los combos de "¿Qué puedo comer?" como las sustituciones. */
+function RestriccionesCard({ mealPlan, setMealPlan }) {
+  const [abierto, setAbierto] = useState(false);
+  const restricciones = mealPlan.restricciones || [];
+
+  function agregar(nombre) {
+    if (restricciones.includes(nombre)) return;
+    setMealPlan(v => ({ ...v, restricciones: [...(v.restricciones || []), nombre] }));
+    showToast(`🚫 No volveremos a sugerirte ${nombre}`);
+  }
+  function quitar(nombre) {
+    setMealPlan(v => ({ ...v, restricciones: (v.restricciones || []).filter(n => n !== nombre) }));
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <button onClick={() => setAbierto(v => !v)} className="w-full flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center text-sm shrink-0">🚫</div>
+          <div>
+            <p className="jb-display text-sm text-zinc-200">NUNCA ME SUGIERAS ESTO</p>
+            <p className="jb-body text-[11px] text-zinc-500">
+              {restricciones.length === 0 ? 'Sin restricciones' : `${restricciones.length} alimento(s) excluido(s)`}
+            </p>
+          </div>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+
+      {abierto && (
+        <div className="mt-3">
+          {restricciones.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {restricciones.map(nombre => (
+                <span key={nombre} className="jb-body text-xs bg-zinc-950 border border-red-500/30 text-zinc-300 rounded-full pl-3 pr-1.5 py-1 flex items-center gap-1.5">
+                  {nombre}
+                  <button onClick={() => quitar(nombre)} className="text-zinc-500 hover:text-red-400"><X size={13} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <BuscadorAlimento
+            valor=""
+            alimentos={FOODS}
+            onElegir={key => { const f = buscarFood(key); if (f) agregar(f.name); }}
+            onNoEncuentra={() => {}}
+          />
+          <p className="jb-body text-[10px] text-zinc-600 mt-2">
+            Ej. si no comes cerdo, mariscos o algo puntual — no volverá a aparecer en combos ni sustituciones.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   const [open, setOpen] = useState(false);
   const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
   const [added, setAdded] = useState(null);
+  const [itemOverrides, setItemOverrides] = useState({}); // `${optId}::${idx}` -> { food, grams }
+  const [swapItem, setSwapItem] = useState(null); // { optId, idx }
 
-  const combos = useMemo(() => generateCombos(remaining, targetMeal), [remaining, targetMeal]);
-  const quick = useMemo(() => generateQuickOptions(remaining), [remaining]);
-  const options = [...combos, ...quick];
+  const restricciones = mealPlan.restricciones || [];
+  const combos = useMemo(() => generateCombos(remaining, targetMeal, restricciones), [remaining, targetMeal, restricciones]);
+  const quick = useMemo(() => generateQuickOptions(remaining, restricciones), [remaining, restricciones]);
+  const optionsBase = [...combos, ...quick];
+
+  // Aplica las sustituciones que el alumno haya hecho dentro de un combo
+  // (por ejemplo "cambia solo el pollo de este combo por atún").
+  const options = optionsBase.map(opt => {
+    const items = opt.items.map((it, idx) => {
+      const ov = itemOverrides[`${opt.id}::${idx}`];
+      return ov ? { food: ov.food, grams: ov.grams } : it;
+    });
+    const t = items.reduce((a, it) => ({
+      kcal: a.kcal + (it.food.kcal * it.grams) / 100,
+      protein: a.protein + (it.food.protein * it.grams) / 100,
+      carbs: a.carbs + (it.food.carbs * it.grams) / 100,
+      fat: a.fat + (it.food.fat * it.grams) / 100,
+    }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+    return { ...opt, items, ...t };
+  });
 
   // "Combo sorpresa del día": arranca con un índice fijo por día (mismo
   // para todos al entrar), pero el alumno puede tocar el dado para que
@@ -880,9 +1019,58 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                       </div>
                       <div className="text-orange-500 jb-display text-lg">{Math.round(opt.kcal)} kcal</div>
                       <div className="text-zinc-500 text-xs jb-body">P {Math.round(opt.protein)}g · C {Math.round(opt.carbs)}g · G {Math.round(opt.fat)}g</div>
-                      <div className="text-zinc-600 text-[11px] jb-body">
-                        {opt.items.map(it => `${it.grams}g ${it.food.name}`).join(' + ')}
+
+                      <div className="flex flex-col gap-1">
+                        {opt.items.map((it, idx) => {
+                          const bucket = grupoDeSustitucion(it.food);
+                          const swapKey = `${opt.id}::${idx}`;
+                          return (
+                            <div key={idx} className="text-zinc-600 text-[11px] jb-body flex items-center justify-between gap-1">
+                              <span>{it.grams}g {it.food.name}</span>
+                              {bucket && (
+                                <button type="button"
+                                  onClick={() => setSwapItem(v => (v && v.optId === opt.id && v.idx === idx) ? null : { optId: opt.id, idx })}
+                                  className="text-violet-400 hover:text-violet-300 shrink-0" title="Cambiar este ingrediente">
+                                  🔄
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
+
+                      {swapItem && swapItem.optId === opt.id && (() => {
+                        const idx = swapItem.idx;
+                        const it = opt.items[idx];
+                        const bucket = grupoDeSustitucion(it.food);
+                        if (!bucket) return null;
+                        const macro = bucket.macro;
+                        const valorObjetivo = (it.food[macro] * it.grams) / 100;
+                        return (
+                          <div className="bg-zinc-900 border border-violet-500/30 rounded-lg p-2 flex flex-col gap-1.5">
+                            <p className="jb-body text-[10px] text-zinc-500">Cambiar {it.food.name} manteniendo la {MACRO_LABEL[macro]}</p>
+                            {opcionesOrdenadasPorPreferencia(it.food, username, restricciones).slice(0, 5).map(sub => {
+                              const eq = sustitucionEquivalente(valorObjetivo, sub, macro);
+                              const eqGramos = eq.unit === 'gramos' ? eq.qty : eq.qty * gramsPerUnit(sub, eq.unit);
+                              return (
+                                <button key={sub.key} type="button"
+                                  onClick={() => {
+                                    setItemOverrides(v => ({ ...v, [`${opt.id}::${idx}`]: { food: sub, grams: eqGramos } }));
+                                    setSwapItem(null);
+                                    vibrar(15);
+                                    registrarPreferenciaSustituto(username, it.food.name, sub.name);
+                                    showToast(`🔄 ${sub.name} en vez de ${it.food.name}`);
+                                  }}
+                                  className="jb-body text-[11px] bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-lg px-2 py-1.5 text-left text-zinc-200 flex items-center justify-between gap-2">
+                                  <span>{GROUP_EMOJI[sub.group] || '🍴'} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
+                                  <span className="text-zinc-600">{explicarSustituto(it.food, it.grams, sub, eq, macro)}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+
                       <button onClick={() => addToDay(opt)}
                         className={(added === opt.id ? 'bg-emerald-500 text-zinc-950 scale-105' : btnGhost) + ' text-sm py-1.5 mt-1 transition-all duration-200'}>
                         {added === opt.id ? <span className="inline-flex items-center gap-1"><span className="animate-bounce">✓</span> Agregado</span> : 'Agregar a mi día'}
@@ -6225,7 +6413,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         )}
       </div>
 
-      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} remaining={{
+      <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
+
+      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
         kcal: mealPlan.targetKcal - totals.kcal,
         protein: objP - totals.protein,
         carbs: objC - totals.carbs,
@@ -6316,24 +6506,31 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                     const bucket = grupoDeSustitucion(food);
                     const macro = bucket.macro;
                     const valorObjetivo = m[macro];
+                    const gramosOriginal = entryGrams(en);
                     return (
                     <div className="bg-zinc-900 border border-violet-500/30 rounded-lg p-3">
                       <p className="jb-body text-[11px] text-zinc-500 mb-2">
                         Elige un reemplazo — la cantidad se ajusta sola para mantener la misma {MACRO_LABEL[macro]} ({valorObjetivo.toFixed(0)}g)
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        {opcionesDeSustitucion(food).map(opt => {
+                      <div className="flex flex-col gap-1.5">
+                        {opcionesOrdenadasPorPreferencia(food, username, mealPlan.restricciones || []).map(opt => {
                           const eq = sustitucionEquivalente(valorObjetivo, opt, macro);
+                          const explicacion = explicarSustituto(food, gramosOriginal, opt, eq, macro);
                           return (
                             <button key={opt.key}
                               onClick={() => {
                                 updateEntry(meal, en.id, { foodKey: opt.key, unit: eq.unit, qty: eq.qty, grams: undefined });
                                 setSustituyendo(null);
                                 vibrar(20);
+                                registrarPreferenciaSustituto(username, food.name, opt.name);
                                 showToast(`🔄 Cambiado a ${opt.name} · ${eq.qty} ${eq.unit} para igualar tu ${MACRO_LABEL[macro]}`);
                               }}
-                              className="jb-body text-xs bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-full px-3 py-1.5 text-zinc-200">
-                              {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                              className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-violet-500/50'}`}>
+                              <span className="text-zinc-200">
+                                {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                                {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
+                              </span>
+                              <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
                             </button>
                           );
                         })}

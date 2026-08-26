@@ -895,7 +895,62 @@ function addDaysISO(iso, days) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
-const RACHA_HITOS = [3, 7, 14, 30, 60, 90];
+const RACHA_HITOS = [
+  { dias: 3, nombre: 'Cebiche Starter', emoji: '🐟' },
+  { dias: 7, nombre: 'Ají de Gallina Warrior', emoji: '🌶️' },
+  { dias: 14, nombre: 'Lomo Saltado Master', emoji: '🥩' },
+  { dias: 30, nombre: 'Pollo a la Brasa Legend', emoji: '🍗' },
+  { dias: 60, nombre: 'Chicha Morada Beast', emoji: '🟣' },
+  { dias: 90, nombre: 'Jonah Beast Elite', emoji: '👑' },
+];
+
+const RETOS_SEMANALES = [
+  { texto: 'Registra 5 desayunos distintos esta semana', emoji: '☀️' },
+  { texto: 'Prueba un alimento nuevo del buscador esta semana', emoji: '🆕' },
+  { texto: 'Llega a tu objetivo de proteína 4 días seguidos', emoji: '🍗' },
+  { texto: 'Registra tus 3 comidas principales todos los días', emoji: '📋' },
+  { texto: 'Toma tus fotos de progreso esta semana', emoji: '📸' },
+  { texto: 'Prueba un combo nuevo de "¿Qué puedo comer?"', emoji: '🍽️' },
+];
+
+function numeroDeSemana() {
+  const hoy = new Date();
+  const inicio = new Date(hoy.getFullYear(), 0, 1);
+  return Math.floor((hoy - inicio) / (7 * 86400000));
+}
+
+/* Reto semanal opcional: le da variedad al hábito diario. Se guarda
+   localmente en el dispositivo (no es dato de negocio crítico, solo
+   un check personal de "lo hice o no"). */
+function RetoSemanalCard({ username }) {
+  const semana = numeroDeSemana();
+  const reto = RETOS_SEMANALES[semana % RETOS_SEMANALES.length];
+  const storageKey = `jb-reto-${username}-${semana}`;
+  const [hecho, setHecho] = useState(() => {
+    try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
+  });
+
+  function toggle() {
+    const nuevo = !hecho;
+    setHecho(nuevo);
+    try { localStorage.setItem(storageKey, nuevo ? '1' : '0'); } catch {}
+    if (nuevo) showToast('¡Reto de la semana completado! 🎉');
+  }
+
+  return (
+    <button onClick={toggle}
+      className={`w-full text-left rounded-2xl p-4 flex items-center gap-3 border transition-colors ${hecho
+        ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-zinc-900 border-zinc-800'}`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 transition-all ${hecho ? 'bg-emerald-500 scale-105' : 'bg-zinc-800'}`}>
+        {hecho ? '✓' : reto.emoji}
+      </div>
+      <div className="flex-1">
+        <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider">Reto de la semana</p>
+        <p className={`jb-body text-sm ${hecho ? 'text-emerald-300 line-through' : 'text-zinc-200'}`}>{reto.texto}</p>
+      </div>
+    </button>
+  );
+}
 
 /* Tarjeta de racha: cuántos días seguidos registró comidas, la semana
    actual (L-D) y la insignia del último hito alcanzado. Se calcula a
@@ -947,7 +1002,7 @@ function RachaCard({ username }) {
   const registrados = semana.filter(d => d.estado === true).length;
   const totalPasados = semana.filter(d => d.estado !== null).length;
 
-  const hitoActual = [...RACHA_HITOS].reverse().find(h => racha >= h);
+  const hitoActual = [...RACHA_HITOS].reverse().find(h => racha >= h.dias);
 
   return (
     <div className="mb-6 flex flex-col gap-3">
@@ -989,10 +1044,10 @@ function RachaCard({ username }) {
       {hitoActual && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0"
-            style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>🏅</div>
+            style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>{hitoActual.emoji}</div>
           <div>
-            <div className="jb-body text-sm text-zinc-100 font-medium">Racha de {hitoActual} días</div>
-            <div className="jb-body text-xs text-zinc-500">Logro desbloqueado</div>
+            <div className="jb-body text-sm text-zinc-100 font-medium">{hitoActual.nombre}</div>
+            <div className="jb-body text-xs text-zinc-500">Insignia desbloqueada · {hitoActual.dias} días de racha</div>
           </div>
         </div>
       )}
@@ -4594,6 +4649,49 @@ function analizarProgreso(rows, form) {
       : 'Revisa las porciones de lo que registras: a veces el cálculo se queda corto. Escríbenos si quieres que lo revisemos juntos.' };
 }
 
+/* Frases motivacionales rotativas por estado del coach — cambian cada día
+   (no en cada render) para que la app no se sienta repetitiva, sin tocar
+   el análisis numérico real, que debe seguir siendo preciso. */
+const COACH_VOZ = {
+  bien: [
+    'Así se hace, sigue con esa disciplina 🔥',
+    'Tu cuerpo ya empezó a notar el esfuerzo.',
+    'Esto es lo que separa a los que lo logran de los que lo intentan.',
+  ],
+  estancado: [
+    'Un ajuste chico y seguimos avanzando.',
+    'Toda meseta se rompe con paciencia y un pequeño cambio.',
+    'Tu cuerpo se acostumbró — hora de sorprenderlo un poco.',
+  ],
+  estancado_adherencia: [
+    'El plan está bien, la constancia es lo que falta.',
+    'No es el plan, es la ejecución — y eso se arregla fácil.',
+  ],
+  rapido: [
+    'Ir rápido no siempre es ir mejor — bajemos el ritmo.',
+    'Tu metabolismo también necesita cuidado, no solo el resultado.',
+  ],
+  constancia: [
+    'Cada registro es un dato que te acerca a tu meta.',
+    'No hace falta perfección, solo constancia.',
+  ],
+  contrario: [
+    'Ajustar a tiempo es lo que hace la diferencia.',
+    'Un pequeño cambio hoy evita un gran retroceso mañana.',
+  ],
+  inicial: [
+    'Cada día que registras es un ladrillo más de tu resultado.',
+    'Ya diste el paso más difícil: empezar.',
+  ],
+};
+
+function fraseDelDia(estado) {
+  const lista = COACH_VOZ[estado];
+  if (!lista || lista.length === 0) return null;
+  const diaDelAno = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  return lista[diaDelAno % lista.length];
+}
+
 function CoachCard({ analisis }) {
   if (!analisis || !analisis.titulo) return null;
   const c = ['emerald', 'amber', 'zinc'].includes(analisis.color) ? analisis.color : 'zinc';
@@ -4609,6 +4707,7 @@ function CoachCard({ analisis }) {
     emerald: 'text-emerald-400', amber: 'text-amber-400', zinc: 'text-zinc-200',
   }[c];
   const emoji = { emerald: '✅', amber: '⚠️', zinc: '📊' }[c];
+  const voz = fraseDelDia(analisis.estado);
 
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     'Hola, revisé mi análisis en Jonah Beast Fuel y quiero una recomendación sobre mi plan.')}`;
@@ -4624,6 +4723,7 @@ function CoachCard({ analisis }) {
       </div>
 
       <p className="jb-body text-sm text-zinc-300 mb-3">{analisis.mensaje}</p>
+      {voz && <p className="jb-body text-xs text-orange-400 italic mb-3">"{voz}"</p>}
 
       <div className="bg-zinc-950/60 rounded-xl p-3 mb-3">
         <p className="jb-body text-[11px] text-zinc-500 mb-1 uppercase tracking-wider">Qué hacer ahora</p>
@@ -5244,7 +5344,105 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
   );
 }
 
-function Dashboard({ form, setForm, results, mealPlan, targets }) {
+/* Confeti simple con CSS puro — sin librerías externas */
+function Confetti() {
+  const colores = ['#f97316', '#34d399', '#a78bfa', '#fbbf24'];
+  const piezas = Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 0.4,
+    duracion: 1.6 + Math.random() * 1,
+    color: colores[i % colores.length],
+    rotar: Math.random() * 360,
+  }));
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[60] overflow-hidden">
+      {piezas.map(p => (
+        <div key={p.id} style={{
+          position: 'absolute', left: `${p.left}%`, top: '-5%',
+          width: 8, height: 14, background: p.color,
+          animation: `jb-confetti ${p.duracion}s ease-in ${p.delay}s forwards`,
+          transform: `rotate(${p.rotar}deg)`,
+        }} />
+      ))}
+      <style>{`@keyframes jb-confetti { to { transform: translateY(115vh) rotate(600deg); opacity: 0.3; } }`}</style>
+    </div>
+  );
+}
+
+/* "Beast Score": puntuación lúdica del día, combina qué tan cerca estás
+   de tu objetivo de kcal con tu racha actual. No reemplaza los anillos
+   reales de macros — es un plus divertido encima de ellos. */
+function BeastScoreCard({ totalsHoy, targets, username }) {
+  const [racha, setRacha] = useState(0);
+  const [celebrado, setCelebrado] = useState(false);
+  const [mostrarConfeti, setMostrarConfeti] = useState(false);
+
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const desde = addDaysISO(todayISO(), -60);
+        const { data } = await supabase.from('historial')
+          .select('fecha, comidas_count').eq('username', username).gte('fecha', desde)
+          .order('fecha', { ascending: false });
+        const m = {};
+        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
+        const hoy = todayISO();
+        const registro = (iso) => (m[iso] || 0) > 0;
+        let r = 0;
+        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+        while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
+        setRacha(r);
+      } catch {}
+    })();
+  }, [username]);
+
+  const objetivoKcal = targets ? targets.kcal : 0;
+  const ratio = objetivoKcal ? Math.min(1.15, totalsHoy.kcal / objetivoKcal) : 0;
+  // Puntaje: qué tan cerca del 100% (sin pasarse mucho) + bono por racha, tope 100
+  const cercania = objetivoKcal ? Math.max(0, 100 - Math.abs(100 - ratio * 100) * 2) : 0;
+  const bonoRacha = Math.min(15, racha * 2);
+  const score = Math.round(Math.min(100, cercania * 0.85 + bonoRacha));
+
+  const dentroDeRango = objetivoKcal && ratio >= 0.85 && ratio <= 1.15;
+
+  useEffect(() => {
+    if (dentroDeRango && !celebrado && totalsHoy.kcal > 0) {
+      setCelebrado(true);
+      setMostrarConfeti(true);
+      showToast('🔥 ¡Completaste tu objetivo de hoy!');
+      const t = setTimeout(() => setMostrarConfeti(false), 2600);
+      return () => clearTimeout(t);
+    }
+  }, [dentroDeRango, celebrado, totalsHoy.kcal]);
+
+  const nivel = score >= 90 ? { txt: '¡Modo bestia total!', emoji: '🦍' }
+    : score >= 70 ? { txt: 'Vas con todo hoy', emoji: '🔥' }
+    : score >= 40 ? { txt: 'Aún puedes con más', emoji: '💪' }
+    : { txt: 'El día recién empieza', emoji: '🌱' };
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
+      {mostrarConfeti && <Confetti />}
+      <div className="relative w-16 h-16 shrink-0">
+        <svg width={64} height={64} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={32} cy={32} r={27} stroke="#27272a" strokeWidth={7} fill="none" />
+          <circle cx={32} cy={32} r={27} stroke="#f97316" strokeWidth={7} fill="none"
+            strokeDasharray={2 * Math.PI * 27} strokeDashoffset={2 * Math.PI * 27 * (1 - score / 100)}
+            strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center jb-display text-sm text-zinc-50">{score}</div>
+      </div>
+      <div className="flex-1">
+        <p className="jb-display text-sm text-zinc-100">{nivel.emoji} BEAST SCORE: {score}%</p>
+        <p className="jb-body text-xs text-zinc-500">{nivel.txt}{racha > 0 ? ` · racha de ${racha} día(s)` : ''}</p>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ form, setForm, results, mealPlan, targets, username }) {
   const pesoActual = Number(form.peso) || 0;
   const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
   const pesoObjetivo = form.pesoObjetivo === null || form.pesoObjetivo === undefined || form.pesoObjetivo === '' ? null : Number(form.pesoObjetivo);
@@ -5263,6 +5461,8 @@ function Dashboard({ form, setForm, results, mealPlan, targets }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <BeastScoreCard totalsHoy={totalsHoy} targets={targets} username={username} />
+
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
         <span className="text-orange-500 shrink-0 text-sm">📅</span>
         <p className="jb-body text-xs text-zinc-400">
@@ -5898,7 +6098,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           {mealPlan.meals[meal].length === 0 ? (
             <div className="flex items-center gap-2.5 py-3 text-zinc-600">
               <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs shrink-0">🍽️</div>
-              <p className="jb-body text-sm">Sin alimentos agregados todavía.</p>
+              <p className="jb-body text-sm">Aún no hay nada aquí — tu próxima comida bestial te espera 🍽️</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -6077,10 +6277,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'dash' && (
           <>
             <RachaCard username={username} />
+            <div className="mb-6"><RetoSemanalCard username={username} /></div>
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />
-            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} />
+            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} />
           </>
         )}
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}

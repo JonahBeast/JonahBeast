@@ -732,16 +732,28 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
   const quick = useMemo(() => generateQuickOptions(remaining), [remaining]);
   const options = [...combos, ...quick];
 
-  // "Combo sorpresa del día": mismo índice todo el día para un mismo
-  // usuario/comida (cambia mañana), le da un toque de sorpresa sin ser
-  // aleatorio en cada render.
-  const idxSorpresa = useMemo(() => {
+  // "Combo sorpresa del día": arranca con un índice fijo por día (mismo
+  // para todos al entrar), pero el alumno puede tocar el dado para que
+  // "tire" de nuevo y le regale otra sorpresa distinta al instante.
+  const semillaDelDia = useMemo(() => {
     if (options.length === 0) return -1;
     const semilla = todayISO() + targetMeal;
     let hash = 0;
     for (let i = 0; i < semilla.length; i++) hash = (hash * 31 + semilla.charCodeAt(i)) >>> 0;
     return hash % options.length;
   }, [options.length, targetMeal]);
+
+  const [idxSorpresa, setIdxSorpresa] = useState(semillaDelDia);
+  useEffect(() => { setIdxSorpresa(semillaDelDia); }, [semillaDelDia]);
+
+  function tirarDado() {
+    if (options.length <= 1) { showToast('🎲 Con estas calorías, esta es tu única sorpresa disponible'); return; }
+    let nuevo = idxSorpresa;
+    while (nuevo === idxSorpresa) nuevo = Math.floor(Math.random() * options.length);
+    setIdxSorpresa(nuevo);
+    vibrar(25);
+    showToast(`🎲 ¡Sorpresa! ${options[nuevo].name}`);
+  }
 
   function addToDay(option) {
     setMealPlan(v => ({
@@ -800,10 +812,12 @@ function WhatCanIEat({ mealPlan, setMealPlan, remaining }) {
                     <div key={opt.id}
                       className={`relative bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : i === idxSorpresa ? 'border-violet-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
                       {i === idxSorpresa && (
-                        <span className="absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md"
-                          style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>
+                        <button type="button" onClick={tirarDado}
+                          className="absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md active:scale-90 transition-transform cursor-pointer"
+                          style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}
+                          title="Toca para otra sorpresa">
                           🎲 SORPRESA DEL DÍA
-                        </span>
+                        </button>
                       )}
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"

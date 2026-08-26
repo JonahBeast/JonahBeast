@@ -1598,21 +1598,59 @@ function Landing({ onChoose }) {
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
         <div className="mb-6" style={step(500)}>
+          <style>{`
+            @keyframes jb-bolt-fall {
+              0%, 28% { opacity: 0; transform: translate(-50%, -40%); }
+              32% { opacity: 1; transform: translate(-50%, -10%); }
+              36% { opacity: 1; transform: translate(-50%, 40%); }
+              40% { opacity: 0; transform: translate(-50%, 60%); }
+              100% { opacity: 0; }
+            }
+            @keyframes jb-flash-hit {
+              0%, 37% { opacity: 0; }
+              38% { opacity: 0.85; }
+              42% { opacity: 0; }
+              100% { opacity: 0; }
+            }
+            @keyframes jb-reveal-wipe {
+              0%, 35% { clip-path: inset(0 100% 0 0); }
+              55%, 90% { clip-path: inset(0 0% 0 0); }
+              100% { clip-path: inset(0 100% 0 0); }
+            }
+            @keyframes jb-tag-in {
+              0%, 48% { opacity: 0; transform: scale(0.7); }
+              58%, 90% { opacity: 1; transform: scale(1); }
+              100% { opacity: 0; }
+            }
+            .jb-bolt-wrap { animation: jb-bolt-fall 4.5s ease-in infinite; }
+            .jb-flash { animation: jb-flash-hit 4.5s ease-out infinite; }
+            .jb-reveal { animation: jb-reveal-wipe 4.5s ease-in-out infinite; }
+            .jb-tag-ahora { animation: jb-tag-in 4.5s ease-in-out infinite; }
+          `}</style>
           <p className="jb-display text-sm text-zinc-500 mb-3 tracking-wide">RESULTADOS REALES</p>
-          <div className="grid grid-cols-2 gap-3 sm:hidden">
-            {/* En móvil: scroll horizontal de tarjetas */}
-          </div>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
-            {TESTIMONIOS.map(t => (
+            {TESTIMONIOS.map((t, i) => (
               <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
-                <div className="grid grid-cols-2">
+                <div className="relative grid grid-cols-2">
+                  {/* Rayo que cae justo por el medio, entre "antes" y "después" */}
+                  <div className="jb-bolt-wrap absolute z-10 pointer-events-none" style={{ top: '-25%', left: '50%', width: 22, height: 170, animationDelay: `${i * 1.5}s` }}>
+                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
+                      <path d="M13 0 3 85h8l-5 85 17-98H13L18 0z" fill="#fde68a" />
+                    </svg>
+                  </div>
+                  {/* Flash blanco en el momento del impacto */}
+                  <div className="jb-flash absolute inset-0 z-[9] bg-white pointer-events-none" style={{ animationDelay: `${i * 1.5}s` }} />
+
                   <div className="relative">
                     <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover object-top" />
                     <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
                   </div>
-                  <div className="relative">
-                    <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
-                    <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950">AHORA</span>
+                  <div className="relative overflow-hidden">
+                    <div className="jb-reveal" style={{ animationDelay: `${i * 1.5}s` }}>
+                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
+                    </div>
+                    <span className="jb-tag-ahora absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950"
+                      style={{ animationDelay: `${i * 1.5}s` }}>AHORA</span>
                   </div>
                 </div>
                 <div className="p-3">
@@ -5764,8 +5802,22 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
   }, [dentroDeRango, celebrado, totalsHoy.kcal]);
 
   return (
-    <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 transition-transform duration-300 ${subioNivel ? 'scale-[1.03]' : ''}`}>
+    <div className={`relative bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 transition-transform duration-300 overflow-hidden ${subioNivel ? 'scale-[1.03]' : ''}`}>
       {mostrarConfeti && <Confetti />}
+      {subioNivel && (
+        <>
+          <style>{`
+            @keyframes jb-bolt-strike { 0% { opacity: 0; transform: translate(-50%, -60%); } 25% { opacity: 1; transform: translate(-50%, 20%); } 55% { opacity: 0; transform: translate(-50%, 80%); } 100% { opacity: 0; } }
+            @keyframes jb-flash-once { 0% { opacity: 0; } 26% { opacity: 0.9; } 42% { opacity: 0; } 100% { opacity: 0; } }
+          `}</style>
+          <div className="absolute z-20 pointer-events-none" style={{ top: '-30%', left: '30%', width: 20, animation: 'jb-bolt-strike 1.1s ease-in forwards' }}>
+            <svg width="20" height="140" viewBox="0 0 20 140" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
+              <path d="M12 0 3 70h7l-4 70 15-80h-7L16 0z" fill="#fde68a" />
+            </svg>
+          </div>
+          <div className="absolute inset-0 bg-white z-10 pointer-events-none" style={{ animation: 'jb-flash-once 1.1s ease-out forwards' }} />
+        </>
+      )}
       <div className="relative w-16 h-16 shrink-0">
         <svg width={64} height={64} style={{ transform: 'rotate(-90deg)' }}>
           <circle cx={32} cy={32} r={27} stroke="#27272a" strokeWidth={7} fill="none" />

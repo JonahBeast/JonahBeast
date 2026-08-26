@@ -936,14 +936,35 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
 
   const [idxSorpresa, setIdxSorpresa] = useState(semillaDelDia);
   useEffect(() => { setIdxSorpresa(semillaDelDia); }, [semillaDelDia]);
+  const [girando, setGirando] = useState(false);
 
   function tirarDado() {
     if (options.length <= 1) { showToast('🎲 Con estas calorías, esta es tu única sorpresa disponible'); return; }
-    let nuevo = idxSorpresa;
-    while (nuevo === idxSorpresa) nuevo = Math.floor(Math.random() * options.length);
-    setIdxSorpresa(nuevo);
-    vibrar(25);
-    showToast(`🎲 ¡Sorpresa! ${options[nuevo].name}`);
+    if (girando) return;
+    setGirando(true);
+    vibrar(15);
+    // Pequeña animación tipo tragamonedas: recorre varias opciones antes de quedarse con la final
+    let vueltas = 0;
+    const totalVueltas = 6 + Math.floor(Math.random() * 3);
+    const intervalo = setInterval(() => {
+      setIdxSorpresa(v => {
+        let siguiente = Math.floor(Math.random() * options.length);
+        if (siguiente === v) siguiente = (siguiente + 1) % options.length;
+        return siguiente;
+      });
+      vueltas++;
+      if (vueltas >= totalVueltas) {
+        clearInterval(intervalo);
+        setIdxSorpresa(final => {
+          let nuevo = final;
+          while (nuevo === final) nuevo = Math.floor(Math.random() * options.length);
+          vibrar(25);
+          showToast(`🎲 ¡Sorpresa! ${options[nuevo].name}`);
+          return nuevo;
+        });
+        setGirando(false);
+      }
+    }, 90);
   }
 
   function addToDay(option) {
@@ -1003,11 +1024,11 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                     <div key={opt.id}
                       className={`relative bg-zinc-950 border rounded-xl p-4 flex flex-col gap-2 transition-colors ${added === opt.id ? 'border-emerald-500/60' : i === idxSorpresa ? 'border-violet-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
                       {i === idxSorpresa && (
-                        <button type="button" onClick={tirarDado}
-                          className="absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md active:scale-90 transition-transform cursor-pointer"
+                        <button type="button" onClick={tirarDado} disabled={girando}
+                          className={`absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md transition-transform cursor-pointer ${girando ? 'animate-pulse' : 'active:scale-90'}`}
                           style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}
                           title="Toca para otra sorpresa">
-                          🎲 SORPRESA DEL DÍA
+                          {girando ? '🎰 GIRANDO...' : '🎲 SORPRESA DEL DÍA'}
                         </button>
                       )}
                       <div className="flex items-center gap-3">
@@ -1135,6 +1156,38 @@ function vibrar(patron = 30) {
   try { if (navigator.vibrate) navigator.vibrate(patron); } catch {}
 }
 
+/* Sonido sutil opcional (sin archivos de audio, generado con Web Audio
+   API) para reforzar logros — el alumno puede silenciarlo. */
+function sonidoActivo() {
+  try { return localStorage.getItem('jb-sonido') !== '0'; } catch { return true; }
+}
+function alternarSonido() {
+  const activo = sonidoActivo();
+  try { localStorage.setItem('jb-sonido', activo ? '0' : '1'); } catch {}
+  return !activo;
+}
+function reproducirSonido(tipo = 'logro') {
+  if (!sonidoActivo()) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notas = tipo === 'logro' ? [523, 659, 784] : [660, 880]; // do-mi-sol vs. campanita corta
+    notas.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t0 = ctx.currentTime + i * 0.09;
+      gain.gain.setValueAtTime(0.001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.24);
+    });
+    setTimeout(() => ctx.close(), 500);
+  } catch {}
+}
+
 /* Expresión de la mascota según la hora del día — un detalle vivo en
    el header, sin depender de datos de comidas. */
 function moodPorHora() {
@@ -1144,6 +1197,17 @@ function moodPorHora() {
   if (h < 18) return 'fire';
   if (h < 22) return 'happy';
   return 'wink';
+}
+
+/* Botón para silenciar/activar los sonidos de logro */
+function SoundToggleButton() {
+  const [activo, setActivo] = useState(sonidoActivo);
+  return (
+    <button onClick={() => setActivo(alternarSonido())}
+      className="text-zinc-500 hover:text-zinc-300 p-1.5" title={activo ? 'Silenciar sonidos' : 'Activar sonidos'}>
+      {activo ? '🔊' : '🔇'}
+    </button>
+  );
 }
 
 /* Sistema simple de notificaciones flotantes (toasts).
@@ -1257,7 +1321,7 @@ function RetoSemanalCard({ username }) {
     const nuevo = !hecho;
     setHecho(nuevo);
     try { localStorage.setItem(storageKey, nuevo ? '1' : '0'); } catch {}
-    if (nuevo) { vibrar([20, 40, 20]); showToast('¡Reto de la semana completado! 🎉'); }
+    if (nuevo) { vibrar([20, 40, 20]); reproducirSonido('reto'); showToast('¡Reto de la semana completado! 🎉'); }
   }
 
   return (
@@ -1447,7 +1511,39 @@ function StatCard({ label, value, sub, accent }) {  return (
 
 /* Anillo de progreso circular para macros (kcal / proteína / carbos).
    color: clase de color Tailwind para el trazo (usa valores hex vía style). */
-function MacroRing({ pct, value, label, colorHex, size = 92, stroke = 9 }) {
+/* Número que "cuenta" animadamente de un valor a otro, en vez de
+   cambiar de golpe — refuerza la sensación de progreso en vivo. */
+function AnimatedNumber({ value, duration = 650 }) {
+  const [display, setDisplay] = useState(value);
+  const prevRef = useRef(value);
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    const from = prevRef.current;
+    const to = value;
+    if (from === to || !Number.isFinite(from) || !Number.isFinite(to)) {
+      setDisplay(to);
+      prevRef.current = to;
+      return;
+    }
+    let start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      const progress = Math.min(1, (ts - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cúbico
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (progress < 1) frameRef.current = requestAnimationFrame(step);
+      else prevRef.current = to;
+    }
+    frameRef.current = requestAnimationFrame(step);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return display;
+}
+
+function MacroRing({ pct, value, numeric, label, colorHex, size = 92, stroke = 9 }) {
   const clamped = Math.max(0, Math.min(100, pct || 0));
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -1462,7 +1558,9 @@ function MacroRing({ pct, value, label, colorHex, size = 92, stroke = 9 }) {
             style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="jb-display text-base text-zinc-50">{value}</span>
+          <span className="jb-display text-base text-zinc-50">
+            {numeric !== undefined ? <AnimatedNumber value={numeric} /> : value}
+          </span>
         </div>
       </div>
       <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
@@ -5734,6 +5832,79 @@ function Confetti() {
 /* "Beast Score": puntuación lúdica del día, combina qué tan cerca estás
    de tu objetivo de kcal con tu racha actual. No reemplaza los anillos
    reales de macros — es un plus divertido encima de ellos. */
+/* Mini-juego "Adivina las calorías": muestra un alimento peruano al
+   azar y el alumno adivina cuántas kcal tiene por 100g antes de
+   revelar la respuesta — engancha la curiosidad y educa sin sentirse
+   como una tarea más. */
+function AdivinaCaloriasCard() {
+  const [abierto, setAbierto] = useState(false);
+  const [comida, setComida] = useState(null);
+  const [guess, setGuess] = useState('');
+  const [revelado, setRevelado] = useState(false);
+  const [racha, setRacha] = useState(0);
+
+  function nuevaRonda() {
+    const candidatos = FOODS.filter(f => f.kcal > 0 && !['Bebidas', 'Grasas'].includes(f.group));
+    const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+    setComida(elegido);
+    setGuess('');
+    setRevelado(false);
+  }
+
+  useEffect(() => { if (abierto && !comida) nuevaRonda(); }, [abierto]);
+
+  function revelar() {
+    if (!guess) return;
+    setRevelado(true);
+    const dif = Math.abs(Number(guess) - comida.kcal);
+    const acertado = dif <= comida.kcal * 0.2 + 15;
+    if (acertado) {
+      setRacha(v => v + 1);
+      vibrar(20);
+      reproducirSonido('logro');
+      showToast('🎯 ¡Muy cerca! Buen ojo nutricional');
+    } else {
+      setRacha(0);
+    }
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <button onClick={() => setAbierto(v => !v)} className="w-full flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-sm shrink-0">🎯</div>
+          <div>
+            <p className="jb-display text-sm text-zinc-200">ADIVINA LAS CALORÍAS</p>
+            <p className="jb-body text-[11px] text-zinc-500">{racha > 0 ? `🔥 ${racha} acierto(s) seguidos` : 'Pon a prueba tu ojo nutricional'}</p>
+          </div>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+
+      {abierto && comida && (
+        <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-center">
+          <p className="jb-body text-xs text-zinc-500 mb-1">¿Cuántas kcal tiene por cada 100g?</p>
+          <p className="jb-display text-lg text-zinc-100 mb-3">{comida.name}{comida.state && comida.state !== '-' ? ` (${comida.state})` : ''}</p>
+
+          {!revelado ? (
+            <div className="flex gap-2 justify-center">
+              <input type="number" inputMode="numeric" value={guess} onChange={e => setGuess(e.target.value)}
+                placeholder="kcal" className={inputCls + ' py-2 w-28 text-center'} />
+              <button onClick={revelar} disabled={!guess} className={btnPrimary + ' py-2 px-4 text-sm'}>Revelar</button>
+            </div>
+          ) : (
+            <div>
+              <p className="jb-display text-2xl text-orange-500 mb-1">{comida.kcal} kcal</p>
+              <p className="jb-body text-xs text-zinc-500 mb-3">Tu respuesta: {guess} kcal</p>
+              <button onClick={nuevaRonda} className={btnGhost + ' py-2 px-4 text-sm mx-auto'}>Otra ronda 🎲</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BeastScoreCard({ totalsHoy, targets, username }) {
   const [racha, setRacha] = useState(0);
   const [celebrado, setCelebrado] = useState(false);
@@ -5782,6 +5953,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
       if (orden.indexOf(nivel.key) > orden.indexOf(nivelAnteriorRef.current)) {
         setSubioNivel(true);
         vibrar([20, 40, 20]);
+        reproducirSonido('logro');
         showToast(`${nivel.emoji} ¡Subiste a "${nivel.txt}"!`);
         const t = setTimeout(() => setSubioNivel(false), 1200);
         return () => clearTimeout(t);
@@ -5795,6 +5967,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
       setCelebrado(true);
       setMostrarConfeti(true);
       vibrar([20, 40, 20, 40, 20]);
+      reproducirSonido('logro');
       showToast('🔥 ¡Completaste tu objetivo de hoy!');
       const t = setTimeout(() => setMostrarConfeti(false), 2600);
       return () => clearTimeout(t);
@@ -5935,7 +6108,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username }) {
           return (
             <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
               <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" />
+                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" />
               <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
                 value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" />
               <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
@@ -6336,6 +6509,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
+  const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
 
   useEffect(() => { if (username) cargarPersonales(); }, [username]);
 
@@ -6379,6 +6553,30 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   }
   function removeEntry(meal, id) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
+  }
+
+  const SWIPE_UMBRAL = -70; // px hacia la izquierda para eliminar
+  function onSwipeStart(id, clientX) {
+    setSwipe(v => ({ ...v, [id]: { startX: clientX, dx: 0 } }));
+  }
+  function onSwipeMove(id, clientX) {
+    setSwipe(v => {
+      const s = v[id];
+      if (!s) return v;
+      const dx = Math.min(0, clientX - s.startX);
+      return { ...v, [id]: { ...s, dx } };
+    });
+  }
+  function onSwipeEnd(meal, id) {
+    setSwipe(v => {
+      const s = v[id];
+      if (s && s.dx <= SWIPE_UMBRAL) {
+        vibrar(15);
+        removeEntry(meal, id);
+      }
+      const { [id]: _, ...resto } = v;
+      return resto;
+    });
   }
 
   function applyGoal() {
@@ -6504,8 +6702,19 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                 const units = food ? unitsFor(food) : [['gramos', 1]];
                 const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
+                const swipeDx = (swipe[en.id] && swipe[en.id].dx) || 0;
                 return (
-                  <div key={en.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col gap-2">
+                  <div key={en.id} className="relative overflow-hidden rounded-lg">
+                    <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-4">
+                      <Trash2 size={16} className="text-zinc-950" />
+                    </div>
+                    <div
+                      className="relative bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col gap-2"
+                      style={{ transform: `translateX(${swipeDx}px)`, transition: swipeDx === 0 ? 'transform 0.2s ease' : 'none' }}
+                      onTouchStart={e => onSwipeStart(en.id, e.touches[0].clientX)}
+                      onTouchMove={e => onSwipeMove(en.id, e.touches[0].clientX)}
+                      onTouchEnd={() => onSwipeEnd(meal, en.id)}
+                    >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <BuscadorAlimento
                       valor={en.foodKey}
@@ -6591,6 +6800,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                     );
                   })()}
                   </div>
+                  </div>
                 );
               })}
             </div>
@@ -6610,7 +6820,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
             ['Grasas g', totals.fat, objF],
           ].map(([label, val, obj]) => (
             <div key={label}>
-              <div className="jb-display text-2xl text-orange-500">{Math.round(val)}</div>
+              <div className="jb-display text-2xl text-orange-500"><AnimatedNumber value={Math.round(val)} /></div>
               <div className="text-zinc-500 text-xs">{label}</div>
               <div className="text-zinc-600 text-[11px] mt-0.5">obj. {Math.round(obj)} ({val - obj >= 0 ? '+' : ''}{Math.round(val - obj)})</div>
             </div>
@@ -6677,6 +6887,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
         <div className="flex items-center gap-3">
+          <SoundToggleButton />
           <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
           <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
         </div>
@@ -6729,6 +6940,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <>
             <RachaCard username={username} />
             <div className="mb-6"><RetoSemanalCard username={username} /></div>
+            <div className="mb-6"><AdivinaCaloriasCard /></div>
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />

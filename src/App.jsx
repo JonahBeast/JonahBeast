@@ -1130,6 +1130,23 @@ function Logo({ size = 'md' }) {
 /* LANDING                                                             */
 /* ------------------------------------------------------------------ */
 
+const TESTIMONIOS = [
+  {
+    nombre: 'Jonah Beast',
+    antes: '/testimonios/martin-antes.jpg',
+    despues: '/testimonios/martin-despues.jpg',
+    dato: '37 kg perdidos en 4 años',
+    quote: 'Como peruano me gusta comer, y entendí que no es lo que comemos sino cuánto comemos lo que nos ayuda a lograr nuestros objetivos.',
+  },
+  {
+    nombre: 'Andrea R.',
+    antes: '/testimonios/andrea-antes.jpg',
+    despues: '/testimonios/andrea-despues.jpg',
+    dato: 'Cambios notables en 6 meses',
+    quote: 'Aplicando un déficit calórico logré cambios notables. Esto en una app va a ser un boom para quienes buscan cambios verdaderos.',
+  },
+];
+
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
@@ -1192,6 +1209,39 @@ function Landing({ onChoose }) {
         <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
           Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
         </p>
+
+        {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
+            Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
+        <div className="mb-6" style={step(500)}>
+          <p className="jb-display text-sm text-zinc-500 mb-3 tracking-wide">RESULTADOS REALES</p>
+          <div className="grid grid-cols-2 gap-3 sm:hidden">
+            {/* En móvil: scroll horizontal de tarjetas */}
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2">
+            {TESTIMONIOS.map(t => (
+              <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
+                <div className="grid grid-cols-2">
+                  <div className="relative">
+                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover" />
+                    <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
+                  </div>
+                  <div className="relative">
+                    <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover" />
+                    <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950">AHORA</span>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="jb-display text-sm text-zinc-100">{t.nombre}</p>
+                  {t.dato && <p className="jb-body text-[11px] text-orange-500 mb-1">{t.dato}</p>}
+                  <p className="jb-body text-xs text-zinc-400 leading-snug">"{t.quote}"</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="jb-body text-[10px] text-zinc-600 mt-2">
+            Resultados de alumnos reales, logrados con el mismo sistema de control alimentario que ahora automatiza la app.
+          </p>
+        </div>
 
         {/* CTA principal — es la acción que más conviene, así que va primero y más grande */}
         <button onClick={() => onChoose('trial')} style={step(540)}

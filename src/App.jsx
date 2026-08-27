@@ -6704,8 +6704,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 const swipeDx = (swipe[en.id] && swipe[en.id].dx) || 0;
                 return (
-                  <div key={en.id} className="relative overflow-hidden rounded-lg">
-                    <div className="absolute inset-0 bg-red-500 flex items-center justify-end pr-4">
+                  <div key={en.id} className="relative rounded-lg">
+                    <div className="absolute inset-0 bg-red-500 rounded-lg flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
                     <div

@@ -503,7 +503,7 @@ const GOALS = {
   'Mantener peso': { emoji: '⚖️', pct: 0, desc: 'Sin déficit ni superávit' },
   'Ganar músculo': { emoji: '💪', pct: 10, desc: 'Superávit calórico' },
 };
-const MEAL_NAMES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack / merienda'];
+const MEAL_NAMES = ['Desayuno', 'Media mañana', 'Almuerzo', 'Media tarde', 'Cena'];
 
 const ANGULOS = [
   { id: 'frente', label: 'De frente', emoji: '🧍', tip: 'Brazos relajados a los costados, mirando a la cámara' },
@@ -515,7 +515,7 @@ const WHATSAPP_NUMBER = '51963760819';
 const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
 const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
-const EMPTY_MEALS = () => ({ Desayuno: [], Almuerzo: [], Cena: [], 'Snack / merienda': [] });
+const EMPTY_MEALS = () => ({ Desayuno: [], 'Media mañana': [], Almuerzo: [], 'Media tarde': [], Cena: [] });
 const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS(), restricciones: [] });
 
 /* ------------------------------------------------------------------ */
@@ -669,20 +669,23 @@ const COMBOS_REALES = [
   { comida: 'Cena', emoji: '🥗', nombre: 'Ensalada de pollo',
     items: [['Ensalada de pollo (-)', 300], ['Pan integral (-)', 30]] },
 
-  /* ---------- SNACK ---------- */
-  { comida: 'Snack / merienda', emoji: '🍎', nombre: 'Fruta con maní',
+  /* ---------- SNACK (comparten pool entre Media mañana y Media tarde) ---------- */
+  { comida: 'Media mañana', emoji: '🍎', nombre: 'Fruta con maní',
     items: [['Manzana (Cruda)', 180], ['Maní (Crudo)', 25]] },
-  { comida: 'Snack / merienda', emoji: '🥛', nombre: 'Yogur griego con fruta',
+  { comida: 'Media mañana', emoji: '🥛', nombre: 'Yogur griego con fruta',
     items: [['Yogur griego natural (-)', 170], ['Fresa (Cruda)', 120]] },
-  { comida: 'Snack / merienda', emoji: '🥑', nombre: 'Pan con palta',
+  { comida: 'Media mañana', emoji: '🥑', nombre: 'Pan con palta',
     items: [['Pan integral (-)', 30], ['Palta (Cruda)', 50]] },
-  { comida: 'Snack / merienda', emoji: '🥚', nombre: 'Huevo cocido con fruta',
+  { comida: 'Media mañana', emoji: '🥚', nombre: 'Huevo cocido con fruta',
     items: [['Huevo de gallina (Cocido)', 50], ['Plátano de seda (Cruda)', 120]] },
-  { comida: 'Snack / merienda', emoji: '🌰', nombre: 'Puñado de frutos secos',
+  { comida: 'Media mañana', emoji: '🌰', nombre: 'Puñado de frutos secos',
     items: [['Almendras (Crudas)', 30]] },
-  { comida: 'Snack / merienda', emoji: '🍌', nombre: 'Plátano con avena',
+  { comida: 'Media mañana', emoji: '🍌', nombre: 'Plátano con avena',
     items: [['Plátano de seda (Cruda)', 120], ['Avena (Cocida)', 200]] },
 ];
+
+// Comidas que comparten el mismo pool de combos (ambos "snacks" del día)
+const COMIDAS_EQUIVALENTES = { 'Media tarde': 'Media mañana' };
 
 /* Arma la opción ajustando las porciones a lo que le queda del día */
 function armarOpcion(combo, restante) {
@@ -730,7 +733,8 @@ function armarOpcion(combo, restante) {
    los alimentos que el alumno marcó como "nunca me sugieras". */
 function generateCombos(remaining, comida, restricciones = []) {
   if (remaining.kcal < 120) return [];
-  const propias = COMBOS_REALES.filter(c => !comida || c.comida === comida);
+  const comidaBuscada = COMIDAS_EQUIVALENTES[comida] || comida;
+  const propias = COMBOS_REALES.filter(c => !comidaBuscada || c.comida === comidaBuscada);
   const base = propias.length ? propias : COMBOS_REALES;
 
   const opciones = base
@@ -1001,7 +1005,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                 <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
                 <div className="flex gap-2 flex-wrap">
                   {MEAL_NAMES.map(m => {
-                    const mealIcon = { 'Desayuno': '☀️', 'Almuerzo': '🍽️', 'Cena': '🌙', 'Snack / merienda': '🍎' }[m] || '🍴';
+                    const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
                     return (
                       <button key={m} onClick={() => setTargetMeal(m)}
                         className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${targetMeal === m
@@ -1307,8 +1311,8 @@ function numeroDeSemana() {
 }
 
 /* Reto semanal opcional: le da variedad al hábito diario. Se guarda
-   localmente en el dispositivo (no es dato de negocio crítico, solo
-   un check personal de "lo hice o no"). */
+   en el dispositivo al instante y se sincroniza con Supabase para que
+   el recordatorio por notificación push sepa si ya lo completó. */
 function RetoSemanalCard({ username }) {
   const semana = numeroDeSemana();
   const reto = RETOS_SEMANALES[semana % RETOS_SEMANALES.length];
@@ -1317,11 +1321,30 @@ function RetoSemanalCard({ username }) {
     try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
   });
 
-  function toggle() {
+  // Al entrar, sincroniza con Supabase por si lo marcó desde otro dispositivo
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from('retos_semanales')
+          .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
+        if (data && data.completado) {
+          setHecho(true);
+          try { localStorage.setItem(storageKey, '1'); } catch {}
+        }
+      } catch {}
+    })();
+  }, [username, semana]);
+
+  async function toggle() {
     const nuevo = !hecho;
     setHecho(nuevo);
     try { localStorage.setItem(storageKey, nuevo ? '1' : '0'); } catch {}
     if (nuevo) { vibrar([20, 40, 20]); reproducirSonido('reto'); showToast('¡Reto de la semana completado! 🎉'); }
+    try {
+      await supabase.from('retos_semanales')
+        .upsert({ username, semana, completado: nuevo, updated_at: new Date().toISOString() }, { onConflict: 'username,semana' });
+    } catch {}
   }
 
   return (
@@ -6673,7 +6696,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
       }} />
 
       {MEAL_NAMES.map(meal => {
-        const mealIcon = { 'Desayuno': '☀️', 'Almuerzo': '🍽️', 'Cena': '🌙', 'Snack / merienda': '🍎' }[meal] || '🍴';
+        const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';
         return (
         <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
@@ -7065,6 +7088,22 @@ export default function App() {
     const hoy = todayISO();
     let plan = data?.mealPlan || EMPTY_MEALPLAN();
 
+    // Migración: si el plan viene del esquema anterior de comidas (con
+    // "Snack / merienda" en vez de "Media mañana" / "Media tarde"),
+    // conserva esos alimentos moviéndolos a "Media tarde" en vez de
+    // perderlos silenciosamente.
+    if (plan.meals && plan.meals['Snack / merienda'] && !MEAL_NAMES.includes('Snack / merienda')) {
+      const viejos = plan.meals['Snack / merienda'];
+      const nuevosMeals = { ...EMPTY_MEALS(), ...plan.meals };
+      delete nuevosMeals['Snack / merienda'];
+      nuevosMeals['Media tarde'] = [...(nuevosMeals['Media tarde'] || []), ...viejos];
+      plan = { ...plan, meals: nuevosMeals };
+    }
+    // Asegura que existan todas las comidas actuales aunque el plan sea viejo
+    if (plan.meals) {
+      plan = { ...plan, meals: { ...EMPTY_MEALS(), ...plan.meals } };
+    }
+
     // Si el plan abierto es de un día anterior, se archiva y empieza uno nuevo
     if (data?.mealPlan && data.fecha && data.fecha !== hoy) {
       try {
@@ -7072,7 +7111,7 @@ export default function App() {
           .update({ meal_plan: data.mealPlan })
           .eq('username', username).eq('fecha', data.fecha);
       } catch {}
-      plan = { ...data.mealPlan, meals: EMPTY_MEALS() };
+      plan = { ...plan, meals: EMPTY_MEALS() };
     }
 
     setCurrentUser(username);

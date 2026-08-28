@@ -1570,6 +1570,134 @@ function CheckinRapidoButton({ username, mealPlan, setMealPlan }) {
   );
 }
 
+/* Sugiere un alimento real de proteína (de tu propia base de 230
+   alimentos) y calcula la cantidad exacta para cubrir lo que le falta
+   al alumno hoy — mismo cálculo que la sustitución inteligente, no
+   texto inventado. */
+function sugerirProteinaJonah(gapProtein, remainingKcal) {
+  const candidatos = FOODS.filter(f =>
+    ['Carnes y aves', 'Pescados', 'Pescados y mariscos'].includes(f.group) && f.protein > 15);
+  if (!candidatos.length) return null;
+  const food = FOODS.find(f => f.name.toLowerCase().includes('pollo') && f.state === 'Cocido') || candidatos[0];
+  let grams = Math.max(50, Math.round((gapProtein / food.protein) * 100 / 5) * 5);
+  const kcalNecesarias = (food.kcal * grams) / 100;
+  if (remainingKcal > 0 && kcalNecesarias > remainingKcal * 1.3) {
+    grams = Math.max(50, Math.round(((remainingKcal / food.kcal) * 100) / 5) * 5);
+  }
+  return { food, grams };
+}
+
+/* Construye el consejo de Jonah a partir de los datos reales del día
+   (no es texto generado por IA — son las mismas cifras que ya calcula
+   la app, solo redactadas como si te hablara directamente). */
+function mensajeDeJonah(totalsHoy, targets) {
+  if (!targets || !targets.kcal) {
+    return 'Termina de configurar tu objetivo en "Mi objetivo" y te doy recomendaciones reales para tu día.';
+  }
+  const kcalRestante = targets.kcal - totalsHoy.kcal;
+  const protRestante = targets.protein - totalsHoy.protein;
+  const carbRestante = (targets.carbs || 0) - (totalsHoy.carbs || 0);
+
+  if (kcalRestante <= 0) {
+    return `¡Ya cumpliste tu objetivo de ${Math.round(targets.kcal)} kcal de hoy! Así se hace 🔥`;
+  }
+  if (protRestante >= 15) {
+    const sug = sugerirProteinaJonah(protRestante, kcalRestante);
+    if (sug) {
+      return `Te faltan ${Math.round(protRestante)}g de proteína. ` +
+        (carbRestante <= 20 ? 'Hoy ya no necesitas más carbohidratos. ' : '') +
+        `Te recomiendo ${sug.grams}g de ${sug.food.name} + una ensalada.`;
+    }
+  }
+  if (carbRestante <= 0 && kcalRestante > 0) {
+    return `Ya cubriste tus carbohidratos de hoy. Te quedan ${Math.round(kcalRestante)} kcal — llénalas con algo de proteína o grasas saludables.`;
+  }
+  return `Te quedan ${Math.round(kcalRestante)} kcal y ${Math.max(0, Math.round(protRestante))}g de proteína por cubrir hoy. Vas bien, sigue así.`;
+}
+
+const JONAH_FRASES_OCIO = [
+  'Toca aquí si quieres saber qué te conviene comer ahora 👇',
+  '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
+  'Estoy aquí cuando me necesites 💪',
+];
+
+/* Jonah, la mascota interactiva de la app. Se presenta la primera vez,
+   se "golpea el pecho" cuando lleva un rato sin interacción, y al
+   tocarlo da un consejo calculado con tus datos reales del día. */
+function JonahGorila({ username, totalsHoy, targets }) {
+  const [presentado, setPresentado] = useState(() => {
+    try { return localStorage.getItem(`jb-jonah-intro-${username}`) === '1'; } catch { return false; }
+  });
+  const [mensaje, setMensaje] = useState(null);
+  const [golpeando, setGolpeando] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const ociosoRef = useRef(null);
+
+  useEffect(() => {
+    if (!presentado) {
+      setMensaje('¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos.');
+      const t = setTimeout(() => {
+        setPresentado(true);
+        try { localStorage.setItem(`jb-jonah-intro-${username}`, '1'); } catch {}
+        setMensaje(null);
+      }, 4200);
+      return () => clearTimeout(t);
+    }
+  }, [presentado, username]);
+
+  // Cuando pasa un rato sin que lo toquen, "se golpea el pecho" y suelta
+  // una frase corta de ocio (no tapa la respuesta real si la está mostrando)
+  useEffect(() => {
+    function reiniciarOcio() {
+      if (ociosoRef.current) clearTimeout(ociosoRef.current);
+      ociosoRef.current = setTimeout(() => {
+        setGolpeando(true);
+        setTimeout(() => setGolpeando(false), 700);
+      }, 9000);
+    }
+    reiniciarOcio();
+    return () => { if (ociosoRef.current) clearTimeout(ociosoRef.current); };
+  }, [mensaje, idx]);
+
+  function tocar() {
+    if (!presentado) return; // deja que termine su presentación primero
+    setGolpeando(true);
+    vibrar(15);
+    setTimeout(() => setGolpeando(false), 500);
+
+    if (mensaje && mensaje.startsWith('Te') || (mensaje && mensaje.startsWith('¡Ya'))) {
+      // Ya está mostrando un consejo real: alterna a una frase de ocio
+      setMensaje(JONAH_FRASES_OCIO[idx % JONAH_FRASES_OCIO.length]);
+      setIdx(v => v + 1);
+    } else {
+      setMensaje(mensajeDeJonah(totalsHoy, targets));
+    }
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 flex items-start gap-3">
+      <button onClick={tocar}
+        className={`w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-3xl shrink-0 transition-transform ${golpeando ? 'scale-110' : 'scale-100'}`}
+        style={{ transition: 'transform 0.15s ease' }}
+        title="Toca a Jonah">
+        <span style={golpeando ? { animation: 'jb-jonah-golpe 0.35s ease-in-out 2' } : undefined}>🦍</span>
+      </button>
+      <style>{`
+        @keyframes jb-jonah-golpe {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          50% { transform: scale(1.18) rotate(-4deg); }
+        }
+      `}</style>
+      <div className="flex-1 min-w-0">
+        <p className="jb-display text-xs text-orange-500 mb-1">JONAH</p>
+        <p className="jb-body text-sm text-zinc-200 leading-snug">
+          {mensaje || 'Toca a Jonah para que te diga qué te conviene comer ahora.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RachaCard({ username }) {
   const [dias, setDias] = useState(null); // { [fechaISO]: comidas_count }
   const [loading, setLoading] = useState(true);
@@ -7225,14 +7353,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'dash' && (
           <>
             {(() => {
-              const totalsHoy = { kcal: 0, protein: 0 };
+              const totalsHoy = { kcal: 0, protein: 0, carbs: 0 };
               Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
                 const m = entryMacros(en);
-                totalsHoy.kcal += m.kcal; totalsHoy.protein += m.protein;
+                totalsHoy.kcal += m.kcal; totalsHoy.protein += m.protein; totalsHoy.carbs += m.carbs;
               }));
               const targets = goalTargets(form, results.tdee);
               return (
                 <>
+                  <JonahGorila username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenSemanalCard username={username} />
                 </>

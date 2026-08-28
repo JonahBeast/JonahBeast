@@ -1365,6 +1365,211 @@ function RetoSemanalCard({ username }) {
 /* Tarjeta de racha: cuántos días seguidos registró comidas, la semana
    actual (L-D) y la insignia del último hito alcanzado. Se calcula a
    partir de la tabla `historial` (comidas_count por fecha). */
+/* Resumen de un vistazo: kcal de hoy vs objetivo, racha y si el reto de
+   la semana está pendiente — todo en una sola línea, arriba de todo,
+   para que el alumno entienda su día en 1 segundo al abrir la app. */
+function ResumenDelDia({ username, totalsHoy, targets }) {
+  const [racha, setRacha] = useState(0);
+  const [retoPendiente, setRetoPendiente] = useState(false);
+
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const desde = addDaysISO(todayISO(), -60);
+        const { data } = await supabase.from('historial')
+          .select('fecha, comidas_count').eq('username', username).gte('fecha', desde);
+        const m = {};
+        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
+        const hoy = todayISO();
+        const registro = iso => (m[iso] || 0) > 0;
+        let r = 0;
+        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+        while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
+        setRacha(r);
+      } catch {}
+      try {
+        const semana = numeroDeSemana();
+        const { data } = await supabase.from('retos_semanales')
+          .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
+        setRetoPendiente(!(data && data.completado));
+      } catch {}
+    })();
+  }, [username]);
+
+  const objetivo = targets ? Math.round(targets.kcal) : 0;
+  const consumido = Math.round(totalsHoy.kcal);
+  const pct = objetivo ? Math.min(100, (consumido / objetivo) * 100) : 0;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3 overflow-x-auto">
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-orange-500">🔥</span>
+        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{consumido}/{objetivo || '—'} kcal</span>
+      </div>
+      <div className="h-3 w-px bg-zinc-800 shrink-0" />
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span>💪</span>
+        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{racha > 0 ? `Racha ${racha}d` : 'Sin racha aún'}</span>
+      </div>
+      <div className="h-3 w-px bg-zinc-800 shrink-0" />
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span>{retoPendiente ? '🎯' : '✅'}</span>
+        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{retoPendiente ? 'Reto pendiente' : 'Reto completado'}</span>
+      </div>
+    </div>
+  );
+}
+
+/* Resumen semanal automático: aparece los domingos con un vistazo de
+   la semana (promedio de kcal, mejor día, comparación con la semana
+   anterior) — le da sentido a todo lo que registró día a día. */
+function ResumenSemanalCard({ username }) {
+  const [datos, setDatos] = useState(null);
+  const [cerrado, setCerrado] = useState(false);
+
+  const hoy = todayISO();
+  const esDomingo = new Date().getDay() === 0;
+  const claveSemana = `jb-resumen-sem-${username}-${numeroDeSemana()}`;
+
+  useEffect(() => {
+    if (!esDomingo || !username) return;
+    try { if (localStorage.getItem(claveSemana) === '1') { setCerrado(true); return; } } catch {}
+    (async () => {
+      try {
+        const desde = addDaysISO(hoy, -13);
+        const { data } = await supabase.from('historial')
+          .select('fecha, meal_plan').eq('username', username).gte('fecha', desde);
+        const porFecha = {};
+        (data || []).forEach(r => {
+          let kcal = 0;
+          Object.values(r.meal_plan?.meals || {}).forEach(lista => (lista || []).forEach(en => {
+            const food = buscarFood(en.foodKey);
+            if (!food) return;
+            const g = en.unit ? (Number(en.qty) || 0) * gramsPerUnit(food, en.unit) : (Number(en.grams) || 0);
+            kcal += (food.kcal * g) / 100;
+          }));
+          porFecha[r.fecha] = kcal;
+        });
+        const estaSemana = [];
+        const semanaPasada = [];
+        for (let i = 0; i < 7; i++) {
+          const f1 = addDaysISO(hoy, -i);
+          const f2 = addDaysISO(hoy, -i - 7);
+          if (porFecha[f1] > 0) estaSemana.push({ fecha: f1, kcal: porFecha[f1] });
+          if (porFecha[f2] > 0) semanaPasada.push(porFecha[f2]);
+        }
+        if (estaSemana.length === 0) { setCerrado(true); return; }
+        const promedio = estaSemana.reduce((a, d) => a + d.kcal, 0) / estaSemana.length;
+        const promedioAnterior = semanaPasada.length ? semanaPasada.reduce((a, k) => a + k, 0) / semanaPasada.length : null;
+        const mejorDia = [...estaSemana].sort((a, b) => a.kcal - b.kcal)[0];
+        setDatos({
+          promedio: Math.round(promedio),
+          diasRegistrados: estaSemana.length,
+          diferencia: promedioAnterior ? Math.round(promedio - promedioAnterior) : null,
+        });
+      } catch {}
+    })();
+  }, [esDomingo, username]);
+
+  function cerrar() {
+    setCerrado(true);
+    try { localStorage.setItem(claveSemana, '1'); } catch {}
+  }
+
+  if (!esDomingo || cerrado || !datos) return null;
+
+  return (
+    <div className="relative bg-gradient-to-br from-violet-950/40 to-orange-950/40 border border-violet-500/30 rounded-2xl p-4 mb-6">
+      <button onClick={cerrar} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+      <p className="jb-display text-sm text-violet-300 mb-2">📊 TU SEMANA EN NÚMEROS</p>
+      <div className="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <p className="jb-display text-xl text-zinc-100">{datos.promedio}</p>
+          <p className="jb-body text-[11px] text-zinc-500">kcal promedio/día</p>
+        </div>
+        <div>
+          <p className="jb-display text-xl text-zinc-100">{datos.diasRegistrados}/7</p>
+          <p className="jb-body text-[11px] text-zinc-500">días registrados</p>
+        </div>
+      </div>
+      {datos.diferencia !== null && (
+        <p className="jb-body text-xs text-zinc-400">
+          {datos.diferencia === 0 ? 'Igual que la semana pasada' :
+            `${datos.diferencia > 0 ? '+' : ''}${datos.diferencia} kcal/día vs. la semana pasada`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* Check-in rápido: para días sin ganas de pensar mucho, registra de un
+   toque el combo más frecuente de cada comida (de los últimos 45 días). */
+function CheckinRapidoButton({ username, mealPlan, setMealPlan }) {
+  const [cargando, setCargando] = useState(false);
+  const hoyVacio = Object.values(mealPlan.meals || {}).every(arr => arr.length === 0);
+  if (!hoyVacio) return null;
+
+  async function comiNormal() {
+    setCargando(true);
+    try {
+      const { data } = await supabase.from('historial')
+        .select('meal_plan').eq('username', username)
+        .not('meal_plan', 'is', null).order('fecha', { ascending: false }).limit(45);
+
+      const conteoPorComida = {};
+      (data || []).forEach(r => {
+        Object.entries(r.meal_plan?.meals || {}).forEach(([meal, lista]) => {
+          if (!MEAL_NAMES.includes(meal)) return;
+          conteoPorComida[meal] = conteoPorComida[meal] || {};
+          (lista || []).forEach(en => {
+            if (!en.foodKey) return;
+            const k = JSON.stringify({ f: en.foodKey, u: en.unit ?? null, q: en.qty ?? en.grams });
+            conteoPorComida[meal][k] = (conteoPorComida[meal][k] || 0) + 1;
+          });
+        });
+      });
+
+      const nuevosMeals = { ...mealPlan.meals };
+      let algo = false;
+      MEAL_NAMES.forEach(meal => {
+        const conteo = conteoPorComida[meal];
+        if (!conteo || Object.keys(conteo).length === 0) return;
+        // Toma los 2 alimentos más repetidos de esa comida
+        const top = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => JSON.parse(k));
+        nuevosMeals[meal] = top.map(it => ({
+          id: uid(), foodKey: it.f, qty: it.q ?? 100, unit: it.u ?? 'gramos',
+        }));
+        algo = true;
+      });
+
+      if (algo) {
+        setMealPlan(v => ({ ...v, meals: nuevosMeals }));
+        vibrar(20);
+        showToast('✅ Registramos tu día con lo que sueles comer');
+      } else {
+        showToast('Aún no tenemos suficiente historial para esto', 'error');
+      }
+    } catch {
+      showToast('No se pudo completar, intenta de nuevo', 'error');
+    }
+    setCargando(false);
+  }
+
+  return (
+    <button onClick={comiNormal} disabled={cargando}
+      className="w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-4 mb-6 flex items-center gap-3 text-left transition-colors">
+      <div className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-lg shrink-0">
+        {cargando ? <Loader2 className="animate-spin text-orange-500" size={18} /> : '⚡'}
+      </div>
+      <div>
+        <p className="jb-display text-sm text-zinc-100">COMÍ NORMAL HOY</p>
+        <p className="jb-body text-xs text-zinc-500">Registra tu día con lo que sueles comer, de un toque</p>
+      </div>
+    </button>
+  );
+}
+
 function RachaCard({ username }) {
   const [dias, setDias] = useState(null); // { [fechaISO]: comidas_count }
   const [loading, setLoading] = useState(true);
@@ -6380,6 +6585,10 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     if (ayer === null) cargarTodo();
   }
 
+  // Precarga silenciosa de "frecuentes" para poder mostrar el atajo de
+  // un toque sin que el alumno tenga que abrir el panel primero.
+  useEffect(() => { if (frecuentes.length === 0) cargarTodo(); }, []);
+
   function agregar(items) {
     if (!items || !items.length) return;
     const nuevos = items.map(it => ({
@@ -6426,6 +6635,15 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
 
   return (
     <div className="mt-2">
+      {entradasActuales.length === 0 && frecuentes.length > 0 && (
+        <button onClick={() => agregar([frecuentes[0]])}
+          className="w-full mb-2 bg-orange-500/10 border border-orange-500/40 hover:bg-orange-500/20 rounded-lg px-3 py-2 text-left flex items-center gap-2 transition-colors">
+          <span className="text-base shrink-0">⚡</span>
+          <span className="jb-body text-xs text-orange-300 flex-1">
+            Agregar tu de siempre: <span className="text-orange-200 font-medium">{resumen([frecuentes[0]])}</span>
+          </span>
+        </button>
+      )}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => abrir('ayer')}
           className={(abierto === 'ayer' ? btnPrimary : btnGhost) + ' py-1.5 px-3 text-xs'}>
@@ -6877,6 +7095,29 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [verGuia, setVerGuia] = useState(false);
   const [tieneFotos, setTieneFotos] = useState(false);
   const [guiaVista, setGuiaVista] = useState(true);
+  const [pull, setPull] = useState({ y: 0, refrescando: false });
+  const pullStartY = useRef(null);
+
+  const PULL_UMBRAL = 70;
+  function onPullStart(e) {
+    if (window.scrollY > 4) return;
+    pullStartY.current = e.touches[0].clientY;
+  }
+  function onPullMove(e) {
+    if (pullStartY.current === null || window.scrollY > 4) return;
+    const dy = e.touches[0].clientY - pullStartY.current;
+    if (dy > 0) setPull(v => ({ ...v, y: Math.min(110, dy) }));
+  }
+  function onPullEnd() {
+    if (pull.y >= PULL_UMBRAL) {
+      setPull({ y: 60, refrescando: true });
+      vibrar(15);
+      setTimeout(() => window.location.reload(), 350);
+    } else {
+      setPull({ y: 0, refrescando: false });
+    }
+    pullStartY.current = null;
+  }
 
   useEffect(() => {
     (async () => {
@@ -6903,7 +7144,21 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }), [form]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 jb-body">
+    <div className="min-h-screen bg-zinc-950 jb-body"
+      onTouchStart={onPullStart} onTouchMove={onPullMove} onTouchEnd={onPullEnd}>
+      <style>{`
+        @keyframes jb-tab-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .jb-tab-fade { animation: jb-tab-fade-in 0.28s ease; }
+      `}</style>
+      {pull.y > 0 && (
+        <div className="fixed top-0 left-0 right-0 z-30 flex justify-center pointer-events-none" style={{ transform: `translateY(${Math.min(pull.y, 70) - 40}px)` }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-full p-2 shadow-lg mt-2">
+            {pull.refrescando
+              ? <Loader2 className="animate-spin text-orange-500" size={18} />
+              : <span style={{ transform: `rotate(${Math.min(pull.y / PULL_UMBRAL, 1) * 180}deg)`, display: 'inline-block', transition: 'transform 0.1s' }}>🔄</span>}
+          </div>
+        </div>
+      )}
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm">
         <div className="flex items-center gap-2.5">
           <Logo />
@@ -6958,12 +7213,27 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-6 pb-12">
+      <main key={tab} className="max-w-4xl mx-auto px-6 pb-12 jb-tab-fade">
         {tab === 'dash' && (
           <>
+            {(() => {
+              const totalsHoy = { kcal: 0, protein: 0 };
+              Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+                const m = entryMacros(en);
+                totalsHoy.kcal += m.kcal; totalsHoy.protein += m.protein;
+              }));
+              const targets = goalTargets(form, results.tdee);
+              return (
+                <>
+                  <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
+                  <ResumenSemanalCard username={username} />
+                </>
+              );
+            })()}
             <RachaCard username={username} />
             <div className="mb-6"><RetoSemanalCard username={username} /></div>
             <div className="mb-6"><AdivinaCaloriasCard /></div>
+            <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />

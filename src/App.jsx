@@ -2648,8 +2648,16 @@ const TRIAL_JOURNEY = {
   3: { titulo: 'Día 3 · Recomendaciones para ti', texto: 'Usa el botón "¿Qué puedo comer?" y descubre combinaciones que encajan con lo que te queda del día.', cta: null },
   4: { titulo: 'Día 4 · Tus patrones', texto: 'Ya tienes varios días registrados. Entra a "Mi progreso" y observa cómo se comporta tu alimentación.', cta: null },
   5: { titulo: 'Día 5 · Mira tu avance', texto: null, cta: null },
-  6: { titulo: 'Día 6 · Tu prueba termina mañana', texto: 'Todo lo que registraste se queda contigo si continúas. Conserva tu historial y sigue viendo tu progreso.', cta: 'Ver planes' },
-  7: { titulo: 'Día 7 · Último día de tu prueba', texto: 'Hoy termina tu acceso gratuito. Continúa y no pierdas nada de lo que has construido estos días.', cta: 'Continuar con Jonah Beast' },
+  6: { titulo: 'Día 6 · Ya llevas una semana', texto: 'Registrar ya se te está haciendo hábito. Revisa tu racha 🔥 en el resumen del día.', cta: null },
+  7: { titulo: 'Día 7 · Prueba algo nuevo', texto: 'Toca el botón "🎲 Sorpresa del día" en "¿Qué puedo comer?" y descubre un combo distinto.', cta: null },
+  8: { titulo: 'Día 8 · Segunda semana', texto: 'Revisa tu reto de la semana en el resumen del día — completarlo suma a tu progreso.', cta: null },
+  9: { titulo: 'Día 9 · Ajusta a tu gusto', texto: '¿Hay algo que no comes? Márcalo en "Nunca me sugieras esto" dentro de tu plan de alimentación.', cta: null },
+  10: { titulo: 'Día 10 · A mitad de camino', texto: 'Ya llevas 10 días de información real sobre cómo comes. Sigue así.', cta: null },
+  11: { titulo: 'Día 11 · Resultados reales', texto: 'Entra a "Mi progreso" y mira cómo han evolucionado tus promedios esta semana.', cta: null },
+  12: { titulo: 'Día 12 · Cada vez más cerca', texto: 'Quedan pocos días de tu prueba gratis. Todo tu historial se queda contigo si continúas.', cta: null },
+  13: { titulo: 'Día 13 · Quedan 2 días', texto: 'Tu prueba gratis está por terminar. Piensa si quieres seguir construyendo tu progreso con nosotros.', cta: 'Ver planes' },
+  14: { titulo: 'Día 14 · Tu prueba termina mañana', texto: 'Todo lo que registraste se queda contigo si continúas. Conserva tu historial y sigue viendo tu progreso.', cta: 'Ver planes' },
+  15: { titulo: 'Día 15 · Último día de tu prueba', texto: 'Hoy termina tu acceso gratuito. Continúa y no pierdas nada de lo que has construido estos días.', cta: 'Continuar con Jonah Beast' },
 };
 
 function trialDayOf(u) {
@@ -4296,9 +4304,9 @@ function TrialBanner({ user }) {
   }, [dia, user?.username]);
 
   if (!dia) return null;
-  const j = TRIAL_JOURNEY[dia];
+  const j = TRIAL_JOURNEY[dia] || TRIAL_JOURNEY[TRIAL_DAYS] || { titulo: '', texto: '', cta: null };
   const restantes = TRIAL_DAYS - dia;
-  const urgente = dia >= 6;
+  const urgente = dia >= TRIAL_DAYS - 1;
 
   let texto = j.texto;
   if (dia === 5) {

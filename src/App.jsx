@@ -1746,6 +1746,8 @@ function RachaCard({ username }) {
   const totalPasados = semana.filter(d => d.estado !== null).length;
 
   const hitoActual = [...RACHA_HITOS].reverse().find(h => racha >= h.dias);
+  const horaActual = new Date().getHours();
+  const enRiesgo = racha >= 3 && !registro(hoy) && horaActual >= 19;
 
   return (
     <div className="mb-6 flex flex-col gap-3">
@@ -1759,6 +1761,16 @@ function RachaCard({ username }) {
           </div>
         </div>
       </div>
+
+      {enRiesgo && (
+        <div className="relative bg-red-950/30 border border-red-500/40 rounded-2xl p-3.5 flex items-center gap-3 overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+          <span className="text-2xl shrink-0">🦍😟</span>
+          <p className="jb-body text-sm text-red-200">
+            <span className="font-semibold">Jonah está preocupado:</span> no has registrado nada hoy y tu racha de {racha} días está en riesgo. Aún estás a tiempo.
+          </p>
+        </div>
+      )}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2.5">
@@ -1786,11 +1798,15 @@ function RachaCard({ username }) {
 
       {hitoActual && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0"
-            style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>{hitoActual.emoji}</div>
+          <div className="relative w-11 h-11 shrink-0">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-base"
+              style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>🦍</div>
+            <span className="absolute -bottom-1 -right-1 text-lg">{hitoActual.emoji}</span>
+          </div>
           <div>
+            <div className="jb-body text-xs text-orange-400">Jonah te entrega tu insignia:</div>
             <div className="jb-body text-sm text-zinc-100 font-medium">{hitoActual.nombre}</div>
-            <div className="jb-body text-xs text-zinc-500">Insignia desbloqueada · {hitoActual.dias} días de racha</div>
+            <div className="jb-body text-xs text-zinc-500">{hitoActual.dias} días de racha</div>
           </div>
         </div>
       )}
@@ -2650,7 +2666,15 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
       <div className="max-w-sm w-full relative">
-        <div className="mb-8"><Logo size="lg" /></div>
+        <div className="mb-4"><Logo size="lg" /></div>
+        {modo === 'login' && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-4 flex items-center gap-2.5">
+            <span className="text-2xl shrink-0">🦍</span>
+            <p className="jb-body text-xs text-zinc-400">
+              <span className="text-orange-500 font-semibold">Jonah:</span> ¡bienvenido de vuelta! Entra y sigamos con tu objetivo.
+            </p>
+          </div>
+        )}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
           <h2 className="jb-display text-xl text-zinc-50 mb-1">
             {modo === 'login' ? 'ENTRAR A MI CUENTA' : 'RECUPERAR CONTRASEÑA'}
@@ -6326,21 +6350,32 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
     nivelAnteriorRef.current = nivel.key;
   }, [nivel.key]);
 
+  const [jonahCelebra, setJonahCelebra] = useState(false);
+
   useEffect(() => {
     if (dentroDeRango && !celebrado && totalsHoy.kcal > 0) {
       setCelebrado(true);
       setMostrarConfeti(true);
+      setJonahCelebra(true);
       vibrar([20, 40, 20, 40, 20]);
       reproducirSonido('logro');
       showToast('🔥 ¡Completaste tu objetivo de hoy!');
       const t = setTimeout(() => setMostrarConfeti(false), 2600);
-      return () => clearTimeout(t);
+      const t2 = setTimeout(() => setJonahCelebra(false), 3400);
+      return () => { clearTimeout(t); clearTimeout(t2); };
     }
   }, [dentroDeRango, celebrado, totalsHoy.kcal]);
 
   return (
     <div className={`relative bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 transition-transform duration-300 overflow-hidden ${subioNivel ? 'scale-[1.03]' : ''}`}>
       {mostrarConfeti && <Confetti />}
+      {jonahCelebra && (
+        <div className="absolute inset-0 z-30 bg-zinc-950/92 flex items-center gap-3 px-4">
+          <style>{`@keyframes jb-jonah-celebra { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.2) rotate(-6deg); } }`}</style>
+          <span className="text-4xl shrink-0" style={{ animation: 'jb-jonah-celebra 0.4s ease-in-out 3' }}>🦍</span>
+          <p className="jb-display text-sm text-orange-400">¡Lo lograste! Modo bestia total 🔥</p>
+        </div>
+      )}
       {subioNivel && (
         <>
           <style>{`
@@ -7068,8 +7103,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           <div className="mt-3" />
           {mealPlan.meals[meal].length === 0 ? (
             <div className="flex items-center gap-2.5 py-3 text-zinc-600">
-              <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs shrink-0">🍽️</div>
-              <p className="jb-body text-sm">Aún no hay nada aquí — tu próxima comida bestial te espera 🍽️</p>
+              <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs shrink-0">🦍</div>
+              <p className="jb-body text-sm">Jonah dice: aún no hay nada aquí — vamos, registra algo 💪</p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">

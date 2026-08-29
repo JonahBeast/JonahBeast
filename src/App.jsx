@@ -4347,7 +4347,7 @@ function VencimientosPanel({ users, onRenew }) {
   );
 }
 
-const VAPID_PUBLIC = 'BBVoBIHo8KaDMnmsBybEz5OllErvA1jFVQYqr15p2wiWbZuT-1M8lS-4Dh0MkGfvFl_P8jZ7G5Hay1-JaGDBQ0k';
+const VAPID_PUBLIC = 'BPKy3i21W2b-6QWb5oFODEMD8EmC_cmvIBeWruYXnNQZ4cSAOL_zOZP4_wF1_0--42LFIgCkpavhKESLKOBldwg';
 
 function base64ToUint8(base64) {
   const pad = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -4432,12 +4432,13 @@ function RecordatorioBanner({ username }) {
   if (estado === 'cargando' || estado === 'nosoportado') return null;
   if (estado === 'activo') {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center justify-between gap-3 flex-wrap">
-        <p className="jb-body text-xs text-zinc-400">
-          🔔 Recordatorio diario activado. Te avisamos si no registraste tus comidas.
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center gap-3 flex-wrap">
+        <span className="text-lg shrink-0">🦍</span>
+        <p className="jb-body text-xs text-zinc-400 flex-1">
+          Jonah está contigo: te avisa si se te pasa alguna comida.
         </p>
         <button onClick={desactivar} disabled={trabajando}
-          className="jb-body text-xs text-zinc-600 hover:text-zinc-400">
+          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 shrink-0">
           Desactivar
         </button>
       </div>
@@ -4448,7 +4449,7 @@ function RecordatorioBanner({ username }) {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6">
         <p className="jb-body text-xs text-zinc-500">
-          🔕 Bloqueaste las notificaciones. Si quieres el recordatorio diario, habilítalas
+          🔕 Bloqueaste las notificaciones. Si quieres que Jonah te acompañe con recordatorios, habilítalas
           en los ajustes de tu navegador para este sitio.
         </p>
       </div>
@@ -4459,14 +4460,14 @@ function RecordatorioBanner({ username }) {
     <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-base shrink-0">🔔</div>
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-base shrink-0">🦍</div>
         <div className="flex-1">
-          <p className="jb-display text-sm text-orange-500 mb-1">QUE NO SE TE PASE EL DÍA</p>
+          <p className="jb-display text-sm text-orange-500 mb-1">JONAH QUIERE ACOMPAÑARTE</p>
           <p className="jb-body text-sm text-zinc-300">
-            Activa un recordatorio diario. Solo te avisamos los días que no registraste tus comidas.
+            No olvides activar las notificaciones — así Jonah estará contigo, y si se te olvida registrar alguna comida, te pregunta cómo vas y te lo recuerda.
           </p>
           <button onClick={activar} disabled={trabajando} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
-            {trabajando ? <Loader2 className="animate-spin" size={16} /> : 'Activar recordatorio'}
+            {trabajando ? <Loader2 className="animate-spin" size={16} /> : 'Activar y que Jonah me acompañe'}
           </button>
         </div>
         <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1">

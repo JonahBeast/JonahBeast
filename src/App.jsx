@@ -1616,7 +1616,7 @@ function mensajeDeJonah(totalsHoy, targets) {
 }
 
 const JONAH_FRASES_OCIO = [
-  'Toca aquí si quieres saber qué te conviene comer ahora 👇',
+  'Tócame de nuevo si quieres saber qué te conviene comer ahora 🦍',
   '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
   'Estoy aquí cuando me necesites 💪',
 ];
@@ -6370,7 +6370,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
     <div className={`relative bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4 transition-transform duration-300 overflow-hidden ${subioNivel ? 'scale-[1.03]' : ''}`}>
       {mostrarConfeti && <Confetti />}
       {jonahCelebra && (
-        <div className="absolute inset-0 z-30 bg-zinc-950/92 flex items-center gap-3 px-4">
+        <div className="absolute inset-0 z-30 bg-zinc-950 rounded-2xl flex items-center gap-3 px-4">
           <style>{`@keyframes jb-jonah-celebra { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.2) rotate(-6deg); } }`}</style>
           <span className="text-4xl shrink-0" style={{ animation: 'jb-jonah-celebra 0.4s ease-in-out 3' }}>🦍</span>
           <p className="jb-display text-sm text-orange-400">¡Lo lograste! Modo bestia total 🔥</p>

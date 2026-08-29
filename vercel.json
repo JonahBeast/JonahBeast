@@ -1,14 +1,20 @@
 {
   "crons": [
     {
-      "path": "/api/recordatorios",
-      "schedule": "0 18 * * *"
-    }
-  ],
-  "rewrites": [
+      "path": "/api/cron/recordatorio",
+      "schedule": "0 * * * *"
+    },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "path": "/api/cron/racha-en-riesgo",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/plan-por-vencer",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/reto-semanal",
+      "schedule": "0 23 * * 6"
     }
   ]
 }

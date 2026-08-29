@@ -7552,6 +7552,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-12 jb-tab-fade">
         {tab === 'dash' && (
           <>
+            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
+              onIr={setTab} onVerGuia={() => setVerGuia(true)} />
             {(() => {
               const totalsHoy = { kcal: 0, protein: 0, carbs: 0 };
               Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -7572,8 +7574,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <div className="mb-6"><AdivinaCaloriasCard /></div>
             <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
-              onIr={setTab} onVerGuia={() => setVerGuia(true)} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} />
           </>
         )}

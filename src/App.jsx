@@ -989,7 +989,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
       <button onClick={() => setOpen(v => !v)} className={btnPrimary + ' w-full text-base py-3'}>
-        🍽️ ¿Qué puedo comer?
+        🦍 Pregúntale a Jonah qué puedes comer
       </button>
       {open && (
         <div className="mt-4 flex flex-col gap-4">
@@ -1591,45 +1591,142 @@ function sugerirProteinaJonah(gapProtein, remainingKcal) {
    (no es texto generado por IA — son las mismas cifras que ya calcula
    la app, solo redactadas como si te hablara directamente). */
 function mensajeDeJonah(totalsHoy, targets) {
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
   if (!targets || !targets.kcal) {
     return 'Termina de configurar tu objetivo en "Mi objetivo" y te doy recomendaciones reales para tu día.';
   }
-  const kcalRestante = targets.kcal - totalsHoy.kcal;
-  const protRestante = targets.protein - totalsHoy.protein;
-  const carbRestante = (targets.carbs || 0) - (totalsHoy.carbs || 0);
+  const kcalRestante = Math.round(targets.kcal - totalsHoy.kcal);
+  const protRestante = Math.round(targets.protein - totalsHoy.protein);
+  const carbRestante = Math.round((targets.carbs || 0) - (totalsHoy.carbs || 0));
 
   if (kcalRestante <= 0) {
-    return `¡Ya cumpliste tu objetivo de ${Math.round(targets.kcal)} kcal de hoy! Así se hace 🔥`;
+    return pick([
+      `¡Ya cumpliste tu objetivo de ${Math.round(targets.kcal)} kcal de hoy! Así se hace 🔥`,
+      'Objetivo del día completado. Modo bestia activado 🦍🔥',
+      'Kcal de hoy: listas. Descansa tranquilo, lo hiciste bien.',
+    ]);
   }
+
   if (protRestante >= 15) {
     const sug = sugerirProteinaJonah(protRestante, kcalRestante);
     if (sug) {
-      return `Te faltan ${Math.round(protRestante)}g de proteína. ` +
-        (carbRestante <= 20 ? 'Hoy ya no necesitas más carbohidratos. ' : '') +
-        `Te recomiendo ${sug.grams}g de ${sug.food.name} + una ensalada.`;
+      const base = pick([
+        `Te faltan ${protRestante}g de proteína. Te recomiendo ${sug.grams}g de ${sug.food.name} + una ensalada.`,
+        `Aún necesitas ${protRestante}g de proteína hoy — ${sug.grams}g de ${sug.food.name} te los da de sobra.`,
+      ]);
+      return base + (carbRestante <= 20 ? ' Y ya no necesitas más carbohidratos por ahora.' : '');
     }
   }
-  if (carbRestante <= 0 && kcalRestante > 0) {
-    return `Ya cubriste tus carbohidratos de hoy. Te quedan ${Math.round(kcalRestante)} kcal — llénalas con algo de proteína o grasas saludables.`;
+
+  const proteinaCubierta = protRestante < 15;
+  const carbsCubiertos = carbRestante <= 20;
+
+  if (proteinaCubierta && carbsCubiertos) {
+    return pick([
+      `Tu proteína y carbohidratos de hoy ya están cubiertos. Te quedan ${kcalRestante} kcal — ciérralas con algo ligero.`,
+      `Vas muy bien hoy. Con ${kcalRestante} kcal libres, cualquier snack pequeño te cierra el día perfecto.`,
+    ]);
   }
-  return `Te quedan ${Math.round(kcalRestante)} kcal y ${Math.max(0, Math.round(protRestante))}g de proteína por cubrir hoy. Vas bien, sigue así.`;
+
+  if (proteinaCubierta && !carbsCubiertos) {
+    return pick([
+      `Tu proteína ya está cubierta. Te faltan ${Math.max(0, carbRestante)}g de carbohidratos — un poco de fruta o cereal te viene bien.`,
+      `Proteína lista 💪. Aún puedes sumar ${Math.max(0, carbRestante)}g de carbohidratos con algo de fruta o arroz.`,
+    ]);
+  }
+
+  return pick([
+    `Te quedan ${kcalRestante} kcal por hoy. Vas bien, sigue así.`,
+    `Llevas un buen ritmo — ${kcalRestante} kcal disponibles todavía.`,
+    `Todo en orden. Aún tienes ${kcalRestante} kcal para completar tu día.`,
+  ]);
 }
 
+/* Abanico de respuestas de Jonah cuando lo tocas repetido: alterna
+   entre consejo real de macros, frase motivacional y recordatorio,
+   para que no se sienta como un bucle de 2 mensajes. */
+const JONAH_FRASES_MOTIVACION = [
+  'Cada registro es un ladrillo más de tu resultado. Sigue así 🦍',
+  'No hace falta perfección, solo constancia.',
+  'Ya diste el paso más difícil: empezar.',
+  'Tu cuerpo ya empezó a notar el esfuerzo.',
+];
 const JONAH_FRASES_OCIO = [
-  'Tócame de nuevo si quieres saber qué te conviene comer ahora 🦍',
   '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
   'Estoy aquí cuando me necesites 💪',
+  'Toca de nuevo y te doy otro consejo 🦍',
 ];
 
 /* Jonah, la mascota interactiva de la app. Se presenta la primera vez,
    se "golpea el pecho" cuando lleva un rato sin interacción, y al
    tocarlo da un consejo calculado con tus datos reales del día. */
+/* Versión de Jonah para pantallas sin sesión (Landing, registro) — sin
+   datos de macros todavía, pero igual de viva: respira, se golpea el
+   pecho y ruge sola, y al tocarla cambia de frase motivacional. */
+function JonahMiniIdle({ fraseInicial, frases }) {
+  const [golpeando, setGolpeando] = useState(false);
+  const [rugiendo, setRugiendo] = useState(false);
+  const [mensaje, setMensaje] = useState(fraseInicial);
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    let activo = true;
+    let t;
+    function loop() {
+      t = setTimeout(() => {
+        if (!activo) return;
+        if (Math.random() < 0.5) { setGolpeando(true); setTimeout(() => setGolpeando(false), 700); }
+        else { setRugiendo(true); setTimeout(() => setRugiendo(false), 900); }
+        loop();
+      }, 5000 + Math.random() * 3000);
+    }
+    loop();
+    return () => { activo = false; clearTimeout(t); };
+  }, []);
+
+  function tocar() {
+    setGolpeando(true);
+    vibrar(15);
+    setTimeout(() => setGolpeando(false), 500);
+    if (frases && frases.length) {
+      setMensaje(frases[idx % frases.length]);
+      setIdx(v => v + 1);
+    }
+  }
+
+  return (
+    <div className="text-center">
+      <div className="relative inline-block">
+        {rugiendo && (
+          <span className="absolute -top-2 -right-1 jb-display text-[9px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
+            ¡RAWR!
+          </span>
+        )}
+        <button onClick={tocar}
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-4xl"
+          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
+          title="Toca a Jonah">
+          🦍
+        </button>
+      </div>
+      <style>{`
+        @keyframes jb-jonah-golpe { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(-4deg); } }
+        @keyframes jb-jonah-rugido { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.28) rotate(3deg); } }
+        @keyframes jb-jonah-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+      `}</style>
+      {mensaje && <p className="jb-body text-xs text-zinc-400 mt-2 max-w-[240px] mx-auto">{mensaje}</p>}
+    </div>
+  );
+}
+
 function JonahGorila({ username, totalsHoy, targets }) {
   const [presentado, setPresentado] = useState(() => {
     try { return localStorage.getItem(`jb-jonah-intro-${username}`) === '1'; } catch { return false; }
   });
   const [mensaje, setMensaje] = useState(null);
   const [golpeando, setGolpeando] = useState(false);
+  const [rugiendo, setRugiendo] = useState(false);
   const [idx, setIdx] = useState(0);
   const ociosoRef = useRef(null);
 
@@ -1645,19 +1742,25 @@ function JonahGorila({ username, totalsHoy, targets }) {
     }
   }, [presentado, username]);
 
-  // Cuando pasa un rato sin que lo toquen, "se golpea el pecho" y suelta
-  // una frase corta de ocio (no tapa la respuesta real si la está mostrando)
+  // Cuando pasa un rato sin que lo toquen, alterna entre golpearse el
+  // pecho y rugir — nunca queda del todo estático.
   useEffect(() => {
     function reiniciarOcio() {
       if (ociosoRef.current) clearTimeout(ociosoRef.current);
       ociosoRef.current = setTimeout(() => {
-        setGolpeando(true);
-        setTimeout(() => setGolpeando(false), 700);
-      }, 9000);
+        if (Math.random() < 0.5) {
+          setGolpeando(true);
+          setTimeout(() => setGolpeando(false), 700);
+        } else {
+          setRugiendo(true);
+          setTimeout(() => setRugiendo(false), 900);
+        }
+        reiniciarOcio();
+      }, 6000 + Math.random() * 3000);
     }
     reiniciarOcio();
     return () => { if (ociosoRef.current) clearTimeout(ociosoRef.current); };
-  }, [mensaje, idx]);
+  }, []);
 
   function tocar() {
     if (!presentado) return; // deja que termine su presentación primero
@@ -1665,27 +1768,42 @@ function JonahGorila({ username, totalsHoy, targets }) {
     vibrar(15);
     setTimeout(() => setGolpeando(false), 500);
 
-    if (mensaje && mensaje.startsWith('Te') || (mensaje && mensaje.startsWith('¡Ya'))) {
-      // Ya está mostrando un consejo real: alterna a una frase de ocio
-      setMensaje(JONAH_FRASES_OCIO[idx % JONAH_FRASES_OCIO.length]);
-      setIdx(v => v + 1);
-    } else {
-      setMensaje(mensajeDeJonah(totalsHoy, targets));
-    }
+    // Abanico de respuestas: alterna consejo real de macros, frase
+    // motivacional y recordatorio, para que no se sienta un bucle de 2.
+    const tipo = idx % 3;
+    if (tipo === 0) setMensaje(mensajeDeJonah(totalsHoy, targets));
+    else if (tipo === 1) setMensaje(JONAH_FRASES_MOTIVACION[Math.floor(Math.random() * JONAH_FRASES_MOTIVACION.length)]);
+    else setMensaje(JONAH_FRASES_OCIO[Math.floor(Math.random() * JONAH_FRASES_OCIO.length)]);
+    setIdx(v => v + 1);
   }
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 flex items-start gap-3">
-      <button onClick={tocar}
-        className={`w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-3xl shrink-0 transition-transform ${golpeando ? 'scale-110' : 'scale-100'}`}
-        style={{ transition: 'transform 0.15s ease' }}
-        title="Toca a Jonah">
-        <span style={golpeando ? { animation: 'jb-jonah-golpe 0.35s ease-in-out 2' } : undefined}>🦍</span>
-      </button>
+      <div className="relative shrink-0">
+        {rugiendo && (
+          <span className="absolute -top-2 -right-1 jb-display text-[10px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
+            ¡RAWR!
+          </span>
+        )}
+        <button onClick={tocar}
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-3xl"
+          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
+          title="Toca a Jonah">
+          🦍
+        </button>
+      </div>
       <style>{`
         @keyframes jb-jonah-golpe {
           0%, 100% { transform: scale(1) rotate(0deg); }
           50% { transform: scale(1.18) rotate(-4deg); }
+        }
+        @keyframes jb-jonah-rugido {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          50% { transform: scale(1.28) rotate(3deg); }
+        }
+        @keyframes jb-jonah-respira {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.045); }
         }
       `}</style>
       <div className="flex-1 min-w-0">
@@ -2037,13 +2155,24 @@ function Landing({ onChoose }) {
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
           <h2 className="jb-display text-xl sm:text-2xl text-zinc-50 leading-tight my-3 px-2">
-            COME COMO PERUANO.<br className="sm:hidden" /> RESULTADOS DE BESTIA 🦍
+            COME COMO PERUANO.<br className="sm:hidden" /> RESULTADOS DE BESTIA
           </h2>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
             <Dumbbell className="text-orange-500 shrink-0" size={20} />
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
+        </div>
+
+        <div className="mb-5" style={step(280)}>
+          <JonahMiniIdle
+            fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
+            frases={[
+              'Come rico, come peruano, y mira los resultados llegar.',
+              'Regístrate y arrancamos hoy mismo 🔥',
+              '¿Listo para tu modo bestia? Yo te ayudo.',
+            ]}
+          />
         </div>
 
         <p className="jb-body text-orange-500/90 text-sm mb-2 tracking-wide" style={step(300)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
@@ -2437,10 +2566,15 @@ function TrialSignup({ onBack, onCreated }) {
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
           <div className="text-center mb-5">
-            <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
-              🚀
-            </div>
-            <div className="jb-display text-2xl text-orange-500 mb-1">15 DÍAS GRATIS</div>
+            <JonahMiniIdle
+              fraseInicial="¡Vamos a lograrlo juntos! Regístrate y empecemos hoy mismo 🦍🔥"
+              frases={[
+                'Solo te toma 2 minutos, y yo te acompaño desde el primer día.',
+                'Sin tarjeta, sin letra chica. Solo empezar.',
+                '¡Anímate! Tu mejor versión te está esperando 💪',
+              ]}
+            />
+            <div className="jb-display text-2xl text-orange-500 mb-1 mt-3">15 DÍAS GRATIS</div>
             <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
           </div>
 

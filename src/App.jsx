@@ -3123,12 +3123,24 @@ function ReferidosPanel({ users, onCambio }) {
   const [refs, setRefs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [nuevo, setNuevo] = useState({ tipo: 'entrenador', codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45, pct: 10, desc: 10 });
+  const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', pct: 10, desc: 10 });
   const [err, setErr] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [expandido, setExpandido] = useState(null);
+  const [editando, setEditando] = useState(null); // código del embajador que se está editando
+  const [editVal, setEditVal] = useState({ pct: 0, desc: 0 });
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
+  const [precioMensual, setPrecioMensual] = useState(PLANES[0].precioDefault);
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); cargarPrecio(); }, []);
+
+  async function cargarPrecio() {
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', 'precio_1').maybeSingle();
+      const v = Number(data?.value);
+      if (v > 0) setPrecioMensual(v);
+    } catch {}
+  }
 
   async function cargar() {
     setLoading(true);
@@ -3146,29 +3158,46 @@ function ReferidosPanel({ users, onCambio }) {
     if (!cod) return setErr('Escribe el código.');
     if (!/^[A-Z0-9._-]+$/.test(cod)) return setErr('El código solo puede tener letras, números, punto, guion o guion bajo.');
     if (!nuevo.nombre.trim()) return setErr('Escribe el nombre de la persona.');
-    if (refs.some(r => r.codigo.toUpperCase() === cod)) return setErr('Ese código ya existe.');
+    if (refs.some(r => r.codigo.toUpperCase() === cod)) return setErr('Ese código ya existe. Si es el mismo embajador, edita su código actual en vez de crear uno nuevo.');
     setGuardando(true);
     try {
-      const esInfl = nuevo.tipo === 'influencer';
       const token = cod.toLowerCase() + '-' +
         Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
       const { error } = await supabase.from('referidores').insert({
         codigo: cod, nombre: nuevo.nombre.trim(),
         telefono: nuevo.telefono.trim().replace(/\s/g, '') || null,
-        tipo: nuevo.tipo, token,
-        comision_1: esInfl ? 0 : Number(nuevo.c1) || 0,
-        comision_3: esInfl ? 0 : Number(nuevo.c3) || 0,
-        comision_6: esInfl ? 0 : Number(nuevo.c6) || 0,
-        comision_12: esInfl ? 0 : Number(nuevo.c12) || 0,
-        comision_pct: esInfl ? Number(nuevo.pct) || 10 : null,
-        descuento_pct: esInfl ? Number(nuevo.desc) || 0 : 0,
+        tipo: 'influencer', token,
+        comision_1: 0, comision_3: 0, comision_6: 0, comision_12: 0,
+        comision_pct: Number(nuevo.pct) || 0,
+        descuento_pct: Number(nuevo.desc) || 0,
         activo: true,
       });
       if (error) throw error;
-      setNuevo({ tipo: 'entrenador', codigo: '', nombre: '', telefono: '', c1: 5, c3: 15, c6: 25, c12: 45, pct: 10, desc: 10 });
+      setNuevo({ codigo: '', nombre: '', telefono: '', pct: 10, desc: 10 });
       await cargar();
     } catch (e2) { setErr('No se pudo crear: ' + (e2.message || '')); }
     setGuardando(false);
+  }
+
+  function abrirEdicion(r) {
+    setEditando(r.codigo);
+    setEditVal({ pct: Number(r.comision_pct || 0), desc: Number(r.descuento_pct || 0) });
+  }
+
+  async function guardarEdicion(r) {
+    setGuardandoEdit(true);
+    try {
+      // Al editar, el código queda siempre en formato "embajador" (%),
+      // así un código antiguo de comisión fija también se actualiza al nuevo formato.
+      await supabase.from('referidores').update({
+        tipo: 'influencer',
+        comision_pct: Number(editVal.pct) || 0,
+        descuento_pct: Number(editVal.desc) || 0,
+      }).eq('codigo', r.codigo);
+      setEditando(null);
+      await cargar();
+    } catch {}
+    setGuardandoEdit(false);
   }
 
   async function alternar(r) {
@@ -3230,7 +3259,7 @@ function ReferidosPanel({ users, onCambio }) {
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-sm shrink-0">🤝</div>
           <h2 className="jb-display text-base text-zinc-200">
-            REFERIDOS · {totalReferidos} inscritos
+            EMBAJADORES · {totalReferidos} inscritos
             {totalPendiente > 0 && (
               <span className="ml-2 bg-emerald-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">
                 S/{totalPendiente.toFixed(0)} por pagar
@@ -3244,15 +3273,16 @@ function ReferidosPanel({ users, onCambio }) {
       {open && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-5">
           <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">CREAR CÓDIGO</h3>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">CREAR CÓDIGO DE EMBAJADOR</h3>
             <p className="jb-body text-xs text-zinc-500 mb-3">
-              Entrégale el código a la persona. Cuando alguien se registre con él, aparecerá aquí.
+              Entrégale el código a la persona. Si ya tienes un acuerdo con este mismo embajador,
+              no crees otro código — edita el porcentaje del que ya existe más abajo.
             </p>
             <form onSubmit={crear} className="flex flex-col gap-3">
               <div className="grid sm:grid-cols-3 gap-2">
                 <Field label="Código">
                   <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value }))}
-                    className={inputCls + ' uppercase'} placeholder="COACHJUAN" />
+                    className={inputCls + ' uppercase'} placeholder="EMBAJADORJUAN" />
                 </Field>
                 <Field label="Nombre">
                   <input value={nuevo.nombre} onChange={e => setNuevo(v => ({ ...v, nombre: e.target.value }))}
@@ -3265,60 +3295,26 @@ function ReferidosPanel({ users, onCambio }) {
                 </Field>
               </div>
               <div>
-                <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">Tipo de acuerdo</span>
-                <div className="flex gap-2 mb-3">
-                  {[['entrenador', 'Entrenador', 'monto fijo por plan'],
-                    ['influencer', 'Influencer', '% + descuento']].map(([v, l, d]) => (
-                    <button key={v} type="button" onClick={() => setNuevo(n => ({ ...n, tipo: v }))}
-                      className={`flex-1 rounded-lg p-2.5 text-left transition-colors border ${nuevo.tipo === v
-                        ? 'bg-orange-500 border-orange-500 text-zinc-950'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-orange-500'}`}>
-                      <div className="jb-display text-xs">{l}</div>
-                      <div className={`jb-body text-[10px] ${nuevo.tipo === v ? 'text-zinc-800' : 'text-zinc-500'}`}>{d}</div>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="jb-body text-[11px] text-zinc-500 block mb-1">Comisión para él (%)</span>
+                    <input type="number" step="1" value={nuevo.pct}
+                      onChange={e => setNuevo(v => ({ ...v, pct: e.target.value }))}
+                      className={inputCls + ' py-2'} />
+                  </div>
+                  <div>
+                    <span className="jb-body text-[11px] text-zinc-500 block mb-1">Descuento al cliente (%)</span>
+                    <input type="number" step="1" value={nuevo.desc}
+                      onChange={e => setNuevo(v => ({ ...v, desc: e.target.value }))}
+                      className={inputCls + ' py-2'} />
+                  </div>
                 </div>
-
-                {nuevo.tipo === 'entrenador' ? (
-                  <>
-                    <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
-                      Comisión fija según el plan (S/)
-                    </span>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[['c1', '1 mes'], ['c3', '3 meses'], ['c6', '6 meses'], ['c12', '12 meses']].map(([k, l]) => (
-                        <div key={k}>
-                          <span className="jb-body text-[11px] text-zinc-500 block mb-1">{l}</span>
-                          <input type="number" step="0.5" value={nuevo[k]}
-                            onChange={e => setNuevo(v => ({ ...v, [k]: e.target.value }))}
-                            className={inputCls + ' py-2'} />
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="jb-body text-[11px] text-zinc-500 block mb-1">Comisión para él (%)</span>
-                        <input type="number" step="1" value={nuevo.pct}
-                          onChange={e => setNuevo(v => ({ ...v, pct: e.target.value }))}
-                          className={inputCls + ' py-2'} />
-                      </div>
-                      <div>
-                        <span className="jb-body text-[11px] text-zinc-500 block mb-1">Descuento al cliente (%)</span>
-                        <input type="number" step="1" value={nuevo.desc}
-                          onChange={e => setNuevo(v => ({ ...v, desc: e.target.value }))}
-                          className={inputCls + ' py-2'} />
-                      </div>
-                    </div>
-                    <p className="jb-body text-[11px] text-zinc-600 mt-2">
-                      Con {nuevo.pct || 0}% y {nuevo.desc || 0}% de descuento, en un plan de S/29.90 el
-                      cliente paga S/{(29.90 * (1 - (Number(nuevo.desc) || 0) / 100)).toFixed(2)},
-                      él gana S/{(29.90 * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)} y
-                      te quedan S/{(29.90 * (1 - (Number(nuevo.desc) || 0) / 100) - 29.90 * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)}.
-                    </p>
-                  </>
-                )}
+                <p className="jb-body text-[11px] text-zinc-600 mt-2">
+                  En base a tu precio mensual actual (S/{precioMensual.toFixed(2)}): con {nuevo.pct || 0}% de comisión y {nuevo.desc || 0}% de
+                  descuento, el cliente paga S/{(precioMensual * (1 - (Number(nuevo.desc) || 0) / 100)).toFixed(2)},
+                  él gana S/{(precioMensual * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)} y
+                  te quedan S/{(precioMensual * (1 - (Number(nuevo.desc) || 0) / 100) - precioMensual * ((Number(nuevo.pct) || 0) / 100)).toFixed(2)}.
+                </p>
               </div>
               <button type="submit" disabled={guardando} className={btnPrimary + ' self-start'}>
                 {guardando ? <Loader2 className="animate-spin" size={16} /> : <><Plus size={16} /> Crear código</>}
@@ -3346,6 +3342,7 @@ function ReferidosPanel({ users, onCambio }) {
                   const yaPagados = pagaron.filter(u => u.comisionPagada);
                   const montoPend = porPagar.reduce((a, u) => a + Number(u.comisionMonto), 0);
                   const abierto = expandido === r.codigo;
+                  const editandoEste = editando === r.codigo;
 
                   return (
                     <div key={r.codigo} className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
@@ -3359,11 +3356,39 @@ function ReferidosPanel({ users, onCambio }) {
                           <div className="text-zinc-500 text-xs jb-body mt-0.5">
                             {lista.length} inscrito(s) · {pagaron.length} pagaron
                           </div>
-                          <div className="text-zinc-600 text-[11px] jb-body mt-0.5">
-                            {r.tipo === 'influencer'
-                              ? `Influencer · ${Number(r.comision_pct || 0)}% comisión · ${Number(r.descuento_pct || 0)}% dcto al cliente`
-                              : `Entrenador · 1m S/${Number(r.comision_1 || 0).toFixed(0)} · 3m S/${Number(r.comision_3 || 0).toFixed(0)} · 6m S/${Number(r.comision_6 || 0).toFixed(0)} · 12m S/${Number(r.comision_12 || 0).toFixed(0)}`}
-                          </div>
+
+                          {!editandoEste ? (
+                            <div className="text-zinc-600 text-[11px] jb-body mt-0.5">
+                              Embajador · {Number(r.comision_pct || 0)}% comisión · {Number(r.descuento_pct || 0)}% dcto al cliente
+                            </div>
+                          ) : (
+                            <div className="mt-2 bg-zinc-900 border border-orange-500/30 rounded-lg p-2.5 flex flex-col gap-2 max-w-xs">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <span className="jb-body text-[10px] text-zinc-500 block mb-1">Comisión (%)</span>
+                                  <input type="number" step="1" value={editVal.pct}
+                                    onChange={e => setEditVal(v => ({ ...v, pct: e.target.value }))}
+                                    className={inputCls + ' py-1.5 text-sm'} />
+                                </div>
+                                <div>
+                                  <span className="jb-body text-[10px] text-zinc-500 block mb-1">Descuento cliente (%)</span>
+                                  <input type="number" step="1" value={editVal.desc}
+                                    onChange={e => setEditVal(v => ({ ...v, desc: e.target.value }))}
+                                    className={inputCls + ' py-1.5 text-sm'} />
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => guardarEdicion(r)} disabled={guardandoEdit}
+                                  className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                                  {guardandoEdit ? <Loader2 className="animate-spin" size={14} /> : 'Guardar'}
+                                </button>
+                                <button onClick={() => setEditando(null)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {r.token && (
                             <button
                               onClick={() => {
@@ -3385,6 +3410,11 @@ function ReferidosPanel({ users, onCambio }) {
                                 <MessageCircle size={13} />
                               </a>
                             </>
+                          )}
+                          {!editandoEste && (
+                            <button onClick={() => abrirEdicion(r)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+                              Editar %
+                            </button>
                           )}
                           {lista.length > 0 && (
                             <button onClick={() => setExpandido(abierto ? null : r.codigo)}
@@ -4668,10 +4698,10 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 /* ------------------------------------------------------------------ */
 
 const PLANES = [
-  { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 29.90, badge: null },
-  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 79.90, badge: null },
-  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 149.90, badge: 'MÁS ELEGIDO' },
-  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 249.90, badge: 'MEJOR PRECIO' },
+  { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 24.90, badge: null },
+  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 64.90, badge: null },
+  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 114.90, badge: 'MÁS ELEGIDO' },
+  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 209.90, badge: 'MEJOR PRECIO' },
 ];
 
 function fmtS(n) {

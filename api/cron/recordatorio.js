@@ -5,8 +5,11 @@
 // típico, y si no la registró, le manda un push con la voz de Jonah —
 // a veces un recordatorio simple, a veces preguntando cómo va, a veces
 // recordándole su objetivo. Al mediodía y a media tarde manda además
-// un aviso aparte de hidratación (2 al día), sin depender de si
-// registró o no una comida.
+// un aviso aparte de hidratación (2 al día). Y dos veces al día (2pm
+// y 8pm) revisa TODO lo que ya pasó de hora y sigue sin registrar, y
+// manda un solo mensaje de aliento agrupando lo pendiente — "no te
+// rindas, aún puedes registrarlo" — en vez de uno por cada comida
+// atrasada, para que se sienta como acompañamiento y no como spam.
 //
 // Solo se envía a alumnos con acceso vigente (enabled=true y su plan
 // o prueba gratis no vencidos). Así, cuando alguien se va sin renovar,
@@ -19,7 +22,7 @@
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru } from '../_lib/push.js';
 
-// Ventana horaria (hora Perú) en la que se revisa cada comida.
+// Ventana horaria (hora Perú) en la que se revisa cada comida a tiempo.
 const VENTANAS = {
   9: 'Desayuno',
   11: 'Media mañana',
@@ -28,10 +31,13 @@ const VENTANAS = {
   21: 'Cena',
 };
 
-// Horas de hidratación — separadas de las de comida, 2 veces al día
-// (a media mañana-mediodía y a media tarde), porque con un solo aviso
-// no alcanza a cubrir el hábito real de tomar 2-3 litros diarios.
+// Horas de hidratación — separadas de las de comida, 2 veces al día.
 const HORAS_HIDRATACION = [12, 16];
+
+// Horas de "chequeo de ánimo": revisa todo lo que ya pasó de hora y
+// sigue pendiente, y manda un solo mensaje agrupado con tono de "no
+// te rindas, sigo contigo" — no un recordatorio más, sino un aliento.
+const HORAS_ANIMO = [14, 20];
 
 const NOMBRE_COMIDA = {
   Desayuno: 'tu desayuno',
@@ -42,8 +48,6 @@ const NOMBRE_COMIDA = {
 };
 
 // Variantes de mensaje por comida — tono de acompañante, no de regaño.
-// Incluye alguna pregunta directa por hora ("Son las 3, ¿almorzaste?")
-// tal como lo pediría un coach real que está pendiente de ti.
 function mensajeJonah(comida, objetivo, horaPeru) {
   const nombre = NOMBRE_COMIDA[comida] || comida;
   const horaAmPm = horaPeru > 12 ? `${horaPeru - 12} pm` : `${horaPeru} ${horaPeru === 12 ? 'pm' : 'am'}`;
@@ -64,15 +68,26 @@ function mensajeJonah(comida, objetivo, horaPeru) {
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
-// Mensajes de hidratación — dos avisos al día, no uno solo, porque la
-// meta real son 2-3 litros diarios, no "un vaso". El tono siempre es
-// de acompañamiento, nunca de regaño.
+// Mensajes de hidratación — dos avisos al día, meta real 2-3 litros.
 function mensajeHidratacion() {
   const variantes = [
     { title: 'Jonah 🦍', body: 'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧' },
     { title: 'Jonah 🦍', body: '¿Cómo vas con el agua hoy? Recuerda llegar a tus 2-3 litros diarios.' },
     { title: 'Jonah 🦍', body: 'Un buen momento para tomar agua. Jonah siempre estará al pendiente de ti 🦍' },
     { title: 'Jonah 🦍', body: 'Hidratarte bien también es parte de tu objetivo. Vamos, un vaso más 💧' },
+  ];
+  return variantes[Math.floor(Math.random() * variantes.length)];
+}
+
+// Mensaje de ánimo agrupado — cuando ya pasó la hora de una o más
+// comidas y siguen sin registrarse. Nunca regaña, siempre acompaña.
+function mensajeAnimo(nombresPendientes) {
+  const lista = nombresPendientes.join(', ');
+  const variantes = [
+    { title: 'Jonah 🦍', body: `No te rindas, yo siempre estoy contigo. Aún puedes registrar: ${lista}. Nunca es tarde 💪` },
+    { title: 'Jonah 🦍', body: `Sé que el día se puede complicar. Cuando puedas, registra: ${lista} — aquí sigo, contigo 🦍` },
+    { title: 'Jonah 🦍', body: `Un momento libre y seguimos: aún puedes registrar ${lista}. Tú puedes con esto 🔥` },
+    { title: 'Jonah 🦍', body: `No pasa nada si se te fue la hora. Registra ${lista} cuando puedas — Jonah no se rinde contigo 🦍` },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
@@ -109,8 +124,7 @@ export default async function handler(req, res) {
   const { horaPeru, hoyISO } = horaYFechaPeru();
 
   try {
-    // Solo alumnos con acceso vigente hoy — trial o plan pago aún no
-    // vencido. En cuanto vencen sin renovar, dejan de recibir push.
+    // Solo alumnos con acceso vigente hoy.
     const { data: alumnos, error } = await supabase
       .from('alumnos').select('username')
       .eq('enabled', true)
@@ -121,7 +135,7 @@ export default async function handler(req, res) {
     }
     const usernames = alumnos.map(a => a.username);
 
-    // Hidratación: dos veces al día, a todos los alumnos vigentes.
+    // Hidratación: dos veces al día.
     if (HORAS_HIDRATACION.includes(horaPeru)) {
       let totalEnviados = 0;
       const fallidosTotal = [];
@@ -131,6 +145,38 @@ export default async function handler(req, res) {
         fallidosTotal.push(...r.fallidos);
       }
       return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'hidratacion', horaPeru });
+    }
+
+    // Chequeo de ánimo: agrupa TODAS las comidas cuya hora ya pasó y
+    // siguen sin registrar, y manda un solo mensaje por alumno.
+    if (HORAS_ANIMO.includes(horaPeru)) {
+      const { data: datos } = await supabase
+        .from('datos_alumnos')
+        .select('username, meal_plan, meal_plan_fecha')
+        .in('username', usernames);
+
+      const horasYaPasadas = Object.keys(VENTANAS).map(Number).filter(h => h < horaPeru);
+      let totalEnviados = 0;
+      const fallidosTotal = [];
+      let alumnosConAnimo = 0;
+
+      for (const u of usernames) {
+        const fila = (datos || []).find(d => d.username === u);
+        const esHoy = fila && fila.meal_plan_fecha === hoyISO;
+        const pendientes = [];
+        for (const h of horasYaPasadas) {
+          const comida = VENTANAS[h];
+          const items = esHoy ? (fila.meal_plan?.meals?.[comida] || []) : [];
+          if (!items.length) pendientes.push(NOMBRE_COMIDA[comida]);
+        }
+        if (pendientes.length === 0) continue;
+        alumnosConAnimo++;
+        const r = await enviarPushIndividual(supabase, u, mensajeAnimo(pendientes));
+        totalEnviados += r.enviados;
+        fallidosTotal.push(...r.fallidos);
+      }
+
+      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'animo', horaPeru, alumnosConAnimo });
     }
 
     const comida = VENTANAS[horaPeru];

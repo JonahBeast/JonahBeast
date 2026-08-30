@@ -18,7 +18,7 @@
 // combinadas con datos reales del alumno (su objetivo, si ya registró
 // o no esa comida específica).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde } from '../_lib/push.js';
 
 // Ventana horaria (hora Perú) en la que se revisa cada comida a tiempo.
 const VENTANAS = {
@@ -91,8 +91,24 @@ function mensajeAnimo(nombresPendientes) {
 }
 
 // Saludo de la mañana — a veces genérico, a veces ligado a su objetivo
-// real si lo tiene configurado.
-function mensajeBuenosDias(objetivo) {
+// real si lo tiene configurado. Los lunes cambia de tono ("empieza de
+// nuevo la semana") y en aniversarios de uso (30/60/90... días)
+// reconoce esa constancia en vez del saludo normal.
+function mensajeBuenosDias(objetivo, esLunes, diasDeUso) {
+  if (diasDeUso && diasDeUso > 0 && diasDeUso % 30 === 0) {
+    return {
+      title: 'Jonah 🦍',
+      body: `¡Hoy cumples ${diasDeUso} días con Jonah Beast Fuel! 🎉 Gracias por tu constancia — vamos por más 🦍🔥`,
+    };
+  }
+  if (esLunes) {
+    const variantesLunes = [
+      { title: 'Jonah 🦍', body: 'Buenos días, arrancamos la semana 🦍 Lo que pasó el fin de semana ya quedó atrás — hoy empezamos de nuevo, juntos.' },
+      { title: 'Jonah 🦍', body: 'Nueva semana, nueva oportunidad 🔥 No importa cómo cerró la anterior. Vamos con todo, aquí estoy contigo.' },
+      { title: 'Jonah 🦍', body: 'Lunes de reinicio 🦍 Cada semana es una página en blanco. Empecemos bien, yo te acompaño.' },
+    ];
+    return variantesLunes[Math.floor(Math.random() * variantesLunes.length)];
+  }
   const variantes = [
     { title: 'Jonah 🦍', body: '¡Buenos días! Hoy es un gran día para seguir construyendo tu mejor versión. Aquí estoy, contigo 🦍' },
     { title: 'Jonah 🦍', body: 'Buenos días 🌅 Que este día te traiga fuerza y buenas decisiones. Jonah está contigo.' },
@@ -163,20 +179,28 @@ export default async function handler(req, res) {
     const usernames = alumnos.map(a => a.username);
 
     // Buenos días — una vez al día, a todos los alumnos vigentes.
+    // Los lunes cambia el tono, y en aniversarios de uso reconoce la constancia.
     if (horaPeru === HORA_BUENOS_DIAS) {
       const { data: datos } = await supabase
         .from('datos_alumnos').select('username, form').in('username', usernames);
+      const { data: fechas } = await supabase
+        .from('alumnos').select('username, fecha_inicio').in('username', usernames);
       const objetivoDe = {};
       (datos || []).forEach(d => { objetivoDe[d.username] = d.form?.objetivo || null; });
+      const inicioDe = {};
+      (fechas || []).forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
+      const esLunes = diaSemanaPeru(hoyISO) === 1;
 
       let totalEnviados = 0;
       const fallidosTotal = [];
       for (const u of usernames) {
-        const r = await enviarPushIndividual(supabase, u, mensajeBuenosDias(objetivoDe[u]));
+        const diasDeUso = inicioDe[u] ? diasDesde(inicioDe[u], hoyISO) : 0;
+        const mensaje = mensajeBuenosDias(objetivoDe[u], esLunes, diasDeUso);
+        const r = await enviarPushIndividual(supabase, u, mensaje);
         totalEnviados += r.enviados;
         fallidosTotal.push(...r.fallidos);
       }
-      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'buenos_dias' });
+      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'buenos_dias', esLunes });
     }
 
     // Buenas noches — una vez al día, a todos los alumnos vigentes.

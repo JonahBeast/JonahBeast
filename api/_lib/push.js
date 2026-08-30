@@ -92,10 +92,13 @@ export async function enviarPushA(supabase, usernames, { title, body }) {
       );
       enviados++;
     } catch (err) {
+      // Antes esto se guardaba en silencio. Ahora queda registrado con
+      // el detalle real (código y cuerpo del error de Apple/Google).
+      console.error(`Push fallido para ${sub.username} (endpoint ...${sub.endpoint.slice(-20)}): statusCode=${err.statusCode} body=${err.body || err.message}`);
       if (err.statusCode === 410 || err.statusCode === 404) {
         await supabase.from('push_subs').update({ activa: false }).eq('endpoint', sub.endpoint);
       }
-      fallidos.push({ username: sub.username, error: err.message });
+      fallidos.push({ username: sub.username, statusCode: err.statusCode, error: err.body || err.message });
     }
   }
   return { enviados, fallidos };

@@ -2,14 +2,12 @@
 //
 // Corre cada hora. Revisa cada una de las 5 comidas del alumno
 // (Desayuno, Media mañana, Almuerzo, Media tarde, Cena) en su horario
-// típico, y si no la registró, le manda un push con la voz de Jonah —
-// a veces un recordatorio simple, a veces preguntando cómo va, a veces
-// recordándole su objetivo. Al mediodía y a media tarde manda además
-// un aviso aparte de hidratación (2 al día). Y dos veces al día (2pm
-// y 8pm) revisa TODO lo que ya pasó de hora y sigue sin registrar, y
-// manda un solo mensaje de aliento agrupando lo pendiente — "no te
-// rindas, aún puedes registrarlo" — en vez de uno por cada comida
-// atrasada, para que se sienta como acompañamiento y no como spam.
+// típico, y si no la registró, le manda un push con la voz de Jonah.
+// Además: hidratación (2x al día), un chequeo de ánimo agrupado (2pm
+// y 8pm) para lo que ya pasó de hora y sigue pendiente, un saludo de
+// buenos días (7am) y un mensaje de buenas noches (10pm) — estos dos
+// últimos no dependen de nada, solo de que Jonah está pendiente de ti
+// todos los días, empiece o termine como termine el día.
 //
 // Solo se envía a alumnos con acceso vigente (enabled=true y su plan
 // o prueba gratis no vencidos). Así, cuando alguien se va sin renovar,
@@ -34,10 +32,14 @@ const VENTANAS = {
 // Horas de hidratación — separadas de las de comida, 2 veces al día.
 const HORAS_HIDRATACION = [12, 16];
 
-// Horas de "chequeo de ánimo": revisa todo lo que ya pasó de hora y
-// sigue pendiente, y manda un solo mensaje agrupado con tono de "no
-// te rindas, sigo contigo" — no un recordatorio más, sino un aliento.
+// Chequeo de ánimo agrupado: revisa todo lo que ya pasó de hora y
+// sigue pendiente, con tono de "no te rindas, sigo contigo".
 const HORAS_ANIMO = [14, 20];
+
+// Saludo de buenos días y mensaje de buenas noches — una vez al día
+// cada uno, a todos los alumnos vigentes, sin depender de comidas.
+const HORA_BUENOS_DIAS = 7;
+const HORA_BUENAS_NOCHES = 22;
 
 const NOMBRE_COMIDA = {
   Desayuno: 'tu desayuno',
@@ -47,7 +49,6 @@ const NOMBRE_COMIDA = {
   Cena: 'tu cena',
 };
 
-// Variantes de mensaje por comida — tono de acompañante, no de regaño.
 function mensajeJonah(comida, objetivo, horaPeru) {
   const nombre = NOMBRE_COMIDA[comida] || comida;
   const horaAmPm = horaPeru > 12 ? `${horaPeru - 12} pm` : `${horaPeru} ${horaPeru === 12 ? 'pm' : 'am'}`;
@@ -68,7 +69,6 @@ function mensajeJonah(comida, objetivo, horaPeru) {
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
-// Mensajes de hidratación — dos avisos al día, meta real 2-3 litros.
 function mensajeHidratacion() {
   const variantes = [
     { title: 'Jonah 🦍', body: 'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧' },
@@ -79,8 +79,6 @@ function mensajeHidratacion() {
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
-// Mensaje de ánimo agrupado — cuando ya pasó la hora de una o más
-// comidas y siguen sin registrarse. Nunca regaña, siempre acompaña.
 function mensajeAnimo(nombresPendientes) {
   const lista = nombresPendientes.join(', ');
   const variantes = [
@@ -88,6 +86,36 @@ function mensajeAnimo(nombresPendientes) {
     { title: 'Jonah 🦍', body: `Sé que el día se puede complicar. Cuando puedas, registra: ${lista} — aquí sigo, contigo 🦍` },
     { title: 'Jonah 🦍', body: `Un momento libre y seguimos: aún puedes registrar ${lista}. Tú puedes con esto 🔥` },
     { title: 'Jonah 🦍', body: `No pasa nada si se te fue la hora. Registra ${lista} cuando puedas — Jonah no se rinde contigo 🦍` },
+  ];
+  return variantes[Math.floor(Math.random() * variantes.length)];
+}
+
+// Saludo de la mañana — a veces genérico, a veces ligado a su objetivo
+// real si lo tiene configurado.
+function mensajeBuenosDias(objetivo) {
+  const variantes = [
+    { title: 'Jonah 🦍', body: '¡Buenos días! Hoy es un gran día para seguir construyendo tu mejor versión. Aquí estoy, contigo 🦍' },
+    { title: 'Jonah 🦍', body: 'Buenos días 🌅 Que este día te traiga fuerza y buenas decisiones. Jonah está contigo.' },
+    { title: 'Jonah 🦍', body: '¡Arriba! 🦍 Un nuevo día para acercarte a tu objetivo. Vamos con todo.' },
+    { title: 'Jonah 🦍', body: 'Buenos días. Hoy también voy a estar pendiente de ti — que sea un gran día 🔥' },
+  ];
+  if (objetivo) {
+    variantes.push({
+      title: 'Jonah 🦍',
+      body: `Buenos días. Hoy sigamos trabajando en tu objetivo: ${objetivo} 🦍🔥`,
+    });
+  }
+  return variantes[Math.floor(Math.random() * variantes.length)];
+}
+
+// Mensaje de buenas noches — cálido, casi como despedida de un
+// acompañante real, no un aviso más.
+function mensajeBuenasNoches() {
+  const variantes = [
+    { title: 'Jonah 🦍', body: 'Buenas noches 🌙 Descansa bien — yo cuido tus sueños. Mañana seguimos juntos 🦍' },
+    { title: 'Jonah 🦍', body: 'Que descanses. El esfuerzo de hoy ya es parte de tu progreso. Buenas noches 🌙' },
+    { title: 'Jonah 🦍', body: 'Duerme bien, te lo mereces. Jonah está pendiente de ti hasta mañana 🦍💤' },
+    { title: 'Jonah 🦍', body: 'Otro día más caminando juntos. Descansa — mañana seguimos 🌙🦍' },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
@@ -124,7 +152,6 @@ export default async function handler(req, res) {
   const { horaPeru, hoyISO } = horaYFechaPeru();
 
   try {
-    // Solo alumnos con acceso vigente hoy.
     const { data: alumnos, error } = await supabase
       .from('alumnos').select('username')
       .eq('enabled', true)
@@ -134,6 +161,35 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos con acceso vigente' });
     }
     const usernames = alumnos.map(a => a.username);
+
+    // Buenos días — una vez al día, a todos los alumnos vigentes.
+    if (horaPeru === HORA_BUENOS_DIAS) {
+      const { data: datos } = await supabase
+        .from('datos_alumnos').select('username, form').in('username', usernames);
+      const objetivoDe = {};
+      (datos || []).forEach(d => { objetivoDe[d.username] = d.form?.objetivo || null; });
+
+      let totalEnviados = 0;
+      const fallidosTotal = [];
+      for (const u of usernames) {
+        const r = await enviarPushIndividual(supabase, u, mensajeBuenosDias(objetivoDe[u]));
+        totalEnviados += r.enviados;
+        fallidosTotal.push(...r.fallidos);
+      }
+      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'buenos_dias' });
+    }
+
+    // Buenas noches — una vez al día, a todos los alumnos vigentes.
+    if (horaPeru === HORA_BUENAS_NOCHES) {
+      let totalEnviados = 0;
+      const fallidosTotal = [];
+      for (const u of usernames) {
+        const r = await enviarPushIndividual(supabase, u, mensajeBuenasNoches());
+        totalEnviados += r.enviados;
+        fallidosTotal.push(...r.fallidos);
+      }
+      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'buenas_noches' });
+    }
 
     // Hidratación: dos veces al día.
     if (HORAS_HIDRATACION.includes(horaPeru)) {
@@ -184,8 +240,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de comidas' });
     }
 
-    // El plan de comidas de HOY vive en datos_alumnos (no en historial,
-    // que guarda días ya cerrados).
     const { data: datos } = await supabase
       .from('datos_alumnos')
       .select('username, meal_plan, meal_plan_fecha, form')

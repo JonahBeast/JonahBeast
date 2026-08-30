@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     const { data: alumnos, error } = await supabase
-      .from('alumnos').select('username').eq('enabled', true);
+      .from('alumnos').select('username').eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
     if (!alumnos || alumnos.length === 0) {
       return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });

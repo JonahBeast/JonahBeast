@@ -4400,7 +4400,7 @@ function VencimientosPanel({ users, onRenew }) {
   );
 }
 
-const VAPID_PUBLIC = 'BPKy3i21W2b-6QWb5oFODEMD8EmC_cmvIBeWruYXnNQZ4cSAOL_zOZP4_wF1_0--42LFIgCkpavhKESLKOBldwg';
+const VAPID_PUBLIC = 'BOTMzeHDkdZj1YhaDaGBqp1Ytnld-NFAzYKdaiRtZTgdIvcydaxhFyrggYyyelk9lSoSrp7ZaE6P1tAxK1Kb08c';
 
 function base64ToUint8(base64) {
   const pad = '='.repeat((4 - (base64.length % 4)) % 4);

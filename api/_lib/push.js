@@ -41,6 +41,21 @@ export function addDaysISO(iso, dias) {
   return dt.toISOString().slice(0, 10);
 }
 
+/* Día de la semana en Perú (0=domingo, 1=lunes, ... 6=sábado) */
+export function diaSemanaPeru(hoyISO) {
+  const [y, m, d] = hoyISO.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/* Días transcurridos desde una fecha (para aniversarios de uso) */
+export function diasDesde(fechaISO, hoyISO) {
+  const [y1, m1, d1] = fechaISO.split('-').map(Number);
+  const [y2, m2, d2] = hoyISO.split('-').map(Number);
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(y2, m2 - 1, d2);
+  return Math.round((b - a) / 86400000);
+}
+
 /* Mismo cálculo de "número de semana del año" que usa el frontend
    (App.jsx → numeroDeSemana), para que ambos coincidan en qué semana es. */
 export function numeroDeSemana(hoyISO) {

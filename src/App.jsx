@@ -3207,6 +3207,18 @@ function ReferidosPanel({ users, onCambio }) {
     } catch {}
   }
 
+  async function eliminar(r) {
+    const lista = porCodigo[r.codigo.toUpperCase()] || [];
+    const aviso = lista.length > 0
+      ? `${r.nombre} (${r.codigo}) tiene ${lista.length} referido(s) registrado(s). Se eliminará su código, pero esos alumnos y su historial de pagos se conservan — solo dejan de estar vinculados a este embajador. ¿Eliminar de todas formas?`
+      : `¿Eliminar el código de ${r.nombre} (${r.codigo})? Esta acción no se puede deshacer.`;
+    if (!window.confirm(aviso)) return;
+    try {
+      await supabase.from('referidores').delete().eq('codigo', r.codigo);
+      await cargar();
+    } catch {}
+  }
+
   async function marcarPagada(username) {
     try {
       await supabase.from('alumnos')
@@ -3425,6 +3437,10 @@ function ReferidosPanel({ users, onCambio }) {
                           <button onClick={() => alternar(r)}
                             className={(r.activo ? btnDanger : btnGhost) + ' py-1.5 px-3 text-xs'}>
                             {r.activo ? 'Desactivar' : 'Activar'}
+                          </button>
+                          <button onClick={() => eliminar(r)}
+                            className="text-red-500 hover:text-red-400 p-1.5" title="Eliminar embajador">
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </div>

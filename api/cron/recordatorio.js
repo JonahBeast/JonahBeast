@@ -4,8 +4,9 @@
 // (Desayuno, Media mañana, Almuerzo, Media tarde, Cena) en su horario
 // típico, y si no la registró, le manda un push con la voz de Jonah —
 // a veces un recordatorio simple, a veces preguntando cómo va, a veces
-// recordándole su objetivo. A mediodía manda además un aviso aparte
-// de hidratación, sin depender de si registró o no una comida.
+// recordándole su objetivo. Al mediodía y a media tarde manda además
+// un aviso aparte de hidratación (2 al día), sin depender de si
+// registró o no una comida.
 //
 // Solo se envía a alumnos con acceso vigente (enabled=true y su plan
 // o prueba gratis no vencidos). Así, cuando alguien se va sin renovar,
@@ -27,6 +28,11 @@ const VENTANAS = {
   21: 'Cena',
 };
 
+// Horas de hidratación — separadas de las de comida, 2 veces al día
+// (a media mañana-mediodía y a media tarde), porque con un solo aviso
+// no alcanza a cubrir el hábito real de tomar 2-3 litros diarios.
+const HORAS_HIDRATACION = [12, 16];
+
 const NOMBRE_COMIDA = {
   Desayuno: 'tu desayuno',
   'Media mañana': 'tu media mañana',
@@ -47,6 +53,7 @@ function mensajeJonah(comida, objetivo, horaPeru) {
     { title: 'Jonah 🦍', body: `Son las ${horaAmPm}, ¿ya comiste? No olvides registrar ${nombre}.` },
     { title: 'Jonah 🦍', body: `Estoy contigo, acompañándote en tu proceso. Registra ${nombre} y seguimos 🦍` },
     { title: 'Jonah 🦍', body: `¿Cómo va tu día? Aún no veo ${nombre} — cuéntame qué tal vas.` },
+    { title: 'Jonah 🦍', body: `Jonah siempre está pendiente de ti 🦍 — registra ${nombre} cuando puedas.` },
   ];
   if (objetivo) {
     variantes.push({
@@ -57,13 +64,15 @@ function mensajeJonah(comida, objetivo, horaPeru) {
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
-// Mensaje de hidratación — un chequeo que no depende de las comidas,
-// solo de que Jonah está pendiente de ti durante el día.
+// Mensajes de hidratación — dos avisos al día, no uno solo, porque la
+// meta real son 2-3 litros diarios, no "un vaso". El tono siempre es
+// de acompañamiento, nunca de regaño.
 function mensajeHidratacion() {
   const variantes = [
-    { title: 'Jonah 🦍', body: 'No olvides hidratarte — un vaso de agua ahora mismo te cae bien 💧' },
-    { title: 'Jonah 🦍', body: '¿Ya tomaste agua hoy? Pequeños hábitos como este también suman.' },
-    { title: 'Jonah 🦍', body: 'Jonah siempre está pendiente de ti 🦍 — recuerda tomar agua durante el día.' },
+    { title: 'Jonah 🦍', body: 'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧' },
+    { title: 'Jonah 🦍', body: '¿Cómo vas con el agua hoy? Recuerda llegar a tus 2-3 litros diarios.' },
+    { title: 'Jonah 🦍', body: 'Un buen momento para tomar agua. Jonah siempre estará al pendiente de ti 🦍' },
+    { title: 'Jonah 🦍', body: 'Hidratarte bien también es parte de tu objetivo. Vamos, un vaso más 💧' },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
@@ -112,8 +121,8 @@ export default async function handler(req, res) {
     }
     const usernames = alumnos.map(a => a.username);
 
-    // Mediodía: aviso de hidratación aparte, a todos los alumnos vigentes.
-    if (horaPeru === 12) {
+    // Hidratación: dos veces al día, a todos los alumnos vigentes.
+    if (HORAS_HIDRATACION.includes(horaPeru)) {
       let totalEnviados = 0;
       const fallidosTotal = [];
       for (const u of usernames) {
@@ -121,7 +130,7 @@ export default async function handler(req, res) {
         totalEnviados += r.enviados;
         fallidosTotal.push(...r.fallidos);
       }
-      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'hidratacion' });
+      return res.status(200).json({ ok: true, enviados: totalEnviados, fallidos: fallidosTotal, tipo: 'hidratacion', horaPeru });
     }
 
     const comida = VENTANAS[horaPeru];

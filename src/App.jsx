@@ -3099,12 +3099,12 @@ function PanelReferidor({ token, onSalir }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓMO COMPARTIR TU CÓDIGO</h3>
           <p className="jb-body text-sm text-zinc-400 mb-3">
-            Diles que entren a <span className="text-orange-500">jonah-beast.vercel.app</span>, toquen
+            Diles que entren a <span className="text-orange-500">jonahbeast.com</span>, toquen
             "Prueba gratis 15 días" y escriban <span className="text-orange-500">{datos.codigo}</span> en
             el campo de código de referido.
           </p>
           <a href={`https://wa.me/?text=${encodeURIComponent(
-            `Entra a jonah-beast.vercel.app y prueba 15 días gratis. Usa mi código ${datos.codigo} al registrarte` +
+            `Entra a jonahbeast.com y prueba 15 días gratis. Usa mi código ${datos.codigo} al registrarte` +
             (Number(datos.descuento_pct) > 0 ? ` y obtén ${datos.descuento_pct}% de descuento.` : '.'))}`}
             target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5'}>
             <MessageCircle size={16} /> Compartir por WhatsApp
@@ -5885,7 +5885,7 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
   // Pie
   ctx.fillStyle = '#F97316';
   ctx.font = 'bold 36px Arial';
-  ctx.fillText('jonah-beast.vercel.app', 70, H - 70);
+  ctx.fillText('jonahbeast.com', 70, H - 70);
 
   return new Promise((resolve, reject) => {
     try {
@@ -7614,7 +7614,7 @@ export default function App() {
   const [tokenRef, setTokenRef] = useState(null);
 
   useEffect(() => {
-    // Enlace del referidor: jonah-beast.vercel.app/r/su-token
+    // Enlace del referidor: jonahbeast.com/r/su-token
     const m = window.location.pathname.match(/^\/r\/([A-Za-z0-9._-]+)/);
     if (m) { setTokenRef(m[1]); return; }
 

@@ -66,11 +66,13 @@ export default async function handler(req, res) {
         'Hace un tiempo que no te veo por aquí. No pasa nada, retomar también cuenta 💪',
         'Un día sin registrar no borra tu progreso. Cuando puedas, aquí estoy 🦍',
       ];
-      for (const u of sinRegistro) {
+      // En paralelo, no uno por uno — evita que la función se quede
+      // corta de tiempo con muchos alumnos.
+      const resultados = await Promise.all(sinRegistro.map(u => {
         const body = variantes[Math.floor(Math.random() * variantes.length)];
-        const r = await enviarPushA(supabase, [u], { title: 'Jonah 🦍', body });
-        totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
-      }
+        return enviarPushA(supabase, [u], { title: 'Jonah 🦍', body });
+      }));
+      resultados.forEach(r => { totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos); });
     }
 
     // 3. Celebración de hito: registró hoy y su racha cruzó un nuevo hito.
@@ -83,14 +85,14 @@ export default async function handler(req, res) {
         conHitoNuevo.push({ username: u, hito: hitoAlcanzado });
       }
     }
-    for (const { username, hito } of conHitoNuevo) {
+    await Promise.all(conHitoNuevo.map(async ({ username, hito }) => {
       const r = await enviarPushA(supabase, [username], {
         title: 'Jonah 🦍',
         body: `🔥 ¡Llegaste a ${hito} días de racha! Eso es constancia de verdad — sigue así, vamos con todo 🦍`,
       });
       totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
       await supabase.from('alumnos').update({ ultimo_hito_racha: hito }).eq('username', username);
-    }
+    }));
 
     return res.status(200).json({
       ok: true, enviados: totalEnviados, fallidos: fallidosTotal,

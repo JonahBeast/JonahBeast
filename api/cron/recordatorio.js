@@ -106,7 +106,7 @@ function mensajeBuenasNoches() {
 // consulta de suscripciones — esto es lo que evita el timeout.
 // targets: [{ username, mensaje: {title, body} }]
 async function enviarLote(supabase, targets) {
-  if (!targets.length) return { enviados: 0, fallidos: 0 };
+  if (!targets.length) return { enviados: 0, fallidos: 0, detalleFallos: [] };
   const usernames = [...new Set(targets.map(t => t.username))];
   const { data: subs } = await supabase.from('push_subs').select('*').eq('activa', true).in('username', usernames);
 
@@ -120,8 +120,14 @@ async function enviarLote(supabase, targets) {
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
-          .then(() => ({ ok: true }))
-          .catch(err => ({ ok: false, endpoint: sub.endpoint, statusCode: err.statusCode }))
+          .then(() => ({ ok: true, username }))
+          .catch(err => {
+            // Antes esto se guardaba en silencio. Ahora queda registrado
+            // con el detalle real (código y mensaje) para poder
+            // diagnosticar sin adivinar.
+            console.error(`Push fallido para ${username} (endpoint ...${sub.endpoint.slice(-20)}): statusCode=${err.statusCode} body=${err.body || err.message}`);
+            return { ok: false, endpoint: sub.endpoint, username, statusCode: err.statusCode, mensaje: err.body || err.message };
+          })
       );
     }
   }
@@ -129,16 +135,20 @@ async function enviarLote(supabase, targets) {
   const resultados = await Promise.allSettled(tareas);
   let enviados = 0;
   const endpointsInvalidos = [];
+  const detalleFallos = [];
   resultados.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) enviados++;
-    else if (r.status === 'fulfilled' && (r.value.statusCode === 410 || r.value.statusCode === 404)) {
-      endpointsInvalidos.push(r.value.endpoint);
-    }
+    if (r.status === 'fulfilled' && r.value.ok) { enviados++; return; }
+    const val = r.status === 'fulfilled' ? r.value : { ok: false, mensaje: String(r.reason) };
+    detalleFallos.push({ username: val.username, statusCode: val.statusCode, mensaje: val.mensaje });
+    // Solo se desactiva la suscripción si el dispositivo ya no existe
+    // (410/404) — un 401/403 es un problema de configuración nuestra
+    // (llaves VAPID), no de la suscripción, así que no se borra.
+    if (val.statusCode === 410 || val.statusCode === 404) endpointsInvalidos.push(val.endpoint);
   });
   if (endpointsInvalidos.length) {
     await supabase.from('push_subs').update({ activa: false }).in('endpoint', endpointsInvalidos);
   }
-  return { enviados, fallidos: tareas.length - enviados };
+  return { enviados, fallidos: detalleFallos.length, detalleFallos };
 }
 
 export default async function handler(req, res) {

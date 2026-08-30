@@ -1651,16 +1651,18 @@ const JONAH_FRASES_MOTIVACION = [
   'No hace falta perfección, solo constancia.',
   'Ya diste el paso más difícil: empezar.',
   'Tu cuerpo ya empezó a notar el esfuerzo.',
-  'No olvides hidratarte, eso también cuenta 💧',
+  'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧',
   'Estoy contigo, acompañándote en tu proceso 🦍',
   '¿Cómo va tu día? Aquí estoy si me necesitas.',
-  'Jonah siempre está pendiente de ti.',
+  'Jonah siempre estará al pendiente de ti.',
+  'No caminas solo(a) en esto. Yo sigo aquí, contigo.',
+  'Cada pequeño paso de hoy es parte de tu mejor versión.',
 ];
 const JONAH_FRASES_OCIO = [
   '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
   'Estoy aquí cuando me necesites 💪',
   'Toca de nuevo y te doy otro consejo 🦍',
-  '¿Ya tomaste agua hoy? No lo olvides.',
+  '¿Cómo vas con el agua hoy? Recuerda tus 2-3 litros diarios.',
 ];
 
 /* Jonah, la mascota interactiva de la app. Se presenta la primera vez,

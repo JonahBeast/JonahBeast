@@ -4410,14 +4410,22 @@ function base64ToUint8(base64) {
 }
 
 function RecordatorioBanner({ username }) {
-  const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado
+  const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado | iosNoInstalado
   const [ocultoManual, setOcultoManual] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
 
   useEffect(() => {
     (async () => {
+      const ua = window.navigator.userAgent || '';
+      const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      const instalada = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        setEstado('nosoportado'); return;
+        // En iPhone, esto es normal si todavía no instaló la app —
+        // se lo explicamos en vez de quedarnos en silencio.
+        setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        return;
       }
       try { if (localStorage.getItem('jb_notif_no')) { setOcultoManual(true); } } catch {}
 
@@ -4483,6 +4491,17 @@ function RecordatorioBanner({ username }) {
   }
 
   if (estado === 'cargando' || estado === 'nosoportado') return null;
+  if (estado === 'iosNoInstalado') {
+    return (
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-xl p-3 mb-6 flex items-center gap-3">
+        <span className="text-lg shrink-0">🦍</span>
+        <p className="jb-body text-xs text-zinc-400">
+          Para que Jonah pueda acompañarte con notificaciones en iPhone, primero instala la app en tu pantalla
+          de inicio — mira el aviso de arriba 📲
+        </p>
+      </div>
+    );
+  }
   if (estado === 'activo') {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center gap-3 flex-wrap">
@@ -4598,9 +4617,13 @@ function InstalarBanner() {
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-lg shrink-0">📲</div>
         <div className="flex-1">
-          <p className="jb-display text-sm text-orange-500 mb-1">TENLA EN TU PANTALLA DE INICIO</p>
+          <p className="jb-display text-sm text-orange-500 mb-1">
+            {esIOS ? 'IMPORTANTE PARA RECIBIR A JONAH' : 'TENLA EN TU PANTALLA DE INICIO'}
+          </p>
           <p className="jb-body text-sm text-zinc-300">
-            Instálala y ábrela con un toque, como cualquier app. Ocupa casi nada.
+            {esIOS
+              ? 'Para que Jonah pueda acompañarte con notificaciones, primero instala la app en tu pantalla de inicio — en iPhone es el único modo en que funcionan.'
+              : 'Instálala en tu pantalla de inicio: así Jonah puede acompañarte con notificaciones, aunque tengas la app cerrada.'}
           </p>
 
           {verPasos ? (

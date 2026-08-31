@@ -1047,6 +1047,7 @@ function interpretarVarios(textoCompleto) {
     const candidatas = [];
     for (const f of FOODS) {
       const nombreLower = f.name.toLowerCase();
+      const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
@@ -1061,6 +1062,17 @@ function interpretarVarios(textoCompleto) {
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
+      // El estado (frito, cocido, crudo...) también cuenta — así "huevo
+      // frito" distingue de "huevo cocido", no los deja empatados.
+      if (estadoLower && score > 0) {
+        const palabrasResto = restoLower.split(/\s+/);
+        for (const w of palabrasResto) {
+          if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
+            score += 40;
+            break;
+          }
+        }
+      }
       if (score > 0) candidatas.push({ food: f, score });
     }
     candidatas.sort((a, b) => b.score - a.score);
@@ -1072,9 +1084,10 @@ function interpretarVarios(textoCompleto) {
 
     // Si hay 2+ opciones distintas con un puntaje parecido al mejor
     // (dentro del 70%), no se adivina — se le pregunta al alumno cuál
-    // de todas es. Ej: "pollo" puede ser con piel, sin piel, a la
-    // brasa, al horno... y eso cambia bastante las calorías reales.
-    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.name !== mejor.name);
+    // de todas es. Se compara por "key" (nombre + estado), no solo el
+    // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
+    // entre sí por compartir el mismo nombre base.
+    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
     const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
@@ -1165,7 +1178,7 @@ function ModoVoz({ onElegirVarios }) {
                   {it.opciones.map((op, j) => (
                     <button key={j} onClick={() => elegirOpcion(i, op)}
                       className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-violet-500/60 rounded-full px-2.5 py-1 text-zinc-200">
-                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}
+                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
                 </div>
@@ -1175,7 +1188,7 @@ function ModoVoz({ onElegirVarios }) {
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
-                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
+                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
                 </span>
               </button>
             )

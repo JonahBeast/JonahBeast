@@ -307,6 +307,7 @@ const UNITS_BY_NAME = {
   'Pera': [['unidad', 170]],
   'Palta': [['unidad', 200], ['mitad', 100]],
   'Pan francés': [['unidad', 55]],
+  'Quinua (Cocida)': [['taza', 185]],
   'Pan integral': [['rebanada', 30]],
   'Galleta de soda': [['unidad', 6], ['paquete', 34]],
   'Aceite vegetal': [['cucharada', 14], ['cucharadita', 5]],
@@ -488,6 +489,19 @@ function unidadPorDefecto(food) {
 function gramsPerUnit(food, unit) {
   const found = unitsFor(food).find(u => u[0] === unit);
   return found ? found[1] : 1;
+}
+
+/* Convierte una cantidad en gramos a la unidad casera más natural del
+   alimento (si existe una) — así "70g de pan francés" se muestra como
+   "1 unidad" y no como un número de gramos sin sentido para el usuario. */
+function gramosANatural(food, gramos) {
+  if (!food) return { unit: 'gramos', qty: gramos };
+  const lista = unitsFor(food);
+  const natural = lista.find(u => u[0] !== 'gramos');
+  if (!natural) return { unit: 'gramos', qty: Math.max(5, Math.round(gramos / 5) * 5) };
+  const [unit, porUnidad] = natural;
+  const qty = Math.max(0.5, Math.round((gramos / porUnidad) * 2) / 2);
+  return { unit, qty };
 }
 
 const ACTIVITY_FACTORS = { Sedentario: 1.2, Ligero: 1.375, Moderado: 1.55, Intenso: 1.725, 'Muy intenso': 1.9 };
@@ -1164,7 +1178,10 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
       ...v,
       meals: {
         ...v.meals,
-        [mealDestino]: [...v.meals[mealDestino], ...opt.items.map(it => ({ id: uid(), foodKey: it.food.key, qty: it.grams, unit: 'gramos' }))],
+        [mealDestino]: [...v.meals[mealDestino], ...opt.items.map(it => {
+          const eq = gramosANatural(it.food, it.grams);
+          return { id: uid(), foodKey: it.food.key, qty: eq.qty, unit: eq.unit };
+        })],
       },
     }));
     vibrar(15);
@@ -1312,7 +1329,10 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
         ...v.meals,
         [targetMeal]: [
           ...v.meals[targetMeal],
-          ...option.items.map(it => ({ id: uid(), foodKey: it.food.key, qty: it.grams, unit: 'gramos' })),
+          ...option.items.map(it => {
+            const eq = gramosANatural(it.food, it.grams);
+            return { id: uid(), foodKey: it.food.key, qty: eq.qty, unit: eq.unit };
+          }),
         ],
       },
     }));

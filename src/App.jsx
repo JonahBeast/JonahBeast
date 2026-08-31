@@ -955,7 +955,7 @@ function interpretarVarios(textoCompleto) {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
     seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   };
-  const partes = textoCompleto.split(/\+|,|\by\b/gi).map(s => s.trim()).filter(Boolean);
+  const partes = textoCompleto.split(/\+|,|\by\b|\bm[aá]s\b/gi).map(s => s.trim()).filter(Boolean);
 
   return partes.map(parte => {
     let cantidad = 1;
@@ -1075,15 +1075,17 @@ function ModoVoz({ onElegirVarios }) {
   );
 }
 
-function ModoDeslizar({ remaining, restricciones, onAgregarCombo }) {
+function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo }) {
   const combos = useMemo(
-    () => [...generateCombos(remaining, null, restricciones), ...generateQuickOptions(remaining, restricciones)],
-    [remaining, restricciones]
+    () => [...generateCombos(remaining, mealDestino, restricciones), ...generateQuickOptions(remaining, restricciones)],
+    [remaining, restricciones, mealDestino]
   );
   const [idx, setIdx] = useState(0);
   const [dx, setDx] = useState(0);
   const arrastrando = useRef(false);
   const startXRef = useRef(null);
+
+  useEffect(() => { setIdx(0); }, [mealDestino]);
 
   const actual = combos[idx % Math.max(1, combos.length)];
 
@@ -1224,7 +1226,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
           {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
-          {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} onAgregarCombo={agregarCombo} />}
+          {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} mealDestino={mealDestino} onAgregarCombo={agregarCombo} />}
         </div>
       )}
     </div>

@@ -899,6 +899,243 @@ function RestriccionesCard({ mealPlan, setMealPlan }) {
   );
 }
 
+/* Registro rápido: 3 formas de registrar sin pasar por el buscador de
+   siempre, para atacar el "es aburrido registrar" que salió en la
+   encuesta. Es 100% aparte del flujo normal — si algo fallara aquí,
+   el buscador de cada comida sigue funcionando igual que siempre. */
+function useComidasFrecuentes(username) {
+  const [top, setTop] = useState([]);
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from('historial')
+          .select('meal_plan').eq('username', username)
+          .not('meal_plan', 'is', null).order('fecha', { ascending: false }).limit(45);
+        const conteo = {};
+        (data || []).forEach(r => {
+          Object.values(r.meal_plan?.meals || {}).forEach(lista => (lista || []).forEach(en => {
+            if (!en.foodKey) return;
+            conteo[en.foodKey] = (conteo[en.foodKey] || 0) + 1;
+          }));
+        });
+        const ordenado = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 9)
+          .map(([key]) => buscarFood(key)).filter(Boolean);
+        setTop(ordenado);
+      } catch {}
+    })();
+  }, [username]);
+  return top;
+}
+
+function ModoFavoritos({ favoritos, onElegir }) {
+  if (!favoritos.length) {
+    return <p className="jb-body text-xs text-zinc-500 text-center py-6">Aún no tenemos suficiente historial tuyo — sigue registrando unos días y aquí aparecerán tus comidas más repetidas, para agregarlas de un toque.</p>;
+  }
+  return (
+    <div className="grid grid-cols-3 gap-2 py-2">
+      {favoritos.map(f => (
+        <button key={f.key} onClick={() => onElegir(f)}
+          className="bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
+          <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+          <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ModoVoz({ onElegir }) {
+  const [escuchando, setEscuchando] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [resultados, setResultados] = useState([]);
+  const soportado = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  function escuchar() {
+    if (!soportado) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.lang = 'es-PE';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setEscuchando(true);
+    setResultados([]);
+    rec.onresult = (e) => {
+      const dicho = e.results[0][0].transcript;
+      setTexto(dicho);
+      const q = dicho.toLowerCase();
+      const palabras = q.split(/\s+/).filter(w => w.length > 3);
+      const encontrados = FOODS.filter(f => {
+        const nombre = f.name.toLowerCase();
+        return nombre.includes(q) || palabras.some(p => nombre.includes(p));
+      }).slice(0, 6);
+      setResultados(encontrados);
+    };
+    rec.onerror = () => setEscuchando(false);
+    rec.onend = () => setEscuchando(false);
+    try { rec.start(); } catch { setEscuchando(false); }
+  }
+
+  if (!soportado) {
+    return <p className="jb-body text-xs text-zinc-500 text-center py-6">Tu navegador no soporta el registro por voz todavía. Prueba desde Chrome en Android, o usa los otros modos.</p>;
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-3">
+      <button onClick={escuchar} disabled={escuchando}
+        className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all ${escuchando ? 'bg-red-500 animate-pulse scale-110' : 'bg-gradient-to-br from-orange-500 to-violet-600'}`}>
+        🎤
+      </button>
+      <p className="jb-body text-xs text-zinc-500">{escuchando ? 'Escuchando...' : 'Toca y di qué comiste'}</p>
+      {texto && <p className="jb-body text-sm text-zinc-300 italic">"{texto}"</p>}
+      {resultados.length > 0 ? (
+        <div className="flex flex-wrap gap-2 justify-center mt-1">
+          {resultados.map(f => (
+            <button key={f.key} onClick={() => onElegir(f)}
+              className="jb-body text-xs bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-full px-3 py-1.5 text-zinc-200">
+              {GROUP_EMOJI[f.group] || '🍴'} {f.name}
+            </button>
+          ))}
+        </div>
+      ) : texto ? (
+        <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>
+      ) : null}
+    </div>
+  );
+}
+
+function ModoDeslizar({ remaining, restricciones, onAgregarCombo }) {
+  const combos = useMemo(
+    () => [...generateCombos(remaining, null, restricciones), ...generateQuickOptions(remaining, restricciones)],
+    [remaining, restricciones]
+  );
+  const [idx, setIdx] = useState(0);
+  const [dx, setDx] = useState(0);
+  const arrastrando = useRef(false);
+  const startXRef = useRef(null);
+
+  const actual = combos[idx % Math.max(1, combos.length)];
+
+  function onStart(x) { startXRef.current = x; arrastrando.current = true; }
+  function onMove(x) { if (startXRef.current === null) return; setDx(x - startXRef.current); }
+  function onEnd() {
+    arrastrando.current = false;
+    if (dx > 80 && actual) { onAgregarCombo(actual); siguiente(); }
+    else if (dx < -80) { siguiente(); }
+    setDx(0);
+    startXRef.current = null;
+  }
+  function siguiente() { setIdx(v => v + 1); }
+
+  if (!combos.length) {
+    return <p className="jb-body text-xs text-zinc-500 text-center py-6">No hay sugerencias disponibles con lo que te queda del día — vuelve más tarde.</p>;
+  }
+  if (!actual) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-3">
+      <div
+        className="relative bg-zinc-950 border-2 border-zinc-800 rounded-2xl p-5 w-full max-w-xs text-center select-none"
+        style={{
+          transform: `translateX(${dx}px) rotate(${dx / 20}deg)`,
+          transition: arrastrando.current ? 'none' : 'transform 0.25s ease',
+          touchAction: 'pan-y',
+        }}
+        onTouchStart={e => onStart(e.touches[0].clientX)}
+        onTouchMove={e => onMove(e.touches[0].clientX)}
+        onTouchEnd={onEnd}
+      >
+        <div className="text-4xl mb-2">{actual.emoji}</div>
+        <p className="jb-display text-base text-zinc-100 mb-1">{actual.name}</p>
+        <p className="jb-body text-xs text-zinc-500">{Math.round(actual.kcal)} kcal · P {Math.round(actual.protein)}g</p>
+      </div>
+      <div className="flex gap-6 mt-1">
+        <button onClick={siguiente} className="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-xl">✕</button>
+        <button onClick={() => { onAgregarCombo(actual); siguiente(); }} className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-xl">✓</button>
+      </div>
+      <p className="jb-body text-[10px] text-zinc-600">Desliza a la derecha para agregar, izquierda para saltar</p>
+    </div>
+  );
+}
+
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones }) {
+  const [open, setOpen] = useState(false);
+  const [modo, setModo] = useState('favoritos');
+  const [mealDestino, setMealDestino] = useState(MEAL_NAMES[0]);
+  const favoritos = useComidasFrecuentes(username);
+
+  function agregarDirecta(food) {
+    const d = unidadPorDefecto(food);
+    setMealPlan(v => ({
+      ...v,
+      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id: uid(), foodKey: food.key, qty: d.qty, unit: d.unit }] },
+    }));
+    vibrar(15);
+    showToast(`✅ ${food.name} agregado a ${mealDestino}`);
+  }
+
+  function agregarCombo(opt) {
+    setMealPlan(v => ({
+      ...v,
+      meals: {
+        ...v.meals,
+        [mealDestino]: [...v.meals[mealDestino], ...opt.items.map(it => ({ id: uid(), foodKey: it.food.key, qty: it.grams, unit: 'gramos' }))],
+      },
+    }));
+    vibrar(15);
+    showToast(`✅ ${opt.name} agregado a ${mealDestino}`);
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-violet-500/40 rounded-2xl p-5 mb-6">
+      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-orange-500 flex items-center justify-center text-sm shrink-0">⚡</div>
+          <div>
+            <p className="jb-display text-sm text-zinc-200">REGISTRO RÁPIDO</p>
+            <p className="jb-body text-[11px] text-zinc-500">Favoritos, por voz, o deslizando — sin escribir nada</p>
+          </div>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="mt-4 flex flex-col gap-3">
+          <div>
+            <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
+            <div className="flex gap-2 flex-wrap">
+              {MEAL_NAMES.map(m => {
+                const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
+                return (
+                  <button key={m} onClick={() => setMealDestino(m)}
+                    className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${mealDestino === m
+                      ? 'bg-violet-500 border-violet-500 text-zinc-950 font-semibold'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                    <span>{mealIcon}</span>{m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex gap-2 border-b border-zinc-800 pb-2">
+            {[['favoritos', '⭐ Favoritos'], ['voz', '🎤 Por voz'], ['deslizar', '👆 Deslizar']].map(([v, l]) => (
+              <button key={v} onClick={() => setModo(v)}
+                className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${modo === v ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
+          {modo === 'voz' && <ModoVoz onElegir={agregarDirecta} />}
+          {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} onAgregarCombo={agregarCombo} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   const [open, setOpen] = useState(false);
   const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
@@ -7287,6 +7524,15 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
       </div>
 
       <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
+
+      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
+        restricciones={mealPlan.restricciones || []}
+        remaining={{
+          kcal: mealPlan.targetKcal - totals.kcal,
+          protein: objP - totals.protein,
+          carbs: objC - totals.carbs,
+          fat: objF - totals.fat,
+        }} />
 
       <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
         kcal: mealPlan.targetKcal - totals.kcal,

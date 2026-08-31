@@ -979,6 +979,16 @@ function interpretarVarios(textoCompleto) {
   };
   const partes = textoCompleto.split(/\+|,|\by\b|\bm[aá]s\b/gi).map(s => s.trim()).filter(Boolean);
 
+  // Genera variantes en singular de una palabra en español, para que
+  // "panes" también encuentre "Pan francés" y "huevos" encuentre
+  // "Huevo de gallina" — la base de datos guarda todo en singular.
+  function variantesSingular(palabra) {
+    const set = new Set([palabra]);
+    if (palabra.length > 4 && /[^aeiouáéíóú]es$/.test(palabra)) set.add(palabra.slice(0, -2)); // panes -> pan
+    if (palabra.length > 3 && palabra.endsWith('s')) set.add(palabra.slice(0, -1)); // huevos -> huevo
+    return [...set];
+  }
+
   return partes.map(parte => {
     let cantidad = 1;
     let resto = parte;
@@ -995,17 +1005,23 @@ function interpretarVarios(textoCompleto) {
     }
     resto = resto.replace(/^(taza|plato|porci[oó]n|vaso|rebanada|unidad(es)?)\s+de\s+/i, '').trim();
     const restoLower = resto.toLowerCase();
+    const restoVariantes = variantesSingular(restoLower);
 
     let mejor = null, mejorScore = 0;
     for (const f of FOODS) {
       const nombreLower = f.name.toLowerCase();
       let score = 0;
-      if (nombreLower === restoLower) score = 100;
-      else if (restoLower.length > 2 && nombreLower.includes(restoLower)) score = 50 + restoLower.length;
-      else if (nombreLower.length > 2 && restoLower.includes(nombreLower)) score = 30 + nombreLower.length;
-      else {
+      for (const rv of restoVariantes) {
+        if (nombreLower === rv) score = Math.max(score, 100);
+        else if (rv.length > 2 && nombreLower.includes(rv)) score = Math.max(score, 50 + rv.length);
+        else if (nombreLower.length > 2 && rv.includes(nombreLower)) score = Math.max(score, 30 + nombreLower.length);
+      }
+      if (score === 0) {
         const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
-        const coincidencias = palabrasResto.filter(w => nombreLower.includes(w)).length;
+        let coincidencias = 0;
+        for (const w of palabrasResto) {
+          if (variantesSingular(w).some(v => nombreLower.includes(v))) coincidencias++;
+        }
         if (coincidencias > 0) score = coincidencias * 5;
       }
       if (score > mejorScore) { mejorScore = score; mejor = f; }

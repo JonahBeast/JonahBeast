@@ -1020,7 +1020,10 @@ function interpretarVarios(textoCompleto) {
     const restoLower = resto.toLowerCase();
     const restoVariantes = variantesSingular(restoLower);
 
-    let mejor = null, mejorScore = 0;
+    // Se calculan TODAS las coincidencias razonables (no solo la
+    // mejor), para poder detectar cuando hay varias parecidas y no
+    // está claro cuál es — en vez de adivinar en silencio.
+    const candidatas = [];
     for (const f of FOODS) {
       const nombreLower = f.name.toLowerCase();
       let score = 0;
@@ -1037,9 +1040,29 @@ function interpretarVarios(textoCompleto) {
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
-      if (score > mejorScore) { mejorScore = score; mejor = f; }
+      if (score > 0) candidatas.push({ food: f, score });
     }
-    return mejor ? { textoOriginal: parte.trim(), cantidad, gramosExplicitos, food: mejor } : null;
+    candidatas.sort((a, b) => b.score - a.score);
+
+    if (candidatas.length === 0) return null;
+
+    const mejor = candidatas[0].food;
+    const mejorScore = candidatas[0].score;
+
+    // Si hay 2+ opciones distintas con un puntaje parecido al mejor
+    // (dentro del 70%), no se adivina — se le pregunta al alumno cuál
+    // de todas es. Ej: "pollo" puede ser con piel, sin piel, a la
+    // brasa, al horno... y eso cambia bastante las calorías reales.
+    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.name !== mejor.name);
+    const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
+    const opciones = necesitaAclarar
+      ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
+      : null;
+
+    return {
+      textoOriginal: parte.trim(), cantidad, gramosExplicitos,
+      food: mejor, necesitaAclarar, opciones,
+    };
   }).filter(Boolean);
 }
 
@@ -1073,7 +1096,12 @@ function ModoVoz({ onElegirVarios }) {
     setItems(v => v.map((it, idx) => idx === i ? { ...it, activo: !it.activo } : it));
   }
 
+  function elegirOpcion(i, food) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false } : it));
+  }
+
   function agregarSeleccionados() {
+    if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
     const activos = items.filter(it => it.activo);
     if (!activos.length) return;
     onElegirVarios(activos);
@@ -1107,17 +1135,37 @@ function ModoVoz({ onElegirVarios }) {
       {items.length > 0 ? (
         <div className="w-full flex flex-col gap-2 mt-1">
           {items.map((it, i) => (
-            <button key={i} onClick={() => alternarItem(i)}
-              className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
-              <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
-              <span className="jb-body text-xs text-zinc-200 flex-1">
-                {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
-              </span>
-            </button>
+            it.necesitaAclarar ? (
+              <div key={i} className="w-full bg-violet-950/30 border border-violet-500/40 rounded-lg p-2.5">
+                <p className="jb-body text-[11px] text-violet-300 mb-2">
+                  🤔 Dijiste "{it.textoOriginal}" — ¿cuál de estas es?
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {it.opciones.map((op, j) => (
+                    <button key={j} onClick={() => elegirOpcion(i, op)}
+                      className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-violet-500/60 rounded-full px-2.5 py-1 text-zinc-200">
+                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <button key={i} onClick={() => alternarItem(i)}
+                className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
+                <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
+                <span className="jb-body text-xs text-zinc-200 flex-1">
+                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
+                </span>
+              </button>
+            )
           ))}
-          <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-            Agregar {items.filter(it => it.activo).length} alimento(s)
-          </button>
+          {items.some(it => it.necesitaAclarar) ? (
+            <p className="jb-body text-[11px] text-violet-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
+          ) : (
+            <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
+              Agregar {items.filter(it => it.activo).length} alimento(s)
+            </button>
+          )}
         </div>
       ) : texto ? (
         <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>

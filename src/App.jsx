@@ -308,6 +308,7 @@ const UNITS_BY_NAME = {
   'Palta': [['unidad', 200], ['mitad', 100]],
   'Pan francés': [['unidad', 55]],
   'Quinua (Cocida)': [['taza', 185]],
+  'Fresa (Cruda)': [['unidad', 15]],
   'Pan integral': [['rebanada', 30]],
   'Galleta de soda': [['unidad', 6], ['paquete', 34]],
   'Aceite vegetal': [['cucharada', 14], ['cucharadita', 5]],
@@ -1004,6 +1005,18 @@ function interpretarVarios(textoCompleto) {
       }
     }
     resto = resto.replace(/^(taza|plato|porci[oó]n|vaso|rebanada|unidad(es)?)\s+de\s+/i, '').trim();
+
+    // Si la persona dijo la unidad de peso explícitamente ("150 g de
+    // yogurt", "200 ml de leche"), se respeta ese gramaje tal cual —
+    // no se multiplica por la unidad natural del alimento.
+    let gramosExplicitos = null;
+    const mPeso = resto.match(/^(kg|kilogramos?|kilos?|gramos?|grs?|g|ml|mililitros?)\b\.?\s*(?:de\s+)?(.*)$/i);
+    if (mPeso) {
+      const esKilo = /^k/i.test(mPeso[1]);
+      gramosExplicitos = cantidad * (esKilo ? 1000 : 1);
+      resto = mPeso[2];
+    }
+
     const restoLower = resto.toLowerCase();
     const restoVariantes = variantesSingular(restoLower);
 
@@ -1026,7 +1039,7 @@ function interpretarVarios(textoCompleto) {
       }
       if (score > mejorScore) { mejorScore = score; mejor = f; }
     }
-    return mejor ? { textoOriginal: parte.trim(), cantidad, food: mejor } : null;
+    return mejor ? { textoOriginal: parte.trim(), cantidad, gramosExplicitos, food: mejor } : null;
   }).filter(Boolean);
 }
 
@@ -1098,7 +1111,7 @@ function ModoVoz({ onElegirVarios }) {
               className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
               <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
               <span className="jb-body text-xs text-zinc-200 flex-1">
-                {GROUP_EMOJI[it.food.group] || '🍴'} {it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
+                {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
               </span>
             </button>
           ))}
@@ -1214,6 +1227,10 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
   function agregarVarios(items) {
     const nuevas = items.map(it => {
+      // Si dijo el gramaje exacto en voz ("150 g de..."), se respeta tal cual.
+      if (it.gramosExplicitos) {
+        return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos' };
+      }
       const d = unidadPorDefecto(it.food);
       return { id: uid(), foodKey: it.food.key, qty: d.qty * it.cantidad, unit: d.unit };
     });

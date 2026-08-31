@@ -493,14 +493,22 @@ function gramsPerUnit(food, unit) {
 
 /* Convierte una cantidad en gramos a la unidad casera más natural del
    alimento (si existe una) — así "70g de pan francés" se muestra como
-   "1 unidad" y no como un número de gramos sin sentido para el usuario. */
+   "1 unidad" y no como un número de gramos sin sentido para el usuario.
+   Las unidades que se cuentan por pieza entera (huevo, pan, rebanada)
+   se redondean a números enteros — nadie come "2.5 huevos". Las que sí
+   admiten mitades con sentido (taza, porción, plato) se dejan en pasos
+   de 0.5. */
 function gramosANatural(food, gramos) {
   if (!food) return { unit: 'gramos', qty: gramos };
   const lista = unitsFor(food);
   const natural = lista.find(u => u[0] !== 'gramos');
   if (!natural) return { unit: 'gramos', qty: Math.max(5, Math.round(gramos / 5) * 5) };
   const [unit, porUnidad] = natural;
-  const qty = Math.max(0.5, Math.round((gramos / porUnidad) * 2) / 2);
+  const DISCRETAS = ['unidad', 'rebanada', 'tajada', 'palito', 'presa', 'bola', 'scoop'];
+  const crudo = gramos / porUnidad;
+  const qty = DISCRETAS.includes(unit)
+    ? Math.max(1, Math.round(crudo))
+    : Math.max(0.5, Math.round(crudo * 2) / 2);
   return { unit, qty };
 }
 

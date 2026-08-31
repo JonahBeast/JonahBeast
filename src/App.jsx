@@ -18,6 +18,7 @@ const RAW_FOODS = [
   ["Cereales","Cañihua","Cruda",350,15.0,63.0,7.6,8.0],
   ["Cereales","Choclo (maíz)","Crudo",96,3.4,21.0,1.5,2.4],
   ["Cereales","Choclo (maíz)","Cocido",90,3.3,19.0,1.3,2.2],
+  ["Cereales","Cereal cornflakes sin gluten","-",378,7.0,84.0,0.4,3.0],
   ["Menestras","Lenteja","Cruda",353,25.8,60.0,1.1,10.7],
   ["Menestras","Lenteja","Cocida",116,9.0,20.0,0.4,7.9],
   ["Menestras","Frejol canario","Crudo",341,21.4,61.3,1.5,15.5],
@@ -48,8 +49,10 @@ const RAW_FOODS = [
   ["Pescados","Atún","Cocido",132,28.2,0.0,1.3,0.0],
   ["Huevos","Huevo de gallina","Crudo",143,12.6,0.7,9.5,0.0],
   ["Huevos","Huevo de gallina","Cocido",155,12.6,1.1,10.6,0.0],
+  ["Huevos","Huevo de gallina","Frito",196,13.6,0.8,14.8,0.0],
   ["Lácteos","Leche entera","-",61,3.2,4.8,3.3,0.0],
   ["Lácteos","Leche descremada","-",34,3.4,5.0,0.1,0.0],
+  ["Lácteos","Leche sin lactosa","-",46,3.2,4.9,1.5,0.0],
   ["Lácteos","Yogur natural","-",61,3.5,4.7,3.3,0.0],
   ["Lácteos","Queso fresco","-",264,18.5,3.4,20.0,0.0],
   ["Frutas","Plátano de seda","Cruda",89,1.1,22.8,0.3,2.6],
@@ -164,6 +167,8 @@ const RAW_FOODS = [
   ["Platos preparados","Rocoto relleno","-",180,8.0,14.0,10.0,1.8],
   ["Platos preparados","Anticucho de corazón","-",150,20.0,3.0,6.5,0.3],
   ["Platos preparados","Chicharrón de pollo","-",260,20.0,14.0,14.0,0.8],
+  ["Platos preparados","Chicharrón de chancho","-",350,22.0,0.5,28.0,0.0],
+  ["Platos preparados","Arroz con mariscos","-",155,9.0,20.0,4.5,1.2],
   ["Platos preparados","Milanesa de pollo","-",250,19.0,16.0,12.5,1.0],
   ["Platos preparados","Pescado frito","-",200,22.0,7.0,9.5,0.4],
   ["Platos preparados","Sudado de pescado","-",95,15.0,4.5,1.8,0.9],
@@ -212,6 +217,7 @@ const RAW_FOODS = [
   ["Bebidas","Chicha morada con azúcar","-",55,0.1,13.8,0.0,0.1],
   ["Bebidas","Emoliente sin azúcar","-",8,0.1,2.0,0.0,0.0],
   ["Bebidas","Leche de almendras sin azúcar","-",15,0.6,0.6,1.2,0.3],
+  ["Bebidas","Leche de coco","-",180,1.8,3.0,18.0,0.0],
   ["Bebidas","Yogur bebible","-",70,3.0,11.0,1.5,0.0],
   ["Otros","Azúcar blanca","-",387,0.0,100.0,0.0,0.0],
   ["Otros","Miel de abeja","-",304,0.3,82.4,0.0,0.2],
@@ -233,6 +239,8 @@ const RAW_FOODS = [
   ["Carnes y aves","Pollo pierna (sin piel)","Cocida",177,24.2,0.0,8.1,0.0],
   ["Carnes y aves","Pavo pechuga","Cocida",135,29.0,0.0,1.7,0.0],
   ["Carnes y aves","Jamón de pavo","-",104,16.9,2.6,3.0,0.0],
+  ["Carnes y aves","Jamón inglés","-",145,18.0,1.5,6.5,0.0],
+  ["Carnes y aves","Chorizo parrillero","-",330,17.0,3.0,28.0,0.0],
   ["Pescados","Trucha","Cocida",148,20.8,0.0,6.6,0.0],
   ["Pescados","Langostinos","Cocidos",99,20.9,0.2,1.4,0.0],
   ["Lácteos","Queso parmesano","-",392,35.8,3.2,25.8,0.0],
@@ -324,6 +332,8 @@ const UNITS_BY_NAME = {
   'Proteína en polvo (whey)': [['scoop', 30], ['cucharada', 15]],
   'Avena instantánea en polvo': [['cucharada', 9], ['taza', 80]],
   'Queso fresco': [['tajada', 30]],
+  'Jamón inglés': [['tajada', 20]],
+  'Chorizo parrillero': [['unidad', 65]],
   'Queso parmesano': [['cucharada', 5]],
   'Jamón de pavo': [['tajada', 25]],
   'Fideos / pasta': [['taza', 140], ['plato', 220]],
@@ -451,8 +461,19 @@ function unitsFor(food) {
 
 /* Al elegir un alimento, propone la medida más natural.
    Para una torta: "1 tajada", no "100 gramos".                */
+// Alimentos donde el gramaje por defecto no debe seguir la unidad
+// típica de su grupo (ej. el grupo Cereales prefiere "taza", pero un
+// cereal en caja se mide mejor empezando en gramos).
+const GRAMOS_DEFAULT_POR_NOMBRE = {
+  'Cereal cornflakes sin gluten': 100,
+  'Chicharrón de chancho': 220,
+};
+
 function unidadPorDefecto(food) {
   if (!food) return { unit: 'gramos', qty: 100 };
+  if (GRAMOS_DEFAULT_POR_NOMBRE[food.name]) {
+    return { unit: 'gramos', qty: GRAMOS_DEFAULT_POR_NOMBRE[food.name] };
+  }
   const lista = unitsFor(food);
 
   // Si solo existe "gramos", se usa una cantidad razonable según el grupo

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -945,10 +945,57 @@ function ModoFavoritos({ favoritos, onElegir }) {
   );
 }
 
-function ModoVoz({ onElegir }) {
+/* Interpreta una frase con varios alimentos separados por "+", "y" o
+   comas — ej. "1 pan + 2 huevos + 1 taza de café" — y devuelve un
+   alimento con cantidad estimada por cada parte reconocida. No es IA:
+   es una búsqueda por coincidencia de texto contra tu propia base de
+   230 alimentos, priorizando la coincidencia más larga y específica. */
+function interpretarVarios(textoCompleto) {
+  const NUM_PALABRAS = {
+    un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
+    seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+  };
+  const partes = textoCompleto.split(/\+|,|\by\b/gi).map(s => s.trim()).filter(Boolean);
+
+  return partes.map(parte => {
+    let cantidad = 1;
+    let resto = parte;
+    const mDigito = parte.match(/^(\d+)\s+(.*)$/);
+    if (mDigito) {
+      cantidad = parseInt(mDigito[1], 10);
+      resto = mDigito[2];
+    } else {
+      const palabras = parte.split(/\s+/);
+      if (NUM_PALABRAS[palabras[0]?.toLowerCase()]) {
+        cantidad = NUM_PALABRAS[palabras[0].toLowerCase()];
+        resto = palabras.slice(1).join(' ');
+      }
+    }
+    resto = resto.replace(/^(taza|plato|porci[oó]n|vaso|rebanada|unidad(es)?)\s+de\s+/i, '').trim();
+    const restoLower = resto.toLowerCase();
+
+    let mejor = null, mejorScore = 0;
+    for (const f of FOODS) {
+      const nombreLower = f.name.toLowerCase();
+      let score = 0;
+      if (nombreLower === restoLower) score = 100;
+      else if (restoLower.length > 2 && nombreLower.includes(restoLower)) score = 50 + restoLower.length;
+      else if (nombreLower.length > 2 && restoLower.includes(nombreLower)) score = 30 + nombreLower.length;
+      else {
+        const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        const coincidencias = palabrasResto.filter(w => nombreLower.includes(w)).length;
+        if (coincidencias > 0) score = coincidencias * 5;
+      }
+      if (score > mejorScore) { mejorScore = score; mejor = f; }
+    }
+    return mejor ? { textoOriginal: parte.trim(), cantidad, food: mejor } : null;
+  }).filter(Boolean);
+}
+
+function ModoVoz({ onElegirVarios }) {
   const [escuchando, setEscuchando] = useState(false);
   const [texto, setTexto] = useState('');
-  const [resultados, setResultados] = useState([]);
+  const [items, setItems] = useState([]); // { textoOriginal, cantidad, food, activo }
   const soportado = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   function escuchar() {
@@ -959,21 +1006,28 @@ function ModoVoz({ onElegir }) {
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     setEscuchando(true);
-    setResultados([]);
+    setItems([]);
     rec.onresult = (e) => {
       const dicho = e.results[0][0].transcript;
       setTexto(dicho);
-      const q = dicho.toLowerCase();
-      const palabras = q.split(/\s+/).filter(w => w.length > 3);
-      const encontrados = FOODS.filter(f => {
-        const nombre = f.name.toLowerCase();
-        return nombre.includes(q) || palabras.some(p => nombre.includes(p));
-      }).slice(0, 6);
-      setResultados(encontrados);
+      const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+      setItems(encontrados);
     };
     rec.onerror = () => setEscuchando(false);
     rec.onend = () => setEscuchando(false);
     try { rec.start(); } catch { setEscuchando(false); }
+  }
+
+  function alternarItem(i) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, activo: !it.activo } : it));
+  }
+
+  function agregarSeleccionados() {
+    const activos = items.filter(it => it.activo);
+    if (!activos.length) return;
+    onElegirVarios(activos);
+    setItems([]);
+    setTexto('');
   }
 
   if (!soportado) {
@@ -982,20 +1036,37 @@ function ModoVoz({ onElegir }) {
 
   return (
     <div className="flex flex-col items-center gap-3 py-3">
-      <button onClick={escuchar} disabled={escuchando}
-        className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all ${escuchando ? 'bg-red-500 animate-pulse scale-110' : 'bg-gradient-to-br from-orange-500 to-violet-600'}`}>
-        🎤
-      </button>
+      <div className="relative">
+        {escuchando && (
+          <>
+            <span className="absolute inset-0 rounded-full bg-red-500/40 animate-ping" />
+            <span className="absolute -inset-2 rounded-full bg-red-500/20 animate-ping" style={{ animationDelay: '0.3s' }} />
+          </>
+        )}
+        <button onClick={escuchar} disabled={escuchando}
+          className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 hover:scale-105'}`}
+          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(249,115,22,0.45)' }}>
+          <Mic size={30} className="text-white" strokeWidth={2.2} />
+        </button>
+      </div>
       <p className="jb-body text-xs text-zinc-500">{escuchando ? 'Escuchando...' : 'Toca y di qué comiste'}</p>
+      <p className="jb-body text-[10px] text-zinc-600 text-center max-w-[240px]">Puedes decir varios alimentos juntos: "1 pan + 2 huevos + 1 taza de café"</p>
       {texto && <p className="jb-body text-sm text-zinc-300 italic">"{texto}"</p>}
-      {resultados.length > 0 ? (
-        <div className="flex flex-wrap gap-2 justify-center mt-1">
-          {resultados.map(f => (
-            <button key={f.key} onClick={() => onElegir(f)}
-              className="jb-body text-xs bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-full px-3 py-1.5 text-zinc-200">
-              {GROUP_EMOJI[f.group] || '🍴'} {f.name}
+
+      {items.length > 0 ? (
+        <div className="w-full flex flex-col gap-2 mt-1">
+          {items.map((it, i) => (
+            <button key={i} onClick={() => alternarItem(i)}
+              className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
+              <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
+              <span className="jb-body text-xs text-zinc-200 flex-1">
+                {GROUP_EMOJI[it.food.group] || '🍴'} {it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}
+              </span>
             </button>
           ))}
+          <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
+            Agregar {items.filter(it => it.activo).length} alimento(s)
+          </button>
         </div>
       ) : texto ? (
         <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>
@@ -1032,28 +1103,40 @@ function ModoDeslizar({ remaining, restricciones, onAgregarCombo }) {
   }
   if (!actual) return null;
 
+  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-zinc-800';
+
   return (
     <div className="flex flex-col items-center gap-3 py-3">
-      <div
-        className="relative bg-zinc-950 border-2 border-zinc-800 rounded-2xl p-5 w-full max-w-xs text-center select-none"
-        style={{
-          transform: `translateX(${dx}px) rotate(${dx / 20}deg)`,
-          transition: arrastrando.current ? 'none' : 'transform 0.25s ease',
-          touchAction: 'pan-y',
-        }}
-        onTouchStart={e => onStart(e.touches[0].clientX)}
-        onTouchMove={e => onMove(e.touches[0].clientX)}
-        onTouchEnd={onEnd}
-      >
-        <div className="text-4xl mb-2">{actual.emoji}</div>
-        <p className="jb-display text-base text-zinc-100 mb-1">{actual.name}</p>
-        <p className="jb-body text-xs text-zinc-500">{Math.round(actual.kcal)} kcal · P {Math.round(actual.protein)}g</p>
+      <div className="flex items-center gap-3 w-full max-w-xs">
+        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx < -20 ? 'opacity-100' : 'opacity-30'}`}>
+          <span className="text-xl">◀</span>
+          <span className="jb-body text-[9px] text-zinc-500">Saltar</span>
+        </div>
+        <div
+          className={`relative bg-zinc-950 border-2 rounded-2xl p-5 flex-1 text-center select-none transition-colors ${tintado}`}
+          style={{
+            transform: `translateX(${dx}px) rotate(${dx / 20}deg)`,
+            transition: arrastrando.current ? 'none' : 'transform 0.25s ease, border-color 0.15s ease',
+            touchAction: 'pan-y',
+          }}
+          onTouchStart={e => onStart(e.touches[0].clientX)}
+          onTouchMove={e => onMove(e.touches[0].clientX)}
+          onTouchEnd={onEnd}
+        >
+          <div className="text-4xl mb-2">{actual.emoji}</div>
+          <p className="jb-display text-base text-zinc-100 mb-1">{actual.name}</p>
+          <p className="jb-body text-xs text-zinc-500">{Math.round(actual.kcal)} kcal · P {Math.round(actual.protein)}g</p>
+        </div>
+        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx > 20 ? 'opacity-100' : 'opacity-30'}`}>
+          <span className="text-xl">▶</span>
+          <span className="jb-body text-[9px] text-zinc-500">Agregar</span>
+        </div>
       </div>
       <div className="flex gap-6 mt-1">
         <button onClick={siguiente} className="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-xl">✕</button>
         <button onClick={() => { onAgregarCombo(actual); siguiente(); }} className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-xl">✓</button>
       </div>
-      <p className="jb-body text-[10px] text-zinc-600">Desliza a la derecha para agregar, izquierda para saltar</p>
+      <p className="jb-body text-[10px] text-zinc-600">👆 Desliza la tarjeta a la derecha para agregar, a la izquierda para saltar</p>
     </div>
   );
 }
@@ -1086,11 +1169,23 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     showToast(`✅ ${opt.name} agregado a ${mealDestino}`);
   }
 
+  function agregarVarios(items) {
+    const nuevas = items.map(it => {
+      const d = unidadPorDefecto(it.food);
+      return { id: uid(), foodKey: it.food.key, qty: d.qty * it.cantidad, unit: d.unit };
+    });
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
+    vibrar(20);
+    showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
+  }
+
   return (
     <div className="bg-zinc-900 border border-violet-500/40 rounded-2xl p-5 mb-6">
       <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between text-left">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-orange-500 flex items-center justify-center text-sm shrink-0">⚡</div>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md" style={{ boxShadow: '0 0 14px rgba(249,115,22,0.4)' }}>
+            <Mic size={17} className="text-white" strokeWidth={2.3} />
+          </div>
           <div>
             <p className="jb-display text-sm text-zinc-200">REGISTRO RÁPIDO</p>
             <p className="jb-body text-[11px] text-zinc-500">Favoritos, por voz, o deslizando — sin escribir nada</p>
@@ -1128,7 +1223,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-          {modo === 'voz' && <ModoVoz onElegir={agregarDirecta} />}
+          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
           {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} onAgregarCombo={agregarCombo} />}
         </div>
       )}
@@ -7525,6 +7620,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
 
       <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
 
+      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
+        kcal: mealPlan.targetKcal - totals.kcal,
+        protein: objP - totals.protein,
+        carbs: objC - totals.carbs,
+        fat: objF - totals.fat,
+      }} />
+
       <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         restricciones={mealPlan.restricciones || []}
         remaining={{
@@ -7533,13 +7635,6 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           carbs: objC - totals.carbs,
           fat: objF - totals.fat,
         }} />
-
-      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
-        kcal: mealPlan.targetKcal - totals.kcal,
-        protein: objP - totals.protein,
-        carbs: objC - totals.carbs,
-        fat: objF - totals.fat,
-      }} />
 
       {MEAL_NAMES.map(meal => {
         const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';

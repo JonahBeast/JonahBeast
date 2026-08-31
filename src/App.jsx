@@ -4822,7 +4822,12 @@ function RecordatorioBanner({ username }) {
         setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
         return;
       }
-      try { if (localStorage.getItem('jb_notif_no')) { setOcultoManual(true); } } catch {}
+      try {
+        const marca = Number(localStorage.getItem('jb_notif_no'));
+        // Igual que con el banner de instalar: la marca de "no
+        // mostrar" dura 7 días, no para siempre.
+        if (marca && Date.now() - marca < 7 * 24 * 60 * 60 * 1000) setOcultoManual(true);
+      } catch {}
 
       if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
       try {
@@ -4882,7 +4887,7 @@ function RecordatorioBanner({ username }) {
 
   function cerrar() {
     setOcultoManual(true);
-    try { localStorage.setItem('jb_notif_no', '1'); } catch {}
+    try { localStorage.setItem('jb_notif_no', String(Date.now())); } catch {}
   }
 
   if (estado === 'cargando' || estado === 'nosoportado') return null;
@@ -4956,7 +4961,14 @@ function InstalarBanner() {
       || window.navigator.standalone === true;
     if (instalada) return;
 
-    try { if (localStorage.getItem('jb_instalar_no')) return; } catch {}
+    try {
+      const marca = Number(localStorage.getItem('jb_instalar_no'));
+      // La marca de "no mostrar" solo dura 7 días — así, si alguien
+      // desinstala la app y luego quiere volver a instalarla, el
+      // banner reaparece solo, sin tener que borrar datos del
+      // navegador a mano.
+      if (marca && Date.now() - marca < 7 * 24 * 60 * 60 * 1000) return;
+    } catch {}
 
     const ua = window.navigator.userAgent || '';
     const ios = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
@@ -4981,7 +4993,7 @@ function InstalarBanner() {
 
   function cerrar() {
     setOculto(true);
-    try { localStorage.setItem('jb_instalar_no', '1'); } catch {}
+    try { localStorage.setItem('jb_instalar_no', String(Date.now())); } catch {}
   }
 
   async function instalar() {

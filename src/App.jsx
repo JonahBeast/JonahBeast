@@ -5138,9 +5138,11 @@ function InstalarBanner() {
     ? ['Toca el botón Compartir de Safari (el cuadrito con la flecha hacia arriba)',
        'Desliza y elige "Agregar a pantalla de inicio"',
        'Toca "Agregar" y listo']
-    : ['Toca el menú del navegador (los tres puntos, arriba a la derecha)',
+    : ['Abre esta página desde Chrome (no desde otro navegador)',
+       'Toca el menú del navegador (los tres puntos, arriba a la derecha)',
        'Elige "Instalar aplicación" o "Agregar a pantalla principal"',
-       'Confirma y listo'];
+       'Confirma y listo',
+       'Paso clave: ve a Ajustes → Batería → Chrome, y activa "Sin restricciones" (algunos celulares como Xiaomi, Huawei, Oppo o Samsung apagan las notificaciones si no haces esto)'];
 
   return (
     <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
@@ -5149,12 +5151,12 @@ function InstalarBanner() {
         <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-lg shrink-0">📲</div>
         <div className="flex-1">
           <p className="jb-display text-sm text-orange-500 mb-1">
-            {esIOS ? 'IMPORTANTE PARA RECIBIR A JONAH' : 'TENLA EN TU PANTALLA DE INICIO'}
+            {esIOS ? 'HAZ ESTO PRIMERO — ES CLAVE PARA RECIBIR A JONAH' : 'HAZ ESTO PRIMERO — TENLA EN TU PANTALLA DE INICIO'}
           </p>
           <p className="jb-body text-sm text-zinc-300">
             {esIOS
-              ? 'Para que Jonah pueda acompañarte con notificaciones, primero instala la app en tu pantalla de inicio — en iPhone es el único modo en que funcionan.'
-              : 'Instálala en tu pantalla de inicio: así Jonah puede acompañarte con notificaciones, aunque tengas la app cerrada.'}
+              ? 'Antes de seguir explorando, instala la app en tu pantalla de inicio — en iPhone es el único modo en que las notificaciones de Jonah funcionan.'
+              : 'Antes de seguir explorando, instálala en tu pantalla de inicio y sigue los pasos de abajo — así Jonah puede acompañarte con notificaciones todos los días, aunque tengas la app cerrada.'}
           </p>
 
           {verPasos ? (

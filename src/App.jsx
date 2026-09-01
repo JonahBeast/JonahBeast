@@ -1609,8 +1609,10 @@ const BEAST_MOODS = {
 };
 function BeastMascot({ mood = 'happy', size = 40, className = '' }) {
   return (
-    <span className={className} style={{ fontSize: size, lineHeight: 1, display: 'inline-block' }}>
-      {BEAST_MOODS[mood] || BEAST_MOODS.happy}
+    <span className={className} style={{ width: size, height: size, display: 'inline-block', verticalAlign: 'middle' }}>
+      <img src="/jonah-avatar.png" alt="Jonah"
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+        onError={(e) => { e.target.outerHTML = BEAST_MOODS[mood] || BEAST_MOODS.happy; }} />
     </span>
   );
 }

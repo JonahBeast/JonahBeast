@@ -1637,6 +1637,18 @@ function vibrar(patron = 30) {
   try { if (navigator.vibrate) navigator.vibrate(patron); } catch {}
 }
 
+/* Detecta si la app corre empaquetada desde Play Store (TWA). Google
+   exige que las apps de Play Store no muestren un flujo de pago propio
+   (Yape/Plin) para contenido digital por suscripción — solo pueden
+   mostrar precios como información, sin botón de pago ni datos
+   bancarios. Este chequeo NO afecta a la versión web/PWA normal, que
+   sigue mostrando el flujo completo de pago como siempre.
+   Método recomendado por Google: dentro de una TWA, document.referrer
+   siempre empieza con "android-app://". */
+function esTWA() {
+  try { return document.referrer.startsWith('android-app://'); } catch { return false; }
+}
+
 /* Sonido sutil opcional (sin archivos de audio, generado con Web Audio
    API) para reforzar logros — el alumno puede silenciarlo. */
 function sonidoActivo() {
@@ -5344,6 +5356,42 @@ function PagosPanel({ onAprobado }) {
     setProcesando(null);
   }
 
+  // Para pagos que llegan por WhatsApp (típico de alumnos de Play
+  // Store, donde no se les muestra el formulario de pago dentro de la
+  // app). Se guarda igual que un pago normal — entra a la misma lista
+  // de "por revisar" y usa el mismo botón de aprobar de siempre, así
+  // que la comisión del embajador (si aplica) se calcula exactamente
+  // igual, sin importar por qué canal llegó el pago.
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ username: '', meses: 1, monto: '', metodo: 'Yape', operacion: '' });
+  const [manualGuardando, setManualGuardando] = useState(false);
+  const [manualErr, setManualErr] = useState('');
+
+  async function registrarManual(e) {
+    e.preventDefault();
+    setManualErr('');
+    const u = manualForm.username.trim().toLowerCase();
+    if (!u) return setManualErr('Escribe el usuario del alumno.');
+    if (!manualForm.monto || Number(manualForm.monto) <= 0) return setManualErr('Escribe el monto.');
+    if (!manualForm.operacion.trim()) return setManualErr('Escribe el número de operación.');
+    setManualGuardando(true);
+    try {
+      const { data: existe } = await supabase.from('alumnos').select('username').eq('username', u).maybeSingle();
+      if (!existe) { setManualErr('No existe ningún alumno con ese usuario.'); setManualGuardando(false); return; }
+      const { error } = await supabase.from('pagos').insert({
+        username: u, nombre: '', plan_meses: Number(manualForm.meses),
+        monto: Number(manualForm.monto), metodo: manualForm.metodo,
+        operacion: manualForm.operacion.trim(), comprobante_ruta: null,
+        estado: 'pendiente', nota_admin: 'Registrado manualmente (pago coordinado por WhatsApp)',
+      });
+      if (error) throw error;
+      setManualForm({ username: '', meses: 1, monto: '', metodo: 'Yape', operacion: '' });
+      setManualOpen(false);
+      await cargar();
+    } catch (e2) { setManualErr('No se pudo guardar: ' + (e2.message || '')); }
+    setManualGuardando(false);
+  }
+
   const pendientes = pagos.filter(p => p.estado === 'pendiente');
   const visibles = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
   const ingresoMes = pagos
@@ -5376,8 +5424,47 @@ function PagosPanel({ onAprobado }) {
                 {l}
               </button>
             ))}
-            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs ml-auto'}>Actualizar</button>
+            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
+            <button onClick={() => setManualOpen(v => !v)} className={btnGhost + ' py-1 px-3 text-xs ml-auto'}>
+              {manualOpen ? 'Cancelar' : '+ Registrar pago manual (WhatsApp)'}
+            </button>
           </div>
+
+          {manualOpen && (
+            <form onSubmit={registrarManual} className="bg-zinc-950 border border-orange-500/30 rounded-xl p-4 mb-4 flex flex-col gap-2.5">
+              <p className="jb-body text-xs text-zinc-500 mb-1">
+                Para pagos coordinados por WhatsApp (ej. alumnos de Play Store) — queda igual de registrado que un pago normal, con la misma comisión de embajador si aplica.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <Field label="Usuario del alumno">
+                  <input value={manualForm.username} onChange={e => setManualForm(v => ({ ...v, username: e.target.value }))}
+                    className={inputCls} placeholder="usuario123" />
+                </Field>
+                <Field label="Plan (meses)">
+                  <select value={manualForm.meses} onChange={e => setManualForm(v => ({ ...v, meses: e.target.value }))} className={inputCls}>
+                    {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
+                  </select>
+                </Field>
+                <Field label="Monto pagado (S/)">
+                  <input type="number" step="0.10" value={manualForm.monto}
+                    onChange={e => setManualForm(v => ({ ...v, monto: e.target.value }))} className={inputCls} placeholder="24.90" />
+                </Field>
+                <Field label="Método">
+                  <select value={manualForm.metodo} onChange={e => setManualForm(v => ({ ...v, metodo: e.target.value }))} className={inputCls}>
+                    <option>Yape</option><option>Plin</option><option>Transferencia</option>
+                  </select>
+                </Field>
+                <Field label="N° de operación">
+                  <input value={manualForm.operacion} onChange={e => setManualForm(v => ({ ...v, operacion: e.target.value }))}
+                    className={inputCls} placeholder="00123456" />
+                </Field>
+              </div>
+              {manualErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{manualErr}</p>}
+              <button type="submit" disabled={manualGuardando} className={btnPrimary + ' self-start py-2 px-4 text-sm mt-1'}>
+                {manualGuardando ? <Loader2 className="animate-spin" size={16} /> : 'Guardar y mandar a revisión'}
+              </button>
+            </form>
+          )}
 
           {loading ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
@@ -5554,6 +5641,50 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
     `Hola, soy ${nombre || username} y tengo una consulta sobre los planes de Jonah Beast.`)}`;
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-orange-500" size={28} /></div>;
+
+  // Versión para Play Store: solo precios como información, sin botón
+  // de pago ni datos bancarios — así cumplimos la política de Google
+  // sin dejar de ser transparentes con el precio real.
+  if (esTWA()) {
+    const waUrlPlan = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+      `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <div className="text-3xl mb-2">🦍</div>
+          <p className="jb-display text-base text-zinc-100 mb-1">
+            {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu prueba gratis` : 'Tu prueba gratis terminó') : 'Tu plan'}
+          </p>
+          <p className="jb-body text-sm text-zinc-400">Estos son nuestros planes disponibles:</p>
+        </div>
+
+        <div className="grid gap-2">
+          {PLANES.map(plan => (
+            <div key={plan.meses} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 flex items-center justify-between">
+              <div>
+                <p className="jb-body text-sm text-zinc-200">{plan.nombre}</p>
+                {plan.badge && <span className="jb-body text-[10px] text-orange-500">{plan.badge}</span>}
+              </div>
+              <p className="jb-display text-lg text-orange-500">{fmtS(precioDe(plan))}</p>
+            </div>
+          ))}
+        </div>
+
+        {dcto > 0 && (
+          <p className="jb-body text-xs text-emerald-400 text-center">
+            🎉 Tienes {dcto}% de descuento{refNombre ? ` por ${refNombre}` : ''} — ya aplicado en los precios de arriba.
+          </p>
+        )}
+
+        <a href={waUrlPlan} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' justify-center py-3'}>
+          <MessageCircle size={18} /> Escribir por WhatsApp para activar
+        </a>
+        <p className="jb-body text-xs text-zinc-500 text-center">
+          Te ayudamos a coordinar tu pago y activamos tu cuenta al toque.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

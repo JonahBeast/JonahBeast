@@ -3130,6 +3130,12 @@ function TrialSignup({ onBack, onCreated }) {
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
                 {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
               </button>
+              <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
+                Al crear tu cuenta, aceptas nuestra{' '}
+                <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline">
+                  Política de Privacidad
+                </a>
+              </p>
               <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
             </form>
           )}
@@ -8259,6 +8265,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
+      <footer className="text-center py-4">
+        <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
+          className="jb-body text-[11px] text-zinc-700 hover:text-zinc-500 underline">
+          Política de Privacidad
+        </a>
+      </footer>
       <WhatsAppButton />
     </div>
   );

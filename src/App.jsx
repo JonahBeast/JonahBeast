@@ -3251,7 +3251,7 @@ function ResetPassword({ onDone }) {
   );
 }
 
-function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
+function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -3276,6 +3276,24 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
     if (error) return setErr('No se pudo enviar el correo. Intenta de nuevo.');
     setAviso('Te enviamos un enlace para crear una contraseña nueva. Revisa tu correo (y la carpeta de spam).');
   }
+
+  // Mientras espera que le aprueben el pago, revisa cada 20s si ya se
+  // activó — así no tiene que saber que debe cerrar sesión y volver a
+  // entrar. En cuanto detecta que ya tiene acceso, entra directo.
+  useEffect(() => {
+    if (!expiredInfo?.username) return;
+    const intervalo = setInterval(async () => {
+      try {
+        const { data } = await supabase.from('alumnos')
+          .select('enabled, plan, fecha_vencimiento').eq('username', expiredInfo.username).maybeSingle();
+        if (data && membershipActive({ enabled: data.enabled, plan: data.plan, fechaVencimiento: data.fecha_vencimiento })) {
+          clearInterval(intervalo);
+          if (onMembresiaActiva) onMembresiaActiva();
+        }
+      } catch {}
+    }, 20000);
+    return () => clearInterval(intervalo);
+  }, [expiredInfo?.username]);
 
   if (expiredInfo) {
     return (
@@ -8638,7 +8656,8 @@ export default function App() {
       )}
       {!tokenRef && view === 'studentAuth' && (
         <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}
-          expiredInfo={expiredInfo} onClearExpired={() => setExpiredInfo(null)} />
+          expiredInfo={expiredInfo} onClearExpired={() => setExpiredInfo(null)}
+          onMembresiaActiva={() => loadStudentSession(expiredInfo.username)} />
       )}
       {!tokenRef && view === 'admin' && adminAuthed && (
         <>

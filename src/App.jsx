@@ -2200,10 +2200,11 @@ function JonahMiniIdle({ fraseInicial, frases }) {
           </span>
         )}
         <button onClick={tocar}
-          className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-4xl"
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
           style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
           title="Toca a Jonah">
-          🦍
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }} />
         </button>
       </div>
       <style>{`

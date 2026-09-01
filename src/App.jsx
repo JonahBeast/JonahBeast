@@ -3289,6 +3289,12 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired }) {
             </p>
           </div>
           <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} />
+
+          <div className="mt-5">
+            <p className="jb-display text-sm text-zinc-300 mb-3 text-center">ELIGE TU PLAN PARA CONTINUAR</p>
+            <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} />
+          </div>
+
           <button onClick={onClearExpired} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4 w-full text-center">
             ← Volver a intentar
           </button>
@@ -8460,14 +8466,15 @@ export default function App() {
       const u = {
         username: cuenta.username, enabled: cuenta.enabled, plan: cuenta.plan || 'pago',
         nombre: cuenta.nombre || perfil.nombre, fechaInicio: cuenta.fecha_inicio,
-        fechaVencimiento: cuenta.fecha_vencimiento,
+        fechaVencimiento: cuenta.fecha_vencimiento, telefono: cuenta.telefono,
+        codigoReferido: cuenta.codigo_referido,
       };
       if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
       if (!membershipActive(u)) {
         if (u.plan === 'trial') {
           const stats = await fetchTrialStats(u.username);
           setBusy(false);
-          setExpiredInfo({ stats, nombre: u.nombre });
+          setExpiredInfo({ stats, nombre: u.nombre, username: u.username, userRecord: u });
           return;
         }
         setBusy(false);

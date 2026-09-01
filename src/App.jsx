@@ -2418,8 +2418,11 @@ function RachaCard({ username }) {
       {hitoActual && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
           <div className="relative w-11 h-11 shrink-0">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center text-base"
-              style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>🦍</div>
+            <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>
+              <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = 'none'; }} />
+            </div>
             <span className="absolute -bottom-1 -right-1 text-lg">{hitoActual.emoji}</span>
           </div>
           <div>
@@ -5026,7 +5029,10 @@ function RecordatorioBanner({ username }) {
   if (estado === 'iosNoInstalado') {
     return (
       <div className="bg-zinc-900 border border-orange-500/40 rounded-xl p-3 mb-6 flex items-center gap-3">
-        <span className="text-lg shrink-0">🦍</span>
+        <span className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }} />
+        </span>
         <p className="jb-body text-xs text-zinc-400">
           Para que Jonah pueda acompañarte con notificaciones en iPhone, primero instala la app en tu pantalla
           de inicio — mira el aviso de arriba 📲
@@ -5037,7 +5043,10 @@ function RecordatorioBanner({ username }) {
   if (estado === 'activo') {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center gap-3 flex-wrap">
-        <span className="text-lg shrink-0">🦍</span>
+        <span className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }} />
+        </span>
         <p className="jb-body text-xs text-zinc-400 flex-1">
           Jonah está contigo: te avisa si se te pasa alguna comida.
         </p>
@@ -5064,7 +5073,10 @@ function RecordatorioBanner({ username }) {
     <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center text-base shrink-0">🦍</div>
+        <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shrink-0">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }} />
+        </div>
         <div className="flex-1">
           <p className="jb-display text-sm text-orange-500 mb-1">JONAH QUIERE ACOMPAÑARTE</p>
           <p className="jb-body text-sm text-zinc-300">
@@ -5691,7 +5703,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
     return (
       <div className="flex flex-col gap-5">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
-          <div className="text-3xl mb-2">🦍</div>
+          <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
+            <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+              onError={(e) => { e.target.style.display = 'none'; }} />
+          </div>
           <p className="jb-display text-base text-zinc-100 mb-1">
             {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu prueba gratis` : 'Tu prueba gratis terminó') : 'Tu plan'}
           </p>
@@ -7983,7 +7998,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           <div className="mt-3" />
           {mealPlan.meals[meal].length === 0 ? (
             <div className="flex items-center gap-2.5 py-3 text-zinc-600">
-              <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs shrink-0">🦍</div>
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shrink-0">
+                <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; }} />
+              </div>
               <p className="jb-body text-sm">Jonah dice: aún no hay nada aquí — vamos, registra algo 💪</p>
             </div>
           ) : (

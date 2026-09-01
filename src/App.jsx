@@ -2381,7 +2381,10 @@ function RachaCard({ username }) {
       {enRiesgo && (
         <div className="relative bg-red-950/30 border border-red-500/40 rounded-2xl p-3.5 flex items-center gap-3 overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
-          <span className="text-2xl shrink-0">🦍😟</span>
+          <span className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
+            <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+              onError={(e) => { e.target.style.display = 'none'; }} />
+          </span>
           <p className="jb-body text-sm text-red-200">
             <span className="font-semibold">Jonah está preocupado:</span> no has registrado nada hoy y tu racha de {racha} días está en riesgo. Aún estás a tiempo.
           </p>
@@ -3331,7 +3334,10 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
         <div className="mb-4"><Logo size="lg" /></div>
         {modo === 'login' && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-4 flex items-center gap-2.5">
-            <span className="text-2xl shrink-0">🦍</span>
+            <span className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
+              <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+                onError={(e) => { e.target.style.display = 'none'; }} />
+            </span>
             <p className="jb-body text-xs text-zinc-400">
               <span className="text-orange-500 font-semibold">Jonah:</span> ¡bienvenido de vuelta! Entra y sigamos con tu objetivo.
             </p>

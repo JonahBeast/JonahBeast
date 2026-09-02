@@ -4757,7 +4757,7 @@ async function fetchTrialStats(username) {
   } catch { return null; }
 }
 
-function TrialSummary({ stats, nombre, compacto }) {
+function TrialSummary({ stats, nombre, compacto, onVerPlanes }) {
   if (!stats) return null;
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
     `Hola, terminé mi prueba en Jonah Beast. Registré ${stats.comidas} comidas${stats.adherencia !== null ? ` y cumplí mi objetivo el ${stats.adherencia}% de los días` : ''}. Quiero continuar, ¿cuáles son los planes?`)}`;
@@ -4816,9 +4816,20 @@ function TrialSummary({ stats, nombre, compacto }) {
         Si continúas, conservas tu historial completo, tus gráficos de progreso y tus recomendaciones diarias. Si no, todo esto se queda aquí.
       </p>
 
-      <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3'}>
-        <MessageCircle size={18} /> QUIERO CONTINUAR
-      </a>
+      {onVerPlanes ? (
+        <div className="flex flex-col gap-2">
+          <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3'}>
+            <CreditCard size={18} /> QUIERO CONTINUAR
+          </button>
+          <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-2 text-sm'}>
+            <MessageCircle size={14} /> Prefiero consultar por WhatsApp
+          </a>
+        </div>
+      ) : (
+        <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3'}>
+          <MessageCircle size={18} /> QUIERO CONTINUAR
+        </a>
+      )}
     </div>
   );
 }
@@ -5219,7 +5230,7 @@ function InstalarBanner() {
   );
 }
 
-function TrialBanner({ user }) {
+function TrialBanner({ user, onVerPlanes }) {
   const dia = trialDayOf(user);
   const [stats, setStats] = useState(null);
 
@@ -5263,7 +5274,7 @@ function TrialBanner({ user }) {
 
       {urgente && stats && (
         <div className="mt-3">
-          <TrialSummary stats={stats} nombre={user.nombre} />
+          <TrialSummary stats={stats} nombre={user.nombre} onVerPlanes={onVerPlanes} />
         </div>
       )}
     </div>
@@ -8252,7 +8263,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} onClose={cerrarGuia} />}
         <InstalarBanner />
         <RecordatorioBanner username={username} />
-        <TrialBanner user={userRecord} />
+        <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
         <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setTab('dash')}

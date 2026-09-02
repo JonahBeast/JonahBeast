@@ -999,7 +999,13 @@ function interpretarVarios(textoCompleto) {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
     seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
   };
-  const partes = textoCompleto.split(/\+|,|\by\b|\bm[aá]s\b/gi).map(s => s.trim()).filter(Boolean);
+  // Se separa por conectores explícitos ("+", "y", "más", comas) Y
+  // además, cada vez que aparece una nueva cantidad (un número o "dos",
+  // "tres"...) se asume que empieza un alimento distinto — así no hace
+  // falta decir "más" entre cada uno para que se registren todos.
+  let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
+  marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
+  const partes = marcado.split('|||').map(s => s.trim()).filter(Boolean);
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre

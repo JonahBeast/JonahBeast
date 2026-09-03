@@ -418,6 +418,7 @@ function normalizar(txt) {
 const SINONIMOS = {
   'frijol': 'frejol', 'frijoles': 'frejol', 'poroto': 'frejol',
   'macdonald': 'mcdonald', 'macdonalds': 'mcdonald', "macdonald's": 'mcdonald', 'mcdonalds': 'mcdonald',
+  'vembos': 'bembos', 'vembo': 'bembos',
   'yogurt': 'yogur', 'yoghurt': 'yogur',
   'palta': 'palta aguacate', 'aguacate': 'palta',
   'maiz': 'choclo', 'elote': 'choclo',
@@ -8730,8 +8731,4 @@ export default function App() {
       {!tokenRef && view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
           mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
-          userRecord={users.find(u => u.username === currentUser)} />
-      )}
-    </>
-  );
-}
+          userRecord={users.find(u => u.username === 

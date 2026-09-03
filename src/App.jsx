@@ -417,6 +417,7 @@ function normalizar(txt) {
 /* Sinónimos y nombres alternativos que la gente usa. */
 const SINONIMOS = {
   'frijol': 'frejol', 'frijoles': 'frejol', 'poroto': 'frejol',
+  'macdonald': 'mcdonald', 'macdonalds': 'mcdonald', "macdonald's": 'mcdonald', 'mcdonalds': 'mcdonald',
   'yogurt': 'yogur', 'yoghurt': 'yogur',
   'palta': 'palta aguacate', 'aguacate': 'palta',
   'maiz': 'choclo', 'elote': 'choclo',

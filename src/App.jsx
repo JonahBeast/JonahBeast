@@ -8731,4 +8731,8 @@ export default function App() {
       {!tokenRef && view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
           mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
-          userRecord={users.find(u => u.username === 
+          userRecord={users.find(u => u.username === currentUser)} />
+      )}
+    </>
+  );
+}

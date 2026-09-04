@@ -3937,6 +3937,7 @@ function ReferidosPanel({ users, onCambio }) {
   // de arriba pero no aparecen en ninguna tarjeta de abajo si no se detectan aquí.
   const codigosActivos = new Set(refs.map(r => r.codigo.toUpperCase()));
   const huerfanos = (users || []).filter(u => u.codigoReferido && !codigosActivos.has(u.codigoReferido.toUpperCase()));
+  const embajadoresActivos = refs.filter(r => r.activo).length;
 
   function waRef(r, monto, cantidad) {
     const num = (r.telefono || '').replace(/\D/g, '');
@@ -3952,7 +3953,7 @@ function ReferidosPanel({ users, onCambio }) {
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-sm shrink-0">🤝</div>
           <h2 className="jb-display text-base text-zinc-200">
-            EMBAJADORES · {totalReferidos} inscritos
+            EMBAJADORES ({embajadoresActivos} activos) · {totalReferidos} alumnos referidos
             {totalPendiente > 0 && (
               <span className="ml-2 bg-emerald-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">
                 S/{totalPendiente.toFixed(0)} por pagar

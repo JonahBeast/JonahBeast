@@ -8541,7 +8541,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           </div>
         </div>
       )}
-      <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-2.5">
           <Logo />
           <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />

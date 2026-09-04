@@ -3175,7 +3175,10 @@ function FreeCalculator({ onBack }) {
 }
 
 function TrialSignup({ onBack, onCreated }) {
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '', referido: '' });
+  const refDesdeURL = (() => {
+    try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
+  })();
+  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '', referido: refDesdeURL });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -8651,7 +8654,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 /* ------------------------------------------------------------------ */
 
 export default function App() {
-  const [view, setView] = useState('landing');
+  const [view, setView] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing'; } catch { return 'landing'; }
+  });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState([]);

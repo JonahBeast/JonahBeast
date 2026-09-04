@@ -8190,6 +8190,82 @@ function WhatsAppButton() {
   );
 }
 
+/* Eliminar cuenta — requisito de Google Play: el usuario debe poder
+   solicitar la eliminación de su propia cuenta desde dentro de la
+   app, sin depender del administrador. Borra las mismas tablas que
+   ya cubre la política de privacidad. */
+function EliminarCuentaModal({ username, onClose, onEliminado }) {
+  const [paso, setPaso] = useState(1);
+  const [confirmacion, setConfirmacion] = useState('');
+  const [borrando, setBorrando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function confirmarBorrado() {
+    if (confirmacion.trim().toUpperCase() !== 'ELIMINAR') {
+      setError('Escribe la palabra ELIMINAR tal cual, en mayúsculas, para confirmar.');
+      return;
+    }
+    setBorrando(true);
+    setError('');
+    try {
+      await supabase.from('historial').delete().eq('username', username);
+      await supabase.from('fotos_progreso').delete().eq('username', username);
+      await supabase.from('push_subs').delete().eq('username', username);
+      await supabase.from('datos_alumnos').delete().eq('username', username);
+      const { error: errAlumno } = await supabase.from('alumnos').delete().eq('username', username);
+      if (errAlumno) throw errAlumno;
+      await supabase.auth.signOut();
+      onEliminado();
+    } catch (e) {
+      setError('No se pudo eliminar la cuenta. Intenta de nuevo o escríbenos por WhatsApp: ' + (e.message || ''));
+      setBorrando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+      <div className="bg-zinc-900 border border-red-500/40 rounded-2xl p-6 max-w-md w-full">
+        {paso === 1 ? (
+          <>
+            <h3 className="jb-display text-lg text-red-400 mb-3">¿Eliminar tu cuenta?</h3>
+            <p className="jb-body text-sm text-zinc-300 mb-3">
+              Esto borra permanentemente tu cuenta, tu historial de comidas, tu plan de alimentación,
+              tus fotos de progreso y tus notificaciones guardadas. <strong className="text-white">No se puede deshacer.</strong>
+            </p>
+            <p className="jb-body text-xs text-zinc-500 mb-5">
+              Si solo quieres pausar tu cuenta (por ejemplo, mientras juntas para renovar), no hace falta eliminarla —
+              tu información se queda guardada igual esperándote.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={onClose} className={btnGhost + ' flex-1'}>Cancelar</button>
+              <button onClick={() => setPaso(2)} className="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-lg py-2.5 jb-body text-sm">
+                Sí, continuar
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="jb-display text-lg text-red-400 mb-3">Última confirmación</h3>
+            <p className="jb-body text-sm text-zinc-300 mb-3">
+              Escribe <strong className="text-white">ELIMINAR</strong> para confirmar que quieres borrar tu cuenta para siempre.
+            </p>
+            <input value={confirmacion} onChange={e => setConfirmacion(e.target.value)}
+              className={inputCls + ' w-full mb-2'} placeholder="ELIMINAR" autoFocus />
+            {error && <p className="text-red-400 text-xs jb-body mb-2">{error}</p>}
+            <div className="flex gap-2 mt-3">
+              <button onClick={onClose} className={btnGhost + ' flex-1'} disabled={borrando}>Cancelar</button>
+              <button onClick={confirmarBorrado} disabled={borrando}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white rounded-lg py-2.5 jb-body text-sm flex items-center justify-center gap-2">
+                {borrando ? <Loader2 className="animate-spin" size={16} /> : 'Eliminar mi cuenta'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
   const [verGuia, setVerGuia] = useState(false);
@@ -8197,6 +8273,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [guiaVista, setGuiaVista] = useState(true);
   const [pull, setPull] = useState({ y: 0, refrescando: false });
   const pullStartY = useRef(null);
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
 
   const PULL_UMBRAL = 70;
   function onPullStart(e) {
@@ -8348,12 +8425,20 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
-      <footer className="text-center py-4">
+      <footer className="text-center py-4 flex items-center justify-center gap-3 flex-wrap">
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
           className="jb-body text-[11px] text-zinc-700 hover:text-zinc-500 underline">
           Política de Privacidad
         </a>
+        <span className="text-zinc-800 text-[11px]">·</span>
+        <button onClick={() => setMostrarEliminar(true)}
+          className="jb-body text-[11px] text-zinc-700 hover:text-red-400 underline">
+          Eliminar mi cuenta
+        </button>
       </footer>
+      {mostrarEliminar && (
+        <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
+      )}
       <WhatsAppButton />
     </div>
   );

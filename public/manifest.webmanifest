@@ -2,6 +2,7 @@
   "name": "Jonah Beast Fuel",
   "short_name": "JB Fuel",
   "description": "La alimentación que impulsa tu objetivo. Mide tu composición corporal, arma tu plan con comida peruana y sigue tu progreso.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +10,7 @@
   "background_color": "#0D0D0F",
   "theme_color": "#0D0D0F",
   "lang": "es-PE",
-  "categories": ["health", "fitness", "lifestyle"],
+  "categories": ["health", "fitness", "food"],
   "icons": [
     {
       "src": "/icon-192.png",

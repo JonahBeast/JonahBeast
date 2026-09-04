@@ -3877,7 +3877,20 @@ function ReferidosPanel({ users, onCambio }) {
     if (!window.confirm(aviso)) return;
     try {
       await supabase.from('referidores').delete().eq('codigo', r.codigo);
+      // Desvincula de verdad a los alumnos que tenían este código, para que no
+      // queden "huérfanos" (contando en el total pero sin aparecer en ninguna tarjeta).
+      if (lista.length > 0) {
+        await supabase.from('alumnos').update({ codigo_referido: null }).ilike('codigo_referido', r.codigo);
+      }
       await cargar();
+      if (onCambio) await onCambio();
+    } catch {}
+  }
+
+  async function desvincular(username) {
+    try {
+      await supabase.from('alumnos').update({ codigo_referido: null }).eq('username', username);
+      if (onCambio) await onCambio();
     } catch {}
   }
 
@@ -3918,6 +3931,12 @@ function ReferidosPanel({ users, onCambio }) {
   }, 0);
 
   const totalReferidos = Object.values(porCodigo).reduce((a, l) => a + l.length, 0);
+
+  // Alumnos con un código de referido que ya no existe entre los códigos activos
+  // (típicamente porque ese código fue borrado o renombrado). Cuentan en el total
+  // de arriba pero no aparecen en ninguna tarjeta de abajo si no se detectan aquí.
+  const codigosActivos = new Set(refs.map(r => r.codigo.toUpperCase()));
+  const huerfanos = (users || []).filter(u => u.codigoReferido && !codigosActivos.has(u.codigoReferido.toUpperCase()));
 
   function waRef(r, monto, cantidad) {
     const num = (r.telefono || '').replace(/\D/g, '');
@@ -3996,6 +4015,24 @@ function ReferidosPanel({ users, onCambio }) {
             </form>
             {err && <p className="text-red-400 text-sm jb-body mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
           </div>
+
+          {huerfanos.length > 0 && (
+            <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl p-3 flex flex-col gap-2">
+              <p className="text-amber-300 text-xs jb-body flex items-center gap-1.5">
+                <AlertTriangle size={14} className="shrink-0" />
+                {huerfanos.length} alumno(s) tienen un código de referido que ya no existe entre tus códigos activos
+                (seguramente fue borrado o cambiado). Por eso el total de arriba no cuadra con las tarjetas de abajo.
+              </p>
+              <div className="flex flex-col gap-1">
+                {huerfanos.map(u => (
+                  <div key={u.username} className="flex items-center justify-between gap-2 text-xs jb-body text-zinc-400 bg-zinc-950/60 rounded-lg px-2.5 py-1.5">
+                    <span>{u.username} <span className="text-zinc-600">· código guardado: {u.codigoReferido}</span></span>
+                    <button onClick={() => desvincular(u.username)} className="text-orange-500 hover:text-orange-400 shrink-0">Desvincular</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">

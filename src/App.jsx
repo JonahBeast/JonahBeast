@@ -258,6 +258,21 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
+/* Restaurantes aliados: negocios con convenio real (comisión de
+   embajador + su carta con macros reales dentro de la app). Cada
+   plato debe existir primero en FOODS (mismo patrón que Bembos o
+   McDonald's — el nombre del restaurante va entre paréntesis en el
+   nombre del alimento) y su "key" exacto se agrega aquí en "platos". */
+const RESTAURANTES_ALIADOS = [
+  {
+    nombre: 'PECAFIT', emoji: '🥗', color: '22C55E',
+    descripcion: 'Comida saludable con macros reales',
+    codigoReferido: 'PECAFIT',
+    platos: [], // se llena con los food.key exactos cuando lleguen los platos reales
+  },
+];
+
+
 /* Sustitución inteligente: grupos de alimentos que cumplen el mismo rol
    nutricional y se pueden intercambiar entre sí, igualando el macro que
    corresponde a cada rol (proteína, carbohidratos o grasa). */
@@ -1290,6 +1305,96 @@ function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo })
         <button onClick={() => { onAgregarCombo(actual); siguiente(); }} className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-xl">✓</button>
       </div>
       <p className="jb-body text-[10px] text-zinc-600">👆 Desliza la tarjeta a la derecha para agregar, a la izquierda para saltar</p>
+    </div>
+  );
+}
+
+/* Restaurantes aliados — negocios reales con convenio de comisión que
+   además tienen su carta con macros dentro de la app. Se ve y se usa
+   parecido a "Favoritos" del Registro Rápido, pero agrupado por
+   restaurante y con su marca visible. */
+function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
+  const [open, setOpen] = useState(false);
+  const [restauranteActivo, setRestauranteActivo] = useState(RESTAURANTES_ALIADOS[0]?.nombre);
+  const [mealDestino, setMealDestino] = useState(MEAL_NAMES[0]);
+
+  const restaurante = RESTAURANTES_ALIADOS.find(r => r.nombre === restauranteActivo);
+  const platos = (restaurante?.platos || []).map(key => buscarFood(key)).filter(Boolean);
+
+  function agregarPlato(food) {
+    const d = unidadPorDefecto(food);
+    setMealPlan(v => ({
+      ...v,
+      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id: uid(), foodKey: food.key, qty: d.qty, unit: d.unit }] },
+    }));
+    vibrar(15);
+    showToast(`✅ ${food.name} agregado a ${mealDestino}`);
+  }
+
+  if (!RESTAURANTES_ALIADOS.length) return null;
+
+  return (
+    <div className="bg-zinc-900 border border-emerald-500/40 rounded-2xl p-5 mb-6">
+      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 text-lg">🍽️</div>
+          <div>
+            <p className="jb-display text-sm text-zinc-200">RESTAURANTES ALIADOS</p>
+            <p className="jb-body text-[11px] text-zinc-500">Carta real con macros — registra su comida en un toque</p>
+          </div>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="mt-4 flex flex-col gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {RESTAURANTES_ALIADOS.map(r => (
+              <button key={r.nombre} onClick={() => setRestauranteActivo(r.nombre)}
+                className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 border transition-colors ${restauranteActivo === r.nombre
+                  ? 'text-zinc-950 font-semibold border-transparent' : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}
+                style={restauranteActivo === r.nombre ? { background: `#${r.color}` } : {}}>
+                <span>{r.emoji}</span>{r.nombre}
+              </button>
+            ))}
+          </div>
+
+          {restaurante && <p className="jb-body text-xs text-zinc-500">{restaurante.descripcion}</p>}
+
+          <div>
+            <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
+            <div className="flex gap-2 flex-wrap">
+              {MEAL_NAMES.map(m => {
+                const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
+                return (
+                  <button key={m} onClick={() => setMealDestino(m)}
+                    className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${mealDestino === m
+                      ? 'bg-violet-500 border-violet-500 text-zinc-950 font-semibold'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                    <span>{mealIcon}</span>{m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {platos.length === 0 ? (
+            <p className="jb-body text-xs text-zinc-500 text-center py-6">
+              Todavía estamos cargando la carta de {restauranteActivo} — vuelve pronto 🍽️
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {platos.map(f => (
+                <button key={f.key} onClick={() => agregarPlato(f)}
+                  className="bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
+                  <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                  <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -8009,6 +8114,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           carbs: objC - totals.carbs,
           fat: objF - totals.fat,
         }} />
+
+      <RestaurantesAliadosCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
 
       {MEAL_NAMES.map(meal => {
         const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';

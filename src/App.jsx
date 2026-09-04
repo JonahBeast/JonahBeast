@@ -3667,7 +3667,7 @@ function PanelReferidor({ token, onSalir }) {
   const refs = datos.referidos || [];
   const pagaron = refs.filter(r => r.pago);
   const enPrueba = refs.filter(r => !r.pago);
-  const esPct = datos.tipo === 'influencer' && datos.comision_pct;
+  const esPct = Number(datos.comision_pct) > 0;
 
   function fmtFecha(f) {
     if (!f) return '';
@@ -5502,7 +5502,7 @@ function PagosPanel({ onAprobado }) {
             .ilike('codigo', al.codigo_referido).maybeSingle();
           if (ref) {
             let monto = null;
-            if (ref.tipo === 'influencer' && Number(ref.comision_pct) > 0) {
+            if (Number(ref.comision_pct) > 0) {
               // Porcentaje sobre el precio de lista, no sobre el ya descontado
               const dctoRef = Number(ref.descuento_pct) || 0;
               const listaAprox = dctoRef > 0

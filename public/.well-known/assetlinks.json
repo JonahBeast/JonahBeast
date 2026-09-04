@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jonahbeast.twa",
+      "sha256_cert_fingerprints": [
+        "15:FA:5E:01:2F:5E:93:88:FB:24:40:4F:16:39:57:67:AB:44:0B:8B:FE:E0:2E:BD:EA:0F:93:64:73:DC:38:DF"
+      ]
+    }
+  }
+]

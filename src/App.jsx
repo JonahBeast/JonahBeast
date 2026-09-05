@@ -16,6 +16,7 @@ const RAW_FOODS = [
   ["Cereales","Kiwicha","Cruda",371,13.6,65.3,7.0,6.7],
   ["Cereales","Kiwicha","Cocida",102,3.8,19.0,1.6,2.1],
   ["Cereales","Cañihua","Cruda",350,15.0,63.0,7.6,8.0],
+  ["Cereales","Cañihua","Cocida",114,4.7,20.9,2.4,3.2],
   ["Cereales","Choclo (maíz)","Crudo",96,3.4,21.0,1.5,2.4],
   ["Cereales","Choclo (maíz)","Cocido",90,3.3,19.0,1.3,2.2],
   ["Cereales","Cereal cornflakes sin gluten","-",378,7.0,84.0,0.4,3.0],

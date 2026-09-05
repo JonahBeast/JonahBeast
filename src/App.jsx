@@ -8361,7 +8361,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           {[
             ['Kcal', totals.kcal, mealPlan.targetKcal],
             ['Proteína g', totals.protein, objP],
-            ['Carbohidratos g', totals.carbs, objC],
+            ['Carbos g', totals.carbs, objC],
             ['Grasas g', totals.fat, objF],
           ].map(([label, val, obj]) => (
             <div key={label}>

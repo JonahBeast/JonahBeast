@@ -4383,11 +4383,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <Logo />
         <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
       </header>
-
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
@@ -4874,7 +4873,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Calorías objetivo" value={Math.round(targetKcal)} sub="kcal/día" accent="text-amber-400" />
             <StatCard label="Proteína" value={Math.round(proteinG) + ' g'} sub="según tu masa magra" />
-            <StatCard label="Carbohidratos" value={Math.round(Math.max(carbsG, 0)) + ' g'} />
+            <StatCard label="Carbos" value={Math.round(Math.max(carbsG, 0)) + ' g'} />
             <StatCard label="Grasas" value={Math.round(fatG) + ' g'} sub="~25% de las calorías" />
           </div>
 

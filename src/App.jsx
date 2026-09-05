@@ -2817,7 +2817,7 @@ function Landing({ onChoose }) {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />

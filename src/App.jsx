@@ -214,6 +214,17 @@ const RAW_FOODS = [
   ["Postres","Flan / crema volteada","-",190,4.5,28.0,6.5,0.0],
   ["Postres","Churro relleno","-",380,5.0,48.0,18.5,1.5],
   ["Postres","Queque simple","-",340,5.0,50.0,13.0,1.0],
+  ["Postres","Keke de plátano","-",277,4.0,47.4,8.5,1.5],
+  ["Postres","Keke de naranja","-",320,5.0,45.0,13.0,1.0],
+  ["Postres","Keke de vainilla","-",340,5.0,50.0,13.0,1.0],
+  ["Postres","Keke de zanahoria","-",370,4.5,44.0,19.0,1.5],
+  ["Postres","Keke marmoleado","-",350,5.0,50.0,15.0,1.0],
+  ["Postres","Keke de arándanos","-",330,5.5,50.0,12.0,1.5],
+  ["Postres","Panetón","-",340,7.0,55.0,10.0,2.0],
+  ["Postres","Torta tres leches","-",285,4.5,35.0,13.0,0.3],
+  ["Postres","Cocada","-",460,3.0,55.0,25.0,3.0],
+  ["Postres","Manjar blanco","-",315,6.5,55.0,7.5,0.0],
+  ["Postres","Leche asada","-",150,3.7,26.7,3.4,0.0],
   ["Postres","Chocolate con leche","-",535,7.6,59.4,29.7,3.4],
   ["Postres","Galleta dulce rellena","-",480,5.0,66.0,21.0,2.0],
   ["Bebidas","Café negro sin azúcar","-",2,0.3,0.0,0.0,0.0],
@@ -425,6 +436,17 @@ const UNITS_BY_NAME = {
   'Flan / crema volteada': [['porción', 130]],
   'Churro relleno': [['unidad', 70]],
   'Queque simple': [['tajada', 70], ['porción', 90]],
+  'Keke de plátano': [['tajada', 70], ['porción', 90]],
+  'Keke de naranja': [['tajada', 70], ['porción', 90]],
+  'Keke de vainilla': [['tajada', 70], ['porción', 90]],
+  'Keke de zanahoria': [['tajada', 80], ['porción', 100]],
+  'Keke marmoleado': [['tajada', 70], ['porción', 90]],
+  'Keke de arándanos': [['tajada', 70], ['porción', 90]],
+  'Panetón': [['tajada', 80], ['porción', 100]],
+  'Torta tres leches': [['tajada', 100], ['porción', 130]],
+  'Cocada': [['unidad', 30]],
+  'Manjar blanco': [['cucharada', 20], ['porción', 30]],
+  'Leche asada': [['porción', 120]],
   'Chocolate con leche': [['barra pequeña', 40], ['cuadrito', 8]],
   'Galleta dulce rellena': [['unidad', 12], ['paquete', 43]],
   'Clara de huevo': [['unidad', 33]],
@@ -526,7 +548,9 @@ function buscarAlimentos(lista, texto, limite = 40) {
   const palabras = q.split(' ').filter(Boolean);
   const conPuntaje = [];
   for (const f of lista) {
-    const objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
+    let objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
+    if (objetivo.includes('keke')) objetivo += ' queque';
+    else if (objetivo.includes('queque')) objetivo += ' keke';
     if (!palabras.every(w => objetivo.includes(w))) continue;
     const nombreNorm = normalizar(f.name);
     let puntaje = 3;
@@ -1148,7 +1172,9 @@ function interpretarVarios(textoCompleto) {
     // está claro cuál es — en vez de adivinar en silencio.
     const candidatas = [];
     for (const f of FOODS) {
-      const nombreLower = f.name.toLowerCase();
+      let nombreLower = f.name.toLowerCase();
+      if (nombreLower.includes('keke')) nombreLower += ' queque';
+      else if (nombreLower.includes('queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
       for (const rv of restoVariantes) {

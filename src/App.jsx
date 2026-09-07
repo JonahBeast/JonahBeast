@@ -314,6 +314,12 @@ const RESTAURANTES_ALIADOS = [
   },
 ];
 
+/* Alimentos para el buscador general: todo MENOS los platos de restaurantes
+   aliados (esos solo deben verse dentro de su propia tarjeta, no mezclados
+   con el resto de la base de datos al buscar por nombre). */
+const KEYS_RESTAURANTES_ALIADOS = new Set(RESTAURANTES_ALIADOS.flatMap(r => r.platos));
+const FOODS_BUSCADOR = FOODS.filter(f => !KEYS_RESTAURANTES_ALIADOS.has(f.key));
+
 
 /* Sustitución inteligente: grupos de alimentos que cumplen el mismo rol
    nutricional y se pueden intercambiar entre sí, igualando el macro que
@@ -339,7 +345,7 @@ function grupoDeSustitucion(food) {
 function opcionesDeSustitucion(food, restricciones = []) {
   const bucket = grupoDeSustitucion(food);
   if (!bucket) return [];
-  const candidatos = FOODS.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name && !restricciones.includes(f.name));
+  const candidatos = FOODS_BUSCADOR.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name && !restricciones.includes(f.name));
   const vistos = new Set();
   const resultado = [];
   for (const f of candidatos) {
@@ -1020,7 +1026,7 @@ function RestriccionesCard({ mealPlan, setMealPlan }) {
           )}
           <BuscadorAlimento
             valor=""
-            alimentos={FOODS}
+            alimentos={FOODS_BUSCADOR}
             onElegir={key => { const f = buscarFood(key); if (f) agregar(f.name); }}
             onNoEncuentra={() => {}}
           />
@@ -7358,7 +7364,7 @@ function AdivinaCaloriasCard() {
   const [racha, setRacha] = useState(0);
 
   function nuevaRonda() {
-    const candidatos = FOODS.filter(f => f.kcal > 0 && !['Bebidas', 'Grasas'].includes(f.group));
+    const candidatos = FOODS_BUSCADOR.filter(f => f.kcal > 0 && !['Bebidas', 'Grasas'].includes(f.group));
     const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
     setComida(elegido);
     setGuess('');
@@ -8065,7 +8071,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
     } catch {}
   }
 
-  const todosLosAlimentos = useMemo(() => [...personales, ...FOODS], [personales]);
+  const todosLosAlimentos = useMemo(() => [...personales, ...FOODS_BUSCADOR], [personales]);
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {

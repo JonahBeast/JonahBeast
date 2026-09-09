@@ -510,7 +510,7 @@ const UNITS_BY_NAME = {
   'Cake de plátano (PECAFIT)': [['tajada', 100]],
   'Torta de cacao (PECAFIT)': [['tajada', 100]],
   /* Pesos estimados — PENDIENTE confirmar con el peso real */
-  'Cheesecake (PECAFIT)': [['keke entero', 900]],
+  'Cheesecake (PECAFIT)': [['tajada', 112.5]],
   'Parfait (PECAFIT)': [['porción', 350]],
 };
 const UNITS_BY_GROUP = {

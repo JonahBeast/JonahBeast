@@ -51,6 +51,8 @@ const RAW_FOODS = [
   ["Huevos","Huevo de gallina","Crudo",143,12.6,0.7,9.5,0.0],
   ["Huevos","Huevo de gallina","Cocido",155,12.6,1.1,10.6,0.0],
   ["Huevos","Huevo de gallina","Frito",196,13.6,0.8,14.8,0.0],
+  ["Huevos","Huevo de codorniz","Crudo",158,13.1,0.4,11.1,0.0],
+  ["Huevos","Huevo de codorniz","Cocido",158,13.1,0.4,11.1,0.0],
   ["Lácteos","Leche entera","-",61,3.2,4.8,3.3,0.0],
   ["Lácteos","Leche descremada","-",34,3.4,5.0,0.1,0.0],
   ["Lácteos","Leche sin lactosa","-",46,3.2,4.9,1.5,0.0],
@@ -395,6 +397,7 @@ function sustitucionEquivalente(valorObjetivo, nuevoFood, macro) {
    Se resuelve por nombre exacto primero, luego por grupo. */
 const UNITS_BY_NAME = {
   'Huevo de gallina': [['unidad', 50]],
+  'Huevo de codorniz': [['unidad', 9]],
   'Plátano de seda': [['unidad', 120]],
   'Manzana': [['unidad', 180]],
   'Naranja': [['unidad', 150]],

@@ -4660,6 +4660,8 @@ function FinanzasPanel() {
   const [fechaLimite, setFechaLimite] = useState('');
   const [guardandoVenc, setGuardandoVenc] = useState(false);
   const [socio1Nombre, setSocio1Nombre] = useState('Socio 1');
+  const [regimen, setRegimen] = useState('nuevo_rus');
+  const [guardandoRegimen, setGuardandoRegimen] = useState(false);
   const [socio2Nombre, setSocio2Nombre] = useState('Socio 2');
   const [socio1Pct, setSocio1Pct] = useState('50');
   const [guardandoSocios, setGuardandoSocios] = useState(false);
@@ -4675,16 +4677,26 @@ function FinanzasPanel() {
     } catch {}
     try {
       const { data: cfg } = await supabase.from('config').select('key, value')
-        .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite', 'socio1_nombre', 'socio2_nombre', 'socio1_pct']);
+        .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite', 'socio1_nombre', 'socio2_nombre', 'socio1_pct', 'regimen_tributario']);
       (cfg || []).forEach(c => {
         if (c.key === 'ruc_ultimo_digito') setUltimoDigito(c.value || '');
         if (c.key === 'finanzas_fecha_limite') setFechaLimite(c.value || '');
         if (c.key === 'socio1_nombre') setSocio1Nombre(c.value || 'Socio 1');
         if (c.key === 'socio2_nombre') setSocio2Nombre(c.value || 'Socio 2');
         if (c.key === 'socio1_pct') setSocio1Pct(c.value || '50');
+        if (c.key === 'regimen_tributario') setRegimen(c.value || 'nuevo_rus');
       });
     } catch {}
     setLoading(false);
+  }
+
+  async function guardarRegimen(nuevo) {
+    setRegimen(nuevo);
+    setGuardandoRegimen(true);
+    try {
+      await supabase.from('config').upsert({ key: 'regimen_tributario', value: nuevo });
+    } catch {}
+    setGuardandoRegimen(false);
   }
 
   async function guardarVencimiento() {
@@ -4797,6 +4809,13 @@ function FinanzasPanel() {
   const montoSocio1 = utilidadNeta > 0 ? utilidadNeta * (pct1 / 100) : 0;
   const montoSocio2 = utilidadNeta > 0 ? utilidadNeta * (pct2 / 100) : 0;
 
+  // Cálculo del Nuevo RUS: categoría y cuota fija según ventas/compras del mes (lo que sea mayor)
+  const maxVentasComprasRUS = Math.max(ventas, compras);
+  let categoriaRUS = null, cuotaRUS = null, excedeRUS = false;
+  if (maxVentasComprasRUS <= 5000) { categoriaRUS = 1; cuotaRUS = 20; }
+  else if (maxVentasComprasRUS <= 8000) { categoriaRUS = 2; cuotaRUS = 50; }
+  else { excedeRUS = true; }
+
   function exportarCSV() {
     const headers = ['fecha', 'negocio', 'tipo', 'concepto', 'monto', 'tiene_comprobante', 'igv', 'notas'];
     const filas = movs.map(m => headers.map(h => {
@@ -4859,6 +4878,16 @@ function FinanzasPanel() {
                 Estimado de referencia, no reemplaza tu declaración real en SUNAT ni a un contador.
               </p>
 
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-zinc-500">Régimen tributario actual:</span>
+                <select value={regimen} onChange={e => guardarRegimen(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                  <option value="nuevo_rus">Nuevo RUS</option>
+                  <option value="rmt">Régimen MYPE Tributario (RMT)</option>
+                </select>
+                {guardandoRegimen && <span className="text-[11px] text-zinc-600">guardando...</span>}
+              </div>
+
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
                 <h3 className="jb-display text-sm text-zinc-300">Fecha límite para declarar</h3>
                 {diasVenc !== null && (
@@ -4912,53 +4941,84 @@ function FinanzasPanel() {
                   <div className="text-[11px] text-zinc-500 mb-0.5">Compras del mes</div>
                   <div className="text-zinc-100 jb-display text-lg">S/ {compras.toFixed(2)}</div>
                 </div>
+                {regimen === 'rmt' && (
+                  <>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-[11px] text-zinc-500 mb-0.5">IGV estimado a pagar</div>
+                      <div className="text-orange-400 jb-display text-lg">S/ {igvAPagar.toFixed(2)}</div>
+                      {saldoAFavorSiguiente > 0 && (
+                        <div className="text-[11px] text-emerald-400">S/ {saldoAFavorSiguiente.toFixed(2)} a favor para el próximo mes</div>
+                      )}
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-[11px] text-zinc-500 mb-0.5">Renta estimada (1%)</div>
+                      <div className="text-orange-400 jb-display text-lg">S/ {rentaEstimada.toFixed(2)}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {regimen === 'nuevo_rus' && (
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">IGV estimado a pagar</div>
-                  <div className="text-orange-400 jb-display text-lg">S/ {igvAPagar.toFixed(2)}</div>
-                  {saldoAFavorSiguiente > 0 && (
-                    <div className="text-[11px] text-emerald-400">S/ {saldoAFavorSiguiente.toFixed(2)} a favor para el próximo mes</div>
+                  <div className="text-[11px] text-zinc-500 mb-1">Categoría Nuevo RUS del mes</div>
+                  {excedeRUS ? (
+                    <p className="text-red-400 text-sm">
+                      Superaste el límite de S/8,000 en ventas o compras este mes — ya no calificas para Nuevo RUS.
+                      Deberías evaluar cambiar de régimen con SUNAT lo antes posible.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="text-orange-400 jb-display text-lg">Categoría {categoriaRUS} · Cuota S/ {cuotaRUS}.00</div>
+                      <div className="text-[11px] text-zinc-500 mt-1">
+                        Según lo mayor entre ventas (S/ {ventas.toFixed(2)}) y compras (S/ {compras.toFixed(2)}) del mes.
+                        Categoría 1: hasta S/5,000 → S/20. Categoría 2: hasta S/8,000 → S/50.
+                      </div>
+                    </>
                   )}
+                  <p className="text-[11px] text-zinc-600 mt-2">
+                    En Nuevo RUS no se paga IGV por separado ni Impuesto a la Renta mensual — solo esta cuota fija.
+                    Tampoco aplica el Registro de Ventas/Compras del SIRE ni el Libro Diario Simplificado.
+                  </p>
                 </div>
+              )}
+
+              {regimen === 'rmt' && (
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Renta estimada (1%)</div>
-                  <div className="text-orange-400 jb-display text-lg">S/ {rentaEstimada.toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
-                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
-                </div>
-                <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
-              </div>
-
-              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
-                <h3 className="jb-display text-sm text-zinc-300">Reparto entre socios (utilidad neta del mes)</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <input value={socio1Nombre} onChange={e => setSocio1Nombre(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 1" />
-                  <input value={socio2Nombre} onChange={e => setSocio2Nombre(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 2" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-500">% {socio1Nombre}:</span>
-                  <input type="number" min="0" max="100" value={socio1Pct}
-                    onChange={e => setSocio1Pct(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 w-20" />
-                  <span className="text-xs text-zinc-500">% {socio2Nombre}: {pct2.toFixed(0)}%</span>
-                </div>
-                <p className="text-[11px] text-zinc-600">
-                  Utilidad neta estimada del mes (ventas − compras − IGV − renta): S/ {utilidadNeta.toFixed(2)}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-zinc-900 rounded-lg p-2">
-                    <div className="text-[11px] text-zinc-500">{socio1Nombre}</div>
-                    <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio1.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
+                  <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
                   </div>
-                  <div className="bg-zinc-900 rounded-lg p-2">
-                    <div className="text-[11px] text-zinc-500">{socio2Nombre}</div>
-                    <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio2.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
+                </div>
+              )}
+
+              {regimen === 'rmt' && (
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                  <h3 className="jb-display text-sm text-zinc-300">Reparto entre socios (utilidad neta del mes)</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={socio1Nombre} onChange={e => setSocio1Nombre(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 1" />
+                    <input value={socio2Nombre} onChange={e => setSocio2Nombre(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 2" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500">% {socio1Nombre}:</span>
+                    <input type="number" min="0" max="100" value={socio1Pct}
+                      onChange={e => setSocio1Pct(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 w-20" />
+                    <span className="text-xs text-zinc-500">% {socio2Nombre}: {pct2.toFixed(0)}%</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-600">
+                    Utilidad neta estimada del mes (ventas − compras − IGV − renta): S/ {utilidadNeta.toFixed(2)}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-zinc-900 rounded-lg p-2">
+                      <div className="text-[11px] text-zinc-500">{socio1Nombre}</div>
+                      <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio1.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-zinc-900 rounded-lg p-2">
+                      <div className="text-[11px] text-zinc-500">{socio2Nombre}</div>
+                      <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio2.toFixed(2)}</div>
                   </div>
                 </div>
                 <p className="text-[11px] text-zinc-600">
@@ -4969,6 +5029,7 @@ function FinanzasPanel() {
                   {guardandoSocios ? 'Guardando...' : 'Guardar reparto'}
                 </button>
               </div>
+              )}
 
               <form onSubmit={agregar} className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                 <h3 className="jb-display text-sm text-zinc-300">Agregar movimiento</h3>

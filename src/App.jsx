@@ -4423,6 +4423,7 @@ function MetricasPanel() {
   const [comisionesPendientes, setComisionesPendientes] = useState({ count: 0, monto: 0 });
   const [vencidos, setVencidos] = useState(0);
   const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
+  const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
 
   useEffect(() => { if (open) load(); }, [open]);
 
@@ -4431,7 +4432,7 @@ function MetricasPanel() {
     let alumnosData = [];
     try {
       const { data: alumnos } = await supabase.from('alumnos')
-        .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto');
+        .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto, telefono');
       alumnosData = alumnos || [];
 
       // Alumnos por plan
@@ -4503,13 +4504,23 @@ function MetricasPanel() {
       setReferidores(refs || []);
     } catch {}
     try {
-      const { data: leadsData } = await supabase.from('leads').select('red');
+      const { data: leadsData } = await supabase.from('leads').select('red, telefono');
       const counts = {};
       (leadsData || []).forEach(l => {
         const red = l.red || 'sin canal';
         counts[red] = (counts[red] || 0) + 1;
       });
       setLeadsPorRed(Object.entries(counts));
+
+      // Cuántos leads (con teléfono) hoy son alumnos, cruzando por número de celular
+      const telefonosAlumnos = new Set(
+        alumnosData.map(a => (a.telefono || '').replace(/\D/g, '')).filter(Boolean)
+      );
+      const leadsConTelefono = (leadsData || []).filter(l => (l.telefono || '').replace(/\D/g, ''));
+      const convertidos = leadsConTelefono.filter(l =>
+        telefonosAlumnos.has((l.telefono || '').replace(/\D/g, ''))
+      ).length;
+      setLeadsConvertidos({ total: (leadsData || []).length, convertidos });
     } catch {}
     setLoading(false);
   }
@@ -4547,6 +4558,11 @@ function MetricasPanel() {
                   <div className="text-[11px] text-zinc-500 mb-0.5">Proyección por vencer (7 días)</div>
                   <div className="text-emerald-400 jb-display text-lg">S/ {proyeccion.monto.toFixed(2)}</div>
                   <div className="text-[11px] text-zinc-500">{proyeccion.count} alumnos · estimado</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Leads convertidos a alumno</div>
+                  <div className="text-emerald-400 jb-display text-lg">{leadsConvertidos.convertidos} de {leadsConvertidos.total}</div>
+                  <div className="text-[11px] text-zinc-500">cruce por teléfono</div>
                 </div>
               </div>
 

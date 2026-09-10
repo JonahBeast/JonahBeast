@@ -4764,6 +4764,26 @@ function FinanzasPanel() {
     URL.revokeObjectURL(url);
   }
 
+  function exportarLibroDiario() {
+    const headers = ['Fecha', 'Glosa', 'Cuenta', 'Debe', 'Haber'];
+    const filas = [];
+    movs.slice().sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '')).forEach(m => {
+      const glosa = `${m.tipo === 'ingreso' ? 'Venta' : 'Compra'} - ${m.negocio} - ${m.concepto || ''}`.replace(/"/g, '""');
+      const cuenta = m.tipo === 'ingreso' ? '70 - Ventas' : '60 - Compras';
+      const debe = m.tipo === 'gasto' ? (parseFloat(m.monto) || 0).toFixed(2) : '0.00';
+      const haber = m.tipo === 'ingreso' ? (parseFloat(m.monto) || 0).toFixed(2) : '0.00';
+      filas.push([`"${m.fecha}"`, `"${glosa}"`, `"${cuenta}"`, debe, haber].join(','));
+    });
+    const csv = [headers.join(','), ...filas].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `libro_diario_simplificado_jonahbeast_${todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function diasParaVencer() {
     if (!fechaLimite) return null;
     const hoy = new Date(todayISO());
@@ -4826,6 +4846,10 @@ function FinanzasPanel() {
                 <button onClick={exportarCSV}
                   className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg px-3 py-1.5">
                   Exportar todo a Excel (CSV)
+                </button>
+                <button onClick={exportarLibroDiario}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg px-3 py-1.5">
+                  Exportar Libro Diario Simplificado
                 </button>
               </div>
 

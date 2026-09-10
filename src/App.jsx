@@ -6626,6 +6626,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   const [err, setErr] = useState('');
   const [misPagos, setMisPagos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [correo, setCorreo] = useState(userRecord?.correo || '');
+  const [creandoMP, setCreandoMP] = useState(false);
 
   useEffect(() => { cargar(); }, [username]);
 
@@ -6705,6 +6707,26 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
   const pendiente = misPagos.find(p => p.estado === 'pendiente');
   const faltaTelefono = !userRecord?.telefono;
+
+  async function pagarConMercadoPago() {
+    setErr('');
+    if (!seleccion) return setErr('Elige un plan.');
+    if (!correo.trim() || !correo.includes('@')) return setErr('Escribe un correo válido.');
+    setCreandoMP(true);
+    try {
+      if (correo.trim() !== userRecord?.correo) {
+        try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch {}
+      }
+      const { data, error } = await supabase.functions.invoke('crear-suscripcion', {
+        body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dcto },
+      });
+      if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
+      window.location.href = data.init_point;
+    } catch (e) {
+      setErr(e.message || 'No se pudo conectar con Mercado Pago.');
+    }
+    setCreandoMP(false);
+  }
   const dl = userRecord ? daysLeft(userRecord.fechaVencimiento) : null;
   const esTrial = userRecord?.plan === 'trial';
 
@@ -6878,6 +6900,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
               ['Yape', '🟣', 'bg-[#7c2ae8]'],
               ['Plin', '🔵', 'bg-[#00c2d1]'],
               ['Transferencia', '🏦', 'bg-zinc-600'],
+              ['Mercado Pago', '💳', 'bg-sky-500'],
             ].map(([m, emoji, dot]) => (
               <button key={m} onClick={() => setMetodo(m)}
                 className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 flex items-center justify-center gap-1.5 transition-colors ${metodo === m
@@ -6891,7 +6914,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
           </div>
 
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5">
-            {metodo === 'Transferencia' ? (
+            {metodo === 'Mercado Pago' ? (
+              <div className="text-center">
+                <div className="w-9 h-9 rounded-full mx-auto mb-2 flex items-center justify-center text-sm bg-sky-500">💳</div>
+                <p className="jb-body text-sm text-zinc-300">Paga con tarjeta o tu saldo de Mercado Pago.</p>
+                <p className="jb-body text-xs text-zinc-500 mt-1">Tu plan se activa automáticamente en cuanto se confirme el pago.</p>
+              </div>
+            ) : metodo === 'Transferencia' ? (
               datosPago.banco_cuenta ? (
                 <div className="jb-body text-sm text-zinc-300 flex flex-col gap-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -6924,6 +6953,22 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             </p>
           </div>
 
+          {metodo === 'Mercado Pago' ? (
+            <div className="flex flex-col gap-3">
+              <Field label="Tu correo electrónico">
+                <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
+                  className={inputCls} placeholder="tucorreo@ejemplo.com" />
+              </Field>
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button onClick={pagarConMercadoPago} disabled={creandoMP} className={btnPrimary + ' py-3 text-base'}>
+                {creandoMP ? <Loader2 className="animate-spin" size={18} /> : 'PAGAR CON MERCADO PAGO'}
+              </button>
+              <p className="jb-body text-[11px] text-zinc-600 text-center">
+                Te llevamos a la página segura de Mercado Pago para completar el pago.
+              </p>
+            </div>
+          ) : (
+          <>
           <h3 className="jb-display text-sm text-zinc-300 mb-3">2 · CONFIRMA TU PAGO</h3>
           <div className="flex flex-col gap-3">
             {faltaTelefono && (
@@ -6959,6 +7004,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
               Revisamos tu pago en menos de 24 horas. Te avisamos por WhatsApp cuando se active.
             </p>
           </div>
+          </>
+          )}
         </div>
       )}
 

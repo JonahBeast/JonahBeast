@@ -5016,9 +5016,11 @@ function FinanzasPanel() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onRecargar }) {
+function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [diasInput, setDiasInput] = useState({});
 
   function submitNew(e) {
     e.preventDefault();
@@ -5036,6 +5038,12 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     });
     setNewUser({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   }
+
+  const usersFiltrados = users.filter(u => {
+    if (!busqueda.trim()) return true;
+    const q = busqueda.trim().toLowerCase();
+    return (u.nombre || '').toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
@@ -5125,14 +5133,24 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-800">
-            <h2 className="jb-display text-base text-zinc-200">ALUMNOS ({users.length})</h2>
+          <div className="px-5 py-4 border-b border-zinc-800 flex flex-col gap-3">
+            <h2 className="jb-display text-base text-zinc-200">
+              ALUMNOS ({usersFiltrados.length}{busqueda ? ` de ${users.length}` : ''})
+            </h2>
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre o usuario..."
+              className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 w-full"
+            />
           </div>
-          {users.length === 0 ? (
-            <p className="text-zinc-500 text-sm px-5 py-8 text-center">Aún no has agregado alumnos.</p>
+          {usersFiltrados.length === 0 ? (
+            <p className="text-zinc-500 text-sm px-5 py-8 text-center">
+              {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
+            </p>
           ) : (
             <div className="divide-y divide-zinc-800">
-              {users.map(u => {
+              {usersFiltrados.map(u => {
                 const ms = membershipLabel(u);
                 const act = formatActivity(u.lastActivity);
                 const activo = membershipActive(u);
@@ -5173,6 +5191,20 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                     <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-sm'} title="Renovar 1 mes">
                       +1 mes
                     </button>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number" min="1" placeholder="días"
+                        value={diasInput[u.username] || ''}
+                        onChange={e => setDiasInput(v => ({ ...v, [u.username]: e.target.value }))}
+                        className="w-14 bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200"
+                      />
+                      <button
+                        onClick={() => onAdjustDays(u.username, parseInt(diasInput[u.username] || '1', 10))}
+                        className={btnGhost + ' py-1.5 px-2 text-xs'} title="Agregar días">+d</button>
+                      <button
+                        onClick={() => onAdjustDays(u.username, -parseInt(diasInput[u.username] || '1', 10))}
+                        className={btnGhost + ' py-1.5 px-2 text-xs'} title="Quitar días">−d</button>
+                    </div>
                     <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Eye size={14} /> Ver datos</button>
                     <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-sm'}>
                       {u.enabled ? 'Deshabilitar' : 'Habilitar'}
@@ -9600,6 +9632,16 @@ export default function App() {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
     } catch {}
   }
+  async function adjustDaysUser(username, dias) {
+    const target = users.find(u => u.username === username);
+    if (!target || !dias) return;
+    const base = target.fechaVencimiento || todayISO();
+    const nuevo = addDaysISO(base, dias);
+    setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo } : u));
+    try {
+      await supabase.from('alumnos').update({ fecha_vencimiento: nuevo }).eq('username', username);
+    } catch {}
+  }
   async function toggleUser(username) {
     const target = users.find(u => u.username === username);
     const nextEnabled = target ? !target.enabled : true;
@@ -9672,7 +9714,7 @@ export default function App() {
       {!tokenRef && view === 'admin' && adminAuthed && (
         <>
           <AdminDashboard users={users} onAddUser={addUser} onToggleUser={toggleUser}
-            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onRecargar={init} />
+            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onAdjustDays={adjustDaysUser} onRecargar={init} />
           {viewingStudent && (
             <StudentDataModal username={viewingStudent} data={viewingStudentData}
               onClose={() => { setViewingStudent(null); setViewingStudentData(null); }} />

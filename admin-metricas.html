@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Métricas — Jonah Beast Fuel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0e1013;
+    --card: #171a1f;
+    --border: #262a31;
+    --text: #eef0f2;
+    --muted: #8b9199;
+    --accent: #ff5a2e; /* naranja Jonah Beast */
+    --accent-soft: rgba(255,90,46,0.15);
+    --good: #3ecf8e;
+    --warn: #f5b642;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .stat .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .stat .value { font-size: 26px; font-weight: 600; }
+  .stat .value.good { color: var(--good); }
+  .stat .value.accent { color: var(--accent); }
+  section { margin-bottom: 32px; }
+  section h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 0 0 12px; text-transform: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .pill.on { background: rgba(62,207,142,0.15); color: var(--good); }
+  .pill.off { background: rgba(139,145,153,0.15); color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; padding: 12px 0; }
+  .err {
+    background: rgba(255,90,46,0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  .note {
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    margin-top: 8px;
+  }
+  #loading { color: var(--muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Métricas — Jonah Beast Fuel</h1>
+  <div class="sub">Solo lectura. No modifica ni borra ningún dato.</div>
+
+  <div id="loading">Cargando datos…</div>
+  <div id="content" style="display:none;">
+    <div id="errBox"></div>
+
+    <div class="grid" id="statsGrid"></div>
+
+    <section>
+      <h2>Alumnos por plan</h2>
+      <table id="planTable"><thead><tr><th>Plan</th><th>Cantidad</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Pagos registrados</h2>
+      <table id="pagosTable"><thead><tr><th>Estado</th><th>Cantidad</th><th>Monto total (S/)</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Referidores / embajadores</h2>
+      <table id="refTable"><thead><tr><th>Nombre</th><th>Código</th><th>Tipo</th><th>Activo</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section>
+      <h2>Leads por canal</h2>
+      <table id="leadsTable"><thead><tr><th>Red</th><th>Cantidad</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <div class="note">
+      "Usuarios por distrito" todavía no se puede mostrar: ninguna tabla actual guarda el distrito por alumno (ese dato solo existe en tu encuesta de mercado, no en el registro real). Si quieres, se puede agregar ese campo más adelante.
+    </div>
+  </div>
+</div>
+
+<script>
+// ⚠️ Reemplaza estos dos valores con los tuyos (Settings → API en Supabase)
+const SUPABASE_URL = "https://jnhvpjrxilubkyhculoh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_v3_YW6HE5Yjeoq9VKwjWJg_8AsYh_WW";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function fmtMoney(n) {
+  return (n || 0).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function loadDashboard() {
+  const errors = [];
+
+  // 1. Alumnos
+  let alumnos = [];
+  try {
+    const { data, error } = await sb.from("alumnos").select("plan, fecha_inicio, fecha_vencimiento, codigo_referido");
+    if (error) throw error;
+    alumnos = data || [];
+  } catch (e) {
+    errors.push("No se pudo leer 'alumnos': " + e.message);
+  }
+
+  // 2. Pagos
+  let pagos = [];
+  try {
+    const { data, error } = await sb.from("pagos").select("estado, monto, plan_meses");
+    if (error) throw error;
+    pagos = data || [];
+  } catch (e) {
+    errors.push("No se pudo leer 'pagos': " + e.message);
+  }
+
+  // 3. Referidores
+  let referidores = [];
+  try {
+    const { data, error } = await sb.from("referidores").select("nombre, codigo, tipo, activo");
+    if (error) throw error;
+    referidores = data || [];
+  } catch (e) {
+    errors.push("No se pudo leer 'referidores': " + e.message);
+  }
+
+  // 4. Leads
+  let leads = [];
+  try {
+    const { data, error } = await sb.from("leads").select("red");
+    if (error) throw error;
+    leads = data || [];
+  } catch (e) {
+    errors.push("No se pudo leer 'leads': " + e.message);
+  }
+
+  // --- Render errores ---
+  const errBox = document.getElementById("errBox");
+  if (errors.length) {
+    errBox.innerHTML = errors.map(e => `<div class="err">${e}</div>`).join("");
+  }
+
+  // --- Stats generales ---
+  const totalAlumnos = alumnos.length;
+  const planCounts = {};
+  alumnos.forEach(a => {
+    const p = a.plan || "sin plan";
+    planCounts[p] = (planCounts[p] || 0) + 1;
+  });
+  const conReferido = alumnos.filter(a => a.codigo_referido).length;
+
+  const pagosConfirmados = pagos.filter(p => (p.estado || "").toLowerCase() === "pagado" || (p.estado || "").toLowerCase() === "confirmado");
+  const montoTotal = pagosConfirmados.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
+
+  const statsGrid = document.getElementById("statsGrid");
+  statsGrid.innerHTML = `
+    <div class="stat"><div class="label">Total alumnos</div><div class="value">${totalAlumnos}</div></div>
+    <div class="stat"><div class="label">Pagos confirmados</div><div class="value good">${pagosConfirmados.length}</div></div>
+    <div class="stat"><div class="label">Ingresos confirmados (S/)</div><div class="value accent">${fmtMoney(montoTotal)}</div></div>
+    <div class="stat"><div class="label">Alumnos con referido</div><div class="value">${conReferido}</div></div>
+  `;
+
+  // --- Tabla planes ---
+  const planBody = document.querySelector("#planTable tbody");
+  const planEntries = Object.entries(planCounts);
+  planBody.innerHTML = planEntries.length
+    ? planEntries.map(([plan, count]) => `<tr><td>${plan}</td><td>${count}</td></tr>`).join("")
+    : `<tr><td colspan="2" class="empty">Sin datos</td></tr>`;
+
+  // --- Tabla pagos por estado ---
+  const pagosPorEstado = {};
+  pagos.forEach(p => {
+    const est = p.estado || "sin estado";
+    if (!pagosPorEstado[est]) pagosPorEstado[est] = { count: 0, monto: 0 };
+    pagosPorEstado[est].count++;
+    pagosPorEstado[est].monto += parseFloat(p.monto) || 0;
+  });
+  const pagosBody = document.querySelector("#pagosTable tbody");
+  const pagosEntries = Object.entries(pagosPorEstado);
+  pagosBody.innerHTML = pagosEntries.length
+    ? pagosEntries.map(([est, v]) => `<tr><td>${est}</td><td>${v.count}</td><td>${fmtMoney(v.monto)}</td></tr>`).join("")
+    : `<tr><td colspan="3" class="empty">Sin pagos registrados</td></tr>`;
+
+  // --- Tabla referidores ---
+  const refBody = document.querySelector("#refTable tbody");
+  refBody.innerHTML = referidores.length
+    ? referidores.map(r => `<tr><td>${r.nombre}</td><td>${r.codigo}</td><td>${r.tipo || "-"}</td><td><span class="pill ${r.activo ? 'on' : 'off'}">${r.activo ? 'Activo' : 'Inactivo'}</span></td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">Sin referidores</td></tr>`;
+
+  // --- Tabla leads por canal ---
+  const leadsPorRed = {};
+  leads.forEach(l => {
+    const red = l.red || "sin canal";
+    leadsPorRed[red] = (leadsPorRed[red] || 0) + 1;
+  });
+  const leadsBody = document.querySelector("#leadsTable tbody");
+  const leadsEntries = Object.entries(leadsPorRed);
+  leadsBody.innerHTML = leadsEntries.length
+    ? leadsEntries.map(([red, count]) => `<tr><td>${red}</td><td>${count}</td></tr>`).join("")
+    : `<tr><td colspan="2" class="empty">Sin leads registrados</td></tr>`;
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("content").style.display = "block";
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

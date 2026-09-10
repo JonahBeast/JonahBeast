@@ -4412,6 +4412,109 @@ function LeadsPanel() {
   );
 }
 
+function MetricasPanel() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [alumnosPorPlan, setAlumnosPorPlan] = useState([]);
+  const [pagos, setPagos] = useState({ count: 0, monto: 0 });
+  const [referidores, setReferidores] = useState([]);
+  const [leadsPorRed, setLeadsPorRed] = useState([]);
+
+  useEffect(() => { if (open) load(); }, [open]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data: alumnos } = await supabase.from('alumnos').select('plan');
+      const counts = {};
+      (alumnos || []).forEach(a => {
+        const raw = a.plan || 'sin plan';
+        const label = raw === 'trial' ? 'prueba' : raw;
+        counts[label] = (counts[label] || 0) + 1;
+      });
+      setAlumnosPorPlan(Object.entries(counts));
+    } catch {}
+    try {
+      const { data: pagosData } = await supabase.from('pagos').select('estado, monto');
+      const aprobados = (pagosData || []).filter(p => (p.estado || '').toLowerCase() === 'aprobado');
+      const monto = aprobados.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
+      setPagos({ count: aprobados.length, monto });
+    } catch {}
+    try {
+      const { data: refs } = await supabase.from('referidores').select('nombre, codigo, tipo, activo');
+      setReferidores(refs || []);
+    } catch {}
+    try {
+      const { data: leadsData } = await supabase.from('leads').select('red');
+      const counts = {};
+      (leadsData || []).forEach(l => {
+        const red = l.red || 'sin canal';
+        counts[red] = (counts[red] || 0) + 1;
+      });
+      setLeadsPorRed(Object.entries(counts));
+    } catch {}
+    setLoading(false);
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">📊 MÉTRICAS</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
+          {loading ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : (
+            <>
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">PAGOS APROBADOS</h3>
+                <p className="text-zinc-100 text-lg">{pagos.count} pagos · S/ {pagos.monto.toFixed(2)}</p>
+              </div>
+
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS POR PLAN</h3>
+                <div className="flex flex-col gap-1">
+                  {alumnosPorPlan.map(([plan, count]) => (
+                    <div key={plan} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
+                      <span>{plan}</span><span className="text-zinc-100">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">EMBAJADORES</h3>
+                <div className="flex flex-col gap-1">
+                  {referidores.map(r => (
+                    <div key={r.codigo} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
+                      <span>{r.nombre} · {r.codigo}</span>
+                      <span className={r.activo ? 'text-emerald-400' : 'text-zinc-500'}>{r.activo ? 'Activo' : 'Inactivo'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">LEADS POR CANAL</h3>
+                <div className="flex flex-col gap-1">
+                  {leadsPorRed.map(([red, count]) => (
+                    <div key={red} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
+                      <span>{red}</span><span className="text-zinc-100">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -4478,6 +4581,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <PagosPanel />
 
         <LeadsPanel />
+
+        <MetricasPanel />
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <div className="flex items-center gap-2.5 mb-4">

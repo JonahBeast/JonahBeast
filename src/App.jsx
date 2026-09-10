@@ -6628,6 +6628,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   const [loading, setLoading] = useState(true);
   const [correo, setCorreo] = useState(userRecord?.correo || '');
   const [creandoMP, setCreandoMP] = useState(false);
+  const [mpTipo, setMpTipo] = useState('unico');
 
   useEffect(() => { cargar(); }, [username]);
 
@@ -6717,7 +6718,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       if (correo.trim() !== userRecord?.correo) {
         try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch {}
       }
-      const { data, error } = await supabase.functions.invoke('crear-suscripcion', {
+      const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
+      const { data, error } = await supabase.functions.invoke(funcion, {
         body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dcto },
       });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
@@ -6955,6 +6957,23 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
           {metodo === 'Mercado Pago' ? (
             <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                <button onClick={() => setMpTipo('unico')}
+                  className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${mpTipo === 'unico'
+                    ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                  Pago único
+                </button>
+                <button onClick={() => setMpTipo('recurrente')}
+                  className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${mpTipo === 'recurrente'
+                    ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                  Suscripción automática
+                </button>
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 text-center -mt-1">
+                {mpTipo === 'unico'
+                  ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a elegir tu plan y pagar.'
+                  : `Se te cobrará automáticamente cada ${seleccion.meses === 1 ? 'mes' : `${seleccion.meses} meses`} hasta que canceles la suscripción desde tu cuenta de Mercado Pago.`}
+              </p>
               <Field label="Tu correo electrónico">
                 <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
                   className={inputCls} placeholder="tucorreo@ejemplo.com" />

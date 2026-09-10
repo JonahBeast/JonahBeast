@@ -4419,20 +4419,78 @@ function MetricasPanel() {
   const [pagos, setPagos] = useState({ count: 0, monto: 0 });
   const [referidores, setReferidores] = useState([]);
   const [leadsPorRed, setLeadsPorRed] = useState([]);
+  const [conversion, setConversion] = useState({ total: 0, pagos: 0, pct: 0 });
+  const [comisionesPendientes, setComisionesPendientes] = useState({ count: 0, monto: 0 });
+  const [vencidos, setVencidos] = useState(0);
+  const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
 
   useEffect(() => { if (open) load(); }, [open]);
 
   async function load() {
     setLoading(true);
+    let alumnosData = [];
     try {
-      const { data: alumnos } = await supabase.from('alumnos').select('plan');
+      const { data: alumnos } = await supabase.from('alumnos')
+        .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto');
+      alumnosData = alumnos || [];
+
+      // Alumnos por plan
       const counts = {};
-      (alumnos || []).forEach(a => {
+      alumnosData.forEach(a => {
         const raw = a.plan || 'sin plan';
         const label = raw === 'trial' ? 'prueba' : raw;
         counts[label] = (counts[label] || 0) + 1;
       });
       setAlumnosPorPlan(Object.entries(counts));
+
+      // Conversión prueba → pago
+      const totalAlumnos = alumnosData.length;
+      const pagando = alumnosData.filter(a => a.plan === 'pago').length;
+      setConversion({
+        total: totalAlumnos, pagos: pagando,
+        pct: totalAlumnos ? Math.round((pagando / totalAlumnos) * 1000) / 10 : 0,
+      });
+
+      // Vencidos (mismo criterio que membershipActive: deshabilitado o fecha_vencimiento pasada)
+      const vencidosCount = alumnosData.filter(a => {
+        if (!a.enabled) return true;
+        const dl = daysLeft(a.fecha_vencimiento);
+        return dl !== null && dl < 0;
+      }).length;
+      setVencidos(vencidosCount);
+
+      // Comisiones pendientes: alumnos con código de referido y comisión aún no pagada
+      const pendientes = alumnosData.filter(a => a.codigo_referido && !a.comision_pagada);
+      setComisionesPendientes({
+        count: pendientes.length,
+        monto: pendientes.reduce((acc, a) => acc + (parseFloat(a.comision_monto) || 0), 0),
+      });
+
+      // Proyección: alumnos "por vencer" (0-7 días, habilitados) × precio estimado de su plan
+      const porVencer = alumnosData.filter(a => {
+        if (!a.enabled) return false;
+        const dl = daysLeft(a.fecha_vencimiento);
+        return dl !== null && dl <= 7;
+      });
+      let precioPorUsuario = {};
+      if (porVencer.length) {
+        try {
+          const usernames = porVencer.map(a => a.username);
+          const { data: pagosHist } = await supabase.from('pagos')
+            .select('username, plan_meses, creado_en')
+            .in('username', usernames)
+            .order('creado_en', { ascending: false });
+          (pagosHist || []).forEach(p => {
+            if (!precioPorUsuario[p.username]) {
+              const plan = PLANES.find(pl => pl.meses === p.plan_meses);
+              precioPorUsuario[p.username] = plan ? plan.precioDefault : PLANES[0].precioDefault;
+            }
+          });
+        } catch {}
+      }
+      const montoProyectado = porVencer.reduce((acc, a) =>
+        acc + (precioPorUsuario[a.username] ?? PLANES[0].precioDefault), 0);
+      setProyeccion({ count: porVencer.length, monto: montoProyectado });
     } catch {}
     try {
       const { data: pagosData } = await supabase.from('pagos').select('estado, monto');
@@ -4469,6 +4527,29 @@ function MetricasPanel() {
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Conversión prueba → pago</div>
+                  <div className="text-emerald-400 jb-display text-lg">{conversion.pct}%</div>
+                  <div className="text-[11px] text-zinc-500">{conversion.pagos} de {conversion.total} alumnos</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Alumnos vencidos</div>
+                  <div className="text-red-400 jb-display text-lg">{vencidos}</div>
+                  <div className="text-[11px] text-zinc-500">sin renovar</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Comisiones pendientes</div>
+                  <div className="text-orange-400 jb-display text-lg">S/ {comisionesPendientes.monto.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500">{comisionesPendientes.count} por pagar</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Proyección por vencer (7 días)</div>
+                  <div className="text-emerald-400 jb-display text-lg">S/ {proyeccion.monto.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500">{proyeccion.count} alumnos · estimado</div>
+                </div>
+              </div>
+
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">PAGOS APROBADOS</h3>
                 <p className="text-zinc-100 text-lg">{pagos.count} pagos · S/ {pagos.monto.toFixed(2)}</p>

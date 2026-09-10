@@ -4630,6 +4630,9 @@ function FinanzasPanel() {
   });
   const [guardando, setGuardando] = useState(false);
   const [formErr, setFormErr] = useState('');
+  const [ultimoDigito, setUltimoDigito] = useState('');
+  const [fechaLimite, setFechaLimite] = useState('');
+  const [guardandoVenc, setGuardandoVenc] = useState(false);
 
   useEffect(() => { if (open) load(); }, [open]);
 
@@ -4640,7 +4643,24 @@ function FinanzasPanel() {
         .select('*').order('fecha', { ascending: false }).limit(300);
       setMovs(data || []);
     } catch {}
+    try {
+      const { data: cfg } = await supabase.from('config').select('key, value')
+        .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite']);
+      (cfg || []).forEach(c => {
+        if (c.key === 'ruc_ultimo_digito') setUltimoDigito(c.value || '');
+        if (c.key === 'finanzas_fecha_limite') setFechaLimite(c.value || '');
+      });
+    } catch {}
     setLoading(false);
+  }
+
+  async function guardarVencimiento() {
+    setGuardandoVenc(true);
+    try {
+      await supabase.from('config').upsert({ key: 'ruc_ultimo_digito', value: ultimoDigito });
+      await supabase.from('config').upsert({ key: 'finanzas_fecha_limite', value: fechaLimite });
+    } catch {}
+    setGuardandoVenc(false);
   }
 
   async function agregar(e) {
@@ -4689,10 +4709,68 @@ function FinanzasPanel() {
 
   const ventas = movsFiltrados.filter(m => m.tipo === 'ingreso').reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
   const compras = movsFiltrados.filter(m => m.tipo === 'gasto').reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
-  const igvVentas = movsFiltrados.filter(m => m.tipo === 'ingreso').reduce((a, m) => a + igvDe(m), 0);
-  const igvCompras = movsFiltrados.filter(m => m.tipo === 'gasto').reduce((a, m) => a + igvDe(m), 0);
-  const igvAPagar = Math.max(igvVentas - igvCompras, 0);
+
+  // Arrastre de saldo a favor de IGV: se calcula mes a mes en orden, desde el primer movimiento hasta el mes filtrado
+  const movsNegocio = movs.filter(m => negocioFiltro === 'todos' || m.negocio === negocioFiltro);
+  const porMes = {};
+  movsNegocio.forEach(m => {
+    const mes = (m.fecha || '').slice(0, 7);
+    if (!mes) return;
+    if (!porMes[mes]) porMes[mes] = { ventaIgv: 0, compraIgv: 0 };
+    if (m.tipo === 'ingreso') porMes[mes].ventaIgv += igvDe(m);
+    else porMes[mes].compraIgv += igvDe(m);
+  });
+  const mesesOrdenados = Object.keys(porMes).sort();
+  let saldoAFavor = 0, igvAPagar = 0, saldoAFavorSiguiente = 0;
+  for (const mes of mesesOrdenados) {
+    if (mes > mesFiltro) break;
+    const { ventaIgv, compraIgv } = porMes[mes];
+    const creditoDisponible = compraIgv + saldoAFavor;
+    if (ventaIgv >= creditoDisponible) {
+      igvAPagar = ventaIgv - creditoDisponible;
+      saldoAFavor = 0;
+    } else {
+      igvAPagar = 0;
+      saldoAFavor = creditoDisponible - ventaIgv;
+    }
+    if (mes === mesFiltro) saldoAFavorSiguiente = saldoAFavor;
+  }
+
   const rentaEstimada = ventas * 0.01;
+
+  // Acumulado anual (para el tope de 300 UIT del Régimen MYPE Tributario)
+  const anio = mesFiltro.slice(0, 4);
+  const UIT_2026 = 5500;
+  const TOPE_300_UIT = UIT_2026 * 300;
+  const ventasAnio = movsNegocio
+    .filter(m => m.tipo === 'ingreso' && (m.fecha || '').startsWith(anio) && (m.fecha || '').slice(0, 7) <= mesFiltro)
+    .reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
+  const pctTope = Math.min((ventasAnio / TOPE_300_UIT) * 100, 100);
+
+  function exportarCSV() {
+    const headers = ['fecha', 'negocio', 'tipo', 'concepto', 'monto', 'tiene_comprobante', 'igv', 'notas'];
+    const filas = movs.map(m => headers.map(h => {
+      const v = m[h];
+      const s = v === null || v === undefined ? '' : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    }).join(','));
+    const csv = [headers.join(','), ...filas].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finanzas_jonahbeast_${todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function diasParaVencer() {
+    if (!fechaLimite) return null;
+    const hoy = new Date(todayISO());
+    const lim = new Date(fechaLimite);
+    return Math.ceil((lim - hoy) / 86400000);
+  }
+  const diasVenc = diasParaVencer();
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -4711,6 +4789,31 @@ function FinanzasPanel() {
                 Estimado de referencia, no reemplaza tu declaración real en SUNAT ni a un contador.
               </p>
 
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                <h3 className="jb-display text-sm text-zinc-300">Fecha límite para declarar</h3>
+                {diasVenc !== null && (
+                  <p className={`text-xs ${diasVenc <= 3 ? 'text-red-400' : diasVenc <= 7 ? 'text-orange-400' : 'text-zinc-400'}`}>
+                    {diasVenc >= 0 ? `Faltan ${diasVenc} día(s)` : `Venció hace ${Math.abs(diasVenc)} día(s)`}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="Último dígito RUC" value={ultimoDigito}
+                    onChange={e => setUltimoDigito(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                  <input type="date" value={fechaLimite} onChange={e => setFechaLimite(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                </div>
+                <p className="text-[11px] text-zinc-600">
+                  Revisa la fecha exacta según tu dígito en el{' '}
+                  <a href="https://emprender.sunat.gob.pe/ruc/regimenes-tributarios-mype" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">cronograma oficial de SUNAT</a>{' '}
+                  y actualízala aquí cada mes.
+                </p>
+                <button onClick={guardarVencimiento} disabled={guardandoVenc}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg py-1.5 disabled:opacity-50">
+                  {guardandoVenc ? 'Guardando...' : 'Guardar fecha'}
+                </button>
+              </div>
+
               <div className="flex gap-2 flex-wrap">
                 <select value={negocioFiltro} onChange={e => setNegocioFiltro(e.target.value)}
                   className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300">
@@ -4720,6 +4823,10 @@ function FinanzasPanel() {
                 </select>
                 <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)}
                   className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300" />
+                <button onClick={exportarCSV}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg px-3 py-1.5">
+                  Exportar todo a Excel (CSV)
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -4734,11 +4841,22 @@ function FinanzasPanel() {
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-0.5">IGV estimado a pagar</div>
                   <div className="text-orange-400 jb-display text-lg">S/ {igvAPagar.toFixed(2)}</div>
+                  {saldoAFavorSiguiente > 0 && (
+                    <div className="text-[11px] text-emerald-400">S/ {saldoAFavorSiguiente.toFixed(2)} a favor para el próximo mes</div>
+                  )}
                 </div>
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-0.5">Renta estimada (1%)</div>
                   <div className="text-orange-400 jb-display text-lg">S/ {rentaEstimada.toFixed(2)}</div>
                 </div>
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
+                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
+                </div>
+                <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
               </div>
 
               <form onSubmit={agregar} className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-lg p-3">

@@ -4633,6 +4633,10 @@ function FinanzasPanel() {
   const [ultimoDigito, setUltimoDigito] = useState('');
   const [fechaLimite, setFechaLimite] = useState('');
   const [guardandoVenc, setGuardandoVenc] = useState(false);
+  const [socio1Nombre, setSocio1Nombre] = useState('Socio 1');
+  const [socio2Nombre, setSocio2Nombre] = useState('Socio 2');
+  const [socio1Pct, setSocio1Pct] = useState('50');
+  const [guardandoSocios, setGuardandoSocios] = useState(false);
 
   useEffect(() => { if (open) load(); }, [open]);
 
@@ -4645,10 +4649,13 @@ function FinanzasPanel() {
     } catch {}
     try {
       const { data: cfg } = await supabase.from('config').select('key, value')
-        .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite']);
+        .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite', 'socio1_nombre', 'socio2_nombre', 'socio1_pct']);
       (cfg || []).forEach(c => {
         if (c.key === 'ruc_ultimo_digito') setUltimoDigito(c.value || '');
         if (c.key === 'finanzas_fecha_limite') setFechaLimite(c.value || '');
+        if (c.key === 'socio1_nombre') setSocio1Nombre(c.value || 'Socio 1');
+        if (c.key === 'socio2_nombre') setSocio2Nombre(c.value || 'Socio 2');
+        if (c.key === 'socio1_pct') setSocio1Pct(c.value || '50');
       });
     } catch {}
     setLoading(false);
@@ -4661,6 +4668,16 @@ function FinanzasPanel() {
       await supabase.from('config').upsert({ key: 'finanzas_fecha_limite', value: fechaLimite });
     } catch {}
     setGuardandoVenc(false);
+  }
+
+  async function guardarSocios() {
+    setGuardandoSocios(true);
+    try {
+      await supabase.from('config').upsert({ key: 'socio1_nombre', value: socio1Nombre });
+      await supabase.from('config').upsert({ key: 'socio2_nombre', value: socio2Nombre });
+      await supabase.from('config').upsert({ key: 'socio1_pct', value: socio1Pct });
+    } catch {}
+    setGuardandoSocios(false);
   }
 
   async function agregar(e) {
@@ -4746,6 +4763,13 @@ function FinanzasPanel() {
     .filter(m => m.tipo === 'ingreso' && (m.fecha || '').startsWith(anio) && (m.fecha || '').slice(0, 7) <= mesFiltro)
     .reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
   const pctTope = Math.min((ventasAnio / TOPE_300_UIT) * 100, 100);
+
+  // Reparto entre socios (sobre utilidad neta estimada del mes filtrado)
+  const utilidadNeta = ventas - compras - igvAPagar - rentaEstimada;
+  const pct1 = Math.min(Math.max(parseFloat(socio1Pct) || 0, 0), 100);
+  const pct2 = 100 - pct1;
+  const montoSocio1 = utilidadNeta > 0 ? utilidadNeta * (pct1 / 100) : 0;
+  const montoSocio2 = utilidadNeta > 0 ? utilidadNeta * (pct2 / 100) : 0;
 
   function exportarCSV() {
     const headers = ['fecha', 'negocio', 'tipo', 'concepto', 'monto', 'tiene_comprobante', 'igv', 'notas'];
@@ -4881,6 +4905,43 @@ function FinanzasPanel() {
                   <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
                 </div>
                 <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                <h3 className="jb-display text-sm text-zinc-300">Reparto entre socios (utilidad neta del mes)</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={socio1Nombre} onChange={e => setSocio1Nombre(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 1" />
+                  <input value={socio2Nombre} onChange={e => setSocio2Nombre(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" placeholder="Nombre socio 2" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-500">% {socio1Nombre}:</span>
+                  <input type="number" min="0" max="100" value={socio1Pct}
+                    onChange={e => setSocio1Pct(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 w-20" />
+                  <span className="text-xs text-zinc-500">% {socio2Nombre}: {pct2.toFixed(0)}%</span>
+                </div>
+                <p className="text-[11px] text-zinc-600">
+                  Utilidad neta estimada del mes (ventas − compras − IGV − renta): S/ {utilidadNeta.toFixed(2)}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-zinc-900 rounded-lg p-2">
+                    <div className="text-[11px] text-zinc-500">{socio1Nombre}</div>
+                    <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio1.toFixed(2)}</div>
+                  </div>
+                  <div className="bg-zinc-900 rounded-lg p-2">
+                    <div className="text-[11px] text-zinc-500">{socio2Nombre}</div>
+                    <div className="text-emerald-400 jb-display text-sm">S/ {montoSocio2.toFixed(2)}</div>
+                  </div>
+                </div>
+                <p className="text-[11px] text-zinc-600">
+                  Referencial — el reparto real de dividendos en una SACS sigue las reglas del pacto social y puede tener retenciones tributarias adicionales (Impuesto a la Renta de 2da categoría por dividendos).
+                </p>
+                <button onClick={guardarSocios} disabled={guardandoSocios}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold rounded-lg py-1.5 disabled:opacity-50">
+                  {guardandoSocios ? 'Guardando...' : 'Guardar reparto'}
+                </button>
               </div>
 
               <form onSubmit={agregar} className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-lg p-3">

@@ -4618,6 +4618,201 @@ function MetricasPanel() {
   );
 }
 
+function FinanzasPanel() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [movs, setMovs] = useState([]);
+  const [negocioFiltro, setNegocioFiltro] = useState('todos');
+  const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7));
+  const [form, setForm] = useState({
+    fecha: todayISO(), negocio: 'app', tipo: 'ingreso', concepto: '',
+    monto: '', tieneComprobante: false, igv: '', notas: '',
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [formErr, setFormErr] = useState('');
+
+  useEffect(() => { if (open) load(); }, [open]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('movimientos_financieros')
+        .select('*').order('fecha', { ascending: false }).limit(300);
+      setMovs(data || []);
+    } catch {}
+    setLoading(false);
+  }
+
+  async function agregar(e) {
+    e.preventDefault();
+    setFormErr('');
+    const monto = parseFloat(form.monto);
+    if (!monto || monto <= 0) return setFormErr('Ingresa un monto válido.');
+    if (!form.concepto.trim()) return setFormErr('Escribe un concepto breve.');
+    setGuardando(true);
+    try {
+      const { error } = await supabase.from('movimientos_financieros').insert({
+        fecha: form.fecha, negocio: form.negocio, tipo: form.tipo,
+        concepto: form.concepto.trim(), monto,
+        tiene_comprobante: form.tieneComprobante,
+        igv: form.igv ? parseFloat(form.igv) : null,
+        notas: form.notas.trim() || null,
+      });
+      if (error) throw error;
+      setForm(f => ({ ...f, concepto: '', monto: '', igv: '', notas: '' }));
+      load();
+    } catch (err) {
+      setFormErr('No se pudo guardar: ' + err.message);
+    }
+    setGuardando(false);
+  }
+
+  async function eliminar(id) {
+    if (!confirm('¿Eliminar este movimiento?')) return;
+    try {
+      await supabase.from('movimientos_financieros').delete().eq('id', id);
+      load();
+    } catch {}
+  }
+
+  const movsFiltrados = movs.filter(m => {
+    if (negocioFiltro !== 'todos' && m.negocio !== negocioFiltro) return false;
+    if (mesFiltro && !(m.fecha || '').startsWith(mesFiltro)) return false;
+    return true;
+  });
+
+  function igvDe(m) {
+    if (!m.tiene_comprobante) return 0;
+    if (m.igv !== null && m.igv !== undefined) return parseFloat(m.igv) || 0;
+    return (parseFloat(m.monto) || 0) * 18 / 118; // estimado si no se especificó el IGV exacto
+  }
+
+  const ventas = movsFiltrados.filter(m => m.tipo === 'ingreso').reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
+  const compras = movsFiltrados.filter(m => m.tipo === 'gasto').reduce((a, m) => a + (parseFloat(m.monto) || 0), 0);
+  const igvVentas = movsFiltrados.filter(m => m.tipo === 'ingreso').reduce((a, m) => a + igvDe(m), 0);
+  const igvCompras = movsFiltrados.filter(m => m.tipo === 'gasto').reduce((a, m) => a + igvDe(m), 0);
+  const igvAPagar = Math.max(igvVentas - igvCompras, 0);
+  const rentaEstimada = ventas * 0.01;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">💰 FINANZAS</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
+          {loading ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : (
+            <>
+              <p className="text-[11px] text-zinc-500 -mt-1">
+                Estimado de referencia, no reemplaza tu declaración real en SUNAT ni a un contador.
+              </p>
+
+              <div className="flex gap-2 flex-wrap">
+                <select value={negocioFiltro} onChange={e => setNegocioFiltro(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300">
+                  <option value="todos">Todos los negocios</option>
+                  <option value="app">Jonah Beast Fuel (app)</option>
+                  <option value="store">Jonah Beast Store</option>
+                </select>
+                <input type="month" value={mesFiltro} onChange={e => setMesFiltro(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Ventas del mes</div>
+                  <div className="text-emerald-400 jb-display text-lg">S/ {ventas.toFixed(2)}</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Compras del mes</div>
+                  <div className="text-zinc-100 jb-display text-lg">S/ {compras.toFixed(2)}</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">IGV estimado a pagar</div>
+                  <div className="text-orange-400 jb-display text-lg">S/ {igvAPagar.toFixed(2)}</div>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Renta estimada (1%)</div>
+                  <div className="text-orange-400 jb-display text-lg">S/ {rentaEstimada.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <form onSubmit={agregar} className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                <h3 className="jb-display text-sm text-zinc-300">Agregar movimiento</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                  <select value={form.negocio} onChange={e => setForm(f => ({ ...f, negocio: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                    <option value="app">App</option>
+                    <option value="store">Store</option>
+                  </select>
+                  <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                    <option value="ingreso">Ingreso</option>
+                    <option value="gasto">Gasto</option>
+                  </select>
+                  <input type="number" step="0.01" placeholder="Monto S/" value={form.monto}
+                    onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                </div>
+                <input placeholder="Concepto (ej. Suscripciones de agosto)" value={form.concepto}
+                  onChange={e => setForm(f => ({ ...f, concepto: e.target.value }))}
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                <label className="flex items-center gap-2 text-xs text-zinc-400">
+                  <input type="checkbox" checked={form.tieneComprobante}
+                    onChange={e => setForm(f => ({ ...f, tieneComprobante: e.target.checked }))} />
+                  Tiene comprobante (boleta/factura) con IGV
+                </label>
+                {form.tieneComprobante && (
+                  <input type="number" step="0.01" placeholder="IGV exacto (opcional, si no lo estimo en 18%)"
+                    value={form.igv} onChange={e => setForm(f => ({ ...f, igv: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                )}
+                <input placeholder="Notas / otros conceptos que te pida SUNAT (opcional)" value={form.notas}
+                  onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                {formErr && <p className="text-red-400 text-xs">{formErr}</p>}
+                <button type="submit" disabled={guardando}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg py-2 disabled:opacity-50">
+                  {guardando ? 'Guardando...' : 'Agregar movimiento'}
+                </button>
+              </form>
+
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">Movimientos ({mesFiltro})</h3>
+                <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
+                  {movsFiltrados.length === 0 && <p className="text-zinc-500 text-xs">Sin movimientos este mes.</p>}
+                  {movsFiltrados.map(m => (
+                    <div key={m.id} className="flex justify-between items-center text-xs text-zinc-400 border-b border-zinc-800 py-1.5 gap-2">
+                      <div className="min-w-0">
+                        <div className="text-zinc-200 truncate">{m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        <div className="text-zinc-600">{m.fecha} {m.tiene_comprobante ? '· con comprobante' : ''}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={m.tipo === 'ingreso' ? 'text-emerald-400' : 'text-red-400'}>
+                          {m.tipo === 'ingreso' ? '+' : '-'}S/ {parseFloat(m.monto).toFixed(2)}
+                        </span>
+                        <button onClick={() => eliminar(m.id)} className="text-zinc-600 hover:text-red-400">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -4686,6 +4881,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <LeadsPanel />
 
         <MetricasPanel />
+
+        <FinanzasPanel />
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <div className="flex items-center gap-2.5 mb-4">

@@ -4430,6 +4430,7 @@ function MetricasPanel() {
   const [vencidos, setVencidos] = useState(0);
   const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
   const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
+  const [ajustesDias, setAjustesDias] = useState([]);
 
   useEffect(() => { if (open) load(); }, [open]);
 
@@ -4528,6 +4529,11 @@ function MetricasPanel() {
       ).length;
       setLeadsConvertidos({ total: (leadsData || []).length, convertidos });
     } catch {}
+    try {
+      const { data: ajustes } = await supabase.from('ajustes_membresia')
+        .select('username, dias, motivo, created_at').order('created_at', { ascending: false }).limit(30);
+      setAjustesDias(ajustes || []);
+    } catch {}
     setLoading(false);
   }
 
@@ -4606,6 +4612,26 @@ function MetricasPanel() {
                   {leadsPorRed.map(([red, count]) => (
                     <div key={red} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
                       <span>{red}</span><span className="text-zinc-100">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">HISTORIAL DE AJUSTES DE DÍAS</h3>
+                <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
+                  {ajustesDias.length === 0 && <p className="text-zinc-500 text-xs">Sin ajustes registrados todavía.</p>}
+                  {ajustesDias.map((a, i) => (
+                    <div key={i} className="text-xs text-zinc-400 border-b border-zinc-800 py-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-200">{a.username}</span>
+                        <span className={a.dias > 0 ? 'text-emerald-400' : 'text-red-400'}>
+                          {a.dias > 0 ? '+' : ''}{a.dias} día(s)
+                        </span>
+                      </div>
+                      <div className="text-zinc-600">
+                        {new Date(a.created_at).toLocaleDateString('es-PE')} {a.motivo ? `· ${a.motivo}` : ''}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -5021,6 +5047,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [diasInput, setDiasInput] = useState({});
+  const [motivoInput, setMotivoInput] = useState({});
 
   function submitNew(e) {
     e.preventDefault();
@@ -5198,11 +5225,17 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                         onChange={e => setDiasInput(v => ({ ...v, [u.username]: e.target.value }))}
                         className="w-14 bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200"
                       />
+                      <input
+                        type="text" placeholder="motivo (opcional)"
+                        value={motivoInput[u.username] || ''}
+                        onChange={e => setMotivoInput(v => ({ ...v, [u.username]: e.target.value }))}
+                        className="w-28 bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200"
+                      />
                       <button
-                        onClick={() => onAdjustDays(u.username, parseInt(diasInput[u.username] || '1', 10))}
+                        onClick={() => onAdjustDays(u.username, parseInt(diasInput[u.username] || '1', 10), motivoInput[u.username])}
                         className={btnGhost + ' py-1.5 px-2 text-xs'} title="Agregar días">+d</button>
                       <button
-                        onClick={() => onAdjustDays(u.username, -parseInt(diasInput[u.username] || '1', 10))}
+                        onClick={() => onAdjustDays(u.username, -parseInt(diasInput[u.username] || '1', 10), motivoInput[u.username])}
                         className={btnGhost + ' py-1.5 px-2 text-xs'} title="Quitar días">−d</button>
                     </div>
                     <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Eye size={14} /> Ver datos</button>
@@ -9632,7 +9665,7 @@ export default function App() {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
     } catch {}
   }
-  async function adjustDaysUser(username, dias) {
+  async function adjustDaysUser(username, dias, motivo) {
     const target = users.find(u => u.username === username);
     if (!target || !dias) return;
     const base = target.fechaVencimiento || todayISO();
@@ -9640,6 +9673,7 @@ export default function App() {
     setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo } : u));
     try {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo }).eq('username', username);
+      await supabase.from('ajustes_membresia').insert({ username, dias, motivo: motivo || null, fecha_resultante: nuevo });
     } catch {}
   }
   async function toggleUser(username) {

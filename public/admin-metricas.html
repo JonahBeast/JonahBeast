@@ -176,14 +176,16 @@ async function loadDashboard() {
 
   // --- Stats generales ---
   const totalAlumnos = alumnos.length;
+  const planLabels = { trial: "prueba", pago: "pago" };
   const planCounts = {};
   alumnos.forEach(a => {
-    const p = a.plan || "sin plan";
+    const raw = a.plan || "sin plan";
+    const p = planLabels[raw] || raw;
     planCounts[p] = (planCounts[p] || 0) + 1;
   });
   const conReferido = alumnos.filter(a => a.codigo_referido).length;
 
-  const pagosConfirmados = pagos.filter(p => (p.estado || "").toLowerCase() === "pagado" || (p.estado || "").toLowerCase() === "confirmado");
+  const pagosConfirmados = pagos.filter(p => (p.estado || "").toLowerCase() === "aprobado");
   const montoTotal = pagosConfirmados.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
 
   const statsGrid = document.getElementById("statsGrid");

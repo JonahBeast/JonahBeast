@@ -5951,7 +5951,7 @@ function VencimientosPanel({ users, onRenew }) {
 }
 
 function CumpleanosPanel({ users }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const cumpleaneros = useMemo(() => {
     const hoy = new Date();
@@ -5963,7 +5963,10 @@ function CumpleanosPanel({ users }) {
     });
   }, [users]);
 
-  if (cumpleaneros.length === 0) return null;
+  const conFechaGuardada = useMemo(
+    () => (users || []).filter(u => !!u.fechaNacimiento).length,
+    [users]
+  );
 
   function waLinkCumple(u) {
     const num = (u.telefono || '').replace(/\D/g, '');
@@ -5980,7 +5983,9 @@ function CumpleanosPanel({ users }) {
           <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-sm shrink-0">🎂</div>
           <h2 className="jb-display text-base text-zinc-200">
             CUMPLEAÑOS DE HOY
-            <span className="ml-2 bg-pink-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{cumpleaneros.length}</span>
+            {cumpleaneros.length > 0 && (
+              <span className="ml-2 bg-pink-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{cumpleaneros.length}</span>
+            )}
           </h2>
         </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -5988,6 +5993,11 @@ function CumpleanosPanel({ users }) {
 
       {open && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          {cumpleaneros.length === 0 ? (
+            <p className="jb-body text-sm text-zinc-500">
+              Nadie cumple años hoy. {conFechaGuardada} de {(users || []).length} alumnos tienen su fecha de nacimiento guardada — se va llenando cada vez que alguien paga y la completa.
+            </p>
+          ) : (
           <div className="flex flex-col gap-2">
             {cumpleaneros.map(u => (
               <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
@@ -6001,6 +6011,7 @@ function CumpleanosPanel({ users }) {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
     </div>

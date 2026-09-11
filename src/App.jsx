@@ -5174,6 +5174,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <ReferidosPanel users={users} onCambio={onRecargar} />
 
         <VencimientosPanel users={users} onRenew={onRenew} />
+        <CumpleanosPanel users={users} />
 
         <PagosPanel />
 
@@ -5949,6 +5950,63 @@ function VencimientosPanel({ users, onRenew }) {
   );
 }
 
+function CumpleanosPanel({ users }) {
+  const [open, setOpen] = useState(true);
+
+  const cumpleaneros = useMemo(() => {
+    const hoy = new Date();
+    const mes = hoy.getMonth() + 1, dia = hoy.getDate();
+    return (users || []).filter(u => {
+      if (!u.fechaNacimiento) return false;
+      const [, m, d] = u.fechaNacimiento.split('-').map(Number);
+      return m === mes && d === dia;
+    });
+  }, [users]);
+
+  if (cumpleaneros.length === 0) return null;
+
+  function waLinkCumple(u) {
+    const num = (u.telefono || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const texto = `¡Feliz cumpleaños, ${u.nombre || u.username}! 🎉 Todo el equipo de Jonah Beast Fuel te desea un año lleno de fuerza y buenos resultados. 💪`;
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-pink-700/50 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-sm shrink-0">🎂</div>
+          <h2 className="jb-display text-base text-zinc-200">
+            CUMPLEAÑOS DE HOY
+            <span className="ml-2 bg-pink-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{cumpleaneros.length}</span>
+          </h2>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          <div className="flex flex-col gap-2">
+            {cumpleaneros.map(u => (
+              <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-zinc-100 text-sm font-medium jb-body">
+                  {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+                </div>
+                <a href={waLinkCumple(u)} target="_blank" rel="noopener noreferrer"
+                  className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                  <MessageCircle size={13} /> Felicitar
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const VAPID_PUBLIC = 'BOTMzeHDkdZj1YhaDaGBqp1Ytnld-NFAzYKdaiRtZTgdIvcydaxhFyrggYyyelk9lSoSrp7ZaE6P1tAxK1Kb08c';
 
 function base64ToUint8(base64) {
@@ -6621,6 +6679,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   const [metodo, setMetodo] = useState('Yape');
   const [operacion, setOperacion] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [fechaNac, setFechaNac] = useState(userRecord?.fecha_nacimiento || '');
   const [archivo, setArchivo] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [err, setErr] = useState('');
@@ -6693,6 +6752,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       if (!userRecord?.telefono && tel.length >= 9) {
         try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch {}
       }
+      if (!userRecord?.fecha_nacimiento && fechaNac) {
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch {}
+      }
 
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
       await cargar();
@@ -6717,6 +6779,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
     try {
       if (correo.trim() !== userRecord?.correo) {
         try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch {}
+      }
+      if (!userRecord?.fecha_nacimiento && fechaNac) {
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch {}
       }
       const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
       const { data, error } = await supabase.functions.invoke(funcion, {
@@ -6978,6 +7043,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                 <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
                   className={inputCls} placeholder="tucorreo@ejemplo.com" />
               </Field>
+              {!userRecord?.fecha_nacimiento && (
+                <Field label="Tu fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
+                  <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)}
+                    className={inputCls} />
+                </Field>
+              )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button onClick={pagarConMercadoPago} disabled={creandoMP} className={btnPrimary + ' py-3 text-base'}>
                 {creandoMP ? <Loader2 className="animate-spin" size={18} /> : 'PAGAR CON MERCADO PAGO'}
@@ -6995,6 +7066,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                 <input type="tel" inputMode="tel" value={telefono}
                   onChange={e => setTelefono(e.target.value)}
                   className={inputCls} placeholder="999 888 777" />
+              </Field>
+            )}
+            {!userRecord?.fecha_nacimiento && (
+              <Field label="Tu fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
+                <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)}
+                  className={inputCls} />
               </Field>
             )}
             <Field label="Número de operación">
@@ -9568,6 +9645,7 @@ export default function App() {
         nombre: u.nombre || '', telefono: u.telefono || '', plan: u.plan || 'pago',
         passHash: u.pass_hash || null, passSalt: u.pass_salt || null,
         fechaInicio: u.fecha_inicio || null, fechaVencimiento: u.fecha_vencimiento || null,
+        fechaNacimiento: u.fecha_nacimiento || null,
         codigoReferido: u.codigo_referido || null, comisionPagada: !!u.comision_pagada,
         comisionMonto: u.comision_monto === null || u.comision_monto === undefined ? null : Number(u.comision_monto),
         planMesesReferido: u.plan_meses_referido || null,

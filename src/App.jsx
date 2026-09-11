@@ -3236,7 +3236,7 @@ function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', password: '', password2: '', referido: refDesdeURL });
+  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', fechaNacimiento: '', password: '', password2: '', referido: refDesdeURL });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -3284,7 +3284,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
+      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, fecha_nacimiento: f.fechaNacimiento || null, codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
     if (error) {
@@ -3354,6 +3354,11 @@ function TrialSignup({ onBack, onCreated }) {
                 <input type="tel" inputMode="tel" value={f.telefono}
                   onChange={e => setF(v => ({ ...v, telefono: e.target.value }))}
                   className={inputCls} placeholder="999 888 777" />
+              </Field>
+              <Field label="Fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
+                <input type="date" value={f.fechaNacimiento}
+                  onChange={e => setF(v => ({ ...v, fechaNacimiento: e.target.value }))}
+                  className={inputCls} />
               </Field>
               <Field label="Contraseña">
                 <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />

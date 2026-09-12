@@ -9964,6 +9964,12 @@ export default function App() {
   return (
     <>
       {FONT_STYLE}
+      {/* Franja fija que cubre el área del reloj/notch del iPhone en todas las pantallas,
+          para que el contenido nunca se cuele detrás al hacer scroll. */}
+      <div
+        className="fixed top-0 left-0 right-0 bg-zinc-950 pointer-events-none"
+        style={{ height: 'env(safe-area-inset-top)', zIndex: 100 }}
+      />
       <ToastHost />
       {tokenRef && <PanelReferidor token={tokenRef} onSalir={() => {
         window.history.replaceState({}, '', '/');

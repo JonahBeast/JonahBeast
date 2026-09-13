@@ -9912,10 +9912,26 @@ function TiendaPublica({ username, onIrALaApp }) {
             <button onClick={suscribirseNewsletter} className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg px-3">OK</button>
           </div>
         )}
-        <div className="flex gap-2 mt-2">
-          {['VISA', 'MASTERCARD', 'AMEX', 'DINERS'].map(m => (
-            <span key={m} className="text-[9px] text-zinc-500 border border-zinc-800 rounded px-2 py-1">{m}</span>
-          ))}
+        <div className="flex gap-2.5 mt-2 items-center">
+          {/* Visa: fondo azul, texto blanco en cursiva */}
+          <div className="w-10 h-6 rounded flex items-center justify-center" style={{ background: '#1A1F71' }}>
+            <span className="text-white text-[10px] font-bold italic tracking-tight">VISA</span>
+          </div>
+          {/* Mastercard: los dos círculos superpuestos rojo/naranja */}
+          <div className="w-10 h-6 rounded bg-zinc-100 flex items-center justify-center relative">
+            <div className="w-3.5 h-3.5 rounded-full absolute" style={{ background: '#EB001B', right: '19px' }} />
+            <div className="w-3.5 h-3.5 rounded-full absolute" style={{ background: '#F79E1B', left: '19px', mixBlendMode: 'multiply' }} />
+          </div>
+          {/* American Express: caja azul */}
+          <div className="w-10 h-6 rounded flex items-center justify-center" style={{ background: '#2E77BC' }}>
+            <span className="text-white text-[8px] font-bold">AMEX</span>
+          </div>
+          {/* Diners Club: círculo azul oscuro */}
+          <div className="w-10 h-6 rounded bg-zinc-100 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#0079BE' }}>
+              <div className="w-2 h-2 rounded-full bg-zinc-100" />
+            </div>
+          </div>
         </div>
         <p className="text-zinc-600 text-[10px]">Pagos procesados de forma segura por Mercado Pago</p>
       </div>

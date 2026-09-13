@@ -10140,6 +10140,14 @@ function TiendaAdminPanel() {
     } catch {}
   }
 
+  async function actualizarCosto(varianteId, nuevoCosto) {
+    try {
+      const costo = nuevoCosto === '' ? null : parseFloat(nuevoCosto);
+      await supabase.from('tienda_variantes').update({ precio_costo: costo }).eq('id', varianteId);
+      cargar();
+    } catch {}
+  }
+
   async function toggleActivo(producto) {
     try { await supabase.from('tienda_productos').update({ activo: !producto.activo }).eq('id', producto.id); cargar(); } catch {}
   }
@@ -10299,14 +10307,45 @@ function TiendaAdminPanel() {
                             {p.activo ? 'Activo' : 'Oculto'}
                           </button>
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                          {(variantesPorProducto[p.id] || []).map(v => (
-                            <div key={v.id} className="flex items-center justify-between gap-2 text-xs text-zinc-400">
-                              <span>{v.nombre}</span>
-                              <input type="number" defaultValue={v.stock} onBlur={e => actualizarStock(v.id, e.target.value)}
-                                className="w-16 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
-                            </div>
-                          ))}
+                        <div className="flex flex-col gap-2">
+                          {(variantesPorProducto[p.id] || []).map(v => {
+                            const precioVenta = p.precio_oferta || p.precio;
+                            const costo = v.precio_costo;
+                            const margen = costo != null ? precioVenta - costo : null;
+                            const margenPct = costo != null && costo > 0 ? (margen / precioVenta) * 100 : null;
+                            const colorMargen = margen == null ? 'text-zinc-600'
+                              : margen < 0 ? 'text-red-400'
+                              : margenPct < 15 ? 'text-orange-400'
+                              : 'text-emerald-400';
+                            return (
+                              <div key={v.id} className="bg-zinc-900/60 rounded-lg p-2">
+                                <div className="flex items-center justify-between gap-2 text-xs text-zinc-300 mb-1.5">
+                                  <span>{v.nombre}</span>
+                                  <input type="number" defaultValue={v.stock} onBlur={e => actualizarStock(v.id, e.target.value)}
+                                    className="w-16 bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px]">
+                                  <span className="text-zinc-500">Costo S/</span>
+                                  <input type="number" step="0.01" defaultValue={v.precio_costo ?? ''} placeholder="0.00"
+                                    onBlur={e => actualizarCosto(v.id, e.target.value)}
+                                    className="w-16 bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
+                                  <span className={`ml-auto font-medium ${colorMargen}`}>
+                                    {margen == null ? 'Sin costo registrado' : `Margen: S/${margen.toFixed(2)} (${margenPct.toFixed(0)}%)`}
+                                  </span>
+                                </div>
+                                {margen != null && margen < 0 && (
+                                  <p className="text-red-400 text-[10px] mt-1 flex items-center gap-1">
+                                    <AlertTriangle size={11} /> Estás vendiendo por debajo del costo — sube el precio de venta.
+                                  </p>
+                                )}
+                                {margen != null && margen >= 0 && margenPct < 15 && (
+                                  <p className="text-orange-400 text-[10px] mt-1 flex items-center gap-1">
+                                    <AlertTriangle size={11} /> Margen muy ajustado, revisa el precio.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
                           <div className="flex gap-1.5 mt-1">
                             <input placeholder="Nueva variante (ej. M, Chocolate 1kg)"
                               value={nuevaVariante[p.id]?.nombre || ''}

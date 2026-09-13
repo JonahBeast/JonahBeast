@@ -9642,6 +9642,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 /* JONAH BEAST STORE                                                    */
 /* ------------------------------------------------------------------ */
 
+// Nombres de archivo de los logos en /public/marcas/ (sin la extensión .png)
+const MARCAS_TRABAJAMOS = ['evogen', 'insane-labz', 'bluhealth-nutrition', 'dragon-pharma', 'youngla', 'gymshark'];
+
 const CATEGORIAS_TIENDA = [
   { id: 'hombre', label: 'Hombre' },
   { id: 'mujer', label: 'Mujer' },
@@ -9822,7 +9825,17 @@ function TiendaPublica({ username, onIrALaApp }) {
         <div className="whitespace-nowrap text-[11px] text-zinc-600 font-medium" style={{ animation: 'marquee 18s linear infinite' }}>
           🔥 LO NUEVO &nbsp;·&nbsp; 💪 ESTILO Y ACTITUD BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp; 🔥 LO NUEVO &nbsp;·&nbsp; 💪 ESTILO Y ACTITUD BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp;
         </div>
-        <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+        <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+          @keyframes marquee-marcas { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
+      </div>
+
+      {/* Franja de marcas con las que trabajamos, deslizándose sin parar */}
+      <div className="overflow-hidden py-3 bg-zinc-900/50 border-b border-zinc-900">
+        <div className="flex items-center gap-4 whitespace-nowrap" style={{ animation: 'marquee-marcas 22s linear infinite', width: 'max-content' }}>
+          {[...MARCAS_TRABAJAMOS, ...MARCAS_TRABAJAMOS].map((m, i) => (
+            <img key={i} src={`/marcas/${m}.png`} alt={m} className="h-10 rounded-lg shrink-0" />
+          ))}
+        </div>
       </div>
 
       <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-zinc-900">

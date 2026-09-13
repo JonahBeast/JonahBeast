@@ -10076,6 +10076,8 @@ function TiendaAdminPanel() {
 
   const [ventaFisica, setVentaFisica] = useState({ varianteId: '', monto: '', cliente: '', motivo: '', nota: '' });
   const [registrandoVenta, setRegistrandoVenta] = useState(false);
+  const [items, setItems] = useState([]);
+  const [clientesTienda, setClientesTienda] = useState([]);
 
   useEffect(() => { if (open) cargar(); }, [open]);
 
@@ -10084,12 +10086,16 @@ function TiendaAdminPanel() {
     try {
       const { data: prods } = await supabase.from('tienda_productos').select('*').order('creado_en', { ascending: false });
       const { data: vars } = await supabase.from('tienda_variantes').select('*');
-      const { data: peds } = await supabase.from('tienda_pedidos').select('*').order('creado_en', { ascending: false }).limit(50);
+      const { data: peds } = await supabase.from('tienda_pedidos').select('*').order('creado_en', { ascending: false }).limit(200);
+      const { data: its } = await supabase.from('tienda_pedido_items').select('*');
+      const { data: clientes } = await supabase.from('tienda_clientes').select('telefono, total_compras');
       setProductos(prods || []);
       const porProd = {};
       (vars || []).forEach(v => { porProd[v.producto_id] = porProd[v.producto_id] || []; porProd[v.producto_id].push(v); });
       setVariantesPorProducto(porProd);
       setPedidos(peds || []);
+      setItems(its || []);
+      setClientesTienda(clientes || []);
     } catch {}
     setLoading(false);
   }
@@ -10166,6 +10172,53 @@ function TiendaAdminPanel() {
     return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
   }
 
+  const metricas = useMemo(() => {
+    const aprobados = pedidos.filter(p => p.estado === 'aprobado');
+    const hoy = new Date();
+    const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+    const aprobadosMes = aprobados.filter(p => (p.creado_en || '').startsWith(mesActual));
+
+    const ventasMes = aprobadosMes.reduce((a, p) => a + Number(p.monto_total || 0), 0);
+    const ticketPromedio = aprobadosMes.length ? ventasMes / aprobadosMes.length : 0;
+    const ventasWeb = aprobadosMes.filter(p => p.origen === 'web').reduce((a, p) => a + Number(p.monto_total || 0), 0);
+    const ventasFisica = aprobadosMes.filter(p => p.origen === 'fisica').reduce((a, p) => a + Number(p.monto_total || 0), 0);
+
+    // Mapa rápido: variante -> producto (categoría, marca, nombre)
+    const varianteAProducto = {};
+    productos.forEach(p => {
+      (variantesPorProducto[p.id] || []).forEach(v => {
+        varianteAProducto[v.id] = p;
+      });
+    });
+
+    const idsAprobadosMes = new Set(aprobadosMes.map(p => p.id));
+    const itemsDelMes = items.filter(it => idsAprobadosMes.has(it.pedido_id));
+
+    const porProducto = {};
+    const porCategoria = {};
+    const porMarca = {};
+    itemsDelMes.forEach(it => {
+      const prod = varianteAProducto[it.variante_id];
+      if (!prod) return;
+      const ingreso = Number(it.precio_unitario) * it.cantidad;
+      porProducto[prod.nombre] = (porProducto[prod.nombre] || 0) + it.cantidad;
+      porCategoria[prod.categoria] = (porCategoria[prod.categoria] || 0) + ingreso;
+      if (prod.marca) porMarca[prod.marca] = (porMarca[prod.marca] || 0) + ingreso;
+    });
+    const topProductos = Object.entries(porProducto).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    const totalIntentos = pedidos.length;
+    const conversion = totalIntentos ? (aprobados.length / totalIntentos) * 100 : 0;
+
+    const clientesRecurrentes = clientesTienda.filter(c => (c.total_compras || 1) > 1).length;
+
+    return {
+      ventasMes, ticketPromedio, ventasWeb, ventasFisica, aprobadosMesCount: aprobadosMes.length,
+      porCategoria, porMarca, topProductos, conversion,
+      totalClientes: clientesTienda.length, clientesRecurrentes,
+    };
+  }, [pedidos, items, productos, variantesPorProducto, clientesTienda]);
+
   return (
     <div className="bg-zinc-900 border border-teal-700/50 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
@@ -10178,7 +10231,7 @@ function TiendaAdminPanel() {
           {loading ? <Loader2 className="animate-spin text-orange-500" size={20} /> : (
             <>
               <div className="flex gap-2 mb-4">
-                {[['inventario', 'Inventario'], ['ventaFisica', 'Venta física'], ['pedidos', 'Pedidos'], ['abandonados', `Abandonados${carritosAbandonados.length ? ` (${carritosAbandonados.length})` : ''}`]].map(([id, label]) => (
+                {[['inventario', 'Inventario'], ['ventaFisica', 'Venta física'], ['pedidos', 'Pedidos'], ['abandonados', `Abandonados${carritosAbandonados.length ? ` (${carritosAbandonados.length})` : ''}`], ['metricas', 'Métricas']].map(([id, label]) => (
                   <button key={id} onClick={() => setTab(id)}
                     className={`text-xs px-3 py-1.5 rounded-lg ${tab === id ? 'bg-teal-600 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
                     {label}
@@ -10338,8 +10391,83 @@ function TiendaAdminPanel() {
                   ))}
                 </div>
               )}
+
+              {tab === 'metricas' && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[11px] text-zinc-600 -mt-1">Solo ventas aprobadas del mes en curso.</p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-zinc-500 text-[10px]">VENTAS DEL MES</div>
+                      <div className="text-emerald-400 text-lg font-bold">S/{metricas.ventasMes.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-zinc-500 text-[10px]">TICKET PROMEDIO</div>
+                      <div className="text-orange-500 text-lg font-bold">S/{metricas.ticketPromedio.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-zinc-500 text-[10px]">PEDIDOS APROBADOS</div>
+                      <div className="text-zinc-200 text-lg font-bold">{metricas.aprobadosMesCount}</div>
+                    </div>
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-zinc-500 text-[10px]">TASA DE CONVERSIÓN</div>
+                      <div className="text-teal-400 text-lg font-bold">{metricas.conversion.toFixed(0)}%</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                    <div className="text-zinc-400 text-[11px] mb-2">Web vs. física (este mes)</div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-zinc-300">🌐 Web: S/{metricas.ventasWeb.toFixed(2)}</span>
+                      <span className="text-zinc-300">🏬 Física: S/{metricas.ventasFisica.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                    <div className="text-zinc-400 text-[11px] mb-2">Top 5 productos más vendidos (unidades)</div>
+                    {metricas.topProductos.length === 0 ? (
+                      <p className="text-zinc-600 text-xs">Sin ventas todavía este mes.</p>
+                    ) : metricas.topProductos.map(([nombre, cant]) => (
+                      <div key={nombre} className="flex justify-between text-xs text-zinc-300 py-0.5">
+                        <span>{nombre}</span><span className="text-orange-500 font-medium">{cant}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                    <div className="text-zinc-400 text-[11px] mb-2">Ventas por categoría</div>
+                    {Object.keys(metricas.porCategoria).length === 0 ? (
+                      <p className="text-zinc-600 text-xs">Sin ventas todavía este mes.</p>
+                    ) : Object.entries(metricas.porCategoria).map(([cat, monto]) => (
+                      <div key={cat} className="flex justify-between text-xs text-zinc-300 py-0.5 capitalize">
+                        <span>{cat}</span><span className="text-orange-500 font-medium">S/{monto.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {Object.keys(metricas.porMarca).length > 0 && (
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                      <div className="text-zinc-400 text-[11px] mb-2">Suplementos por marca</div>
+                      {Object.entries(metricas.porMarca).map(([marca, monto]) => (
+                        <div key={marca} className="flex justify-between text-xs text-zinc-300 py-0.5">
+                          <span>{marca}</span><span className="text-teal-400 font-medium">S/{monto.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                    <div className="text-zinc-400 text-[11px] mb-2">Clientes</div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-zinc-300">Total: {metricas.totalClientes}</span>
+                      <span className="text-zinc-300">Recurrentes: {metricas.clientesRecurrentes}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
+
         </div>
       )}
     </div>

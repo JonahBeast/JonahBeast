@@ -9853,7 +9853,7 @@ function TiendaPublica({ username, onIrALaApp }) {
       ) : productosFiltrados.length === 0 ? (
         <p className="text-center text-zinc-500 text-sm py-16">Sin productos en esta categoría todavía.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-4 max-w-5xl mx-auto">
           {productosFiltrados.map(p => {
             const variantes = variantesPorProducto[p.id] || [];
             const hayStock = variantes.some(v => v.stock > 0);
@@ -10432,7 +10432,9 @@ function TiendaAdminPanel() {
                         )}
                         <div className="flex flex-col gap-2">
                           {(variantesPorProducto[p.id] || []).map(v => {
-                            const precioVenta = p.precio_oferta || p.precio;
+                            const precioVenta = productoEditando === p.id
+                              ? (parseFloat(edicionProd.precioOferta) || parseFloat(edicionProd.precio) || 0)
+                              : (p.precio_oferta || p.precio);
                             const costo = v.precio_costo;
                             const margen = costo != null ? precioVenta - costo : null;
                             const margenPct = costo != null && costo > 0 ? (margen / precioVenta) * 100 : null;

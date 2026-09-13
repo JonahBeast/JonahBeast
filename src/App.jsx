@@ -3423,6 +3423,11 @@ function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
+  const [modo, setModo] = useState('login');
+  const [codigo, setCodigo] = useState('');
+  const [passNueva, setPassNueva] = useState('');
+  const [passNueva2, setPassNueva2] = useState('');
+  const [busyCodigo, setBusyCodigo] = useState(false);
 
   function submit(e) {
     e.preventDefault();
@@ -3431,28 +3436,91 @@ function AdminAuth({ onBack, onLogin, busy }) {
     onLogin(email.trim(), pass, setErr);
   }
 
+  async function recuperar(e) {
+    e.preventDefault();
+    setErr('');
+    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
+    setModo('codigo');
+  }
+
+  async function verificarCodigo(e) {
+    e.preventDefault();
+    setErr('');
+    if (!codigo.trim()) return setErr('Escribe el código de 6 dígitos que te llegó por correo.');
+    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
+    setBusyCodigo(true);
+    const { error: errCodigo } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(), token: codigo.trim(), type: 'recovery',
+    });
+    if (errCodigo) {
+      setBusyCodigo(false);
+      return setErr('El código no es válido o ya venció. Pide uno nuevo.');
+    }
+    const { error: errPass } = await supabase.auth.updateUser({ password: passNueva });
+    setBusyCodigo(false);
+    if (errPass) return setErr('No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
+    onLogin(email.trim().toLowerCase(), passNueva, setErr);
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="jb-display text-xl text-zinc-50 mb-1">ACCESO ADMINISTRACIÓN</h2>
+          <h2 className="jb-display text-xl text-zinc-50 mb-1">
+            {modo === 'login' ? 'ACCESO ADMINISTRACIÓN' : modo === 'codigo' ? 'REVISA TU CORREO' : 'RECUPERAR CONTRASEÑA'}
+          </h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
-            Ingresa con tu mismo correo y contraseña de cuenta.
+            {modo === 'login' ? 'Ingresa con tu mismo correo y contraseña de cuenta.'
+              : modo === 'codigo' ? `Te mandamos un código de 6 dígitos a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
+              : 'Te enviaremos un código a tu correo.'}
           </p>
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label="Correo">
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
-            </Field>
-            <Field label="Contraseña">
-              <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
-            </Field>
-            {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
-            <button type="submit" disabled={busy} className={btnPrimary}>
-              {busy ? <Loader2 className="animate-spin" size={18} /> : 'Ingresar'}
-            </button>
-            <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
-          </form>
+
+          {modo === 'codigo' ? (
+            <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
+              <Field label="Código de 6 dígitos">
+                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                  className={inputCls} autoFocus placeholder="123456" maxLength={6} />
+              </Field>
+              <Field label="Contraseña nueva">
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+              </Field>
+              <Field label="Repite la contraseña">
+                <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+              </Field>
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busyCodigo} className={btnPrimary}>
+                {busyCodigo ? <Loader2 className="animate-spin" size={18} /> : 'Cambiar contraseña y entrar'}
+              </button>
+              <button type="button" onClick={() => { setModo('recuperar'); setErr(''); }} className="jb-body text-xs text-orange-500 hover:text-orange-400">
+                ¿No te llegó? Pedir otro código
+              </button>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
+            </form>
+          ) : (
+            <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
+              <Field label="Correo">
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
+              </Field>
+              {modo === 'login' && (
+                <Field label="Contraseña">
+                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
+                </Field>
+              )}
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busy} className={btnPrimary}>
+                {busy ? <Loader2 className="animate-spin" size={18} /> : (modo === 'login' ? 'Ingresar' : 'Enviar código')}
+              </button>
+              <button type="button" onClick={() => { setModo(modo === 'login' ? 'recuperar' : 'login'); setErr(''); }}
+                className="jb-body text-xs text-orange-500 hover:text-orange-400">
+                {modo === 'login' ? '¿Olvidaste tu contraseña?' : '← Volver a iniciar sesión'}
+              </button>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -3522,6 +3590,10 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   const [err, setErr] = useState('');
   const [modo, setModo] = useState('login');
   const [aviso, setAviso] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [passNueva, setPassNueva] = useState('');
+  const [passNueva2, setPassNueva2] = useState('');
+  const [busyCodigo, setBusyCodigo] = useState(false);
 
   function submit(e) {
     e.preventDefault();
@@ -3534,12 +3606,30 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   async function recuperar(e) {
     e.preventDefault();
     setErr(''); setAviso('');
-    if (!email.trim()) return setErr('Escribe tu correo para enviarte el enlace.');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: window.location.origin,
+    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
+    setModo('codigo');
+  }
+
+  async function verificarCodigo(e) {
+    e.preventDefault();
+    setErr('');
+    if (!codigo.trim()) return setErr('Escribe el código de 6 dígitos que te llegó por correo.');
+    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
+    setBusyCodigo(true);
+    const { error: errCodigo } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(), token: codigo.trim(), type: 'recovery',
     });
-    if (error) return setErr('No se pudo enviar el correo. Intenta de nuevo.');
-    setAviso('Te enviamos un enlace para crear una contraseña nueva. Revisa tu correo (y la carpeta de spam).');
+    if (errCodigo) {
+      setBusyCodigo(false);
+      return setErr('El código no es válido o ya venció. Pide uno nuevo.');
+    }
+    const { error: errPass } = await supabase.auth.updateUser({ password: passNueva });
+    setBusyCodigo(false);
+    if (errPass) return setErr('No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
+    onLogin(email.trim().toLowerCase(), passNueva, setErr);
   }
 
   // Mientras espera que le aprueben el pago, revisa cada 20s si ya se
@@ -3605,17 +3695,35 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
         )}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
           <h2 className="jb-display text-xl text-zinc-50 mb-1">
-            {modo === 'login' ? 'ENTRAR A MI CUENTA' : 'RECUPERAR CONTRASEÑA'}
+            {modo === 'login' ? 'ENTRAR A MI CUENTA' : modo === 'codigo' ? 'REVISA TU CORREO' : 'RECUPERAR CONTRASEÑA'}
           </h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
-            {modo === 'login' ? 'Ingresa con el correo que registraste.' : 'Te enviaremos un enlace a tu correo.'}
+            {modo === 'login' ? 'Ingresa con el correo que registraste.'
+              : modo === 'codigo' ? `Te mandamos un código de 6 dígitos a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
+              : 'Te enviaremos un código a tu correo.'}
           </p>
 
-          {aviso ? (
-            <div className="text-center">
-              <p className="jb-body text-sm text-emerald-300 mb-4">{aviso}</p>
-              <button onClick={() => { setAviso(''); setModo('login'); }} className={btnGhost + ' w-full'}>Volver</button>
-            </div>
+          {modo === 'codigo' ? (
+            <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
+              <Field label="Código de 6 dígitos">
+                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                  className={inputCls} autoFocus placeholder="123456" maxLength={6} />
+              </Field>
+              <Field label="Contraseña nueva">
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+              </Field>
+              <Field label="Repite la contraseña">
+                <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+              </Field>
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busyCodigo} className={btnPrimary}>
+                {busyCodigo ? <Loader2 className="animate-spin" size={18} /> : 'Cambiar contraseña y entrar'}
+              </button>
+              <button type="button" onClick={() => { setModo('recuperar'); setErr(''); }} className="jb-body text-xs text-orange-500 hover:text-orange-400">
+                ¿No te llegó? Pedir otro código
+              </button>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300">← Volver</button>
+            </form>
           ) : (
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
               <Field label="Correo electrónico">
@@ -3628,7 +3736,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : (modo === 'login' ? 'Entrar' : 'Enviar enlace')}
+                {busy ? <Loader2 className="animate-spin" size={18} /> : (modo === 'login' ? 'Entrar' : 'Enviar código')}
               </button>
               <button type="button" onClick={() => { setModo(modo === 'login' ? 'recuperar' : 'login'); setErr(''); }}
                 className="jb-body text-xs text-orange-500 hover:text-orange-400">

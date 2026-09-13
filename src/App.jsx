@@ -10090,6 +10090,24 @@ function TiendaAdminPanel() {
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '', imagenUrl: '' });
   const [nuevaVariante, setNuevaVariante] = useState({});
   const [fotoEditando, setFotoEditando] = useState({});
+  const [subiendoFoto, setSubiendoFoto] = useState({});
+
+  async function subirFoto(productoId, archivo) {
+    if (!archivo) return;
+    setSubiendoFoto(prev => ({ ...prev, [productoId]: true }));
+    try {
+      const extension = archivo.name.split('.').pop();
+      const nombreArchivo = `${productoId}-${Date.now()}.${extension}`;
+      const { error: errSubida } = await supabase.storage.from('productos').upload(nombreArchivo, archivo, { upsert: true });
+      if (errSubida) throw errSubida;
+      const { data } = supabase.storage.from('productos').getPublicUrl(nombreArchivo);
+      await actualizarImagen(productoId, data.publicUrl);
+      setFotoEditando(prev => ({ ...prev, [productoId]: data.publicUrl }));
+    } catch (e) {
+      alert('No se pudo subir la foto: ' + (e.message || 'error desconocido'));
+    }
+    setSubiendoFoto(prev => ({ ...prev, [productoId]: false }));
+  }
   const [varianteEditando, setVarianteEditando] = useState({});
   const [guardando, setGuardando] = useState(false);
 
@@ -10313,9 +10331,9 @@ function TiendaAdminPanel() {
                         onChange={e => setNuevoProd(v => ({ ...v, precioOferta: e.target.value }))}
                         className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
                     </div>
-                    <input placeholder="Link de la foto (opcional, la agregas después si no la tienes)" value={nuevoProd.imagenUrl}
-                      onChange={e => setNuevoProd(v => ({ ...v, imagenUrl: e.target.value }))}
-                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                    <p className="text-zinc-600 text-[10px]">
+                      No hace falta poner la foto aquí — créalo sin foto y luego usa el botón "📷 Subir foto" que aparece debajo del producto ya creado.
+                    </p>
                     <button onClick={agregarProducto} disabled={guardando}
                       className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg py-2">
                       {guardando ? 'Guardando...' : 'Agregar producto'}
@@ -10412,16 +10430,26 @@ function TiendaAdminPanel() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-1.5 mt-2">
-                          <input placeholder="Link de la foto"
-                            value={fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || '')}
-                            onChange={e => setFotoEditando(prev => ({ ...prev, [p.id]: e.target.value }))}
-                            className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300" />
-                          <button
-                            onClick={() => actualizarImagen(p.id, fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || ''))}
-                            className="bg-teal-700 text-white text-[11px] font-medium px-3 rounded">
-                            Guardar
-                          </button>
+                        <div className="mt-2">
+                          <label className="block bg-orange-600 text-zinc-950 text-xs font-semibold text-center py-2 rounded cursor-pointer">
+                            {subiendoFoto[p.id] ? 'Subiendo...' : '📷 Subir foto desde tu celular/PC'}
+                            <input type="file" accept="image/*" className="hidden" disabled={subiendoFoto[p.id]}
+                              onChange={e => subirFoto(p.id, e.target.files[0])} />
+                          </label>
+                          <details className="mt-1.5">
+                            <summary className="text-zinc-600 text-[10px] cursor-pointer">O pegar un link de foto (avanzado)</summary>
+                            <div className="flex gap-1.5 mt-1.5">
+                              <input placeholder="Link de la foto"
+                                value={fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || '')}
+                                onChange={e => setFotoEditando(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300" />
+                              <button
+                                onClick={() => actualizarImagen(p.id, fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || ''))}
+                                className="bg-teal-700 text-white text-[11px] font-medium px-3 rounded">
+                                Guardar
+                              </button>
+                            </div>
+                          </details>
                         </div>
                       </div>
                     ))}

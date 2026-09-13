@@ -9465,19 +9465,36 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
 
 function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const [globoVisible, setGloboVisible] = useState(true);
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Consultar por WhatsApp"
-      className="fixed bottom-6 right-6 z-50 flex items-center justify-center"
-    >
-      <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
-      <span className="relative bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-full p-4 shadow-lg shadow-emerald-500/20 flex items-center justify-center transition-transform hover:scale-105">
-        <MessageCircle size={26} strokeWidth={2.2} />
-      </span>
-    </a>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      {globoVisible && (
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-lg max-w-[200px] relative">
+          <button onClick={() => setGloboVisible(false)}
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
+            <X size={11} className="text-zinc-300" />
+          </button>
+          <p className="text-zinc-200 text-xs font-medium">¿Necesitas ayuda?</p>
+          <p className="text-orange-400 text-xs">Escríbeme 👋</p>
+        </div>
+      )}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Consultar por WhatsApp"
+        className="relative flex items-center justify-center"
+      >
+        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
+        <span className="relative w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 overflow-hidden border-2 border-emerald-400/50">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center">
+            <MessageCircle size={26} strokeWidth={2.2} className="text-white" />
+          </span>
+        </span>
+      </a>
+    </div>
   );
 }
 

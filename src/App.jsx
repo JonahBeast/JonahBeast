@@ -9717,7 +9717,7 @@ function TiendaPublica({ username, onIrALaApp }) {
   function whatsappPedido() {
     const detalle = carrito.map(i => `${i.cantidad}x ${i.nombre} (${i.varianteNombre})`).join(', ');
     const texto = `Hola, quiero comprar: ${detalle}. Total aprox: S/ ${totalCarrito.toFixed(2)}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    window.open(`https://wa.me/51963760819?text=${encodeURIComponent(texto)}`, '_blank');
   }
 
   return (

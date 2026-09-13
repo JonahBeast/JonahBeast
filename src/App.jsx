@@ -9873,7 +9873,7 @@ function TiendaPublica({ username, onIrALaApp }) {
                     ? 'linear-gradient(135deg, rgba(62,138,138,0.35), rgba(20,25,28,1))'
                     : 'linear-gradient(135deg, rgba(255,90,46,0.30), rgba(20,20,24,1))' }}>
                   {p.imagen_url
-                    ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" />
+                    ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" />
                     : <span className="text-zinc-500 text-[11px]">📦 Foto próximamente</span>}
                   {p.precio_oferta && (
                     <span className="absolute top-1.5 left-1.5 bg-orange-500 text-zinc-950 text-[9px] font-bold px-1.5 py-0.5 rounded">OFERTA</span>

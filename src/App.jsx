@@ -9695,6 +9695,7 @@ function TiendaPublica({ username, onIrALaApp }) {
   const [codigoDescuento, setCodigoDescuento] = useState('');
   const [newsletterCorreo, setNewsletterCorreo] = useState('');
   const [newsletterOk, setNewsletterOk] = useState(false);
+  const [globoAyudaVisible, setGloboAyudaVisible] = useState(true);
 
   useEffect(() => { cargar(); }, []);
 
@@ -9953,12 +9954,28 @@ function TiendaPublica({ username, onIrALaApp }) {
         ← Ir a Jonah Beast Fuel (la app de nutrición)
       </button>
 
-      {/* Burbuja flotante de WhatsApp, siempre visible */}
-      <a href="https://wa.me/51963760819?text=Hola%2C%20tengo%20una%20consulta%20sobre%20la%20tienda"
-        target="_blank" rel="noopener noreferrer"
-        className="fixed bottom-20 right-4 w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 z-40">
-        <MessageCircle size={22} className="text-white" />
-      </a>
+      {/* Burbuja flotante de ayuda, con Jonah como cara del ecosistema */}
+      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-end gap-2">
+        {globoAyudaVisible && (
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-lg max-w-[200px] relative">
+            <button onClick={() => setGloboAyudaVisible(false)}
+              className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
+              <X size={11} className="text-zinc-300" />
+            </button>
+            <p className="text-zinc-200 text-xs font-medium">¿Necesitas ayuda?</p>
+            <p className="text-orange-400 text-xs">Escríbeme 👋</p>
+          </div>
+        )}
+        <a href="https://wa.me/51963760819?text=Hola%2C%20tengo%20una%20consulta%20sobre%20la%20tienda"
+          target="_blank" rel="noopener noreferrer"
+          className="w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 overflow-hidden border-2 border-emerald-400/50">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center">
+            <MessageCircle size={22} className="text-white" />
+          </span>
+        </a>
+      </div>
 
       {/* Carrito lateral */}
       {carritoAbierto && !checkoutAbierto && (

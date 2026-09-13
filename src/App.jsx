@@ -10154,6 +10154,10 @@ function TiendaAdminPanel() {
   }
 
   const [errorVariante, setErrorVariante] = useState({});
+  const [busquedaInventario, setBusquedaInventario] = useState('');
+  const [productoEditando, setProductoEditando] = useState(null);
+  const [edicionProd, setEdicionProd] = useState({});
+  const [eliminandoProd, setEliminandoProd] = useState(null);
 
   async function agregarVariante(productoId) {
     const v = nuevaVariante[productoId];
@@ -10189,6 +10193,38 @@ function TiendaAdminPanel() {
 
   async function toggleActivo(producto) {
     try { await supabase.from('tienda_productos').update({ activo: !producto.activo }).eq('id', producto.id); cargar(); } catch {}
+  }
+
+  function abrirEdicion(p) {
+    setProductoEditando(p.id);
+    setEdicionProd({
+      nombre: p.nombre, categoria: p.categoria, marca: p.marca || '',
+      precio: String(p.precio), precioOferta: p.precio_oferta != null ? String(p.precio_oferta) : '',
+    });
+  }
+
+  async function guardarEdicionProducto(productoId) {
+    try {
+      await supabase.from('tienda_productos').update({
+        nombre: edicionProd.nombre.trim(), categoria: edicionProd.categoria,
+        marca: edicionProd.categoria === 'suplementos' ? (edicionProd.marca || null) : null,
+        precio: parseFloat(edicionProd.precio) || 0,
+        precio_oferta: edicionProd.precioOferta ? parseFloat(edicionProd.precioOferta) : null,
+      }).eq('id', productoId);
+      setProductoEditando(null);
+      cargar();
+    } catch {}
+  }
+
+  async function eliminarProducto(producto) {
+    if (!window.confirm(`¿Eliminar "${producto.nombre}" por completo? Se borran también sus tallas/presentaciones y no se puede recuperar.`)) return;
+    setEliminandoProd(producto.id);
+    try {
+      await supabase.from('tienda_variantes').delete().eq('producto_id', producto.id);
+      await supabase.from('tienda_productos').delete().eq('id', producto.id);
+      cargar();
+    } catch {}
+    setEliminandoProd(null);
   }
 
   async function registrarVentaFisica() {
@@ -10333,19 +10369,67 @@ function TiendaAdminPanel() {
                     </button>
                   </div>
 
+                  <input placeholder="🔍 Buscar producto por nombre..." value={busquedaInventario}
+                    onChange={e => setBusquedaInventario(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200" />
+
                   <div className="flex flex-col gap-3">
-                    {productos.map(p => (
+                    {productos
+                      .filter(p => p.nombre.toLowerCase().includes(busquedaInventario.toLowerCase()))
+                      .map(p => (
                       <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <div className="text-zinc-100 text-sm font-medium">{p.nombre}</div>
-                            <div className="text-zinc-500 text-[11px]">{p.categoria}{p.marca ? ` · ${p.marca}` : ''} · S/{(p.precio_oferta || p.precio).toFixed(2)}</div>
+                        {productoEditando === p.id ? (
+                          <div className="flex flex-col gap-2 mb-3 bg-zinc-900/60 rounded-lg p-2.5">
+                            <input value={edicionProd.nombre} onChange={e => setEdicionProd(v => ({ ...v, nombre: e.target.value }))}
+                              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200" placeholder="Nombre" />
+                            <div className="grid grid-cols-2 gap-2">
+                              <select value={edicionProd.categoria} onChange={e => setEdicionProd(v => ({ ...v, categoria: e.target.value }))}
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200">
+                                {CATEGORIAS_TIENDA.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                              </select>
+                              {edicionProd.categoria === 'suplementos' ? (
+                                <select value={edicionProd.marca} onChange={e => setEdicionProd(v => ({ ...v, marca: e.target.value }))}
+                                  className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200">
+                                  <option value="">Marca...</option>
+                                  <option value="Evogen">Evogen</option>
+                                  <option value="Insane Labz">Insane Labz</option>
+                                  <option value="Bluhealth Nutrition">Bluhealth Nutrition</option>
+                                  <option value="Dragon Pharma">Dragon Pharma</option>
+                                </select>
+                              ) : <div />}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="number" step="0.01" value={edicionProd.precio}
+                                onChange={e => setEdicionProd(v => ({ ...v, precio: e.target.value }))}
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200" placeholder="Precio" />
+                              <input type="number" step="0.01" value={edicionProd.precioOferta}
+                                onChange={e => setEdicionProd(v => ({ ...v, precioOferta: e.target.value }))}
+                                className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-200" placeholder="Precio oferta" />
+                            </div>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => guardarEdicionProducto(p.id)} className="flex-1 bg-teal-600 text-zinc-950 text-xs font-semibold py-1.5 rounded">Guardar cambios</button>
+                              <button onClick={() => setProductoEditando(null)} className="bg-zinc-800 text-zinc-300 text-xs px-3 rounded">Cancelar</button>
+                            </div>
                           </div>
-                          <button onClick={() => toggleActivo(p)}
-                            className={`text-[10px] px-2 py-1 rounded-full ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                            {p.activo ? 'Activo' : 'Oculto'}
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="text-zinc-100 text-sm font-medium">{p.nombre}</div>
+                              <div className="text-zinc-500 text-[11px]">{p.categoria}{p.marca ? ` · ${p.marca}` : ''} · S/{(p.precio_oferta || p.precio).toFixed(2)}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button onClick={() => toggleActivo(p)}
+                                className={`text-[10px] px-2 py-1 rounded-full ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                {p.activo ? 'Activo' : 'Oculto'}
+                              </button>
+                              <button onClick={() => abrirEdicion(p)} className="text-[10px] px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">Editar</button>
+                              <button onClick={() => eliminarProducto(p)} disabled={eliminandoProd === p.id}
+                                className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400">
+                                {eliminandoProd === p.id ? '...' : <Trash2 size={12} />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-2">
                           {(variantesPorProducto[p.id] || []).map(v => {
                             const precioVenta = p.precio_oferta || p.precio;

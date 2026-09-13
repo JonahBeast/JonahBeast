@@ -3384,7 +3384,7 @@ function TrialSignup({ onBack, onCreated }) {
               </Field>
               <Field label="Código de referido (opcional)">
                 <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
-                  className={inputCls + ' uppercase'} placeholder="Si alguien te recomendó, escríbelo aquí" />
+                  className={inputCls + ' uppercase'} placeholder="Opcional — déjalo vacío si no tienes uno" />
               </Field>
               {f.referido.trim() && refEstado && (
                 refEstado.ok ? (

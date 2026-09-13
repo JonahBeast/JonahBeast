@@ -10319,6 +10319,10 @@ function TiendaAdminPanel() {
 
       {open && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          <a href="/tienda" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 bg-teal-600 text-zinc-950 text-xs font-semibold py-2 rounded-lg mb-4">
+            👀 Ver la tienda (se abre en pestaña nueva)
+          </a>
           {loading ? <Loader2 className="animate-spin text-orange-500" size={20} /> : (
             <>
               <div className="flex gap-2 mb-4">

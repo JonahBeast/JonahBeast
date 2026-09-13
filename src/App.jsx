@@ -3448,7 +3448,7 @@ function AdminAuth({ onBack, onLogin, busy }) {
   async function verificarCodigo(e) {
     e.preventDefault();
     setErr('');
-    if (!codigo.trim()) return setErr('Escribe el código de 6 dígitos que te llegó por correo.');
+    if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
     if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
@@ -3475,15 +3475,15 @@ function AdminAuth({ onBack, onLogin, busy }) {
           </h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
             {modo === 'login' ? 'Ingresa con tu mismo correo y contraseña de cuenta.'
-              : modo === 'codigo' ? `Te mandamos un código de 6 dígitos a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
+              : modo === 'codigo' ? `Te mandamos un código de verificación a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
               : 'Te enviaremos un código a tu correo.'}
           </p>
 
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
-              <Field label="Código de 6 dígitos">
+              <Field label="Código de verificación">
                 <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
-                  className={inputCls} autoFocus placeholder="123456" maxLength={6} />
+                  className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
                 <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
@@ -3615,7 +3615,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   async function verificarCodigo(e) {
     e.preventDefault();
     setErr('');
-    if (!codigo.trim()) return setErr('Escribe el código de 6 dígitos que te llegó por correo.');
+    if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
     if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
@@ -3699,15 +3699,15 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
           </h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
             {modo === 'login' ? 'Ingresa con el correo que registraste.'
-              : modo === 'codigo' ? `Te mandamos un código de 6 dígitos a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
+              : modo === 'codigo' ? `Te mandamos un código de verificación a ${email}. Escríbelo abajo junto a tu contraseña nueva.`
               : 'Te enviaremos un código a tu correo.'}
           </p>
 
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
-              <Field label="Código de 6 dígitos">
+              <Field label="Código de verificación">
                 <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
-                  className={inputCls} autoFocus placeholder="123456" maxLength={6} />
+                  className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
                 <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />

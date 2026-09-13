@@ -9814,13 +9814,13 @@ function TiendaPublica({ username, onIrALaApp }) {
       <div className="relative overflow-hidden px-5 pt-8 pb-6 text-center"
         style={{ background: 'radial-gradient(circle at 50% -10%, rgba(255,90,46,0.25), transparent 60%), radial-gradient(circle at 20% 100%, rgba(62,138,138,0.2), transparent 55%)' }}>
         <h1 className="jb-display text-2xl text-zinc-50 leading-tight">EQUÍPATE COMO<br /><span className="text-orange-500">BESTIA</span></h1>
-        <p className="text-zinc-400 text-xs mt-2">Ropa, accesorios y suplementos para tu entreno</p>
+        <p className="text-zinc-400 text-xs mt-2">Ropa, accesorios, suplementos deportivos <span className="text-teal-400 font-medium">y estilo de vida</span></p>
         <p className="text-teal-400 text-[11px] mt-2">📦 Coordina la entrega el mismo día por WhatsApp (sujeto a stock y zona)</p>
       </div>
 
       <div className="overflow-hidden border-y border-zinc-900 py-1.5 bg-zinc-950">
         <div className="whitespace-nowrap text-[11px] text-zinc-600 font-medium" style={{ animation: 'marquee 18s linear infinite' }}>
-          🔥 LO NUEVO &nbsp;·&nbsp; 💪 EQUÍPATE COMO BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp; 🔥 LO NUEVO &nbsp;·&nbsp; 💪 EQUÍPATE COMO BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp;
+          🔥 LO NUEVO &nbsp;·&nbsp; 💪 ESTILO Y ACTITUD BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp; 🔥 LO NUEVO &nbsp;·&nbsp; 💪 ESTILO Y ACTITUD BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp;
         </div>
         <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
       </div>

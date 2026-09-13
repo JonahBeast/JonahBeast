@@ -9694,7 +9694,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
-          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escribe a nuestro soporte tocando el botón verde de WhatsApp, abajo a la derecha.</p>
+          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escribe a nuestro soporte tocando la carita de Jonah, abajo a la derecha.</p>
         </div>
       </div>
 

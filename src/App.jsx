@@ -10749,7 +10749,11 @@ export default function App() {
       if (!data.session) return;
       const { data: p } = await supabase.from('profiles').select('username, role').eq('id', data.session.user.id).maybeSingle();
       if (!p) return;
-      if (p.role === 'admin') { setAdminAuthed(true); setView('admin'); return; }
+      if (p.role === 'admin') {
+        setAdminAuthed(true);
+        if (!window.location.pathname.startsWith('/tienda')) setView('admin');
+        return;
+      }
       const { data: a } = await supabase.from('alumnos').select('*').eq('username', p.username).maybeSingle();
       if (a) {
         const u = { username: a.username, enabled: a.enabled, plan: a.plan || 'pago',

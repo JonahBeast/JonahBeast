@@ -9824,7 +9824,7 @@ function TiendaPublica({ username, onIrALaApp }) {
         <div className="overflow-hidden -mx-5">
           <div className="flex items-center gap-5 whitespace-nowrap" style={{ animation: 'marquee-marcas 22s linear infinite', width: 'max-content' }}>
             {[...MARCAS_TRABAJAMOS, ...MARCAS_TRABAJAMOS].map((m, i) => (
-              <img key={i} src={`/marcas/${m}.png`} alt={m} className="h-20 rounded-xl shrink-0 shadow-lg" />
+              <img key={i} src={`/marcas/${m}.png`} alt={m} className="h-32 rounded-xl shrink-0 shadow-lg" />
             ))}
           </div>
         </div>

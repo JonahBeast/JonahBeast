@@ -4106,7 +4106,7 @@ function ReferidosPanel({ users, onCambio }) {
     try {
       await supabase.from('referidores').update({ activo: !r.activo }).eq('codigo', r.codigo);
       await cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function eliminar(r) {
@@ -4124,14 +4124,14 @@ function ReferidosPanel({ users, onCambio }) {
       }
       await cargar();
       if (onCambio) await onCambio();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function desvincular(username) {
     try {
       await supabase.from('alumnos').update({ codigo_referido: null }).eq('username', username);
       if (onCambio) await onCambio();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function marcarPagada(username) {
@@ -4140,7 +4140,7 @@ function ReferidosPanel({ users, onCambio }) {
         .update({ comision_pagada: true, comision_pagada_en: new Date().toISOString() })
         .eq('username', username);
       if (onCambio) await onCambio();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function revertirPago(username) {
@@ -4149,7 +4149,7 @@ function ReferidosPanel({ users, onCambio }) {
         .update({ comision_pagada: false, comision_pagada_en: null })
         .eq('username', username);
       if (onCambio) await onCambio();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   // Agrupar alumnos por código de referido
@@ -4476,7 +4476,7 @@ function LeadsPanel() {
   async function saveCode() {
     const c = code.trim().toUpperCase();
     if (!c) return;
-    try { await supabase.from('config').upsert({ key: 'access_code', value: c }); } catch {}
+    try { await supabase.from('config').upsert({ key: 'access_code', value: c }); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setCode(c); setSavedCode(c);
   }
 
@@ -4817,7 +4817,7 @@ function FinanzasPanel() {
     setGuardandoRegimen(true);
     try {
       await supabase.from('config').upsert({ key: 'regimen_tributario', value: nuevo });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardandoRegimen(false);
   }
 
@@ -4826,7 +4826,7 @@ function FinanzasPanel() {
     try {
       await supabase.from('config').upsert({ key: 'ruc_ultimo_digito', value: ultimoDigito });
       await supabase.from('config').upsert({ key: 'finanzas_fecha_limite', value: fechaLimite });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardandoVenc(false);
   }
 
@@ -4836,7 +4836,7 @@ function FinanzasPanel() {
       await supabase.from('config').upsert({ key: 'socio1_nombre', value: socio1Nombre });
       await supabase.from('config').upsert({ key: 'socio2_nombre', value: socio2Nombre });
       await supabase.from('config').upsert({ key: 'socio1_pct', value: socio1Pct });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardandoSocios(false);
   }
 
@@ -4869,7 +4869,7 @@ function FinanzasPanel() {
     try {
       await supabase.from('movimientos_financieros').delete().eq('id', id);
       load();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   const movsFiltrados = movs.filter(m => {
@@ -6626,7 +6626,7 @@ function PagosPanel({ onAprobado }) {
         .eq('id', pago.id);
       await cargar();
       if (onAprobado) onAprobado();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setProcesando(null);
   }
 
@@ -6639,7 +6639,7 @@ function PagosPanel({ onAprobado }) {
         .update({ estado: 'rechazado', nota_admin: nota, revisado_en: new Date().toISOString() })
         .eq('id', pago.id);
       await cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setProcesando(null);
   }
 
@@ -6908,10 +6908,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
 
       if (!userRecord?.telefono && tel.length >= 9) {
-        try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch {}
+        try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       }
       if (!userRecord?.fecha_nacimiento && fechaNac) {
-        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch {}
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       }
 
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
@@ -6919,7 +6919,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       if (onPagoEnviado) onPagoEnviado();
       showToast('Pago enviado, lo revisamos en menos de 24h');
     } catch (e) {
-      if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch {} }
+      if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); } }
       setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
       showToast('No se pudo enviar el pago', 'error');
     }
@@ -6936,10 +6936,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
     setCreandoMP(true);
     try {
       if (correo.trim() !== userRecord?.correo) {
-        try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch {}
+        try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       }
       if (!userRecord?.fecha_nacimiento && fechaNac) {
-        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch {}
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       }
       const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
       const { data, error } = await supabase.functions.invoke(funcion, {
@@ -7352,7 +7352,7 @@ function PhotosTab({ username, pesoActual }) {
       await supabase.storage.from('fotos-progreso').remove([foto.ruta]);
       await supabase.from('fotos_progreso').delete().eq('id', foto.id);
       await cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   const porFecha = useMemo(() => {
@@ -8999,7 +8999,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     try {
       await supabase.from('comidas_guardadas').delete().eq('id', id);
       setGuardadas(g => g.filter(x => x.id !== id));
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   function resumen(items) {
@@ -11129,7 +11129,7 @@ export default function App() {
         nombre: u.nombre || null, telefono: u.telefono || null,
         fecha_inicio: u.fechaInicio || null, fecha_vencimiento: u.fechaVencimiento || null,
       });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function renewUser(username, meses) {
@@ -11141,7 +11141,7 @@ export default function App() {
     setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo, enabled: true } : u));
     try {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
   async function adjustDaysUser(username, dias, motivo) {
     const target = users.find(u => u.username === username);
@@ -11152,20 +11152,20 @@ export default function App() {
     try {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo }).eq('username', username);
       await supabase.from('ajustes_membresia').insert({ username, dias, motivo: motivo || null, fecha_resultante: nuevo });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
   async function toggleUser(username) {
     const target = users.find(u => u.username === username);
     const nextEnabled = target ? !target.enabled : true;
     setUsers(prev => prev.map(u => u.username === username ? { ...u, enabled: nextEnabled } : u));
-    try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch {}
+    try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
   async function deleteUser(username) {
     setUsers(prev => prev.filter(u => u.username !== username));
     try {
       await supabase.from('datos_alumnos').delete().eq('username', username);
       await supabase.from('alumnos').delete().eq('username', username);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function logout() {

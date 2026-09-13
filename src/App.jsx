@@ -10416,6 +10416,7 @@ function TiendaAdminPanel() {
                             </div>
                           </div>
                         ) : (
+                          <>
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <div className="text-zinc-100 text-sm font-medium">{p.nombre}</div>
@@ -10433,6 +10434,7 @@ function TiendaAdminPanel() {
                             className={`text-[10px] px-2 py-1 rounded-full mb-2.5 ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
                             {p.activo ? '✓ Visible en la tienda (clic para ocultar)' : '✕ Oculto de la tienda (clic para mostrar)'}
                           </button>
+                          </>
                         )}
                         <div className="flex flex-col gap-2">
                           {(variantesPorProducto[p.id] || []).map(v => {

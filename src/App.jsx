@@ -9814,11 +9814,20 @@ function TiendaPublica({ username, onIrALaApp }) {
       </div>
 
       {/* Hero de bienvenida con degradado de marca */}
-      <div className="relative overflow-hidden px-5 pt-8 pb-6 text-center"
+      <div className="relative overflow-hidden px-5 pt-8 pb-5 text-center"
         style={{ background: 'radial-gradient(circle at 50% -10%, rgba(255,90,46,0.25), transparent 60%), radial-gradient(circle at 20% 100%, rgba(62,138,138,0.2), transparent 55%)' }}>
         <h1 className="jb-display text-2xl text-zinc-50 leading-tight">EQUÍPATE COMO<br /><span className="text-orange-500">BESTIA</span></h1>
         <p className="text-zinc-400 text-xs mt-2">Ropa, accesorios, suplementos deportivos <span className="text-teal-400 font-medium">y estilo de vida</span></p>
-        <p className="text-teal-400 text-[11px] mt-2">📦 Coordina la entrega el mismo día por WhatsApp (sujeto a stock y zona)</p>
+        <p className="text-teal-400 text-[11px] mt-2 mb-4">📦 Coordina la entrega el mismo día por WhatsApp (sujeto a stock y zona)</p>
+
+        {/* Franja de marcas con las que trabajamos, deslizándose sin parar, a buen tamaño */}
+        <div className="overflow-hidden -mx-5">
+          <div className="flex items-center gap-5 whitespace-nowrap" style={{ animation: 'marquee-marcas 22s linear infinite', width: 'max-content' }}>
+            {[...MARCAS_TRABAJAMOS, ...MARCAS_TRABAJAMOS].map((m, i) => (
+              <img key={i} src={`/marcas/${m}.png`} alt={m} className="h-20 rounded-xl shrink-0 shadow-lg" />
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="overflow-hidden border-y border-zinc-900 py-1.5 bg-zinc-950">
@@ -9827,15 +9836,6 @@ function TiendaPublica({ username, onIrALaApp }) {
         </div>
         <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
           @keyframes marquee-marcas { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
-      </div>
-
-      {/* Franja de marcas con las que trabajamos, deslizándose sin parar */}
-      <div className="overflow-hidden py-3 bg-zinc-900/50 border-b border-zinc-900">
-        <div className="flex items-center gap-4 whitespace-nowrap" style={{ animation: 'marquee-marcas 22s linear infinite', width: 'max-content' }}>
-          {[...MARCAS_TRABAJAMOS, ...MARCAS_TRABAJAMOS].map((m, i) => (
-            <img key={i} src={`/marcas/${m}.png`} alt={m} className="h-10 rounded-lg shrink-0" />
-          ))}
-        </div>
       </div>
 
       <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-zinc-900">

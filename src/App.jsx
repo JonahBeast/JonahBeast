@@ -10142,14 +10142,23 @@ function TiendaAdminPanel() {
     } catch {}
   }
 
+  const [errorVariante, setErrorVariante] = useState({});
+
   async function agregarVariante(productoId) {
     const v = nuevaVariante[productoId];
-    if (!v?.nombre?.trim()) return;
+    setErrorVariante(prev => ({ ...prev, [productoId]: '' }));
+    if (!v?.nombre?.trim()) {
+      setErrorVariante(prev => ({ ...prev, [productoId]: 'Escribe un nombre para la variante (ej. "Único" o "300g").' }));
+      return;
+    }
     try {
-      await supabase.from('tienda_variantes').insert({ producto_id: productoId, nombre: v.nombre.trim(), stock: parseInt(v.stock || '0', 10) });
+      const { error } = await supabase.from('tienda_variantes').insert({ producto_id: productoId, nombre: v.nombre.trim(), stock: parseInt(v.stock || '0', 10) });
+      if (error) throw error;
       setNuevaVariante(prev => ({ ...prev, [productoId]: { nombre: '', stock: '' } }));
       cargar();
-    } catch {}
+    } catch (e) {
+      setErrorVariante(prev => ({ ...prev, [productoId]: 'No se pudo guardar: ' + (e.message || 'error desconocido') }));
+    }
   }
 
   async function actualizarStock(varianteId, nuevoStock) {
@@ -10377,15 +10386,30 @@ function TiendaAdminPanel() {
                               </div>
                             );
                           })}
-                          <div className="flex gap-1.5 mt-1">
-                            <input placeholder="Nueva variante (ej. M, Chocolate 1kg)"
-                              value={nuevaVariante[p.id]?.nombre || ''}
-                              onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], nombre: e.target.value } }))}
-                              className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
-                            <input type="number" placeholder="Stock" value={nuevaVariante[p.id]?.stock || ''}
-                              onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], stock: e.target.value } }))}
-                              className="w-16 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
-                            <button onClick={() => agregarVariante(p.id)} className="bg-zinc-800 text-zinc-300 text-xs px-2 rounded">+</button>
+                          <div className="bg-zinc-900/40 border border-dashed border-zinc-700 rounded-lg p-2 mt-1">
+                            <p className="text-zinc-500 text-[10px] mb-1.5">
+                              {(variantesPorProducto[p.id] || []).length === 0
+                                ? '⚠️ Este producto no tiene ninguna presentación/talla todavía — sin esto, siempre sale "Agotado".'
+                                : 'Agregar otra presentación/talla:'}
+                            </p>
+                            <div className="flex gap-1.5">
+                              <input placeholder="Nombre (ej. Único, M, Chocolate 1kg)"
+                                value={nuevaVariante[p.id]?.nombre || ''}
+                                onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], nombre: e.target.value } }))}
+                                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
+                              <input type="number" placeholder="Stock" value={nuevaVariante[p.id]?.stock || ''}
+                                onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], stock: e.target.value } }))}
+                                className="w-16 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
+                            </div>
+                            <button onClick={() => agregarVariante(p.id)}
+                              className="w-full mt-1.5 bg-teal-600 text-zinc-950 text-xs font-semibold py-1.5 rounded">
+                              + Agregar esta presentación
+                            </button>
+                            {errorVariante[p.id] && (
+                              <p className="text-red-400 text-[10px] mt-1.5 flex items-center gap-1">
+                                <AlertTriangle size={11} /> {errorVariante[p.id]}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-1.5 mt-2">

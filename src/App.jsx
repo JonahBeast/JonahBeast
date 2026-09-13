@@ -2075,9 +2075,9 @@ function RetoSemanalCard({ username }) {
           .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
         if (data && data.completado) {
           setHecho(true);
-          try { localStorage.setItem(storageKey, '1'); } catch {}
+          try { localStorage.setItem(storageKey, '1'); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
         }
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
   }, [username, semana]);
 
@@ -2089,7 +2089,7 @@ function RetoSemanalCard({ username }) {
     try {
       await supabase.from('retos_semanales')
         .upsert({ username, semana, completado: nuevo, updated_at: new Date().toISOString() }, { onConflict: 'username,semana' });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   return (
@@ -2138,7 +2138,7 @@ function ResumenDelDia({ username, totalsHoy, targets }) {
         const { data } = await supabase.from('retos_semanales')
           .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
         setRetoPendiente(!(data && data.completado));
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
   }, [username]);
 
@@ -3096,7 +3096,7 @@ function FreeCalculator({ onBack }) {
     try {
       const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
       valid = data ? data.value : '';
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     if (!valid || gate.codigo.trim().toUpperCase() !== valid.trim().toUpperCase()) {
       setChecking(false);
       return setGateErr('El código no es válido. Sígueme en Instagram o TikTok para obtenerlo.');
@@ -3110,7 +3110,7 @@ function FreeCalculator({ onBack }) {
         grasa_pct: Number(results.bf.toFixed(1)), imc: Number(results.bmi.toFixed(1)),
         tmb: Math.round(results.tmb), tdee: Math.round(results.tdee),
       });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setChecking(false);
     setStep('results');
   }
@@ -3296,7 +3296,7 @@ function TrialSignup({ onBack, onCreated }) {
     try {
       const { data: tomado } = await supabase.from('profiles').select('username').ilike('username', user).maybeSingle();
       if (tomado) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
@@ -3645,7 +3645,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
           clearInterval(intervalo);
           if (onMembresiaActiva) onMembresiaActiva();
         }
-      } catch {}
+      } catch (e) { console.error('Fallo en revisión periódica:', e); }
     }, 20000);
     return () => clearInterval(intervalo);
   }, [expiredInfo?.username]);
@@ -4041,7 +4041,7 @@ function ReferidosPanel({ users, onCambio }) {
       const { data } = await supabase.from('config').select('value').eq('key', 'precio_1').maybeSingle();
       const v = Number(data?.value);
       if (v > 0) setPrecioMensual(v);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function cargar() {
@@ -4098,7 +4098,7 @@ function ReferidosPanel({ users, onCambio }) {
       }).eq('codigo', r.codigo);
       setEditando(null);
       await cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardandoEdit(false);
   }
 
@@ -4469,7 +4469,7 @@ function LeadsPanel() {
       const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
       const c = data ? data.value : '';
       setCode(c); setSavedCode(c);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
 
@@ -4627,11 +4627,11 @@ function MetricasPanel() {
       const aprobados = (pagosData || []).filter(p => (p.estado || '').toLowerCase() === 'aprobado');
       const monto = aprobados.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
       setPagos({ count: aprobados.length, monto });
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     try {
       const { data: refs } = await supabase.from('referidores').select('nombre, codigo, tipo, activo');
       setReferidores(refs || []);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     try {
       const { data: leadsData } = await supabase.from('leads').select('red, telefono');
       const counts = {};
@@ -4655,7 +4655,7 @@ function MetricasPanel() {
       const { data: ajustes } = await supabase.from('ajustes_membresia')
         .select('username, dias, motivo, created_at').order('created_at', { ascending: false }).limit(30);
       setAjustesDias(ajustes || []);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
 
@@ -4796,7 +4796,7 @@ function FinanzasPanel() {
       const { data } = await supabase.from('movimientos_financieros')
         .select('*').order('fecha', { ascending: false }).limit(300);
       setMovs(data || []);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     try {
       const { data: cfg } = await supabase.from('config').select('key, value')
         .in('key', ['ruc_ultimo_digito', 'finanzas_fecha_limite', 'socio1_nombre', 'socio2_nombre', 'socio1_pct', 'regimen_tributario']);
@@ -5459,7 +5459,7 @@ function StudentDataModal({ username, data, onClose }) {
           (signed || []).forEach(s => { if (s.signedUrl) u[s.path] = s.signedUrl; });
           setFotoUrls(u);
         }
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
   }, [username]);
 
@@ -6251,7 +6251,7 @@ function RecordatorioBanner({ username }) {
         await sub.unsubscribe();
       }
       setEstado('disponible');
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setTrabajando(false);
   }
 
@@ -6856,12 +6856,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
       const m = {};
       (data || []).forEach(c => { m[c.key] = c.value; });
       setPrecios(m); setDatosPago(m);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     try {
       const { data } = await supabase.from('pagos').select('*')
         .eq('username', username).order('creado_en', { ascending: false }).limit(10);
       setMisPagos(data || []);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     // Descuento si entró con código de influencer
     try {
       if (userRecord && userRecord.codigoReferido) {
@@ -8011,7 +8011,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
             }
           }
         }
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
       let blob;
       try {
@@ -8991,7 +8991,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
       await cargarTodo();
       setAbierto('guardadas');
       showToast('Comida guardada para la próxima');
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardando(false);
   }
 
@@ -9610,11 +9610,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         const { count } = await supabase.from('fotos_progreso')
           .select('id', { count: 'exact', head: true }).eq('username', username);
         setTieneFotos((count || 0) > 0);
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       try {
         const vista = localStorage.getItem('jb_guia_' + username);
         if (!vista) { setVerGuia(true); setGuiaVista(false); }
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
   }, [username]);
 
@@ -9829,7 +9829,7 @@ function TiendaPublica({ username, onIrALaApp }) {
         porProd[v.producto_id].push(v);
       });
       setVariantesPorProducto(porProd);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
 
@@ -10251,7 +10251,7 @@ function TiendaAdminPanel() {
       setPedidos(peds || []);
       setItems(its || []);
       setClientesTienda(clientes || []);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
 
@@ -10267,7 +10267,7 @@ function TiendaAdminPanel() {
       });
       setNuevoProd({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '', imagenUrl: '' });
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setGuardando(false);
   }
 
@@ -10275,7 +10275,7 @@ function TiendaAdminPanel() {
     try {
       await supabase.from('tienda_productos').update({ imagen_url: url.trim() || null }).eq('id', productoId);
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   const [errorVariante, setErrorVariante] = useState({});
@@ -10305,7 +10305,7 @@ function TiendaAdminPanel() {
     try {
       await supabase.from('tienda_variantes').update({ stock: Math.max(0, parseInt(nuevoStock, 10) || 0) }).eq('id', varianteId);
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function actualizarCosto(varianteId, nuevoCosto) {
@@ -10313,11 +10313,11 @@ function TiendaAdminPanel() {
       const costo = nuevoCosto === '' ? null : parseFloat(nuevoCosto);
       await supabase.from('tienda_variantes').update({ precio_costo: costo }).eq('id', varianteId);
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function toggleActivo(producto) {
-    try { await supabase.from('tienda_productos').update({ activo: !producto.activo }).eq('id', producto.id); cargar(); } catch {}
+    try { await supabase.from('tienda_productos').update({ activo: !producto.activo }).eq('id', producto.id); cargar(); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   function abrirEdicion(p) {
@@ -10338,7 +10338,7 @@ function TiendaAdminPanel() {
       }).eq('id', productoId);
       setProductoEditando(null);
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function eliminarProducto(producto) {
@@ -10348,7 +10348,7 @@ function TiendaAdminPanel() {
       await supabase.from('tienda_variantes').delete().eq('producto_id', producto.id);
       await supabase.from('tienda_productos').delete().eq('id', producto.id);
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setEliminandoProd(null);
   }
 
@@ -10370,7 +10370,7 @@ function TiendaAdminPanel() {
       }
       setVentaFisica({ varianteId: '', monto: '', cliente: '', motivo: '', nota: '' });
       cargar();
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setRegistrandoVenta(false);
   }
 
@@ -10886,7 +10886,7 @@ export default function App() {
         if (!u.enabled || !membershipActive(u)) return;
       }
       await loadStudentSession(p.username);
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function init() {
@@ -10910,14 +10910,14 @@ export default function App() {
       const activityMap = {};
       (activityData || []).forEach(a => { activityMap[a.username] = a.updated_at; });
       usersList = usersList.map(u => ({ ...u, lastActivity: activityMap[u.username] || null }));
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setUsers(usersList);
     setLoading(false);
   }
 
   async function handleAdminSetup(pass) {
     setBusy(true);
-    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch {}
+    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setAdminPass(pass);
     setBusy(false);
     setAdminAuthed(true);
@@ -10954,7 +10954,7 @@ export default function App() {
       const { data: row } = await supabase.from('datos_alumnos')
         .select('form, meal_plan, meal_plan_fecha').eq('username', username).maybeSingle();
       data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha } : null;
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
     const hoy = todayISO();
     let plan = data?.mealPlan || EMPTY_MEALPLAN();
@@ -10981,7 +10981,7 @@ export default function App() {
         await supabase.from('historial')
           .update({ meal_plan: data.mealPlan })
           .eq('username', username).eq('fecha', data.fecha);
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       plan = { ...plan, meals: EMPTY_MEALS() };
     }
 
@@ -11016,7 +11016,7 @@ export default function App() {
     try {
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.user.id).maybeSingle();
       perfil = p;
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     if (!perfil) { setBusy(false); return setErr('No encontramos tu perfil. Escríbenos por WhatsApp.'); }
 
     if (perfil.role === 'admin') {
@@ -11031,7 +11031,7 @@ export default function App() {
     try {
       const { data: a } = await supabase.from('alumnos').select('*').eq('username', perfil.username).maybeSingle();
       cuenta = a;
-    } catch {}
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
     if (cuenta) {
       const u = {
@@ -11069,7 +11069,7 @@ export default function App() {
           username: currentUser, form, meal_plan: mealPlan,
           meal_plan_fecha: todayISO(), updated_at: new Date().toISOString(),
         });
-      } catch {}
+      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
       // Guardar foto del día para el historial de progreso
       try {
         const r = calcAll({
@@ -11169,7 +11169,7 @@ export default function App() {
   }
 
   async function logout() {
-    try { await supabase.auth.signOut(); } catch {}
+    try { await supabase.auth.signOut(); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setAdminAuthed(false);
     setCurrentUser(null);
     setForm(EMPTY_FORM);

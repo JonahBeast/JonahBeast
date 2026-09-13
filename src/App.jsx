@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic } from 'lucide-react';
+import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -5196,6 +5196,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         <VencimientosPanel users={users} onRenew={onRenew} />
         <CumpleanosPanel users={users} />
+        <TiendaAdminPanel />
 
         <PagosPanel />
 
@@ -9613,9 +9614,531 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 /* ROOT APP                                                             */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* JONAH BEAST STORE                                                    */
+/* ------------------------------------------------------------------ */
+
+const CATEGORIAS_TIENDA = [
+  { id: 'hombre', label: 'Hombre' },
+  { id: 'mujer', label: 'Mujer' },
+  { id: 'accesorios', label: 'Accesorios' },
+  { id: 'suplementos', label: 'Suplementos' },
+];
+
+function TiendaPublica({ username, onIrALaApp }) {
+  const [loading, setLoading] = useState(true);
+  const [productos, setProductos] = useState([]);
+  const [variantesPorProducto, setVariantesPorProducto] = useState({});
+  const [categoria, setCategoria] = useState('todos');
+  const [marcaFiltro, setMarcaFiltro] = useState('todas');
+  const [carrito, setCarrito] = useState([]); // [{varianteId, productoId, nombre, varianteNombre, precio, cantidad}]
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [checkoutAbierto, setCheckoutAbierto] = useState(false);
+  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', distrito: '' });
+  const [enviando, setEnviando] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data: prods } = await supabase.from('tienda_productos').select('*').eq('activo', true).order('creado_en');
+      const { data: vars } = await supabase.from('tienda_variantes').select('*');
+      setProductos(prods || []);
+      const porProd = {};
+      (vars || []).forEach(v => {
+        porProd[v.producto_id] = porProd[v.producto_id] || [];
+        porProd[v.producto_id].push(v);
+      });
+      setVariantesPorProducto(porProd);
+    } catch {}
+    setLoading(false);
+  }
+
+  const marcas = useMemo(() => {
+    const set = new Set(productos.filter(p => p.categoria === 'suplementos' && p.marca).map(p => p.marca));
+    return Array.from(set);
+  }, [productos]);
+
+  const productosFiltrados = productos.filter(p => {
+    if (categoria !== 'todos' && p.categoria !== categoria) return false;
+    if (categoria === 'suplementos' && marcaFiltro !== 'todas' && p.marca !== marcaFiltro) return false;
+    return true;
+  });
+
+  function agregarAlCarrito(producto, variante) {
+    setCarrito(prev => {
+      const existe = prev.find(i => i.varianteId === variante.id);
+      if (existe) return prev.map(i => i.varianteId === variante.id ? { ...i, cantidad: i.cantidad + 1 } : i);
+      const precio = producto.precio_oferta || producto.precio;
+      return [...prev, {
+        varianteId: variante.id, productoId: producto.id, nombre: producto.nombre,
+        varianteNombre: variante.nombre, precio, cantidad: 1,
+      }];
+    });
+    setCarritoAbierto(true);
+  }
+
+  function cambiarCantidad(varianteId, delta) {
+    setCarrito(prev => prev
+      .map(i => i.varianteId === varianteId ? { ...i, cantidad: i.cantidad + delta } : i)
+      .filter(i => i.cantidad > 0));
+  }
+
+  const totalCarrito = carrito.reduce((a, i) => a + i.precio * i.cantidad, 0);
+
+  async function confirmarPedido() {
+    setErr('');
+    if (!cliente.nombre.trim() || !cliente.telefono.trim() || !cliente.correo.trim()) {
+      return setErr('Completa nombre, celular y correo.');
+    }
+    if (!cliente.direccion.trim() || !cliente.distrito.trim()) {
+      return setErr('Completa tu dirección y distrito para el envío.');
+    }
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('crear-pedido-tienda', {
+        body: {
+          items: carrito.map(i => ({ varianteId: i.varianteId, cantidad: i.cantidad })),
+          nombreCliente: cliente.nombre.trim(), telefonoCliente: cliente.telefono.trim(),
+          correo: cliente.correo.trim(), direccion: cliente.direccion.trim(), distrito: cliente.distrito.trim(),
+          username: username || null,
+        },
+      });
+      if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo procesar el pedido.');
+      window.location.href = data.init_point;
+    } catch (e) {
+      setErr(e.message || 'No se pudo conectar con Mercado Pago.');
+    }
+    setEnviando(false);
+  }
+
+  function whatsappPedido() {
+    const detalle = carrito.map(i => `${i.cantidad}x ${i.nombre} (${i.varianteNombre})`).join(', ');
+    const texto = `Hola, quiero comprar: ${detalle}. Total aprox: S/ ${totalCarrito.toFixed(2)}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950 jb-body pb-24" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-950/95 backdrop-blur z-20">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-teal-700 flex items-center justify-center text-sm">🦍</div>
+          <span className="jb-display text-sm text-zinc-100">JONAH <span className="text-orange-500">BEAST</span> <span className="text-teal-400">STORE</span></span>
+        </div>
+        <button onClick={() => setCarritoAbierto(true)} className="relative">
+          <ShoppingCart size={20} className="text-zinc-200" />
+          {carrito.length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-orange-500 text-zinc-950 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              {carrito.reduce((a, i) => a + i.cantidad, 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-zinc-900">
+        <button onClick={() => setCategoria('todos')} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${categoria === 'todos' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400'}`}>Lo nuevo</button>
+        {CATEGORIAS_TIENDA.map(c => (
+          <button key={c.id} onClick={() => setCategoria(c.id)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${categoria === c.id ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400'}`}>{c.label}</button>
+        ))}
+      </div>
+
+      {categoria === 'suplementos' && marcas.length > 0 && (
+        <div className="flex gap-2 px-5 py-2 overflow-x-auto">
+          <button onClick={() => setMarcaFiltro('todas')} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === 'todas' ? 'border-teal-500 text-teal-400' : 'border-zinc-800 text-zinc-500'}`}>Todas las marcas</button>
+          {marcas.map(m => (
+            <button key={m} onClick={() => setMarcaFiltro(m)} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === m ? 'border-teal-500 text-teal-400' : 'border-zinc-800 text-zinc-500'}`}>{m}</button>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-orange-500" size={24} /></div>
+      ) : productosFiltrados.length === 0 ? (
+        <p className="text-center text-zinc-500 text-sm py-16">Sin productos en esta categoría todavía.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 p-4">
+          {productosFiltrados.map(p => {
+            const variantes = variantesPorProducto[p.id] || [];
+            const hayStock = variantes.some(v => v.stock > 0);
+            const precio = p.precio_oferta || p.precio;
+            return (
+              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="h-28 bg-zinc-800 flex items-center justify-center">
+                  {p.imagen_url
+                    ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" />
+                    : <span className="text-zinc-600 text-xs">Sin foto aún</span>}
+                </div>
+                <div className="p-2.5">
+                  <div className="text-zinc-200 text-xs font-medium leading-tight">{p.nombre}</div>
+                  {p.marca && <div className="text-teal-500 text-[10px] mt-0.5">{p.marca}</div>}
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    {p.precio_oferta && <span className="text-zinc-500 text-[10px] line-through">S/{p.precio.toFixed(2)}</span>}
+                    <span className="text-orange-500 text-sm font-semibold">S/{precio.toFixed(2)}</span>
+                  </div>
+                  {!hayStock ? (
+                    <div className="mt-2 text-center text-[11px] text-zinc-600 bg-zinc-950 rounded-lg py-1.5">Agotado</div>
+                  ) : (
+                    <select
+                      defaultValue=""
+                      onChange={e => {
+                        const v = variantes.find(x => x.id === e.target.value);
+                        if (v && v.stock > 0) agregarAlCarrito(p, v);
+                        e.target.value = '';
+                      }}
+                      className="mt-2 w-full bg-orange-500 text-zinc-950 text-[11px] font-semibold rounded-lg py-1.5 text-center"
+                    >
+                      <option value="" disabled>Elegir</option>
+                      {variantes.map(v => (
+                        <option key={v.id} value={v.id} disabled={v.stock === 0}>
+                          {v.nombre}{v.stock === 0 ? ' (agotado)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <button onClick={onIrALaApp} className="fixed bottom-4 left-4 right-4 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs py-2.5 rounded-xl">
+        ← Ir a Jonah Beast Fuel (la app de nutrición)
+      </button>
+
+      {/* Carrito lateral */}
+      {carritoAbierto && !checkoutAbierto && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setCarritoAbierto(false)} />
+          <div className="relative w-full max-w-sm bg-zinc-950 h-full flex flex-col">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="jb-display text-sm text-zinc-100">TU CARRITO</h2>
+              <button onClick={() => setCarritoAbierto(false)}><X size={18} className="text-zinc-400" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+              {carrito.length === 0 ? (
+                <p className="text-zinc-500 text-sm text-center mt-8">Tu carrito está vacío.</p>
+              ) : carrito.map(i => (
+                <div key={i.varianteId} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex justify-between items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="text-zinc-200 text-xs">{i.nombre}</div>
+                    <div className="text-zinc-500 text-[11px]">{i.varianteNombre} · S/{i.precio.toFixed(2)}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => cambiarCantidad(i.varianteId, -1)} className="w-6 h-6 rounded bg-zinc-800 text-zinc-300">-</button>
+                    <span className="text-zinc-200 text-xs w-4 text-center">{i.cantidad}</span>
+                    <button onClick={() => cambiarCantidad(i.varianteId, 1)} className="w-6 h-6 rounded bg-zinc-800 text-zinc-300">+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {carrito.length > 0 && (
+              <div className="p-4 border-t border-zinc-800 flex flex-col gap-2">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-zinc-400">Total</span>
+                  <span className="text-orange-500 font-semibold">S/{totalCarrito.toFixed(2)}</span>
+                </div>
+                <button onClick={() => setCheckoutAbierto(true)} className={btnPrimary + ' py-3'}>Pagar con Mercado Pago</button>
+                <button onClick={whatsappPedido} className="bg-emerald-600 text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
+                  <MessageCircle size={16} /> Comprar por WhatsApp
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Checkout */}
+      {checkoutAbierto && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setCheckoutAbierto(false)} />
+          <div className="relative w-full max-w-sm bg-zinc-950 h-full flex flex-col overflow-y-auto p-5 gap-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="jb-display text-sm text-zinc-100">DATOS DE ENVÍO</h2>
+              <button onClick={() => setCheckoutAbierto(false)}><X size={18} className="text-zinc-400" /></button>
+            </div>
+            <Field label="Nombre completo">
+              <input value={cliente.nombre} onChange={e => setCliente(v => ({ ...v, nombre: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Celular">
+              <input type="tel" value={cliente.telefono} onChange={e => setCliente(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999 888 777" />
+            </Field>
+            <Field label="Correo">
+              <input type="email" value={cliente.correo} onChange={e => setCliente(v => ({ ...v, correo: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Dirección">
+              <input value={cliente.direccion} onChange={e => setCliente(v => ({ ...v, direccion: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Distrito">
+              <input value={cliente.distrito} onChange={e => setCliente(v => ({ ...v, distrito: e.target.value }))} className={inputCls} placeholder="Ej. San Miguel" />
+            </Field>
+            {err && <p className="text-red-400 text-xs flex items-center gap-1.5"><AlertTriangle size={13} />{err}</p>}
+            <button onClick={confirmarPedido} disabled={enviando} className={btnPrimary + ' py-3 mt-2'}>
+              {enviando ? <Loader2 className="animate-spin" size={18} /> : `Pagar S/${totalCarrito.toFixed(2)}`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TiendaAdminPanel() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState('inventario');
+  const [productos, setProductos] = useState([]);
+  const [variantesPorProducto, setVariantesPorProducto] = useState({});
+  const [pedidos, setPedidos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [nuevoProd, setNuevoProd] = useState({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '' });
+  const [nuevaVariante, setNuevaVariante] = useState({});
+  const [guardando, setGuardando] = useState(false);
+
+  const [ventaFisica, setVentaFisica] = useState({ varianteId: '', monto: '', cliente: '', motivo: '', nota: '' });
+  const [registrandoVenta, setRegistrandoVenta] = useState(false);
+
+  useEffect(() => { if (open) cargar(); }, [open]);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const { data: prods } = await supabase.from('tienda_productos').select('*').order('creado_en', { ascending: false });
+      const { data: vars } = await supabase.from('tienda_variantes').select('*');
+      const { data: peds } = await supabase.from('tienda_pedidos').select('*').order('creado_en', { ascending: false }).limit(50);
+      setProductos(prods || []);
+      const porProd = {};
+      (vars || []).forEach(v => { porProd[v.producto_id] = porProd[v.producto_id] || []; porProd[v.producto_id].push(v); });
+      setVariantesPorProducto(porProd);
+      setPedidos(peds || []);
+    } catch {}
+    setLoading(false);
+  }
+
+  async function agregarProducto() {
+    if (!nuevoProd.nombre.trim() || !nuevoProd.precio) return;
+    setGuardando(true);
+    try {
+      await supabase.from('tienda_productos').insert({
+        nombre: nuevoProd.nombre.trim(), categoria: nuevoProd.categoria,
+        marca: nuevoProd.categoria === 'suplementos' ? (nuevoProd.marca || null) : null,
+        precio: parseFloat(nuevoProd.precio), precio_oferta: nuevoProd.precioOferta ? parseFloat(nuevoProd.precioOferta) : null,
+      });
+      setNuevoProd({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '' });
+      cargar();
+    } catch {}
+    setGuardando(false);
+  }
+
+  async function agregarVariante(productoId) {
+    const v = nuevaVariante[productoId];
+    if (!v?.nombre?.trim()) return;
+    try {
+      await supabase.from('tienda_variantes').insert({ producto_id: productoId, nombre: v.nombre.trim(), stock: parseInt(v.stock || '0', 10) });
+      setNuevaVariante(prev => ({ ...prev, [productoId]: { nombre: '', stock: '' } }));
+      cargar();
+    } catch {}
+  }
+
+  async function actualizarStock(varianteId, nuevoStock) {
+    try {
+      await supabase.from('tienda_variantes').update({ stock: Math.max(0, parseInt(nuevoStock, 10) || 0) }).eq('id', varianteId);
+      cargar();
+    } catch {}
+  }
+
+  async function toggleActivo(producto) {
+    try { await supabase.from('tienda_productos').update({ activo: !producto.activo }).eq('id', producto.id); cargar(); } catch {}
+  }
+
+  async function registrarVentaFisica() {
+    if (!ventaFisica.varianteId || !ventaFisica.monto) return;
+    setRegistrandoVenta(true);
+    try {
+      const { data: pedidoCreado } = await supabase.from('tienda_pedidos').insert({
+        origen: 'fisica', nombre_cliente: ventaFisica.cliente || 'Cliente en persona',
+        monto_total: parseFloat(ventaFisica.monto), metodo_pago: 'Efectivo', estado: 'aprobado',
+        motivo_especial: ventaFisica.motivo || null, nota_motivo: ventaFisica.nota || null,
+      }).select('id').single();
+      if (pedidoCreado) {
+        await supabase.from('tienda_pedido_items').insert({
+          pedido_id: pedidoCreado.id, variante_id: ventaFisica.varianteId, cantidad: 1, precio_unitario: parseFloat(ventaFisica.monto),
+        });
+        // Disparamos el mismo procesamiento (descuento de stock + Finanzas) actualizando el estado
+        await supabase.from('tienda_pedidos').update({ estado: 'aprobado' }).eq('id', pedidoCreado.id);
+      }
+      setVentaFisica({ varianteId: '', monto: '', cliente: '', motivo: '', nota: '' });
+      cargar();
+    } catch {}
+    setRegistrandoVenta(false);
+  }
+
+  const todasLasVariantes = productos.flatMap(p => (variantesPorProducto[p.id] || []).map(v => ({ ...v, productoNombre: p.nombre })));
+
+  return (
+    <div className="bg-zinc-900 border border-teal-700/50 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">🛒 JONAH BEAST STORE</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          {loading ? <Loader2 className="animate-spin text-orange-500" size={20} /> : (
+            <>
+              <div className="flex gap-2 mb-4">
+                {[['inventario', 'Inventario'], ['ventaFisica', 'Venta física'], ['pedidos', 'Pedidos']].map(([id, label]) => (
+                  <button key={id} onClick={() => setTab(id)}
+                    className={`text-xs px-3 py-1.5 rounded-lg ${tab === id ? 'bg-teal-600 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {tab === 'inventario' && (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                    <h3 className="jb-display text-sm text-zinc-300">Agregar producto</h3>
+                    <input placeholder="Nombre del producto" value={nuevoProd.nombre}
+                      onChange={e => setNuevoProd(v => ({ ...v, nombre: e.target.value }))}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={nuevoProd.categoria} onChange={e => setNuevoProd(v => ({ ...v, categoria: e.target.value }))}
+                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                        {CATEGORIAS_TIENDA.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                      </select>
+                      {nuevoProd.categoria === 'suplementos' ? (
+                        <select value={nuevoProd.marca} onChange={e => setNuevoProd(v => ({ ...v, marca: e.target.value }))}
+                          className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                          <option value="">Marca...</option>
+                          <option value="Evogen">Evogen</option>
+                          <option value="Insane Labs">Insane Labs</option>
+                          <option value="Bluhealth Nutrition">Bluhealth Nutrition</option>
+                        </select>
+                      ) : <div />}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="number" step="0.01" placeholder="Precio S/" value={nuevoProd.precio}
+                        onChange={e => setNuevoProd(v => ({ ...v, precio: e.target.value }))}
+                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                      <input type="number" step="0.01" placeholder="Precio oferta (opcional)" value={nuevoProd.precioOferta}
+                        onChange={e => setNuevoProd(v => ({ ...v, precioOferta: e.target.value }))}
+                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                    </div>
+                    <button onClick={agregarProducto} disabled={guardando}
+                      className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg py-2">
+                      {guardando ? 'Guardando...' : 'Agregar producto'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {productos.map(p => (
+                      <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="text-zinc-100 text-sm font-medium">{p.nombre}</div>
+                            <div className="text-zinc-500 text-[11px]">{p.categoria}{p.marca ? ` · ${p.marca}` : ''} · S/{(p.precio_oferta || p.precio).toFixed(2)}</div>
+                          </div>
+                          <button onClick={() => toggleActivo(p)}
+                            className={`text-[10px] px-2 py-1 rounded-full ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                            {p.activo ? 'Activo' : 'Oculto'}
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          {(variantesPorProducto[p.id] || []).map(v => (
+                            <div key={v.id} className="flex items-center justify-between gap-2 text-xs text-zinc-400">
+                              <span>{v.nombre}</span>
+                              <input type="number" defaultValue={v.stock} onBlur={e => actualizarStock(v.id, e.target.value)}
+                                className="w-16 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
+                            </div>
+                          ))}
+                          <div className="flex gap-1.5 mt-1">
+                            <input placeholder="Nueva variante (ej. M, Chocolate 1kg)"
+                              value={nuevaVariante[p.id]?.nombre || ''}
+                              onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], nombre: e.target.value } }))}
+                              className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
+                            <input type="number" placeholder="Stock" value={nuevaVariante[p.id]?.stock || ''}
+                              onChange={e => setNuevaVariante(prev => ({ ...prev, [p.id]: { ...prev[p.id], stock: e.target.value } }))}
+                              className="w-16 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200" />
+                            <button onClick={() => agregarVariante(p.id)} className="bg-zinc-800 text-zinc-300 text-xs px-2 rounded">+</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tab === 'ventaFisica' && (
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                  <h3 className="jb-display text-sm text-zinc-300">Registrar venta física</h3>
+                  <select value={ventaFisica.varianteId} onChange={e => setVentaFisica(v => ({ ...v, varianteId: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                    <option value="">Elige el producto/variante...</option>
+                    {todasLasVariantes.map(v => (
+                      <option key={v.id} value={v.id}>{v.productoNombre} — {v.nombre} (stock: {v.stock})</option>
+                    ))}
+                  </select>
+                  <input type="number" step="0.01" placeholder="Monto cobrado (S/)" value={ventaFisica.monto}
+                    onChange={e => setVentaFisica(v => ({ ...v, monto: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                  <input placeholder="Nombre del cliente (opcional)" value={ventaFisica.cliente}
+                    onChange={e => setVentaFisica(v => ({ ...v, cliente: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                  <select value={ventaFisica.motivo} onChange={e => setVentaFisica(v => ({ ...v, motivo: e.target.value }))}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+                    <option value="">Motivo especial (opcional)</option>
+                    <option value="embajador">Embajador / aliado</option>
+                    <option value="entrenador">Entrenador</option>
+                    <option value="cumpleanos">Cumpleaños 🎂</option>
+                    <option value="cliente_frecuente">Cliente frecuente</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                  {ventaFisica.motivo && (
+                    <input placeholder="Nota (ej. nombre del entrenador)" value={ventaFisica.nota}
+                      onChange={e => setVentaFisica(v => ({ ...v, nota: e.target.value }))}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                  )}
+                  <button onClick={registrarVentaFisica} disabled={registrandoVenta}
+                    className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg py-2">
+                    {registrandoVenta ? 'Registrando...' : 'Registrar venta'}
+                  </button>
+                  <p className="text-[11px] text-zinc-600">Descuenta el stock y se registra en Finanzas automáticamente.</p>
+                </div>
+              )}
+
+              {tab === 'pedidos' && (
+                <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+                  {pedidos.length === 0 ? <p className="text-zinc-500 text-xs">Sin pedidos todavía.</p> : pedidos.map(p => (
+                    <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-200">{p.nombre_cliente || p.username || 'Cliente'}</span>
+                        <span className="text-orange-500 font-semibold">S/{Number(p.monto_total).toFixed(2)}</span>
+                      </div>
+                      <div className="text-zinc-600 mt-1">
+                        {p.origen === 'web' ? 'Web' : 'Física'} · {p.metodo_pago} · {p.estado}
+                        {p.motivo_especial && ` · ${p.motivo_especial}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState(() => {
-    try { return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing'; } catch { return 'landing'; }
+    try {
+      if (window.location.pathname.startsWith('/tienda')) return 'tienda';
+      return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing';
+    } catch { return 'landing'; }
   });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -9977,6 +10500,7 @@ export default function App() {
       }} />}
       {!tokenRef && view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
       {!tokenRef && view === 'landing' && <Landing onChoose={setView} />}
+      {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
       {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
       {!tokenRef && view === 'adminAuth' && (

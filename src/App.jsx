@@ -5974,26 +5974,47 @@ function VencimientosPanel({ users, onRenew }) {
 
 function CumpleanosPanel({ users }) {
   const [open, setOpen] = useState(false);
+  const [clientesTienda, setClientesTienda] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('tienda_clientes').select('telefono, nombre, fecha_nacimiento')
+      .not('fecha_nacimiento', 'is', null)
+      .then(({ data }) => setClientesTienda(data || []))
+      .catch(() => {});
+  }, [open]);
 
   const cumpleaneros = useMemo(() => {
     const hoy = new Date();
     const mes = hoy.getMonth() + 1, dia = hoy.getDate();
-    return (users || []).filter(u => {
-      if (!u.fechaNacimiento) return false;
-      const [, m, d] = u.fechaNacimiento.split('-').map(Number);
-      return m === mes && d === dia;
-    });
-  }, [users]);
+    const deAlumnos = (users || [])
+      .filter(u => {
+        if (!u.fechaNacimiento) return false;
+        const [, m, d] = u.fechaNacimiento.split('-').map(Number);
+        return m === mes && d === dia;
+      })
+      .map(u => ({ nombre: u.nombre, username: u.username, telefono: u.telefono, origen: 'Alumno' }));
+
+    const deTienda = (clientesTienda || [])
+      .filter(c => {
+        const [, m, d] = c.fecha_nacimiento.split('-').map(Number);
+        return m === mes && d === dia;
+      })
+      .map(c => ({ nombre: c.nombre, username: c.telefono, telefono: c.telefono, origen: 'Cliente tienda' }));
+
+    return [...deAlumnos, ...deTienda];
+  }, [users, clientesTienda]);
 
   const conFechaGuardada = useMemo(
-    () => (users || []).filter(u => !!u.fechaNacimiento).length,
-    [users]
+    () => (users || []).filter(u => !!u.fechaNacimiento).length + clientesTienda.length,
+    [users, clientesTienda]
   );
+  const totalPersonas = (users || []).length + clientesTienda.length;
 
   function waLinkCumple(u) {
     const num = (u.telefono || '').replace(/\D/g, '');
     const full = num ? (num.length <= 9 ? '51' + num : num) : '';
-    const texto = `¡Feliz cumpleaños, ${u.nombre || u.username}! 🎉 Todo el equipo de Jonah Beast Fuel te desea un año lleno de fuerza y buenos resultados. 💪`;
+    const texto = `¡Feliz cumpleaños, ${u.nombre || u.username}! 🎉 Todo el equipo de Jonah Beast te desea un año lleno de fuerza y buenos resultados. 💪`;
     return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
                 : `https://wa.me/?text=${encodeURIComponent(texto)}`;
   }
@@ -6017,14 +6038,17 @@ function CumpleanosPanel({ users }) {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
           {cumpleaneros.length === 0 ? (
             <p className="jb-body text-sm text-zinc-500">
-              Nadie cumple años hoy. {conFechaGuardada} de {(users || []).length} alumnos tienen su fecha de nacimiento guardada — se va llenando cada vez que alguien paga y la completa.
+              Nadie cumple años hoy. {conFechaGuardada} de {totalPersonas} personas (alumnos + clientes de la tienda) tienen su fecha de nacimiento guardada.
             </p>
           ) : (
           <div className="flex flex-col gap-2">
             {cumpleaneros.map(u => (
               <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
-                <div className="text-zinc-100 text-sm font-medium jb-body">
-                  {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+                <div>
+                  <div className="text-zinc-100 text-sm font-medium jb-body">
+                    {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+                  </div>
+                  <div className="text-zinc-500 text-[11px]">{u.origen}</div>
                 </div>
                 <a href={waLinkCumple(u)} target="_blank" rel="noopener noreferrer"
                   className={btnPrimary + ' py-1.5 px-3 text-xs'}>
@@ -9631,10 +9655,10 @@ function TiendaPublica({ username, onIrALaApp }) {
   const [variantesPorProducto, setVariantesPorProducto] = useState({});
   const [categoria, setCategoria] = useState('todos');
   const [marcaFiltro, setMarcaFiltro] = useState('todas');
-  const [carrito, setCarrito] = useState([]); // [{varianteId, productoId, nombre, varianteNombre, precio, cantidad}]
+  const [carrito, setCarrito] = useState([]);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [checkoutAbierto, setCheckoutAbierto] = useState(false);
-  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', distrito: '' });
+  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', distrito: '', fechaNacimiento: '' });
   const [enviando, setEnviando] = useState(false);
   const [err, setErr] = useState('');
 
@@ -9703,6 +9727,7 @@ function TiendaPublica({ username, onIrALaApp }) {
           items: carrito.map(i => ({ varianteId: i.varianteId, cantidad: i.cantidad })),
           nombreCliente: cliente.nombre.trim(), telefonoCliente: cliente.telefono.trim(),
           correo: cliente.correo.trim(), direccion: cliente.direccion.trim(), distrito: cliente.distrito.trim(),
+          fechaNacimiento: cliente.fechaNacimiento || null,
           username: username || null,
         },
       });
@@ -9724,7 +9749,7 @@ function TiendaPublica({ username, onIrALaApp }) {
     <div className="min-h-screen bg-zinc-950 jb-body pb-24" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
       <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 sticky top-0 bg-zinc-950/95 backdrop-blur z-20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-teal-700 flex items-center justify-center text-sm">🦍</div>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center text-sm">🦍</div>
           <span className="jb-display text-sm text-zinc-100">JONAH <span className="text-orange-500">BEAST</span> <span className="text-teal-400">STORE</span></span>
         </div>
         <button onClick={() => setCarritoAbierto(true)} className="relative">
@@ -9737,18 +9762,30 @@ function TiendaPublica({ username, onIrALaApp }) {
         </button>
       </div>
 
+      {/* Barra promocional a color, tipo ticker */}
+      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-teal-500 text-zinc-950 text-[11px] font-semibold text-center py-2">
+        🔥 ENVÍO GRATIS DESDE S/200 · PAGA CON MERCADO PAGO O WHATSAPP
+      </div>
+
+      {/* Hero de bienvenida con degradado de marca */}
+      <div className="relative overflow-hidden px-5 pt-8 pb-10 text-center"
+        style={{ background: 'radial-gradient(circle at 50% -10%, rgba(255,90,46,0.25), transparent 60%), radial-gradient(circle at 20% 100%, rgba(62,138,138,0.2), transparent 55%)' }}>
+        <h1 className="jb-display text-2xl text-zinc-50 leading-tight">EQUÍPATE COMO<br /><span className="text-orange-500">BESTIA</span></h1>
+        <p className="text-zinc-400 text-xs mt-2">Ropa, accesorios y suplementos para tu entreno</p>
+      </div>
+
       <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-zinc-900">
-        <button onClick={() => setCategoria('todos')} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${categoria === 'todos' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400'}`}>Lo nuevo</button>
+        <button onClick={() => setCategoria('todos')} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${categoria === 'todos' ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-zinc-950 font-semibold shadow-lg shadow-orange-500/20' : 'bg-zinc-900 text-zinc-400'}`}>Lo nuevo</button>
         {CATEGORIAS_TIENDA.map(c => (
-          <button key={c.id} onClick={() => setCategoria(c.id)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${categoria === c.id ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400'}`}>{c.label}</button>
+          <button key={c.id} onClick={() => setCategoria(c.id)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${categoria === c.id ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-zinc-950 font-semibold shadow-lg shadow-orange-500/20' : 'bg-zinc-900 text-zinc-400'}`}>{c.label}</button>
         ))}
       </div>
 
       {categoria === 'suplementos' && marcas.length > 0 && (
         <div className="flex gap-2 px-5 py-2 overflow-x-auto">
-          <button onClick={() => setMarcaFiltro('todas')} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === 'todas' ? 'border-teal-500 text-teal-400' : 'border-zinc-800 text-zinc-500'}`}>Todas las marcas</button>
+          <button onClick={() => setMarcaFiltro('todas')} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === 'todas' ? 'border-teal-500 text-teal-400 bg-teal-500/10' : 'border-zinc-800 text-zinc-500'}`}>Todas las marcas</button>
           {marcas.map(m => (
-            <button key={m} onClick={() => setMarcaFiltro(m)} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === m ? 'border-teal-500 text-teal-400' : 'border-zinc-800 text-zinc-500'}`}>{m}</button>
+            <button key={m} onClick={() => setMarcaFiltro(m)} className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border ${marcaFiltro === m ? 'border-teal-500 text-teal-400 bg-teal-500/10' : 'border-zinc-800 text-zinc-500'}`}>{m}</button>
           ))}
         </div>
       )}
@@ -9763,19 +9800,26 @@ function TiendaPublica({ username, onIrALaApp }) {
             const variantes = variantesPorProducto[p.id] || [];
             const hayStock = variantes.some(v => v.stock > 0);
             const precio = p.precio_oferta || p.precio;
+            const esSuplemento = p.categoria === 'suplementos';
             return (
-              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                <div className="h-28 bg-zinc-800 flex items-center justify-center">
+              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-orange-600/50 transition-colors">
+                <div className="h-28 relative flex items-center justify-center overflow-hidden"
+                  style={{ background: esSuplemento
+                    ? 'linear-gradient(135deg, rgba(62,138,138,0.35), rgba(20,25,28,1))'
+                    : 'linear-gradient(135deg, rgba(255,90,46,0.30), rgba(20,20,24,1))' }}>
                   {p.imagen_url
                     ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" />
-                    : <span className="text-zinc-600 text-xs">Sin foto aún</span>}
+                    : <span className="text-zinc-500 text-[11px]">📦 Foto próximamente</span>}
+                  {p.precio_oferta && (
+                    <span className="absolute top-1.5 left-1.5 bg-orange-500 text-zinc-950 text-[9px] font-bold px-1.5 py-0.5 rounded">OFERTA</span>
+                  )}
                 </div>
                 <div className="p-2.5">
                   <div className="text-zinc-200 text-xs font-medium leading-tight">{p.nombre}</div>
-                  {p.marca && <div className="text-teal-500 text-[10px] mt-0.5">{p.marca}</div>}
+                  {p.marca && <div className="text-teal-400 text-[10px] mt-0.5 font-medium">{p.marca}</div>}
                   <div className="flex items-baseline gap-1.5 mt-1">
                     {p.precio_oferta && <span className="text-zinc-500 text-[10px] line-through">S/{p.precio.toFixed(2)}</span>}
-                    <span className="text-orange-500 text-sm font-semibold">S/{precio.toFixed(2)}</span>
+                    <span className="text-orange-500 text-sm font-bold">S/{precio.toFixed(2)}</span>
                   </div>
                   {!hayStock ? (
                     <div className="mt-2 text-center text-[11px] text-zinc-600 bg-zinc-950 rounded-lg py-1.5">Agotado</div>
@@ -9787,7 +9831,7 @@ function TiendaPublica({ username, onIrALaApp }) {
                         if (v && v.stock > 0) agregarAlCarrito(p, v);
                         e.target.value = '';
                       }}
-                      className="mt-2 w-full bg-orange-500 text-zinc-950 text-[11px] font-semibold rounded-lg py-1.5 text-center"
+                      className="mt-2 w-full bg-gradient-to-r from-orange-500 to-orange-600 text-zinc-950 text-[11px] font-semibold rounded-lg py-1.5 text-center"
                     >
                       <option value="" disabled>Elegir</option>
                       {variantes.map(v => (
@@ -9873,6 +9917,9 @@ function TiendaPublica({ username, onIrALaApp }) {
             </Field>
             <Field label="Distrito">
               <input value={cliente.distrito} onChange={e => setCliente(v => ({ ...v, distrito: e.target.value }))} className={inputCls} placeholder="Ej. San Miguel" />
+            </Field>
+            <Field label="Fecha de nacimiento (opcional, para sorpresas 🎂)">
+              <input type="date" value={cliente.fechaNacimiento} onChange={e => setCliente(v => ({ ...v, fechaNacimiento: e.target.value }))} className={inputCls} />
             </Field>
             {err && <p className="text-red-400 text-xs flex items-center gap-1.5"><AlertTriangle size={13} />{err}</p>}
             <button onClick={confirmarPedido} disabled={enviando} className={btnPrimary + ' py-3 mt-2'}>

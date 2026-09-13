@@ -3328,7 +3328,7 @@ function TrialSignup({ onBack, onCreated }) {
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
-function TrialSignupPlaceholder() { return null; }
+
 
 function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');

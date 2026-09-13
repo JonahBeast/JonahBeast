@@ -10418,10 +10418,6 @@ function TiendaAdminPanel() {
                               <div className="text-zinc-500 text-[11px]">{p.categoria}{p.marca ? ` · ${p.marca}` : ''} · S/{(p.precio_oferta || p.precio).toFixed(2)}</div>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <button onClick={() => toggleActivo(p)}
-                                className={`text-[10px] px-2 py-1 rounded-full ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                {p.activo ? 'Activo' : 'Oculto'}
-                              </button>
                               <button onClick={() => abrirEdicion(p)} className="text-[10px] px-2 py-1 rounded-full bg-zinc-800 text-zinc-400">Editar</button>
                               <button onClick={() => eliminarProducto(p)} disabled={eliminandoProd === p.id}
                                 className="text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-400">
@@ -10429,6 +10425,10 @@ function TiendaAdminPanel() {
                               </button>
                             </div>
                           </div>
+                          <button onClick={() => toggleActivo(p)}
+                            className={`text-[10px] px-2 py-1 rounded-full mb-2.5 ${p.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                            {p.activo ? '✓ Visible en la tienda (clic para ocultar)' : '✕ Oculto de la tienda (clic para mostrar)'}
+                          </button>
                         )}
                         <div className="flex flex-col gap-2">
                           {(variantesPorProducto[p.id] || []).map(v => {

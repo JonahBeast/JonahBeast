@@ -3419,21 +3419,16 @@ function TrialSignup({ onBack, onCreated }) {
 
 function TrialSignupPlaceholder() { return null; }
 
-function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
+function AdminAuth({ onBack, onLogin, busy }) {
+  const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [err, setErr] = useState('');
 
   function submit(e) {
     e.preventDefault();
     setErr('');
-    if (!adminPassExists) {
-      if (pass.length < 4) return setErr('La contraseña debe tener al menos 4 caracteres.');
-      if (pass !== confirm) return setErr('Las contraseñas no coinciden.');
-      onSetup(pass);
-    } else {
-      onLogin(pass, setErr);
-    }
+    if (!email.trim() || !pass) return setErr('Completa tu correo y contraseña.');
+    onLogin(email.trim(), pass, setErr);
   }
 
   return (
@@ -3441,22 +3436,20 @@ function AdminAuth({ adminPassExists, onBack, onSetup, onLogin, busy }) {
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h2 className="jb-display text-xl text-zinc-50 mb-1">{adminPassExists ? 'ACCESO ADMINISTRACIÓN' : 'CREA TU ACCESO'}</h2>
+          <h2 className="jb-display text-xl text-zinc-50 mb-1">ACCESO ADMINISTRACIÓN</h2>
           <p className="jb-body text-sm text-zinc-500 mb-5">
-            {adminPassExists ? 'Ingresa tu contraseña de administrador.' : 'Primera vez aquí: define tu contraseña de administrador.'}
+            Ingresa con tu mismo correo y contraseña de cuenta.
           </p>
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label="Contraseña">
-              <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus />
+            <Field label="Correo">
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
             </Field>
-            {!adminPassExists && (
-              <Field label="Confirmar contraseña">
-                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} />
-              </Field>
-            )}
+            <Field label="Contraseña">
+              <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
+            </Field>
             {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
             <button type="submit" disabled={busy} className={btnPrimary}>
-              {busy ? <Loader2 className="animate-spin" size={18} /> : (adminPassExists ? 'Ingresar' : 'Crear y entrar')}
+              {busy ? <Loader2 className="animate-spin" size={18} /> : 'Ingresar'}
             </button>
             <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
           </form>
@@ -10710,9 +10703,28 @@ export default function App() {
     setView('admin');
   }
 
-  function handleAdminLogin(pass, setErr) {
-    if (pass === adminPass) { setAdminAuthed(true); setView('admin'); }
-    else setErr('Contraseña incorrecta.');
+  async function handleAdminLogin(email, pass, setErr) {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (error || !data?.user) {
+        setErr('Correo o contraseña incorrectos.');
+        setBusy(false);
+        return;
+      }
+      const { data: perfil } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
+      if (perfil?.role !== 'admin') {
+        setErr('Esta cuenta no tiene permisos de administrador.');
+        await supabase.auth.signOut();
+        setBusy(false);
+        return;
+      }
+      setAdminAuthed(true);
+      setView('admin');
+    } catch {
+      setErr('No se pudo iniciar sesión, intenta de nuevo.');
+    }
+    setBusy(false);
   }
 
   async function loadStudentSession(username) {
@@ -10989,8 +11001,7 @@ export default function App() {
       {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
       {!tokenRef && view === 'adminAuth' && (
-        <AdminAuth adminPassExists={!!adminPass} onBack={() => setView('landing')} busy={busy}
-          onSetup={handleAdminSetup} onLogin={handleAdminLogin} />
+        <AdminAuth onBack={() => setView('landing')} busy={busy} onLogin={handleAdminLogin} />
       )}
       {!tokenRef && view === 'studentAuth' && (
         <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}

@@ -9649,6 +9649,34 @@ const CATEGORIAS_TIENDA = [
   { id: 'suplementos', label: 'Suplementos' },
 ];
 
+const DEPARTAMENTOS_PERU = {
+  'Amazonas': ['Chachapoyas', 'Bagua', 'Bongará', 'Condorcanqui', 'Luya', 'Rodríguez de Mendoza', 'Utcubamba'],
+  'Áncash': ['Huaraz', 'Aija', 'Antonio Raymondi', 'Asunción', 'Bolognesi', 'Carhuaz', 'Carlos F. Fitzcarrald', 'Casma', 'Corongo', 'Huari', 'Huarmey', 'Huaylas', 'Mariscal Luzuriaga', 'Ocros', 'Pallasca', 'Pomabamba', 'Recuay', 'Santa', 'Sihuas', 'Yungay'],
+  'Apurímac': ['Abancay', 'Andahuaylas', 'Antabamba', 'Aymaraes', 'Cotabambas', 'Chincheros', 'Grau'],
+  'Arequipa': ['Arequipa', 'Camaná', 'Caravelí', 'Castilla', 'Caylloma', 'Condesuyos', 'Islay', 'La Unión'],
+  'Ayacucho': ['Huamanga', 'Cangallo', 'Huanca Sancos', 'Huanta', 'La Mar', 'Lucanas', 'Parinacochas', 'Páucar del Sara Sara', 'Sucre', 'Víctor Fajardo', 'Vilcas Huamán'],
+  'Cajamarca': ['Cajamarca', 'Cajabamba', 'Celendín', 'Chota', 'Contumazá', 'Cutervo', 'Hualgayoc', 'Jaén', 'San Ignacio', 'San Marcos', 'San Miguel', 'San Pablo', 'Santa Cruz'],
+  'Callao': ['Callao'],
+  'Cusco': ['Cusco', 'Acomayo', 'Anta', 'Calca', 'Canas', 'Canchis', 'Chumbivilcas', 'Espinar', 'La Convención', 'Paruro', 'Paucartambo', 'Quispicanchi', 'Urubamba'],
+  'Huancavelica': ['Huancavelica', 'Acobamba', 'Angaraes', 'Castrovirreyna', 'Churcampa', 'Huaytará', 'Tayacaja'],
+  'Huánuco': ['Huánuco', 'Ambo', 'Dos de Mayo', 'Huacaybamba', 'Huamalíes', 'Leoncio Prado', 'Marañón', 'Pachitea', 'Puerto Inca', 'Lauricocha', 'Yarowilca'],
+  'Ica': ['Ica', 'Chincha', 'Nazca', 'Palpa', 'Pisco'],
+  'Junín': ['Huancayo', 'Concepción', 'Chanchamayo', 'Jauja', 'Junín', 'Satipo', 'Tarma', 'Yauli', 'Chupaca'],
+  'La Libertad': ['Trujillo', 'Ascope', 'Bolívar', 'Chepén', 'Julcán', 'Otuzco', 'Pacasmayo', 'Pataz', 'Sánchez Carrión', 'Santiago de Chuco', 'Gran Chimú', 'Virú'],
+  'Lambayeque': ['Chiclayo', 'Ferreñafe', 'Lambayeque'],
+  'Lima': ['Lima', 'Barranca', 'Cajatambo', 'Canta', 'Cañete', 'Huaral', 'Huarochirí', 'Huaura', 'Oyón', 'Yauyos'],
+  'Loreto': ['Maynas', 'Alto Amazonas', 'Datem del Marañón', 'Loreto', 'Mariscal Ramón Castilla', 'Putumayo', 'Requena', 'Ucayali'],
+  'Madre de Dios': ['Tambopata', 'Manú', 'Tahuamanu'],
+  'Moquegua': ['Mariscal Nieto', 'General Sánchez Cerro', 'Ilo'],
+  'Pasco': ['Pasco', 'Daniel Alcides Carrión', 'Oxapampa'],
+  'Piura': ['Piura', 'Ayabaca', 'Huancabamba', 'Morropón', 'Paita', 'Sullana', 'Talara', 'Sechura'],
+  'Puno': ['Puno', 'Azángaro', 'Carabaya', 'Chucuito', 'El Collao', 'Huancané', 'Lampa', 'Melgar', 'Moho', 'San Antonio de Putina', 'San Román', 'Sandia', 'Yunguyo'],
+  'San Martín': ['Moyobamba', 'Bellavista', 'El Dorado', 'Huallaga', 'Lamas', 'Mariscal Cáceres', 'Picota', 'Rioja', 'San Martín', 'Tocache'],
+  'Tacna': ['Tacna', 'Candarave', 'Jorge Basadre', 'Tarata'],
+  'Tumbes': ['Tumbes', 'Contralmirante Villar', 'Zarumilla'],
+  'Ucayali': ['Coronel Portillo', 'Atalaya', 'Padre Abad', 'Purús'],
+};
+
 function TiendaPublica({ username, onIrALaApp }) {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
@@ -9658,9 +9686,12 @@ function TiendaPublica({ username, onIrALaApp }) {
   const [carrito, setCarrito] = useState([]);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [checkoutAbierto, setCheckoutAbierto] = useState(false);
-  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', distrito: '', fechaNacimiento: '' });
+  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', departamento: '', provincia: '', distrito: '', fechaNacimiento: '' });
   const [enviando, setEnviando] = useState(false);
   const [err, setErr] = useState('');
+  const [codigoDescuento, setCodigoDescuento] = useState('');
+  const [newsletterCorreo, setNewsletterCorreo] = useState('');
+  const [newsletterOk, setNewsletterOk] = useState(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -9717,17 +9748,19 @@ function TiendaPublica({ username, onIrALaApp }) {
     if (!cliente.nombre.trim() || !cliente.telefono.trim() || !cliente.correo.trim()) {
       return setErr('Completa nombre, celular y correo.');
     }
-    if (!cliente.direccion.trim() || !cliente.distrito.trim()) {
-      return setErr('Completa tu dirección y distrito para el envío.');
+    if (!cliente.departamento || !cliente.provincia || !cliente.distrito.trim() || !cliente.direccion.trim()) {
+      return setErr('Completa departamento, provincia, distrito y dirección para el envío.');
     }
     setEnviando(true);
     try {
+      const distritoCompleto = `${cliente.distrito.trim()}, ${cliente.provincia}, ${cliente.departamento}`;
       const { data, error } = await supabase.functions.invoke('crear-pedido-tienda', {
         body: {
           items: carrito.map(i => ({ varianteId: i.varianteId, cantidad: i.cantidad })),
           nombreCliente: cliente.nombre.trim(), telefonoCliente: cliente.telefono.trim(),
-          correo: cliente.correo.trim(), direccion: cliente.direccion.trim(), distrito: cliente.distrito.trim(),
+          correo: cliente.correo.trim(), direccion: cliente.direccion.trim(), distrito: distritoCompleto,
           fechaNacimiento: cliente.fechaNacimiento || null,
+          codigoDescuento: codigoDescuento.trim() || null,
           username: username || null,
         },
       });
@@ -9743,6 +9776,16 @@ function TiendaPublica({ username, onIrALaApp }) {
     const detalle = carrito.map(i => `${i.cantidad}x ${i.nombre} (${i.varianteNombre})`).join(', ');
     const texto = `Hola, quiero comprar: ${detalle}. Total aprox: S/ ${totalCarrito.toFixed(2)}`;
     window.open(`https://wa.me/51963760819?text=${encodeURIComponent(texto)}`, '_blank');
+  }
+
+  async function suscribirseNewsletter() {
+    if (!newsletterCorreo.trim() || !newsletterCorreo.includes('@')) return;
+    try {
+      await supabase.from('tienda_newsletter').insert({ correo: newsletterCorreo.trim() });
+      setNewsletterOk(true);
+    } catch {
+      setNewsletterOk(true); // si ya estaba suscrito, igual mostramos éxito
+    }
   }
 
   return (
@@ -9768,10 +9811,18 @@ function TiendaPublica({ username, onIrALaApp }) {
       </div>
 
       {/* Hero de bienvenida con degradado de marca */}
-      <div className="relative overflow-hidden px-5 pt-8 pb-10 text-center"
+      <div className="relative overflow-hidden px-5 pt-8 pb-6 text-center"
         style={{ background: 'radial-gradient(circle at 50% -10%, rgba(255,90,46,0.25), transparent 60%), radial-gradient(circle at 20% 100%, rgba(62,138,138,0.2), transparent 55%)' }}>
         <h1 className="jb-display text-2xl text-zinc-50 leading-tight">EQUÍPATE COMO<br /><span className="text-orange-500">BESTIA</span></h1>
         <p className="text-zinc-400 text-xs mt-2">Ropa, accesorios y suplementos para tu entreno</p>
+        <p className="text-teal-400 text-[11px] mt-2">📦 Coordina la entrega el mismo día por WhatsApp (sujeto a stock y zona)</p>
+      </div>
+
+      <div className="overflow-hidden border-y border-zinc-900 py-1.5 bg-zinc-950">
+        <div className="whitespace-nowrap text-[11px] text-zinc-600 font-medium" style={{ animation: 'marquee 18s linear infinite' }}>
+          🔥 LO NUEVO &nbsp;·&nbsp; 💪 EQUÍPATE COMO BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp; 🔥 LO NUEVO &nbsp;·&nbsp; 💪 EQUÍPATE COMO BESTIA &nbsp;·&nbsp; 🚀 ENVÍOS A TODO EL PERÚ &nbsp;·&nbsp;
+        </div>
+        <style>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
       </div>
 
       <div className="flex gap-2 px-5 py-3 overflow-x-auto border-b border-zinc-900">
@@ -9848,9 +9899,37 @@ function TiendaPublica({ username, onIrALaApp }) {
         </div>
       )}
 
+      {/* Newsletter + métodos de pago */}
+      <div className="px-5 py-8 border-t border-zinc-900 mt-4 flex flex-col items-center gap-3">
+        <p className="text-zinc-300 text-xs font-medium">Suscríbete para enterarte de lanzamientos</p>
+        {newsletterOk ? (
+          <p className="text-emerald-400 text-xs">✓ ¡Listo! Ya estás suscrito.</p>
+        ) : (
+          <div className="flex gap-2 w-full max-w-xs">
+            <input type="email" placeholder="tucorreo@ejemplo.com" value={newsletterCorreo}
+              onChange={e => setNewsletterCorreo(e.target.value)}
+              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200" />
+            <button onClick={suscribirseNewsletter} className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg px-3">OK</button>
+          </div>
+        )}
+        <div className="flex gap-2 mt-2">
+          {['VISA', 'MASTERCARD', 'AMEX', 'DINERS'].map(m => (
+            <span key={m} className="text-[9px] text-zinc-500 border border-zinc-800 rounded px-2 py-1">{m}</span>
+          ))}
+        </div>
+        <p className="text-zinc-600 text-[10px]">Pagos procesados de forma segura por Mercado Pago</p>
+      </div>
+
       <button onClick={onIrALaApp} className="fixed bottom-4 left-4 right-4 bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs py-2.5 rounded-xl">
         ← Ir a Jonah Beast Fuel (la app de nutrición)
       </button>
+
+      {/* Burbuja flotante de WhatsApp, siempre visible */}
+      <a href="https://wa.me/51963760819?text=Hola%2C%20tengo%20una%20consulta%20sobre%20la%20tienda"
+        target="_blank" rel="noopener noreferrer"
+        className="fixed bottom-20 right-4 w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 z-40">
+        <MessageCircle size={22} className="text-white" />
+      </a>
 
       {/* Carrito lateral */}
       {carritoAbierto && !checkoutAbierto && (
@@ -9880,10 +9959,16 @@ function TiendaPublica({ username, onIrALaApp }) {
             </div>
             {carrito.length > 0 && (
               <div className="p-4 border-t border-zinc-800 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input placeholder="Código de descuento" value={codigoDescuento}
+                    onChange={e => setCodigoDescuento(e.target.value)}
+                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                </div>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-zinc-400">Total</span>
                   <span className="text-orange-500 font-semibold">S/{totalCarrito.toFixed(2)}</span>
                 </div>
+                <p className="text-[10px] text-zinc-600 -mt-1">El descuento se aplica al pagar, si el código es válido.</p>
                 <button onClick={() => setCheckoutAbierto(true)} className={btnPrimary + ' py-3'}>Pagar con Mercado Pago</button>
                 <button onClick={whatsappPedido} className="bg-emerald-600 text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
                   <MessageCircle size={16} /> Comprar por WhatsApp
@@ -9912,11 +9997,27 @@ function TiendaPublica({ username, onIrALaApp }) {
             <Field label="Correo">
               <input type="email" value={cliente.correo} onChange={e => setCliente(v => ({ ...v, correo: e.target.value }))} className={inputCls} />
             </Field>
-            <Field label="Dirección">
-              <input value={cliente.direccion} onChange={e => setCliente(v => ({ ...v, direccion: e.target.value }))} className={inputCls} />
+            <Field label="Departamento">
+              <select value={cliente.departamento}
+                onChange={e => setCliente(v => ({ ...v, departamento: e.target.value, provincia: '' }))}
+                className={inputCls}>
+                <option value="">Elige tu departamento...</option>
+                {Object.keys(DEPARTAMENTOS_PERU).map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
             </Field>
+            {cliente.departamento && (
+              <Field label="Provincia">
+                <select value={cliente.provincia} onChange={e => setCliente(v => ({ ...v, provincia: e.target.value }))} className={inputCls}>
+                  <option value="">Elige tu provincia...</option>
+                  {DEPARTAMENTOS_PERU[cliente.departamento].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </Field>
+            )}
             <Field label="Distrito">
               <input value={cliente.distrito} onChange={e => setCliente(v => ({ ...v, distrito: e.target.value }))} className={inputCls} placeholder="Ej. San Miguel" />
+            </Field>
+            <Field label="Dirección">
+              <input value={cliente.direccion} onChange={e => setCliente(v => ({ ...v, direccion: e.target.value }))} className={inputCls} />
             </Field>
             <Field label="Fecha de nacimiento (opcional, para sorpresas 🎂)">
               <input type="date" value={cliente.fechaNacimiento} onChange={e => setCliente(v => ({ ...v, fechaNacimiento: e.target.value }))} className={inputCls} />

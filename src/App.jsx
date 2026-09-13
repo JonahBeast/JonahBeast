@@ -10070,7 +10070,7 @@ function TiendaAdminPanel() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [nuevoProd, setNuevoProd] = useState({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '' });
+  const [nuevoProd, setNuevoProd] = useState({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '', imagenUrl: '' });
   const [nuevaVariante, setNuevaVariante] = useState({});
   const [guardando, setGuardando] = useState(false);
 
@@ -10108,11 +10108,19 @@ function TiendaAdminPanel() {
         nombre: nuevoProd.nombre.trim(), categoria: nuevoProd.categoria,
         marca: nuevoProd.categoria === 'suplementos' ? (nuevoProd.marca || null) : null,
         precio: parseFloat(nuevoProd.precio), precio_oferta: nuevoProd.precioOferta ? parseFloat(nuevoProd.precioOferta) : null,
+        imagen_url: nuevoProd.imagenUrl.trim() || null,
       });
-      setNuevoProd({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '' });
+      setNuevoProd({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '', imagenUrl: '' });
       cargar();
     } catch {}
     setGuardando(false);
+  }
+
+  async function actualizarImagen(productoId, url) {
+    try {
+      await supabase.from('tienda_productos').update({ imagen_url: url.trim() || null }).eq('id', productoId);
+      cargar();
+    } catch {}
   }
 
   async function agregarVariante(productoId) {
@@ -10269,6 +10277,9 @@ function TiendaAdminPanel() {
                         onChange={e => setNuevoProd(v => ({ ...v, precioOferta: e.target.value }))}
                         className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
                     </div>
+                    <input placeholder="Link de la foto (opcional, la agregas después si no la tienes)" value={nuevoProd.imagenUrl}
+                      onChange={e => setNuevoProd(v => ({ ...v, imagenUrl: e.target.value }))}
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
                     <button onClick={agregarProducto} disabled={guardando}
                       className="bg-teal-600 text-zinc-950 text-xs font-semibold rounded-lg py-2">
                       {guardando ? 'Guardando...' : 'Agregar producto'}
@@ -10307,6 +10318,9 @@ function TiendaAdminPanel() {
                             <button onClick={() => agregarVariante(p.id)} className="bg-zinc-800 text-zinc-300 text-xs px-2 rounded">+</button>
                           </div>
                         </div>
+                        <input placeholder="Link de la foto" defaultValue={p.imagen_url || ''}
+                          onBlur={e => actualizarImagen(p.id, e.target.value)}
+                          className="w-full mt-2 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300" />
                       </div>
                     ))}
                   </div>

@@ -10141,6 +10141,18 @@ function TiendaAdminPanel() {
 
   const todasLasVariantes = productos.flatMap(p => (variantesPorProducto[p.id] || []).map(v => ({ ...v, productoNombre: p.nombre })));
 
+  const carritosAbandonados = useMemo(() => {
+    const dosHorasAtras = Date.now() - 2 * 60 * 60 * 1000;
+    return pedidos.filter(p => p.estado === 'pendiente' && new Date(p.creado_en).getTime() < dosHorasAtras);
+  }, [pedidos]);
+
+  function waLinkCarritoAbandonado(p) {
+    const num = (p.telefono_cliente || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const texto = `Hola ${p.nombre_cliente || ''}, vimos que dejaste algo en tu carrito de Jonah Beast Store (S/${Number(p.monto_total).toFixed(2)}). ¿Te ayudamos a completar tu compra? 😊`;
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
   return (
     <div className="bg-zinc-900 border border-teal-700/50 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
@@ -10153,7 +10165,7 @@ function TiendaAdminPanel() {
           {loading ? <Loader2 className="animate-spin text-orange-500" size={20} /> : (
             <>
               <div className="flex gap-2 mb-4">
-                {[['inventario', 'Inventario'], ['ventaFisica', 'Venta física'], ['pedidos', 'Pedidos']].map(([id, label]) => (
+                {[['inventario', 'Inventario'], ['ventaFisica', 'Venta física'], ['pedidos', 'Pedidos'], ['abandonados', `Abandonados${carritosAbandonados.length ? ` (${carritosAbandonados.length})` : ''}`]].map(([id, label]) => (
                   <button key={id} onClick={() => setTab(id)}
                     className={`text-xs px-3 py-1.5 rounded-lg ${tab === id ? 'bg-teal-600 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
                     {label}
@@ -10285,6 +10297,30 @@ function TiendaAdminPanel() {
                         {p.origen === 'web' ? 'Web' : 'Física'} · {p.metodo_pago} · {p.estado}
                         {p.motivo_especial && ` · ${p.motivo_especial}`}
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tab === 'abandonados' && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] text-zinc-600 -mt-1">
+                    Pedidos que empezaron el pago hace más de 2 horas y nunca lo completaron.
+                  </p>
+                  {carritosAbandonados.length === 0 ? (
+                    <p className="text-zinc-500 text-xs">Sin carritos abandonados por ahora 🎉</p>
+                  ) : carritosAbandonados.map(p => (
+                    <div key={p.id} className="bg-zinc-950 border border-orange-700/40 rounded-lg p-3 flex items-center justify-between gap-2 flex-wrap">
+                      <div>
+                        <div className="text-zinc-200 text-xs font-medium">{p.nombre_cliente || 'Cliente'}</div>
+                        <div className="text-zinc-500 text-[11px]">
+                          S/{Number(p.monto_total).toFixed(2)} · hace {Math.floor((Date.now() - new Date(p.creado_en).getTime()) / 3600000)}h
+                        </div>
+                      </div>
+                      <a href={waLinkCarritoAbandonado(p)} target="_blank" rel="noopener noreferrer"
+                        className="bg-emerald-600 text-white text-xs font-semibold rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                        <MessageCircle size={13} /> Recordar
+                      </a>
                     </div>
                   ))}
                 </div>

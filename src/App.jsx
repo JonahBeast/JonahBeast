@@ -10089,6 +10089,8 @@ function TiendaAdminPanel() {
 
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', categoria: 'hombre', marca: '', precio: '', precioOferta: '', imagenUrl: '' });
   const [nuevaVariante, setNuevaVariante] = useState({});
+  const [fotoEditando, setFotoEditando] = useState({});
+  const [varianteEditando, setVarianteEditando] = useState({});
   const [guardando, setGuardando] = useState(false);
 
   const [ventaFisica, setVentaFisica] = useState({ varianteId: '', monto: '', cliente: '', motivo: '', nota: '' });
@@ -10338,17 +10340,29 @@ function TiendaAdminPanel() {
                               <div key={v.id} className="bg-zinc-900/60 rounded-lg p-2">
                                 <div className="flex items-center justify-between gap-2 text-xs text-zinc-300 mb-1.5">
                                   <span>{v.nombre}</span>
-                                  <input type="number" defaultValue={v.stock} onBlur={e => actualizarStock(v.id, e.target.value)}
+                                  <input type="number"
+                                    value={varianteEditando[v.id]?.stock !== undefined ? varianteEditando[v.id].stock : v.stock}
+                                    onChange={e => setVarianteEditando(prev => ({ ...prev, [v.id]: { ...prev[v.id], stock: e.target.value } }))}
                                     className="w-16 bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
                                 </div>
                                 <div className="flex items-center gap-2 text-[11px]">
                                   <span className="text-zinc-500">Costo S/</span>
-                                  <input type="number" step="0.01" defaultValue={v.precio_costo ?? ''} placeholder="0.00"
-                                    onBlur={e => actualizarCosto(v.id, e.target.value)}
+                                  <input type="number" step="0.01" placeholder="0.00"
+                                    value={varianteEditando[v.id]?.costo !== undefined ? varianteEditando[v.id].costo : (v.precio_costo ?? '')}
+                                    onChange={e => setVarianteEditando(prev => ({ ...prev, [v.id]: { ...prev[v.id], costo: e.target.value } }))}
                                     className="w-16 bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 text-right" />
-                                  <span className={`ml-auto font-medium ${colorMargen}`}>
-                                    {margen == null ? 'Sin costo registrado' : `Margen: S/${margen.toFixed(2)} (${margenPct.toFixed(0)}%)`}
+                                  <span className={`font-medium ${colorMargen}`}>
+                                    {margen == null ? 'Sin costo' : `S/${margen.toFixed(2)} (${margenPct.toFixed(0)}%)`}
                                   </span>
+                                  <button
+                                    onClick={() => {
+                                      const edit = varianteEditando[v.id] || {};
+                                      if (edit.stock !== undefined) actualizarStock(v.id, edit.stock);
+                                      if (edit.costo !== undefined) actualizarCosto(v.id, edit.costo);
+                                    }}
+                                    className="ml-auto bg-teal-700 text-white text-[10px] font-medium px-2 py-1 rounded shrink-0">
+                                    Guardar
+                                  </button>
                                 </div>
                                 {margen != null && margen < 0 && (
                                   <p className="text-red-400 text-[10px] mt-1 flex items-center gap-1">
@@ -10374,9 +10388,17 @@ function TiendaAdminPanel() {
                             <button onClick={() => agregarVariante(p.id)} className="bg-zinc-800 text-zinc-300 text-xs px-2 rounded">+</button>
                           </div>
                         </div>
-                        <input placeholder="Link de la foto" defaultValue={p.imagen_url || ''}
-                          onBlur={e => actualizarImagen(p.id, e.target.value)}
-                          className="w-full mt-2 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300" />
+                        <div className="flex gap-1.5 mt-2">
+                          <input placeholder="Link de la foto"
+                            value={fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || '')}
+                            onChange={e => setFotoEditando(prev => ({ ...prev, [p.id]: e.target.value }))}
+                            className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300" />
+                          <button
+                            onClick={() => actualizarImagen(p.id, fotoEditando[p.id] !== undefined ? fotoEditando[p.id] : (p.imagen_url || ''))}
+                            className="bg-teal-700 text-white text-[11px] font-medium px-3 rounded">
+                            Guardar
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

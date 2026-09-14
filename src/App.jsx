@@ -3328,7 +3328,84 @@ function TrialSignup({ onBack, onCreated }) {
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
+          <div className="text-center mb-5">
+            <JonahMiniIdle
+              fraseInicial="¡Vamos a lograrlo juntos! Regístrate y empecemos hoy mismo 🦍🔥"
+              frases={[
+                'Solo te toma 2 minutos, y yo te acompaño desde el primer día.',
+                'Sin tarjeta, sin letra chica. Solo empezar.',
+                '¡Anímate! Tu mejor versión te está esperando 💪',
+              ]}
+            />
+            <div className="jb-display text-2xl text-orange-500 mb-1 mt-3">15 DÍAS GRATIS</div>
+            <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
+          </div>
 
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-5">
+            {['Mide tu composición corporal', 'Arma tu plan con comida peruana', 'Descubre qué comer según lo que te queda', 'Sigue tu progreso día a día'].map(t => (
+              <div key={t} className="flex items-center gap-2 text-xs text-zinc-300 jb-body py-0.5">
+                <span className="text-emerald-400">✓</span> {t}
+              </div>
+            ))}
+          </div>
+
+          {aviso ? (
+            <div className="text-center">
+              <MessageCircle className="text-emerald-400 mx-auto mb-3" size={32} />
+              <p className="jb-body text-sm text-zinc-200 mb-4">{aviso}</p>
+              <button onClick={onBack} className={btnGhost + ' w-full'}>Volver al inicio</button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="flex flex-col gap-3">
+              <Field label="Tu nombre">
+                <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+              </Field>
+              <Field label="Correo electrónico">
+                <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
+              </Field>
+              <Field label="Usuario (para entrar)">
+                <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+              </Field>
+              <Field label="Contraseña">
+                <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />
+              </Field>
+              <Field label="Repite tu contraseña">
+                <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
+              </Field>
+              <Field label="Código de referido (opcional)">
+                <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
+                  className={inputCls + ' uppercase'} placeholder="Opcional — déjalo vacío si no tienes uno" />
+              </Field>
+              {f.referido.trim() && refEstado && (
+                refEstado.ok ? (
+                  <p className="text-emerald-400 text-xs jb-body -mt-2">
+                    ✓ Código válido · te recomendó {refEstado.nombre}
+                  </p>
+                ) : (
+                  <p className="text-amber-400 text-xs jb-body -mt-2 flex items-start gap-1.5">
+                    <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                    <span>Ese código no existe o ya no está activo. Puedes corregirlo o continuar sin él.</span>
+                  </p>
+                )
+              )}
+              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
+              </button>
+              <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
+                Al crear tu cuenta, aceptas nuestra{' '}
+                <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 underline">
+                  Política de Privacidad
+                </a>
+              </p>
+              <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');

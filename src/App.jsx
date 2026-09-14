@@ -3262,7 +3262,6 @@ async function generarUsuarioDesdeCorreo(email) {
   }
   return `${base}${Date.now().toString().slice(-6)}`;
 }
-
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
@@ -3327,6 +3326,12 @@ function TrialSignup({ onBack, onCreated }) {
     // automáticamente en la base de datos al confirmarse la cuenta.
     // El celular y la fecha de nacimiento se piden más adelante, en la
     // pantalla de planes, si es que aún faltan (ver PlanesTab).
+
+    // Avisa a TikTok que se completó un registro exitoso, para que
+    // pueda optimizar la campaña hacia este evento de conversión.
+    try {
+      if (window.ttq) window.ttq.track('CompleteRegistration');
+    } catch (e) {}
 
     setBusy(false);
     if (!data.session) {

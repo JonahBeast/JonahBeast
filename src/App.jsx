@@ -3248,11 +3248,26 @@ function FreeCalculator({ onBack }) {
   );
 }
 
+/* Genera un usuario disponible a partir del correo (parte antes del @),
+   agregando un número al final si ya existe. */
+async function generarUsuarioDesdeCorreo(email) {
+  const base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'alumno';
+  let candidato = base;
+  let intento = 0;
+  while (intento < 30) {
+    const { data } = await supabase.from('profiles').select('username').ilike('username', candidato).maybeSingle();
+    if (!data) return candidato;
+    intento += 1;
+    candidato = `${base}${Math.floor(Math.random() * 9000) + 100}`;
+  }
+  return `${base}${Date.now().toString().slice(-6)}`;
+}
+
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', password: '', password2: '', referido: refDesdeURL });
+  const [f, setF] = useState({ nombre: '', email: '', password: '', password2: '', referido: refDesdeURL });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -3277,12 +3292,9 @@ function TrialSignup({ onBack, onCreated }) {
   async function submit(e) {
     e.preventDefault();
     setErr(''); setAviso('');
-    const user = f.usuario.trim().replace(/^@/, '').toLowerCase();
     const email = f.email.trim().toLowerCase();
     if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
-    if (!user) return setErr('Elige un nombre de usuario.');
-    if (/[^a-z0-9._-]/.test(user)) return setErr('El usuario solo puede tener letras, números, punto, guion o guion bajo.');
     if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
     if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
@@ -3291,10 +3303,13 @@ function TrialSignup({ onBack, onCreated }) {
     }
 
     setBusy(true);
+    let user = '';
     try {
-      const { data: tomado } = await supabase.from('profiles').select('username').ilike('username', user).maybeSingle();
-      if (tomado) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      user = await generarUsuarioDesdeCorreo(email);
+    } catch (e) {
+      setBusy(false);
+      return setErr('No se pudo preparar tu cuenta. Intenta de nuevo.');
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
@@ -3363,9 +3378,6 @@ function TrialSignup({ onBack, onCreated }) {
               <Field label="Correo electrónico">
                 <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
-              <Field label="Usuario (para entrar)">
-                <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
-              </Field>
               <Field label="Contraseña">
                 <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />
               </Field>
@@ -3406,7 +3418,6 @@ function TrialSignup({ onBack, onCreated }) {
     </div>
   );
 }
-
 function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');

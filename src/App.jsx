@@ -87,6 +87,7 @@ const RAW_FOODS = [
   ["Otros","Rapiditas Integrales (Bimbo)","-",246,9.6,36.5,6.7,4.5],
   ["Otros","Rapiditas XL (Bimbo)","-",315,8.5,47.7,10.0,1.8],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
+  ["Otros","Cachanga","Frita",320,6.5,42.0,13.5,1.5],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
   ["Carnes y aves","Pollo pierna (con piel)","Cocida",232,23.5,0.0,15.0,0.0],
   ["Carnes y aves","Pollo pierna (sin piel)","Cruda",120,20.0,0.0,4.3,0.0],
@@ -3248,11 +3249,26 @@ function FreeCalculator({ onBack }) {
   );
 }
 
+/* Genera un usuario disponible a partir del correo (parte antes del @),
+   agregando un número al final si ya existe. */
+async function generarUsuarioDesdeCorreo(email) {
+  const base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '') || 'alumno';
+  let candidato = base;
+  let intento = 0;
+  while (intento < 30) {
+    const { data } = await supabase.from('profiles').select('username').ilike('username', candidato).maybeSingle();
+    if (!data) return candidato;
+    intento += 1;
+    candidato = `${base}${Math.floor(Math.random() * 9000) + 100}`;
+  }
+  return `${base}${Date.now().toString().slice(-6)}`;
+}
+
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
-  const [f, setF] = useState({ nombre: '', email: '', usuario: '', telefono: '', fechaNacimiento: '', password: '', password2: '', referido: refDesdeURL });
+  const [f, setF] = useState({ nombre: '', email: '', password: '', password2: '', referido: refDesdeURL });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -3277,14 +3293,9 @@ function TrialSignup({ onBack, onCreated }) {
   async function submit(e) {
     e.preventDefault();
     setErr(''); setAviso('');
-    const user = f.usuario.trim().replace(/^@/, '').toLowerCase();
     const email = f.email.trim().toLowerCase();
     if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
-    if (!user) return setErr('Elige un nombre de usuario.');
-    const tel = f.telefono.replace(/\D/g, '');
-    if (tel.length < 9) return setErr('Escribe tu celular de WhatsApp (9 dígitos).');
-    if (/[^a-z0-9._-]/.test(user)) return setErr('El usuario solo puede tener letras, números, punto, guion o guion bajo.');
     if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
     if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
@@ -3293,14 +3304,17 @@ function TrialSignup({ onBack, onCreated }) {
     }
 
     setBusy(true);
+    let user = '';
     try {
-      const { data: tomado } = await supabase.from('profiles').select('username').ilike('username', user).maybeSingle();
-      if (tomado) { setBusy(false); return setErr('Ese usuario ya está tomado. Elige otro.'); }
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      user = await generarUsuarioDesdeCorreo(email);
+    } catch (e) {
+      setBusy(false);
+      return setErr('No se pudo preparar tu cuenta. Intenta de nuevo.');
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim(), telefono: tel, fecha_nacimiento: f.fechaNacimiento || null, codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
+      options: { data: { username: user, nombre: f.nombre.trim(), codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
     if (error) {
@@ -3312,6 +3326,14 @@ function TrialSignup({ onBack, onCreated }) {
 
     // El registro de alumno y su prueba de 15 días se crean
     // automáticamente en la base de datos al confirmarse la cuenta.
+    // El celular y la fecha de nacimiento se piden más adelante, en la
+    // pantalla de planes, si es que aún faltan (ver PlanesTab).
+
+    // Avisa a TikTok que se completó un registro exitoso, para que
+    // pueda optimizar la campaña hacia este evento de conversión.
+    try {
+      if (window.ttq) window.ttq.track('CompleteRegistration');
+    } catch (e) {}
 
     setBusy(false);
     if (!data.session) {
@@ -3362,19 +3384,6 @@ function TrialSignup({ onBack, onCreated }) {
               </Field>
               <Field label="Correo electrónico">
                 <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
-              </Field>
-              <Field label="Usuario (para entrar)">
-                <input value={f.usuario} onChange={e => setF(v => ({ ...v, usuario: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
-              </Field>
-              <Field label="Celular (WhatsApp)">
-                <input type="tel" inputMode="tel" value={f.telefono}
-                  onChange={e => setF(v => ({ ...v, telefono: e.target.value }))}
-                  className={inputCls} placeholder="999 888 777" />
-              </Field>
-              <Field label="Fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
-                <input type="date" value={f.fechaNacimiento}
-                  onChange={e => setF(v => ({ ...v, fechaNacimiento: e.target.value }))}
-                  className={inputCls} />
               </Field>
               <Field label="Contraseña">
                 <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />

@@ -8239,8 +8239,10 @@ function AyudaTab({ texto }) {
   );
 }
 
-function BienvenidaModal({ nombre, onClose }) {
+function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const [paso, setPaso] = useState(0);
+  const [telefono, setTelefono] = useState('');
+  const [guardandoTel, setGuardandoTel] = useState(false);
   const pasos = [
     {
       emoji: '👋', titulo: `¡BIENVENIDO${nombre ? ', ' + nombre.split(' ')[0].toUpperCase() : ''}!`,
@@ -8266,6 +8268,11 @@ function BienvenidaModal({ nombre, onClose }) {
       emoji: '📸', titulo: 'MIDE TU AVANCE',
       texto: 'Toma tus fotos cada 2 semanas y registra tu peso. En "Mi progreso" verás tus gráficos y en "Mis fotos" podrás comparar el antes y el ahora.',
     },
+    ...(telefonoActual ? [] : [{
+      emoji: '📱', titulo: '¿QUIERES QUE TE ACOMPAÑE DE CERCA?',
+      texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu prueba está por vencer. Nada de spam, solo lo importante.',
+      esTelefono: true,
+    }]),
     {
       emoji: '📅', titulo: 'TU RUTINA DIARIA ES SIMPLE',
       texto: 'Solo registra tus comidas cada día. Nada más. Tus medidas quedan guardadas y no cambian hasta que tú las actualices.',
@@ -8279,6 +8286,21 @@ function BienvenidaModal({ nombre, onClose }) {
   const p = pasos[paso];
   const ultimo = paso === pasos.length - 1;
 
+  async function guardarTelefonoSiHay() {
+    const limpio = telefono.replace(/\D/g, '');
+    if (limpio.length < 9 || !username) return;
+    setGuardandoTel(true);
+    try {
+      await supabase.from('alumnos').update({ telefono: limpio }).eq('username', username);
+    } catch (e) { /* si falla, no bloquea el avance del onboarding */ }
+    setGuardandoTel(false);
+  }
+
+  async function avanzar() {
+    if (p.esTelefono) await guardarTelefonoSiHay();
+    if (ultimo) onClose(); else setPaso(paso + 1);
+  }
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6">
@@ -8288,6 +8310,13 @@ function BienvenidaModal({ nombre, onClose }) {
           </div>
           <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
+          {p.esTelefono && (
+            <div className="mt-4 text-left">
+              <input type="tel" inputMode="tel" value={telefono} onChange={e => setTelefono(e.target.value)}
+                className={inputCls} placeholder="999 888 777" autoFocus />
+              <p className="jb-body text-[11px] text-zinc-600 mt-1.5">Opcional, pero así puedo escribirte directo cuando te haga falta un empujón 🔥</p>
+            </div>
+          )}
           {p.extra && (
             <div className="mt-4 flex flex-col gap-2">
               {p.extra.map(([cuando, que]) => (
@@ -8310,8 +8339,8 @@ function BienvenidaModal({ nombre, onClose }) {
           {paso > 0 && (
             <button onClick={() => setPaso(paso - 1)} className={btnGhost + ' py-2.5 px-4'}>Atrás</button>
           )}
-          <button onClick={() => ultimo ? onClose() : setPaso(paso + 1)} className={btnPrimary + ' flex-1 py-2.5'}>
-            {ultimo ? '¡Empecemos!' : 'Siguiente'}
+          <button onClick={avanzar} disabled={guardandoTel} className={btnPrimary + ' flex-1 py-2.5'}>
+            {guardandoTel ? <Loader2 className="animate-spin" size={18} /> : (ultimo ? '¡Empecemos!' : (p.esTelefono && telefono ? 'Guardar y seguir' : 'Siguiente'))}
           </button>
         </div>
 
@@ -9670,7 +9699,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
-        {verGuia && <BienvenidaModal nombre={userRecord?.nombre} onClose={cerrarGuia} />}
+        {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         <InstalarBanner />
         <RecordatorioBanner username={username} />
         <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />

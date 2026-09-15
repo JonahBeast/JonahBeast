@@ -5239,6 +5239,68 @@ function FinanzasPanel() {
   );
 }
 
+function AdminNotifButton() {
+  const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado
+  const [trabajando, setTrabajando] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setEstado('nosoportado'); return;
+      }
+      if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        setEstado(sub ? 'activo' : 'disponible');
+      } catch { setEstado('disponible'); }
+    })();
+  }, []);
+
+  async function activar() {
+    setTrabajando(true);
+    try {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== 'granted') {
+        setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
+        setTrabajando(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
+        });
+      }
+      const j = sub.toJSON();
+      await supabase.from('push_subs').upsert({
+        username: 'jonabeast',
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        activa: true,
+      }, { onConflict: 'endpoint' });
+      setEstado('activo');
+    } catch (e) { setEstado('disponible'); }
+    setTrabajando(false);
+  }
+
+  if (estado === 'nosoportado' || estado === 'cargando') return null;
+  if (estado === 'activo') {
+    return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5">🔔 Notificaciones activas</span>;
+  }
+  if (estado === 'bloqueado') {
+    return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas (revisa permisos del navegador)</span>;
+  }
+  return (
+    <button onClick={activar} disabled={trabajando} className={btnGhost + ' text-xs py-1.5 px-3'}>
+      {trabajando ? <Loader2 className="animate-spin" size={14} /> : '🔔 Activar avisos de alumnos nuevos'}
+    </button>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -5273,7 +5335,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     <div className="min-h-screen bg-zinc-950 jb-body">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <Logo />
-        <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
+        <div className="flex items-center gap-3">
+          <AdminNotifButton />
+          <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
+        </div>
       </header>
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>

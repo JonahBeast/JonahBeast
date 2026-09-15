@@ -44,6 +44,7 @@ const RAW_FOODS = [
   ["Carnes y aves","Carne de res (bistec)","Cocida",217,26.7,0.0,11.8,0.0],
   ["Carnes y aves","Cerdo (lomo)","Crudo",143,21.0,0.0,6.0,0.0],
   ["Carnes y aves","Cerdo (lomo)","Cocido",212,27.8,0.0,10.7,0.0],
+  ["Carnes y aves","Chuleta de cerdo","Cocida",231,25.7,0.0,13.9,0.0],
   ["Pescados","Bonito","Crudo",110,22.0,0.0,2.5,0.0],
   ["Pescados","Bonito","Cocido",136,26.0,0.0,3.2,0.0],
   ["Pescados","Atún","Crudo",116,25.4,0.0,1.0,0.0],

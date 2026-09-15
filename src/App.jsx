@@ -87,7 +87,6 @@ const RAW_FOODS = [
   ["Otros","Rapiditas Integrales (Bimbo)","-",246,9.6,36.5,6.7,4.5],
   ["Otros","Rapiditas XL (Bimbo)","-",315,8.5,47.7,10.0,1.8],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
-  ["Otros","Cachanga","Frita",320,6.5,42.0,13.5,1.5],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
   ["Carnes y aves","Pollo pierna (con piel)","Cocida",232,23.5,0.0,15.0,0.0],
   ["Carnes y aves","Pollo pierna (sin piel)","Cruda",120,20.0,0.0,4.3,0.0],
@@ -5428,7 +5427,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                     <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-sm'}>
                       {u.enabled ? 'Deshabilitar' : 'Habilitar'}
                     </button>
-                    <button onClick={() => onDeleteUser(u.username)} className="text-zinc-600 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
+                    <button onClick={() => { if (window.confirm(`¿Eliminar a "${u.nombre || u.username}" (@${u.username}) para siempre?\n\nSe borran su plan, medidas, comidas registradas, fotos y ajustes — no se puede deshacer. Si vuelve a entrar, verá un aviso pidiéndole que escriba por WhatsApp, como si fuera nuevo. Sus pagos anteriores se conservan.\n\nSi solo quieres pausar su acceso (y que pueda recuperarlo después), usa "Deshabilitar" en vez de esto.`)) onDeleteUser(u.username); }} className="text-zinc-600 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
                   </div>
                 </div>
                 );
@@ -11164,8 +11163,21 @@ export default function App() {
   async function deleteUser(username) {
     setUsers(prev => prev.filter(u => u.username !== username));
     try {
+      // Borra todo el rastro del alumno (medidas, comidas, fotos, alimentos
+      // personales, notificaciones, ajustes y su plan). Su correo y
+      // contraseña de acceso quedan intactos: si vuelve a entrar, la app
+      // le muestra el aviso de "no encontramos tu perfil" en vez de
+      // fallar en silencio. Los pagos NO se borran, quedan como registro
+      // contable.
       await supabase.from('datos_alumnos').delete().eq('username', username);
+      await supabase.from('historial').delete().eq('username', username);
+      await supabase.from('fotos_progreso').delete().eq('username', username);
+      await supabase.from('alimentos_personales').delete().eq('username', username);
+      await supabase.from('comidas_guardadas').delete().eq('username', username);
+      await supabase.from('push_subs').delete().eq('username', username);
+      await supabase.from('ajustes_membresia').delete().eq('username', username);
       await supabase.from('alumnos').delete().eq('username', username);
+      await supabase.from('profiles').delete().eq('username', username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 

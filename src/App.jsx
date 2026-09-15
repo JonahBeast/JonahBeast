@@ -5252,7 +5252,14 @@ function AdminNotifButton() {
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
-        setEstado(sub ? 'activo' : 'disponible');
+        if (!sub) { setEstado('disponible'); return; }
+        // Que el navegador tenga una suscripción activa no basta: puede
+        // ser la de otra cuenta (ej. una sesión de alumno en el mismo
+        // celular). Confirmamos en la base de datos que ESE endpoint
+        // específico está registrado a nombre del admin.
+        const { data } = await supabase.from('push_subs').select('username')
+          .eq('endpoint', sub.endpoint).eq('username', 'jonabeast').eq('activa', true).maybeSingle();
+        setEstado(data ? 'activo' : 'disponible');
       } catch { setEstado('disponible'); }
     })();
   }, []);
@@ -5274,14 +5281,19 @@ function AdminNotifButton() {
           applicationServerKey: base64ToUint8(VAPID_PUBLIC),
         });
       }
+      // Sin importar si el celular ya tenía una suscripción de otra
+      // cuenta, siempre registramos (o actualizamos) esta MISMA
+      // suscripción a nombre del admin — así queda garantizado que
+      // exista la fila 'jonabeast', no solo "algo" activo.
       const j = sub.toJSON();
-      await supabase.from('push_subs').upsert({
+      const { error } = await supabase.from('push_subs').upsert({
         username: 'jonabeast',
         endpoint: j.endpoint,
         p256dh: j.keys.p256dh,
         auth: j.keys.auth,
         activa: true,
       }, { onConflict: 'endpoint' });
+      if (error) throw error;
       setEstado('activo');
     } catch (e) { setEstado('disponible'); }
     setTrabajando(false);

@@ -2940,7 +2940,7 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
           {HERO_BG_FOTOS.map((src, i) => (
-            <img key={i} src={src} alt="" className="w-full aspect-square object-cover object-[50%_15%]" />
+            <img key={i} src={src} alt="" className="w-full aspect-square object-cover object-[50%_25%]" />
           ))}
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />

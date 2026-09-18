@@ -5309,12 +5309,13 @@ function AdminNotifButton() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onRecargar }) {
+function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [diasInput, setDiasInput] = useState({});
   const [motivoInput, setMotivoInput] = useState({});
+  const [mesesFotoInput, setMesesFotoInput] = useState({});
 
   function submitNew(e) {
     e.preventDefault();
@@ -5511,6 +5512,36 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                         className={btnGhost + ' py-1.5 px-2 text-xs'} title="Quitar días">−d</button>
                     </div>
                     <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Eye size={14} /> Ver datos</button>
+                    {(() => {
+                      const addOnActivo = u.reconocimientoFotoHasta && daysLeft(u.reconocimientoFotoHasta) !== null && daysLeft(u.reconocimientoFotoHasta) >= 0;
+                      return (
+                        <div className="flex items-center gap-1">
+                          {addOnActivo ? (
+                            <>
+                              <span className="text-orange-500 text-xs jb-body flex items-center gap-1" title="Reconocimiento Inteligente activo">
+                                <Camera size={12} /> hasta {u.reconocimientoFotoHasta.slice(8, 10)}/{u.reconocimientoFotoHasta.slice(5, 7)}
+                              </span>
+                              <button onClick={() => { if (window.confirm(`¿Desactivar Reconocimiento Inteligente para @${u.username}?`)) onDesactivarAddOnFoto(u.username); }}
+                                className="text-zinc-600 hover:text-red-400 transition-colors p-1.5" title="Desactivar add-on de foto"><X size={14} /></button>
+                            </>
+                          ) : (
+                            <>
+                              <select value={mesesFotoInput[u.username] || '1'}
+                                onChange={e => setMesesFotoInput(v => ({ ...v, [u.username]: e.target.value }))}
+                                className="bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200">
+                                <option value="1">1 mes</option>
+                                <option value="3">3 meses</option>
+                                <option value="6">6 meses</option>
+                              </select>
+                              <button onClick={() => onActivarAddOnFoto(u.username, parseInt(mesesFotoInput[u.username] || '1', 10))}
+                                className={btnGhost + ' py-1.5 px-2 text-xs'} title="Activar Reconocimiento Inteligente">
+                                <Camera size={12} /> Activar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-sm'}>
                       {u.enabled ? 'Deshabilitar' : 'Habilitar'}
                     </button>
@@ -9299,7 +9330,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
    alumno confirme qué agregar — nunca guarda nada automáticamente,
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
-function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }) {
+function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHasta, onCerrar, onAgregar }) {
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos)
@@ -9375,6 +9406,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
         </div>
+        {reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0 && (
+          <p className="jb-body text-xs text-emerald-500 -mt-2 mb-4">
+            ✓ Reconocimiento Inteligente activo — hasta el {reconocimientoFotoHasta.slice(8, 10)}/{reconocimientoFotoHasta.slice(5, 7)}/{reconocimientoFotoHasta.slice(0, 4)}
+          </p>
+        )}
 
         {estado === 'elegir' && (
           <div className="text-center">
@@ -9469,7 +9505,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
+function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
@@ -9581,6 +9617,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         <ReconocerFotoModal
           username={username}
           todosLosAlimentos={todosLosAlimentos}
+          reconocimientoFotoHasta={reconocimientoFotoHasta}
           onCerrar={() => setFotoPara(null)}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
         />
@@ -10095,7 +10132,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} />
         )}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} />}
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
@@ -11289,6 +11326,8 @@ export default function App() {
         codigoReferido: u.codigo_referido || null, comisionPagada: !!u.comision_pagada,
         comisionMonto: u.comision_monto === null || u.comision_monto === undefined ? null : Number(u.comision_monto),
         planMesesReferido: u.plan_meses_referido || null,
+        reconocimientoFotoDesde: u.reconocimiento_foto_desde || null,
+        reconocimientoFotoHasta: u.reconocimiento_foto_hasta || null,
       }));
     } catch { usersList = []; }
     try {
@@ -11544,6 +11583,33 @@ export default function App() {
       await supabase.from('ajustes_membresia').insert({ username, dias, motivo: motivo || null, fecha_resultante: nuevo });
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
+  // Activa "Reconocimiento Inteligente" (fotos) para un alumno por N meses,
+  // contados desde hoy — igual que renewUser, pero para el add-on de
+  // fotos en vez del plan principal. Se guarda la fecha de inicio además
+  // de la de vencimiento, porque el cupo mensual del add-on se cuenta en
+  // bloques de 30 días desde esa fecha, no por mes calendario.
+  async function activarAddOnFoto(username, meses) {
+    const target = users.find(u => u.username === username);
+    if (!target) return;
+    const desde = todayISO();
+    const hasta = addMonthsISO(desde, meses);
+    setUsers(prev => prev.map(u => u.username === username
+      ? { ...u, reconocimientoFotoDesde: desde, reconocimientoFotoHasta: hasta } : u));
+    try {
+      await supabase.from('alumnos').update({
+        reconocimiento_foto_desde: desde, reconocimiento_foto_hasta: hasta,
+      }).eq('username', username);
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+  async function desactivarAddOnFoto(username) {
+    setUsers(prev => prev.map(u => u.username === username
+      ? { ...u, reconocimientoFotoDesde: null, reconocimientoFotoHasta: null } : u));
+    try {
+      await supabase.from('alumnos').update({
+        reconocimiento_foto_desde: null, reconocimiento_foto_hasta: null,
+      }).eq('username', username);
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
   async function toggleUser(username) {
     const target = users.find(u => u.username === username);
     const nextEnabled = target ? !target.enabled : true;
@@ -11635,7 +11701,8 @@ export default function App() {
       {!tokenRef && view === 'admin' && adminAuthed && (
         <>
           <AdminDashboard users={users} onAddUser={addUser} onToggleUser={toggleUser}
-            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onAdjustDays={adjustDaysUser} onRecargar={init} />
+            onDeleteUser={deleteUser} onLogout={logout} onViewStudent={openStudentData} onRenew={renewUser} onAdjustDays={adjustDaysUser}
+            onActivarAddOnFoto={activarAddOnFoto} onDesactivarAddOnFoto={desactivarAddOnFoto} onRecargar={init} />
           {viewingStudent && (
             <StudentDataModal username={viewingStudent} data={viewingStudentData}
               onClose={() => { setViewingStudent(null); setViewingStudentData(null); }} />

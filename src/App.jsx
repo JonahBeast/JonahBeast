@@ -5857,7 +5857,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-      <AyudaTab texto="Elige qué quieres lograr y la app calcula cuántas calorías y proteína necesitas al día. Puedes ajustar el porcentaje si un profesional te indica otro." />
+      <AyudaTab id="objetivo" texto="Elige qué quieres lograr y la app calcula cuántas calorías y proteína necesitas al día. Puedes ajustar el porcentaje si un profesional te indica otro." />
       <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
 
@@ -5980,7 +5980,7 @@ function CalculatorTab({ form, setForm, results }) {
   return (
     <div className="grid lg:grid-cols-2 gap-6 min-w-0">
       <div className="lg:col-span-2">
-        <AyudaTab texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. No necesitas hacerlo todos los días: tus datos quedan guardados y solo debes actualizarlos cada 2 semanas o cuando cambie tu peso." />
+        <AyudaTab id="composicion" texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. No necesitas hacerlo todos los días: tus datos quedan guardados y solo debes actualizarlos cada 2 semanas o cuando cambie tu peso." />
       </div>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
         <h2 className="jb-display text-base text-zinc-200 mb-4">TUS DATOS</h2>
@@ -8459,11 +8459,24 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
 /* GUÍA DE PRIMEROS PASOS                                              */
 /* ------------------------------------------------------------------ */
 
-function AyudaTab({ texto }) {
+function AyudaTab({ texto, id }) {
+  const key = id ? `jb_ayuda_no_${id}` : null;
+  const [cerrado, setCerrado] = useState(() => {
+    if (!key) return false;
+    try { return localStorage.getItem(key) === '1'; } catch { return false; }
+  });
+  if (cerrado) return null;
+  function cerrar() {
+    setCerrado(true);
+    if (key) { try { localStorage.setItem(key, '1'); } catch {} }
+  }
   return (
     <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-center gap-2.5 mb-4">
       <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0">💡</span>
-      <p className="jb-body text-xs text-zinc-400">{texto}</p>
+      <p className="jb-body text-xs text-zinc-400 flex-1">{texto}</p>
+      {key && (
+        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1"><X size={14} /></button>
+      )}
     </div>
   );
 }
@@ -9421,6 +9434,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [objetivoAbierto, setObjetivoAbierto] = useState(false);
+  const [ayudaCerrada, setAyudaCerrada] = useState(() => {
+    try { return localStorage.getItem('jb_ayuda_no_comidas') === '1'; } catch { return false; }
+  });
 
   useEffect(() => { if (username) cargarPersonales(); }, [username]);
 
@@ -9519,14 +9535,17 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           }}
         />
       )}
-      <AyudaTab texto="Escribe lo que comiste y elige la medida de casa (taza, plato, unidad). No necesitas pesar nada. Abajo verás cuánto llevas del día y cuánto te queda." />
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
-        <AlertTriangle className="text-zinc-500 shrink-0" size={14} />
-        <p className="jb-body text-[11px] text-zinc-500">
-          Los platos preparados (ají de gallina, ceviche, pollo a la brasa…) son estimaciones promedio.
-          La receta de cada casa o restaurante puede variar. Úsalos como referencia, no como medida exacta.
-        </p>
-      </div>
+      {!ayudaCerrada && (
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-start gap-2.5 mb-2">
+          <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">💡</span>
+          <div className="flex-1">
+            <p className="jb-body text-xs text-zinc-400">Escribe lo que comiste y elige la medida de casa (taza, plato, unidad). No necesitas pesar nada. Abajo verás cuánto llevas del día y cuánto te queda.</p>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Los platos preparados (ají de gallina, ceviche, pollo a la brasa…) son estimaciones promedio — úsalos como referencia, no como medida exacta.</p>
+          </div>
+          <button onClick={() => { setAyudaCerrada(true); try { localStorage.setItem('jb_ayuda_no_comidas', '1'); } catch {} }}
+            className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1"><X size={14} /></button>
+        </div>
+      )}
 
       <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         restricciones={mealPlan.restricciones || []}
@@ -9977,20 +9996,18 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
-        {renewalElegible ? (
-          <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
-        ) : trialElegible ? (
-          <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
-        ) : (
-          <>
-            <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
-            {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
-          </>
+        {tab === 'dash' && (
+          renewalElegible ? (
+            <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
+          ) : trialElegible ? (
+            <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
+          ) : (
+            <>
+              <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
+              {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
+            </>
+          )
         )}
-        <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
-          <MessageCircle className="text-emerald-500 shrink-0" size={16} />
-          <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escribe a nuestro soporte tocando la carita de Jonah, abajo a la derecha.</p>
-        </div>
       </div>
 
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">

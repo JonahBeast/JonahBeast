@@ -9299,17 +9299,22 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
   const [seleccionados, setSeleccionados] = useState({});
   const [infoLimite, setInfoLimite] = useState(null);
 
-  function elegirArchivo(e) {
+  async function elegirArchivo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      const base64 = dataUrl.split(',')[1] || '';
-      setPreviewUrl(dataUrl);
-      analizar(base64, file.type || 'image/jpeg');
-    };
-    reader.readAsDataURL(file);
+    try {
+      const blob = await comprimirImagen(file, 1200, 0.85);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result);
+        const base64 = dataUrl.split(',')[1] || '';
+        setPreviewUrl(dataUrl);
+        analizar(base64, 'image/jpeg');
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) {
+      setEstado('error');
+    }
   }
 
   async function analizar(base64, mimeType) {

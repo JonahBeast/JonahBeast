@@ -9582,17 +9582,15 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';
         return (
         <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">
-                {mealIcon}
-              </div>
-              <h3 className="jb-display text-sm text-orange-500 tracking-wide">{meal.toUpperCase()}</h3>
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">
+              {mealIcon}
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} /> Reconocer por foto</button>
-              <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
-            </div>
+            <h3 className="jb-display text-sm text-orange-500 tracking-wide flex-1">{meal.toUpperCase()}</h3>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} /> Reconocer por foto</button>
+            <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
           {username && (
             <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />

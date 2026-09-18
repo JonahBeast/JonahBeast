@@ -2027,7 +2027,7 @@ function SkeletonDashboard() {
         <span className="jb-body text-xs text-zinc-500">{frase}</span>
       </div>
       <Skeleton className="h-20 w-full rounded-2xl" />
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3 min-w-0">
         <Skeleton className="h-4 w-40" />
         <div className="flex justify-around py-4">
           <Skeleton className="h-20 w-20 rounded-full" />
@@ -7171,7 +7171,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0">
       {userRecord && dl !== null && (
         <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden flex items-center gap-4 ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
           <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`} />
@@ -7534,7 +7534,7 @@ function PhotosTab({ username, pesoActual }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">📸 FOTOS DE HOY</h2>
         <p className="jb-body text-xs text-zinc-500 mb-4">
@@ -8277,9 +8277,9 @@ function ProgressTab({ username, form, nombre }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 min-w-0">
         <Skeleton className="h-10 w-full max-w-md rounded-xl" />
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3 min-w-0">
           <Skeleton className="h-4 w-48" />
           <div className="flex justify-around py-2">
             <Skeleton className="h-16 w-16 rounded-full" />
@@ -8306,7 +8306,7 @@ function ProgressTab({ username, form, nombre }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0">
       <div className="flex gap-2 flex-wrap">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}
@@ -8851,7 +8851,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
   }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0">
       <BeastScoreCard totalsHoy={totalsHoy} targets={targets} username={username} />
 
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
@@ -8912,7 +8912,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
         )}
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
         <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
         {(() => {
           const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
@@ -8924,13 +8924,13 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
             totalsHoyFull.carbs += m.carbs;
           }));
           return (
-            <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+            <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
               <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" />
+                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={64} stroke={6} />
               <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" />
+                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={64} stroke={6} />
               <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" />
+                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={64} stroke={6} />
             </div>
           );
         })()}
@@ -9426,7 +9426,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 min-w-0">
       {crearPara && (
         <CrearAlimentoModal
           username={username}
@@ -9946,8 +9946,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               );
             })()}
             <RachaCard username={username} />
-            <div className="mb-6"><RetoSemanalCard username={username} /></div>
-            <div className="mb-6"><AdivinaCaloriasCard /></div>
             <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />

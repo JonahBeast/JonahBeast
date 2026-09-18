@@ -8220,7 +8220,8 @@ function BotonCompartir({ username, nombre, rows, stats }) {
   );
 }
 
-function ProgressTab({ username, form, nombre }) {
+function ProgressTab({ username, form, nombre, vistaInicial }) {
+  const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rango, setRango] = useState(30);
@@ -8275,9 +8276,32 @@ function ProgressTab({ username, form, nombre }) {
     .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
     .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
 
+  const subNav = (
+    <div className="flex gap-2">
+      <button onClick={() => setVista('tendencias')}
+        className={`jb-display text-xs px-3 py-1.5 rounded-lg transition-colors ${vista === 'tendencias' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+        Tendencias
+      </button>
+      <button onClick={() => setVista('fotos')}
+        className={`jb-display text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${vista === 'fotos' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+        <Camera size={13} /> Fotos
+      </button>
+    </div>
+  );
+
+  if (vista === 'fotos') {
+    return (
+      <div className="flex flex-col gap-6 min-w-0">
+        {subNav}
+        <PhotosTab username={username} pesoActual={form?.peso} />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-4 min-w-0">
+        {subNav}
         <Skeleton className="h-10 w-full max-w-md rounded-xl" />
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3 min-w-0">
           <Skeleton className="h-4 w-48" />
@@ -8294,19 +8318,23 @@ function ProgressTab({ username, form, nombre }) {
 
   if (rows.length === 0) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-        <TrendingUp className="text-zinc-700 mx-auto mb-3" size={40} />
-        <h2 className="jb-display text-lg text-zinc-200 mb-2">TU PROGRESO EMPIEZA HOY</h2>
-        <p className="jb-body text-sm text-zinc-500">
-          Cada vez que registres tu peso o tus comidas, se guarda automáticamente.
-          En unos días verás aquí tus tendencias y promedios.
-        </p>
+      <div className="flex flex-col gap-6 min-w-0">
+        {subNav}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+          <TrendingUp className="text-zinc-700 mx-auto mb-3" size={40} />
+          <h2 className="jb-display text-lg text-zinc-200 mb-2">TU PROGRESO EMPIEZA HOY</h2>
+          <p className="jb-body text-sm text-zinc-500">
+            Cada vez que registres tu peso o tus comidas, se guarda automáticamente.
+            En unos días verás aquí tus tendencias y promedios.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 min-w-0">
+      {subNav}
       <div className="flex gap-2 flex-wrap">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}
@@ -9907,12 +9935,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <Salad size={16} /> PLAN DE ALIMENTACIÓN
           </button>
           <button onClick={() => setTab('progress')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'progress' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${(tab === 'progress' || tab === 'photos') ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             <TrendingUp size={16} /> MI PROGRESO
-          </button>
-          <button onClick={() => setTab('photos')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'photos' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Camera size={16} /> MIS FOTOS
           </button>
           <button onClick={() => setTab('planes')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'planes' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -9954,8 +9978,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
         {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} />}
-        {tab === 'progress' && <ProgressTab username={username} form={form} nombre={userRecord?.nombre} />}
-        {tab === 'photos' && <PhotosTab username={username} pesoActual={form.peso} />}
+        {(tab === 'progress' || tab === 'photos') && (
+          <ProgressTab username={username} form={form} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
+        )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
       <footer className="text-center py-4 flex items-center justify-center gap-3 flex-wrap">

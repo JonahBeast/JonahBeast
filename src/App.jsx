@@ -2939,8 +2939,8 @@ function Landing({ onChoose }) {
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
-          {[...HERO_BG_FOTOS, ...HERO_BG_FOTOS].map((src, i) => (
-            <img key={i} src={src} alt="" className="w-full aspect-square object-cover" />
+          {HERO_BG_FOTOS.map((src, i) => (
+            <img key={i} src={src} alt="" className="w-full aspect-square object-cover object-top" />
           ))}
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />

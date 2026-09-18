@@ -2942,7 +2942,7 @@ function Landing({ onChoose }) {
           {HERO_BG_FOTOS.map((src, i) => (
             <div key={i} className="aspect-[4/5] overflow-hidden">
               <img src={src} alt="" className="w-full h-full object-cover object-top"
-                style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.35)' } : undefined} />
+                style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.5)' } : undefined} />
             </div>
           ))}
         </div>

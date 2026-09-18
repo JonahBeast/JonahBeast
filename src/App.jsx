@@ -2444,15 +2444,15 @@ function JonahMiniIdle({ fraseInicial, frases }) {
   useEffect(() => {
     let activo = true;
     let t;
-    function loop() {
+    function loop(primeraVez) {
       t = setTimeout(() => {
         if (!activo) return;
         if (Math.random() < 0.5) { setGolpeando(true); setTimeout(() => setGolpeando(false), 700); }
         else { setRugiendo(true); setTimeout(() => setRugiendo(false), 900); }
-        loop();
-      }, 5000 + Math.random() * 3000);
+        loop(false);
+      }, primeraVez ? 1200 : 5000 + Math.random() * 3000);
     }
-    loop();
+    loop(true);
     return () => { activo = false; clearTimeout(t); };
   }, []);
 
@@ -2525,7 +2525,7 @@ function JonahGorila({ username, totalsHoy, targets }) {
   // Cuando pasa un rato sin que lo toquen, alterna entre golpearse el
   // pecho y rugir — nunca queda del todo estático.
   useEffect(() => {
-    function reiniciarOcio() {
+    function reiniciarOcio(primeraVez) {
       if (ociosoRef.current) clearTimeout(ociosoRef.current);
       ociosoRef.current = setTimeout(() => {
         if (Math.random() < 0.5) {
@@ -2535,10 +2535,10 @@ function JonahGorila({ username, totalsHoy, targets }) {
           setRugiendo(true);
           setTimeout(() => setRugiendo(false), 900);
         }
-        reiniciarOcio();
-      }, 6000 + Math.random() * 3000);
+        reiniciarOcio(false);
+      }, primeraVez ? 1200 : 6000 + Math.random() * 3000);
     }
-    reiniciarOcio();
+    reiniciarOcio(true);
     return () => { if (ociosoRef.current) clearTimeout(ociosoRef.current); };
   }, []);
 

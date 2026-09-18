@@ -8448,7 +8448,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           </button>
         </div>
 
-        {!ultimo && (
+        {!ultimo && !p.esNombre && (
           <button onClick={onClose} className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
             Saltar guía
           </button>

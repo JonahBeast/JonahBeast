@@ -9338,6 +9338,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [infoLimite, setInfoLimite] = useState(null);
   const [correoMP, setCorreoMP] = useState('');
   const [mesesMP, setMesesMP] = useState('1');
+  const [tipoMP, setTipoMP] = useState('unico'); // 'unico' | 'recurrente'
   const [pagandoMP, setPagandoMP] = useState(false);
   const [errMP, setErrMP] = useState('');
 
@@ -9346,9 +9347,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
     if (!correoMP.trim() || !correoMP.includes('@')) { setErrMP('Escribe un correo válido.'); return; }
     setPagandoMP(true);
     try {
-      const { data, error } = await supabase.functions.invoke('crear-pago-addon-foto', {
-        body: { username, meses: parseInt(mesesMP, 10), correo: correoMP.trim() },
-      });
+      const funcion = tipoMP === 'recurrente' ? 'crear-suscripcion-addon-foto' : 'crear-pago-addon-foto';
+      const body = tipoMP === 'recurrente'
+        ? { username, correo: correoMP.trim() }
+        : { username, meses: parseInt(mesesMP, 10), correo: correoMP.trim() };
+      const { data, error } = await supabase.functions.invoke(funcion, { body });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
       window.location.href = data.init_point;
     } catch (e) {
@@ -9511,12 +9514,31 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
             </p>
             {!infoLimite?.tieneAddOn && (
               <div className="text-left mb-2">
-                <select value={mesesMP} onChange={e => setMesesMP(e.target.value)}
-                  className={inputCls + ' w-full mb-2'}>
-                  <option value="1">1 mes — S/9.90</option>
-                  <option value="3">3 meses — S/29.70</option>
-                  <option value="6">6 meses — S/59.40</option>
-                </select>
+                <div className="flex gap-2 mb-2">
+                  <button onClick={() => setTipoMP('unico')}
+                    className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${tipoMP === 'unico'
+                      ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                    Pago único
+                  </button>
+                  <button onClick={() => setTipoMP('recurrente')}
+                    className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${tipoMP === 'recurrente'
+                      ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+                    Suscripción automática
+                  </button>
+                </div>
+                <p className="jb-body text-[11px] text-zinc-500 text-center mb-2">
+                  {tipoMP === 'unico'
+                    ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a activar cuando quieras.'
+                    : 'Se te cobrará S/9.90 automáticamente cada mes hasta que canceles desde tu cuenta de Mercado Pago.'}
+                </p>
+                {tipoMP === 'unico' && (
+                  <select value={mesesMP} onChange={e => setMesesMP(e.target.value)}
+                    className={inputCls + ' w-full mb-2'}>
+                    <option value="1">1 mes — S/9.90</option>
+                    <option value="3">3 meses — S/29.70</option>
+                    <option value="6">6 meses — S/59.40</option>
+                  </select>
+                )}
                 <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
                   onChange={e => setCorreoMP(e.target.value)} className={inputCls + ' w-full mb-2'} />
                 {errMP && <p className="text-red-400 text-xs jb-body mb-2">{errMP}</p>}

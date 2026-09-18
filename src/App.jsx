@@ -2938,13 +2938,12 @@ function Landing({ onChoose }) {
       {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="grid grid-cols-3 sm:grid-cols-6 h-full opacity-[0.35] scale-110"
-          style={{ filter: 'blur(10px) grayscale(1)' }}>
+        <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
           {[...HERO_BG_FOTOS, ...HERO_BG_FOTOS].map((src, i) => (
-            <img key={i} src={src} alt="" className="w-full h-full object-cover" />
+            <img key={i} src={src} alt="" className="w-full aspect-square object-cover" />
           ))}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/50 via-zinc-950/85 to-zinc-950" />
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'

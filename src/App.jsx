@@ -3273,7 +3273,8 @@ function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
-  const [f, setF] = useState({ nombre: '', email: '', password: '', password2: '', referido: refDesdeURL });
+  const [f, setF] = useState({ email: '', password: '', referido: refDesdeURL });
+  const [verPass, setVerPass] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
@@ -3299,10 +3300,8 @@ function TrialSignup({ onBack, onCreated }) {
     e.preventDefault();
     setErr(''); setAviso('');
     const email = f.email.trim().toLowerCase();
-    if (!f.nombre.trim()) return setErr('Escribe tu nombre.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
     if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
-    if (f.password !== f.password2) return setErr('Las contraseñas no coinciden.');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
       return setErr('Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
@@ -3319,7 +3318,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: f.password,
-      options: { data: { username: user, nombre: f.nombre.trim(), codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
+      options: { data: { username: user, nombre: '', codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
     if (error) {
@@ -3384,17 +3383,16 @@ function TrialSignup({ onBack, onCreated }) {
             </div>
           ) : (
             <form onSubmit={submit} className="flex flex-col gap-3">
-              <Field label="Tu nombre">
-                <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
-              </Field>
               <Field label="Correo electrónico">
                 <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
               <Field label="Contraseña">
-                <input type="password" value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Mínimo 6 caracteres" />
-              </Field>
-              <Field label="Repite tu contraseña">
-                <input type="password" value={f.password2} onChange={e => setF(v => ({ ...v, password2: e.target.value }))} className={inputCls} />
+                <div className="relative">
+                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls + ' pr-10'} placeholder="Mínimo 6 caracteres" />
+                  <button type="button" onClick={() => setVerPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    <Eye size={16} />
+                  </button>
+                </div>
               </Field>
               <Field label="Código de referido (opcional)">
                 <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
@@ -8320,10 +8318,19 @@ function AyudaTab({ texto }) {
 function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const [paso, setPaso] = useState(0);
   const [telefono, setTelefono] = useState('');
+  const [nombreInput, setNombreInput] = useState('');
   const [guardandoTel, setGuardandoTel] = useState(false);
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const [errNombre, setErrNombre] = useState('');
+  const nombreMostrar = nombre || nombreInput;
   const pasos = [
+    ...(nombre ? [] : [{
+      emoji: '😄', titulo: '¿CÓMO TE LLAMAS?',
+      texto: 'Así puedo saludarte como se debe y acompañarte de forma más personal.',
+      esNombre: true,
+    }]),
     {
-      emoji: '👋', titulo: `¡BIENVENIDO${nombre ? ', ' + nombre.split(' ')[0].toUpperCase() : ''}!`,
+      emoji: '👋', titulo: `¡BIENVENIDO${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}!`,
       texto: 'Jonah Beast Fuel te ayuda a saber exactamente cuánto comer y qué comer para llegar a tu objetivo. Te explico en 30 segundos cómo usarla.',
     },
     {
@@ -8374,7 +8381,19 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     setGuardandoTel(false);
   }
 
+  async function guardarNombre() {
+    if (!nombreInput.trim()) { setErrNombre('Escribe tu nombre para continuar.'); return false; }
+    setErrNombre('');
+    setGuardandoNombre(true);
+    try {
+      await supabase.from('alumnos').update({ nombre: nombreInput.trim() }).eq('username', username);
+    } catch (e) { /* si falla, no bloquea el avance del onboarding */ }
+    setGuardandoNombre(false);
+    return true;
+  }
+
   async function avanzar() {
+    if (p.esNombre) { const ok = await guardarNombre(); if (!ok) return; }
     if (p.esTelefono) await guardarTelefonoSiHay();
     if (ultimo) onClose(); else setPaso(paso + 1);
   }
@@ -8388,6 +8407,13 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           </div>
           <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
+          {p.esNombre && (
+            <div className="mt-4 text-left">
+              <input value={nombreInput} onChange={e => setNombreInput(e.target.value)}
+                className={inputCls} placeholder="Ej. María Pérez" autoFocus />
+              {errNombre && <p className="text-red-400 text-xs jb-body mt-1.5 flex items-center gap-1.5"><AlertTriangle size={12} />{errNombre}</p>}
+            </div>
+          )}
           {p.esTelefono && (
             <div className="mt-4 text-left">
               <input type="tel" inputMode="tel" value={telefono} onChange={e => setTelefono(e.target.value)}
@@ -8417,8 +8443,8 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           {paso > 0 && (
             <button onClick={() => setPaso(paso - 1)} className={btnGhost + ' py-2.5 px-4'}>Atrás</button>
           )}
-          <button onClick={avanzar} disabled={guardandoTel} className={btnPrimary + ' flex-1 py-2.5'}>
-            {guardandoTel ? <Loader2 className="animate-spin" size={18} /> : (ultimo ? '¡Empecemos!' : (p.esTelefono && telefono ? 'Guardar y seguir' : 'Siguiente'))}
+          <button onClick={avanzar} disabled={guardandoTel || guardandoNombre} className={btnPrimary + ' flex-1 py-2.5'}>
+            {(guardandoTel || guardandoNombre) ? <Loader2 className="animate-spin" size={18} /> : (ultimo ? '¡Empecemos!' : (p.esNombre ? 'Guardar y seguir' : (p.esTelefono && telefono ? 'Guardar y seguir' : 'Siguiente')))}
           </button>
         </div>
 

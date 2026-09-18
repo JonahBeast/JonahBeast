@@ -2918,6 +2918,11 @@ const TESTIMONIOS = [
   },
 ];
 
+// Mosaico de fondo del hero — mismas fotos de los testimonios, repetidas
+// para llenar la grilla, como textura pasiva de prueba social (no hay
+// que deslizar nada para verla, a diferencia del carrusel de abajo).
+const HERO_BG_FOTOS = TESTIMONIOS.flatMap(t => [t.antes, t.despues]);
+
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
@@ -2930,6 +2935,16 @@ function Landing({ onChoose }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
+      {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
+          visible de inmediato, sin que el usuario tenga que deslizar nada. */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="grid grid-cols-3 sm:grid-cols-6 h-full opacity-[0.22] grayscale">
+          {[...HERO_BG_FOTOS, ...HERO_BG_FOTOS].map((src, i) => (
+            <img key={i} src={src} alt="" className="w-full h-full object-cover" />
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/50 via-zinc-950/85 to-zinc-950" />
+      </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />

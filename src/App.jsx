@@ -2941,11 +2941,13 @@ function Landing({ onChoose }) {
           />
         </div>
 
-        {/* CTA temprano — así el botón para empezar ya está a la vista sin
-            necesidad de bajar hasta el final de la página. */}
+        {/* CTA temprano — versión compacta tipo "pill" con borde, para que
+            se sienta como un atajo rápido y no como el mismo botón grande
+            repetido. El CTA sólido y grande sigue siendo el de cierre. */}
         <button onClick={() => onChoose('trial')} style={step(320)}
-          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-5 mb-6 transition-colors shadow-lg shadow-orange-500/20">
-          <div className="jb-display text-base text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS · 15 DÍAS</div>
+          className="inline-flex items-center gap-2 mb-6 mx-auto bg-transparent border border-orange-500/50 hover:border-orange-500 hover:bg-orange-500/10 rounded-full py-2 px-5 transition-colors">
+          <span className="jb-display text-xs text-orange-500 tracking-wide">🚀 EMPEZAR PRUEBA GRATIS</span>
+          <ChevronRight className="text-orange-500" size={14} />
         </button>
 
         <p className="jb-body text-orange-500/80 text-xs mb-2 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>

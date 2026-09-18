@@ -5956,11 +5956,11 @@ function CalculatorTab({ form, setForm, results }) {
     onChange: (e) => setForm(v => ({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) })),
   });
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <div className="grid lg:grid-cols-2 gap-6 min-w-0">
       <div className="lg:col-span-2">
         <AyudaTab texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. No necesitas hacerlo todos los días: tus datos quedan guardados y solo debes actualizarlos cada 2 semanas o cuando cambie tu peso." />
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
         <h2 className="jb-display text-base text-zinc-200 mb-4">TUS DATOS</h2>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Sexo">
@@ -5983,12 +5983,12 @@ function CalculatorTab({ form, setForm, results }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
-            <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={80} stroke={7} />
-            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={80} stroke={7} />
-            <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantenimiento" colorHex="#34d399" size={80} stroke={7} />
+      <div className="flex flex-col gap-4 min-w-0">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
+          <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
+            <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={72} stroke={7} />
+            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={72} stroke={7} />
+            <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantenimiento" colorHex="#34d399" size={72} stroke={7} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">

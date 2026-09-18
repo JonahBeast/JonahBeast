@@ -2474,6 +2474,12 @@ function JonahMiniIdle({ fraseInicial, frases }) {
             ¡RAWR!
           </span>
         )}
+        {rugiendo && (
+          <>
+            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
+            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
+          </>
+        )}
         <button onClick={tocar}
           className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
           style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
@@ -2484,8 +2490,10 @@ function JonahMiniIdle({ fraseInicial, frases }) {
       </div>
       <style>{`
         @keyframes jb-jonah-golpe { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(-4deg); } }
-        @keyframes jb-jonah-rugido { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.28) rotate(3deg); } }
+        @keyframes jb-jonah-rugido { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.36) rotate(3deg); } }
         @keyframes jb-jonah-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+        @keyframes jb-jonah-onda-expandir { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(1.9); opacity: 0; } }
+        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
       `}</style>
       {mensaje && <p className="jb-body text-xs text-zinc-400 mt-2 max-w-[240px] mx-auto">{mensaje}</p>}
     </div>
@@ -2557,6 +2565,12 @@ function JonahGorila({ username, totalsHoy, targets }) {
             ¡RAWR!
           </span>
         )}
+        {rugiendo && (
+          <>
+            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
+            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
+          </>
+        )}
         <button onClick={tocar}
           className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
           style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
@@ -2572,12 +2586,17 @@ function JonahGorila({ username, totalsHoy, targets }) {
         }
         @keyframes jb-jonah-rugido {
           0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.28) rotate(3deg); }
+          50% { transform: scale(1.36) rotate(3deg); }
         }
         @keyframes jb-jonah-respira {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.045); }
         }
+        @keyframes jb-jonah-onda-expandir {
+          0% { transform: scale(1); opacity: 0.75; }
+          100% { transform: scale(1.9); opacity: 0; }
+        }
+        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
       `}</style>
       <div className="flex-1 min-w-0">
         <p className="jb-display text-xs text-orange-500 mb-1">JONAH</p>

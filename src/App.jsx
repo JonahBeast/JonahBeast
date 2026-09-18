@@ -8265,12 +8265,12 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
 
   const analisis = useMemo(() => {
     try {
-      return rows.length ? analizarProgreso(rows, form || {}) : null;
+      return filtrados.length ? analizarProgreso(filtrados, form || {}) : null;
     } catch (e) {
       console.error('Error al analizar el progreso:', e);
       return null;
     }
-  }, [rows, form]);
+  }, [filtrados, form]);
 
   const serie = (campo) => filtrados
     .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
@@ -8357,7 +8357,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
             <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
               value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={72} stroke={7} />
             <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
-              value={stats.diasRegistrados} label="Días registrados" colorHex="#a78bfa" size={72} stroke={7} />
+              value={stats.diasRegistrados} label="Registros" colorHex="#a78bfa" size={72} stroke={7} />
           </div>
           {stats.adherencia !== null && (
             <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">

@@ -9759,7 +9759,7 @@ function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   const [globoVisible, setGloboVisible] = useState(true);
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+    <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-2">
       {globoVisible && (
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-lg max-w-[200px] relative">
           <button onClick={() => setGloboVisible(false)}
@@ -9951,6 +9951,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
         <div className="flex items-center gap-3">
           <SoundToggleButton />
+          <button onClick={() => setTab('planes')}
+            className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            title="Mi plan">
+            <CreditCard size={18} />
+          </button>
           <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
           <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
         </div>
@@ -9968,35 +9973,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
           </>
         )}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => setTab('dash')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <LayoutDashboard size={16} /> RESUMEN
-          </button>
-          <button onClick={() => setTab('calc')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${(tab === 'calc' || tab === 'goal') ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Flame size={16} /> MI CUERPO
-          </button>
-          <button onClick={() => setTab('meal')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'meal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Salad size={16} /> PLAN DE ALIMENTACIÓN
-          </button>
-          <button onClick={() => setTab('progress')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${(tab === 'progress' || tab === 'photos') ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <TrendingUp size={16} /> MI PROGRESO
-          </button>
-          <button onClick={() => setTab('planes')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'planes' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <CreditCard size={16} /> MI PLAN
-          </button>
-        </div>
         <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3 flex items-center gap-2 mb-6">
           <MessageCircle className="text-emerald-500 shrink-0" size={16} />
           <p className="text-emerald-200 text-xs jb-body">¿Tienes dudas? Escribe a nuestro soporte tocando la carita de Jonah, abajo a la derecha.</p>
         </div>
       </div>
 
-      <main key={tab} className="max-w-4xl mx-auto px-6 pb-12 jb-tab-fade">
+      <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">
         {tab === 'dash' && (
           <>
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
@@ -10031,7 +10014,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
-      <footer className="text-center py-4 flex items-center justify-center gap-3 flex-wrap">
+      <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
           className="jb-body text-[11px] text-zinc-700 hover:text-zinc-500 underline">
           Política de Privacidad
@@ -10046,6 +10029,21 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
       <WhatsAppButton />
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800 flex"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {[
+          { id: 'dash', icon: LayoutDashboard, label: 'Inicio', activo: tab === 'dash' },
+          { id: 'meal', icon: Salad, label: 'Comidas', activo: tab === 'meal' },
+          { id: 'calc', icon: Flame, label: 'Mi cuerpo', activo: tab === 'calc' || tab === 'goal' },
+          { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
+        ].map(item => (
+          <button key={item.id} onClick={() => setTab(item.id)}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
+            <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />
+            <span className="jb-body text-[10px]">{item.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

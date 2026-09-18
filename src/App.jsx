@@ -6327,10 +6327,18 @@ function base64ToUint8(base64) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-function RecordatorioBanner({ username }) {
+function RecordatorioBanner({ username, onEligible }) {
   const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado | iosNoInstalado
   const [ocultoManual, setOcultoManual] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
+
+  const visible = (estado === 'activo' || estado === 'iosNoInstalado')
+    ? true
+    : (estado === 'cargando' || estado === 'nosoportado')
+      ? false
+      : !ocultoManual;
+
+  useEffect(() => { if (onEligible) onEligible(visible); }, [visible]);
 
   useEffect(() => {
     (async () => {
@@ -6482,11 +6490,13 @@ function RecordatorioBanner({ username }) {
   );
 }
 
-function InstalarBanner() {
+function InstalarBanner({ onEligible }) {
   const [evento, setEvento] = useState(null);
   const [oculto, setOculto] = useState(true);
   const [esIOS, setEsIOS] = useState(false);
   const [verPasos, setVerPasos] = useState(false);
+
+  useEffect(() => { if (onEligible) onEligible(!oculto); }, [oculto]);
 
   useEffect(() => {
     const instalada = window.matchMedia('(display-mode: standalone)').matches
@@ -8823,7 +8833,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
   );
 }
 
-function Dashboard({ form, setForm, results, mealPlan, targets, username }) {
+function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerComposicion }) {
   const pesoActual = Number(form.peso) || 0;
   const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
   const pesoObjetivo = form.pesoObjetivo === null || form.pesoObjetivo === undefined || form.pesoObjetivo === '' ? null : Number(form.pesoObjetivo);
@@ -8852,21 +8862,14 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username }) {
         </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <h2 className="jb-display text-base text-zinc-200 mb-4">COMPOSICIÓN CORPORAL</h2>
-        <div className="flex items-center gap-5 bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 mb-3">
-          <MacroRing pct={Math.min(100, results.bf * 2.5)} value={results.bf.toFixed(1) + '%'}
-            label="Grasa corporal" colorHex="#fbbf24" size={84} stroke={8} />
-          <div className="flex-1">
-            <p className="jb-display text-sm text-zinc-100">{results.bfCat}</p>
-            <p className="jb-body text-xs text-zinc-500 mt-1">Peso actual: {pesoActual.toFixed(1)} kg</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} accent="text-emerald-400" />
-          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} accent="text-violet-400" />
-        </div>
-      </div>
+      <button onClick={onVerComposicion}
+        className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-4 flex items-center gap-3 text-left transition-colors">
+        <Flame className="text-amber-400 shrink-0" size={18} />
+        <p className="jb-body text-sm text-zinc-300 flex-1">
+          <span className="text-zinc-100 font-semibold">{results.bf.toFixed(1)}% grasa</span> · IMC {results.bmi.toFixed(1)} · {results.bfCat}
+        </p>
+        <ChevronRight className="text-zinc-600 shrink-0" size={16} />
+      </button>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
@@ -9788,6 +9791,14 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [tab, setTab] = useState('dash');
   const [verGuia, setVerGuia] = useState(false);
   const [tieneFotos, setTieneFotos] = useState(false);
+  const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
+  const [instalarElegible, setInstalarElegible] = useState(null);
+
+  // Prioridad de banners: solo se muestra el más relevante a la vez,
+  // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
+  const renewalElegible = !!(userRecord && userRecord.plan !== 'trial'
+    && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
+  const trialElegible = !!trialDayOf(userRecord);
   const [guiaVista, setGuiaVista] = useState(true);
   const [pull, setPull] = useState({ y: 0, refrescando: false });
   const pullStartY = useRef(null);
@@ -9868,10 +9879,16 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
-        <InstalarBanner />
-        <RecordatorioBanner username={username} />
-        <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
-        <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
+        {renewalElegible ? (
+          <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
+        ) : trialElegible ? (
+          <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
+        ) : (
+          <>
+            <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
+            {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
+          </>
+        )}
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setTab('dash')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'dash' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -9933,7 +9950,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <div className="mb-6"><AdivinaCaloriasCard /></div>
             <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} />
+            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
           </>
         )}
         {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}

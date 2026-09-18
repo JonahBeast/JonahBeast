@@ -9336,6 +9336,26 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos)
   const [seleccionados, setSeleccionados] = useState({});
   const [infoLimite, setInfoLimite] = useState(null);
+  const [correoMP, setCorreoMP] = useState('');
+  const [mesesMP, setMesesMP] = useState('1');
+  const [pagandoMP, setPagandoMP] = useState(false);
+  const [errMP, setErrMP] = useState('');
+
+  async function pagarAddOnMP() {
+    setErrMP('');
+    if (!correoMP.trim() || !correoMP.includes('@')) { setErrMP('Escribe un correo válido.'); return; }
+    setPagandoMP(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('crear-pago-addon-foto', {
+        body: { username, meses: parseInt(mesesMP, 10), correo: correoMP.trim() },
+      });
+      if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
+      window.location.href = data.init_point;
+    } catch (e) {
+      setErrMP(e.message || 'No se pudo conectar con Mercado Pago.');
+      setPagandoMP(false);
+    }
+  }
 
   async function elegirArchivo(e) {
     const file = e.target.files?.[0];
@@ -9490,10 +9510,25 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 : `Con Reconocimiento Inteligente identificas tu plato con solo una foto — sin escribir, sin buscar.`}
             </p>
             {!infoLimite?.tieneAddOn && (
-              <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/9.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
-                target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 mb-2'}>
-                Activar por S/9.90/mes
-              </a>
+              <div className="text-left mb-2">
+                <select value={mesesMP} onChange={e => setMesesMP(e.target.value)}
+                  className={inputCls + ' w-full mb-2'}>
+                  <option value="1">1 mes — S/9.90</option>
+                  <option value="3">3 meses — S/29.70</option>
+                  <option value="6">6 meses — S/59.40</option>
+                </select>
+                <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
+                  onChange={e => setCorreoMP(e.target.value)} className={inputCls + ' w-full mb-2'} />
+                {errMP && <p className="text-red-400 text-xs jb-body mb-2">{errMP}</p>}
+                <button onClick={pagarAddOnMP} disabled={pagandoMP} className={btnPrimary + ' w-full py-3 mb-2'}>
+                  {pagandoMP ? <Loader2 className="animate-spin" size={16} /> : 'Pagar con Mercado Pago'}
+                </button>
+                <p className="jb-body text-[11px] text-zinc-600 text-center mb-2">— o si prefieres Yape/Plin —</p>
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/9.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
+                  target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-2.5 mb-2'}>
+                  Escribir por WhatsApp
+                </a>
+              </div>
             )}
             <button onClick={onCerrar} className={btnGhost + ' w-full py-2.5'}>
               {infoLimite?.tieneAddOn ? 'Entendido' : 'Seguir sin esto por ahora'}

@@ -9302,7 +9302,6 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
   const [previewUrl, setPreviewUrl] = useState(null);
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos)
   const [seleccionados, setSeleccionados] = useState({});
-  const [cantidadesIA, setCantidadesIA] = useState({}); // key -> conteo de piezas que detectó la IA
   const [infoLimite, setInfoLimite] = useState(null);
 
   async function elegirArchivo(e) {
@@ -9338,10 +9337,14 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
       }
       if (data?.error) throw new Error(data.error);
 
-      const encontrados = (data?.items || []).map(it => buscarFood(it.key)).filter(Boolean);
+      const encontrados = (data?.items || [])
+        .map(it => {
+          const food = buscarFood(it.key);
+          return food ? { ...food, _cantidadIA: it.cantidad || 1 } : null;
+        })
+        .filter(Boolean);
       if (!encontrados.length) { setEstado('vacio'); return; }
 
-      setCantidadesIA(Object.fromEntries((data?.items || []).map(it => [it.key, it.cantidad || 1])));
       setItems(encontrados);
       setSeleccionados(Object.fromEntries(encontrados.map(f => [f.key, true])));
       setEstado('resultados');
@@ -9356,7 +9359,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
       // Solo confiamos en el conteo de la IA para piezas enteras y
       // contables (huevo, pan...) — nunca para ajustar peso o volumen,
       // que sigue siendo el alumno quien lo decide.
-      const cantidad = cantidadesIA[f.key] || 1;
+      const cantidad = f._cantidadIA || 1;
       const qty = UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty;
       onAgregar({ id: uid(), foodKey: f.key, unit: d.unit, qty });
     });
@@ -9398,7 +9401,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }
             <div className="flex flex-col gap-2 mb-4">
               {items.map(f => {
                 const d = unidadPorDefecto(f);
-                const cantidad = cantidadesIA[f.key] || 1;
+                const cantidad = f._cantidadIA || 1;
                 const mostrarConteo = UNIDADES_DISCRETAS.includes(d.unit) && cantidad > 1;
                 return (
                 <label key={f.key} className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 cursor-pointer">

@@ -9286,11 +9286,167 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
   );
 }
 
+/* Modal de reconocimiento de comida por foto. Le manda la imagen a la
+   Edge Function 'reconocer-comida' junto con la lista liviana de
+   alimentos del alumno (solo key + name, sin macros), y deja que el
+   alumno confirme qué agregar — nunca guarda nada automáticamente,
+   porque la estimación de porción sigue siendo suya, con medidas de
+   casa, igual que el resto de la app. */
+function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar }) {
+  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos)
+  const [seleccionados, setSeleccionados] = useState({});
+  const [infoLimite, setInfoLimite] = useState(null);
+
+  function elegirArchivo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      const base64 = dataUrl.split(',')[1] || '';
+      setPreviewUrl(dataUrl);
+      analizar(base64, file.type || 'image/jpeg');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function analizar(base64, mimeType) {
+    setEstado('analizando');
+    try {
+      const listaLiviana = todosLosAlimentos.map(a => ({ key: a.key, name: a.name }));
+      const { data, error } = await supabase.functions.invoke('reconocer-comida', {
+        body: { username, imagenBase64: base64, mimeType, alimentos: listaLiviana },
+      });
+      if (error) throw new Error(error.message || 'No se pudo conectar con el reconocimiento por foto.');
+      if (data?.error === 'limite_alcanzado') {
+        setInfoLimite(data);
+        setEstado('limite');
+        return;
+      }
+      if (data?.error) throw new Error(data.error);
+
+      const encontrados = (data?.items || []).map(it => buscarFood(it.key)).filter(Boolean);
+      if (!encontrados.length) { setEstado('vacio'); return; }
+
+      setItems(encontrados);
+      setSeleccionados(Object.fromEntries(encontrados.map(f => [f.key, true])));
+      setEstado('resultados');
+    } catch (e) {
+      setEstado('error');
+    }
+  }
+
+  function confirmar() {
+    items.filter(f => seleccionados[f.key]).forEach(f => {
+      const d = unidadPorDefecto(f);
+      onAgregar({ id: uid(), foodKey: f.key, unit: d.unit, qty: d.qty });
+    });
+    onCerrar();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
+        </div>
+
+        {estado === 'elegir' && (
+          <div className="text-center">
+            <p className="jb-body text-sm text-zinc-400 mb-4">
+              Toma o sube una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
+            </p>
+            <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
+              <Camera size={16} /> Tomar o elegir foto
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
+            </label>
+          </div>
+        )}
+
+        {estado === 'analizando' && (
+          <div className="text-center py-4">
+            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-48 object-cover rounded-xl mb-4" />}
+            <Loader2 className="animate-spin text-orange-500 mx-auto mb-2" size={28} />
+            <p className="jb-body text-sm text-zinc-400">Identificando tu comida…</p>
+          </div>
+        )}
+
+        {estado === 'resultados' && (
+          <div>
+            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
+            <p className="jb-body text-xs text-zinc-500 mb-3">Encontramos esto — desmarca lo que no corresponda:</p>
+            <div className="flex flex-col gap-2 mb-4">
+              {items.map(f => (
+                <label key={f.key} className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 cursor-pointer">
+                  <input type="checkbox" checked={!!seleccionados[f.key]}
+                    onChange={() => setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }))}
+                    className="w-4 h-4 accent-orange-500 shrink-0" />
+                  <span className="jb-body text-sm text-zinc-200 flex-1">{f.name}</span>
+                </label>
+              ))}
+            </div>
+            <button onClick={confirmar} disabled={!Object.values(seleccionados).some(Boolean)}
+              className={btnPrimary + ' w-full py-3'}>
+              Agregar {Object.values(seleccionados).filter(Boolean).length || ''} a esta comida
+            </button>
+            <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
+              Después podrás ajustar la cantidad de cada uno con medidas de casa.
+            </p>
+          </div>
+        )}
+
+        {estado === 'vacio' && (
+          <div className="text-center py-2">
+            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
+            <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo.</p>
+            <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
+          </div>
+        )}
+
+        {estado === 'error' && (
+          <div className="text-center py-2">
+            <AlertTriangle className="text-amber-500 mx-auto mb-3" size={28} />
+            <p className="jb-body text-sm text-zinc-400 mb-4">No se pudo procesar la foto. Intenta de nuevo en un momento.</p>
+            <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Reintentar</button>
+          </div>
+        )}
+
+        {estado === 'limite' && (
+          <div className="text-center py-2">
+            <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
+            <p className="jb-display text-sm text-orange-500 mb-1">
+              {infoLimite?.tieneAddOn ? 'Llegaste a tu límite del mes' : 'Ya usaste tus fotos gratis de esta semana'}
+            </p>
+            <p className="jb-body text-sm text-zinc-400 mb-4">
+              {infoLimite?.tieneAddOn
+                ? `Usaste tus ${infoLimite.limite} fotos de este mes con Reconocimiento Inteligente.`
+                : `Con Reconocimiento Inteligente identificas tu plato con solo una foto — sin escribir, sin buscar.`}
+            </p>
+            {!infoLimite?.tieneAddOn && (
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/9.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
+                target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 mb-2'}>
+                Activar por S/9.90/mes
+              </a>
+            )}
+            <button onClick={onCerrar} className={btnGhost + ' w-full py-2.5'}>
+              {infoLimite?.tieneAddOn ? 'Entendido' : 'Seguir sin esto por ahora'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
+  const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
   const [objetivoAbierto, setObjetivoAbierto] = useState(false);
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
     try { return localStorage.getItem('jb_ayuda_no_comidas') === '1'; } catch { return false; }
@@ -9393,6 +9549,14 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           }}
         />
       )}
+      {fotoPara && (
+        <ReconocerFotoModal
+          username={username}
+          todosLosAlimentos={todosLosAlimentos}
+          onCerrar={() => setFotoPara(null)}
+          onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
+        />
+      )}
       {!ayudaCerrada && (
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-start gap-2.5 mb-2">
           <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">💡</span>
@@ -9425,7 +9589,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
               </div>
               <h3 className="jb-display text-sm text-orange-500 tracking-wide">{meal.toUpperCase()}</h3>
             </div>
-            <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} /> Reconocer por foto</button>
+              <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
+            </div>
           </div>
           {username && (
             <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />

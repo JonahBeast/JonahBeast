@@ -2851,7 +2851,7 @@ function MacroRing({ pct, value, numeric, label, colorHex, size = 92, stroke = 9
           </span>
         </div>
       </div>
-      <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500">{label}</span>
+      <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500 text-center break-words" style={{ maxWidth: size + 12 }}>{label}</span>
     </div>
   );
 }

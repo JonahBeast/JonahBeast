@@ -2920,7 +2920,7 @@ function Landing({ onChoose }) {
             <Flame className="text-orange-500 shrink-0" size={20} />
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
-          <h2 className="jb-display text-xl sm:text-2xl text-zinc-50 leading-tight my-3 px-2">
+          <h2 className="jb-display text-2xl sm:text-3xl text-zinc-50 leading-tight my-3 px-2">
             COME COMO PERUANO.<br className="sm:hidden" /> RESULTADOS DE BESTIA
           </h2>
           <div className="flex items-center gap-3">
@@ -2941,19 +2941,30 @@ function Landing({ onChoose }) {
           />
         </div>
 
-        <p className="jb-body text-orange-500/90 text-sm mb-2 tracking-wide" style={step(300)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
-        <p className="jb-body text-zinc-400 text-base mb-6" style={step(340)}>Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
+        {/* CTA temprano — así el botón para empezar ya está a la vista sin
+            necesidad de bajar hasta el final de la página. */}
+        <button onClick={() => onChoose('trial')} style={step(320)}
+          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-5 mb-6 transition-colors shadow-lg shadow-orange-500/20">
+          <div className="jb-display text-base text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS · 15 DÍAS</div>
+        </button>
+
+        <p className="jb-body text-orange-500/80 text-xs mb-2 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-zinc-400 text-base mb-6" style={step(360)}>Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
 
         {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40" style={step(420)}>
           <div className="flex items-center justify-between mb-1">
             <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
+            <span className="jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">EJEMPLO</span>
           </div>
           <div className="flex justify-around py-2">
             <MacroRing pct={72} value="1840" label="Kcal" colorHex="#f97316" size={72} stroke={7} />
             <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={72} stroke={7} />
             <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={72} stroke={7} />
           </div>
+          <p className="jb-body text-[10px] text-zinc-600 text-center mt-1">
+            Datos de ejemplo — tus números se calculan al medirte
+          </p>
         </div>
 
         <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
@@ -2992,7 +3003,7 @@ function Landing({ onChoose }) {
             .jb-reveal { animation: jb-reveal-wipe 4.5s ease-in-out infinite; }
             .jb-tag-ahora { animation: jb-tag-in 4.5s ease-in-out infinite; }
           `}</style>
-          <p className="jb-display text-sm text-zinc-500 mb-3 tracking-wide">RESULTADOS REALES</p>
+          <p className="jb-display text-base text-orange-500 mb-3 tracking-wide">🔥 RESULTADOS REALES</p>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
             {TESTIMONIOS.map((t, i) => (
               <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
@@ -3031,7 +3042,8 @@ function Landing({ onChoose }) {
           </p>
         </div>
 
-        {/* CTA principal — es la acción que más conviene, así que va primero y más grande */}
+        {/* CTA de cierre — repite el mismo botón de más arriba, para quien
+            llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
         <button onClick={() => onChoose('trial')} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors shadow-lg shadow-orange-500/20">
           <div className="jb-display text-lg text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</div>

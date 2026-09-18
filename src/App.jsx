@@ -5950,6 +5950,28 @@ function GoalSelector({ form, setForm, tdee, peso }) {
   );
 }
 
+function CuerpoTab({ form, setForm, results, vistaInicial }) {
+  const [vista, setVista] = useState(vistaInicial === 'objetivo' ? 'objetivo' : 'composicion');
+
+  return (
+    <div className="flex flex-col gap-6 min-w-0">
+      <div className="flex gap-2">
+        <button onClick={() => setVista('composicion')}
+          className={`jb-display text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${vista === 'composicion' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+          <Flame size={13} /> Composición
+        </button>
+        <button onClick={() => setVista('objetivo')}
+          className={`jb-display text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${vista === 'objetivo' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+          <Target size={13} /> Objetivo
+        </button>
+      </div>
+      {vista === 'composicion'
+        ? <CalculatorTab form={form} setForm={setForm} results={results} />
+        : <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
+    </div>
+  );
+}
+
 function CalculatorTab({ form, setForm, results }) {
   const num = (k) => ({
     value: form[k],
@@ -9952,12 +9974,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <LayoutDashboard size={16} /> RESUMEN
           </button>
           <button onClick={() => setTab('calc')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'calc' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Flame size={16} /> COMPOSICIÓN CORPORAL
-          </button>
-          <button onClick={() => setTab('goal')}
-            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'goal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Target size={16} /> MI OBJETIVO
+            className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${(tab === 'calc' || tab === 'goal') ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            <Flame size={16} /> MI CUERPO
           </button>
           <button onClick={() => setTab('meal')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'meal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -10004,8 +10022,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
           </>
         )}
-        {tab === 'calc' && <CalculatorTab form={form} setForm={setForm} results={results} />}
-        {tab === 'goal' && <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
+        {(tab === 'calc' || tab === 'goal') && (
+          <CuerpoTab form={form} setForm={setForm} results={results} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} />
+        )}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} />}
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />

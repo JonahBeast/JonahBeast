@@ -9528,6 +9528,15 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         </p>
       </div>
 
+      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
+        restricciones={mealPlan.restricciones || []}
+        remaining={{
+          kcal: mealPlan.targetKcal - totals.kcal,
+          protein: objP - totals.protein,
+          carbs: objC - totals.carbs,
+          fat: objF - totals.fat,
+        }} />
+
       {MEAL_NAMES.map(meal => {
         const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';
         return (
@@ -9754,15 +9763,6 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
         carbs: objC - totals.carbs,
         fat: objF - totals.fat,
       }} />
-
-      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-        restricciones={mealPlan.restricciones || []}
-        remaining={{
-          kcal: mealPlan.targetKcal - totals.kcal,
-          protein: objP - totals.protein,
-          carbs: objC - totals.carbs,
-          fat: objF - totals.fat,
-        }} />
 
       <RestaurantesAliadosCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
     </div>

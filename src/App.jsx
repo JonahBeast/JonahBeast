@@ -8286,9 +8286,24 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
     }
   }, [filtrados, form]);
 
-  const serie = (campo) => filtrados
-    .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
-    .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
+  // Mismo criterio que usa el coach (analizarProgreso): en los campos de
+  // composición corporal, descarta valores atípicos aislados (ej. un
+  // registro viejo con el peso de fábrica) para que el gráfico cuente
+  // la misma historia que el veredicto de arriba.
+  const CAMPOS_CORPORALES = ['peso', 'grasa_pct', 'masa_muscular', 'masa_magra', 'imc'];
+  const serie = (campo) => {
+    let base = filtrados
+      .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
+      .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
+    if (CAMPOS_CORPORALES.includes(campo) && base.length >= 3) {
+      const ordenados = base.map(p => p.v).slice().sort((a, b) => a - b);
+      const mediana = ordenados.length % 2
+        ? ordenados[(ordenados.length - 1) / 2]
+        : (ordenados[ordenados.length / 2 - 1] + ordenados[ordenados.length / 2]) / 2;
+      if (mediana > 0) base = base.filter(p => Math.abs(p.v - mediana) / mediana <= 0.15);
+    }
+    return base;
+  };
 
   const subNav = (
     <div className="flex gap-2">

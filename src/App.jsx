@@ -2940,7 +2940,10 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
           {HERO_BG_FOTOS.map((src, i) => (
-            <img key={i} src={src} alt="" className="w-full aspect-[4/5] object-cover object-top" />
+            <div key={i} className="aspect-[4/5] overflow-hidden">
+              <img src={src} alt="" className="w-full h-full object-cover object-top"
+                style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.35)' } : undefined} />
+            </div>
           ))}
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />

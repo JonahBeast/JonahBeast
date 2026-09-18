@@ -2059,71 +2059,10 @@ const RACHA_HITOS = [
   { dias: 90, nombre: 'Jonah Beast Elite', emoji: '👑' },
 ];
 
-const RETOS_SEMANALES = [
-  { texto: 'Registra 5 desayunos distintos esta semana', emoji: '☀️' },
-  { texto: 'Prueba un alimento nuevo del buscador esta semana', emoji: '🆕' },
-  { texto: 'Llega a tu objetivo de proteína 4 días seguidos', emoji: '🍗' },
-  { texto: 'Registra tus 3 comidas principales todos los días', emoji: '📋' },
-  { texto: 'Toma tus fotos de progreso esta semana', emoji: '📸' },
-  { texto: 'Prueba un combo nuevo de "¿Qué puedo comer?"', emoji: '🍽️' },
-];
-
 function numeroDeSemana() {
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), 0, 1);
   return Math.floor((hoy - inicio) / (7 * 86400000));
-}
-
-/* Reto semanal opcional: le da variedad al hábito diario. Se guarda
-   en el dispositivo al instante y se sincroniza con Supabase para que
-   el recordatorio por notificación push sepa si ya lo completó. */
-function RetoSemanalCard({ username }) {
-  const semana = numeroDeSemana();
-  const reto = RETOS_SEMANALES[semana % RETOS_SEMANALES.length];
-  const storageKey = `jb-reto-${username}-${semana}`;
-  const [hecho, setHecho] = useState(() => {
-    try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
-  });
-
-  // Al entrar, sincroniza con Supabase por si lo marcó desde otro dispositivo
-  useEffect(() => {
-    if (!username) return;
-    (async () => {
-      try {
-        const { data } = await supabase.from('retos_semanales')
-          .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
-        if (data && data.completado) {
-          setHecho(true);
-          try { localStorage.setItem(storageKey, '1'); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-        }
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    })();
-  }, [username, semana]);
-
-  async function toggle() {
-    const nuevo = !hecho;
-    setHecho(nuevo);
-    try { localStorage.setItem(storageKey, nuevo ? '1' : '0'); } catch {}
-    if (nuevo) { vibrar([20, 40, 20]); reproducirSonido('reto'); showToast('¡Reto de la semana completado! 🎉'); }
-    try {
-      await supabase.from('retos_semanales')
-        .upsert({ username, semana, completado: nuevo, updated_at: new Date().toISOString() }, { onConflict: 'username,semana' });
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-  }
-
-  return (
-    <button onClick={toggle}
-      className={`w-full text-left rounded-2xl p-4 flex items-center gap-3 border transition-colors ${hecho
-        ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-zinc-900 border-zinc-800'}`}>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 transition-all ${hecho ? 'bg-emerald-500 scale-105' : 'bg-zinc-800'}`}>
-        {hecho ? '✓' : reto.emoji}
-      </div>
-      <div className="flex-1">
-        <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider">Reto de la semana</p>
-        <p className={`jb-body text-sm ${hecho ? 'text-emerald-300 line-through' : 'text-zinc-200'}`}>{reto.texto}</p>
-      </div>
-    </button>
-  );
 }
 
 /* Tarjeta de racha: cuántos días seguidos registró comidas, la semana
@@ -2134,7 +2073,6 @@ function RetoSemanalCard({ username }) {
    para que el alumno entienda su día en 1 segundo al abrir la app. */
 function ResumenDelDia({ username, totalsHoy, targets }) {
   const [racha, setRacha] = useState(0);
-  const [retoPendiente, setRetoPendiente] = useState(false);
 
   useEffect(() => {
     if (!username) return;
@@ -2152,12 +2090,6 @@ function ResumenDelDia({ username, totalsHoy, targets }) {
         while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
         setRacha(r);
       } catch {}
-      try {
-        const semana = numeroDeSemana();
-        const { data } = await supabase.from('retos_semanales')
-          .select('completado').eq('username', username).eq('semana', semana).maybeSingle();
-        setRetoPendiente(!(data && data.completado));
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
   }, [username]);
 
@@ -2175,11 +2107,6 @@ function ResumenDelDia({ username, totalsHoy, targets }) {
       <div className="flex items-center gap-1.5 shrink-0">
         <span>💪</span>
         <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{racha > 0 ? `Racha ${racha}d` : 'Sin racha aún'}</span>
-      </div>
-      <div className="h-3 w-px bg-zinc-800 shrink-0" />
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span>{retoPendiente ? '🎯' : '✅'}</span>
-        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{retoPendiente ? 'Reto pendiente' : 'Reto completado'}</span>
       </div>
     </div>
   );
@@ -8742,75 +8669,6 @@ function Confetti() {
    azar y el alumno adivina cuántas kcal tiene por 100g antes de
    revelar la respuesta — engancha la curiosidad y educa sin sentirse
    como una tarea más. */
-function AdivinaCaloriasCard() {
-  const [abierto, setAbierto] = useState(false);
-  const [comida, setComida] = useState(null);
-  const [guess, setGuess] = useState('');
-  const [revelado, setRevelado] = useState(false);
-  const [racha, setRacha] = useState(0);
-
-  function nuevaRonda() {
-    const candidatos = FOODS_BUSCADOR.filter(f => f.kcal > 0 && !['Bebidas', 'Grasas'].includes(f.group));
-    const elegido = candidatos[Math.floor(Math.random() * candidatos.length)];
-    setComida(elegido);
-    setGuess('');
-    setRevelado(false);
-  }
-
-  useEffect(() => { if (abierto && !comida) nuevaRonda(); }, [abierto]);
-
-  function revelar() {
-    if (!guess) return;
-    setRevelado(true);
-    const dif = Math.abs(Number(guess) - comida.kcal);
-    const acertado = dif <= comida.kcal * 0.2 + 15;
-    if (acertado) {
-      setRacha(v => v + 1);
-      vibrar(20);
-      reproducirSonido('logro');
-      showToast('🎯 ¡Muy cerca! Buen ojo nutricional');
-    } else {
-      setRacha(0);
-    }
-  }
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-      <button onClick={() => setAbierto(v => !v)} className="w-full flex items-center justify-between text-left">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-sm shrink-0">🎯</div>
-          <div>
-            <p className="jb-display text-sm text-zinc-200">ADIVINA LAS CALORÍAS</p>
-            <p className="jb-body text-[11px] text-zinc-500">{racha > 0 ? `🔥 ${racha} acierto(s) seguidos` : 'Pon a prueba tu ojo nutricional'}</p>
-          </div>
-        </div>
-        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
-      </button>
-
-      {abierto && comida && (
-        <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-center">
-          <p className="jb-body text-xs text-zinc-500 mb-1">¿Cuántas kcal tiene por cada 100g?</p>
-          <p className="jb-display text-lg text-zinc-100 mb-3">{comida.name}{comida.state && comida.state !== '-' ? ` (${comida.state})` : ''}</p>
-
-          {!revelado ? (
-            <div className="flex gap-2 justify-center">
-              <input type="number" inputMode="numeric" value={guess} onChange={e => setGuess(e.target.value)}
-                placeholder="kcal" className={inputCls + ' py-2 w-28 text-center'} />
-              <button onClick={revelar} disabled={!guess} className={btnPrimary + ' py-2 px-4 text-sm'}>Revelar</button>
-            </div>
-          ) : (
-            <div>
-              <p className="jb-display text-2xl text-orange-500 mb-1">{comida.kcal} kcal</p>
-              <p className="jb-body text-xs text-zinc-500 mb-3">Tu respuesta: {guess} kcal</p>
-              <button onClick={nuevaRonda} className={btnGhost + ' py-2 px-4 text-sm mx-auto'}>Otra ronda 🎲</button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function BeastScoreCard({ totalsHoy, targets, username }) {
   const [racha, setRacha] = useState(0);
   const [celebrado, setCelebrado] = useState(false);

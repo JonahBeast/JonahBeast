@@ -8311,15 +8311,15 @@ function ProgressTab({ username, form, nombre }) {
       <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
 
       {stats && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
-          <div className="flex justify-around bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+          <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
             <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
-              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" />
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={72} stroke={7} />
             <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
-              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" />
+              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={72} stroke={7} />
             <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
-              value={stats.diasRegistrados} label="Días registrados" colorHex="#a78bfa" />
+              value={stats.diasRegistrados} label="Días registrados" colorHex="#a78bfa" size={72} stroke={7} />
           </div>
           {stats.adherencia !== null && (
             <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
@@ -9839,7 +9839,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }), [form]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 jb-body"
+    <div className="min-h-screen bg-zinc-950 jb-body overflow-x-hidden"
       onTouchStart={onPullStart} onTouchMove={onPullMove} onTouchEnd={onPullEnd}>
       <style>{`
         @keyframes jb-tab-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

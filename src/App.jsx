@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Dumbbell, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart } from 'lucide-react';
+import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -1858,6 +1858,19 @@ const FONT_STYLE = (
     @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
     .jb-display { font-family: 'Anton', sans-serif; letter-spacing: 0.02em; }
     .jb-body { font-family: 'Inter', sans-serif; }
+
+    /* Llama viva: parpadeo orgánico de escala/rotación/brillo para el
+       ícono de marca, en vez de un fuego estático. */
+    @keyframes jb-flame-flicker {
+      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.55)); }
+      12% { transform: scale(1.06) rotate(3deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.75)); }
+      27% { transform: scale(0.95) rotate(-4deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.45)); }
+      41% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 7px rgba(253,224,71,0.8)); }
+      58% { transform: scale(0.97) rotate(-2deg); filter: drop-shadow(0 0 3px rgba(249,115,22,0.5)); }
+      74% { transform: scale(1.04) rotate(4deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.7)); }
+      88% { transform: scale(0.98) rotate(-1deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.5)); }
+    }
+    .jb-flame-live { animation: jb-flame-flicker 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
   `}</style>
 );
 
@@ -2851,7 +2864,7 @@ function Logo({ size = 'md' }) {
   return (
     <div className="flex items-center gap-2">
       <div className="bg-orange-500 rounded-md p-1.5">
-        <Dumbbell className="text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} />
+        <Flame className="jb-flame-live text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} fill="currentColor" />
       </div>
       <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-lg'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
@@ -2906,7 +2919,7 @@ function Landing({ onChoose }) {
       <div className="relative z-10 max-w-xl w-full text-center">
         <div className="flex justify-center mb-6" style={step(0)}>
           <div className="bg-orange-500 rounded-2xl p-4">
-            <Dumbbell className="text-zinc-950" size={40} strokeWidth={2.5} />
+            <Flame className="jb-flame-live text-zinc-950" size={40} strokeWidth={2.5} fill="currentColor" />
           </div>
         </div>
         <div style={step(120)}>
@@ -2917,7 +2930,7 @@ function Landing({ onChoose }) {
         <div className="relative mb-5" style={step(220)}>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
-            <Flame className="text-orange-500 shrink-0" size={20} />
+            <Flame className="jb-flame-live text-orange-500 shrink-0" size={20} fill="currentColor" />
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
           <h2 className="jb-display text-2xl sm:text-3xl text-zinc-50 leading-tight my-3 px-2">
@@ -2925,7 +2938,7 @@ function Landing({ onChoose }) {
           </h2>
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
-            <Dumbbell className="text-orange-500 shrink-0" size={20} />
+            <Flame className="jb-flame-live text-orange-500 shrink-0" size={20} fill="currentColor" />
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
         </div>
@@ -9829,7 +9842,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           </button>
           <button onClick={() => setTab('calc')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'calc' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-            <Dumbbell size={16} /> COMPOSICIÓN CORPORAL
+            <Flame size={16} /> COMPOSICIÓN CORPORAL
           </button>
           <button onClick={() => setTab('goal')}
             className={`jb-display text-sm px-4 py-2.5 rounded-lg flex items-center gap-2 ${tab === 'goal' ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>

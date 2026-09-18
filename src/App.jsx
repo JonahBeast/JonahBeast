@@ -9420,6 +9420,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
+  const [objetivoAbierto, setObjetivoAbierto] = useState(false);
 
   useEffect(() => { if (username) cargarPersonales(); }, [username]);
 
@@ -9526,72 +9527,6 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           La receta de cada casa o restaurante puede variar. Úsalos como referencia, no como medida exacta.
         </p>
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <h2 className="jb-display text-base text-zinc-200 mb-1">OBJETIVO DIARIO</h2>
-        {targets ? (
-          <p className="jb-body text-xs text-zinc-500 mb-4">
-            Tu objetivo es <span className="text-orange-500 font-semibold">{targets.goal}</span> · {Math.round(targets.kcal)} kcal · P {Math.round(targets.protein)}g · C {Math.round(targets.carbs)}g · G {Math.round(targets.fat)}g
-          </p>
-        ) : (
-          <p className="jb-body text-xs text-zinc-500 mb-4">Elige tu objetivo en la pestaña "Mi objetivo" para calcular estos valores automáticamente.</p>
-        )}
-        {goalMismatch && (
-          <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
-            <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-            <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
-          </div>
-        )}
-        <div className="grid sm:grid-cols-5 gap-3 items-end">
-          <Field label="Calorías objetivo (kcal)">
-            <input type="number" className={inputCls} value={mealPlan.targetKcal}
-              onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0 }))} />
-          </Field>
-          <Field label="% Proteína">
-            <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
-              onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 } }))} />
-          </Field>
-          <Field label="% Carbohidratos">
-            <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
-              onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 } }))} />
-          </Field>
-          <Field label="% Grasas">
-            <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
-              onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
-          </Field>
-          {targets ? (
-            <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
-              <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
-            </button>
-          ) : tdee ? (
-            <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
-              <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
-            </button>
-          ) : null}
-        </div>
-        {Math.abs(macroSum - 1) > 0.001 && (
-          <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
-        )}
-      </div>
-
-      <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
-
-      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
-        kcal: mealPlan.targetKcal - totals.kcal,
-        protein: objP - totals.protein,
-        carbs: objC - totals.carbs,
-        fat: objF - totals.fat,
-      }} />
-
-      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-        restricciones={mealPlan.restricciones || []}
-        remaining={{
-          kcal: mealPlan.targetKcal - totals.kcal,
-          protein: objP - totals.protein,
-          carbs: objC - totals.carbs,
-          fat: objF - totals.fat,
-        }} />
-
-      <RestaurantesAliadosCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
 
       {MEAL_NAMES.map(meal => {
         const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';
@@ -9751,6 +9686,85 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username }) {
           ))}
         </div>
       </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <button onClick={() => setObjetivoAbierto(v => !v)} className="w-full flex items-center justify-between gap-3 text-left">
+          <div className="min-w-0">
+            <h2 className="jb-display text-base text-zinc-200 mb-1 flex items-center gap-1.5">
+              OBJETIVO DIARIO
+              {goalMismatch && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="No coincide con tu objetivo" />}
+            </h2>
+            {targets ? (
+              <p className="jb-body text-xs text-zinc-500 truncate">
+                <span className="text-orange-500 font-semibold">{targets.goal}</span> · {Math.round(targets.kcal)} kcal · P {Math.round(targets.protein)}g · C {Math.round(targets.carbs)}g · G {Math.round(targets.fat)}g
+              </p>
+            ) : (
+              <p className="jb-body text-xs text-zinc-500">Elige tu objetivo en "Mi cuerpo" para calcular estos valores automáticamente.</p>
+            )}
+          </div>
+          <ChevronRight className={`text-zinc-500 shrink-0 transition-transform ${objetivoAbierto ? 'rotate-90' : ''}`} size={18} />
+        </button>
+        {objetivoAbierto && (
+          <div className="mt-4">
+            {goalMismatch && (
+              <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
+                <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+                <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
+              </div>
+            )}
+            <div className="grid sm:grid-cols-5 gap-3 items-end">
+              <Field label="Calorías objetivo (kcal)">
+                <input type="number" className={inputCls} value={mealPlan.targetKcal}
+                  onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0 }))} />
+              </Field>
+              <Field label="% Proteína">
+                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
+                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 } }))} />
+              </Field>
+              <Field label="% Carbohidratos">
+                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
+                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 } }))} />
+              </Field>
+              <Field label="% Grasas">
+                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
+                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
+              </Field>
+              {targets ? (
+                <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
+                  <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
+                </button>
+              ) : tdee ? (
+                <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
+                  <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
+                </button>
+              ) : null}
+            </div>
+            {Math.abs(macroSum - 1) > 0.001 && (
+              <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
+
+      <WhatCanIEat mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} remaining={{
+        kcal: mealPlan.targetKcal - totals.kcal,
+        protein: objP - totals.protein,
+        carbs: objC - totals.carbs,
+        fat: objF - totals.fat,
+      }} />
+
+      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
+        restricciones={mealPlan.restricciones || []}
+        remaining={{
+          kcal: mealPlan.targetKcal - totals.kcal,
+          protein: objP - totals.protein,
+          carbs: objC - totals.carbs,
+          fat: objF - totals.fat,
+        }} />
+
+      <RestaurantesAliadosCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
     </div>
   );
 }

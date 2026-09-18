@@ -7747,7 +7747,21 @@ function promedioSemana(rows, desde, hasta) {
 
 function analizarProgreso(rows, form) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  const conPeso = rows.filter(r => Number(r.peso) > 0);
+  // Descarta pesos atípicos aislados (ej. un registro viejo con el peso
+  // de fábrica 70 kg sin medir todavía) para que no distorsionen la
+  // tendencia real. Se compara contra la mediana, que no se deja
+  // arrastrar por uno o dos valores raros como sí le pasa al promedio.
+  const pesosCrudos = rows.filter(r => Number(r.peso) > 0).map(r => Number(r.peso)).sort((a, b) => a - b);
+  const pesoMediana = pesosCrudos.length
+    ? (pesosCrudos.length % 2 ? pesosCrudos[(pesosCrudos.length - 1) / 2]
+      : (pesosCrudos[pesosCrudos.length / 2 - 1] + pesosCrudos[pesosCrudos.length / 2]) / 2)
+    : 0;
+  const conPeso = rows.filter(r => {
+    const p = Number(r.peso);
+    if (!(p > 0)) return false;
+    if (pesosCrudos.length >= 3 && pesoMediana > 0 && Math.abs(p - pesoMediana) / pesoMediana > 0.15) return false;
+    return true;
+  });
   const conComida = rows.filter(r => Number(r.kcal_consumidas) > 0);
 
   // Días transcurridos desde el primer registro
@@ -8353,11 +8367,11 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
           <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
             <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
-              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={72} stroke={7} />
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={60} stroke={6} />
             <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
-              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={72} stroke={7} />
+              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={60} stroke={6} />
             <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
-              value={stats.diasRegistrados} label="Registros" colorHex="#a78bfa" size={72} stroke={7} />
+              value={stats.diasRegistrados} label="Registros" colorHex="#a78bfa" size={60} stroke={6} />
           </div>
           {stats.adherencia !== null && (
             <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
@@ -11338,9 +11352,13 @@ export default function App() {
             t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
           });
         });
+        // Si todavía no se midió de verdad (sigue con los valores de
+        // fábrica 70/170/85), no guardamos ese peso como si fuera real —
+        // contaminaría la tendencia de peso más adelante.
+        const esPlaceholder = Number(form.peso) === 70 && Number(form.estatura) === 170 && Number(form.cintura) === 85;
         await supabase.from('historial').upsert({
           username: currentUser, fecha: todayISO(),
-          peso: Number(form.peso) || null,
+          peso: esPlaceholder ? null : (Number(form.peso) || null),
           grasa_pct: Number(r.bf.toFixed(1)),
           masa_muscular: Number(r.muscleKg.toFixed(1)),
           masa_magra: Number(r.leanKg.toFixed(1)),

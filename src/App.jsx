@@ -9490,7 +9490,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         {estado === 'vacio' && (
           <div className="text-center py-2">
             {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
-            <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo.</p>
+            <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo. <span className="text-zinc-500">Tip: si es un líquido (leche, yogurt, jugo) que se parece a otros, funciona mejor fotografiar el envase con la marca que el vaso servido.</span></p>
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
           </div>
         )}

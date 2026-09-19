@@ -1598,7 +1598,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
             <Mic size={17} className="text-white" strokeWidth={2.3} />
           </div>
           <div>
-            <p className="jb-display text-sm text-zinc-200">REGISTRO RÁPIDO</p>
+            <p className="jb-display text-sm text-zinc-200">SIN ESCRIBIR</p>
             <p className="jb-body text-[11px] text-zinc-500">Favoritos, por voz, o deslizando — sin escribir nada</p>
           </div>
         </div>
@@ -9343,6 +9343,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [tipoMP, setTipoMP] = useState('unico'); // 'unico' | 'recurrente'
   const [pagandoMP, setPagandoMP] = useState(false);
   const [errMP, setErrMP] = useState('');
+  const addOnActivo = !!(reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0);
 
   async function pagarAddOnMP() {
     setErrMP('');
@@ -9431,7 +9432,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
         </div>
-        {reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0 && (
+        {addOnActivo && (
           <p className="jb-body text-xs text-emerald-500 -mt-2 mb-4">
             ✓ Reconocimiento Inteligente activo — hasta el {reconocimientoFotoHasta.slice(8, 10)}/{reconocimientoFotoHasta.slice(5, 7)}/{reconocimientoFotoHasta.slice(0, 4)}
           </p>
@@ -9441,6 +9442,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <div className="text-center">
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Toma o sube una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
+              {!addOnActivo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
             </p>
             <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
               <Camera size={16} /> Tomar o elegir foto

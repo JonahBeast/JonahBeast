@@ -9715,7 +9715,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
             <h3 className="jb-display text-sm text-orange-500 tracking-wide flex-1">{meal.toUpperCase()}</h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} /> Reconocer por foto</button>
+            <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} className="text-orange-500" /> ✨ Reconocer por foto</button>
             <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
           {username && (

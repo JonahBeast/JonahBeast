@@ -198,6 +198,7 @@ const RAW_FOODS = [
   ["Platos preparados","Hamburguesa clásica (McDonald's)","-",257,12.5,20.0,14.5,1.3],
   ["Platos preparados","McNuggets","-",296,15.0,17.0,19.0,1.0],
   ["Platos preparados","Milanesa de pollo","-",250,19.0,16.0,12.5,1.0],
+  ["Platos preparados","Filete de pollo frito","Estimado - varía según receta",230,21.0,12.0,11.0,0.8],
   ["Platos preparados","Pescado frito","-",200,22.0,7.0,9.5,0.4],
   ["Platos preparados","Sudado de pescado","-",95,15.0,4.5,1.8,0.9],
   ["Platos preparados","Escabeche de pollo","-",130,13.0,7.0,5.5,1.4],

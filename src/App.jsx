@@ -9426,8 +9426,9 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
 function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHasta, onCerrar, onAgregar }) {
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos)
+  const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
   const [seleccionados, setSeleccionados] = useState({});
+  const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [infoLimite, setInfoLimite] = useState(null);
   const [correoMP, setCorreoMP] = useState('');
   const [mesesMP, setMesesMP] = useState('1');
@@ -9489,6 +9490,13 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
 
       const encontrados = (data?.items || [])
         .map(it => {
+          if (Array.isArray(it.opciones)) {
+            // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
+            // sola clave, mostramos las alternativas para que el alumno
+            // toque la correcta.
+            const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1 } : null;
+          }
           const food = buscarFood(it.key);
           return food ? { ...food, _cantidadIA: it.cantidad || 1, _confianzaIA: it.confianza || null } : null;
         })
@@ -9499,8 +9507,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       // Solo se pre-marca lo que la IA identificó con confianza alta.
       // Lo de confianza media/baja aparece igual como sugerencia, pero
       // sin marcar — así un acierto dudoso nunca se siente como "me
-      // agregó algo mal", sino como "me sugirió y yo decidí".
-      setSeleccionados(Object.fromEntries(encontrados.map(f => [f.key, f._confianzaIA === 'alta'])));
+      // agregó algo mal", sino como "me sugirió y yo decidí". Los grupos
+      // de opciones ambiguas nunca vienen con nada pre-elegido.
+      setSeleccionados(Object.fromEntries(encontrados.filter(f => !f.esOpciones).map(f => [f.key, f._confianzaIA === 'alta'])));
+      setElecciones({});
       setEstado('resultados');
     } catch (e) {
       setEstado('error');
@@ -9508,7 +9518,18 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   }
 
   function confirmar() {
-    items.filter(f => seleccionados[f.key]).forEach(f => {
+    items.forEach(f => {
+      if (f.esOpciones) {
+        const key = elecciones[f.id];
+        const food = key && f.alternativas.find(a => a.key === key);
+        if (!food) return;
+        const d = unidadPorDefecto(food);
+        const cantidad = f._cantidadIA || 1;
+        const qty = UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty;
+        onAgregar({ id: uid(), foodKey: food.key, unit: d.unit, qty });
+        return;
+      }
+      if (!seleccionados[f.key]) return;
       const d = unidadPorDefecto(f);
       // Solo confiamos en el conteo de la IA para piezas enteras y
       // contables (huevo, pan...) — nunca para ajustar peso o volumen,
@@ -9524,10 +9545,24 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   function registrarFeedbackReconocimiento() {
     // Guarda, sin bloquear la UI, qué sugirió la IA vs. qué terminó
     // desmarcando el alumno — para ir detectando patrones de error
-    // reales con datos, en vez de solo capturas sueltas.
+    // reales con datos, en vez de solo capturas sueltas. Los grupos de
+    // opciones ambiguas cuentan como sugeridas todas sus alternativas,
+    // y descartadas las que no se eligieron.
     try {
-      const sugeridos = items.map(f => ({ key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 }));
-      const descartados = items.filter(f => !seleccionados[f.key]).map(f => f.key);
+      const sugeridos = [];
+      const descartados = [];
+      items.forEach(f => {
+        if (f.esOpciones) {
+          const elegido = elecciones[f.id];
+          f.alternativas.forEach(alt => {
+            sugeridos.push({ key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 });
+            if (alt.key !== elegido) descartados.push(alt.key);
+          });
+        } else {
+          sugeridos.push({ key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 });
+          if (!seleccionados[f.key]) descartados.push(f.key);
+        }
+      });
       supabase.from('reconocimiento_foto_feedback').insert({ username, sugeridos, descartados }).then(() => {});
     } catch (e) { /* no crítico */ }
   }
@@ -9572,6 +9607,23 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
             <p className="jb-body text-xs text-zinc-500 mb-3">Encontramos esto — desmarca lo que no corresponda:</p>
             <div className="flex flex-col gap-2 mb-4">
               {items.map(f => {
+                if (f.esOpciones) {
+                  const elegido = elecciones[f.id];
+                  return (
+                    <div key={f.id} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5">
+                      <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {f.alternativas.map(alt => (
+                          <button key={alt.key} type="button"
+                            onClick={() => setElecciones(v => ({ ...v, [f.id]: v[f.id] === alt.key ? undefined : alt.key }))}
+                            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elegido === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
+                            {alt.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
                 const d = unidadPorDefecto(f);
                 const cantidad = f._cantidadIA || 1;
                 const mostrarConteo = UNIDADES_DISCRETAS.includes(d.unit) && cantidad > 1;
@@ -9586,9 +9638,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 );
               })}
             </div>
-            <button onClick={confirmar} disabled={!Object.values(seleccionados).some(Boolean)}
+            <button onClick={confirmar} disabled={!Object.values(seleccionados).some(Boolean) && !Object.values(elecciones).some(Boolean)}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {Object.values(seleccionados).filter(Boolean).length || ''} a esta comida
+              Agregar {(Object.values(seleccionados).filter(Boolean).length + Object.values(elecciones).filter(Boolean).length) || ''} a esta comida
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después podrás ajustar la cantidad de cada uno con medidas de casa.

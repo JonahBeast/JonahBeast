@@ -9692,14 +9692,14 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 <p className="jb-body text-[11px] text-zinc-500 text-center mb-2">
                   {tipoMP === 'unico'
                     ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a activar cuando quieras.'
-                    : 'Se te cobrará S/9.90 automáticamente cada mes hasta que canceles desde tu cuenta de Mercado Pago.'}
+                    : 'Se te cobrará S/11.90 automáticamente cada mes hasta que canceles desde tu cuenta de Mercado Pago.'}
                 </p>
                 {tipoMP === 'unico' && (
                   <select value={mesesMP} onChange={e => setMesesMP(e.target.value)}
                     className={inputCls + ' w-full mb-2'}>
-                    <option value="1">1 mes — S/9.90</option>
-                    <option value="3">3 meses — S/29.70</option>
-                    <option value="6">6 meses — S/59.40</option>
+                    <option value="1">1 mes — S/11.90</option>
+                    <option value="3">3 meses — S/35.70</option>
+                    <option value="6">6 meses — S/71.40</option>
                   </select>
                 )}
                 <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
@@ -9709,7 +9709,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                   {pagandoMP ? <Loader2 className="animate-spin" size={16} /> : 'Pagar con Mercado Pago'}
                 </button>
                 <p className="jb-body text-[11px] text-zinc-600 text-center mb-2">— o si prefieres Yape/Plin —</p>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/9.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/11.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
                   target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-2.5 mb-2'}>
                   Escribir por WhatsApp
                 </a>

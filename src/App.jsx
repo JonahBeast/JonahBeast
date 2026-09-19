@@ -5313,6 +5313,93 @@ function AdminNotifButton() {
   );
 }
 
+function ReconocimientoFotoPanel() {
+  const [filas, setFilas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('reconocimiento_foto_feedback')
+        .select('sugeridos, descartados, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      setFilas(data || []);
+    } catch { setFilas([]); }
+    setLoading(false);
+  }
+
+  // Agrupa por alimento: cuántas veces lo sugirió la IA vs. cuántas
+  // veces el alumno lo desmarcó (la IA se equivocó, según el alumno).
+  const conteo = {};
+  filas.forEach(f => {
+    const descartadosSet = new Set(f.descartados || []);
+    (f.sugeridos || []).forEach(it => {
+      if (!it?.key) return;
+      if (!conteo[it.key]) conteo[it.key] = { sugerido: 0, descartado: 0 };
+      conteo[it.key].sugerido++;
+      if (descartadosSet.has(it.key)) conteo[it.key].descartado++;
+    });
+  });
+  const filasOrdenadas = Object.entries(conteo)
+    .map(([key, c]) => ({ key, ...c, tasa: c.descartado / c.sugerido }))
+    .sort((a, b) => b.descartado - a.descartado || b.tasa - a.tasa);
+
+  const totalSugerencias = filasOrdenadas.reduce((s, f) => s + f.sugerido, 0);
+  const totalDescartes = filasOrdenadas.reduce((s, f) => s + f.descartado, 0);
+  const tasaGeneral = totalSugerencias ? Math.round((totalDescartes / totalSugerencias) * 100) : 0;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">📸 RECONOCER POR FOTO · {filas.length} confirmaciones registradas</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 flex flex-col gap-4 border-t border-zinc-800 pt-4">
+          <div className="flex items-center justify-between">
+            <p className="jb-body text-xs text-zinc-500">
+              Qué sugirió la IA vs. qué terminaron desmarcando los alumnos. Útil para detectar qué confunde seguido, no fotos sueltas.
+            </p>
+            <button onClick={load} className={btnGhost + ' py-1 px-3 text-xs shrink-0 ml-2'}>Actualizar</button>
+          </div>
+
+          {loading ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : filas.length === 0 ? (
+            <p className="text-zinc-500 text-sm">Aún no hay confirmaciones registradas.</p>
+          ) : (
+            <>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300">
+                {totalSugerencias} sugerencias en total · {totalDescartes} desmarcadas · tasa general de descarte: <span className={tasaGeneral > 20 ? 'text-red-400' : 'text-emerald-400'}>{tasaGeneral}%</span>
+              </div>
+              <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto">
+                {filasOrdenadas.map(f => {
+                  const food = buscarFood(f.key);
+                  const pct = Math.round(f.tasa * 100);
+                  return (
+                    <div key={f.key} className="flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                      <span className="text-zinc-200 text-sm flex-1 truncate">{food?.name || f.key}</span>
+                      <span className="text-zinc-500 text-xs shrink-0">{f.sugerido} sugerido{f.sugerido !== 1 ? 's' : ''}</span>
+                      <span className={`text-xs shrink-0 font-medium ${pct > 30 ? 'text-red-400' : pct > 0 ? 'text-amber-400' : 'text-emerald-500'}`}>
+                        {f.descartado} descartado{f.descartado !== 1 ? 's' : ''} ({pct}%)
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -5394,6 +5481,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <PagosPanel />
 
         <LeadsPanel />
+
+        <ReconocimientoFotoPanel />
 
         <MetricasPanel />
 

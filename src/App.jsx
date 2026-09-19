@@ -10251,6 +10251,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }
 
   useEffect(() => {
+    // Espera a que el registro real del alumno haya cargado antes de
+    // decidir si falta el nombre — si se evalúa antes, userRecord aún
+    // está vacío por la carga en curso y parece que no hay nombre
+    // guardado, aunque sí lo haya, y la guía lo vuelve a pedir de más.
+    if (!userRecord) return;
     (async () => {
       try {
         const { count } = await supabase.from('fotos_progreso')
@@ -10262,7 +10267,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         if (!vista) { setVerGuia(true); setGuiaVista(false); }
       } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     })();
-  }, [username]);
+  }, [username, userRecord]);
 
   function cerrarGuia() {
     setVerGuia(false);

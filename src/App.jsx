@@ -9401,13 +9401,17 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       const encontrados = (data?.items || [])
         .map(it => {
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1 } : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       if (!encontrados.length) { setEstado('vacio'); return; }
 
       setItems(encontrados);
-      setSeleccionados(Object.fromEntries(encontrados.map(f => [f.key, true])));
+      // Solo se pre-marca lo que la IA identificó con confianza alta.
+      // Lo de confianza media/baja aparece igual como sugerencia, pero
+      // sin marcar — así un acierto dudoso nunca se siente como "me
+      // agregó algo mal", sino como "me sugirió y yo decidí".
+      setSeleccionados(Object.fromEntries(encontrados.map(f => [f.key, f._confianzaIA === 'alta'])));
       setEstado('resultados');
     } catch (e) {
       setEstado('error');
@@ -9424,7 +9428,19 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       const qty = UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty;
       onAgregar({ id: uid(), foodKey: f.key, unit: d.unit, qty });
     });
+    registrarFeedbackReconocimiento();
     onCerrar();
+  }
+
+  function registrarFeedbackReconocimiento() {
+    // Guarda, sin bloquear la UI, qué sugirió la IA vs. qué terminó
+    // desmarcando el alumno — para ir detectando patrones de error
+    // reales con datos, en vez de solo capturas sueltas.
+    try {
+      const sugeridos = items.map(f => ({ key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 }));
+      const descartados = items.filter(f => !seleccionados[f.key]).map(f => f.key);
+      supabase.from('reconocimiento_foto_feedback').insert({ username, sugeridos, descartados }).then(() => {});
+    } catch (e) { /* no crítico */ }
   }
 
   return (

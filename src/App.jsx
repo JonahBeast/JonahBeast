@@ -10321,7 +10321,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
       <WhatsAppButton />
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800 flex"
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[
           { id: 'dash', icon: LayoutDashboard, label: 'Inicio', activo: tab === 'dash', aviso: avisoInicio },

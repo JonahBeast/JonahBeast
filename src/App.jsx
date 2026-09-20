@@ -10604,6 +10604,104 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
   );
 }
 
+function NotificacionesModal({ username, onClose }) {
+  const [estado, setEstado] = useState('cargando'); // cargando | yaActivo | disponible | bloqueado | nosoportado | iosNoInstalado
+  const [activando, setActivando] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const ua = window.navigator.userAgent || '';
+      const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      const instalada = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        return;
+      }
+      if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
+      if (Notification.permission === 'granted') {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = await reg.pushManager.getSubscription();
+          setEstado(sub ? 'yaActivo' : 'disponible');
+        } catch { setEstado('disponible'); }
+        return;
+      }
+      setEstado('disponible');
+    })();
+  }, []);
+
+  async function activar() {
+    setActivando(true);
+    try {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== 'granted') {
+        setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
+        setActivando(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
+        });
+      }
+      const j = sub.toJSON();
+      await supabase.from('push_subs').upsert({
+        username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
+      }, { onConflict: 'endpoint' });
+      setEstado('yaActivo');
+    } catch (e) { /* si falla, se queda en el estado que corresponda */ }
+    setActivando(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full">
+        {estado === 'yaActivo' ? (
+          <>
+            <h3 className="jb-display text-lg text-emerald-400 mb-3">¡Ya están activas!</h3>
+            <p className="jb-body text-sm text-zinc-300 mb-5">Jonah ya puede acompañarte con avisos.</p>
+            <button onClick={onClose} className={btnPrimary + ' w-full'}>Cerrar</button>
+          </>
+        ) : (
+          <>
+            <h3 className="jb-display text-lg text-orange-500 mb-3">Activar notificaciones</h3>
+            <p className="jb-body text-sm text-zinc-300 mb-4">
+              Así Jonah te avisa si se te pasa una comida, te acompaña cuando lo necesites, y te avisa a tiempo antes de que venza tu plan.
+            </p>
+            {estado === 'bloqueado' && (
+              <p className="jb-body text-xs text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg p-2.5 mb-4">
+                Parece que ya las bloqueaste antes. Actívalas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y vuelve a intentar.
+              </p>
+            )}
+            {estado === 'nosoportado' && (
+              <p className="jb-body text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 mb-4">
+                Tu navegador actual no soporta notificaciones.
+              </p>
+            )}
+            {estado === 'iosNoInstalado' && (
+              <p className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5 mb-4">
+                En iPhone, primero instala la app en tu pantalla de inicio para poder recibir notificaciones.
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={onClose} className={btnGhost + ' flex-1'} disabled={activando}>Cerrar</button>
+              {estado === 'disponible' && (
+                <button onClick={activar} disabled={activando} className={btnPrimary + ' flex-1'}>
+                  {activando ? <Loader2 className="animate-spin" size={16} /> : 'Activar'}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MiCelularModal({ username, telefonoActual, onClose }) {
   const [telefono, setTelefono] = useState(telefonoActual || '');
   const [guardando, setGuardando] = useState(false);
@@ -10680,6 +10778,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const pullStartY = useRef(null);
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
   const [mostrarCelular, setMostrarCelular] = useState(false);
+  const [mostrarNotif, setMostrarNotif] = useState(false);
 
   const PULL_UMBRAL = 70;
   function onPullStart(e) {
@@ -10821,6 +10920,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           Política de Privacidad
         </a>
         <span className="text-zinc-800 text-[11px]">·</span>
+        <button onClick={() => setMostrarNotif(true)}
+          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
+          Activar notificaciones
+        </button>
+        <span className="text-zinc-800 text-[11px]">·</span>
         <button onClick={() => setMostrarCelular(true)}
           className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
           {userRecord?.telefono ? 'Actualizar mi celular' : 'Agregar mi celular'}
@@ -10831,6 +10935,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           Eliminar mi cuenta
         </button>
       </footer>
+      {mostrarNotif && (
+        <NotificacionesModal username={username} onClose={() => setMostrarNotif(false)} />
+      )}
       {mostrarCelular && (
         <MiCelularModal username={username} telefonoActual={userRecord?.telefono} onClose={() => setMostrarCelular(false)} />
       )}

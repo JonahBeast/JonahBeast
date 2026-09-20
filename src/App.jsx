@@ -42,6 +42,8 @@ const RAW_FOODS = [
   ["Carnes y aves","Pollo pechuga","Cocida",165,31.0,0.0,3.6,0.0],
   ["Carnes y aves","Carne de res (bistec)","Cruda",143,21.4,0.0,6.0,0.0],
   ["Carnes y aves","Carne de res (bistec)","Cocida",217,26.7,0.0,11.8,0.0],
+  ["Carnes y aves","Churrasco","Cruda",155,21.0,0.0,8.0,0.0],
+  ["Carnes y aves","Churrasco","Cocida",235,26.5,0.0,14.0,0.0],
   ["Carnes y aves","Cerdo (lomo)","Crudo",143,21.0,0.0,6.0,0.0],
   ["Carnes y aves","Cerdo (lomo)","Cocido",212,27.8,0.0,10.7,0.0],
   ["Carnes y aves","Chuleta de cerdo","Cocida",231,25.7,0.0,13.9,0.0],
@@ -5411,6 +5413,166 @@ function ReconocimientoFotoPanel() {
   );
 }
 
+function EmbudoPanel() {
+  const [leads, setLeads] = useState([]);
+  const [alumnos, setAlumnos] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [notaAbierta, setNotaAbierta] = useState(null);
+  const [textoNota, setTextoNota] = useState('');
+  const [fechaAccion, setFechaAccion] = useState('');
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [{ data: l }, { data: a }, { data: n }] = await Promise.all([
+        supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento').order('created_at', { ascending: false }),
+        supabase.from('seguimiento_crm').select('*').order('created_at', { ascending: false }),
+      ]);
+      setLeads(l || []);
+      setAlumnos(a || []);
+      setNotas(n || []);
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    setLoading(false);
+  }
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  // Prueba gratis / pagando / vencido, a partir de los mismos campos que
+  // ya usa el resto del panel de admin — ningún dato nuevo, solo
+  // agrupado distinto.
+  const enPrueba = alumnos.filter(a => (a.plan === 'trial' || a.plan === 'prueba') && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
+  const pagando = alumnos.filter(a => a.plan === 'pago' && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
+  const vencidos = alumnos.filter(a => (a.fecha_vencimiento && a.fecha_vencimiento < hoy) || !a.enabled);
+
+  function notasDe(tipo, referencia) {
+    return notas.filter(n => n.tipo === tipo && n.referencia === String(referencia));
+  }
+
+  async function guardarNota(tipo, referencia) {
+    if (!textoNota.trim()) return;
+    try {
+      await supabase.from('seguimiento_crm').insert({ tipo, referencia: String(referencia), nota: textoNota.trim(), proxima_accion: fechaAccion || null });
+      setTextoNota(''); setFechaAccion(''); setNotaAbierta(null);
+      load();
+    } catch (e) { alert('No se pudo guardar la nota: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  function waLink(telefono, nombre) {
+    const num = telefono ? telefono.replace(/\D/g, '') : '';
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    return full
+      ? `https://wa.me/${full}?text=${encodeURIComponent(`Hola ${nombre || ''}, `)}`
+      : `https://wa.me/?text=${encodeURIComponent('Hola, ')}`;
+  }
+
+  function fmt(fecha) {
+    return fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '—';
+  }
+
+  function Persona({ tipo, referencia, nombre, telefono, sub }) {
+    const misNotas = notasDe(tipo, referencia);
+    const clave = `${tipo}:${referencia}`;
+    const abierta = notaAbierta === clave;
+    return (
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-zinc-100 text-sm font-medium">{nombre || 'Sin nombre'}</div>
+            <div className="text-zinc-500 text-xs">{sub}</div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <a href={waLink(telefono, nombre)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
+              <MessageCircle size={13} />
+            </a>
+            <button onClick={() => { setNotaAbierta(abierta ? null : clave); setTextoNota(''); setFechaAccion(''); }}
+              className={btnGhost + ' py-1 px-2 text-xs'}>
+              {abierta ? 'Cerrar' : `+ Nota${misNotas.length ? ` (${misNotas.length})` : ''}`}
+            </button>
+          </div>
+        </div>
+        {misNotas.length > 0 && !abierta && (
+          <p className="jb-body text-xs text-zinc-500 truncate">
+            Última: {misNotas[0].nota}{misNotas[0].proxima_accion ? ` · próxima acción ${fmt(misNotas[0].proxima_accion)}` : ''}
+          </p>
+        )}
+        {abierta && (
+          <div className="flex flex-col gap-2 pt-1 border-t border-zinc-800">
+            {misNotas.map(n => (
+              <p key={n.id} className="jb-body text-xs text-zinc-400">
+                <span className="text-zinc-600">{fmt(n.created_at.slice(0, 10))}:</span> {n.nota}
+                {n.proxima_accion ? <span className="text-orange-500"> · próxima: {fmt(n.proxima_accion)}</span> : ''}
+              </p>
+            ))}
+            <textarea value={textoNota} onChange={e => setTextoNota(e.target.value)}
+              placeholder="Ej: le escribí, dijo que lo piensa hasta el viernes"
+              className={inputCls + ' text-xs'} rows={2} />
+            <div className="flex gap-2 items-center flex-wrap">
+              <input type="date" value={fechaAccion} onChange={e => setFechaAccion(e.target.value)} className={inputCls + ' text-xs w-40'} />
+              <button onClick={() => guardarNota(tipo, referencia)} disabled={!textoNota.trim()} className={btnPrimary + ' py-1 px-3 text-xs'}>Guardar nota</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function Etapa({ titulo, emoji, items, render }) {
+    return (
+      <div>
+        <h3 className="jb-display text-sm text-zinc-300 mb-2">{emoji} {titulo} · {items.length}</h3>
+        {items.length === 0 ? (
+          <p className="text-zinc-600 text-xs">Nadie en esta etapa todavía.</p>
+        ) : (
+          <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">{items.map(render)}</div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">🎯 EMBUDO DE VENTAS</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
+          <div className="flex justify-end">
+            <button onClick={load} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
+          </div>
+          {loading ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : (
+            <>
+              <Etapa titulo="LEADS (calculadora gratis)" emoji="📏" items={leads} render={l => (
+                <Persona key={l.id} tipo="lead" referencia={l.id} nombre={l.nombre} telefono={l.telefono}
+                  sub={`${l.telefono || 'sin celular'} · ${fmt(l.created_at.slice(0, 10))}`} />
+              )} />
+              <Etapa titulo="PRUEBA GRATIS" emoji="🆓" items={enPrueba} render={a => (
+                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                  sub={`vence ${fmt(a.fecha_vencimiento)}`} />
+              )} />
+              <Etapa titulo="PAGANDO" emoji="💰" items={pagando} render={a => (
+                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                  sub={`vence ${fmt(a.fecha_vencimiento)}`} />
+              )} />
+              <Etapa titulo="VENCIDO" emoji="⏳" items={vencidos} render={a => (
+                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                  sub={`venció ${fmt(a.fecha_vencimiento)}`} />
+              )} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -5492,6 +5654,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         <PagosPanel />
 
         <LeadsPanel />
+
+        <EmbudoPanel />
 
         <ReconocimientoFotoPanel />
 

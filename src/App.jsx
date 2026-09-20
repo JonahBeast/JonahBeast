@@ -5429,6 +5429,7 @@ function EmbudoPanel() {
   const [notaAbierta, setNotaAbierta] = useState(null);
   const [textoNota, setTextoNota] = useState('');
   const [fechaAccion, setFechaAccion] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -5451,9 +5452,49 @@ function EmbudoPanel() {
   // Prueba gratis / pagando / vencido, a partir de los mismos campos que
   // ya usa el resto del panel de admin — ningún dato nuevo, solo
   // agrupado distinto.
-  const enPrueba = alumnos.filter(a => (a.plan === 'trial' || a.plan === 'prueba') && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
-  const pagando = alumnos.filter(a => a.plan === 'pago' && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
-  const vencidos = alumnos.filter(a => (a.fecha_vencimiento && a.fecha_vencimiento < hoy) || !a.enabled);
+  let enPrueba = alumnos.filter(a => (a.plan === 'trial' || a.plan === 'prueba') && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
+  let pagando = alumnos.filter(a => a.plan === 'pago' && a.enabled && (!a.fecha_vencimiento || a.fecha_vencimiento >= hoy));
+  let vencidos = alumnos.filter(a => (a.fecha_vencimiento && a.fecha_vencimiento < hoy) || !a.enabled);
+  let leadsFiltrados = leads;
+
+  // Buscador: filtra las 4 etapas a la vez por nombre, usuario o celular.
+  if (busqueda.trim()) {
+    const q = busqueda.trim().toLowerCase();
+    const matchAlumno = a => (a.nombre || '').toLowerCase().includes(q) || a.username.toLowerCase().includes(q) || (a.telefono || '').includes(q);
+    const matchLead = l => (l.nombre || '').toLowerCase().includes(q) || (l.telefono || '').includes(q);
+    enPrueba = enPrueba.filter(matchAlumno);
+    pagando = pagando.filter(matchAlumno);
+    vencidos = vencidos.filter(matchAlumno);
+    leadsFiltrados = leadsFiltrados.filter(matchLead);
+  }
+
+  // Conversión simple entre los que están hoy en prueba vs. pagando —
+  // referencial, la versión más precisa (histórica) ya vive en Métricas.
+  const totalConMembresia = enPrueba.length + pagando.length;
+  const pctConversion = totalConMembresia ? Math.round((pagando.length / totalConMembresia) * 100) : null;
+
+  // "Hoy toca seguimiento": la nota más reciente de cada persona (lead
+  // o alumno) tiene una próxima acción vencida o para hoy. Se calcula
+  // sobre TODA la gente (sin filtrar por búsqueda), es un aviso aparte.
+  const notaMasRecientePorPersona = {};
+  notas.forEach(n => {
+    const clave = `${n.tipo}:${n.referencia}`;
+    if (!notaMasRecientePorPersona[clave] || n.created_at > notaMasRecientePorPersona[clave].created_at) {
+      notaMasRecientePorPersona[clave] = n;
+    }
+  });
+  const pendientesHoy = Object.entries(notaMasRecientePorPersona)
+    .filter(([, n]) => n.proxima_accion && n.proxima_accion <= hoy)
+    .map(([clave, n]) => {
+      const [tipo, referencia] = clave.split(':');
+      const persona = tipo === 'lead'
+        ? leads.find(l => String(l.id) === referencia)
+        : alumnos.find(a => a.username === referencia);
+      if (!persona) return null;
+      return { tipo, referencia, nombre: persona.nombre || persona.username, telefono: persona.telefono, nota: n };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.nota.proxima_accion.localeCompare(b.nota.proxima_accion));
 
   function notasDe(tipo, referencia) {
     return notas.filter(n => n.tipo === tipo && n.referencia === String(referencia));
@@ -5543,20 +5584,48 @@ function EmbudoPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🎯 EMBUDO DE VENTAS</h2>
+        <h2 className="jb-display text-base text-zinc-200">
+          🎯 EMBUDO DE VENTAS
+          {pctConversion !== null && <span className="ml-2 text-xs text-zinc-500 font-normal">· {pctConversion}% prueba→pago</span>}
+        </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
 
       {open && (
         <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
-          <div className="flex justify-end">
-            <button onClick={load} className={btnGhost + ' py-1 px-3 text-xs'}>Actualizar</button>
+          <div className="flex gap-2 items-center flex-wrap">
+            <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, usuario o celular..."
+              className={inputCls + ' flex-1 min-w-[180px] text-sm'} />
+            <button onClick={load} className={btnGhost + ' py-1.5 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
+
           {loading ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
-              <Etapa titulo="LEADS (calculadora gratis)" emoji="📏" items={leads} render={l => (
+              {pendientesHoy.length > 0 && (
+                <div className="bg-orange-950/20 border border-orange-800/40 rounded-xl p-3">
+                  <h3 className="jb-display text-sm text-orange-400 mb-2">🔔 HOY TE TOCA SEGUIMIENTO · {pendientesHoy.length}</h3>
+                  <div className="flex flex-col gap-2">
+                    {pendientesHoy.map(p => (
+                      <div key={`${p.tipo}:${p.referencia}`} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="text-zinc-100 text-sm truncate">{p.nombre}</div>
+                          <div className="text-zinc-500 text-xs truncate">
+                            {p.nota.nota} {p.nota.proxima_accion < hoy && <span className="text-red-400">· atrasado</span>}
+                          </div>
+                        </div>
+                        <a href={waLink(p.telefono, p.nombre)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs shrink-0'}>
+                          <MessageCircle size={13} /> Escribir
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Etapa titulo="LEADS (calculadora gratis)" emoji="📏" items={leadsFiltrados} render={l => (
                 <Persona key={l.id} tipo="lead" referencia={l.id} nombre={l.nombre} telefono={l.telefono}
                   sub={`${l.telefono || 'sin celular'} · ${fmt(l.created_at.slice(0, 10))}`} />
               )} />

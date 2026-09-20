@@ -10535,6 +10535,60 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
   );
 }
 
+function MiCelularModal({ username, telefonoActual, onClose }) {
+  const [telefono, setTelefono] = useState(telefonoActual || '');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const [guardado, setGuardado] = useState(false);
+
+  async function guardar() {
+    const limpio = telefono.replace(/\D/g, '');
+    if (limpio.length < 9) { setError('Escribe un celular válido (9 dígitos).'); return; }
+    setError('');
+    setGuardando(true);
+    try {
+      const { error: err } = await supabase.from('alumnos').update({ telefono: limpio }).eq('username', username);
+      if (err) throw err;
+      setGuardado(true);
+    } catch (e) {
+      setError('No se pudo guardar: ' + (e?.message || 'Intenta de nuevo.'));
+    }
+    setGuardando(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full">
+        {guardado ? (
+          <>
+            <h3 className="jb-display text-lg text-emerald-400 mb-3">¡Listo!</h3>
+            <p className="jb-body text-sm text-zinc-300 mb-5">Tu celular quedó guardado.</p>
+            <button onClick={onClose} className={btnPrimary + ' w-full'}>Cerrar</button>
+          </>
+        ) : (
+          <>
+            <h3 className="jb-display text-lg text-orange-500 mb-3">
+              {telefonoActual ? 'Actualizar mi celular' : 'Agregar mi celular'}
+            </h3>
+            <p className="jb-body text-sm text-zinc-300 mb-4">
+              Así puedo escribirte por WhatsApp cuando te haga falta un empujón, o avisarte a tiempo si tu plan está por vencer.
+            </p>
+            <input type="tel" inputMode="tel" value={telefono} onChange={e => setTelefono(e.target.value)}
+              className={inputCls + ' w-full'} placeholder="999 888 777" autoFocus />
+            {error && <p className="text-red-400 text-xs jb-body mt-2 flex items-center gap-1.5"><AlertTriangle size={12} />{error}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={onClose} className={btnGhost + ' flex-1'} disabled={guardando}>Cancelar</button>
+              <button onClick={guardar} disabled={guardando} className={btnPrimary + ' flex-1'}>
+                {guardando ? <Loader2 className="animate-spin" size={16} /> : 'Guardar'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
   const [verGuia, setVerGuia] = useState(false);
@@ -10556,6 +10610,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [pull, setPull] = useState({ y: 0, refrescando: false });
   const pullStartY = useRef(null);
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
+  const [mostrarCelular, setMostrarCelular] = useState(false);
 
   const PULL_UMBRAL = 70;
   function onPullStart(e) {
@@ -10697,11 +10752,19 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           Política de Privacidad
         </a>
         <span className="text-zinc-800 text-[11px]">·</span>
+        <button onClick={() => setMostrarCelular(true)}
+          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
+          {userRecord?.telefono ? 'Actualizar mi celular' : 'Agregar mi celular'}
+        </button>
+        <span className="text-zinc-800 text-[11px]">·</span>
         <button onClick={() => setMostrarEliminar(true)}
           className="jb-body text-[11px] text-zinc-700 hover:text-red-400 underline">
           Eliminar mi cuenta
         </button>
       </footer>
+      {mostrarCelular && (
+        <MiCelularModal username={username} telefonoActual={userRecord?.telefono} onClose={() => setMostrarCelular(false)} />
+      )}
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}

@@ -26,6 +26,10 @@
     {
       "path": "/api/cron/embudo-historico",
       "schedule": "59 4 * * *"
+    },
+    {
+      "path": "/api/cron/activa-tu-perfil",
+      "schedule": "0 16 * * *"
     }
   ]
 }

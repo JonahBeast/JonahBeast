@@ -8870,6 +8870,14 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
       }, { onConflict: 'endpoint' });
       setEstadoPush('yaActivo');
+      // Recién acá existe una suscripción real a la que mandarle algo —
+      // este es el momento más cercano posible a "el instante en que
+      // se registra" en el que Jonah puede saludarlo de verdad.
+      fetch('/api/bienvenida-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      }).catch(() => { /* si falla el saludo, no bloquea el onboarding */ });
     } catch (e) { /* si falla, no bloquea el avance del onboarding */ }
     setActivandoPush(false);
   }

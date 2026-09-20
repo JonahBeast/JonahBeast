@@ -5424,6 +5424,7 @@ function EmbudoPanel() {
   const [leads, setLeads] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
   const [notas, setNotas] = useState([]);
+  const [perfilesCompletos, setPerfilesCompletos] = useState({}); // username -> bool
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [notaAbierta, setNotaAbierta] = useState(null);
@@ -5436,13 +5437,17 @@ function EmbudoPanel() {
   async function load() {
     setLoading(true);
     try {
-      const [{ data: l }, { data: a }, { data: n }] = await Promise.all([
+      const [{ data: l }, { data: a }, { data: n }, { data: d }] = await Promise.all([
         supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento').order('created_at', { ascending: false }),
         supabase.from('seguimiento_crm').select('*').order('created_at', { ascending: false }),
+        supabase.from('datos_alumnos').select('username, form'),
       ]);
       setLeads(l || []);
       setAlumnos(a || []);
+      const completos = {};
+      (d || []).forEach(row => { completos[row.username] = !!(row.form && row.form.objetivo); });
+      setPerfilesCompletos(completos);
       setNotas(n || []);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
@@ -5521,7 +5526,7 @@ function EmbudoPanel() {
     return fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '—';
   }
 
-  function Persona({ tipo, referencia, nombre, telefono, sub }) {
+  function Persona({ tipo, referencia, nombre, telefono, sub, alerta }) {
     const misNotas = notasDe(tipo, referencia);
     const clave = `${tipo}:${referencia}`;
     const abierta = notaAbierta === clave;
@@ -5531,6 +5536,7 @@ function EmbudoPanel() {
           <div>
             <div className="text-zinc-100 text-sm font-medium">{nombre || 'Sin nombre'}</div>
             <div className="text-zinc-500 text-xs">{sub}</div>
+            {alerta && <div className="text-amber-400 text-xs jb-body mt-0.5">⚠️ {alerta}</div>}
           </div>
           <div className="flex gap-2 shrink-0">
             <a href={waLink(telefono, nombre)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
@@ -5629,10 +5635,16 @@ function EmbudoPanel() {
                 <Persona key={l.id} tipo="lead" referencia={l.id} nombre={l.nombre} telefono={l.telefono}
                   sub={`${l.telefono || 'sin celular'} · ${fmt(l.created_at.slice(0, 10))}`} />
               )} />
-              <Etapa titulo="PRUEBA GRATIS" emoji="🆓" items={enPrueba} render={a => (
-                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                  sub={`vence ${fmt(a.fecha_vencimiento)}`} />
-              )} />
+              <Etapa titulo="PRUEBA GRATIS" emoji="🆓" items={enPrueba} render={a => {
+                const diasReg = a.fecha_inicio ? Math.round((new Date(hoy) - new Date(a.fecha_inicio)) / 86400000) : null;
+                const sinPerfil = !perfilesCompletos[a.username];
+                const alerta = sinPerfil && diasReg !== null && diasReg >= 1
+                  ? `sin completar perfil · día ${diasReg}` : null;
+                return (
+                  <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                    sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={alerta} />
+                );
+              }} />
               <Etapa titulo="PAGANDO" emoji="💰" items={pagando} render={a => (
                 <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
                   sub={`vence ${fmt(a.fecha_vencimiento)}`} />

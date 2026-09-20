@@ -8742,13 +8742,80 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const [guardandoTel, setGuardandoTel] = useState(false);
   const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [errNombre, setErrNombre] = useState('');
+  const [estadoPush, setEstadoPush] = useState('cargando'); // cargando | yaActivo | disponible | bloqueado | nosoportado | iosNoInstalado
+  const [incluirPasoNotif, setIncluirPasoNotif] = useState(null); // se fija una sola vez al cargar, para que el paso no aparezca/desaparezca a mitad de recorrido
+  const [activandoPush, setActivandoPush] = useState(false);
   const nombreMostrar = nombre || nombreInput;
+
+  // Mismo chequeo que RecordatorioBanner, pero acá decide si el paso de
+  // notificaciones entra al recorrido del onboarding o no — si ya las
+  // tiene activas, no tiene sentido volver a pedírselas. Una vez que
+  // incluirPasoNotif queda fijado, ya no cambia en este recorrido —
+  // aunque el alumno las active a mitad de camino, el paso sigue
+  // existiendo hasta que él mismo avance, para que los índices de los
+  // demás pasos no se corran de golpe.
+  useEffect(() => {
+    (async () => {
+      const ua = window.navigator.userAgent || '';
+      const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      const instalada = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        const e = esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado';
+        setEstadoPush(e); setIncluirPasoNotif(true);
+        return;
+      }
+      if (Notification.permission === 'denied') { setEstadoPush('bloqueado'); setIncluirPasoNotif(true); return; }
+      if (Notification.permission === 'granted') {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = await reg.pushManager.getSubscription();
+          setEstadoPush(sub ? 'yaActivo' : 'disponible');
+          setIncluirPasoNotif(!sub);
+        } catch { setEstadoPush('disponible'); setIncluirPasoNotif(true); }
+        return;
+      }
+      setEstadoPush('disponible'); setIncluirPasoNotif(true);
+    })();
+  }, []);
+
+  async function activarPush() {
+    setActivandoPush(true);
+    try {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== 'granted') {
+        setEstadoPush(permiso === 'denied' ? 'bloqueado' : 'disponible');
+        setActivandoPush(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
+        });
+      }
+      const j = sub.toJSON();
+      await supabase.from('push_subs').upsert({
+        username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
+      }, { onConflict: 'endpoint' });
+      setEstadoPush('yaActivo');
+    } catch (e) { /* si falla, no bloquea el avance del onboarding */ }
+    setActivandoPush(false);
+  }
+
   const pasos = [
     ...(nombre ? [] : [{
       emoji: '😄', titulo: '¿CÓMO TE LLAMAS?',
       texto: 'Así puedo saludarte como se debe y acompañarte de forma más personal.',
       esNombre: true,
     }]),
+    ...(incluirPasoNotif ? [{
+      emoji: '🦍', titulo: 'ACTIVA TUS NOTIFICACIONES',
+      texto: 'Es lo más importante que puedes activar: así Jonah te avisa si se te pasa una comida, te acompaña cuando lo necesites, y te avisa a tiempo antes de que venza tu plan — para que nunca pierdas tu progreso por no enterarte.',
+      esNotificacion: true,
+    }] : []),
     {
       emoji: '👋', titulo: `¡BIENVENIDO${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}!`,
       texto: 'Jonah Beast Fuel te ayuda a saber exactamente cuánto comer y qué comer para llegar a tu objetivo. Te explico en 30 segundos cómo usarla.',
@@ -8815,6 +8882,11 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   async function avanzar() {
     if (p.esNombre) { const ok = await guardarNombre(); if (!ok) return; }
     if (p.esTelefono) await guardarTelefonoSiHay();
+    // El botón principal en el paso de notificaciones ES la acción de
+    // activarlas — dispara el permiso del navegador. Se avanza igual
+    // después, acepte o no: bloquearlo indefinidamente si dice que no
+    // sería peor experiencia que solo insistir una vez con fuerza.
+    if (p.esNotificacion && estadoPush === 'disponible') await activarPush();
     if (ultimo) onClose(); else setPaso(paso + 1);
   }
 
@@ -8841,6 +8913,25 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
               <p className="jb-body text-[11px] text-zinc-600 mt-1.5">Opcional, pero así puedo escribirte directo cuando te haga falta un empujón 🔥</p>
             </div>
           )}
+          {p.esNotificacion && (
+            <div className="mt-4 text-left">
+              {estadoPush === 'bloqueado' && (
+                <p className="jb-body text-xs text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg p-2.5">
+                  Parece que ya las bloqueaste antes. Puedes activarlas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y luego seguir aquí.
+                </p>
+              )}
+              {estadoPush === 'nosoportado' && (
+                <p className="jb-body text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                  Tu navegador actual no soporta notificaciones. Puedes seguir usando la app normal, solo no vas a recibir avisos.
+                </p>
+              )}
+              {estadoPush === 'iosNoInstalado' && (
+                <p className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5">
+                  En iPhone, primero instala la app en tu pantalla de inicio para poder recibir notificaciones. Puedes hacerlo más tarde y volver a activarlas.
+                </p>
+              )}
+            </div>
+          )}
           {p.extra && (
             <div className="mt-4 flex flex-col gap-2">
               {p.extra.map(([cuando, que]) => (
@@ -8863,12 +8954,19 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           {paso > 0 && (
             <button onClick={() => setPaso(paso - 1)} className={btnGhost + ' py-2.5 px-4'}>Atrás</button>
           )}
-          <button onClick={avanzar} disabled={guardandoTel || guardandoNombre} className={btnPrimary + ' flex-1 py-2.5'}>
-            {(guardandoTel || guardandoNombre) ? <Loader2 className="animate-spin" size={18} /> : (ultimo ? '¡Empecemos!' : (p.esNombre ? 'Guardar y seguir' : (p.esTelefono && telefono ? 'Guardar y seguir' : 'Siguiente')))}
+          <button onClick={avanzar} disabled={guardandoTel || guardandoNombre || activandoPush} className={btnPrimary + ' flex-1 py-2.5'}>
+            {(guardandoTel || guardandoNombre || activandoPush) ? <Loader2 className="animate-spin" size={18} /> : (
+              ultimo ? '¡Empecemos!'
+              : p.esNombre ? 'Guardar y seguir'
+              : (p.esTelefono && telefono) ? 'Guardar y seguir'
+              : (p.esNotificacion && estadoPush === 'disponible') ? 'Activar notificaciones'
+              : (p.esNotificacion) ? 'Continuar'
+              : 'Siguiente'
+            )}
           </button>
         </div>
 
-        {!ultimo && !p.esNombre && (
+        {!ultimo && !p.esNombre && !p.esNotificacion && (
           <button onClick={onClose} className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
             Saltar guía
           </button>

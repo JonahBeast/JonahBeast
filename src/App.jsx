@@ -9439,12 +9439,26 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [seleccionados, setSeleccionados] = useState({});
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [infoLimite, setInfoLimite] = useState(null);
+  const [progresoIA, setProgresoIA] = useState(0);
   const [correoMP, setCorreoMP] = useState('');
   const [mesesMP, setMesesMP] = useState('1');
   const [tipoMP, setTipoMP] = useState('unico'); // 'unico' | 'recurrente'
   const [pagandoMP, setPagandoMP] = useState(false);
   const [errMP, setErrMP] = useState('');
   const addOnActivo = !!(reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0);
+
+  useEffect(() => {
+    // Barra de progreso simulada mientras la IA analiza — no viene del
+    // servidor (la respuesta llega de una sola vez), pero avanza rápido
+    // al inicio y se frena cerca del final, para que no se sienta
+    // engañosa ni se quede pegada en un número si la foto tarda más.
+    if (estado !== 'analizando') return;
+    setProgresoIA(0);
+    const id = setInterval(() => {
+      setProgresoIA(p => (p >= 95 ? 95 : p + Math.max(1, Math.round((95 - p) * 0.12))));
+    }, 150);
+    return () => clearInterval(id);
+  }, [estado]);
 
   async function pagarAddOnMP() {
     setErrMP('');
@@ -9604,9 +9618,29 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
 
         {estado === 'analizando' && (
           <div className="text-center py-4">
-            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-48 object-cover rounded-xl mb-4" />}
-            <Loader2 className="animate-spin text-orange-500 mx-auto mb-2" size={28} />
+            {previewUrl && (
+              <div className="relative w-full max-h-56 overflow-hidden rounded-xl mb-4">
+                <img src={previewUrl} alt="" className="w-full max-h-56 object-cover" />
+                <div className="absolute inset-0 bg-zinc-950/30" />
+                {/* esquinas tipo escáner */}
+                <div className="absolute inset-3 pointer-events-none">
+                  <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-orange-500 rounded-tl-md" />
+                  <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-orange-500 rounded-tr-md" />
+                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-orange-500 rounded-bl-md" />
+                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-orange-500 rounded-br-md" />
+                </div>
+                {/* línea de escaneo que sube y baja */}
+                <div className="absolute left-0 right-0 h-12 pointer-events-none"
+                  style={{
+                    top: '-15%',
+                    background: 'linear-gradient(180deg, transparent, rgba(249,115,22,0.6), transparent)',
+                    animation: 'jb-scan-sweep 1.8s ease-in-out infinite',
+                  }} />
+              </div>
+            )}
+            <p className="jb-display text-3xl text-orange-500 mb-1 tabular-nums">{progresoIA}%</p>
             <p className="jb-body text-sm text-zinc-400">Identificando tu comida…</p>
+            <style>{`@keyframes jb-scan-sweep { 0% { top: -15%; } 50% { top: 100%; } 100% { top: -15%; } }`}</style>
           </div>
         )}
 

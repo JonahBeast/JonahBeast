@@ -18,6 +18,10 @@
     {
       "path": "/api/cron/reto-semanal",
       "schedule": "0 23 * * 6"
+    },
+    {
+      "path": "/api/cron/control-quincenal",
+      "schedule": "0 15 * * *"
     }
   ]
 }

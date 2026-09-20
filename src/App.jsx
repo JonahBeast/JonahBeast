@@ -4736,10 +4736,11 @@ function MetricasPanel() {
 
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS POR PLAN</h3>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   {alumnosPorPlan.map(([plan, count]) => (
-                    <div key={plan} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
-                      <span>{plan}</span><span className="text-zinc-100">{count}</span>
+                    <div key={plan} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
+                      <span className="text-zinc-400 capitalize">{plan}</span>
+                      <span className="jb-display text-zinc-100">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -4747,11 +4748,13 @@ function MetricasPanel() {
 
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">EMBAJADORES</h3>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   {referidores.map(r => (
-                    <div key={r.codigo} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
-                      <span>{r.nombre} · {r.codigo}</span>
-                      <span className={r.activo ? 'text-emerald-400' : 'text-zinc-500'}>{r.activo ? 'Activo' : 'Inactivo'}</span>
+                    <div key={r.codigo} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
+                      <span className="text-zinc-400">{r.nombre} <span className="text-zinc-600">· {r.codigo}</span></span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${r.activo ? 'bg-emerald-950/60 text-emerald-400' : 'bg-zinc-900 text-zinc-500'}`}>
+                        {r.activo ? 'Activo' : 'Inactivo'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -4759,10 +4762,11 @@ function MetricasPanel() {
 
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">LEADS POR CANAL</h3>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   {leadsPorRed.map(([red, count]) => (
-                    <div key={red} className="flex justify-between text-sm text-zinc-400 border-b border-zinc-800 py-1">
-                      <span>{red}</span><span className="text-zinc-100">{count}</span>
+                    <div key={red} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
+                      <span className="text-zinc-400">{red}</span>
+                      <span className="jb-display text-zinc-100">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -4770,19 +4774,19 @@ function MetricasPanel() {
 
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">HISTORIAL DE AJUSTES DE DÍAS</h3>
-                <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
+                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
                   {ajustesDias.length === 0 && <p className="text-zinc-500 text-xs">Sin ajustes registrados todavía.</p>}
                   {ajustesDias.map((a, i) => (
-                    <div key={i} className="text-xs text-zinc-400 border-b border-zinc-800 py-1.5">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-200">{a.username}</span>
-                        <span className={a.dias > 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {a.dias > 0 ? '+' : ''}{a.dias} día(s)
-                        </span>
+                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="text-zinc-200 text-sm truncate">{a.username}</div>
+                        <div className="text-zinc-600 text-[11px]">
+                          {new Date(a.created_at).toLocaleDateString('es-PE')} {a.motivo ? `· ${a.motivo}` : ''}
+                        </div>
                       </div>
-                      <div className="text-zinc-600">
-                        {new Date(a.created_at).toLocaleDateString('es-PE')} {a.motivo ? `· ${a.motivo}` : ''}
-                      </div>
+                      <span className={`jb-display text-sm shrink-0 ${a.dias > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {a.dias > 0 ? '+' : ''}{a.dias} día(s)
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -5226,16 +5230,17 @@ function FinanzasPanel() {
 
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">Movimientos ({mesFiltro})</h3>
-                <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
+                <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
                   {movsFiltrados.length === 0 && <p className="text-zinc-500 text-xs">Sin movimientos este mes.</p>}
                   {movsFiltrados.map(m => (
-                    <div key={m.id} className="flex justify-between items-center text-xs text-zinc-400 border-b border-zinc-800 py-1.5 gap-2">
+                    <div key={m.id} className={`relative bg-zinc-950 border rounded-lg pl-4 pr-3 py-2 overflow-hidden flex justify-between items-center gap-2 ${m.tipo === 'ingreso' ? 'border-emerald-900/50' : 'border-red-900/50'}`}>
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.tipo === 'ingreso' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <div className="min-w-0">
-                        <div className="text-zinc-200 truncate">{m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
-                        <div className="text-zinc-600">{m.fecha} {m.tiene_comprobante ? '· con comprobante' : ''}</div>
+                        <div className="text-zinc-200 text-xs truncate">{m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        <div className="text-zinc-600 text-[11px]">{m.fecha} {m.tiene_comprobante ? '· con comprobante' : ''}</div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className={m.tipo === 'ingreso' ? 'text-emerald-400' : 'text-red-400'}>
+                        <span className={`jb-display text-sm ${m.tipo === 'ingreso' ? 'text-emerald-400' : 'text-red-400'}`}>
                           {m.tipo === 'ingreso' ? '+' : '-'}S/ {parseFloat(m.monto).toFixed(2)}
                         </span>
                         <button onClick={() => eliminar(m.id)} className="text-zinc-600 hover:text-red-400">
@@ -5575,13 +5580,121 @@ function EmbudoPanel() {
   );
 }
 
+function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onToggleUser, onDeleteUser }) {
+  const [expanded, setExpanded] = useState(false);
+  const [dias, setDias] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [mesesFoto, setMesesFoto] = useState('1');
+
+  const ms = membershipLabel(u);
+  const act = formatActivity(u.lastActivity);
+  const addOnActivo = u.reconocimientoFotoHasta && daysLeft(u.reconocimientoFotoHasta) !== null && daysLeft(u.reconocimientoFotoHasta) >= 0;
+
+  // Misma lógica que membershipLabel, solo que devuelve la clase de
+  // borde en vez de la de fondo — así la barra de color a la izquierda
+  // deja escanear el estado de toda la lista de un vistazo.
+  let accentBorder = 'border-emerald-500';
+  if (!u.enabled) accentBorder = 'border-red-500';
+  else {
+    const dl = daysLeft(u.fechaVencimiento);
+    if (dl !== null) {
+      if (dl < 0) accentBorder = 'border-red-500';
+      else if (dl <= 7) accentBorder = 'border-amber-500';
+    }
+  }
+
+  return (
+    <div className={`bg-zinc-950 border-l-4 ${accentBorder} rounded-r-xl overflow-hidden`}>
+      <button onClick={() => setExpanded(v => !v)} className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center jb-display text-xs text-zinc-300 shrink-0">
+            {(u.nombre || u.username).slice(0, 2).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="text-zinc-100 font-medium truncate">
+              {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+            </div>
+            <div className="text-zinc-500 text-xs flex items-center gap-2 flex-wrap">
+              <span className={ms.color}>{ms.text}</span>
+              <span className="text-zinc-700">·</span>
+              <span className={act.color}>{act.text}</span>
+              {u.codigoReferido && (<><span className="text-zinc-700">·</span><span className="text-orange-500">ref: {u.codigoReferido}</span></>)}
+              {addOnActivo && (<><span className="text-zinc-700">·</span><span className="text-orange-500 flex items-center gap-0.5"><Camera size={10} /> IA</span></>)}
+            </div>
+          </div>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-600 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+      </button>
+
+      <div className="px-4 pb-3 flex items-center gap-2 flex-wrap">
+        {u.telefono && (
+          <a href={`https://wa.me/${u.telefono.replace(/\D/g, '').length <= 9 ? '51' + u.telefono.replace(/\D/g, '') : u.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${u.nombre || u.username}, te escribo de Jonah Beast.`)}`}
+            target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1.5 px-3 text-xs'}>
+            <MessageCircle size={13} /> WhatsApp
+          </a>
+        )}
+        <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-xs'}><Eye size={13} /> Ver datos</button>
+        <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>+1 mes</button>
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-4 pt-3 border-t border-zinc-900 flex flex-col gap-3 bg-zinc-900/40">
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">Ajustar días de membresía</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <input type="number" min="1" placeholder="días" value={dias} onChange={e => setDias(e.target.value)}
+                className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200" />
+              <input type="text" placeholder="motivo (opcional)" value={motivo} onChange={e => setMotivo(e.target.value)}
+                className="flex-1 min-w-[100px] bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200" />
+              <button onClick={() => onAdjustDays(u.username, parseInt(dias || '1', 10), motivo)} className={btnGhost + ' py-1.5 px-2 text-xs'}>+ días</button>
+              <button onClick={() => onAdjustDays(u.username, -parseInt(dias || '1', 10), motivo)} className={btnGhost + ' py-1.5 px-2 text-xs'}>− días</button>
+            </div>
+          </div>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">Reconocimiento Inteligente (IA por foto)</p>
+            {addOnActivo ? (
+              <div className="flex items-center gap-2">
+                <span className="text-orange-500 text-xs jb-body flex items-center gap-1">
+                  <Camera size={12} /> Activo hasta {u.reconocimientoFotoHasta.slice(8, 10)}/{u.reconocimientoFotoHasta.slice(5, 7)}
+                </span>
+                <button onClick={() => { if (window.confirm(`¿Desactivar Reconocimiento Inteligente para @${u.username}?`)) onDesactivarAddOnFoto(u.username); }}
+                  className={btnGhost + ' py-1 px-2 text-xs text-red-400'}>Desactivar</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <select value={mesesFoto} onChange={e => setMesesFoto(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200">
+                  <option value="1">1 mes</option>
+                  <option value="3">3 meses</option>
+                  <option value="6">6 meses</option>
+                </select>
+                <button onClick={() => onActivarAddOnFoto(u.username, parseInt(mesesFoto, 10))} className={btnGhost + ' py-1.5 px-2 text-xs'}>
+                  <Camera size={12} /> Activar
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 pt-1 border-t border-zinc-900">
+            <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-xs'}>
+              {u.enabled ? 'Deshabilitar' : 'Habilitar'}
+            </button>
+            <button onClick={() => { if (window.confirm(`¿Eliminar a "${u.nombre || u.username}" (@${u.username}) para siempre?\n\nSe borran su plan, medidas, comidas registradas, fotos y ajustes — no se puede deshacer. Si vuelve a entrar, verá un aviso pidiéndole que escriba por WhatsApp, como si fuera nuevo. Sus pagos anteriores se conservan.\n\nSi solo quieres pausar su acceso (y que pueda recuperarlo después), usa "Deshabilitar" en vez de esto.`)) onDeleteUser(u.username); }}
+              className="text-zinc-600 hover:text-red-400 transition-colors text-xs flex items-center gap-1 py-1.5 px-2">
+              <Trash2 size={13} /> Eliminar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
-  const [diasInput, setDiasInput] = useState({});
-  const [motivoInput, setMotivoInput] = useState({});
-  const [mesesFotoInput, setMesesFotoInput] = useState({});
 
   function submitNew(e) {
     e.preventDefault();
@@ -5719,107 +5832,13 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
               {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
             </p>
           ) : (
-            <div className="divide-y divide-zinc-800">
-              {usersFiltrados.map(u => {
-                const ms = membershipLabel(u);
-                const act = formatActivity(u.lastActivity);
-                const activo = membershipActive(u);
-                return (
-                <div key={u.username} className="px-5 py-3.5 flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className={`relative w-9 h-9 rounded-full flex items-center justify-center jb-display text-xs shrink-0 ${activo ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
-                      {(u.nombre || u.username).slice(0, 2).toUpperCase()}
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${activo ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                    </div>
-                    <div>
-                      <div className="text-zinc-100 font-medium">
-                        {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
-                      </div>
-                      <div className="text-zinc-500 text-xs flex items-center gap-2 flex-wrap">
-                        <span className={`flex items-center gap-1 ${ms.color}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${ms.dot}`} />
-                          {ms.text}
-                        </span>
-                        <span className="text-zinc-700">·</span>
-                        <span className={act.color}>{act.text}</span>
-                        {u.codigoReferido && (
-                          <>
-                            <span className="text-zinc-700">·</span>
-                            <span className="text-orange-500">ref: {u.codigoReferido}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {u.telefono && (
-                      <a href={`https://wa.me/${u.telefono.replace(/\D/g, '').length <= 9 ? '51' + u.telefono.replace(/\D/g, '') : u.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${u.nombre || u.username}, te escribo de Jonah Beast.`)}`}
-                        target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1.5 px-3 text-sm'}>
-                        <MessageCircle size={14} />
-                      </a>
-                    )}
-                    <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-sm'} title="Renovar 1 mes">
-                      +1 mes
-                    </button>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number" min="1" placeholder="días"
-                        value={diasInput[u.username] || ''}
-                        onChange={e => setDiasInput(v => ({ ...v, [u.username]: e.target.value }))}
-                        className="w-14 bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200"
-                      />
-                      <input
-                        type="text" placeholder="motivo (opcional)"
-                        value={motivoInput[u.username] || ''}
-                        onChange={e => setMotivoInput(v => ({ ...v, [u.username]: e.target.value }))}
-                        className="w-28 bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200"
-                      />
-                      <button
-                        onClick={() => onAdjustDays(u.username, parseInt(diasInput[u.username] || '1', 10), motivoInput[u.username])}
-                        className={btnGhost + ' py-1.5 px-2 text-xs'} title="Agregar días">+d</button>
-                      <button
-                        onClick={() => onAdjustDays(u.username, -parseInt(diasInput[u.username] || '1', 10), motivoInput[u.username])}
-                        className={btnGhost + ' py-1.5 px-2 text-xs'} title="Quitar días">−d</button>
-                    </div>
-                    <button onClick={() => onViewStudent(u.username)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Eye size={14} /> Ver datos</button>
-                    {(() => {
-                      const addOnActivo = u.reconocimientoFotoHasta && daysLeft(u.reconocimientoFotoHasta) !== null && daysLeft(u.reconocimientoFotoHasta) >= 0;
-                      return (
-                        <div className="flex items-center gap-1">
-                          {addOnActivo ? (
-                            <>
-                              <span className="text-orange-500 text-xs jb-body flex items-center gap-1" title="Reconocimiento Inteligente activo">
-                                <Camera size={12} /> hasta {u.reconocimientoFotoHasta.slice(8, 10)}/{u.reconocimientoFotoHasta.slice(5, 7)}
-                              </span>
-                              <button onClick={() => { if (window.confirm(`¿Desactivar Reconocimiento Inteligente para @${u.username}?`)) onDesactivarAddOnFoto(u.username); }}
-                                className="text-zinc-600 hover:text-red-400 transition-colors p-1.5" title="Desactivar add-on de foto"><X size={14} /></button>
-                            </>
-                          ) : (
-                            <>
-                              <select value={mesesFotoInput[u.username] || '1'}
-                                onChange={e => setMesesFotoInput(v => ({ ...v, [u.username]: e.target.value }))}
-                                className="bg-zinc-950 border border-zinc-800 rounded-lg px-1.5 py-1.5 text-xs text-zinc-200">
-                                <option value="1">1 mes</option>
-                                <option value="3">3 meses</option>
-                                <option value="6">6 meses</option>
-                              </select>
-                              <button onClick={() => onActivarAddOnFoto(u.username, parseInt(mesesFotoInput[u.username] || '1', 10))}
-                                className={btnGhost + ' py-1.5 px-2 text-xs'} title="Activar Reconocimiento Inteligente">
-                                <Camera size={12} /> Activar
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-sm'}>
-                      {u.enabled ? 'Deshabilitar' : 'Habilitar'}
-                    </button>
-                    <button onClick={() => { if (window.confirm(`¿Eliminar a "${u.nombre || u.username}" (@${u.username}) para siempre?\n\nSe borran su plan, medidas, comidas registradas, fotos y ajustes — no se puede deshacer. Si vuelve a entrar, verá un aviso pidiéndole que escriba por WhatsApp, como si fuera nuevo. Sus pagos anteriores se conservan.\n\nSi solo quieres pausar su acceso (y que pueda recuperarlo después), usa "Deshabilitar" en vez de esto.`)) onDeleteUser(u.username); }} className="text-zinc-600 hover:text-red-400 transition-colors p-2"><Trash2 size={16} /></button>
-                  </div>
-                </div>
-                );
-              })}
+            <div className="flex flex-col gap-2.5 p-3">
+              {usersFiltrados.map(u => (
+                <AlumnoRow key={u.username} u={u}
+                  onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
+                  onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
+                  onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
+              ))}
             </div>
           )}
         </div>

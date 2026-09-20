@@ -5514,19 +5514,29 @@ function EmbudoPanel() {
     } catch (e) { alert('No se pudo guardar la nota: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
-  function waLink(telefono, nombre) {
+  function waLink(telefono, nombre, mensaje) {
     const num = telefono ? telefono.replace(/\D/g, '') : '';
     const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const texto = mensaje ? mensaje.replace('[NOMBRE]', nombre || '') : `Hola ${nombre || ''}, `;
     return full
-      ? `https://wa.me/${full}?text=${encodeURIComponent(`Hola ${nombre || ''}, `)}`
-      : `https://wa.me/?text=${encodeURIComponent('Hola, ')}`;
+      ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+      : `https://wa.me/?text=${encodeURIComponent(texto)}`;
   }
+
+  // Mismos mensajes en la voz de Jonah que ya usa el push automático
+  // de api/cron/activa-tu-perfil.js — acá en texto, listos para
+  // WhatsApp, con [NOMBRE] para reemplazar automático.
+  const MENSAJES_SEGUIMIENTO_WA = {
+    1: 'Hola [NOMBRE] 🦍 Vi que aún no completaste tus medidas en la app. Toma solo 2 minutitos y ahí ya calculamos tu objetivo juntos. ¿Te ayudo con algo para que lo hagas ahora?',
+    2: 'Hola [NOMBRE], sigo aquí pendiente de ti 🦍 Cuando puedas, entra a la app y completa tus medidas — sin apuro, pero quiero que arranquemos pronto. ¿Hay algo que te esté trabando?',
+    3: '[NOMBRE], no dejes que se te pase esto 🔥 Un par de minutos y arrancamos tu cambio real. Si tienes alguna duda o trabas para completarlo, dime y te ayudo directo por aquí 🦍💪',
+  };
 
   function fmt(fecha) {
     return fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '—';
   }
 
-  function Persona({ tipo, referencia, nombre, telefono, sub, alerta }) {
+  function Persona({ tipo, referencia, nombre, telefono, sub, alerta, mensajeWa }) {
     const misNotas = notasDe(tipo, referencia);
     const clave = `${tipo}:${referencia}`;
     const abierta = notaAbierta === clave;
@@ -5539,7 +5549,7 @@ function EmbudoPanel() {
             {alerta && <div className="text-amber-400 text-xs jb-body mt-0.5">⚠️ {alerta}</div>}
           </div>
           <div className="flex gap-2 shrink-0">
-            <a href={waLink(telefono, nombre)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
+            <a href={waLink(telefono, nombre, mensajeWa)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
               <MessageCircle size={13} />
             </a>
             <button onClick={() => { setNotaAbierta(abierta ? null : clave); setTextoNota(''); setFechaAccion(''); }}
@@ -5638,11 +5648,13 @@ function EmbudoPanel() {
               <Etapa titulo="PRUEBA GRATIS" emoji="🆓" items={enPrueba} render={a => {
                 const diasReg = a.fecha_inicio ? Math.round((new Date(hoy) - new Date(a.fecha_inicio)) / 86400000) : null;
                 const sinPerfil = !perfilesCompletos[a.username];
+                const diaAlerta = sinPerfil && diasReg !== null && diasReg >= 1 ? Math.min(diasReg, 3) : null;
                 const alerta = sinPerfil && diasReg !== null && diasReg >= 1
                   ? `sin completar perfil · día ${diasReg}` : null;
                 return (
                   <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                    sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={alerta} />
+                    sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={alerta}
+                    mensajeWa={diaAlerta ? MENSAJES_SEGUIMIENTO_WA[diaAlerta] : null} />
                 );
               }} />
               <Etapa titulo="PAGANDO" emoji="💰" items={pagando} render={a => (

@@ -3,9 +3,12 @@
 // Corre cada hora. Revisa cada una de las 5 comidas del alumno
 // (Desayuno, Media mañana, Almuerzo, Media tarde, Cena) en su horario
 // típico, y si no la registró, le manda un push con la voz de Jonah.
-// Además: hidratación (2x al día), un chequeo de ánimo agrupado (2pm
-// y 8pm), un saludo de buenos días (7am, con variante de lunes y de
-// aniversario de uso) y un mensaje de buenas noches (10pm).
+// Además: hidratación (1x al día, 3pm), un chequeo de ánimo agrupado
+// (1x al día, 7pm — antes eran 2 avisos por separado a las 2pm y 8pm,
+// se fusionaron porque repetían el mismo dato que ya avisaban las
+// comidas individuales, solo con otro tono) un saludo de buenos días
+// (7am, con variante de lunes y de aniversario de uso) y un mensaje
+// de buenas noches (10pm).
 //
 // IMPORTANTE — rendimiento: todos los envíos de una misma ejecución se
 // mandan EN PARALELO (Promise.allSettled) con una sola consulta de
@@ -20,8 +23,8 @@
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde } from '../_lib/push.js';
 
 const VENTANAS = { 9: 'Desayuno', 11: 'Media mañana', 13: 'Almuerzo', 17: 'Media tarde', 21: 'Cena' };
-const HORAS_HIDRATACION = [12, 16];
-const HORAS_ANIMO = [14, 20];
+const HORAS_HIDRATACION = [15];
+const HORAS_ANIMO = [19];
 const HORA_BUENOS_DIAS = 7;
 const HORA_BUENAS_NOCHES = 22;
 

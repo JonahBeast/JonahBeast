@@ -5639,6 +5639,33 @@ function EmbudoPanel() {
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
+              <div className="relative bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-4 overflow-hidden">
+                <div className="absolute inset-0 opacity-25 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(249,115,22,0.35), transparent 55%)' }} />
+                <div className="relative flex flex-col gap-3">
+                  {[
+                    { label: 'Leads', count: leadsFiltrados.length, color: 'from-sky-500 to-cyan-400', glow: 'rgba(56,189,248,0.55)' },
+                    { label: 'Prueba gratis', count: enPrueba.length, color: 'from-amber-500 to-orange-400', glow: 'rgba(251,191,36,0.55)' },
+                    { label: 'Pagando', count: pagando.length, color: 'from-emerald-500 to-green-400', glow: 'rgba(52,211,153,0.55)' },
+                    { label: 'Vencido', count: vencidos.length, color: 'from-red-500 to-rose-400', glow: 'rgba(248,113,113,0.55)' },
+                  ].map((etapa, i, arr) => {
+                    const max = Math.max(...arr.map(e => e.count), 1);
+                    const pct = etapa.count > 0 ? Math.max((etapa.count / max) * 100, 10) : 3;
+                    return (
+                      <div key={etapa.label} className="flex items-center gap-3">
+                        <span className="jb-body text-[11px] text-zinc-500 w-20 sm:w-24 shrink-0">{etapa.label}</span>
+                        <div className="flex-1 h-6 bg-zinc-950/70 rounded-full overflow-hidden border border-zinc-800">
+                          <div className={`h-full bg-gradient-to-r ${etapa.color} rounded-full transition-all duration-700 flex items-center justify-end pr-2 min-w-[1.75rem]`}
+                            style={{ width: `${pct}%`, boxShadow: `0 0 14px ${etapa.glow}` }}>
+                            <span className="jb-display text-[11px] text-zinc-950">{etapa.count}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {pendientesHoy.length > 0 && (
                 <div className="bg-orange-950/20 border border-orange-800/40 rounded-xl p-3">
                   <h3 className="jb-display text-sm text-orange-400 mb-2">🔔 HOY TE TOCA SEGUIMIENTO · {pendientesHoy.length}</h3>
@@ -5870,6 +5897,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [tabActiva, setTabActiva] = useState('hoy');
 
   function submitNew(e) {
     e.preventDefault();
@@ -5935,88 +5963,122 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           );
         })()}
 
-        <ReferidosPanel users={users} onCambio={onRecargar} />
-
-        <VencimientosPanel users={users} onRenew={onRenew} />
-        <CumpleanosPanel users={users} />
-        <TiendaAdminPanel />
-
-        <PagosPanel />
-
-        <LeadsPanel />
-
-        <EmbudoPanel />
-
-        <ReconocimientoFotoPanel />
-
-        <MetricasPanel />
-
-        <FinanzasPanel />
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
-              <UserPlus size={16} className="text-orange-500" />
+        {(() => {
+          const TABS = [
+            { id: 'hoy', label: 'HOY', emoji: '📋' },
+            { id: 'negocio', label: 'NEGOCIO', emoji: '💰' },
+            { id: 'ia', label: 'IA', emoji: '📸' },
+            { id: 'tienda', label: 'TIENDA', emoji: '🛍️' },
+          ];
+          return (
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              {TABS.map(t => {
+                const activa = tabActiva === t.id;
+                return (
+                  <button key={t.id} onClick={() => setTabActiva(t.id)}
+                    className={`shrink-0 jb-display text-xs tracking-wide px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center gap-1.5 ${
+                      activa
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 border-orange-400 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.45)]'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    }`}>
+                    <span>{t.emoji}</span> {t.label}
+                  </button>
+                );
+              })}
             </div>
-            <h2 className="jb-display text-base text-zinc-200">NUEVO ALUMNO</h2>
-          </div>
-          <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
-            <Field label="Nombre completo">
-              <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
-            </Field>
-            <Field label="Celular (WhatsApp)">
-              <input type="tel" inputMode="tel" value={newUser.telefono} onChange={e => setNewUser(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
-            </Field>
-            <Field label="Usuario">
-              <input value={newUser.username} onChange={e => setNewUser(v => ({ ...v, username: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
-            </Field>
-            <Field label="Contraseña">
-              <input value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Contraseña temporal" />
-            </Field>
-            <Field label="Inicio de membresía">
-              <input type="date" value={newUser.fechaInicio} onChange={e => setNewUser(v => ({ ...v, fechaInicio: e.target.value }))} className={inputCls} />
-            </Field>
-            <Field label="Duración">
-              <select value={newUser.meses} onChange={e => setNewUser(v => ({ ...v, meses: Number(e.target.value) }))} className={inputCls}>
-                <option value={1}>1 mes</option>
-                <option value={2}>2 meses</option>
-                <option value={3}>3 meses</option>
-                <option value={6}>6 meses</option>
-                <option value={12}>12 meses</option>
-              </select>
-            </Field>
-            <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar alumno</button>
-          </form>
-          {formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
-        </div>
+          );
+        })()}
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-800 flex flex-col gap-3">
-            <h2 className="jb-display text-base text-zinc-200">
-              ALUMNOS ({usersFiltrados.length}{busqueda ? ` de ${users.length}` : ''})
-            </h2>
-            <input
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              placeholder="Buscar por nombre o usuario..."
-              className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 w-full"
-            />
-          </div>
-          {usersFiltrados.length === 0 ? (
-            <p className="text-zinc-500 text-sm px-5 py-8 text-center">
-              {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2.5 p-3">
-              {usersFiltrados.map(u => (
-                <AlumnoRow key={u.username} u={u}
-                  onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
-                  onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
-                  onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
-              ))}
+        {tabActiva === 'hoy' && (
+          <>
+            <EmbudoPanel />
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+                  <UserPlus size={16} className="text-orange-500" />
+                </div>
+                <h2 className="jb-display text-base text-zinc-200">NUEVO ALUMNO</h2>
+              </div>
+              <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
+                <Field label="Nombre completo">
+                  <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+                </Field>
+                <Field label="Celular (WhatsApp)">
+                  <input type="tel" inputMode="tel" value={newUser.telefono} onChange={e => setNewUser(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
+                </Field>
+                <Field label="Usuario">
+                  <input value={newUser.username} onChange={e => setNewUser(v => ({ ...v, username: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+                </Field>
+                <Field label="Contraseña">
+                  <input value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Contraseña temporal" />
+                </Field>
+                <Field label="Inicio de membresía">
+                  <input type="date" value={newUser.fechaInicio} onChange={e => setNewUser(v => ({ ...v, fechaInicio: e.target.value }))} className={inputCls} />
+                </Field>
+                <Field label="Duración">
+                  <select value={newUser.meses} onChange={e => setNewUser(v => ({ ...v, meses: Number(e.target.value) }))} className={inputCls}>
+                    <option value={1}>1 mes</option>
+                    <option value={2}>2 meses</option>
+                    <option value={3}>3 meses</option>
+                    <option value={6}>6 meses</option>
+                    <option value={12}>12 meses</option>
+                  </select>
+                </Field>
+                <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar alumno</button>
+              </form>
+              {formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
             </div>
-          )}
-        </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-zinc-800 flex flex-col gap-3">
+                <h2 className="jb-display text-base text-zinc-200">
+                  ALUMNOS ({usersFiltrados.length}{busqueda ? ` de ${users.length}` : ''})
+                </h2>
+                <input
+                  value={busqueda}
+                  onChange={e => setBusqueda(e.target.value)}
+                  placeholder="Buscar por nombre o usuario..."
+                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 w-full"
+                />
+              </div>
+              {usersFiltrados.length === 0 ? (
+                <p className="text-zinc-500 text-sm px-5 py-8 text-center">
+                  {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2.5 p-3">
+                  {usersFiltrados.map(u => (
+                    <AlumnoRow key={u.username} u={u}
+                      onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
+                      onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
+                      onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {tabActiva === 'negocio' && (
+          <>
+            <ReferidosPanel users={users} onCambio={onRecargar} />
+            <VencimientosPanel users={users} onRenew={onRenew} />
+            <CumpleanosPanel users={users} />
+            <PagosPanel />
+            <LeadsPanel />
+            <MetricasPanel />
+            <FinanzasPanel />
+          </>
+        )}
+
+        {tabActiva === 'ia' && (
+          <ReconocimientoFotoPanel />
+        )}
+
+        {tabActiva === 'tienda' && (
+          <TiendaAdminPanel />
+        )}
       </main>
     </div>
   );

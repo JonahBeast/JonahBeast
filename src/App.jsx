@@ -8979,6 +8979,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const [guardandoTel, setGuardandoTel] = useState(false);
   const [guardandoNombre, setGuardandoNombre] = useState(false);
   const [errNombre, setErrNombre] = useState('');
+  const [errTelefono, setErrTelefono] = useState('');
   const [estadoPush, setEstadoPush] = useState('cargando'); // cargando | yaActivo | disponible | bloqueado | nosoportado | iosNoInstalado
   const [incluirPasoNotif, setIncluirPasoNotif] = useState(null); // se fija una sola vez al cargar, para que el paso no aparezca/desaparezca a mitad de recorrido
   const [activandoPush, setActivandoPush] = useState(false);
@@ -9056,6 +9057,11 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       texto: 'Así puedo saludarte como se debe y acompañarte de forma más personal.',
       esNombre: true,
     }]),
+    ...(telefonoActual ? [] : [{
+      emoji: '📱', titulo: '¿QUIERES QUE TE ACOMPAÑE DE CERCA?',
+      texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu prueba está por vencer. Nada de spam, solo lo importante.',
+      esTelefono: true,
+    }]),
     ...(incluirPasoNotif ? [{
       emoji: '🦍', titulo: 'ACTIVA TUS NOTIFICACIONES',
       texto: 'Es lo más importante que puedes activar: así Jonah te avisa si se te pasa una comida, te acompaña cuando lo necesites, y te avisa a tiempo antes de que venza tu plan — para que nunca pierdas tu progreso por no enterarte.',
@@ -9085,11 +9091,6 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       emoji: '📸', titulo: 'MIDE TU AVANCE',
       texto: 'Toma tus fotos cada 2 semanas y registra tu peso. En "Mi progreso" verás tus gráficos y en "Mis fotos" podrás comparar el antes y el ahora.',
     },
-    ...(telefonoActual ? [] : [{
-      emoji: '📱', titulo: '¿QUIERES QUE TE ACOMPAÑE DE CERCA?',
-      texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu prueba está por vencer. Nada de spam, solo lo importante.',
-      esTelefono: true,
-    }]),
     {
       emoji: '📅', titulo: 'TU RUTINA DIARIA ES SIMPLE',
       texto: 'Solo registra tus comidas cada día. Nada más. Tus medidas quedan guardadas y no cambian hasta que tú las actualices.',
@@ -9103,14 +9104,16 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const p = pasos[paso];
   const ultimo = paso === pasos.length - 1;
 
-  async function guardarTelefonoSiHay() {
+  async function guardarTelefono() {
     const limpio = telefono.replace(/\D/g, '');
-    if (limpio.length < 9 || !username) return;
+    if (limpio.length < 9) { setErrTelefono('Escribe tu número de WhatsApp (9 dígitos) para que Jonah pueda acompañarte.'); return false; }
+    setErrTelefono('');
     setGuardandoTel(true);
     try {
       await supabase.from('alumnos').update({ telefono: limpio }).eq('username', username);
     } catch (e) { /* si falla, no bloquea el avance del onboarding */ }
     setGuardandoTel(false);
+    return true;
   }
 
   async function guardarNombre() {
@@ -9126,7 +9129,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
 
   async function avanzar() {
     if (p.esNombre) { const ok = await guardarNombre(); if (!ok) return; }
-    if (p.esTelefono) await guardarTelefonoSiHay();
+    if (p.esTelefono) { const ok = await guardarTelefono(); if (!ok) return; }
     // El botón principal en el paso de notificaciones ES la acción de
     // activarlas — dispara el permiso del navegador. Se avanza igual
     // después, acepte o no: bloquearlo indefinidamente si dice que no
@@ -9155,7 +9158,9 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
             <div className="mt-4 text-left">
               <input type="tel" inputMode="tel" value={telefono} onChange={e => setTelefono(e.target.value)}
                 className={inputCls} placeholder="999 888 777" autoFocus />
-              <p className="jb-body text-[11px] text-zinc-600 mt-1.5">Opcional, pero así puedo escribirte directo cuando te haga falta un empujón 🔥</p>
+              {errTelefono
+                ? <p className="text-red-400 text-xs jb-body mt-1.5 flex items-center gap-1.5"><AlertTriangle size={12} />{errTelefono}</p>
+                : <p className="jb-body text-[11px] text-zinc-600 mt-1.5">Así puedo escribirte directo cuando te haga falta un empujón — nada de spam, solo acompañamiento 🔥</p>}
             </div>
           )}
           {p.esNotificacion && (
@@ -9202,8 +9207,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           <button onClick={avanzar} disabled={guardandoTel || guardandoNombre || activandoPush} className={btnPrimary + ' flex-1 py-2.5'}>
             {(guardandoTel || guardandoNombre || activandoPush) ? <Loader2 className="animate-spin" size={18} /> : (
               ultimo ? '¡Empecemos!'
-              : p.esNombre ? 'Guardar y seguir'
-              : (p.esTelefono && telefono) ? 'Guardar y seguir'
+              : (p.esNombre || p.esTelefono) ? 'Guardar y seguir'
               : (p.esNotificacion && estadoPush === 'disponible') ? 'Activar notificaciones'
               : (p.esNotificacion) ? 'Continuar'
               : 'Siguiente'
@@ -9211,7 +9215,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           </button>
         </div>
 
-        {!ultimo && !p.esNombre && !p.esNotificacion && (
+        {!ultimo && !p.esNombre && !p.esNotificacion && !p.esTelefono && (
           <button onClick={onClose} className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
             Saltar guía
           </button>

@@ -5425,6 +5425,7 @@ function EmbudoPanel() {
   const [alumnos, setAlumnos] = useState([]);
   const [notas, setNotas] = useState([]);
   const [perfilesCompletos, setPerfilesCompletos] = useState({}); // username -> bool
+  const [ultimoRegistroComida, setUltimoRegistroComida] = useState({}); // username -> fecha ISO o null
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [notaAbierta, setNotaAbierta] = useState(null);
@@ -5449,6 +5450,25 @@ function EmbudoPanel() {
       (d || []).forEach(row => { completos[row.username] = !!(row.form && row.form.objetivo); });
       setPerfilesCompletos(completos);
       setNotas(n || []);
+
+      // Última vez que cada alumno en prueba registró alguna comida —
+      // para el grupo de "no registran comidas". Se limita a los que
+      // están en prueba gratis, no hace falta para todos.
+      const usernamesPrueba = (a || [])
+        .filter(al => (al.plan === 'trial' || al.plan === 'prueba') && al.enabled)
+        .map(al => al.username);
+      if (usernamesPrueba.length) {
+        const { data: h } = await supabase.from('historial')
+          .select('username, fecha, comidas_count')
+          .in('username', usernamesPrueba)
+          .gt('comidas_count', 0)
+          .order('fecha', { ascending: false });
+        const ultimos = {};
+        (h || []).forEach(row => { if (!ultimos[row.username]) ultimos[row.username] = row.fecha; });
+        setUltimoRegistroComida(ultimos);
+      } else {
+        setUltimoRegistroComida({});
+      }
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
@@ -5523,14 +5543,12 @@ function EmbudoPanel() {
       : `https://wa.me/?text=${encodeURIComponent(texto)}`;
   }
 
-  // Mismos mensajes en la voz de Jonah que ya usa el push automático
-  // de api/cron/activa-tu-perfil.js — acá en texto, listos para
-  // WhatsApp, con [NOMBRE] para reemplazar automático.
   const MENSAJES_SEGUIMIENTO_WA = {
     1: 'Hola [NOMBRE] 🦍 Vi que aún no completaste tus medidas en la app. Toma solo 2 minutitos y ahí ya calculamos tu objetivo juntos. ¿Te ayudo con algo para que lo hagas ahora?',
     2: 'Hola [NOMBRE], sigo aquí pendiente de ti 🦍 Cuando puedas, entra a la app y completa tus medidas — sin apuro, pero quiero que arranquemos pronto. ¿Hay algo que te esté trabando?',
     3: '[NOMBRE], no dejes que se te pase esto 🔥 Un par de minutos y arrancamos tu cambio real. Si tienes alguna duda o trabas para completarlo, dime y te ayudo directo por aquí 🦍💪',
   };
+  const MENSAJE_SIN_COMIDAS_WA = 'Hola [NOMBRE] 🦍 Vi que no has registrado tus comidas en estos últimos días. ¿Todo bien? Si hay algo que te está costando o alguna duda, aquí estoy para ayudarte 💪';
 
   function fmt(fecha) {
     return fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '—';
@@ -5546,6 +5564,7 @@ function EmbudoPanel() {
           <div>
             <div className="text-zinc-100 text-sm font-medium">{nombre || 'Sin nombre'}</div>
             <div className="text-zinc-500 text-xs">{sub}</div>
+            {!telefono && <div className="text-zinc-600 text-xs jb-body mt-0.5">📵 sin celular registrado</div>}
             {alerta && <div className="text-amber-400 text-xs jb-body mt-0.5">⚠️ {alerta}</div>}
           </div>
           <div className="flex gap-2 shrink-0">
@@ -5643,20 +5662,83 @@ function EmbudoPanel() {
 
               <Etapa titulo="LEADS (calculadora gratis)" emoji="📏" items={leadsFiltrados} render={l => (
                 <Persona key={l.id} tipo="lead" referencia={l.id} nombre={l.nombre} telefono={l.telefono}
-                  sub={`${l.telefono || 'sin celular'} · ${fmt(l.created_at.slice(0, 10))}`} />
+                  sub={fmt(l.created_at.slice(0, 10))} />
               )} />
-              <Etapa titulo="PRUEBA GRATIS" emoji="🆓" items={enPrueba} render={a => {
-                const diasReg = a.fecha_inicio ? Math.round((new Date(hoy) - new Date(a.fecha_inicio)) / 86400000) : null;
-                const sinPerfil = !perfilesCompletos[a.username];
-                const diaAlerta = sinPerfil && diasReg !== null && diasReg >= 1 ? Math.min(diasReg, 3) : null;
-                const alerta = sinPerfil && diasReg !== null && diasReg >= 1
-                  ? `sin completar perfil · día ${diasReg}` : null;
+
+              {(() => {
+                // Clasificamos cada alumno en prueba en UN solo grupo,
+                // por orden de prioridad — así nadie aparece repetido
+                // en dos listas a la vez. El que no completó perfil
+                // pesa más que el que no registra comidas, porque sin
+                // perfil tampoco puede registrar nada útil todavía.
+                const sinPerfilList = [];
+                const sinComidasList = [];
+                const alDiaList = [];
+                enPrueba.forEach(a => {
+                  const diasReg = a.fecha_inicio ? Math.round((new Date(hoy) - new Date(a.fecha_inicio)) / 86400000) : null;
+                  const sinPerfil = !perfilesCompletos[a.username];
+                  if (sinPerfil && diasReg !== null && diasReg >= 1) {
+                    sinPerfilList.push({ a, diasReg, diaAlerta: Math.min(diasReg, 3) });
+                    return;
+                  }
+                  const ultimaComida = ultimoRegistroComida[a.username];
+                  const diasSinComida = ultimaComida ? Math.round((new Date(hoy) - new Date(ultimaComida)) / 86400000) : (diasReg !== null ? diasReg : null);
+                  if (!perfilesCompletos[a.username]) { alDiaList.push(a); return; } // recién se registró hoy, sin perfil aún pero no alertamos de más
+                  if (diasSinComida !== null && diasSinComida >= 2) {
+                    sinComidasList.push({ a, diasSinComida });
+                    return;
+                  }
+                  alDiaList.push(a);
+                });
+
                 return (
-                  <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                    sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={alerta}
-                    mensajeWa={diaAlerta ? MENSAJES_SEGUIMIENTO_WA[diaAlerta] : null} />
+                  <>
+                    <div>
+                      <h3 className="jb-display text-sm text-amber-400 mb-2">🚨 SIN COMPLETAR PERFIL · {sinPerfilList.length}</h3>
+                      {sinPerfilList.length === 0 ? (
+                        <p className="text-zinc-600 text-xs">Nadie en este grupo — todos completaron sus medidas y objetivo.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                          {sinPerfilList.map(({ a, diasReg, diaAlerta }) => (
+                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                              sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={`sin completar perfil · día ${diasReg}`}
+                              mensajeWa={MENSAJES_SEGUIMIENTO_WA[diaAlerta]} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="jb-display text-sm text-amber-400 mb-2">🍽️ NO REGISTRAN COMIDAS · {sinComidasList.length}</h3>
+                      {sinComidasList.length === 0 ? (
+                        <p className="text-zinc-600 text-xs">Nadie en este grupo — todos vienen registrando.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                          {sinComidasList.map(({ a, diasSinComida }) => (
+                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                              sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={`sin registrar comidas · ${diasSinComida} día(s)`}
+                              mensajeWa={MENSAJE_SIN_COMIDAS_WA} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="jb-display text-sm text-zinc-300 mb-2">✅ AL DÍA · {alDiaList.length}</h3>
+                      {alDiaList.length === 0 ? (
+                        <p className="text-zinc-600 text-xs">Nadie en este grupo todavía.</p>
+                      ) : (
+                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                          {alDiaList.map(a => (
+                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                              sub={`vence ${fmt(a.fecha_vencimiento)}`} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 );
-              }} />
+              })()}
               <Etapa titulo="PAGANDO" emoji="💰" items={pagando} render={a => (
                 <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
                   sub={`vence ${fmt(a.fecha_vencimiento)}`} />

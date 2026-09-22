@@ -2935,9 +2935,9 @@ function Landing({ onChoose }) {
           .jb-scan { animation: jb-scan-line 3.4s ease-in-out infinite; }
         `}</style>
         <div className="flex justify-center mb-3" style={step(240)}>
-          <div className="w-16 h-16 bg-zinc-900 border border-orange-500/40 rounded-xl relative overflow-hidden flex items-center justify-center text-3xl">
-            <span>🍛</span>
-            <div className="jb-scan absolute left-[8%] right-[8%] h-px bg-orange-500" style={{ boxShadow: '0 0 8px 2px rgba(232,89,12,0.8)' }} />
+          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
+            <img src="/lomo-saltado.jpg" alt="" className="w-full h-full object-cover" />
+            <div className="jb-scan absolute left-[6%] right-[6%] h-0.5 bg-orange-500" style={{ boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
           </div>
         </div>
         <div className="flex justify-center mb-4" style={step(250)}>
@@ -2948,7 +2948,7 @@ function Landing({ onChoose }) {
         </div>
 
         <p className="jb-body text-zinc-400 text-base mb-5 max-w-md mx-auto" style={step(260)}>
-          Toma foto a tu plato — arroz, guisos, menestras — y calculamos tus macros al toque. Nada de básculas ni ensaladas que nadie come todos los días.
+          Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
         <div className="mb-5" style={step(280)}>

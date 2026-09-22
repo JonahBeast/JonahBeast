@@ -9724,26 +9724,6 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
         <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
-        {(() => {
-          const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
-          const protObjetivo = targets ? targets.protein : null;
-          const carbObjetivo = targets ? targets.carbs : null;
-          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0 };
-          Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
-            const m = entryMacros(en);
-            totalsHoyFull.carbs += m.carbs;
-          }));
-          return (
-            <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
-              <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#E8590C" size={64} stroke={6} />
-              <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={64} stroke={6} />
-              <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={64} stroke={6} />
-            </div>
-          );
-        })()}
         <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
         <p className="jb-body text-xs text-zinc-600 mt-3">
           Mira tus promedios y tendencias de varios días en la pestaña "Mi progreso".
@@ -11262,14 +11242,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               const targets = goalTargets(form, results.tdee);
               return (
                 <>
-                  <JonahGorila username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenSemanalCard username={username} />
                 </>
               );
             })()}
             <RachaCard username={username} />
-            <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
           </>

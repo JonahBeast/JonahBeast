@@ -1436,7 +1436,7 @@ function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo })
   }
   if (!actual) return null;
 
-  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-zinc-800';
+  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-orange-500/25';
 
   return (
     <div className="flex flex-col items-center gap-3 py-3">

@@ -9053,6 +9053,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
   return (
     <div className="flex flex-col gap-6 min-w-0">
       {subNav}
+      <RachaCard username={username} />
       <div className="flex gap-2 flex-wrap">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}

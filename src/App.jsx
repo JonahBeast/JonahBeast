@@ -2885,6 +2885,14 @@ function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
+  // Porcentaje del escaneo — sube de 0 a 100 en bucle, sincronizado con
+  // la duración de la línea animada (3.4s = 100 pasos de 34ms).
+  const [scanPct, setScanPct] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setScanPct(p => (p >= 100 ? 0 : p + 1)), 34);
+    return () => clearInterval(iv);
+  }, []);
+
   const step = (delay) => ({
     opacity: mounted ? 1 : 0,
     transform: mounted ? 'translateY(0)' : 'translateY(10px)',
@@ -2911,17 +2919,12 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
-        <div className="flex justify-center mb-6" style={step(0)}>
-          <div className="bg-orange-500 rounded-2xl p-4">
-            <Flame className="jb-flame-live text-zinc-950" size={40} strokeWidth={2.5} fill="currentColor" />
-          </div>
-        </div>
-        <div style={step(120)}>
+        <div style={step(0)}>
           <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
-          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-5 tracking-widest">FUEL</div>
+          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest">FUEL</div>
         </div>
 
-        <div className="mb-5" style={step(220)}>
+        <div className="mb-4" style={step(180)}>
           <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]">
             <span className="text-zinc-50">COME COMO PERUANO.</span><br />
             <span className="text-orange-500">RESULTADOS DE BESTIA.</span>
@@ -2934,24 +2937,27 @@ function Landing({ onChoose }) {
           @keyframes jb-scan-line { 0%, 100% { top: 10%; opacity: 0; } 20% { opacity: 1; } 50% { top: 82%; opacity: 1; } 68%, 100% { opacity: 0; } }
           .jb-scan { animation: jb-scan-line 3.4s ease-in-out infinite; }
         `}</style>
-        <div className="flex justify-center mb-3" style={step(240)}>
-          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
+        <div className="flex justify-center mb-2" style={step(220)}>
+          <div className="w-24 h-24 sm:w-28 sm:h-28 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
             <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
             <div className="jb-scan absolute left-[6%] right-[6%] h-0.5 bg-orange-500" style={{ boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
+            <div className="absolute bottom-1 right-1.5 jb-body text-[10px] font-bold text-orange-400" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+              {scanPct}%
+            </div>
           </div>
         </div>
-        <div className="flex justify-center mb-4" style={step(250)}>
+        <div className="flex justify-center mb-3" style={step(250)}>
           <div className="bg-zinc-900 border border-orange-500/50 rounded-full px-3 py-1 flex items-center gap-1.5">
             <ShieldCheck className="text-orange-500 shrink-0" size={12} />
             <span className="jb-body text-[10.5px] font-semibold text-zinc-100">Lomo saltado detectado</span>
           </div>
         </div>
 
-        <p className="jb-body text-zinc-400 text-base mb-5 max-w-md mx-auto" style={step(260)}>
+        <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
-        <div className="mb-5" style={step(280)}>
+        <div className="mb-3" style={step(280)}>
           <JonahMiniIdle
             fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
             frases={[
@@ -2968,31 +2974,31 @@ function Landing({ onChoose }) {
           <ChevronRight className="text-zinc-950" size={16} />
         </button>
 
-        <p className="jb-body text-orange-500/80 text-xs mb-6 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
         {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40" style={step(420)}>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 mb-4 shadow-xl shadow-black/40" style={step(420)}>
           <div className="flex items-center justify-between mb-1">
             <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
             <span className="jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">EJEMPLO</span>
           </div>
           <div className="flex justify-around py-2">
-            <MacroRing pct={72} value="1840" label="Kcal" colorHex="#E8590C" size={72} stroke={7} />
-            <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={72} stroke={7} />
-            <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={72} stroke={7} />
+            <MacroRing pct={72} value="1840" label="Kcal" colorHex="#E8590C" size={64} stroke={6} />
+            <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={64} stroke={6} />
+            <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={64} stroke={6} />
           </div>
           <p className="jb-body text-[10px] text-zinc-600 text-center mt-1">
             Datos de ejemplo — tus números se calculan al medirte
           </p>
         </div>
 
-        <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
+        <p className="jb-body text-xs text-zinc-500 mb-4" style={step(480)}>
           Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
         </p>
 
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
-        <div className="mb-6" style={step(500)}>
+        <div className="mb-4" style={step(500)}>
           <style>{`
             @keyframes jb-bolt-fall {
               0%, 28% { opacity: 0; transform: translate(-50%, -40%); }
@@ -3037,12 +3043,12 @@ function Landing({ onChoose }) {
                   <div className="jb-flash absolute inset-0 z-[9] bg-white pointer-events-none" style={{ animationDelay: `${i * 1.5}s` }} />
 
                   <div className="relative">
-                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover object-top" />
+                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-32 object-cover object-top" />
                     <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
                   </div>
                   <div className="relative overflow-hidden">
                     <div className="jb-reveal" style={{ animationDelay: `${i * 1.5}s` }}>
-                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
+                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-32 object-cover object-top" />
                     </div>
                     <span className="jb-tag-ahora absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950"
                       style={{ animationDelay: `${i * 1.5}s` }}>AHORA</span>

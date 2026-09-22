@@ -2941,8 +2941,8 @@ function Landing({ onChoose }) {
             <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
             <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
               style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="jb-display text-lg text-orange-400 bg-zinc-950/60 px-2 py-0.5 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+            <div className="absolute bottom-1 inset-x-0 flex justify-center pointer-events-none">
+              <span className="jb-display text-sm text-orange-400 bg-zinc-950/70 px-2 py-0.5 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
                 {scanPct}%
               </span>
             </div>

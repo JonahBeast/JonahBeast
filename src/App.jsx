@@ -2884,6 +2884,17 @@ function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
+  // Seguimiento básico del embudo: vista de landing (una vez al montar)
+  // y clic en el CTA. Falla en silencio si no hay conexión -- nunca
+  // debe bloquear ni ralentizar la experiencia del visitante.
+  useEffect(() => {
+    supabase.from('embudo_landing_eventos').insert({ evento: 'vista' }).then(() => {}, () => {});
+  }, []);
+  function registrarClicCTA() {
+    supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta' }).then(() => {}, () => {});
+    onChoose('trial');
+  }
+
   // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
   // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
   const [scanPct, setScanPct] = useState(0);
@@ -2974,7 +2985,7 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
-        <button onClick={() => onChoose('trial')} style={step(320)}
+        <button onClick={registrarClicCTA} style={step(320)}
           className="inline-flex items-center gap-2 mb-2 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
           <ChevronRight className="text-zinc-950" size={16} />
@@ -3056,7 +3067,7 @@ function Landing({ onChoose }) {
 
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button onClick={() => onChoose('trial')} style={step(540)}
+        <button onClick={registrarClicCTA} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
           <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
           <span className="jb-body text-[11px] text-zinc-800">· 15 días sin tarjeta</span>
@@ -5411,6 +5422,79 @@ function ReconocimientoFotoPanel() {
   );
 }
 
+/* Embudo de la landing: cuánta gente VE la página, cuántos tocan el
+   botón, y cuántos terminan de registrarse -- así se puede saber si
+   un problema es de diseño (poca gente convierte) o de tráfico (nadie
+   ve la página en primer lugar, o llegan bots). */
+function EmbudoLandingPanel() {
+  const [dias, setDias] = useState(7);
+  const [datos, setDatos] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, [dias]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const desde = new Date(Date.now() - dias * 86400000).toISOString();
+      const [{ count: vistas }, { count: clics }, { count: registros }] = await Promise.all([
+        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'vista').gte('creado_en', desde),
+        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'clic_cta').gte('creado_en', desde),
+        supabase.from('alumnos').select('*', { count: 'exact', head: true }).gte('created_at', desde),
+      ]);
+      setDatos({ vistas: vistas || 0, clics: clics || 0, registros: registros || 0 });
+    } catch { setDatos({ vistas: 0, clics: 0, registros: 0 }); }
+    setLoading(false);
+  }
+
+  const pct = (num, den) => den ? Math.round((num / den) * 100) : 0;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="jb-display text-base text-zinc-200">EMBUDO DE LA LANDING</h2>
+        <div className="flex gap-1.5">
+          {[7, 30].map(d => (
+            <button key={d} onClick={() => setDias(d)}
+              className={`jb-body text-xs px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+              {d} días
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading || !datos ? (
+        <Skeleton className="h-20 w-full rounded-xl" />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+              <div className="jb-display text-xl text-zinc-100">{datos.vistas}</div>
+              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Vieron la landing</div>
+            </div>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+              <div className="jb-display text-xl text-orange-400">{datos.clics}</div>
+              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Tocaron el botón</div>
+            </div>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+              <div className="jb-display text-xl text-emerald-400">{datos.registros}</div>
+              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Se registraron</div>
+            </div>
+          </div>
+          <p className="jb-body text-xs text-zinc-500 mt-3 text-center">
+            {pct(datos.clics, datos.vistas)}% tocó el botón · {pct(datos.registros, datos.clics)}% de los que tocaron terminó de registrarse
+          </p>
+          {datos.vistas > 0 && datos.clics === 0 && (
+            <p className="jb-body text-xs text-amber-400 mt-2 text-center">
+              Hay vistas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function EmbudoPanel() {
   const [leads, setLeads] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
@@ -6162,6 +6246,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
+            <EmbudoLandingPanel />
             <EmbudoPanel />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">

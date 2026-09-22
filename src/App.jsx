@@ -3393,25 +3393,9 @@ function TrialSignup({ onBack, onCreated }) {
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
-          <div className="text-center mb-5">
-            <JonahMiniIdle
-              fraseInicial="¡Vamos a lograrlo juntos! Regístrate y empecemos hoy mismo 🦍🔥"
-              frases={[
-                'Solo te toma 2 minutos, y yo te acompaño desde el primer día.',
-                'Sin tarjeta, sin letra chica. Solo empezar.',
-                '¡Anímate! Tu mejor versión te está esperando 💪',
-              ]}
-            />
-            <div className="jb-display text-2xl text-orange-500 mb-1 mt-3">15 DÍAS GRATIS</div>
-            <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
-          </div>
-
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-5">
-            {['Mide tu composición corporal', 'Arma tu plan con comida peruana', 'Descubre qué comer según lo que te queda', 'Sigue tu progreso día a día'].map(t => (
-              <div key={t} className="flex items-center gap-2 text-xs text-zinc-300 jb-body py-0.5">
-                <span className="text-emerald-400">✓</span> {t}
-              </div>
-            ))}
+          <div className="mb-5">
+            <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">EMPIEZA TU<br />PRUEBA GRATIS</h1>
+            <p className="jb-body text-sm text-zinc-400">15 días, sin tarjeta. Cancela cuando quieras.</p>
           </div>
 
           {aviso ? (
@@ -3451,7 +3435,7 @@ function TrialSignup({ onBack, onCreated }) {
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'Crear mi cuenta'}
               </button>
               <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
                 Al crear tu cuenta, aceptas nuestra{' '}

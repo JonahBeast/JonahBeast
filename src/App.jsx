@@ -2948,11 +2948,20 @@ function Landing({ onChoose }) {
           </div>
         </div>
         <div className="flex justify-center mb-3" style={step(250)}>
-          <div className="bg-zinc-900 border border-orange-500/50 rounded-full px-3 py-1 flex items-center gap-1.5">
-            <ShieldCheck className="text-orange-500 shrink-0" size={12} />
-            <span className="jb-body text-[10.5px] font-semibold text-zinc-100">Lomo saltado detectado</span>
+          <div className={`bg-zinc-900 border border-orange-500/50 rounded-xl px-3 py-1.5 flex flex-col items-center gap-0.5 transition-all ${scanPct >= 85 ? 'py-2' : ''}`}>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="text-orange-500 shrink-0" size={12} />
+              <span className="jb-body text-[10.5px] font-semibold text-zinc-100">Lomo saltado detectado</span>
+            </div>
+            {scanPct >= 85 && (
+              <span className="jb-body text-[10px] text-zinc-400">612 kcal · 38g proteína · 40g carbos</span>
+            )}
           </div>
         </div>
+
+        <p className="jb-body text-zinc-500 text-xs mb-4">
+          Cada día sin registrar es un día que no sabes si vas por buen camino.
+        </p>
 
         <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.

@@ -9322,7 +9322,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
             {p.esTelefono ? <Phone className="text-orange-500" size={26} /> : p.emoji}
           </div>
-          <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
+          <h2 className="jb-display text-xl text-zinc-50 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
           {p.esNombre && (
             <div className="mt-4 text-left">

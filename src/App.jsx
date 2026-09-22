@@ -2856,7 +2856,7 @@ const TESTIMONIOS = [
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
     dato: '37 kg perdidos en 4 años',
-    quote: 'Como fundador de Jonah Beast Fuel creé esta herramienta para ayudar a otras personas a lograr sus objetivos. Creo que si hubiera tenido un arma como esta, mis resultados hubieran sido en menor tiempo.',
+    quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
   },
   {
     nombre: 'Andrea R.',

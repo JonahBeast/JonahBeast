@@ -2885,10 +2885,17 @@ function Landing({ onChoose }) {
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
   // Seguimiento básico del embudo: vista de landing (una vez al montar)
-  // y clic en el CTA. Falla en silencio si no hay conexión -- nunca
-  // debe bloquear ni ralentizar la experiencia del visitante.
+  // y clic en el CTA. No cuenta si el celular ya inició sesión antes
+  // (ej. un alumno que cerró sesión y volvió) -- eso no es un visitante
+  // nuevo, y mezclarlo infla el número sin que signifique nada real.
+  // Falla en silencio si no hay conexión -- nunca debe bloquear ni
+  // ralentizar la experiencia del visitante.
   useEffect(() => {
-    supabase.from('embudo_landing_eventos').insert({ evento: 'vista' }).then(() => {}, () => {});
+    let yaConocido = false;
+    try { yaConocido = localStorage.getItem('jb-conocido') === '1'; } catch {}
+    if (!yaConocido) {
+      supabase.from('embudo_landing_eventos').insert({ evento: 'vista' }).then(() => {}, () => {});
+    }
   }, []);
   function registrarClicCTA() {
     supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta' }).then(() => {}, () => {});
@@ -12591,6 +12598,7 @@ export default function App() {
         return;
       }
       setAdminAuthed(true);
+      try { localStorage.setItem('jb-conocido', '1'); } catch {}
       setView('admin');
     } catch {
       setErr('No se pudo iniciar sesión, intenta de nuevo.');
@@ -12663,6 +12671,7 @@ export default function App() {
     }
 
     let perfil = null;
+    try { localStorage.setItem('jb-conocido', '1'); } catch {}
     try {
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.user.id).maybeSingle();
       perfil = p;

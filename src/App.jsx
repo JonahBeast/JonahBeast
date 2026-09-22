@@ -5492,7 +5492,7 @@ function EmbudoLandingPanel() {
             </div>
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
               <div className="jb-display text-xl text-emerald-400">{datos.registros}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Se registraron</div>
+              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Se registró</div>
             </div>
           </div>
           <p className="jb-body text-xs text-zinc-500 mt-3 text-center">

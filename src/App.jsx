@@ -3072,9 +3072,9 @@ function Landing({ onChoose }) {
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
         <button onClick={() => onChoose('trial')} style={step(540)}
-          className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors shadow-lg shadow-orange-500/20">
-          <div className="jb-display text-lg text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</div>
-          <p className="jb-body text-sm text-zinc-800 mt-1">15 días · sin tarjeta · acceso completo</p>
+          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+          <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
+          <span className="jb-body text-[11px] text-zinc-800">· 15 días sin tarjeta</span>
         </button>
 
         <div className="grid sm:grid-cols-2 gap-3 mt-3" style={step(600)}>

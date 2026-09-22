@@ -9884,19 +9884,23 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
           const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
           const protObjetivo = targets ? targets.protein : null;
           const carbObjetivo = targets ? targets.carbs : null;
-          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0 };
+          const fatObjetivo = targets ? targets.fat : null;
+          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0, fat: 0 };
           Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
             const m = entryMacros(en);
             totalsHoyFull.carbs += m.carbs;
+            totalsHoyFull.fat += m.fat;
           }));
           return (
-            <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+            <div className="flex flex-wrap justify-around gap-2 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
               <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={64} stroke={6} />
+                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={58} stroke={6} />
               <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={64} stroke={6} />
+                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={58} stroke={6} />
               <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={64} stroke={6} />
+                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={58} stroke={6} />
+              <MacroRing pct={fatObjetivo ? (totalsHoyFull.fat / fatObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.fat) + 'g'} label="Grasa" colorHex="#fbbf24" size={58} stroke={6} />
             </div>
           );
         })()}

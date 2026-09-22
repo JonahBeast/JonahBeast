@@ -2891,6 +2891,12 @@ function Landing({ onChoose }) {
   // Falla en silencio si no hay conexión -- nunca debe bloquear ni
   // ralentizar la experiencia del visitante.
   //
+  // Modo de prueba: agregar ?preview=1 a la URL para que esa visita
+  // NUNCA se cuente en el embudo, sin importar el navegador o si ya
+  // inició sesión antes -- pensado para cuando Jonah mismo revisa la
+  // landing y no quiere ensuciar sus propios números. Se recuerda por
+  // el resto de la sesión, así no hay que repetirlo en cada pantalla.
+  //
   // Fuente del tráfico: se lee de la URL (?utm_source=tiktok o
   // ?fuente=tiktok, cualquiera de las dos) y se guarda en la sesión del
   // navegador, para que el clic del botón recuerde de dónde vino la
@@ -2899,21 +2905,32 @@ function Landing({ onChoose }) {
     let fuente = 'directo';
     try {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('preview') === '1') sessionStorage.setItem('jb-preview', '1');
       const deUrl = params.get('utm_source') || params.get('fuente');
       if (deUrl) { fuente = deUrl.toLowerCase(); sessionStorage.setItem('jb-fuente', fuente); }
       else { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; }
     } catch {}
 
     let yaConocido = false;
-    try { yaConocido = localStorage.getItem('jb-conocido') === '1'; } catch {}
-    if (!yaConocido) {
+    let esPreview = false;
+    try {
+      yaConocido = localStorage.getItem('jb-conocido') === '1';
+      esPreview = sessionStorage.getItem('jb-preview') === '1';
+    } catch {}
+    if (!yaConocido && !esPreview) {
       supabase.from('embudo_landing_eventos').insert({ evento: 'vista', fuente }).then(() => {}, () => {});
     }
   }, []);
   function registrarClicCTA() {
     let fuente = 'directo';
-    try { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; } catch {}
-    supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta', fuente }).then(() => {}, () => {});
+    let esPreview = false;
+    try {
+      fuente = sessionStorage.getItem('jb-fuente') || 'directo';
+      esPreview = sessionStorage.getItem('jb-preview') === '1';
+    } catch {}
+    if (!esPreview) {
+      supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta', fuente }).then(() => {}, () => {});
+    }
     onChoose('trial');
   }
 

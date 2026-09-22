@@ -11257,14 +11257,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               const targets = goalTargets(form, results.tdee);
               return (
                 <>
-                  <JonahGorila username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenSemanalCard username={username} />
                 </>
               );
             })()}
             <RachaCard username={username} />
-            <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
           </>

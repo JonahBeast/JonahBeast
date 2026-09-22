@@ -2874,10 +2874,12 @@ const TESTIMONIOS = [
   },
 ];
 
-// Mosaico de fondo del hero — mismas fotos de los testimonios, repetidas
-// para llenar la grilla, como textura pasiva de prueba social (no hay
-// que deslizar nada para verla, a diferencia del carrusel de abajo).
-const HERO_BG_FOTOS = TESTIMONIOS.flatMap(t => [t.antes, t.despues]);
+// Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
+// sección completa de testimonios de abajo, pero no en este fondo).
+const HERO_BG_FOTOS = [
+  TESTIMONIOS[0].antes, TESTIMONIOS[0].despues,
+  TESTIMONIOS[1].antes, TESTIMONIOS[1].despues,
+];
 
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
@@ -2895,11 +2897,11 @@ function Landing({ onChoose }) {
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="relative">
-          <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
+          <div className="grid grid-cols-2 sm:grid-cols-4 opacity-[0.5] grayscale">
             {HERO_BG_FOTOS.map((src, i) => (
               <div key={i} className="aspect-[4/5] overflow-hidden">
                 <img src={src} alt="" className="w-full h-full object-cover object-top"
-                  style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.5)' } : undefined} />
+                  style={undefined} />
               </div>
             ))}
           </div>

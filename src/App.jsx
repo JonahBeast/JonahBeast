@@ -1356,7 +1356,7 @@ function ModoVoz({ onElegirVarios }) {
         )}
         <button onClick={escuchar} disabled={escuchando}
           className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 hover:scale-105'}`}
-          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(249,115,22,0.45)' }}>
+          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(232,89,12,0.45)' }}>
           <Mic size={30} className="text-white" strokeWidth={2.2} />
         </button>
       </div>
@@ -1614,7 +1614,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     <div className="bg-zinc-900 border border-violet-500/40 rounded-2xl p-5 mb-6">
       <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between text-left">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md" style={{ boxShadow: '0 0 14px rgba(249,115,22,0.4)' }}>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md" style={{ boxShadow: '0 0 14px rgba(232,89,12,0.4)' }}>
             <Mic size={17} className="text-white" strokeWidth={2.3} />
           </div>
           <div>
@@ -1796,14 +1796,14 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                       {i === idxSorpresa && (
                         <button type="button" onClick={tirarDado} disabled={girando}
                           className={`absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md transition-transform cursor-pointer ${girando ? 'animate-pulse' : 'active:scale-90'}`}
-                          style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}
+                          style={{ background: 'linear-gradient(135deg, #a78bfa, #E8590C)' }}
                           title="Toca para otra sorpresa">
                           {girando ? '🎰 GIRANDO...' : '🎲 SORPRESA DEL DÍA'}
                         </button>
                       )}
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #f97316, #a78bfa)' }}>
+                          style={{ background: 'linear-gradient(135deg, #E8590C, #a78bfa)' }}>
                           {opt.emoji}
                         </div>
                         <span className="jb-body text-sm text-zinc-100 font-medium">{opt.name}</span>
@@ -1891,13 +1891,13 @@ const FONT_STYLE = (
     /* Llama viva: parpadeo orgánico de escala/rotación/brillo para el
        ícono de marca, en vez de un fuego estático. */
     @keyframes jb-flame-flicker {
-      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.55)); }
+      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.55)); }
       12% { transform: scale(1.06) rotate(3deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.75)); }
-      27% { transform: scale(0.95) rotate(-4deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.45)); }
+      27% { transform: scale(0.95) rotate(-4deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.45)); }
       41% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 7px rgba(253,224,71,0.8)); }
-      58% { transform: scale(0.97) rotate(-2deg); filter: drop-shadow(0 0 3px rgba(249,115,22,0.5)); }
+      58% { transform: scale(0.97) rotate(-2deg); filter: drop-shadow(0 0 3px rgba(232,89,12,0.5)); }
       74% { transform: scale(1.04) rotate(4deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.7)); }
-      88% { transform: scale(0.98) rotate(-1deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.5)); }
+      88% { transform: scale(0.98) rotate(-1deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.5)); }
     }
     .jb-flame-live { animation: jb-flame-flicker 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
   `}</style>
@@ -2618,7 +2618,7 @@ function RachaCard({ username }) {
   return (
     <div className="mb-6 flex flex-col gap-3">
       <div className="rounded-2xl p-4 flex items-center gap-3.5"
-        style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', boxShadow: '0 10px 30px -12px rgba(249,115,22,0.5)' }}>
+        style={{ background: 'linear-gradient(135deg, #E8590C, #C24A0A)', boxShadow: '0 10px 30px -12px rgba(232,89,12,0.5)' }}>
         <div className="text-3xl leading-none shrink-0">🔥</div>
         <div className="flex-1">
           <div className="jb-display text-xl text-zinc-950">{racha} día{racha === 1 ? '' : 's'} seguidos</div>
@@ -2669,7 +2669,7 @@ function RachaCard({ username }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
           <div className="relative w-11 h-11 shrink-0">
             <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>
+              style={{ background: 'linear-gradient(135deg, #a78bfa, #E8590C)' }}>
               <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
                 onError={(e) => { e.target.style.display = 'none'; }} />
             </div>
@@ -2914,10 +2914,10 @@ function Landing({ onChoose }) {
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/10 to-zinc-950" />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
+        backgroundImage: 'repeating-linear-gradient(45deg, #E8590C 0, #E8590C 2px, transparent 2px, transparent 40px)'
       }} />
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(232,89,12,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
         <div style={step(0)}>
           <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
@@ -3037,7 +3037,7 @@ function Landing({ onChoose }) {
                 <div className="relative grid grid-cols-2">
                   {/* Rayo que cae justo por el medio, entre "antes" y "después" */}
                   <div className="jb-bolt-wrap absolute z-10 pointer-events-none" style={{ top: '-25%', left: '50%', width: 22, height: 170, animationDelay: `${i * 1.5}s` }}>
-                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
+                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #E8590C)' }}>
                       <path d="M13 0 3 85h8l-5 85 17-98H13L18 0z" fill="#fde68a" />
                     </svg>
                   </div>
@@ -3389,7 +3389,7 @@ function TrialSignup({ onBack, onCreated }) {
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
@@ -3600,7 +3600,7 @@ function ResetPassword({ onDone }) {
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
       <div className="max-w-sm w-full relative">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
@@ -3730,7 +3730,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
       <div className="max-w-sm w-full relative">
         <div className="mb-4"><Logo size="lg" /></div>
         {modo === 'login' && (
@@ -5663,7 +5663,7 @@ function EmbudoPanel() {
             <>
               <div className="relative bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-4 overflow-hidden">
                 <div className="absolute inset-0 opacity-25 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(249,115,22,0.35), transparent 55%)' }} />
+                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(232,89,12,0.35), transparent 55%)' }} />
                 <div className="relative flex flex-col gap-3">
                   {[
                     { label: 'Leads', count: leadsFiltrados.length, color: 'from-sky-500 to-cyan-400', glow: 'rgba(56,189,248,0.55)' },
@@ -6171,7 +6171,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   <button key={t.id} onClick={() => setTabActiva(t.id)}
                     className={`shrink-0 jb-display text-xs tracking-wide px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center gap-1.5 ${
                       activa
-                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 border-orange-400 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.45)]'
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 border-orange-400 text-zinc-950 shadow-[0_0_20px_rgba(232,89,12,0.45)]'
                         : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                     }`}>
                     <span>{t.emoji}</span> {t.label}
@@ -6693,7 +6693,7 @@ function CalculatorTab({ form, setForm, results }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
           <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
             <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={64} stroke={6} />
-            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={64} stroke={6} />
+            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#E8590C" size={64} stroke={6} />
             <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantener" colorHex="#34d399" size={64} stroke={6} />
           </div>
         </div>
@@ -8395,7 +8395,7 @@ function PhotosTab({ username, pesoActual }) {
 /* COACH DIGITAL — análisis de tendencia                               */
 /* ------------------------------------------------------------------ */
 
-function MiniChart({ points, color = '#f97316', suffix = '' }) {
+function MiniChart({ points, color = '#E8590C', suffix = '' }) {
   if (!Array.isArray(points) || points.length < 2) return null;
   const limpios = points.filter(p => Number.isFinite(Number(p.v)));
   if (limpios.length < 2) return null;
@@ -9088,7 +9088,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
           <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
             <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
-              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={60} stroke={6} />
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#E8590C" size={60} stroke={6} />
             <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
               value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={60} stroke={6} />
             <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
@@ -9113,7 +9113,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
 
       <div className="grid sm:grid-cols-2 gap-4">
         {[
-          ['peso', 'PESO', ' kg', '#f97316'],
+          ['peso', 'PESO', ' kg', '#E8590C'],
           ['grasa_pct', '% GRASA CORPORAL', '%', '#fbbf24'],
           ['masa_muscular', 'MASA MUSCULAR', ' kg', '#34d399'],
           ['kcal_consumidas', 'CALORÍAS DIARIAS', '', '#60a5fa'],
@@ -9505,7 +9505,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
 
 /* Confeti simple con CSS puro — sin librerías externas */
 function Confetti() {
-  const colores = ['#f97316', '#34d399', '#a78bfa', '#fbbf24'];
+  const colores = ['#E8590C', '#34d399', '#a78bfa', '#fbbf24'];
   const piezas = Array.from({ length: 40 }, (_, i) => ({
     id: i,
     left: Math.random() * 100,
@@ -9626,7 +9626,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
             @keyframes jb-flash-once { 0% { opacity: 0; } 26% { opacity: 0.9; } 42% { opacity: 0; } 100% { opacity: 0; } }
           `}</style>
           <div className="absolute z-20 pointer-events-none" style={{ top: '-30%', left: '30%', width: 20, animation: 'jb-bolt-strike 1.1s ease-in forwards' }}>
-            <svg width="20" height="140" viewBox="0 0 20 140" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
+            <svg width="20" height="140" viewBox="0 0 20 140" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #E8590C)' }}>
               <path d="M12 0 3 70h7l-4 70 15-80h-7L16 0z" fill="#fde68a" />
             </svg>
           </div>
@@ -9636,7 +9636,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
       <div className="relative w-16 h-16 shrink-0">
         <svg width={64} height={64} style={{ transform: 'rotate(-90deg)' }}>
           <circle cx={32} cy={32} r={27} stroke="#27272a" strokeWidth={7} fill="none" />
-          <circle cx={32} cy={32} r={27} stroke="#f97316" strokeWidth={7} fill="none"
+          <circle cx={32} cy={32} r={27} stroke="#E8590C" strokeWidth={7} fill="none"
             strokeDasharray={2 * Math.PI * 27} strokeDashoffset={2 * Math.PI * 27 * (1 - score / 100)}
             strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         </svg>
@@ -9743,7 +9743,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
           return (
             <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
               <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={64} stroke={6} />
+                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#E8590C" size={64} stroke={6} />
               <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
                 value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={64} stroke={6} />
               <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
@@ -10360,7 +10360,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 <div className="absolute left-0 right-0 h-12 pointer-events-none"
                   style={{
                     top: '-15%',
-                    background: 'linear-gradient(180deg, transparent, rgba(249,115,22,0.6), transparent)',
+                    background: 'linear-gradient(180deg, transparent, rgba(232,89,12,0.6), transparent)',
                     animation: 'jb-scan-sweep 1.8s ease-in-out infinite',
                   }} />
               </div>

@@ -5316,7 +5316,7 @@ function AdminNotifButton() {
 
   if (estado === 'nosoportado' || estado === 'cargando') return null;
   if (estado === 'activo') {
-    return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5">🔔 Notificaciones activas</span>;
+    return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">🔔 <span className="hidden sm:inline">Notificaciones </span>Activas</span>;
   }
   if (estado === 'bloqueado') {
     return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas (revisa permisos del navegador)</span>;

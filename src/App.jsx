@@ -5436,7 +5436,13 @@ function EmbudoLandingPanel() {
   async function load() {
     setLoading(true);
     try {
-      const desde = new Date(Date.now() - dias * 86400000).toISOString();
+      // Anclamos el punto de partida a hoy (cuando arrancó este
+      // seguimiento) -- así "registros" nunca cuenta gente de antes de
+      // que existiera esta tabla, y los 3 números siempre comparan la
+      // misma ventana real de tiempo, sin importar el filtro elegido.
+      const inicioTracking = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+      const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
+      const desde = desdeSolicitado > inicioTracking ? desdeSolicitado : inicioTracking;
       const [{ count: vistas }, { count: clics }, { count: registros }] = await Promise.all([
         supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'vista').gte('creado_en', desde),
         supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'clic_cta').gte('creado_en', desde),
@@ -5451,7 +5457,7 @@ function EmbudoLandingPanel() {
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1">
         <h2 className="jb-display text-base text-zinc-200">EMBUDO DE LA LANDING</h2>
         <div className="flex gap-1.5">
           {[7, 30].map(d => (
@@ -5462,6 +5468,7 @@ function EmbudoLandingPanel() {
           ))}
         </div>
       </div>
+      <p className="jb-body text-[10px] text-zinc-600 mb-3">Cuenta desde hoy — los días antes de activar esto no están incluidos.</p>
 
       {loading || !datos ? (
         <Skeleton className="h-20 w-full rounded-xl" />

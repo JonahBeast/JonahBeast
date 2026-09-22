@@ -6085,26 +6085,26 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   });
 
   return (
-    <div className="min-h-screen jb-body relative" style={{ background: '#0a0d10' }}>
+    <div className="min-h-screen jb-body relative overflow-x-hidden" style={{ background: '#0a0d10' }}>
       <div className="fixed inset-0 pointer-events-none opacity-[0.35]" style={{
         backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px), repeating-linear-gradient(90deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px)'
       }} />
       <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 0%, rgba(77,217,255,0.08), transparent 55%)' }} />
 
-      <header className="relative border-b border-[#163244] px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', background: 'rgba(10,22,32,0.6)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
-          <div>
-            <div className="jb-display text-sm tracking-wide text-zinc-50">JONAH BEAST FUEL</div>
-            <div className="font-mono text-[10px] tracking-widest" style={{ color: '#6f92a8' }}>PANEL DE OPERACIONES</div>
+      <header className="relative border-b border-[#163244] px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', background: 'rgba(10,22,32,0.6)' }}>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
+          <div className="min-w-0">
+            <div className="jb-display text-xs sm:text-sm tracking-wide text-zinc-50 truncate">JONAH BEAST FUEL</div>
+            <div className="hidden sm:block font-mono text-[10px] tracking-widest" style={{ color: '#6f92a8' }}>PANEL DE OPERACIONES</div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setMostrarJarvis(true)} className={btnGhost} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
-            🔷 Jarvis
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <button onClick={() => setMostrarJarvis(true)} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
+            🔷 <span className="hidden sm:inline">Jarvis</span>
           </button>
           <AdminNotifButton />
-          <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
+          <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
       {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}

@@ -2890,15 +2890,30 @@ function Landing({ onChoose }) {
   // nuevo, y mezclarlo infla el número sin que signifique nada real.
   // Falla en silencio si no hay conexión -- nunca debe bloquear ni
   // ralentizar la experiencia del visitante.
+  //
+  // Fuente del tráfico: se lee de la URL (?utm_source=tiktok o
+  // ?fuente=tiktok, cualquiera de las dos) y se guarda en la sesión del
+  // navegador, para que el clic del botón recuerde de dónde vino la
+  // visita aunque ya no esté el parámetro en la URL.
   useEffect(() => {
+    let fuente = 'directo';
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const deUrl = params.get('utm_source') || params.get('fuente');
+      if (deUrl) { fuente = deUrl.toLowerCase(); sessionStorage.setItem('jb-fuente', fuente); }
+      else { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; }
+    } catch {}
+
     let yaConocido = false;
     try { yaConocido = localStorage.getItem('jb-conocido') === '1'; } catch {}
     if (!yaConocido) {
-      supabase.from('embudo_landing_eventos').insert({ evento: 'vista' }).then(() => {}, () => {});
+      supabase.from('embudo_landing_eventos').insert({ evento: 'vista', fuente }).then(() => {}, () => {});
     }
   }, []);
   function registrarClicCTA() {
-    supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta' }).then(() => {}, () => {});
+    let fuente = 'directo';
+    try { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; } catch {}
+    supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta', fuente }).then(() => {}, () => {});
     onChoose('trial');
   }
 
@@ -5450,12 +5465,20 @@ function EmbudoLandingPanel() {
       const inicioTracking = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
       const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
       const desde = desdeSolicitado > inicioTracking ? desdeSolicitado : inicioTracking;
-      const [{ count: vistas }, { count: clics }, { count: registros }] = await Promise.all([
+      const [{ count: vistas }, { count: clics }, { count: registros }, { data: porFuenteRaw }] = await Promise.all([
         supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'vista').gte('creado_en', desde),
         supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'clic_cta').gte('creado_en', desde),
         supabase.from('alumnos').select('*', { count: 'exact', head: true }).gte('created_at', desde),
+        supabase.from('embudo_landing_eventos').select('fuente, evento').gte('creado_en', desde),
       ]);
-      setDatos({ vistas: vistas || 0, clics: clics || 0, registros: registros || 0 });
+      const porFuente = {};
+      (porFuenteRaw || []).forEach(r => {
+        porFuente[r.fuente] = porFuente[r.fuente] || { vistas: 0, clics: 0 };
+        if (r.evento === 'vista') porFuente[r.fuente].vistas++;
+        else porFuente[r.fuente].clics++;
+      });
+      const fuentesOrdenadas = Object.entries(porFuente).sort((a, b) => b[1].vistas - a[1].vistas);
+      setDatos({ vistas: vistas || 0, clics: clics || 0, registros: registros || 0, fuentes: fuentesOrdenadas });
     } catch { setDatos({ vistas: 0, clics: 0, registros: 0 }); }
     setLoading(false);
   }
@@ -5502,6 +5525,19 @@ function EmbudoLandingPanel() {
             <p className="jb-body text-xs text-amber-400 mt-2 text-center">
               Hay vistas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
             </p>
+          )}
+          {datos.fuentes && datos.fuentes.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-zinc-800">
+              <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Por fuente (?utm_source= o ?fuente=)</p>
+              <div className="flex flex-col gap-1.5">
+                {datos.fuentes.map(([fuente, v]) => (
+                  <div key={fuente} className="flex items-center justify-between jb-body text-xs">
+                    <span className="text-zinc-300 capitalize">{fuente}</span>
+                    <span className="text-zinc-500">{v.vistas} vistas · {v.clics} clics</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </>
       )}

@@ -6095,9 +6095,20 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   });
 
   return (
-    <div className="min-h-screen bg-zinc-950 jb-body">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-        <Logo />
+    <div className="min-h-screen jb-body relative" style={{ background: '#0a0d10' }}>
+      <div className="fixed inset-0 pointer-events-none opacity-[0.35]" style={{
+        backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px), repeating-linear-gradient(90deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px)'
+      }} />
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 0%, rgba(77,217,255,0.08), transparent 55%)' }} />
+
+      <header className="relative border-b border-[#163244] px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', background: 'rgba(10,22,32,0.6)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
+          <div>
+            <div className="jb-display text-sm tracking-wide text-zinc-50">JONAH BEAST FUEL</div>
+            <div className="font-mono text-[10px] tracking-widest" style={{ color: '#6f92a8' }}>PANEL DE OPERACIONES</div>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <button onClick={() => setMostrarJarvis(true)} className={btnGhost} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
             🔷 Jarvis
@@ -6107,7 +6118,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         </div>
       </header>
       {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}
-      <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <main className="relative max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
@@ -6119,20 +6130,18 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           const enPrueba = users.filter(u => u.plan === 'trial').length;
           const vencidos = total - activos;
           const stats = [
-            ['👥', total, 'Alumnos totales', 'text-zinc-100'],
-            ['✅', activos, 'Activos', 'text-emerald-400'],
-            ['🎁', enPrueba, 'En prueba gratis', 'text-orange-400'],
-            ['⏰', vencidos, 'Vencidos', 'text-red-400'],
+            [total, 'Alumnos totales', '#4dd9ff'],
+            [activos, 'Activos', '#4affb0'],
+            [enPrueba, 'En prueba gratis', '#ffb020'],
+            [vencidos, 'Vencidos', '#ff5c5c'],
           ];
           return (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {stats.map(([emoji, valor, label, color]) => (
-                <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg shrink-0">{emoji}</div>
-                  <div>
-                    <div className={`jb-display text-xl ${color}`}>{valor}</div>
-                    <div className="jb-body text-[11px] text-zinc-500">{label}</div>
-                  </div>
+              {stats.map(([valor, label, color]) => (
+                <div key={label} className="relative rounded-lg p-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(13,28,40,0.9), rgba(10,22,32,0.9))', border: '1px solid #163244' }}>
+                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `linear-gradient(90deg, ${color}, transparent)` }} />
+                  <div className="font-mono text-2xl font-bold" style={{ color }}>{valor}</div>
+                  <div className="font-mono text-[10px] tracking-wide mt-1" style={{ color: '#6f92a8' }}>{label.toUpperCase()}</div>
                 </div>
               ))}
             </div>

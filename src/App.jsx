@@ -2894,34 +2894,33 @@ function Landing({ onChoose }) {
       {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
-          {HERO_BG_FOTOS.map((src, i) => (
-            <div key={i} className="aspect-[4/5] overflow-hidden">
-              <img src={src} alt="" className="w-full h-full object-cover object-top"
-                style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.5)' } : undefined} />
+        <div className="relative">
+          <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
+            {HERO_BG_FOTOS.map((src, i) => (
+              <div key={i} className="aspect-[4/5] overflow-hidden">
+                <img src={src} alt="" className="w-full h-full object-cover object-top"
+                  style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.5)' } : undefined} />
+              </div>
+            ))}
+          </div>
+          {/* Escaneo de reconocimiento — posicionado sobre el alto real del
+              mosaico (no de toda la sección), para que quede dentro de las
+              fotos y no tape el título ni el botón de abajo. */}
+          <style>{`
+            @keyframes jb-scan-line { 0%, 100% { top: 6%; opacity: 0; } 15% { opacity: 1; } 50% { top: 88%; opacity: 1; } 65%, 100% { opacity: 0; } }
+            .jb-scan { animation: jb-scan-line 3.6s ease-in-out infinite; }
+            @keyframes jb-scan-tag { 0%, 45% { opacity: 0; transform: translateY(6px); } 58%, 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+            .jb-scan-tag { animation: jb-scan-tag 3.6s ease-in-out infinite; }
+          `}</style>
+          <div className="absolute inset-x-[4%] top-0 bottom-0">
+            <div className="jb-scan absolute left-0 right-0 h-0.5 bg-orange-500" style={{ boxShadow: '0 0 14px 3px rgba(232,89,12,0.75)' }} />
+            <div className="jb-scan-tag absolute right-1 top-1 bg-zinc-950/95 border border-orange-500/60 rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-lg shadow-black/40">
+              <ShieldCheck className="text-orange-500 shrink-0" size={13} />
+              <div className="jb-body text-[9.5px] font-semibold text-zinc-100 whitespace-nowrap">Lomo saltado detectado</div>
             </div>
-          ))}
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
-      </div>
-      {/* Escaneo de reconocimiento sobre el mosaico — la función que hace
-          única a la app, mostrada directo sobre las fotos reales en vez
-          de una ilustración aparte. */}
-      <style>{`
-        @keyframes jb-scan-line { 0%, 100% { top: 4%; opacity: 0; } 15% { opacity: 1; } 50% { top: 34%; opacity: 1; } 65%, 100% { opacity: 0; } }
-        .jb-scan { animation: jb-scan-line 3.6s ease-in-out infinite; }
-        @keyframes jb-scan-tag { 0%, 40% { opacity: 0; transform: translateY(6px); } 55%, 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
-        .jb-scan-tag { animation: jb-scan-tag 3.6s ease-in-out infinite; }
-      `}</style>
-      <div className="absolute left-[6%] right-[6%] pointer-events-none" style={{ top: '4%', height: '32%' }} aria-hidden="true">
-        <div className="jb-scan absolute left-0 right-0 h-0.5 bg-orange-500" style={{ boxShadow: '0 0 14px 3px rgba(232,89,12,0.75)' }} />
-        <div className="jb-scan-tag absolute right-0 bottom-0 bg-zinc-950/90 border border-orange-500/50 rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg shadow-black/40">
-          <ShieldCheck className="text-orange-500 shrink-0" size={16} />
-          <div>
-            <div className="jb-body text-[11px] font-semibold text-zinc-100 whitespace-nowrap">Lomo saltado detectado</div>
-            <div className="jb-body text-[9.5px] text-zinc-500">612 kcal · 38g proteína</div>
           </div>
         </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'

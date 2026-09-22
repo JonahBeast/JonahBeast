@@ -2946,13 +2946,13 @@ function Landing({ onChoose }) {
             y el porcentaje comparten el mismo valor (scanPct), así que se
             mueven exactamente igual de rápido — no hay dos animaciones
             corriendo por separado que se puedan desincronizar. */}
-        <div className="flex justify-center mb-2" style={step(220)}>
-          <div className="w-24 h-24 sm:w-28 sm:h-28 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
-            <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
+        <div className="flex justify-center mb-3" style={step(220)}>
+          <div className="w-40 h-40 sm:w-48 sm:h-48 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
+            <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-2" />
             <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
-              style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
-            <div className="absolute bottom-1 inset-x-0 flex justify-center pointer-events-none">
-              <span className="jb-display text-sm text-orange-400 bg-zinc-950/70 px-2 py-0.5 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+              style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
+            <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
+              <span className="jb-display text-lg text-orange-400 bg-zinc-950/70 px-2.5 py-1 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
                 {scanPct}%
               </span>
             </div>
@@ -2969,10 +2969,6 @@ function Landing({ onChoose }) {
             )}
           </div>
         </div>
-
-        <p className="jb-body text-zinc-500 text-xs mb-4">
-          Cada día sin registrar es un día que no sabes si vas por buen camino.
-        </p>
 
         <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
@@ -7898,6 +7894,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
           <div className="text-center">
             <h2 className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</h2>
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
+            <p className="jb-body text-xs text-zinc-500 mt-2">Cada día sin registrar es un día que no sabes si vas por buen camino.</p>
           </div>
 
           {dcto > 0 && (

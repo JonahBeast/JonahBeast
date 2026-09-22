@@ -2932,17 +2932,19 @@ function Landing({ onChoose }) {
         </div>
 
         {/* Escaneo de reconocimiento, en flujo normal (no flotando encima
-            de nada), justo junto al texto que explica la función. */}
-        <style>{`
-          @keyframes jb-scan-line { 0%, 100% { top: 10%; opacity: 0; } 20% { opacity: 1; } 50% { top: 82%; opacity: 1; } 68%, 100% { opacity: 0; } }
-          .jb-scan { animation: jb-scan-line 3.4s ease-in-out infinite; }
-        `}</style>
+            de nada), justo junto al texto que explica la función. La línea
+            y el porcentaje comparten el mismo valor (scanPct), así que se
+            mueven exactamente igual de rápido — no hay dos animaciones
+            corriendo por separado que se puedan desincronizar. */}
         <div className="flex justify-center mb-2" style={step(220)}>
           <div className="w-24 h-24 sm:w-28 sm:h-28 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
             <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
-            <div className="jb-scan absolute left-[6%] right-[6%] h-0.5 bg-orange-500" style={{ boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
-            <div className="absolute bottom-1 right-1.5 jb-body text-[10px] font-bold text-orange-400" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
-              {scanPct}%
+            <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
+              style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="jb-display text-lg text-orange-400 bg-zinc-950/60 px-2 py-0.5 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+                {scanPct}%
+              </span>
             </div>
           </div>
         </div>

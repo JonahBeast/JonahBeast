@@ -9637,7 +9637,11 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
       </div>
       <div className="flex-1">
         <p className="jb-display text-sm text-zinc-100">{nivel.emoji} BEAST SCORE: {score}%</p>
-        <p className="jb-body text-xs text-zinc-500">{nivel.txt}{racha > 0 ? ` · racha de ${racha} día(s)` : ''}</p>
+        <p className="jb-body text-xs text-zinc-500">
+          {totalsHoy.kcal === 0 && racha > 0
+            ? `Aún no registras hoy — tu racha ya te dio ${bonoRacha} pts. Registra algo y sube.`
+            : `${nivel.txt}${racha > 0 ? ` · racha de ${racha} día(s)` : ''}`}
+        </p>
       </div>
     </div>
   );

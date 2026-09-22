@@ -2958,11 +2958,16 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
+        <p className="jb-body text-zinc-500 text-xs mb-3" style={step(300)}>
+          🔥 <span className="text-zinc-300 font-medium">34 alumnos</span> ya están entrenando con Jonah Beast Fuel
+        </p>
+
         <button onClick={() => onChoose('trial')} style={step(320)}
-          className="inline-flex items-center gap-2 mb-3 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
+          className="inline-flex items-center gap-2 mb-2 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
           <ChevronRight className="text-zinc-950" size={16} />
         </button>
+        <p className="jb-body text-zinc-600 text-[11px] mb-4" style={step(330)}>Sin tarjeta · cancela cuando quieras</p>
 
         <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 

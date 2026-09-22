@@ -2976,17 +2976,6 @@ function Landing({ onChoose }) {
 
         <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
-        <div className="mb-4" style={step(420)}>
-          <JonahMiniIdle
-            fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
-            frases={[
-              'Come rico, come peruano, y mira los resultados llegar.',
-              'Regístrate y arrancamos hoy mismo 🔥',
-              '¿Listo para tu modo bestia? Yo te ayudo.',
-            ]}
-          />
-        </div>
-
         <p className="jb-body text-xs text-zinc-500 mb-4" style={step(480)}>
           Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
         </p>

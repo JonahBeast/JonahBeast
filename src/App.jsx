@@ -5908,12 +5908,29 @@ function JarvisPanel({ onClose }) {
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [turnos, pensando]);
 
+  const vozElegidaRef = useRef(null);
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    function elegirVoz() {
+      const voces = window.speechSynthesis.getVoices();
+      if (!voces.length) return;
+      const esNombreMasculino = /male|hombre|pablo|jorge|diego|carlos|miguel|juan|enrique/i;
+      const candidatas = voces.filter(v => v.lang.startsWith('es'));
+      const masculina = candidatas.find(v => esNombreMasculino.test(v.name));
+      vozElegidaRef.current = masculina || candidatas[0] || voces[0];
+    }
+    elegirVoz();
+    window.speechSynthesis.onvoiceschanged = elegirVoz;
+  }, []);
+
   function hablar(texto) {
     if (!vozOn || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(texto);
-      u.lang = 'es-PE'; u.pitch = 0.72; u.rate = 0.96;
+      if (vozElegidaRef.current) { u.voice = vozElegidaRef.current; u.lang = vozElegidaRef.current.lang; }
+      else u.lang = 'es-PE';
+      u.pitch = 0.55; u.rate = 0.94;
       window.speechSynthesis.speak(u);
     } catch (e) { /* la voz es un extra, no bloquea el chat */ }
   }

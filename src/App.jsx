@@ -5896,11 +5896,108 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
   );
 }
 
+function JarvisPanel({ onClose }) {
+  const [turnos, setTurnos] = useState([
+    { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
+  ]);
+  const [input, setInput] = useState('');
+  const [pensando, setPensando] = useState(false);
+  const [vozOn, setVozOn] = useState(false);
+  const [escuchando, setEscuchando] = useState(false);
+  const logRef = useRef(null);
+
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [turnos, pensando]);
+
+  function hablar(texto) {
+    if (!vozOn || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = 'es-PE'; u.pitch = 0.72; u.rate = 0.96;
+      window.speechSynthesis.speak(u);
+    } catch (e) { /* la voz es un extra, no bloquea el chat */ }
+  }
+
+  async function enviar(texto) {
+    const t = (texto || '').trim();
+    if (!t || pensando) return;
+    setInput('');
+    const nuevosTurnos = [...turnos, { role: 'user', content: t }];
+    setTurnos(nuevosTurnos);
+    setPensando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('jarvis-chat', {
+        body: { pregunta: t, historial: nuevosTurnos.slice(-6) },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'error');
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta }]);
+      hablar(data.respuesta);
+    } catch (e) {
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: 'No pude procesar eso ahora mismo. Intenta de nuevo.' }]);
+    } finally {
+      setPensando(false);
+    }
+  }
+
+  function iniciarMic() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const recog = new SR();
+    recog.lang = 'es-PE'; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.onresult = (e) => enviar(e.results[0][0].transcript);
+    recog.onerror = () => setEscuchando(false);
+    recog.onend = () => setEscuchando(false);
+    try { recog.start(); setEscuchando(true); } catch (e) { /* ya iniciado */ }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ background: 'rgba(0,0,0,0.85)' }}>
+      <div className="w-full max-w-lg rounded-lg overflow-hidden flex flex-col" style={{ background: '#0a1620', border: '1px solid #163244', maxHeight: '88vh' }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
+            <span className="jb-body text-xs tracking-wide" style={{ color: '#dff2ff', fontFamily: 'monospace' }}>J.JARVIS</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setVozOn(v => !v)} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
+              🔊 {vozOn ? 'ON' : 'OFF'}
+            </button>
+            <button onClick={onClose} style={{ color: '#6f92a8' }}><X size={18} /></button>
+          </div>
+        </div>
+
+        <div ref={logRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 220 }}>
+          {turnos.map((m, i) => (
+            <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                {m.role === 'user' ? 'TÚ' : 'JARVIS'}
+              </div>
+              {m.role === 'user'
+                ? <div className="px-3 py-2 rounded" style={{ background: '#0d1c28', border: '1px solid #163244' }}>{m.content}</div>
+                : <div>{m.content}</div>}
+            </div>
+          ))}
+          {pensando && <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>}
+        </div>
+
+        <div className="flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
+          <button onClick={iniciarMic} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid ' + (escuchando ? '#ff5c5c' : '#163244'), color: escuchando ? '#ff5c5c' : '#6f92a8' }}>🎤</button>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar(input)}
+            placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
+            style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
+          <button onClick={() => enviar(input)} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [tabActiva, setTabActiva] = useState('hoy');
+  const [mostrarJarvis, setMostrarJarvis] = useState(false);
 
   function submitNew(e) {
     e.preventDefault();
@@ -5930,10 +6027,14 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <Logo />
         <div className="flex items-center gap-3">
+          <button onClick={() => setMostrarJarvis(true)} className={btnGhost} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
+            🔷 Jarvis
+          </button>
           <AdminNotifButton />
           <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
         </div>
       </header>
+      {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>

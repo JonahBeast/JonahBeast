@@ -5908,6 +5908,7 @@ function JarvisPanel({ onClose }) {
   const logRef = useRef(null);
   const recogRef = useRef(null);
   const modoContinuoRef = useRef(false);
+  const pausadoParaHablarRef = useRef(false);
   const vozOnRef = useRef(true);
 
   useEffect(() => { modoContinuoRef.current = modoContinuo; }, [modoContinuo]);
@@ -5959,6 +5960,7 @@ function JarvisPanel({ onClose }) {
     const nuevosTurnos = [...turnos, { role: 'user', content: t }];
     setTurnos(nuevosTurnos);
     setPensando(true);
+    if (modoContinuoRef.current) pausarMic();
     try {
       const { data, error } = await supabase.functions.invoke('jarvis-chat', {
         body: { pregunta: t, historial: nuevosTurnos.slice(-6) },
@@ -5976,10 +5978,12 @@ function JarvisPanel({ onClose }) {
   }
 
   function pausarMic() {
+    pausadoParaHablarRef.current = true;
     try { recogRef.current && recogRef.current.stop(); } catch (e) {}
   }
 
   function reanudarMicSiCorresponde() {
+    pausadoParaHablarRef.current = false;
     if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300);
   }
 
@@ -5993,8 +5997,8 @@ function JarvisPanel({ onClose }) {
       const ultimo = e.results[e.results.length - 1];
       if (ultimo.isFinal) enviar(ultimo[0].transcript);
     };
-    recog.onerror = () => { setEscuchando(false); if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 800); };
-    recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    recog.onerror = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800); };
+    recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 

@@ -10317,11 +10317,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         {estado === 'elegir' && (
           <div className="text-center">
             <p className="jb-body text-sm text-zinc-400 mb-4">
-              Toma o sube una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
+              Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
               {!addOnActivo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
             </p>
             <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
-              <Camera size={16} /> Tomar o elegir foto
+              <Camera size={16} /> Tomar foto
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
             </label>
           </div>
@@ -10628,7 +10628,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
             <h3 className="jb-display text-sm text-orange-500 tracking-wide flex-1">{meal.toUpperCase()}</h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} className="text-orange-500" /> ✨ Reconocer por foto</button>
+            <button onClick={() => setFotoPara(meal)}
+              className="border border-dashed border-orange-500/60 hover:bg-orange-500/10 text-orange-500 rounded-lg py-1.5 px-3 text-sm flex items-center gap-1.5 transition-colors">
+              <Camera size={14} /> Foto a tu plato
+            </button>
             <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
           {username && (

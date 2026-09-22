@@ -1567,7 +1567,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones }) {
   const [open, setOpen] = useState(false);
-  const [modo, setModo] = useState('favoritos');
+  const [modo, setModo] = useState('voz');
   const [mealDestino, setMealDestino] = useState(MEAL_NAMES[0]);
   const favoritos = useComidasFrecuentes(username);
 
@@ -1618,8 +1618,8 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
             <Mic size={17} className="text-white" strokeWidth={2.3} />
           </div>
           <div>
-            <p className="jb-display text-sm text-zinc-200">SIN ESCRIBIR</p>
-            <p className="jb-body text-[11px] text-zinc-500">Favoritos, por voz, o deslizando — sin escribir nada</p>
+            <p className="jb-display text-sm text-zinc-200">DI LO QUE COMISTE</p>
+            <p className="jb-body text-[11px] text-zinc-500">Háblale a Jonah, o elige de tus favoritos — sin escribir nada</p>
           </div>
         </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -1645,7 +1645,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
-            {[['favoritos', '⭐ Favoritos'], ['voz', '🎤 Por voz'], ['deslizar', '👆 Deslizar']].map(([v, l]) => (
+            {[['voz', '🎤 Por voz'], ['favoritos', '⭐ Favoritos']].map(([v, l]) => (
               <button key={v} onClick={() => setModo(v)}
                 className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${modo === v ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'}`}>
                 {l}
@@ -1655,7 +1655,6 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
           {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
-          {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} mealDestino={mealDestino} onAgregarCombo={agregarCombo} />}
         </div>
       )}
     </div>

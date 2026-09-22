@@ -2987,10 +2987,6 @@ function Landing({ onChoose }) {
 
         <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
-        <p className="jb-body text-xs text-zinc-500 mb-4" style={step(480)}>
-          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
-        </p>
-
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
         <div className="mb-4" style={step(500)}>
@@ -6696,6 +6692,9 @@ function CalculatorTab({ form, setForm, results }) {
           <AlertTriangle className="text-amber-500 shrink-0" size={16} />
           <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
         </div>
+        <p className="jb-body text-[11px] text-zinc-600 text-center">
+          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
+        </p>
       </div>
     </div>
   );

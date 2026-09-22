@@ -2895,34 +2895,38 @@ function Landing({ onChoose }) {
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
       {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div className="relative">
-          <div className="grid grid-cols-2 sm:grid-cols-4 opacity-[0.5] grayscale">
-            {HERO_BG_FOTOS.map((src, i) => (
-              <div key={i} className="aspect-[4/5] overflow-hidden">
-                <img src={src} alt="" className="w-full h-full object-cover object-top"
-                  style={undefined} />
-              </div>
-            ))}
-          </div>
-          {/* Escaneo de reconocimiento — posicionado sobre el alto real del
-              mosaico (no de toda la sección), para que quede dentro de las
-              fotos y no tape el título ni el botón de abajo. */}
-          <style>{`
-            @keyframes jb-scan-line { 0%, 100% { top: 6%; opacity: 0; } 15% { opacity: 1; } 50% { top: 88%; opacity: 1; } 65%, 100% { opacity: 0; } }
-            .jb-scan { animation: jb-scan-line 3.6s ease-in-out infinite; }
-            @keyframes jb-scan-tag { 0%, 45% { opacity: 0; transform: translateY(6px); } 58%, 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
-            .jb-scan-tag { animation: jb-scan-tag 3.6s ease-in-out infinite; }
-          `}</style>
-          <div className="absolute inset-x-[4%] top-0 bottom-0">
-            <div className="jb-scan absolute left-0 right-0 h-0.5 bg-orange-500" style={{ boxShadow: '0 0 14px 3px rgba(232,89,12,0.75)' }} />
-            <div className="jb-scan-tag absolute right-1 top-1 bg-zinc-950/95 border border-orange-500/60 rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-lg shadow-black/40">
-              <ShieldCheck className="text-orange-500 shrink-0" size={13} />
-              <div className="jb-body text-[9.5px] font-semibold text-zinc-100 whitespace-nowrap">Lomo saltado detectado</div>
+      <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '24vh', minHeight: 150 }}>
+        <div className="grid grid-cols-4 opacity-[0.45] grayscale h-full">
+          {HERO_BG_FOTOS.map((src, i) => (
+            <div key={i} className="overflow-hidden">
+              <img src={src} alt="" className="w-full h-full object-cover object-top" />
             </div>
+          ))}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/10 to-zinc-950" />
+      </div>
+      {/* Tarjeta de escaneo — un plato ilustrado propio, separado de las
+          fotos de alumnos, para que quede claro que se escanea comida,
+          no a las personas. */}
+      <style>{`
+        @keyframes jb-scan-line { 0%, 100% { top: 12%; opacity: 0; } 20% { opacity: 1; } 50% { top: 78%; opacity: 1; } 68%, 100% { opacity: 0; } }
+        .jb-scan { animation: jb-scan-line 3.4s ease-in-out infinite; }
+        @keyframes jb-scan-tag { 0%, 48% { opacity: 0; transform: translateY(4px); } 60%, 92% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+        .jb-scan-tag { animation: jb-scan-tag 3.4s ease-in-out infinite; }
+      `}</style>
+      <div className="absolute right-4 z-20 pointer-events-none" style={{ top: 'max(1.5rem, env(safe-area-inset-top))' }} aria-hidden="true">
+        <div className="w-24 h-24 sm:w-28 sm:h-28 bg-zinc-900 border border-zinc-800 rounded-2xl p-1.5 shadow-xl shadow-black/50 relative overflow-hidden">
+          <div className="w-full h-full rounded-xl relative overflow-hidden" style={{ background: 'radial-gradient(circle at 35% 30%, #2A2016, #17110B)' }}>
+            <div className="absolute rounded-[40%_60%_55%_45%] opacity-90" style={{ width: '46%', height: '28%', background: '#D9A441', top: '22%', left: '14%' }} />
+            <div className="absolute rounded-[45%_55%_40%_60%] opacity-90" style={{ width: '38%', height: '24%', background: '#B5451F', bottom: '20%', right: '12%' }} />
+            <div className="absolute rounded-full opacity-85" style={{ width: '26%', height: '18%', background: '#6B2D5C', bottom: '16%', left: '20%' }} />
+            <div className="jb-scan absolute left-[6%] right-[6%] h-px bg-orange-500" style={{ boxShadow: '0 0 8px 2px rgba(232,89,12,0.8)' }} />
           </div>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
+        <div className="jb-scan-tag mt-1.5 bg-zinc-950/95 border border-orange-500/60 rounded-md px-2 py-1.5 flex items-center gap-1.5 shadow-lg shadow-black/40 max-w-[130px]">
+          <ShieldCheck className="text-orange-500 shrink-0" size={12} />
+          <div className="jb-body text-[9px] font-semibold text-zinc-100 leading-tight">Lomo saltado detectado</div>
+        </div>
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'

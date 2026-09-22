@@ -5936,6 +5936,9 @@ function JarvisPanel({ onClose }) {
   // reanuda solo apenas termina de hablar
   function hablar(texto) {
     texto = (texto || '').replace(/J\.?\s*A\.?\s*R\.?\s*V\.?\s*I\.?\s*S\.?/gi, 'Jarvis');
+    // números de 6+ dígitos seguidos (celulares, IDs) se leen dígito por
+    // dígito -- si no, el sintetizador los lee como si fueran millones
+    texto = texto.replace(/\d{6,}/g, (n) => n.split('').join(' '));
     if (!vozOnRef.current || !('speechSynthesis' in window)) {
       if (modoContinuoRef.current) reanudarMicSiCorresponde();
       return;

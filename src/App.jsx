@@ -2958,17 +2958,6 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
-        <div className="mb-3" style={step(280)}>
-          <JonahMiniIdle
-            fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
-            frases={[
-              'Come rico, come peruano, y mira los resultados llegar.',
-              'Regístrate y arrancamos hoy mismo 🔥',
-              '¿Listo para tu modo bestia? Yo te ayudo.',
-            ]}
-          />
-        </div>
-
         <button onClick={() => onChoose('trial')} style={step(320)}
           className="inline-flex items-center gap-2 mb-3 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
@@ -2977,20 +2966,15 @@ function Landing({ onChoose }) {
 
         <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
-        {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 mb-4 shadow-xl shadow-black/40" style={step(420)}>
-          <div className="flex items-center justify-between mb-1">
-            <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
-            <span className="jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">EJEMPLO</span>
-          </div>
-          <div className="flex justify-around py-2">
-            <MacroRing pct={72} value="1840" label="Kcal" colorHex="#E8590C" size={64} stroke={6} />
-            <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={64} stroke={6} />
-            <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={64} stroke={6} />
-          </div>
-          <p className="jb-body text-[10px] text-zinc-600 text-center mt-1">
-            Datos de ejemplo — tus números se calculan al medirte
-          </p>
+        <div className="mb-4" style={step(420)}>
+          <JonahMiniIdle
+            fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
+            frases={[
+              'Come rico, come peruano, y mira los resultados llegar.',
+              'Regístrate y arrancamos hoy mismo 🔥',
+              '¿Listo para tu modo bestia? Yo te ayudo.',
+            ]}
+          />
         </div>
 
         <p className="jb-body text-xs text-zinc-500 mb-4" style={step(480)}>

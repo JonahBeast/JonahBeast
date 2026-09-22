@@ -2936,7 +2936,7 @@ function Landing({ onChoose }) {
         `}</style>
         <div className="flex justify-center mb-3" style={step(240)}>
           <div className="w-28 h-28 sm:w-32 sm:h-32 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
-            <img src="/lomo-saltado.jpg" alt="" className="w-full h-full object-cover" />
+            <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
             <div className="jb-scan absolute left-[6%] right-[6%] h-0.5 bg-orange-500" style={{ boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
           </div>
         </div>

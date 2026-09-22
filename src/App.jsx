@@ -5902,11 +5902,18 @@ function JarvisPanel({ onClose }) {
   ]);
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
-  const [vozOn, setVozOn] = useState(false);
+  const [vozOn, setVozOn] = useState(true);
+  const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
   const logRef = useRef(null);
+  const recogRef = useRef(null);
+  const modoContinuoRef = useRef(false);
+  const vozOnRef = useRef(true);
 
+  useEffect(() => { modoContinuoRef.current = modoContinuo; }, [modoContinuo]);
+  useEffect(() => { vozOnRef.current = vozOn; }, [vozOn]);
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [turnos, pensando]);
+  useEffect(() => () => { try { recogRef.current && recogRef.current.stop(); window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} }, []);
 
   const vozElegidaRef = useRef(null);
   useEffect(() => {
@@ -5923,16 +5930,25 @@ function JarvisPanel({ onClose }) {
     window.speechSynthesis.onvoiceschanged = elegirVoz;
   }, []);
 
+  // en modo continuo, el micro se pausa mientras Jarvis habla (si no,
+  // el parlante se retroalimentaría con el mismo micrófono) y se
+  // reanuda solo apenas termina de hablar
   function hablar(texto) {
-    if (!vozOn || !('speechSynthesis' in window)) return;
+    if (!vozOnRef.current || !('speechSynthesis' in window)) {
+      if (modoContinuoRef.current) reanudarMicSiCorresponde();
+      return;
+    }
     try {
+      pausarMic();
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(texto);
       if (vozElegidaRef.current) { u.voice = vozElegidaRef.current; u.lang = vozElegidaRef.current.lang; }
       else u.lang = 'es-PE';
       u.pitch = 0.55; u.rate = 0.94;
+      u.onend = () => reanudarMicSiCorresponde();
+      u.onerror = () => reanudarMicSiCorresponde();
       window.speechSynthesis.speak(u);
-    } catch (e) { /* la voz es un extra, no bloquea el chat */ }
+    } catch (e) { reanudarMicSiCorresponde(); }
   }
 
   async function enviar(texto) {
@@ -5950,21 +5966,43 @@ function JarvisPanel({ onClose }) {
       setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta }]);
       hablar(data.respuesta);
     } catch (e) {
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: 'No pude procesar eso ahora mismo. Intenta de nuevo.' }]);
+      const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr }]);
+      hablar(msgErr);
     } finally {
       setPensando(false);
     }
   }
 
-  function iniciarMic() {
+  function pausarMic() {
+    try { recogRef.current && recogRef.current.stop(); } catch (e) {}
+  }
+
+  function reanudarMicSiCorresponde() {
+    if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300);
+  }
+
+  function arrancarReconocimiento() {
+    if (!modoContinuoRef.current) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const recog = new SR();
-    recog.lang = 'es-PE'; recog.interimResults = false; recog.maxAlternatives = 1;
-    recog.onresult = (e) => enviar(e.results[0][0].transcript);
-    recog.onerror = () => setEscuchando(false);
-    recog.onend = () => setEscuchando(false);
-    try { recog.start(); setEscuchando(true); } catch (e) { /* ya iniciado */ }
+    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.onresult = (e) => {
+      const ultimo = e.results[e.results.length - 1];
+      if (ultimo.isFinal) enviar(ultimo[0].transcript);
+    };
+    recog.onerror = () => { setEscuchando(false); if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 800); };
+    recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    try { recog.start(); recogRef.current = recog; setEscuchando(true); } catch (e) {}
+  }
+
+  function toggleModoContinuo() {
+    const nuevo = !modoContinuo;
+    setModoContinuo(nuevo);
+    modoContinuoRef.current = nuevo;
+    if (nuevo) arrancarReconocimiento();
+    else { pausarMic(); setEscuchando(false); }
   }
 
   return (
@@ -5997,8 +6035,15 @@ function JarvisPanel({ onClose }) {
           {pensando && <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>}
         </div>
 
+        <div className="px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
+          {modoContinuo ? (escuchando ? 'Escuchando… habla cuando quieras' : 'Modo continuo activo') : 'Toca el micrófono para activar el modo continuo'}
+        </div>
         <div className="flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
-          <button onClick={iniciarMic} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid ' + (escuchando ? '#ff5c5c' : '#163244'), color: escuchando ? '#ff5c5c' : '#6f92a8' }}>🎤</button>
+          <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
+            style={{ border: '1px solid ' + (modoContinuo ? '#ff5c5c' : '#163244'), color: modoContinuo ? '#ff5c5c' : '#6f92a8' }}>
+            🎤
+            {escuchando && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#ff5c5c', boxShadow: '0 0 6px #ff5c5c' }} />}
+          </button>
           <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar(input)}
             placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />

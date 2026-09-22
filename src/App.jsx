@@ -2884,11 +2884,22 @@ function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
-  // Porcentaje del escaneo — sube de 0 a 100 en bucle, sincronizado con
-  // la duración de la línea animada (3.4s = 100 pasos de 34ms).
+  // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
+  // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
   const [scanPct, setScanPct] = useState(0);
   useEffect(() => {
-    const iv = setInterval(() => setScanPct(p => (p >= 100 ? 0 : p + 1)), 34);
+    let held = false;
+    const iv = setInterval(() => {
+      setScanPct(p => {
+        if (held) return p;
+        if (p >= 100) {
+          held = true;
+          setTimeout(() => { held = false; setScanPct(0); }, 1800);
+          return 100;
+        }
+        return p + 1;
+      });
+    }, 34);
     return () => clearInterval(iv);
   }, []);
 

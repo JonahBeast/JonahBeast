@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
+import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
@@ -568,7 +568,6 @@ const UNITS_BY_NAME = {
 const UNITS_BY_GROUP = {
   'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
   'Lácteos': [['taza', 240], ['vaso', 200]],
-  'Cereales': [['taza', 160]],
   'Menestras': [['taza', 180]],
   'Postres': [['porción', 150]],
   'Platos preparados': [['plato', 400], ['media porción', 200], ['porción grande', 500]],
@@ -646,12 +645,15 @@ function unitsFor(food) {
 
 /* Al elegir un alimento, propone la medida más natural.
    Para una torta: "1 tajada", no "100 gramos".                */
-// Alimentos donde el gramaje por defecto no debe seguir la unidad
-// típica de su grupo (ej. el grupo Cereales prefiere "taza", pero un
-// cereal en caja se mide mejor empezando en gramos).
+// Alimentos donde conviene forzar gramos aunque exista una unidad
+// casera registrada (ej. Quinua tiene "taza" como medida, pero en un
+// plato peruano se pesa en gramos, no se sirve por tazas).
 const GRAMOS_DEFAULT_POR_NOMBRE = {
   'Cereal cornflakes sin gluten': 100,
   'Chicharrón de chancho': 220,
+  // Cereales de plato (arroz, quinua, etc.) se pesan en gramos en la
+  // práctica — nadie mide un plato de arroz peruano en tazas.
+  'Quinua': 150,
 };
 
 function unidadPorDefecto(food) {
@@ -1356,7 +1358,7 @@ function ModoVoz({ onElegirVarios }) {
         )}
         <button onClick={escuchar} disabled={escuchando}
           className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 hover:scale-105'}`}
-          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(232,89,12,0.45)' }}>
+          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(249,115,22,0.45)' }}>
           <Mic size={30} className="text-white" strokeWidth={2.2} />
         </button>
       </div>
@@ -1436,7 +1438,7 @@ function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo })
   }
   if (!actual) return null;
 
-  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-orange-500/25';
+  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-zinc-800';
 
   return (
     <div className="flex flex-col items-center gap-3 py-3">
@@ -1567,7 +1569,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones }) {
   const [open, setOpen] = useState(false);
-  const [modo, setModo] = useState('voz');
+  const [modo, setModo] = useState('favoritos');
   const [mealDestino, setMealDestino] = useState(MEAL_NAMES[0]);
   const favoritos = useComidasFrecuentes(username);
 
@@ -1614,12 +1616,12 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     <div className="bg-zinc-900 border border-violet-500/40 rounded-2xl p-5 mb-6">
       <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between text-left">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md" style={{ boxShadow: '0 0 14px rgba(232,89,12,0.4)' }}>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md" style={{ boxShadow: '0 0 14px rgba(249,115,22,0.4)' }}>
             <Mic size={17} className="text-white" strokeWidth={2.3} />
           </div>
           <div>
-            <p className="jb-display text-sm text-zinc-200">DI LO QUE COMISTE</p>
-            <p className="jb-body text-[11px] text-zinc-500">Háblale a Jonah, o elige de tus favoritos — sin escribir nada</p>
+            <p className="jb-display text-sm text-zinc-200">SIN ESCRIBIR</p>
+            <p className="jb-body text-[11px] text-zinc-500">Favoritos, por voz, o deslizando — sin escribir nada</p>
           </div>
         </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -1645,7 +1647,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
-            {[['voz', '🎤 Por voz'], ['favoritos', '⭐ Favoritos']].map(([v, l]) => (
+            {[['favoritos', '⭐ Favoritos'], ['voz', '🎤 Por voz'], ['deslizar', '👆 Deslizar']].map(([v, l]) => (
               <button key={v} onClick={() => setModo(v)}
                 className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${modo === v ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'}`}>
                 {l}
@@ -1655,6 +1657,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
           {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+          {modo === 'deslizar' && <ModoDeslizar remaining={remaining} restricciones={restricciones} mealDestino={mealDestino} onAgregarCombo={agregarCombo} />}
         </div>
       )}
     </div>
@@ -1795,14 +1798,14 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                       {i === idxSorpresa && (
                         <button type="button" onClick={tirarDado} disabled={girando}
                           className={`absolute -top-2 -right-2 jb-display text-[9px] px-2 py-1 rounded-full text-zinc-950 shadow-md transition-transform cursor-pointer ${girando ? 'animate-pulse' : 'active:scale-90'}`}
-                          style={{ background: 'linear-gradient(135deg, #a78bfa, #E8590C)' }}
+                          style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}
                           title="Toca para otra sorpresa">
                           {girando ? '🎰 GIRANDO...' : '🎲 SORPRESA DEL DÍA'}
                         </button>
                       )}
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0"
-                          style={{ background: 'linear-gradient(135deg, #E8590C, #a78bfa)' }}>
+                          style={{ background: 'linear-gradient(135deg, #f97316, #a78bfa)' }}>
                           {opt.emoji}
                         </div>
                         <span className="jb-body text-sm text-zinc-100 font-medium">{opt.name}</span>
@@ -1890,13 +1893,13 @@ const FONT_STYLE = (
     /* Llama viva: parpadeo orgánico de escala/rotación/brillo para el
        ícono de marca, en vez de un fuego estático. */
     @keyframes jb-flame-flicker {
-      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.55)); }
+      0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.55)); }
       12% { transform: scale(1.06) rotate(3deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.75)); }
-      27% { transform: scale(0.95) rotate(-4deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.45)); }
+      27% { transform: scale(0.95) rotate(-4deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.45)); }
       41% { transform: scale(1.08) rotate(2deg); filter: drop-shadow(0 0 7px rgba(253,224,71,0.8)); }
-      58% { transform: scale(0.97) rotate(-2deg); filter: drop-shadow(0 0 3px rgba(232,89,12,0.5)); }
+      58% { transform: scale(0.97) rotate(-2deg); filter: drop-shadow(0 0 3px rgba(249,115,22,0.5)); }
       74% { transform: scale(1.04) rotate(4deg); filter: drop-shadow(0 0 5px rgba(253,186,116,0.7)); }
-      88% { transform: scale(0.98) rotate(-1deg); filter: drop-shadow(0 0 2px rgba(232,89,12,0.5)); }
+      88% { transform: scale(0.98) rotate(-1deg); filter: drop-shadow(0 0 2px rgba(249,115,22,0.5)); }
     }
     .jb-flame-live { animation: jb-flame-flicker 1.6s ease-in-out infinite; transform-origin: 50% 85%; }
   `}</style>
@@ -2617,7 +2620,7 @@ function RachaCard({ username }) {
   return (
     <div className="mb-6 flex flex-col gap-3">
       <div className="rounded-2xl p-4 flex items-center gap-3.5"
-        style={{ background: 'linear-gradient(135deg, #E8590C, #C24A0A)', boxShadow: '0 10px 30px -12px rgba(232,89,12,0.5)' }}>
+        style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', boxShadow: '0 10px 30px -12px rgba(249,115,22,0.5)' }}>
         <div className="text-3xl leading-none shrink-0">🔥</div>
         <div className="flex-1">
           <div className="jb-display text-xl text-zinc-950">{racha} día{racha === 1 ? '' : 's'} seguidos</div>
@@ -2668,7 +2671,7 @@ function RachaCard({ username }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 flex items-center gap-3">
           <div className="relative w-11 h-11 shrink-0">
             <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #a78bfa, #E8590C)' }}>
+              style={{ background: 'linear-gradient(135deg, #a78bfa, #f97316)' }}>
               <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
                 onError={(e) => { e.target.style.display = 'none'; }} />
             </div>
@@ -2855,7 +2858,7 @@ const TESTIMONIOS = [
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
     dato: '37 kg perdidos en 4 años',
-    quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
+    quote: 'Como fundador de Jonah Beast Fuel creé esta herramienta para ayudar a otras personas a lograr sus objetivos. Creo que si hubiera tenido un arma como esta, mis resultados hubieran sido en menor tiempo.',
   },
   {
     nombre: 'Andrea R.',
@@ -2873,85 +2876,14 @@ const TESTIMONIOS = [
   },
 ];
 
-// Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
-// sección completa de testimonios de abajo, pero no en este fondo).
-const HERO_BG_FOTOS = [
-  TESTIMONIOS[0].antes, TESTIMONIOS[0].despues,
-  TESTIMONIOS[1].antes, TESTIMONIOS[1].despues,
-];
+// Mosaico de fondo del hero — mismas fotos de los testimonios, repetidas
+// para llenar la grilla, como textura pasiva de prueba social (no hay
+// que deslizar nada para verla, a diferencia del carrusel de abajo).
+const HERO_BG_FOTOS = TESTIMONIOS.flatMap(t => [t.antes, t.despues]);
 
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
-
-  // Seguimiento básico del embudo: vista de landing (una vez al montar)
-  // y clic en el CTA. No cuenta si el celular ya inició sesión antes
-  // (ej. un alumno que cerró sesión y volvió) -- eso no es un visitante
-  // nuevo, y mezclarlo infla el número sin que signifique nada real.
-  // Falla en silencio si no hay conexión -- nunca debe bloquear ni
-  // ralentizar la experiencia del visitante.
-  //
-  // Modo de prueba: agregar ?preview=1 a la URL para que esa visita
-  // NUNCA se cuente en el embudo, sin importar el navegador o si ya
-  // inició sesión antes -- pensado para cuando Jonah mismo revisa la
-  // landing y no quiere ensuciar sus propios números. Se recuerda por
-  // el resto de la sesión, así no hay que repetirlo en cada pantalla.
-  //
-  // Fuente del tráfico: se lee de la URL (?utm_source=tiktok o
-  // ?fuente=tiktok, cualquiera de las dos) y se guarda en la sesión del
-  // navegador, para que el clic del botón recuerde de dónde vino la
-  // visita aunque ya no esté el parámetro en la URL.
-  useEffect(() => {
-    let fuente = 'directo';
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('preview') === '1') sessionStorage.setItem('jb-preview', '1');
-      const deUrl = params.get('utm_source') || params.get('fuente');
-      if (deUrl) { fuente = deUrl.toLowerCase(); sessionStorage.setItem('jb-fuente', fuente); }
-      else { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; }
-    } catch {}
-
-    let yaConocido = false;
-    let esPreview = false;
-    try {
-      yaConocido = localStorage.getItem('jb-conocido') === '1';
-      esPreview = sessionStorage.getItem('jb-preview') === '1';
-    } catch {}
-    if (!yaConocido && !esPreview) {
-      supabase.from('embudo_landing_eventos').insert({ evento: 'vista', fuente }).then(() => {}, () => {});
-    }
-  }, []);
-  function registrarClicCTA() {
-    let fuente = 'directo';
-    let esPreview = false;
-    try {
-      fuente = sessionStorage.getItem('jb-fuente') || 'directo';
-      esPreview = sessionStorage.getItem('jb-preview') === '1';
-    } catch {}
-    if (!esPreview) {
-      supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta', fuente }).then(() => {}, () => {});
-    }
-    onChoose('trial');
-  }
-
-  // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
-  // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
-  const [scanPct, setScanPct] = useState(0);
-  useEffect(() => {
-    let held = false;
-    const iv = setInterval(() => {
-      setScanPct(p => {
-        if (held) return p;
-        if (p >= 100) {
-          held = true;
-          setTimeout(() => { held = false; setScanPct(0); }, 1800);
-          return 100;
-        }
-        return p + 1;
-      });
-    }, 34);
-    return () => clearInterval(iv);
-  }, []);
 
   const step = (delay) => ({
     opacity: mounted ? 1 : 0,
@@ -2963,79 +2895,95 @@ function Landing({ onChoose }) {
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
       {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
           visible de inmediato, sin que el usuario tenga que deslizar nada. */}
-      <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '26vh', minHeight: 170 }}>
-        <div className="grid grid-cols-2 opacity-[0.45] grayscale h-full">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="grid grid-cols-3 sm:grid-cols-6 opacity-[0.5] grayscale">
           {HERO_BG_FOTOS.map((src, i) => (
-            <div key={i} className="overflow-hidden">
-              <img src={src} alt="" className="w-full h-full object-cover object-top" />
+            <div key={i} className="aspect-[4/5] overflow-hidden">
+              <img src={src} alt="" className="w-full h-full object-cover object-top"
+                style={src === '/testimonios/cesar-despues.jpg' ? { transform: 'scale(1.5)' } : undefined} />
             </div>
           ))}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/10 to-zinc-950" />
+        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(45deg, #E8590C 0, #E8590C 2px, transparent 2px, transparent 40px)'
+        backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(232,89,12,0.14), transparent 55%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
-        <div style={step(0)}>
-          <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
-          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest">FUEL</div>
+        <div className="flex justify-center mb-6" style={step(0)}>
+          <div className="bg-orange-500 rounded-2xl p-4">
+            <Flame className="jb-flame-live text-zinc-950" size={40} strokeWidth={2.5} fill="currentColor" />
+          </div>
+        </div>
+        <div style={step(120)}>
+          <h1 className="jb-display text-5xl sm:text-7xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
+          <div className="jb-display text-4xl sm:text-6xl text-orange-500 leading-none mb-4 tracking-widest">FUEL</div>
         </div>
 
-        <div className="mb-4" style={step(180)}>
-          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]">
-            <span className="text-zinc-50">COME COMO PERUANO.</span><br />
-            <span className="text-orange-500">RESULTADOS DE BESTIA.</span>
+        <div className="relative mb-5" style={step(220)}>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
+            <Flame className="jb-flame-live text-orange-500 shrink-0" size={20} fill="currentColor" />
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
+          </div>
+          <h2 className="jb-display text-2xl sm:text-3xl text-zinc-50 leading-tight my-3 px-2">
+            COME COMO PERUANO.<br className="sm:hidden" /> RESULTADOS DE BESTIA
           </h2>
-        </div>
-
-        {/* Escaneo de reconocimiento, en flujo normal (no flotando encima
-            de nada), justo junto al texto que explica la función. La línea
-            y el porcentaje comparten el mismo valor (scanPct), así que se
-            mueven exactamente igual de rápido — no hay dos animaciones
-            corriendo por separado que se puedan desincronizar. */}
-        <div className="flex justify-center mb-3" style={step(220)}>
-          <div className="w-40 h-40 sm:w-48 sm:h-48 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
-            <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-2" />
-            <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
-              style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
-            <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
-              <span className="jb-display text-lg text-orange-400 bg-zinc-950/70 px-2.5 py-1 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-                {scanPct}%
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex justify-center mb-3" style={step(250)}>
-          <div className={`bg-zinc-900 border border-orange-500/50 rounded-xl px-3 py-1.5 flex flex-col items-center gap-0.5 transition-all ${scanPct >= 85 ? 'py-2' : ''}`}>
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="text-orange-500 shrink-0" size={12} />
-              <span className="jb-body text-[10.5px] font-semibold text-zinc-100">Lomo saltado detectado</span>
-            </div>
-            {scanPct >= 85 && (
-              <span className="jb-body text-[10px] text-zinc-400">612 kcal · 38g proteína · 40g carbos</span>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent to-orange-500/60" />
+            <Flame className="jb-flame-live text-orange-500 shrink-0" size={20} fill="currentColor" />
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent to-orange-500/60" />
           </div>
         </div>
 
-        <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
-          Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
-        </p>
+        <div className="mb-5" style={step(280)}>
+          <JonahMiniIdle
+            fraseInicial="¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos."
+            frases={[
+              'Come rico, come peruano, y mira los resultados llegar.',
+              'Regístrate y arrancamos hoy mismo 🔥',
+              '¿Listo para tu modo bestia? Yo te ayudo.',
+            ]}
+          />
+        </div>
 
-        <button onClick={registrarClicCTA} style={step(320)}
-          className="inline-flex items-center gap-2 mb-2 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
-          <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
-          <ChevronRight className="text-zinc-950" size={16} />
+        {/* CTA temprano — versión compacta tipo "pill" con borde, para que
+            se sienta como un atajo rápido y no como el mismo botón grande
+            repetido. El CTA sólido y grande sigue siendo el de cierre. */}
+        <button onClick={() => onChoose('trial')} style={step(320)}
+          className="inline-flex items-center gap-2 mb-6 mx-auto bg-transparent border border-orange-500/50 hover:border-orange-500 hover:bg-orange-500/10 rounded-full py-2 px-5 transition-colors">
+          <span className="jb-display text-xs text-orange-500 tracking-wide">🚀 EMPEZAR PRUEBA GRATIS</span>
+          <ChevronRight className="text-orange-500" size={14} />
         </button>
-        <p className="jb-body text-zinc-600 text-[11px] mb-4" style={step(330)}>Sin tarjeta · cancela cuando quieras</p>
 
-        <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-orange-500/80 text-xs mb-2 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-zinc-400 text-base mb-6" style={step(360)}>Mide tu composición corporal. Arma tu plan de alimentación. Domina tu progreso.</p>
+
+        {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40" style={step(420)}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
+            <span className="jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">EJEMPLO</span>
+          </div>
+          <div className="flex justify-around py-2">
+            <MacroRing pct={72} value="1840" label="Kcal" colorHex="#f97316" size={72} stroke={7} />
+            <MacroRing pct={58} value="132g" label="Proteína" colorHex="#34d399" size={72} stroke={7} />
+            <MacroRing pct={40} value="17.8%" label="Grasa" colorHex="#a78bfa" size={72} stroke={7} />
+          </div>
+          <p className="jb-body text-[10px] text-zinc-600 text-center mt-1">
+            Datos de ejemplo — tus números se calculan al medirte
+          </p>
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
+          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
+        </p>
 
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
-        <div className="mb-4" style={step(500)}>
+        <div className="mb-6" style={step(500)}>
           <style>{`
             @keyframes jb-bolt-fall {
               0%, 28% { opacity: 0; transform: translate(-50%, -40%); }
@@ -3072,7 +3020,7 @@ function Landing({ onChoose }) {
                 <div className="relative grid grid-cols-2">
                   {/* Rayo que cae justo por el medio, entre "antes" y "después" */}
                   <div className="jb-bolt-wrap absolute z-10 pointer-events-none" style={{ top: '-25%', left: '50%', width: 22, height: 170, animationDelay: `${i * 1.5}s` }}>
-                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #E8590C)' }}>
+                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
                       <path d="M13 0 3 85h8l-5 85 17-98H13L18 0z" fill="#fde68a" />
                     </svg>
                   </div>
@@ -3080,12 +3028,12 @@ function Landing({ onChoose }) {
                   <div className="jb-flash absolute inset-0 z-[9] bg-white pointer-events-none" style={{ animationDelay: `${i * 1.5}s` }} />
 
                   <div className="relative">
-                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-32 object-cover object-top" />
+                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover object-top" />
                     <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
                   </div>
                   <div className="relative overflow-hidden">
                     <div className="jb-reveal" style={{ animationDelay: `${i * 1.5}s` }}>
-                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-32 object-cover object-top" />
+                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
                     </div>
                     <span className="jb-tag-ahora absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950"
                       style={{ animationDelay: `${i * 1.5}s` }}>AHORA</span>
@@ -3106,10 +3054,10 @@ function Landing({ onChoose }) {
 
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button onClick={registrarClicCTA} style={step(540)}
-          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
-          <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
-          <span className="jb-body text-[11px] text-zinc-800">· 15 días sin tarjeta</span>
+        <button onClick={() => onChoose('trial')} style={step(540)}
+          className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-5 transition-colors shadow-lg shadow-orange-500/20">
+          <div className="jb-display text-lg text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</div>
+          <p className="jb-body text-sm text-zinc-800 mt-1">15 días · sin tarjeta · acceso completo</p>
         </button>
 
         <div className="grid sm:grid-cols-2 gap-3 mt-3" style={step(600)}>
@@ -3424,13 +3372,29 @@ function TrialSignup({ onBack, onCreated }) {
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
-          <div className="mb-5">
-            <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">EMPIEZA TU<br />PRUEBA GRATIS</h1>
-            <p className="jb-body text-sm text-zinc-400">15 días, sin tarjeta. Cancela cuando quieras.</p>
+          <div className="text-center mb-5">
+            <JonahMiniIdle
+              fraseInicial="¡Vamos a lograrlo juntos! Regístrate y empecemos hoy mismo 🦍🔥"
+              frases={[
+                'Solo te toma 2 minutos, y yo te acompaño desde el primer día.',
+                'Sin tarjeta, sin letra chica. Solo empezar.',
+                '¡Anímate! Tu mejor versión te está esperando 💪',
+              ]}
+            />
+            <div className="jb-display text-2xl text-orange-500 mb-1 mt-3">15 DÍAS GRATIS</div>
+            <p className="jb-body text-sm text-zinc-400">Sin tarjeta. Sin compromiso. Empieza hoy mismo.</p>
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-5">
+            {['Mide tu composición corporal', 'Arma tu plan con comida peruana', 'Descubre qué comer según lo que te queda', 'Sigue tu progreso día a día'].map(t => (
+              <div key={t} className="flex items-center gap-2 text-xs text-zinc-300 jb-body py-0.5">
+                <span className="text-emerald-400">✓</span> {t}
+              </div>
+            ))}
           </div>
 
           {aviso ? (
@@ -3470,7 +3434,7 @@ function TrialSignup({ onBack, onCreated }) {
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : 'Crear mi cuenta'}
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MI PRUEBA GRATIS'}
               </button>
               <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
                 Al crear tu cuenta, aceptas nuestra{' '}
@@ -3619,7 +3583,7 @@ function ResetPassword({ onDone }) {
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
       <div className="max-w-sm w-full relative">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl shadow-black/40">
@@ -3749,7 +3713,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(232,89,12,0.14), transparent 60%)' }} />
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
       <div className="max-w-sm w-full relative">
         <div className="mb-4"><Logo size="lg" /></div>
         {modo === 'login' && (
@@ -5362,7 +5326,7 @@ function AdminNotifButton() {
 
   if (estado === 'nosoportado' || estado === 'cargando') return null;
   if (estado === 'activo') {
-    return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">🔔 <span className="hidden sm:inline">Notificaciones </span>Activas</span>;
+    return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5">🔔 Notificaciones activas</span>;
   }
   if (estado === 'bloqueado') {
     return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas (revisa permisos del navegador)</span>;
@@ -5456,107 +5420,6 @@ function ReconocimientoFotoPanel() {
             </>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-/* Embudo de la landing: cuánta gente VE la página, cuántos tocan el
-   botón, y cuántos terminan de registrarse -- así se puede saber si
-   un problema es de diseño (poca gente convierte) o de tráfico (nadie
-   ve la página en primer lugar, o llegan bots). */
-function EmbudoLandingPanel() {
-  const [dias, setDias] = useState(7);
-  const [datos, setDatos] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { load(); }, [dias]);
-
-  async function load() {
-    setLoading(true);
-    try {
-      // Anclamos el punto de partida a hoy (cuando arrancó este
-      // seguimiento) -- así "registros" nunca cuenta gente de antes de
-      // que existiera esta tabla, y los 3 números siempre comparan la
-      // misma ventana real de tiempo, sin importar el filtro elegido.
-      const inicioTracking = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
-      const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
-      const desde = desdeSolicitado > inicioTracking ? desdeSolicitado : inicioTracking;
-      const [{ count: vistas }, { count: clics }, { count: registros }, { data: porFuenteRaw }] = await Promise.all([
-        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'vista').gte('creado_en', desde),
-        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'clic_cta').gte('creado_en', desde),
-        supabase.from('alumnos').select('*', { count: 'exact', head: true }).gte('created_at', desde),
-        supabase.from('embudo_landing_eventos').select('fuente, evento').gte('creado_en', desde),
-      ]);
-      const porFuente = {};
-      (porFuenteRaw || []).forEach(r => {
-        porFuente[r.fuente] = porFuente[r.fuente] || { vistas: 0, clics: 0 };
-        if (r.evento === 'vista') porFuente[r.fuente].vistas++;
-        else porFuente[r.fuente].clics++;
-      });
-      const fuentesOrdenadas = Object.entries(porFuente).sort((a, b) => b[1].vistas - a[1].vistas);
-      setDatos({ vistas: vistas || 0, clics: clics || 0, registros: registros || 0, fuentes: fuentesOrdenadas });
-    } catch { setDatos({ vistas: 0, clics: 0, registros: 0 }); }
-    setLoading(false);
-  }
-
-  const pct = (num, den) => den ? Math.round((num / den) * 100) : 0;
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="jb-display text-base text-zinc-200">EMBUDO DE LA LANDING</h2>
-        <div className="flex gap-1.5">
-          {[7, 30].map(d => (
-            <button key={d} onClick={() => setDias(d)}
-              className={`jb-body text-xs px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
-              {d} días
-            </button>
-          ))}
-        </div>
-      </div>
-      <p className="jb-body text-[10px] text-zinc-600 mb-3">Cuenta desde hoy — los días antes de activar esto no están incluidos.</p>
-
-      {loading || !datos ? (
-        <Skeleton className="h-20 w-full rounded-xl" />
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-zinc-100">{datos.vistas}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Vieron la landing</div>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-orange-400">{datos.clics}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Tocaron el botón</div>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-emerald-400">{datos.registros}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Se registró</div>
-            </div>
-          </div>
-          <p className="jb-body text-xs text-zinc-500 mt-3 text-center">
-            {pct(datos.clics, datos.vistas)}% tocó el botón · {pct(datos.registros, datos.clics)}% de los que tocaron terminó de registrarse
-          </p>
-          {datos.vistas > 0 && datos.clics === 0 && (
-            <p className="jb-body text-xs text-amber-400 mt-2 text-center">
-              Hay vistas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
-            </p>
-          )}
-          {datos.fuentes && datos.fuentes.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-zinc-800">
-              <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Por fuente (?utm_source= o ?fuente=)</p>
-              <div className="flex flex-col gap-1.5">
-                {datos.fuentes.map(([fuente, v]) => (
-                  <div key={fuente} className="flex items-center justify-between jb-body text-xs">
-                    <span className="text-zinc-300 capitalize">{fuente}</span>
-                    <span className="text-zinc-500">{v.vistas} vistas · {v.clics} clics</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -5783,7 +5646,7 @@ function EmbudoPanel() {
             <>
               <div className="relative bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-4 overflow-hidden">
                 <div className="absolute inset-0 opacity-25 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(232,89,12,0.35), transparent 55%)' }} />
+                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(249,115,22,0.35), transparent 55%)' }} />
                 <div className="relative flex flex-col gap-3">
                   {[
                     { label: 'Leads', count: leadsFiltrados.length, color: 'from-sky-500 to-cyan-400', glow: 'rgba(56,189,248,0.55)' },
@@ -6232,30 +6095,19 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   });
 
   return (
-    <div className="min-h-screen jb-body relative overflow-x-hidden" style={{ background: '#0a0d10' }}>
-      <div className="fixed inset-0 pointer-events-none opacity-[0.35]" style={{
-        backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px), repeating-linear-gradient(90deg, rgba(77,217,255,0.05) 0px, rgba(77,217,255,0.05) 1px, transparent 1px, transparent 32px)'
-      }} />
-      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 0%, rgba(77,217,255,0.08), transparent 55%)' }} />
-
-      <header className="relative border-b border-[#163244] px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', background: 'rgba(10,22,32,0.6)' }}>
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
-          <div className="min-w-0">
-            <div className="jb-display text-xs sm:text-sm tracking-wide text-zinc-50 truncate">JONAH BEAST FUEL</div>
-            <div className="hidden sm:block font-mono text-[10px] tracking-widest" style={{ color: '#6f92a8' }}>PANEL DE OPERACIONES</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <button onClick={() => setMostrarJarvis(true)} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
-            🔷 <span className="hidden sm:inline">Jarvis</span>
+    <div className="min-h-screen bg-zinc-950 jb-body">
+      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+        <Logo />
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMostrarJarvis(true)} className={btnGhost} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
+            🔷 Jarvis
           </button>
           <AdminNotifButton />
-          <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
+          <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
         </div>
       </header>
       {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}
-      <main className="relative max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
@@ -6267,18 +6119,20 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           const enPrueba = users.filter(u => u.plan === 'trial').length;
           const vencidos = total - activos;
           const stats = [
-            [total, 'Alumnos totales', '#4dd9ff'],
-            [activos, 'Activos', '#4affb0'],
-            [enPrueba, 'En prueba gratis', '#ffb020'],
-            [vencidos, 'Vencidos', '#ff5c5c'],
+            ['👥', total, 'Alumnos totales', 'text-zinc-100'],
+            ['✅', activos, 'Activos', 'text-emerald-400'],
+            ['🎁', enPrueba, 'En prueba gratis', 'text-orange-400'],
+            ['⏰', vencidos, 'Vencidos', 'text-red-400'],
           ];
           return (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {stats.map(([valor, label, color]) => (
-                <div key={label} className="relative rounded-lg p-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(13,28,40,0.9), rgba(10,22,32,0.9))', border: '1px solid #163244' }}>
-                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `linear-gradient(90deg, ${color}, transparent)` }} />
-                  <div className="font-mono text-2xl font-bold" style={{ color }}>{valor}</div>
-                  <div className="font-mono text-[10px] tracking-wide mt-1" style={{ color: '#6f92a8' }}>{label.toUpperCase()}</div>
+              {stats.map(([emoji, valor, label, color]) => (
+                <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg shrink-0">{emoji}</div>
+                  <div>
+                    <div className={`jb-display text-xl ${color}`}>{valor}</div>
+                    <div className="jb-body text-[11px] text-zinc-500">{label}</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -6300,7 +6154,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   <button key={t.id} onClick={() => setTabActiva(t.id)}
                     className={`shrink-0 jb-display text-xs tracking-wide px-4 py-2.5 rounded-xl border transition-all duration-200 flex items-center gap-1.5 ${
                       activa
-                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 border-orange-400 text-zinc-950 shadow-[0_0_20px_rgba(232,89,12,0.45)]'
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-500 border-orange-400 text-zinc-950 shadow-[0_0_20px_rgba(249,115,22,0.45)]'
                         : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                     }`}>
                     <span>{t.emoji}</span> {t.label}
@@ -6313,7 +6167,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
-            <EmbudoLandingPanel />
             <EmbudoPanel />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -6823,7 +6676,7 @@ function CalculatorTab({ form, setForm, results }) {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
           <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
             <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={64} stroke={6} />
-            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#E8590C" size={64} stroke={6} />
+            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={64} stroke={6} />
             <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantener" colorHex="#34d399" size={64} stroke={6} />
           </div>
         </div>
@@ -6840,9 +6693,6 @@ function CalculatorTab({ form, setForm, results }) {
           <AlertTriangle className="text-amber-500 shrink-0" size={16} />
           <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
         </div>
-        <p className="jb-body text-[11px] text-zinc-600 text-center">
-          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
-        </p>
       </div>
     </div>
   );
@@ -8046,7 +7896,6 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
           <div className="text-center">
             <h2 className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</h2>
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
-            <p className="jb-body text-xs text-zinc-500 mt-2">Cada día sin registrar es un día que no sabes si vas por buen camino.</p>
           </div>
 
           {dcto > 0 && (
@@ -8059,7 +7908,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {PLANES.map(plan => {
               const precio = precioDe(plan);
               const porMes = precio / plan.meses;
@@ -8529,7 +8378,7 @@ function PhotosTab({ username, pesoActual }) {
 /* COACH DIGITAL — análisis de tendencia                               */
 /* ------------------------------------------------------------------ */
 
-function MiniChart({ points, color = '#E8590C', suffix = '' }) {
+function MiniChart({ points, color = '#f97316', suffix = '' }) {
   if (!Array.isArray(points) || points.length < 2) return null;
   const limpios = points.filter(p => Number.isFinite(Number(p.v)));
   if (limpios.length < 2) return null;
@@ -9204,7 +9053,6 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
   return (
     <div className="flex flex-col gap-6 min-w-0">
       {subNav}
-      <RachaCard username={username} />
       <div className="flex gap-2 flex-wrap">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}
@@ -9223,7 +9071,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
           <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
           <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
             <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
-              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#E8590C" size={60} stroke={6} />
+              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={60} stroke={6} />
             <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
               value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={60} stroke={6} />
             <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
@@ -9248,7 +9096,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
 
       <div className="grid sm:grid-cols-2 gap-4">
         {[
-          ['peso', 'PESO', ' kg', '#E8590C'],
+          ['peso', 'PESO', ' kg', '#f97316'],
           ['grasa_pct', '% GRASA CORPORAL', '%', '#fbbf24'],
           ['masa_muscular', 'MASA MUSCULAR', ' kg', '#34d399'],
           ['kcal_consumidas', 'CALORÍAS DIARIAS', '', '#60a5fa'],
@@ -9471,9 +9319,9 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6">
         <div className="text-center mb-5">
           <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
-            {p.esTelefono ? <Phone className="text-orange-500" size={26} /> : p.emoji}
+            {p.emoji}
           </div>
-          <h2 className="jb-display text-xl text-zinc-50 mb-3">{p.titulo}</h2>
+          <h2 className="jb-display text-xl text-orange-500 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
           {p.esNombre && (
             <div className="mt-4 text-left">
@@ -9640,7 +9488,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
 
 /* Confeti simple con CSS puro — sin librerías externas */
 function Confetti() {
-  const colores = ['#E8590C', '#34d399', '#a78bfa', '#fbbf24'];
+  const colores = ['#f97316', '#34d399', '#a78bfa', '#fbbf24'];
   const piezas = Array.from({ length: 40 }, (_, i) => ({
     id: i,
     left: Math.random() * 100,
@@ -9761,7 +9609,7 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
             @keyframes jb-flash-once { 0% { opacity: 0; } 26% { opacity: 0.9; } 42% { opacity: 0; } 100% { opacity: 0; } }
           `}</style>
           <div className="absolute z-20 pointer-events-none" style={{ top: '-30%', left: '30%', width: 20, animation: 'jb-bolt-strike 1.1s ease-in forwards' }}>
-            <svg width="20" height="140" viewBox="0 0 20 140" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #E8590C)' }}>
+            <svg width="20" height="140" viewBox="0 0 20 140" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
               <path d="M12 0 3 70h7l-4 70 15-80h-7L16 0z" fill="#fde68a" />
             </svg>
           </div>
@@ -9771,19 +9619,15 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
       <div className="relative w-16 h-16 shrink-0">
         <svg width={64} height={64} style={{ transform: 'rotate(-90deg)' }}>
           <circle cx={32} cy={32} r={27} stroke="#27272a" strokeWidth={7} fill="none" />
-          <circle cx={32} cy={32} r={27} stroke="#E8590C" strokeWidth={7} fill="none"
+          <circle cx={32} cy={32} r={27} stroke="#f97316" strokeWidth={7} fill="none"
             strokeDasharray={2 * Math.PI * 27} strokeDashoffset={2 * Math.PI * 27 * (1 - score / 100)}
             strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center jb-display text-sm text-zinc-50">{score}</div>
       </div>
       <div className="flex-1">
-        <p className="jb-display text-sm text-zinc-100">{nivel.emoji} ¿CÓMO VAS HOY? {score}%</p>
-        <p className="jb-body text-xs text-zinc-500">
-          {totalsHoy.kcal === 0 && racha > 0
-            ? `Aún no registras hoy — tu racha ya te dio ${bonoRacha} pts. Registra algo y sube.`
-            : `${nivel.txt}${racha > 0 ? ` · racha de ${racha} día(s)` : ''}`}
-        </p>
+        <p className="jb-display text-sm text-zinc-100">{nivel.emoji} BEAST SCORE: {score}%</p>
+        <p className="jb-body text-xs text-zinc-500">{nivel.txt}{racha > 0 ? ` · racha de ${racha} día(s)` : ''}</p>
       </div>
     </div>
   );
@@ -9870,6 +9714,26 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
         <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
+        {(() => {
+          const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
+          const protObjetivo = targets ? targets.protein : null;
+          const carbObjetivo = targets ? targets.carbs : null;
+          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0 };
+          Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+            const m = entryMacros(en);
+            totalsHoyFull.carbs += m.carbs;
+          }));
+          return (
+            <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
+              <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
+                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={64} stroke={6} />
+              <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={64} stroke={6} />
+              <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
+                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={64} stroke={6} />
+            </div>
+          );
+        })()}
         <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
         <p className="jb-body text-xs text-zinc-600 mt-3">
           Mira tus promedios y tendencias de varios días en la pestaña "Mi progreso".
@@ -10452,11 +10316,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         {estado === 'elegir' && (
           <div className="text-center">
             <p className="jb-body text-sm text-zinc-400 mb-4">
-              Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
+              Toma o sube una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
               {!addOnActivo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
             </p>
             <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
-              <Camera size={16} /> Tomar foto
+              <Camera size={16} /> Tomar o elegir foto
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
             </label>
           </div>
@@ -10479,7 +10343,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 <div className="absolute left-0 right-0 h-12 pointer-events-none"
                   style={{
                     top: '-15%',
-                    background: 'linear-gradient(180deg, transparent, rgba(232,89,12,0.6), transparent)',
+                    background: 'linear-gradient(180deg, transparent, rgba(249,115,22,0.6), transparent)',
                     animation: 'jb-scan-sweep 1.8s ease-in-out infinite',
                   }} />
               </div>
@@ -10763,10 +10627,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
             <h3 className="jb-display text-sm text-orange-500 tracking-wide flex-1">{meal.toUpperCase()}</h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap mb-3">
-            <button onClick={() => setFotoPara(meal)}
-              className="border border-dashed border-orange-500/60 hover:bg-orange-500/10 text-orange-500 rounded-lg py-1.5 px-3 text-sm flex items-center gap-1.5 transition-colors">
-              <Camera size={14} /> Foto a tu plato
-            </button>
+            <button onClick={() => setFotoPara(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Camera size={14} className="text-orange-500" /> ✨ Reconocer por foto</button>
             <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
           {username && (
@@ -11388,12 +11249,14 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               const targets = goalTargets(form, results.tdee);
               return (
                 <>
+                  <JonahGorila username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
                   <ResumenSemanalCard username={username} />
                 </>
               );
             })()}
             <RachaCard username={username} />
+            <CheckinRapidoButton username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
             <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
           </>
@@ -12651,7 +12514,6 @@ export default function App() {
         return;
       }
       setAdminAuthed(true);
-      try { localStorage.setItem('jb-conocido', '1'); } catch {}
       setView('admin');
     } catch {
       setErr('No se pudo iniciar sesión, intenta de nuevo.');
@@ -12724,7 +12586,6 @@ export default function App() {
     }
 
     let perfil = null;
-    try { localStorage.setItem('jb-conocido', '1'); } catch {}
     try {
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.user.id).maybeSingle();
       perfil = p;

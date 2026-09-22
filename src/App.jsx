@@ -2904,14 +2904,32 @@ function Landing({ onChoose }) {
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/15 via-zinc-950/75 to-zinc-950" />
       </div>
+      {/* Escaneo de reconocimiento sobre el mosaico — la función que hace
+          única a la app, mostrada directo sobre las fotos reales en vez
+          de una ilustración aparte. */}
+      <style>{`
+        @keyframes jb-scan-line { 0%, 100% { top: 4%; opacity: 0; } 15% { opacity: 1; } 50% { top: 34%; opacity: 1; } 65%, 100% { opacity: 0; } }
+        .jb-scan { animation: jb-scan-line 3.6s ease-in-out infinite; }
+        @keyframes jb-scan-tag { 0%, 40% { opacity: 0; transform: translateY(6px); } 55%, 90% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; } }
+        .jb-scan-tag { animation: jb-scan-tag 3.6s ease-in-out infinite; }
+      `}</style>
+      <div className="absolute left-[6%] right-[6%] pointer-events-none" style={{ top: '4%', height: '32%' }} aria-hidden="true">
+        <div className="jb-scan absolute left-0 right-0 h-0.5 bg-orange-500" style={{ boxShadow: '0 0 14px 3px rgba(232,89,12,0.75)' }} />
+        <div className="jb-scan-tag absolute right-0 bottom-0 bg-zinc-950/90 border border-orange-500/50 rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg shadow-black/40">
+          <ShieldCheck className="text-orange-500 shrink-0" size={16} />
+          <div>
+            <div className="jb-body text-[11px] font-semibold text-zinc-100 whitespace-nowrap">Lomo saltado detectado</div>
+            <div className="jb-body text-[9.5px] text-zinc-500">612 kcal · 38g proteína</div>
+          </div>
+        </div>
+      </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
-      <div className="relative z-10 max-w-5xl w-full grid md:grid-cols-2 gap-10 md:gap-14 items-center text-center md:text-left">
-        <div>
-        <div className="flex justify-center md:justify-start mb-6" style={step(0)}>
+      <div className="relative z-10 max-w-xl w-full text-center">
+        <div className="flex justify-center mb-6" style={step(0)}>
           <div className="bg-orange-500 rounded-2xl p-4">
             <Flame className="jb-flame-live text-zinc-950" size={40} strokeWidth={2.5} fill="currentColor" />
           </div>
@@ -2928,7 +2946,7 @@ function Landing({ onChoose }) {
           </h2>
         </div>
 
-        <p className="jb-body text-zinc-400 text-base mb-5 max-w-md mx-auto md:mx-0" style={step(260)}>
+        <p className="jb-body text-zinc-400 text-base mb-5 max-w-md mx-auto" style={step(260)}>
           Toma foto a tu plato — arroz, guisos, menestras — y calculamos tus macros al toque. Nada de básculas ni ensaladas que nadie come todos los días.
         </p>
 
@@ -2944,43 +2962,15 @@ function Landing({ onChoose }) {
         </div>
 
         <button onClick={() => onChoose('trial')} style={step(320)}
-          className="inline-flex items-center gap-2 mb-3 mx-auto md:mx-0 bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
+          className="inline-flex items-center gap-2 mb-3 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
           <ChevronRight className="text-zinc-950" size={16} />
         </button>
 
-        <p className="jb-body text-orange-500/80 text-xs tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
-        </div>
-
-        <div style={step(400)}>
-          {/* Mockup foto -> reconocimiento, la función que hace única a la app */}
-          <style>{`
-            @keyframes jb-scan-line { 0% { top: 8%; opacity: 0; } 12% { opacity: 1; } 50% { top: 86%; opacity: 1; } 62% { opacity: 0; } 100% { top: 86%; opacity: 0; } }
-            .jb-scan { animation: jb-scan-line 3.2s ease-in-out infinite; }
-          `}</style>
-          <div className="mx-auto max-w-[280px] bg-zinc-900 border border-zinc-800 rounded-[32px] p-3.5 shadow-xl shadow-black/40">
-            <div className="w-full rounded-3xl overflow-hidden relative bg-zinc-950" style={{ aspectRatio: '9/16' }}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-40 h-40 rounded-full relative overflow-hidden" style={{ background: 'radial-gradient(circle at 35% 30%, #2A2016, #17110B)' }}>
-                  <div className="absolute rounded-[40%_60%_55%_45%] opacity-90" style={{ width: 96, height: 52, background: '#D9A441', top: 36, left: 24 }} />
-                  <div className="absolute rounded-[45%_55%_40%_60%] opacity-90" style={{ width: 72, height: 44, background: '#B5451F', bottom: 30, right: 18 }} />
-                  <div className="absolute rounded-full opacity-85" style={{ width: 48, height: 32, background: '#6B2D5C', bottom: 22, left: 32 }} />
-                </div>
-              </div>
-              <div className="jb-scan absolute left-[8%] w-[84%] h-0.5 bg-orange-500" style={{ boxShadow: '0 0 12px 2px rgba(232,89,12,0.7)' }} />
-              <div className="absolute bottom-4 left-4 right-4 bg-zinc-950/90 border border-orange-500/50 rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                <ShieldCheck className="text-orange-500 shrink-0" size={18} />
-                <div>
-                  <div className="jb-body text-xs font-semibold text-zinc-100">Lomo saltado detectado</div>
-                  <div className="jb-body text-[10.5px] text-zinc-500">612 kcal · 38g proteína</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <p className="jb-body text-orange-500/80 text-xs mb-6 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
         {/* Vista previa real de la interfaz (datos ilustrativos, no de un alumno) */}
-        <div className="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl shadow-black/40" style={step(420)}>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40" style={step(420)}>
           <div className="flex items-center justify-between mb-1">
             <span className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Así se ve tu día en la app</span>
             <span className="jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">EJEMPLO</span>
@@ -2995,11 +2985,9 @@ function Landing({ onChoose }) {
           </p>
         </div>
 
-        <p className="md:col-span-2 jb-body text-xs text-zinc-500" style={step(480)}>
+        <p className="jb-body text-xs text-zinc-500 mb-6" style={step(480)}>
           Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
         </p>
-      </div>
-      <div className="relative z-10 max-w-xl w-full text-center">
 
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}

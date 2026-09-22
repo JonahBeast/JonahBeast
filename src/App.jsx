@@ -5934,6 +5934,7 @@ function JarvisPanel({ onClose }) {
   // el parlante se retroalimentaría con el mismo micrófono) y se
   // reanuda solo apenas termina de hablar
   function hablar(texto) {
+    texto = (texto || '').replace(/J\.?\s*A\.?\s*R\.?\s*V\.?\s*I\.?\s*S\.?/gi, 'Jarvis');
     if (!vozOnRef.current || !('speechSynthesis' in window)) {
       if (modoContinuoRef.current) reanudarMicSiCorresponde();
       return;

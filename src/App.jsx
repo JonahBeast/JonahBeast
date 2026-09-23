@@ -3052,13 +3052,13 @@ function Landing({ onChoose }) {
       <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '78vh', minHeight: 520 }}>
         <div className="grid grid-cols-2 h-full">
           <div className="overflow-hidden relative">
-            <img src={HERO_TRANSFORMACION.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-60" />
+            <img src={HERO_TRANSFORMACION.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-[0.85]" />
           </div>
           <div className="overflow-hidden relative">
-            <img src={HERO_TRANSFORMACION.despues} alt="" className="w-full h-full object-cover object-top opacity-80" />
+            <img src={HERO_TRANSFORMACION.despues} alt="" className="w-full h-full object-cover object-top" />
           </div>
         </div>
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(9,9,11,0.35) 0%, rgba(9,9,11,0.55) 35%, rgba(9,9,11,0.8) 65%, #09090b 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(9,9,11,0.15) 0%, rgba(9,9,11,0.35) 35%, rgba(9,9,11,0.7) 65%, #09090b 100%)' }} />
         <div className="absolute top-0 left-1/2 w-px h-24" style={{ background: 'linear-gradient(to bottom, rgba(232,89,12,0.7), transparent)' }} />
         <span className="absolute left-3 jb-body text-[10px] tracking-widest text-zinc-300 bg-zinc-950/70 border border-zinc-700 rounded-full px-2.5 py-1"
           style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>ANTES</span>
@@ -3075,11 +3075,11 @@ function Landing({ onChoose }) {
             no queden encima del título. */}
         <div className="pt-9" style={step(0)}>
           <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}>JONAH BEAST</h1>
-          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest">FUEL</div>
+          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>FUEL</div>
         </div>
 
         <div className="mb-4" style={step(180)}>
-          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]">
+          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' }}>
             <span className="text-zinc-50">COME COMO PERUANO.</span><br />
             <span className="text-orange-500">RESULTADOS DE BESTIA.</span>
           </h2>

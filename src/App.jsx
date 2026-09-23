@@ -11617,7 +11617,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 /* ------------------------------------------------------------------ */
 
 // Nombres de archivo de los logos en /public/marcas/ (sin la extensión .png)
-const MARCAS_TRABAJAMOS = ['evogen', 'insane-labz', 'bluhealth-nutrition', 'dragon-pharma', 'youngla', 'gymshark'];
+const MARCAS_TRABAJAMOS = ['evogen', 'insane-labz', 'bluhealth-nutrition', 'dragon-pharma', 'youngla'];
 
 const CATEGORIAS_TIENDA = [
   { id: 'hombre', label: 'Hombre' },
@@ -11653,6 +11653,72 @@ const DEPARTAMENTOS_PERU = {
   'Tumbes': ['Tumbes', 'Contralmirante Villar', 'Zarumilla'],
   'Ucayali': ['Coronel Portillo', 'Atalaya', 'Padre Abad', 'Purús'],
 };
+
+function TiendaProductoCard({ p, variantes, onAgregar, ancho }) {
+  const hayStock = variantes.some(v => v.stock > 0);
+  const precio = p.precio_oferta || p.precio;
+  const esSuplemento = p.categoria === 'suplementos';
+  return (
+    <div className={`bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden group transition-all hover:border-orange-600/60 hover:shadow-lg hover:shadow-orange-950/40 ${ancho || ''}`}>
+      <div className="h-44 relative flex items-center justify-center overflow-hidden"
+        style={{ background: esSuplemento
+          ? 'linear-gradient(135deg, rgba(62,138,138,0.35), rgba(20,25,28,1))'
+          : 'linear-gradient(135deg, rgba(255,90,46,0.30), rgba(20,20,24,1))' }}>
+        {p.imagen_url
+          ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-110" />
+          : <span className="text-zinc-500 text-[11px]">📦 Foto próximamente</span>}
+        {p.precio_oferta && (
+          <span className="absolute top-2 left-2 bg-orange-500 text-zinc-950 text-[9px] font-bold px-1.5 py-0.5 rounded">OFERTA</span>
+        )}
+      </div>
+      <div className="p-2.5">
+        <div className="text-zinc-200 text-xs font-medium leading-tight">{p.nombre}</div>
+        {p.marca && <div className="text-teal-400 text-[10px] mt-0.5 font-medium">{p.marca}</div>}
+        <div className="flex items-baseline gap-1.5 mt-1">
+          {p.precio_oferta && <span className="text-zinc-500 text-[10px] line-through">S/{p.precio.toFixed(2)}</span>}
+          <span className="text-orange-500 text-sm font-bold">S/{precio.toFixed(2)}</span>
+        </div>
+        {!hayStock ? (
+          <div className="mt-2 text-center text-[11px] text-zinc-600 bg-zinc-950 rounded-lg py-1.5">Agotado</div>
+        ) : (
+          <select
+            defaultValue=""
+            onChange={e => {
+              const v = variantes.find(x => x.id === e.target.value);
+              if (v && v.stock > 0) onAgregar(v);
+              e.target.value = '';
+            }}
+            className="mt-2 w-full bg-gradient-to-r from-orange-500 to-orange-600 text-zinc-950 text-[11px] font-semibold rounded-lg py-1.5 text-center"
+          >
+            <option value="" disabled>Elegir</option>
+            {variantes.map(v => (
+              <option key={v.id} value={v.id} disabled={v.stock === 0}>
+                {v.nombre}{v.stock === 0 ? ' (agotado)' : ''}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TiendaSeccionCurada({ titulo, productos, variantesPorProducto, onAgregar }) {
+  if (!productos.length) return null;
+  return (
+    <div className="py-4">
+      <h2 className="jb-display text-sm text-zinc-100 px-5 mb-2.5 tracking-wide">{titulo}</h2>
+      <div className="flex gap-3 overflow-x-auto px-5 pb-1" style={{ scrollSnapType: 'x mandatory' }}>
+        {productos.map(p => (
+          <div key={p.id} style={{ scrollSnapAlign: 'start' }} className="shrink-0 w-36">
+            <TiendaProductoCard p={p} variantes={variantesPorProducto[p.id] || []}
+              onAgregar={v => onAgregar(p, v)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function TiendaPublica({ username, onIrALaApp }) {
   const [loading, setLoading] = useState(true);
@@ -11833,57 +11899,25 @@ function TiendaPublica({ username, onIrALaApp }) {
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-orange-500" size={24} /></div>
       ) : productosFiltrados.length === 0 ? (
         <p className="text-center text-zinc-500 text-sm py-16">Sin productos en esta categoría todavía.</p>
+      ) : categoria === 'todos' ? (
+        <div className="pb-2">
+          <TiendaSeccionCurada titulo="🔥 LO NUEVO" productos={productos.slice(0, 10)}
+            variantesPorProducto={variantesPorProducto} onAgregar={agregarAlCarrito} />
+          <TiendaSeccionCurada titulo="PARA ÉL" productos={productos.filter(p => p.categoria === 'hombre')}
+            variantesPorProducto={variantesPorProducto} onAgregar={agregarAlCarrito} />
+          <TiendaSeccionCurada titulo="PARA ELLA" productos={productos.filter(p => p.categoria === 'mujer')}
+            variantesPorProducto={variantesPorProducto} onAgregar={agregarAlCarrito} />
+          <TiendaSeccionCurada titulo="ACCESORIOS" productos={productos.filter(p => p.categoria === 'accesorios')}
+            variantesPorProducto={variantesPorProducto} onAgregar={agregarAlCarrito} />
+          <TiendaSeccionCurada titulo="SUPLEMENTOS" productos={productos.filter(p => p.categoria === 'suplementos')}
+            variantesPorProducto={variantesPorProducto} onAgregar={agregarAlCarrito} />
+        </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-4 max-w-5xl mx-auto">
-          {productosFiltrados.map(p => {
-            const variantes = variantesPorProducto[p.id] || [];
-            const hayStock = variantes.some(v => v.stock > 0);
-            const precio = p.precio_oferta || p.precio;
-            const esSuplemento = p.categoria === 'suplementos';
-            return (
-              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-orange-600/50 transition-colors">
-                <div className="h-28 relative flex items-center justify-center overflow-hidden"
-                  style={{ background: esSuplemento
-                    ? 'linear-gradient(135deg, rgba(62,138,138,0.35), rgba(20,25,28,1))'
-                    : 'linear-gradient(135deg, rgba(255,90,46,0.30), rgba(20,20,24,1))' }}>
-                  {p.imagen_url
-                    ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-1" />
-                    : <span className="text-zinc-500 text-[11px]">📦 Foto próximamente</span>}
-                  {p.precio_oferta && (
-                    <span className="absolute top-1.5 left-1.5 bg-orange-500 text-zinc-950 text-[9px] font-bold px-1.5 py-0.5 rounded">OFERTA</span>
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <div className="text-zinc-200 text-xs font-medium leading-tight">{p.nombre}</div>
-                  {p.marca && <div className="text-teal-400 text-[10px] mt-0.5 font-medium">{p.marca}</div>}
-                  <div className="flex items-baseline gap-1.5 mt-1">
-                    {p.precio_oferta && <span className="text-zinc-500 text-[10px] line-through">S/{p.precio.toFixed(2)}</span>}
-                    <span className="text-orange-500 text-sm font-bold">S/{precio.toFixed(2)}</span>
-                  </div>
-                  {!hayStock ? (
-                    <div className="mt-2 text-center text-[11px] text-zinc-600 bg-zinc-950 rounded-lg py-1.5">Agotado</div>
-                  ) : (
-                    <select
-                      defaultValue=""
-                      onChange={e => {
-                        const v = variantes.find(x => x.id === e.target.value);
-                        if (v && v.stock > 0) agregarAlCarrito(p, v);
-                        e.target.value = '';
-                      }}
-                      className="mt-2 w-full bg-gradient-to-r from-orange-500 to-orange-600 text-zinc-950 text-[11px] font-semibold rounded-lg py-1.5 text-center"
-                    >
-                      <option value="" disabled>Elegir</option>
-                      {variantes.map(v => (
-                        <option key={v.id} value={v.id} disabled={v.stock === 0}>
-                          {v.nombre}{v.stock === 0 ? ' (agotado)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {productosFiltrados.map(p => (
+            <TiendaProductoCard key={p.id} p={p} variantes={variantesPorProducto[p.id] || []}
+              onAgregar={v => agregarAlCarrito(p, v)} />
+          ))}
         </div>
       )}
 

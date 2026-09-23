@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -8,41 +9,52 @@ const CORS_HEADERS = {
 
 const PRECIO_MENSUAL = 11.90;
 
+function responder(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+// El alumno sale de la sesión iniciada, nunca de lo que mande el navegador.
+async function usuarioDeLaSesion(supabase: any, req: Request): Promise<string | null> {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+  const { data: perfil } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
+  return perfil?.username || null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
   try {
-    const { username, meses, correo } = await req.json();
+    const { meses, correo } = await req.json();
 
-    if (!username || typeof username !== "string") {
-      return new Response(JSON.stringify({ error: "Falta el usuario del alumno." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    const username = await usuarioDeLaSesion(supabase, req);
+    if (!username) return responder({ error: "Inicia sesión para pagar." }, 401);
+
     const mesesNum = Number(meses);
     if (![1, 3, 6].includes(mesesNum)) {
-      return new Response(JSON.stringify({ error: "Duraci\u00f3n inv\u00e1lida." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "Duración inválida." }, 400);
     }
     if (!correo || typeof correo !== "string" || !correo.includes("@")) {
-      return new Response(JSON.stringify({ error: "Falta un correo v\u00e1lido del alumno." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "Falta un correo válido del alumno." }, 400);
     }
 
     const precio = Math.round(PRECIO_MENSUAL * mesesNum * 100) / 100;
 
     const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!accessToken) {
-      return new Response(JSON.stringify({ error: "Falta configurar MP_ACCESS_TOKEN." }), {
-        status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
+    if (!accessToken) return responder({ error: "Falta configurar MP_ACCESS_TOKEN." }, 500);
 
-    // Misma convenci\u00f3n que crear-pago-unico, pero con un prefijo
+    // Misma convención que crear-pago-unico, pero con un prefijo
     // "addon-foto::" para que el webhook sepa que esto activa el add-on
     // de Reconocimiento Inteligente, no un plan principal.
     const referencia = `addon-foto::${username}::${mesesNum}`;
@@ -74,17 +86,13 @@ Deno.serve(async (req: Request) => {
     const data = await mpRes.json();
 
     if (!mpRes.ok) {
-      return new Response(JSON.stringify({ error: "Mercado Pago rechaz\u00f3 la solicitud.", detalle: data }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      console.error("Mercado Pago rechazo la preferencia del add-on:", mpRes.status, JSON.stringify(data));
+      return responder({ error: "Mercado Pago rechazó la solicitud." }, 400);
     }
 
-    return new Response(JSON.stringify({ init_point: data.init_point }), {
-      status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return responder({ init_point: data.init_point });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Error interno.", detalle: String(err) }), {
-      status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    console.error("crear-pago-addon-foto:", String(err));
+    return responder({ error: "Error interno." }, 500);
   }
 });

@@ -6091,6 +6091,17 @@ function JarvisPanel({ onClose }) {
   // reanuda solo apenas termina de hablar
   function hablar(texto) {
     texto = (texto || '').replace(/J\.?\s*A\.?\s*R\.?\s*V\.?\s*I\.?\s*S\.?/gi, 'Jarvis');
+    // Quita símbolos de markdown que la voz leería literalmente
+    // ("asterisco asterisco") -- deja solo el texto limpio para hablar,
+    // el chat de texto sigue mostrando el markdown normal.
+    texto = texto
+      .replace(/\*\*(.+?)\*\*/g, '$1')       // **negrita**
+      .replace(/\*(.+?)\*/g, '$1')           // *cursiva*
+      .replace(/`{1,3}(.+?)`{1,3}/g, '$1')   // `código`
+      .replace(/^#{1,6}\s+/gm, '')           // # Encabezados
+      .replace(/^[-*+]\s+/gm, '')            // - viñetas
+      .replace(/^\d+\.\s+/gm, '')            // 1. listas numeradas
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1');   // [texto](enlace)
     // números de 6+ dígitos seguidos (celulares, IDs) se leen dígito por
     // dígito -- si no, el sintetizador los lee como si fueran millones
     texto = texto.replace(/\d{6,}/g, (n) => n.split('').join(' '));

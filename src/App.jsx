@@ -2887,10 +2887,7 @@ const TESTIMONIOS = [
 
 // Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
 // sección completa de testimonios de abajo, pero no en este fondo).
-const HERO_BG_FOTOS = [
-  TESTIMONIOS[0].antes, TESTIMONIOS[0].despues,
-  TESTIMONIOS[1].antes, TESTIMONIOS[1].despues,
-];
+const HERO_TRANSFORMACION = TESTIMONIOS[0];
 
 /* ------------------------------------------------------------------ */
 /* EMBUDO DE LA LANDING                                                */
@@ -3048,17 +3045,32 @@ function Landing({ onChoose }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
-      {/* Mosaico de fotos de alumnos como fondo pasivo — prueba social
-          visible de inmediato, sin que el usuario tenga que deslizar nada. */}
-      <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '26vh', minHeight: 170 }}>
-        <div className="grid grid-cols-2 opacity-[0.45] grayscale h-full">
-          {HERO_BG_FOTOS.map((src, i) => (
-            <div key={i} className="overflow-hidden">
-              <img src={src} alt="" className="w-full h-full object-cover object-top" />
+      {/* Fondo de la primera pantalla: la transformación de Jonah, grande.
+          Antes en blanco y negro a la izquierda, ahora a color a la
+          derecha, para que se entienda de un vistazo que es real. En
+          pantallas anchas las fotos van en un bloque centrado (del ancho de
+          un celular grande) para que se vean de cuerpo entero y no
+          recortadas a la cintura; los bordes se funden con el carbón. El
+          degradado termina en el mismo carbón de la página (#16110D), así
+          no queda una línea donde acaba el fondo. */}
+      <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '78vh', minHeight: 520 }}>
+        <div className="relative h-full mx-auto max-w-2xl"
+          style={{ WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)', maskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)' }}>
+          <div className="grid grid-cols-2 h-full">
+            <div className="overflow-hidden relative">
+              <img src={HERO_TRANSFORMACION.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-[0.85]" />
             </div>
-          ))}
+            <div className="overflow-hidden relative">
+              <img src={HERO_TRANSFORMACION.despues} alt="" className="w-full h-full object-cover object-top" />
+            </div>
+          </div>
+          <div className="absolute top-0 left-1/2 w-px h-24" style={{ background: 'linear-gradient(to bottom, rgba(232,89,12,0.7), transparent)' }} />
+          <span className="absolute left-3 jb-body text-[10px] tracking-widest text-zinc-300 bg-zinc-950/70 border border-zinc-700 rounded-full px-2.5 py-1"
+            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>ANTES</span>
+          <span className="absolute right-3 jb-body text-[10px] tracking-widest text-zinc-950 bg-orange-500 rounded-full px-2.5 py-1 font-semibold"
+            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>AHORA · −37 KG</span>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/10 to-zinc-950" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(22,17,13,0.15) 0%, rgba(22,17,13,0.35) 35%, rgba(22,17,13,0.7) 65%, #16110D 100%)' }} />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
@@ -3066,13 +3078,15 @@ function Landing({ onChoose }) {
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
-        <div style={step(0)}>
-          <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2">JONAH BEAST</h1>
-          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest">FUEL</div>
+        {/* Espacio arriba para que las etiquetas ANTES / AHORA del fondo
+            no queden encima del título. */}
+        <div className="pt-9" style={step(0)}>
+          <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}>JONAH BEAST</h1>
+          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>FUEL</div>
         </div>
 
         <div className="mb-4" style={step(180)}>
-          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]">
+          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' }}>
             <span className="text-zinc-50">COME COMO PERUANO.</span><br />
             <span className="text-orange-500">RESULTADOS DE BESTIA.</span>
           </h2>

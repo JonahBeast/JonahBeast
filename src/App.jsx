@@ -1895,9 +1895,9 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
 
 const FONT_STYLE = (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap');
     .jb-display { font-family: 'Anton', sans-serif; letter-spacing: 0.02em; }
-    .jb-body { font-family: 'Inter', sans-serif; }
+    .jb-body { font-family: 'Work Sans', sans-serif; }
 
     /* Llama viva: parpadeo orgánico de escala/rotación/brillo para el
        ícono de marca, en vez de un fuego estático. */

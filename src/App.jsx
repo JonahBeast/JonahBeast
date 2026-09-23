@@ -2950,10 +2950,10 @@ function fuenteEmbudo() {
 
 /* Guarda un paso del embudo: 'vista', 'clic_cta' o 'registro'. Falla en
    silencio -- nunca debe bloquear ni ralentizar al visitante. */
-function registrarEventoEmbudo(evento) {
+function registrarEventoEmbudo(evento, extra = {}) {
   if (!embudoDebeContar()) return;
   supabase.from('embudo_landing_eventos')
-    .insert({ evento, fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo() })
+    .insert({ evento, fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo(), ...extra })
     .then(() => {}, () => {});
 }
 
@@ -3525,8 +3525,9 @@ function TrialSignup({ onBack, onCreated }) {
       if (window.ttq) window.ttq.track('CompleteRegistration');
     } catch (e) {}
 
-    // Último paso del embudo de la landing: la cuenta quedó creada.
-    registrarEventoEmbudo('registro');
+    // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el
+    // usuario para poder seguir a esta persona hasta la prueba y el pago.
+    registrarEventoEmbudo('registro', { username: user });
 
     setBusy(false);
     if (!data.session) {
@@ -4743,148 +4744,13 @@ function LeadsPanel() {
   );
 }
 
-/* Embudo completo en Métricas: los pasos de la landing (lo que pasó en
-   el periodo elegido) + cuántos alumnos hay HOY en prueba y pagando, y
-   la evolución día a día que guarda el cron embudo-historico. */
-function EmbudoCompletoMetricas() {
-  const [dias, setDias] = useState(7);
-  const [datos, setDatos] = useState(null);
-  const [historial, setHistorial] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { load(); }, [dias]);
-
-  async function load() {
-    setLoading(true);
-    const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
-    const desde = desdeSolicitado > INICIO_EMBUDO ? desdeSolicitado : INICIO_EMBUDO;
-    try {
-      const [eventos, { data: alumnos }, { data: hist }] = await Promise.all([
-        traerEventosEmbudo(desde),
-        supabase.from('alumnos').select('plan, enabled, fecha_vencimiento'),
-        supabase.from('embudo_historico')
-          .select('fecha, visitantes, clics, registros, en_prueba, pagando')
-          .order('fecha', { ascending: false }).limit(14),
-      ]);
-      // Mismo criterio que el cron embudo-historico: deshabilitado o con
-      // fecha de vencimiento pasada no cuenta ni en prueba ni pagando.
-      const hoy = todayISO();
-      let enPrueba = 0, pagando = 0;
-      (alumnos || []).forEach(a => {
-        if (!a.enabled || (a.fecha_vencimiento && a.fecha_vencimiento < hoy)) return;
-        if (a.plan === 'trial' || a.plan === 'prueba') enPrueba++;
-        else if (a.plan === 'pago') pagando++;
-      });
-      setDatos({ ...resumirEmbudo(eventos), enPrueba, pagando });
-      setHistorial(hist || []);
-    } catch { setDatos(null); }
-    setLoading(false);
-  }
-
-  const pct = (num, den) => den ? Math.round((num / den) * 100) + '%' : '—';
-  const celda = v => (v === null || v === undefined) ? '—' : v;
-
-  const PASOS = datos ? [
-    { valor: datos.visitantes, label: 'Visitantes', color: 'text-zinc-100' },
-    { valor: datos.clics, label: 'Tocaron el botón', color: 'text-orange-400', paso: pct(datos.clics, datos.visitantes) },
-    { valor: datos.registros, label: 'Se registraron', color: 'text-orange-300', paso: pct(datos.registros, datos.clics) },
-    { valor: datos.enPrueba, label: 'En prueba hoy', color: 'text-sky-400' },
-    { valor: datos.pagando, label: 'Pagando hoy', color: 'text-emerald-400', paso: pct(datos.pagando, datos.enPrueba + datos.pagando) },
-  ] : [];
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="jb-display text-sm text-zinc-300">EMBUDO COMPLETO</h3>
-        <div className="flex gap-1.5">
-          {[1, 7, 30].map(d => (
-            <button key={d} onClick={() => setDias(d)}
-              className={`jb-body text-xs whitespace-nowrap px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
-              {d === 1 ? '24 h' : `${d} días`}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <Skeleton className="h-24 w-full rounded-xl" />
-      ) : !datos ? (
-        <p className="jb-body text-xs text-zinc-500">No se pudo cargar el embudo. Intenta de nuevo.</p>
-      ) : (
-        <>
-          <div className="flex flex-col gap-1.5">
-            {PASOS.map((p, i) => (
-              <div key={p.label}>
-                {i === 3 && (
-                  <p className="jb-body text-[10px] text-zinc-600 uppercase tracking-wide mt-1 mb-1.5">Alumnos activos hoy</p>
-                )}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <span className="jb-body text-sm text-zinc-400">{p.label}</span>
-                  <span className="flex items-baseline gap-2">
-                    {p.paso && <span className="jb-body text-[11px] text-zinc-500">{p.paso}</span>}
-                    <span className={`jb-display text-lg ${p.color}`}>{p.valor}</span>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="jb-body text-[10px] text-zinc-600">
-            Visitantes, clics y registros: personas únicas de la landing en el periodo elegido (sin tus visitas ni la versión de prueba).
-            El % de cada paso es sobre el paso anterior; en "Pagando hoy", sobre los alumnos activos.
-          </p>
-
-          <div>
-            <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5">Evolución día a día (se guarda cada noche)</p>
-            {historial.length === 0 ? (
-              <p className="jb-body text-xs text-zinc-500">Todavía no hay días guardados.</p>
-            ) : (
-              <div className="overflow-x-auto -mx-1 px-1">
-                <table className="w-full jb-body text-xs">
-                  <thead>
-                    <tr className="text-zinc-500 text-[10px] uppercase tracking-wide">
-                      <th className="text-left font-medium py-1 pr-2">Día</th>
-                      <th className="text-right font-medium py-1 px-1">Visit.</th>
-                      <th className="text-right font-medium py-1 px-1">Clics</th>
-                      <th className="text-right font-medium py-1 px-1">Reg.</th>
-                      <th className="text-right font-medium py-1 px-1">Prueba</th>
-                      <th className="text-right font-medium py-1 pl-1">Pagando</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historial.map(h => (
-                      <tr key={h.fecha} className="border-t border-zinc-800">
-                        <td className="text-zinc-400 py-1.5 pr-2 whitespace-nowrap">
-                          {new Date(h.fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
-                        </td>
-                        <td className="text-right text-zinc-200 px-1">{celda(h.visitantes)}</td>
-                        <td className="text-right text-orange-400 px-1">{celda(h.clics)}</td>
-                        <td className="text-right text-orange-300 px-1">{celda(h.registros)}</td>
-                        <td className="text-right text-sky-400 px-1">{celda(h.en_prueba)}</td>
-                        <td className="text-right text-emerald-400 pl-1">{celda(h.pagando)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <p className="jb-body text-[10px] text-zinc-600 mt-1">"—" = ese día todavía no se guardaba ese dato.</p>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function MetricasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [alumnosPorPlan, setAlumnosPorPlan] = useState([]);
   const [pagos, setPagos] = useState({ count: 0, monto: 0 });
   const [referidores, setReferidores] = useState([]);
   const [leadsPorRed, setLeadsPorRed] = useState([]);
-  const [conversion, setConversion] = useState({ total: 0, pagos: 0, pct: 0 });
   const [comisionesPendientes, setComisionesPendientes] = useState({ count: 0, monto: 0 });
-  const [vencidos, setVencidos] = useState(0);
   const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
   const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
   const [ajustesDias, setAjustesDias] = useState([]);
@@ -4898,31 +4764,6 @@ function MetricasPanel() {
       const { data: alumnos } = await supabase.from('alumnos')
         .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto, telefono');
       alumnosData = alumnos || [];
-
-      // Alumnos por plan
-      const counts = {};
-      alumnosData.forEach(a => {
-        const raw = a.plan || 'sin plan';
-        const label = raw === 'trial' ? 'prueba' : raw;
-        counts[label] = (counts[label] || 0) + 1;
-      });
-      setAlumnosPorPlan(Object.entries(counts));
-
-      // Conversión prueba → pago
-      const totalAlumnos = alumnosData.length;
-      const pagando = alumnosData.filter(a => a.plan === 'pago').length;
-      setConversion({
-        total: totalAlumnos, pagos: pagando,
-        pct: totalAlumnos ? Math.round((pagando / totalAlumnos) * 1000) / 10 : 0,
-      });
-
-      // Vencidos (mismo criterio que membershipActive: deshabilitado o fecha_vencimiento pasada)
-      const vencidosCount = alumnosData.filter(a => {
-        if (!a.enabled) return true;
-        const dl = daysLeft(a.fecha_vencimiento);
-        return dl !== null && dl < 0;
-      }).length;
-      setVencidos(vencidosCount);
 
       // Comisiones pendientes: alumnos con código de referido y comisión aún no pagada
       const pendientes = alumnosData.filter(a => a.codigo_referido && !a.comision_pagada);
@@ -5003,23 +4844,11 @@ function MetricasPanel() {
 
       {open && (
         <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
-          <EmbudoCompletoMetricas />
-
           {loading ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Pagando sobre todos los alumnos</div>
-                  <div className="text-emerald-400 jb-display text-lg">{conversion.pct}%</div>
-                  <div className="text-[11px] text-zinc-500">{conversion.pagos} de {conversion.total} (incluye vencidos)</div>
-                </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Alumnos vencidos</div>
-                  <div className="text-red-400 jb-display text-lg">{vencidos}</div>
-                  <div className="text-[11px] text-zinc-500">sin renovar</div>
-                </div>
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-0.5">Comisiones pendientes</div>
                   <div className="text-orange-400 jb-display text-lg">S/ {comisionesPendientes.monto.toFixed(2)}</div>
@@ -5040,18 +4869,6 @@ function MetricasPanel() {
               <div>
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">PAGOS APROBADOS</h3>
                 <p className="text-zinc-100 text-lg">{pagos.count} pagos · S/ {pagos.monto.toFixed(2)}</p>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS POR PLAN <span className="jb-body text-[11px] text-zinc-500 normal-case">(incluye vencidos)</span></h3>
-                <div className="flex flex-col gap-1.5">
-                  {alumnosPorPlan.map(([plan, count]) => (
-                    <div key={plan} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
-                      <span className="text-zinc-400 capitalize">{plan}</span>
-                      <span className="jb-display text-zinc-100">{count}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div>
@@ -5742,7 +5559,7 @@ async function traerEventosEmbudo(desde) {
   const filas = [];
   for (let desdeFila = 0; ; desdeFila += 1000) {
     const { data, error } = await supabase.from('embudo_landing_eventos')
-      .select('id, evento, fuente, visitante_id')
+      .select('id, evento, fuente, visitante_id, username')
       .gte('creado_en', desde)
       .order('creado_en', { ascending: true })
       .range(desdeFila, desdeFila + 999);
@@ -5753,7 +5570,7 @@ async function traerEventosEmbudo(desde) {
 }
 
 function resumirEmbudo(filas) {
-  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set() });
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set() });
   const total = pasos();
   const porFuente = {};
   filas.forEach(r => {
@@ -5764,45 +5581,98 @@ function resumirEmbudo(filas) {
     [total, f].forEach(g => {
       if (r.evento === 'vista') { g.vistas++; g.visitantes.add(quien); }
       else if (r.evento === 'clic_cta') g.clics.add(quien);
-      else if (r.evento === 'registro') g.registros.add(quien);
+      else if (r.evento === 'registro') { g.registros.add(quien); if (r.username) g.usuarios.add(r.username); }
     });
   });
-  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size });
+  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios] });
   return {
     ...numeros(total),
     fuentes: Object.entries(porFuente).map(([k, g]) => [k, numeros(g)]).sort((a, b) => b[1].visitantes - a[1].visitantes),
   };
 }
 
-function EmbudoLandingPanel() {
+/* De los usuarios que se registraron desde la landing, en qué están hoy:
+   si ya tienen cuenta de alumno (confirmaron su correo), si siguen en
+   prueba, si ya pagaron o si la prueba se les terminó sin pagar. */
+function cohorteRegistros(usuarios, alumnoPorUsuario, hoy) {
+  const r = { conCuenta: 0, enPrueba: 0, pagaron: 0, sinPagar: 0 };
+  usuarios.forEach(u => {
+    const a = alumnoPorUsuario[u.toLowerCase()];
+    if (!a) return;
+    r.conCuenta++;
+    const activo = a.enabled && !(a.fecha_vencimiento && a.fecha_vencimiento < hoy);
+    if (a.plan === 'pago') r.pagaron++;
+    else if (activo) r.enPrueba++;
+    else r.sinPagar++;
+  });
+  return r;
+}
+
+/* Tarjeta única del embudo (pestaña HOY): visita → clic → registro →
+   empezó la prueba → pagó, siguiendo a las MISMAS personas. Abajo, la
+   foto de hoy (en prueba / pagando / vencidos), el desglose por fuente y
+   la evolución que guarda cada noche el cron embudo-historico. */
+function EmbudoResumenPanel() {
   const [dias, setDias] = useState(7);
   const [datos, setDatos] = useState(null);
+  const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [verFuentes, setVerFuentes] = useState(false);
+  const [verHistorial, setVerHistorial] = useState(false);
 
   useEffect(() => { load(); }, [dias]);
 
   async function load() {
     setLoading(true);
+    const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
+    const desde = desdeSolicitado > INICIO_EMBUDO ? desdeSolicitado : INICIO_EMBUDO;
     try {
-      const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
-      const desde = desdeSolicitado > INICIO_EMBUDO ? desdeSolicitado : INICIO_EMBUDO;
-      setDatos(resumirEmbudo(await traerEventosEmbudo(desde)));
-    } catch { setDatos({ vistas: 0, visitantes: 0, clics: 0, registros: 0, fuentes: [] }); }
+      const [eventos, { data: alumnos }, { count: leads }, { data: hist }] = await Promise.all([
+        traerEventosEmbudo(desde),
+        supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento'),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).gte('created_at', desde),
+        supabase.from('embudo_historico')
+          .select('fecha, visitantes, clics, registros, en_prueba, pagando')
+          .order('fecha', { ascending: false }).limit(14),
+      ]);
+      const hoy = todayISO();
+      const alumnoPorUsuario = {};
+      // Foto de hoy, mismo criterio que el cron embudo-historico.
+      let enPruebaHoy = 0, pagandoHoy = 0, vencidosHoy = 0;
+      (alumnos || []).forEach(a => {
+        alumnoPorUsuario[(a.username || '').toLowerCase()] = a;
+        if (!a.enabled || (a.fecha_vencimiento && a.fecha_vencimiento < hoy)) { vencidosHoy++; return; }
+        if (a.plan === 'trial' || a.plan === 'prueba') enPruebaHoy++;
+        else if (a.plan === 'pago') pagandoHoy++;
+      });
+      const resumen = resumirEmbudo(eventos);
+      setDatos({
+        ...resumen,
+        cohorte: cohorteRegistros(resumen.usuarios, alumnoPorUsuario, hoy),
+        fuentes: resumen.fuentes.map(([f, v]) => [f, { ...v, cohorte: cohorteRegistros(v.usuarios, alumnoPorUsuario, hoy) }]),
+        enPruebaHoy, pagandoHoy, vencidosHoy, leads: leads || 0,
+      });
+      setHistorial(hist || []);
+    } catch { setDatos(null); }
     setLoading(false);
   }
 
-  const pct = (num, den) => den ? Math.round((num / den) * 100) : 0;
+  const pct = (num, den) => den ? Math.round((num / den) * 100) + '%' : '—';
+  const celda = v => (v === null || v === undefined) ? '—' : v;
 
   const PASOS = datos ? [
-    { valor: datos.visitantes, label: 'Visitantes únicos', color: 'text-zinc-100' },
-    { valor: datos.clics, label: 'Tocaron el botón', color: 'text-orange-400' },
-    { valor: datos.registros, label: 'Se registraron', color: 'text-emerald-400' },
+    { valor: datos.visitantes, label: 'Visitaron la landing', color: 'text-zinc-100' },
+    { valor: datos.clics, label: 'Tocaron el botón', color: 'text-orange-400', paso: pct(datos.clics, datos.visitantes) },
+    { valor: datos.registros, label: 'Se registraron', color: 'text-orange-300', paso: pct(datos.registros, datos.clics) },
+    { valor: datos.cohorte.conCuenta, label: 'Empezaron la prueba', color: 'text-sky-400', paso: pct(datos.cohorte.conCuenta, datos.registros) },
+    { valor: datos.cohorte.pagaron, label: 'Pagaron', color: 'text-emerald-400', paso: pct(datos.cohorte.pagaron, datos.cohorte.conCuenta) },
   ] : [];
+  const registrosSinSeguimiento = datos ? datos.registros - datos.usuarios.length : 0;
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="jb-display text-base text-zinc-200">EMBUDO DE LA LANDING</h2>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h2 className="jb-display text-base text-zinc-200">🎯 EMBUDO</h2>
         <div className="flex gap-1.5">
           {[1, 7, 30].map(d => (
             <button key={d} onClick={() => setDias(d)}
@@ -5813,45 +5683,114 @@ function EmbudoLandingPanel() {
         </div>
       </div>
       <p className="jb-body text-[10px] text-zinc-600 mb-3">
-        Cuenta personas, no cargas de página. No incluye tus visitas, las de la versión de prueba ni las de alumnos que ya iniciaron sesión.
+        Las mismas personas paso a paso: quienes llegaron a la landing en este periodo, hasta si pagaron. Sin tus visitas ni la versión de prueba.
       </p>
 
-      {loading || !datos ? (
-        <Skeleton className="h-20 w-full rounded-xl" />
+      {loading ? (
+        <Skeleton className="h-40 w-full rounded-xl" />
+      ) : !datos ? (
+        <p className="jb-body text-xs text-zinc-500">No se pudo cargar el embudo. Toca otro periodo para reintentar.</p>
       ) : (
-        <>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
             {PASOS.map(p => (
-              <div key={p.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-                <div className={`jb-display text-xl ${p.color}`}>{p.valor}</div>
-                <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">{p.label}</div>
+              <div key={p.label} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <span className="jb-body text-sm text-zinc-400">{p.label}</span>
+                <span className="flex items-baseline gap-2">
+                  {p.paso && <span className="jb-body text-[11px] text-zinc-500">{p.paso}</span>}
+                  <span className={`jb-display text-lg ${p.color}`}>{p.valor}</span>
+                </span>
               </div>
             ))}
           </div>
-          <div className="jb-body text-xs text-zinc-500 mt-3 flex flex-col items-center gap-0.5 text-center">
-            <span><span className="text-orange-400 font-semibold">{pct(datos.clics, datos.visitantes)}%</span> de los visitantes tocó el botón</span>
-            <span><span className="text-emerald-400 font-semibold">{pct(datos.registros, datos.clics)}%</span> de los que tocaron el botón se registró</span>
-            <span className="text-zinc-600">{pct(datos.registros, datos.visitantes)}% de los visitantes terminó registrado · {datos.vistas} vistas en total</span>
+
+          <div className="jb-body text-[11px] text-zinc-500 flex flex-col gap-0.5">
+            {datos.cohorte.conCuenta > 0 && (
+              <span>De los que empezaron: {datos.cohorte.enPrueba} siguen en prueba · {datos.cohorte.sinPagar} terminaron sin pagar.</span>
+            )}
+            {datos.registros > datos.cohorte.conCuenta + registrosSinSeguimiento && (
+              <span>{datos.registros - datos.cohorte.conCuenta - registrosSinSeguimiento} se registraron pero aún no confirman su correo.</span>
+            )}
+            {registrosSinSeguimiento > 0 && (
+              <span className="text-zinc-600">{registrosSinSeguimiento} registro(s) de antes de esta versión no se pueden seguir hasta el pago.</span>
+            )}
+            <span className="text-zinc-600">El % de cada paso es sobre el paso anterior. El % de "Pagaron" sube con el tiempo: la prueba dura {TRIAL_DAYS} días.</span>
           </div>
-          {datos.visitantes > 0 && datos.clics === 0 && (
-            <p className="jb-body text-xs text-amber-400 mt-2 text-center">
-              Hay visitas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
-            </p>
-          )}
-          {datos.fuentes.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-zinc-800">
-              <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Por fuente (?utm_source= o ?fuente=)</p>
-              <div className="flex flex-col gap-1.5">
-                {datos.fuentes.map(([fuente, v]) => (
-                  <div key={fuente} className="flex items-center justify-between jb-body text-xs gap-2">
-                    <span className="text-zinc-300 capitalize">{fuente}</span>
-                    <span className="text-zinc-500 text-right">{v.visitantes} visitantes · {v.clics} clics · {v.registros} registros</span>
-                  </div>
-                ))}
+
+          <div className="grid grid-cols-4 gap-1.5 pt-3 border-t border-zinc-800">
+            {[
+              { v: datos.enPruebaHoy, l: 'En prueba', c: 'text-sky-400' },
+              { v: datos.pagandoHoy, l: 'Pagando', c: 'text-emerald-400' },
+              { v: datos.vencidosHoy, l: 'Vencidos', c: 'text-red-400' },
+              { v: datos.leads, l: 'Leads calc.', c: 'text-zinc-300' },
+            ].map(x => (
+              <div key={x.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-center">
+                <div className={`jb-display text-base ${x.c}`}>{x.v}</div>
+                <div className="jb-body text-[9.5px] text-zinc-500 uppercase tracking-wide leading-tight">{x.l}</div>
               </div>
+            ))}
+          </div>
+          <p className="jb-body text-[10px] text-zinc-600 -mt-1.5">
+            Todos los alumnos hoy (también los que llegaron por referido o creaste tú). Leads = personas que usaron la calculadora gratis en el periodo.
+          </p>
+
+          <button onClick={() => setVerFuentes(v => !v)} className="flex items-center justify-between jb-body text-xs text-zinc-400 pt-2 border-t border-zinc-800">
+            <span>Por fuente (?utm_source= o ?fuente=)</span>
+            <ChevronRight size={14} className={`transition-transform ${verFuentes ? 'rotate-90' : ''}`} />
+          </button>
+          {verFuentes && (datos.fuentes.length === 0 ? (
+            <p className="jb-body text-xs text-zinc-500">Sin visitas en este periodo.</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {datos.fuentes.map(([fuente, v]) => (
+                <div key={fuente} className="flex items-center justify-between jb-body text-xs gap-2">
+                  <span className="text-zinc-300 capitalize">{fuente}</span>
+                  <span className="text-zinc-500 text-right">{v.visitantes} visit. · {v.clics} clics · {v.registros} reg. · {v.cohorte.pagaron} pagaron</span>
+                </div>
+              ))}
             </div>
-          )}
-        </>
+          ))}
+
+          <button onClick={() => setVerHistorial(v => !v)} className="flex items-center justify-between jb-body text-xs text-zinc-400 pt-2 border-t border-zinc-800">
+            <span>Evolución día a día (se guarda cada noche)</span>
+            <ChevronRight size={14} className={`transition-transform ${verHistorial ? 'rotate-90' : ''}`} />
+          </button>
+          {verHistorial && (historial.length === 0 ? (
+            <p className="jb-body text-xs text-zinc-500">Todavía no hay días guardados.</p>
+          ) : (
+            <div>
+              <div className="overflow-x-auto -mx-1 px-1">
+                <table className="w-full jb-body text-xs">
+                  <thead>
+                    <tr className="text-zinc-500 text-[10px] uppercase tracking-wide">
+                      <th className="text-left font-medium py-1 pr-2">Día</th>
+                      <th className="text-right font-medium py-1 px-1">Visit.</th>
+                      <th className="text-right font-medium py-1 px-1">Clics</th>
+                      <th className="text-right font-medium py-1 px-1">Reg.</th>
+                      <th className="text-right font-medium py-1 px-1">Prueba</th>
+                      <th className="text-right font-medium py-1 pl-1">Pagando</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historial.map(h => (
+                      <tr key={h.fecha} className="border-t border-zinc-800">
+                        <td className="text-zinc-400 py-1.5 pr-2 whitespace-nowrap">
+                          {new Date(h.fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                        </td>
+                        <td className="text-right text-zinc-200 px-1">{celda(h.visitantes)}</td>
+                        <td className="text-right text-orange-400 px-1">{celda(h.clics)}</td>
+                        <td className="text-right text-orange-300 px-1">{celda(h.registros)}</td>
+                        <td className="text-right text-sky-400 px-1">{celda(h.en_prueba)}</td>
+                        <td className="text-right text-emerald-400 pl-1">{celda(h.pagando)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="jb-body text-[10px] text-zinc-600 mt-1">Visitantes, clics y registros de ese día; prueba y pagando = cuántos había esa noche. "—" = ese día aún no se guardaba.</p>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -5930,10 +5869,6 @@ function EmbudoPanel() {
     leadsFiltrados = leadsFiltrados.filter(matchLead);
   }
 
-  // Conversión simple entre los que están hoy en prueba vs. pagando —
-  // referencial, la versión más precisa (histórica) ya vive en Métricas.
-  const totalConMembresia = enPrueba.length + pagando.length;
-  const pctConversion = totalConMembresia ? Math.round((pagando.length / totalConMembresia) * 100) : null;
 
   // "Hoy toca seguimiento": la nota más reciente de cada persona (lead
   // o alumno) tiene una próxima acción vencida o para hoy. Se calcula
@@ -6057,8 +5992,8 @@ function EmbudoPanel() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
         <h2 className="jb-display text-base text-zinc-200">
-          🎯 EMBUDO DE VENTAS
-          {pctConversion !== null && <span className="ml-2 text-xs text-zinc-500 font-normal">· {pctConversion}% prueba→pago</span>}
+          🔔 SEGUIMIENTO
+          <span className="ml-2 text-xs text-zinc-500 font-normal">· a quién escribir hoy</span>
         </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
@@ -6076,33 +6011,6 @@ function EmbudoPanel() {
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
-              <div className="relative bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-4 overflow-hidden">
-                <div className="absolute inset-0 opacity-25 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle at 15% 15%, rgba(249,115,22,0.35), transparent 55%)' }} />
-                <div className="relative flex flex-col gap-3">
-                  {[
-                    { label: 'Leads', count: leadsFiltrados.length, color: 'from-sky-500 to-cyan-400', glow: 'rgba(56,189,248,0.55)' },
-                    { label: 'Prueba gratis', count: enPrueba.length, color: 'from-amber-500 to-orange-400', glow: 'rgba(251,191,36,0.55)' },
-                    { label: 'Pagando', count: pagando.length, color: 'from-emerald-500 to-green-400', glow: 'rgba(52,211,153,0.55)' },
-                    { label: 'Vencido', count: vencidos.length, color: 'from-red-500 to-rose-400', glow: 'rgba(248,113,113,0.55)' },
-                  ].map((etapa, i, arr) => {
-                    const max = Math.max(...arr.map(e => e.count), 1);
-                    const pct = etapa.count > 0 ? Math.max((etapa.count / max) * 100, 10) : 3;
-                    return (
-                      <div key={etapa.label} className="flex items-center gap-3">
-                        <span className="jb-body text-[11px] text-zinc-500 w-20 sm:w-24 shrink-0">{etapa.label}</span>
-                        <div className="flex-1 h-6 bg-zinc-950/70 rounded-full overflow-hidden border border-zinc-800">
-                          <div className={`h-full bg-gradient-to-r ${etapa.color} rounded-full transition-all duration-700 flex items-center justify-end pr-2 min-w-[1.75rem]`}
-                            style={{ width: `${pct}%`, boxShadow: `0 0 14px ${etapa.glow}` }}>
-                            <span className="jb-display text-[11px] text-zinc-950">{etapa.count}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               {pendientesHoy.length > 0 && (
                 <div className="bg-orange-950/20 border border-orange-800/40 rounded-xl p-3">
                   <h3 className="jb-display text-sm text-orange-400 mb-2">🔔 HOY TE TOCA SEGUIMIENTO · {pendientesHoy.length}</h3>
@@ -6599,7 +6507,9 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {(() => {
           const total = users.length;
           const activos = users.filter(membershipActive).length;
-          const enPrueba = users.filter(u => u.plan === 'trial').length;
+          // Solo pruebas vigentes: una prueba vencida ya cuenta en "Vencidos"
+          // (mismo criterio que la tarjeta del embudo).
+          const enPrueba = users.filter(u => (u.plan === 'trial' || u.plan === 'prueba') && membershipActive(u)).length;
           const vencidos = total - activos;
           const stats = [
             [total, 'Alumnos totales', '#4dd9ff'],
@@ -6648,7 +6558,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
-            <EmbudoLandingPanel />
+            <EmbudoResumenPanel />
             <EmbudoPanel />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">

@@ -10862,6 +10862,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [infoLimite, setInfoLimite] = useState(null);
   const [mensajeError, setMensajeError] = useState('');
+  const [extendiendo, setExtendiendo] = useState(false);
   const [progresoIA, setProgresoIA] = useState(0);
   const [correoMP, setCorreoMP] = useState('');
   const [mesesMP, setMesesMP] = useState('1');
@@ -11028,9 +11029,46 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
         </div>
         {addOnActivo && (
-          <p className="jb-body text-xs text-emerald-500 -mt-2 mb-4">
-            ✓ Reconocimiento Inteligente activo — hasta el {reconocimientoFotoHasta.slice(8, 10)}/{reconocimientoFotoHasta.slice(5, 7)}/{reconocimientoFotoHasta.slice(0, 4)}
-          </p>
+          <div className="-mt-2 mb-4">
+            <p className="jb-body text-xs text-emerald-500">
+              ✓ Reconocimiento Inteligente activo — hasta el {reconocimientoFotoHasta.slice(8, 10)}/{reconocimientoFotoHasta.slice(5, 7)}/{reconocimientoFotoHasta.slice(0, 4)}
+              {!extendiendo && estado !== 'analizando' && (
+                <button onClick={() => { setTipoMP('unico'); setErrMP(''); setExtendiendo(true); }}
+                  className="text-orange-400 underline ml-2">Extender</button>
+              )}
+            </p>
+            {/* Extender antes de que venza: los meses pagados se suman a la
+                fecha actual (lo hace el webhook). En la app de Play Store no
+                se puede cobrar dentro de la app, así que va por WhatsApp. */}
+            {extendiendo && (
+              <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                <p className="jb-body text-xs text-zinc-400 mb-2">
+                  Suma más tiempo a tu Reconocimiento Inteligente. Se agrega desde tu fecha actual, no pierdes días.
+                </p>
+                {esTWA() ? (
+                  <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero extender mi Reconocimiento Inteligente en Jonah Beast Fuel.')}`}
+                    target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5 mb-2'}>
+                    <MessageCircle size={16} /> Escribir por WhatsApp
+                  </a>
+                ) : (
+                  <>
+                    <select value={mesesMP} onChange={e => setMesesMP(e.target.value)} className={inputCls + ' w-full mb-2'}>
+                      <option value="1">1 mes más — S/11.90</option>
+                      <option value="3">3 meses más — S/35.70</option>
+                      <option value="6">6 meses más — S/71.40</option>
+                    </select>
+                    <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
+                      onChange={e => setCorreoMP(e.target.value)} className={inputCls + ' w-full mb-2'} />
+                    {errMP && <p className="text-red-400 text-xs jb-body mb-2">{errMP}</p>}
+                    <button onClick={pagarAddOnMP} disabled={pagandoMP} className={btnPrimary + ' w-full py-2.5 mb-2'}>
+                      {pagandoMP ? <Loader2 className="animate-spin" size={16} /> : 'Pagar con Mercado Pago'}
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setExtendiendo(false)} className={btnGhost + ' w-full py-2'}>Ahora no</button>
+              </div>
+            )}
+          </div>
         )}
 
         {estado === 'elegir' && (

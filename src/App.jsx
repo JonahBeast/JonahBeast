@@ -8338,6 +8338,12 @@ function PagosPanel({ onAprobado }) {
                     )
                   )}
 
+                  {p.estado === 'pendiente' && p.nota_admin && (
+                    <div className="jb-body text-xs text-amber-400 bg-amber-950/40 border border-amber-800/50 rounded-lg px-3 py-2 mb-3">
+                      {p.nota_admin}
+                    </div>
+                  )}
+
                   {p.estado === 'pendiente' ? (
                     <div className="flex gap-2">
                       <button onClick={() => aprobar(p)} disabled={procesando === p.id}

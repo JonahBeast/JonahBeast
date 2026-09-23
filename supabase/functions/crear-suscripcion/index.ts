@@ -7,12 +7,54 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const PRECIOS: Record<number, number> = {
+// Precios de respaldo: solo se usan si en la tabla config no hay uno
+// guardado (son los mismos que usa la app).
+const PRECIOS_RESPALDO: Record<number, number> = {
   1: 24.90,
   3: 64.90,
   6: 114.90,
   12: 209.90,
 };
+
+function responder(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+// El alumno sale de la sesión iniciada, nunca de lo que mande el navegador.
+// Así nadie puede cancelar la suscripción de otro alumno mandando su usuario.
+async function usuarioDeLaSesion(supabase: any, req: Request): Promise<string | null> {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+  const { data: perfil } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
+  return perfil?.username || null;
+}
+
+// Precio del plan calculado aquí: el de la tabla config (o el de respaldo)
+// menos el descuento del código de referido del alumno, si el código sigue
+// activo. Es el mismo cálculo que muestra la app. Nunca se usa un % que
+// mande el navegador. Devuelve null si el alumno no existe.
+async function precioDelPlan(supabase: any, username: string, meses: number): Promise<number | null> {
+  const [{ data: config }, { data: alumno }] = await Promise.all([
+    supabase.from("config").select("value").eq("key", `precio_${meses}`).maybeSingle(),
+    supabase.from("alumnos").select("codigo_referido").eq("username", username).maybeSingle(),
+  ]);
+  if (!alumno) return null;
+  const guardado = parseFloat(config?.value);
+  const base = guardado > 0 ? guardado : PRECIOS_RESPALDO[meses];
+  let descuento = 0;
+  const codigo = String(alumno.codigo_referido || "").trim();
+  if (codigo) {
+    const { data: referidor } = await supabase.from("referidores")
+      .select("descuento_pct").ilike("codigo", codigo.replace(/[\\%_]/g, (c) => "\\" + c))
+      .eq("activo", true).maybeSingle();
+    descuento = Math.min(Math.max(Number(referidor?.descuento_pct) || 0, 0), 100);
+  }
+  return Math.round(base * (1 - descuento / 100) * 100) / 100;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -20,40 +62,27 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { username, meses, correo, descuentoPct } = await req.json();
-
-    if (!username || typeof username !== "string") {
-      return new Response(JSON.stringify({ error: "Falta el usuario del alumno." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-    const mesesNum = Number(meses);
-    const precioBase = PRECIOS[mesesNum];
-    if (!precioBase) {
-      return new Response(JSON.stringify({ error: "Plan invalido." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-    if (!correo || typeof correo !== "string" || !correo.includes("@")) {
-      return new Response(JSON.stringify({ error: "Falta un correo valido del alumno." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
-
-    const desc = Math.min(Math.max(Number(descuentoPct) || 0, 0), 100);
-    const precio = Math.round(precioBase * (1 - desc / 100) * 100) / 100;
-
-    const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
-    if (!accessToken) {
-      return new Response(JSON.stringify({ error: "Falta configurar MP_ACCESS_TOKEN." }), {
-        status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
-    }
+    const { meses, correo } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    const username = await usuarioDeLaSesion(supabase, req);
+    if (!username) return responder({ error: "Inicia sesión para pagar." }, 401);
+
+    const mesesNum = Number(meses);
+    if (!PRECIOS_RESPALDO[mesesNum]) return responder({ error: "Plan invalido." }, 400);
+    if (!correo || typeof correo !== "string" || !correo.includes("@")) {
+      return responder({ error: "Falta un correo valido del alumno." }, 400);
+    }
+
+    const precio = await precioDelPlan(supabase, username, mesesNum);
+    if (!precio) return responder({ error: "No encontramos tu cuenta de alumno." }, 404);
+
+    const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
+    if (!accessToken) return responder({ error: "Falta configurar MP_ACCESS_TOKEN." }, 500);
 
     // Si el alumno ya tiene una suscripcion activa de Mercado Pago, la cancelamos antes de crear
     // la nueva, para que nunca queden dos cobros automaticos corriendo a la vez.
@@ -103,20 +132,16 @@ Deno.serve(async (req: Request) => {
     const data = await mpRes.json();
 
     if (!mpRes.ok) {
-      return new Response(JSON.stringify({ error: "Mercado Pago rechazo la solicitud.", detalle: data }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      console.error("Mercado Pago rechazo la suscripcion:", mpRes.status, JSON.stringify(data));
+      return responder({ error: "Mercado Pago rechazo la solicitud." }, 400);
     }
 
     // Guardamos el id de esta nueva suscripcion para poder cancelarla la proxima vez que compre otro plan
     await supabase.from("alumnos").update({ mp_preapproval_id: data.id }).eq("username", username);
 
-    return new Response(JSON.stringify({ init_point: data.init_point }), {
-      status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return responder({ init_point: data.init_point });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Error interno.", detalle: String(err) }), {
-      status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    console.error("crear-suscripcion:", String(err));
+    return responder({ error: "Error interno." }, 500);
   }
 });

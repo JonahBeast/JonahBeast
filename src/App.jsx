@@ -10861,6 +10861,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [seleccionados, setSeleccionados] = useState({});
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [infoLimite, setInfoLimite] = useState(null);
+  const [mensajeError, setMensajeError] = useState('');
   const [progresoIA, setProgresoIA] = useState(0);
   const [correoMP, setCorreoMP] = useState('');
   const [mesesMP, setMesesMP] = useState('1');
@@ -10925,7 +10926,13 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
         body: { username, imagenBase64: base64, mimeType, alimentos: listaLiviana },
       });
-      if (error) throw new Error(error.message || 'No se pudo conectar con el reconocimiento por foto.');
+      if (error) {
+        // Si el servidor explicó el motivo (sin sesión, membresía vencida,
+        // foto muy pesada...), se muestra ese mensaje al alumno.
+        let motivo = '';
+        try { motivo = (await error.context.json())?.error || ''; } catch {}
+        throw new Error(motivo);
+      }
       if (data?.error === 'limite_alcanzado') {
         setInfoLimite(data);
         setEstado('limite');
@@ -10958,6 +10965,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       setElecciones({});
       setEstado('resultados');
     } catch (e) {
+      setMensajeError(e?.message || '');
       setEstado('error');
     }
   }
@@ -11124,7 +11132,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         {estado === 'error' && (
           <div className="text-center py-2">
             <AlertTriangle className="text-amber-500 mx-auto mb-3" size={28} />
-            <p className="jb-body text-sm text-zinc-400 mb-4">No se pudo procesar la foto. Intenta de nuevo en un momento.</p>
+            <p className="jb-body text-sm text-zinc-400 mb-4">{mensajeError || 'No se pudo procesar la foto. Intenta de nuevo en un momento.'}</p>
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Reintentar</button>
           </div>
         )}

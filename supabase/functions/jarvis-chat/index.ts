@@ -6,8 +6,8 @@
 //
 // Se despliega con verify_jwt = false porque el control de acceso lo hace
 // el propio código (ver "Candado" más abajo): solo responde al admin con
-// sesión iniciada. La GitHub Action .github/workflows/publicar-jarvis.yml
-// la publica sola al hacer merge a main.
+// sesión iniciada. Se publica en Supabase después de cada merge, con el
+// código que quedó en main (ver CLAUDE.md).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

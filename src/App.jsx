@@ -7565,30 +7565,134 @@ function RenewalBanner({ user, onRenovar }) {
   );
 }
 
+// Semáforo de las pruebas gratis por vencer: según cuántos días registró
+// comidas, cada alumno necesita un mensaje distinto (invitarlo a pagar,
+// ayudarlo a retomar o rescatarlo). Los planes pagados siguen con el
+// mensaje de renovación de siempre.
+const SEMAFORO_PRUEBA = [
+  { key: 'activo', emoji: '🟢', label: 'MUY ACTIVOS', detalle: '5 o más días registrando', necesita: 'Invítalos a pagar: ya ven el valor.', color: 'text-emerald-400', borde: 'border-emerald-700/50' },
+  { key: 'poco', emoji: '🟡', label: 'POCO ACTIVOS', detalle: '1 a 4 días registrando', necesita: 'Ayúdalos a retomar.', color: 'text-amber-400', borde: 'border-amber-700/50' },
+  { key: 'nunca', emoji: '🔴', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Rescátalos: algo los frenó al inicio.', color: 'text-red-400', borde: 'border-red-700/50' },
+];
+
+function grupoSemaforo(diasActivos) {
+  if (diasActivos >= 5) return 'activo';
+  if (diasActivos >= 1) return 'poco';
+  return 'nunca';
+}
+
+function cuandoTerminaPrueba(dl) {
+  if (dl < 0) return `terminó hace ${Math.abs(dl)} día(s)`;
+  if (dl === 0) return 'termina hoy';
+  if (dl === 1) return 'termina mañana';
+  return `termina en ${dl} días`;
+}
+
+function textoUltimaComida(fecha) {
+  const dias = -daysLeft(fecha);
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  return `hace ${dias} días`;
+}
+
 function VencimientosPanel({ users, onRenew }) {
   const [open, setOpen] = useState(true);
+  // username -> { dias, ultima } con los días en que registró comidas.
+  const [actividad, setActividad] = useState(null);
 
   const porVencer = useMemo(() => {
     return (users || [])
       .filter(u => u.fechaVencimiento && u.enabled)
-      .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento) }))
+      .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento), esPrueba: u.plan === 'trial' || u.plan === 'prueba' }))
       .filter(u => u.dl !== null && u.dl <= 7)
       .sort((a, b) => a.dl - b.dl);
   }, [users]);
 
+  const nombresPrueba = porVencer.filter(u => u.esPrueba).map(u => u.username).sort().join(',');
+
+  useEffect(() => {
+    if (!nombresPrueba) { setActividad({}); return; }
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase.from('historial')
+        .select('username, fecha')
+        .in('username', nombresPrueba.split(','))
+        .gt('comidas_count', 0)
+        .range(0, 4999);
+      if (cancelado) return;
+      if (error) { setActividad({}); return; }
+      const porAlumno = {};
+      (data || []).forEach(r => {
+        const a = (porAlumno[r.username] = porAlumno[r.username] || { dias: 0, ultima: null });
+        a.dias += 1;
+        if (!a.ultima || r.fecha > a.ultima) a.ultima = r.fecha;
+      });
+      setActividad(porAlumno);
+    })();
+    return () => { cancelado = true; };
+  }, [nombresPrueba]);
+
   if (porVencer.length === 0) return null;
 
-  function waLinkAlumno(u) {
+  const pruebas = porVencer.filter(u => u.esPrueba).map(u => {
+    const act = (actividad && actividad[u.username]) || { dias: 0, ultima: null };
+    return { ...u, diasActivos: act.dias, ultima: act.ultima, grupo: grupoSemaforo(act.dias) };
+  });
+  const planesPagados = porVencer.filter(u => !u.esPrueba);
+
+  function linkWhatsApp(u, texto) {
     const num = (u.telefono || '').replace(/\D/g, '');
     const full = num ? (num.length <= 9 ? '51' + num : num) : '';
-    const dl = u.dl;
-    const texto = dl < 0
-      ? `Hola ${u.nombre || u.username}, tu plan de Jonah Beast Fuel venció hace ${Math.abs(dl)} día(s). ¿Te ayudo a renovarlo para que no pierdas tu progreso?`
-      : dl === 0
-        ? `Hola ${u.nombre || u.username}, tu plan de Jonah Beast Fuel vence hoy. ¿Lo renovamos para que sigas sin interrupciones?`
-        : `Hola ${u.nombre || u.username}, te escribo porque tu plan de Jonah Beast Fuel vence en ${dl} día(s). ¿Quieres renovarlo?`;
     return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
                 : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  function mensajePrueba(u) {
+    const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
+    const cuando = cuandoTerminaPrueba(u.dl);
+    if (u.grupo === 'activo') {
+      return `Hola ${nombre}, soy Jonah 🦍 Vi que llevas ${u.diasActivos} días registrando tus comidas, ¡vas muy bien! Tu prueba gratis ${cuando}. ¿Te ayudo a elegir tu plan para no perder tu avance?`;
+    }
+    if (u.grupo === 'poco') {
+      return `Hola ${nombre}, soy Jonah 🦍 Vi que empezaste a registrar tus comidas y quiero ayudarte a seguir. Tu prueba gratis ${cuando}. ¿Qué se te está complicando? En 2 minutos lo resolvemos juntos.`;
+    }
+    return `Hola ${nombre}, soy Jonah 🦍 Vi que creaste tu cuenta pero aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto. Tu prueba gratis ${cuando}.`;
+  }
+
+  function mensajeRenovacion(u) {
+    const nombre = u.nombre || u.username;
+    if (u.dl < 0) return `Hola ${nombre}, tu plan de Jonah Beast Fuel venció hace ${Math.abs(u.dl)} día(s). ¿Te ayudo a renovarlo para que no pierdas tu progreso?`;
+    if (u.dl === 0) return `Hola ${nombre}, tu plan de Jonah Beast Fuel vence hoy. ¿Lo renovamos para que sigas sin interrupciones?`;
+    return `Hola ${nombre}, te escribo porque tu plan de Jonah Beast Fuel vence en ${u.dl} día(s). ¿Quieres renovarlo?`;
+  }
+
+  function textoVence(u) {
+    return u.dl < 0 ? `Venció hace ${Math.abs(u.dl)} día(s)` : u.dl === 0 ? 'Vence hoy' : `Vence en ${u.dl} día(s)`;
+  }
+
+  function filaAlumno(u, texto, detalle) {
+    return (
+      <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-zinc-100 text-sm font-medium jb-body">
+            {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+          </div>
+          <div className={`text-xs jb-body ${u.dl < 0 ? 'text-red-400' : u.dl <= 2 ? 'text-orange-400' : 'text-amber-400'}`}>
+            {textoVence(u)}{u.esPrueba ? ' · prueba gratis' : ''}
+          </div>
+          {detalle}
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
+            className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+            <MessageCircle size={13} /> Escribir
+          </a>
+          <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+            +1 mes
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -7605,34 +7709,63 @@ function VencimientosPanel({ users, onRenew }) {
       </button>
 
       {open && (
-        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
-          <p className="jb-body text-xs text-zinc-500 mb-3">
-            Escríbeles antes de que venzan. Un mensaje a tiempo evita que se caigan.
-          </p>
-          <div className="flex flex-col gap-2">
-            {porVencer.map(u => (
-              <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-zinc-100 text-sm font-medium jb-body">
-                    {u.nombre ? `${u.nombre} · ${u.username}` : u.username}
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-5">
+          {pruebas.length > 0 && (
+            <div>
+              <h3 className="jb-display text-sm text-zinc-200 mb-1">PRUEBAS GRATIS POR TERMINAR</h3>
+              <p className="jb-body text-xs text-zinc-500 mb-3">
+                Según cuántos días registraron comidas. Empieza por los verdes: son los más fáciles de convertir.
+              </p>
+              {actividad === null ? (
+                <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {SEMAFORO_PRUEBA.map(s => (
+                      <div key={s.key} className={`bg-zinc-950 border ${s.borde} rounded-lg p-2.5`}>
+                        <div className={`jb-display text-2xl ${s.color}`}>{s.emoji} {pruebas.filter(u => u.grupo === s.key).length}</div>
+                        <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{s.label}</div>
+                      </div>
+                    ))}
                   </div>
-                  <div className={`text-xs jb-body ${u.dl < 0 ? 'text-red-400' : u.dl <= 2 ? 'text-orange-400' : 'text-amber-400'}`}>
-                    {u.dl < 0 ? `Venció hace ${Math.abs(u.dl)} día(s)` : u.dl === 0 ? 'Vence hoy' : `Vence en ${u.dl} día(s)`}
-                    {u.plan === 'trial' ? ' · prueba gratis' : ''}
+                  <div className="flex flex-col gap-4">
+                    {SEMAFORO_PRUEBA.map(s => {
+                      const lista = pruebas.filter(u => u.grupo === s.key);
+                      if (!lista.length) return null;
+                      return (
+                        <div key={s.key}>
+                          <div className={`jb-display text-xs ${s.color}`}>{s.emoji} {s.label} · {lista.length}</div>
+                          <div className="jb-body text-[11px] text-zinc-500 mb-2">{s.detalle}. {s.necesita}</div>
+                          <div className="flex flex-col gap-2">
+                            {lista.map(u => filaAlumno(u, mensajePrueba(u),
+                              <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
+                                {u.diasActivos > 0
+                                  ? `${u.diasActivos} día(s) registrando · última comida ${textoUltimaComida(u.ultima)}`
+                                  : 'Aún no registra ninguna comida'}
+                                {!u.telefono && ' · sin celular'}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a href={waLinkAlumno(u)} target="_blank" rel="noopener noreferrer"
-                    className={btnPrimary + ' py-1.5 px-3 text-xs'}>
-                    <MessageCircle size={13} /> Recordar
-                  </a>
-                  <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
-                    +1 mes
-                  </button>
-                </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {planesPagados.length > 0 && (
+            <div>
+              <h3 className="jb-display text-sm text-zinc-200 mb-1">PLANES POR RENOVAR</h3>
+              <p className="jb-body text-xs text-zinc-500 mb-3">
+                Escríbeles antes de que venzan. Un mensaje a tiempo evita que se caigan.
+              </p>
+              <div className="flex flex-col gap-2">
+                {planesPagados.map(u => filaAlumno(u, mensajeRenovacion(u)))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

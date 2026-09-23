@@ -3464,6 +3464,19 @@ async function generarUsuarioDesdeCorreo(email) {
   return `${base}${Date.now().toString().slice(-6)}`;
 }
 
+// Supabase rechaza contraseñas débiles o que ya aparecen en filtraciones
+// públicas de internet (protección "leaked passwords"). Su mensaje viene
+// en inglés; aquí se traduce. Devuelve null si el error es de otro tipo.
+function mensajeContrasenaRechazada(error) {
+  const texto = (error?.message || '').toLowerCase();
+  if (error?.code !== 'weak_password' && !texto.includes('weak') && !texto.includes('pwned')) return null;
+  const motivos = error?.reasons || [];
+  if (motivos.includes('pwned') || texto.includes('easy to guess') || texto.includes('pwned'))
+    return 'Esa contraseña es muy común o ya se filtró en internet. Elige otra.';
+  if (motivos.includes('length')) return 'La contraseña es muy corta. Elige una más larga.';
+  return 'Esa contraseña es muy fácil de adivinar. Elige otra más segura.';
+}
+
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
@@ -3524,6 +3537,8 @@ function TrialSignup({ onBack, onCreated }) {
       setBusy(false);
       if ((error.message || '').toLowerCase().includes('already registered'))
         return setErr('Ese correo ya tiene una cuenta. Inicia sesión.');
+      const rechazo = mensajeContrasenaRechazada(error);
+      if (rechazo) return setErr(rechazo);
       return setErr('No se pudo crear tu cuenta: ' + error.message);
     }
 
@@ -3678,7 +3693,7 @@ function AdminAuth({ onBack, onLogin, busy }) {
     }
     const { error: errPass } = await supabase.auth.updateUser({ password: passNueva });
     setBusyCodigo(false);
-    if (errPass) return setErr('No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
+    if (errPass) return setErr(mensajeContrasenaRechazada(errPass) || 'No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
     onLogin(email.trim().toLowerCase(), passNueva, setErr);
   }
 
@@ -3759,7 +3774,7 @@ function ResetPassword({ onDone }) {
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pass });
     setBusy(false);
-    if (error) return setErr('No se pudo cambiar la contraseña. Pide un enlace nuevo.');
+    if (error) return setErr(mensajeContrasenaRechazada(error) || 'No se pudo cambiar la contraseña. Pide un enlace nuevo.');
     setListo(true);
   }
 
@@ -3845,7 +3860,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
     }
     const { error: errPass } = await supabase.auth.updateUser({ password: passNueva });
     setBusyCodigo(false);
-    if (errPass) return setErr('No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
+    if (errPass) return setErr(mensajeContrasenaRechazada(errPass) || 'No se pudo cambiar la contraseña: ' + (errPass.message || 'intenta de nuevo.'));
     onLogin(email.trim().toLowerCase(), passNueva, setErr);
   }
 

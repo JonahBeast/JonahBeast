@@ -9,19 +9,27 @@
 // cuando se llama este endpoint.
 //
 // Lo llama el frontend directo (no un trigger de base de datos), así
-// que no lleva el secreto de webhook — solo necesita el username, y
-// manda el push solo si ese alumno tiene una suscripción activa
-// recién guardada.
+// que no lleva el secreto de webhook. Sí exige la sesión del alumno
+// (token en el header Authorization) y solo saluda al dueño de esa
+// sesión: antes bastaba con mandar cualquier username para hacerle
+// llegar el aviso a su celular, una y otra vez. Manda el push solo si
+// ese alumno tiene una suscripción activa recién guardada.
 
 import { getSupabase, setupWebPush } from './_lib/push.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
-  const { username } = req.body || {};
-  if (!username) return res.status(400).json({ error: 'Falta username' });
-
   const supabase = getSupabase();
+
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return res.status(401).json({ error: 'No autorizado' });
+  const { data: authData, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !authData?.user) return res.status(401).json({ error: 'No autorizado' });
+  const { data: perfil } = await supabase.from('profiles').select('username').eq('id', authData.user.id).maybeSingle();
+  const username = perfil?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+
   setupWebPush();
 
   try {
@@ -49,6 +57,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, enviado: enviados > 0, enviados });
   } catch (e) {
     console.error('Error enviando push de bienvenida:', e);
-    return res.status(500).json({ ok: false, error: e.message });
+    return res.status(500).json({ ok: false, error: 'No se pudo enviar el saludo' });
   }
 }

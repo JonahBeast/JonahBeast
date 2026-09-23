@@ -71,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
     const referencia: string = pago.external_reference || "";
     const monto = Number(pago.transaction_amount);
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!);
 
     if (pago.currency_id && pago.currency_id !== "PEN") {
       console.error("Pago en otra moneda, no se activa nada:", pago.id, pago.currency_id, referencia);

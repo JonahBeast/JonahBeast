@@ -11658,14 +11658,35 @@ function TiendaProductoCard({ p, variantes, onAgregar, ancho }) {
   const hayStock = variantes.some(v => v.stock > 0);
   const precio = p.precio_oferta || p.precio;
   const esSuplemento = p.categoria === 'suplementos';
+  // Con foto de modelo: la persona usando la prenda va como principal
+  // (llena el recuadro) y la foto del producto solo aparece al pasar
+  // el mouse, o al tocar la imagen en el celular (donde no hay hover).
+  const tieneModelo = !!p.imagen_modelo_url;
+  const [verProducto, setVerProducto] = useState(false);
   return (
     <div className={`bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden group transition-all hover:border-orange-600/60 hover:shadow-lg hover:shadow-orange-950/40 ${ancho || ''}`}>
-      <div className="h-44 relative flex items-center justify-center overflow-hidden"
+      <div className={`${tieneModelo ? 'h-56' : 'h-44'} relative flex items-center justify-center overflow-hidden`}
+        onClick={() => tieneModelo && p.imagen_url && setVerProducto(v => !v)}
         style={{ background: esSuplemento
           ? 'linear-gradient(135deg, rgba(62,138,138,0.35), rgba(20,25,28,1))'
           : 'linear-gradient(135deg, rgba(255,90,46,0.30), rgba(20,20,24,1))' }}>
-        {p.imagen_url
-          ? <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-110" />
+        {tieneModelo ? (
+          <>
+            <img src={p.imagen_modelo_url} alt={p.nombre} loading="lazy"
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${p.imagen_url ? 'group-hover:opacity-0' : ''} ${verProducto ? 'opacity-0' : 'opacity-100'}`} />
+            {p.imagen_url && (
+              <img src={p.imagen_url} alt={p.nombre} loading="lazy"
+                className={`absolute inset-0 w-full h-full object-contain p-2 transition-opacity duration-300 group-hover:opacity-100 ${verProducto ? 'opacity-100' : 'opacity-0'}`} />
+            )}
+            {p.imagen_url && (
+              <span className="absolute bottom-1.5 right-1.5 flex gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${verProducto ? 'bg-zinc-500' : 'bg-orange-500'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${verProducto ? 'bg-orange-500' : 'bg-zinc-500'}`} />
+              </span>
+            )}
+          </>
+        ) : p.imagen_url
+          ? <img src={p.imagen_url} alt={p.nombre} loading="lazy" className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-110" />
           : <span className="text-zinc-500 text-[11px]">📦 Foto próximamente</span>}
         {p.precio_oferta && (
           <span className="absolute top-2 left-2 bg-orange-500 text-zinc-950 text-[9px] font-bold px-1.5 py-0.5 rounded">OFERTA</span>
@@ -12100,21 +12121,24 @@ function TiendaAdminPanel() {
   const [fotoEditando, setFotoEditando] = useState({});
   const [subiendoFoto, setSubiendoFoto] = useState({});
 
-  async function subirFoto(productoId, archivo) {
+  // campo: 'imagen_url' (foto del producto solo) o 'imagen_modelo_url'
+  // (foto de una persona usando la prenda)
+  async function subirFoto(productoId, archivo, campo = 'imagen_url') {
     if (!archivo) return;
-    setSubiendoFoto(prev => ({ ...prev, [productoId]: true }));
+    const clave = productoId + ':' + campo;
+    setSubiendoFoto(prev => ({ ...prev, [clave]: true }));
     try {
       const extension = archivo.name.split('.').pop();
-      const nombreArchivo = `${productoId}-${Date.now()}.${extension}`;
+      const nombreArchivo = `${productoId}-${campo === 'imagen_modelo_url' ? 'modelo-' : ''}${Date.now()}.${extension}`;
       const { error: errSubida } = await supabase.storage.from('productos').upload(nombreArchivo, archivo, { upsert: true });
       if (errSubida) throw errSubida;
       const { data } = supabase.storage.from('productos').getPublicUrl(nombreArchivo);
-      await actualizarImagen(productoId, data.publicUrl);
-      setFotoEditando(prev => ({ ...prev, [productoId]: data.publicUrl }));
+      await actualizarImagen(productoId, data.publicUrl, campo);
+      if (campo === 'imagen_url') setFotoEditando(prev => ({ ...prev, [productoId]: data.publicUrl }));
     } catch (e) {
       alert('No se pudo subir la foto: ' + (e.message || 'error desconocido'));
     }
-    setSubiendoFoto(prev => ({ ...prev, [productoId]: false }));
+    setSubiendoFoto(prev => ({ ...prev, [clave]: false }));
   }
   const [varianteEditando, setVarianteEditando] = useState({});
   const [guardando, setGuardando] = useState(false);
@@ -12161,9 +12185,9 @@ function TiendaAdminPanel() {
     setGuardando(false);
   }
 
-  async function actualizarImagen(productoId, url) {
+  async function actualizarImagen(productoId, url, campo = 'imagen_url') {
     try {
-      await supabase.from('tienda_productos').update({ imagen_url: url.trim() || null }).eq('id', productoId);
+      await supabase.from('tienda_productos').update({ [campo]: (url || '').trim() || null }).eq('id', productoId);
       cargar();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
@@ -12531,11 +12555,22 @@ function TiendaAdminPanel() {
                           </div>
                         </div>
                         <div className="mt-2">
-                          <label className="block bg-orange-600 text-zinc-950 text-xs font-semibold text-center py-2 rounded cursor-pointer">
-                            {subiendoFoto[p.id] ? 'Subiendo...' : '📷 Subir foto desde tu celular/PC'}
-                            <input type="file" accept="image/*" className="hidden" disabled={subiendoFoto[p.id]}
-                              onChange={e => subirFoto(p.id, e.target.files[0])} />
-                          </label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <label className="block bg-orange-600 text-zinc-950 text-[11px] font-semibold text-center py-2 rounded cursor-pointer">
+                              {subiendoFoto[p.id + ':imagen_url'] ? 'Subiendo...' : (p.imagen_url ? '✓ Foto producto' : '📷 Foto producto')}
+                              <input type="file" accept="image/*" className="hidden" disabled={subiendoFoto[p.id + ':imagen_url']}
+                                onChange={e => subirFoto(p.id, e.target.files[0], 'imagen_url')} />
+                            </label>
+                            <label className="block bg-teal-600 text-zinc-950 text-[11px] font-semibold text-center py-2 rounded cursor-pointer">
+                              {subiendoFoto[p.id + ':imagen_modelo_url'] ? 'Subiendo...' : (p.imagen_modelo_url ? '✓ Foto con modelo' : '🧍 Foto con modelo')}
+                              <input type="file" accept="image/*" className="hidden" disabled={subiendoFoto[p.id + ':imagen_modelo_url']}
+                                onChange={e => subirFoto(p.id, e.target.files[0], 'imagen_modelo_url')} />
+                            </label>
+                          </div>
+                          {p.imagen_modelo_url && (
+                            <button onClick={() => actualizarImagen(p.id, '', 'imagen_modelo_url')}
+                              className="text-zinc-600 text-[10px] mt-1 underline">Quitar foto con modelo</button>
+                          )}
                           <details className="mt-1.5">
                             <summary className="text-zinc-600 text-[10px] cursor-pointer">O pegar un link de foto (avanzado)</summary>
                             <div className="flex gap-1.5 mt-1.5">

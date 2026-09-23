@@ -2892,9 +2892,54 @@ const HERO_BG_FOTOS = [
   TESTIMONIOS[1].antes, TESTIMONIOS[1].despues,
 ];
 
+/* Último día gratis si la persona se registra hoy, ej. "8 de octubre".
+   Igual que trialDayOf: el día del registro es el día 1, así que el
+   último día de prueba es hoy + (TRIAL_DAYS - 1). Una fecha concreta se
+   siente más real que "15 días". */
+function fechaFinPrueba() {
+  const fin = new Date();
+  fin.setDate(fin.getDate() + TRIAL_DAYS - 1);
+  return fin.toLocaleDateString('es-PE', { day: 'numeric', month: 'long' });
+}
+
+/* Prueba social real junto al botón: las fotos "después" de los mismos
+   alumnos de la sección de testimonios, sin números inventados. */
+function PruebaSocialMini({ size = 26 }) {
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <div className="flex -space-x-2 shrink-0">
+        {TESTIMONIOS.map(t => (
+          <img key={t.nombre} src={t.despues} alt="" aria-hidden="true"
+            className="rounded-full object-cover object-top border-2 border-zinc-950"
+            style={{ width: size, height: size }} />
+        ))}
+      </div>
+      <p className="jb-body text-[11px] text-zinc-400 text-left leading-tight">
+        Resultados reales: <span className="text-zinc-200 font-semibold">Jonah −37 kg</span>, Andrea y César
+      </p>
+    </div>
+  );
+}
+
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
+
+  // Barra fija: aparece en cuanto el botón principal queda arriba, fuera
+  // de la pantalla. No se esconde al llegar al botón final porque la
+  // landing es corta: cuando el principal sale, el final ya se ve, y la
+  // barra casi nunca llegaría a mostrarse.
+  const heroCtaRef = useRef(null);
+  const [mostrarBarra, setMostrarBarra] = useState(false);
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined' || !heroCtaRef.current) return;
+    const obs = new IntersectionObserver(([e]) => {
+      setMostrarBarra(!e.isIntersecting && e.boundingClientRect.top < 0);
+    });
+    obs.observe(heroCtaRef.current);
+    return () => obs.disconnect();
+  }, []);
+  const hastaFecha = fechaFinPrueba();
 
   // Seguimiento básico del embudo: vista de landing (una vez al montar)
   // y clic en el CTA. No cuenta si el celular ya inició sesión antes
@@ -3036,12 +3081,17 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
         </p>
 
-        <button onClick={() => onChoose('trial')} style={step(320)}
+        <div className="mb-3" style={step(300)}>
+          <PruebaSocialMini />
+        </div>
+
+        <button ref={heroCtaRef} onClick={registrarClicCTA} style={step(320)}
           className="inline-flex items-center gap-2 mb-2 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
           <ChevronRight className="text-zinc-950" size={16} />
         </button>
-        <p className="jb-body text-zinc-600 text-[11px] mb-4" style={step(330)}>Sin tarjeta · cancela cuando quieras</p>
+        <p className="jb-body text-orange-400 text-xs font-semibold mb-1" style={step(325)}>Gratis hasta el {hastaFecha}</p>
+        <p className="jb-body text-zinc-500 text-[11px] mb-4" style={step(330)}>Registro en 30 segundos · Sin tarjeta · Cancela cuando quieras</p>
 
         <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
 
@@ -3118,7 +3168,7 @@ function Landing({ onChoose }) {
 
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button onClick={() => onChoose('trial')} style={step(540)}
+        <button onClick={registrarClicCTA} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
           <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
           <span className="jb-body text-[11px] text-zinc-800">· 15 días sin tarjeta</span>
@@ -3150,9 +3200,32 @@ function Landing({ onChoose }) {
         </div>
 
         <button onClick={() => onChoose('studentAuth')} style={step(660)}
-          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-6">
+          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-6 mb-36">
           Acceso de administración →
         </button>
+      </div>
+
+      {/* Barra fija con el CTA: va fuera del contenido animado (que usa
+          transform) para que position:fixed se ancle a la pantalla. */}
+      <div aria-hidden={!mostrarBarra}
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-orange-500/50 bg-zinc-950/90 backdrop-blur-md transition-all duration-300"
+        style={{
+          transform: mostrarBarra ? 'translateY(0)' : 'translateY(110%)',
+          opacity: mostrarBarra ? 1 : 0,
+          pointerEvents: mostrarBarra ? 'auto' : 'none',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+        }}>
+        <div className="max-w-xl mx-auto px-4 pt-3 flex flex-col gap-2">
+          <PruebaSocialMini size={22} />
+          <button onClick={registrarClicCTA} tabIndex={mostrarBarra ? 0 : -1}
+            className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+            <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
+            <ChevronRight className="text-zinc-950" size={16} />
+          </button>
+          <p className="jb-body text-[10.5px] text-zinc-500 text-center -mt-0.5">
+            Registro en 30 segundos · Gratis hasta el {hastaFecha}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -3366,6 +3439,9 @@ function TrialSignup({ onBack, onCreated }) {
   const [aviso, setAviso] = useState('');
   const [refEstado, setRefEstado] = useState(null); // {ok, nombre} | {ok:false}
   const [refConfirmado, setRefConfirmado] = useState(false);
+  // El campo de código se esconde tras "¿Tienes un código?" para que el
+  // formulario se vea más corto; si llegó con ?ref= se abre ya lleno.
+  const [verReferido, setVerReferido] = useState(!!refDesdeURL);
 
   // Verifica el código mientras escribe
   useEffect(() => {
@@ -3442,8 +3518,18 @@ function TrialSignup({ onBack, onCreated }) {
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
           <div className="mb-5">
             <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">EMPIEZA TU<br />PRUEBA GRATIS</h1>
-            <p className="jb-body text-sm text-zinc-400">15 días, sin tarjeta. Cancela cuando quieras.</p>
+            <p className="jb-body text-sm text-zinc-400">
+              <span className="text-orange-400 font-semibold">Gratis hasta el {fechaFinPrueba()}</span> · sin tarjeta. Registro en 30 segundos.
+            </p>
           </div>
+
+          {!aviso && (
+            <ul className="jb-body text-sm text-zinc-300 flex flex-col gap-1.5 mb-5">
+              <li>📸 Macros de tu plato con una foto</li>
+              <li>🍽️ Plan con comida peruana</li>
+              <li>📈 Seguimiento de tu progreso</li>
+            </ul>
+          )}
 
           {aviso ? (
             <div className="text-center">
@@ -3464,11 +3550,19 @@ function TrialSignup({ onBack, onCreated }) {
                   </button>
                 </div>
               </Field>
-              <Field label="Código de referido (opcional)">
-                <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
-                  className={inputCls + ' uppercase'} placeholder="Opcional — déjalo vacío si no tienes uno" />
-              </Field>
-              {f.referido.trim() && refEstado && (
+              {verReferido ? (
+                <Field label="Código de referido (opcional)">
+                  <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
+                    autoFocus={!refDesdeURL}
+                    className={inputCls + ' uppercase'} placeholder="Escribe tu código" />
+                </Field>
+              ) : (
+                <button type="button" onClick={() => setVerReferido(true)}
+                  className="jb-body text-xs text-zinc-500 hover:text-orange-400 text-left underline underline-offset-2 self-start">
+                  ¿Tienes un código?
+                </button>
+              )}
+              {verReferido && f.referido.trim() && refEstado && (
                 refEstado.ok ? (
                   <p className="text-emerald-400 text-xs jb-body -mt-2">
                     ✓ Código válido · te recomendó {refEstado.nombre}
@@ -3482,7 +3576,7 @@ function TrialSignup({ onBack, onCreated }) {
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : 'Crear mi cuenta'}
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MIS 15 DÍAS GRATIS'}
               </button>
               <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
                 Al crear tu cuenta, aceptas nuestra{' '}
@@ -4084,8 +4178,8 @@ function PanelReferidor({ token, onSalir }) {
           <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓMO COMPARTIR TU CÓDIGO</h3>
           <p className="jb-body text-sm text-zinc-400 mb-3">
             Diles que entren a <span className="text-orange-500">jonahbeast.com</span>, toquen
-            "Prueba gratis 15 días" y escriban <span className="text-orange-500">{datos.codigo}</span> en
-            el campo de código de referido.
+            "Prueba gratis 15 días", luego "¿Tienes un código?" y escriban{' '}
+            <span className="text-orange-500">{datos.codigo}</span>.
           </p>
           <a href={`https://wa.me/?text=${encodeURIComponent(
             `Entra a jonahbeast.com y prueba 15 días gratis. Usa mi código ${datos.codigo} al registrarte` +

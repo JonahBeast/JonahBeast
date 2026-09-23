@@ -6073,10 +6073,14 @@ function JarvisPanel({ onClose }) {
     function elegirVoz() {
       const voces = window.speechSynthesis.getVoices();
       if (!voces.length) return;
+      // Nombres típicos de voces femeninas en español, por sistema
+      // operativo/navegador (iOS, Android, Windows, macOS).
+      const esNombreFemenino = /female|mujer|m[oó]nica|paulina|marisol|soledad|laura|helena|sabina|elvira|lucia|luc[íi]a|conchita|esperanza|isabela|camila|valentina|juliette|maría|maria/i;
       const esNombreMasculino = /male|hombre|pablo|jorge|diego|carlos|miguel|juan|enrique/i;
       const candidatas = voces.filter(v => v.lang.startsWith('es'));
-      const masculina = candidatas.find(v => esNombreMasculino.test(v.name));
-      vozElegidaRef.current = masculina || candidatas[0] || voces[0];
+      const femenina = candidatas.find(v => esNombreFemenino.test(v.name));
+      const noMasculina = candidatas.find(v => !esNombreMasculino.test(v.name));
+      vozElegidaRef.current = femenina || noMasculina || candidatas[0] || voces[0];
     }
     elegirVoz();
     window.speechSynthesis.onvoiceschanged = elegirVoz;
@@ -6103,7 +6107,10 @@ function JarvisPanel({ onClose }) {
       u.pitch = 0.55; u.rate = 0.94;
       u.onend = () => reanudarMicSiCorresponde();
       u.onerror = () => reanudarMicSiCorresponde();
-      window.speechSynthesis.speak(u);
+      // iOS a veces "pierde" la voz si speak() llega inmediatamente
+      // después de cancel() -- un respiro corto lo hace confiable ahí
+      // sin que se note la demora en otros navegadores.
+      setTimeout(() => { try { window.speechSynthesis.speak(u); } catch (e) { reanudarMicSiCorresponde(); } }, 80);
     } catch (e) { reanudarMicSiCorresponde(); }
   }
 
@@ -6140,8 +6147,14 @@ function JarvisPanel({ onClose }) {
   function desbloquearVoz() {
     if (!('speechSynthesis' in window)) return;
     try {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0;
+      // iOS Safari a veces ignora por completo una frase vacía o con
+      // volumen en 0 -- no la reconoce como una utterance real y no
+      // desbloquea el audio. Se usa un carácter real y volumen bajo
+      // pero distinto de cero, que sí registra en iOS.
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance('.');
+      u.volume = 0.01;
+      u.rate = 10;
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }

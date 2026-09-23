@@ -6,8 +6,12 @@
 //
 // Se despliega con verify_jwt = false porque el control de acceso lo hace
 // el propio código (ver "Candado" más abajo): solo responde al admin con
-// sesión iniciada. Se publica en Supabase después de cada merge, con el
-// código que quedó en main (ver CLAUDE.md).
+// sesión iniciada.
+//
+// Publicación (regla 3 de CLAUDE.md): Claude la publica en Supabase recién
+// después del merge, siempre con el código que quedó en main, e informa
+// qué versión quedó. No hay publicación automática. La copia de prueba
+// jarvis-chat-prueba es la única que se puede publicar desde un PR.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

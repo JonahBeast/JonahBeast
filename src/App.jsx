@@ -3486,9 +3486,10 @@ function TrialSignup({ onBack, onCreated }) {
     if (!cod) { setRefEstado(null); return; }
     const t = setTimeout(async () => {
       try {
-        const { data } = await supabase.from('referidores')
-          .select('codigo, nombre, activo').ilike('codigo', cod).maybeSingle();
-        setRefEstado(data && data.activo ? { ok: true, nombre: data.nombre } : { ok: false });
+        // validar_codigo solo dice si el código es válido (y de quién es);
+        // la tabla de embajadores ya no se puede leer desde la app.
+        const { data } = await supabase.rpc('validar_codigo', { p_codigo: cod });
+        setRefEstado(data && data.ok ? { ok: true, nombre: data.nombre } : { ok: false });
       } catch { setRefEstado(null); }
     }, 500);
     return () => clearTimeout(t);
@@ -9934,9 +9935,11 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       // Recién acá existe una suscripción real a la que mandarle algo —
       // este es el momento más cercano posible a "el instante en que
       // se registra" en el que Jonah puede saludarlo de verdad.
+      // El servidor solo saluda al dueño de la sesión, así que va el token.
+      const { data: { session } } = await supabase.auth.getSession();
       fetch('/api/bienvenida-push', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({ username }),
       }).catch(() => { /* si falla el saludo, no bloquea el onboarding */ });
     } catch (e) { /* si falla, no bloquea el avance del onboarding */ }

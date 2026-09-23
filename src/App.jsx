@@ -6256,6 +6256,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
+  const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
 
@@ -6453,28 +6454,52 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   { key: 'activos', label: 'ACTIVOS', color: '#4affb0', emoji: '🟢' },
                   { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
                 ];
+                const seccionesConDatos = SECCIONES.filter(s => grupos[s.key].length > 0);
+                const seccionesAMostrar = filtroAlumnos === 'todos'
+                  ? seccionesConDatos
+                  : seccionesConDatos.filter(s => s.key === filtroAlumnos);
 
                 return (
-                  <div className="p-3 flex flex-col gap-5">
-                    {SECCIONES.filter(s => grupos[s.key].length > 0).map(s => (
-                      <div key={s.key}>
-                        <div className="flex items-center gap-2 px-2 mb-2">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}` }} />
-                          <span className="font-mono text-[11px] tracking-widest" style={{ color: s.color }}>
-                            {s.label} · {grupos[s.key].length}
-                          </span>
-                          <span className="flex-1 h-px" style={{ background: '#163244' }} />
+                  <div className="flex flex-col gap-4">
+                    <div className="flex gap-1.5 overflow-x-auto px-3 pt-3 pb-1 -mb-1">
+                      <button onClick={() => setFiltroAlumnos('todos')}
+                        className="shrink-0 font-mono text-[11px] tracking-wide px-3 py-1.5 rounded-full border transition-all"
+                        style={filtroAlumnos === 'todos'
+                          ? { background: '#4dd9ff', borderColor: '#4dd9ff', color: '#050a0f' }
+                          : { background: 'transparent', borderColor: '#163244', color: '#6f92a8' }}>
+                        TODOS · {usersFiltrados.length}
+                      </button>
+                      {seccionesConDatos.map(s => (
+                        <button key={s.key} onClick={() => setFiltroAlumnos(v => v === s.key ? 'todos' : s.key)}
+                          className="shrink-0 font-mono text-[11px] tracking-wide px-3 py-1.5 rounded-full border transition-all whitespace-nowrap"
+                          style={filtroAlumnos === s.key
+                            ? { background: s.color, borderColor: s.color, color: '#050a0f' }
+                            : { background: 'transparent', borderColor: '#163244', color: s.color }}>
+                          {s.emoji} {s.label} · {grupos[s.key].length}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="p-3 pt-0 flex flex-col gap-5">
+                      {seccionesAMostrar.map(s => (
+                        <div key={s.key}>
+                          <div className="flex items-center gap-2 px-2 mb-2">
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}` }} />
+                            <span className="font-mono text-[11px] tracking-widest" style={{ color: s.color }}>
+                              {s.label} · {grupos[s.key].length}
+                            </span>
+                            <span className="flex-1 h-px" style={{ background: '#163244' }} />
+                          </div>
+                          <div className="flex flex-col gap-2.5">
+                            {grupos[s.key].map(u => (
+                              <AlumnoRow key={u.username} u={u}
+                                onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
+                                onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
+                                onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-2.5">
-                          {grupos[s.key].map(u => (
-                            <AlumnoRow key={u.username} u={u}
-                              onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
-                              onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
-                              onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 );
               })()}

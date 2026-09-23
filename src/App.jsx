@@ -6238,6 +6238,19 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
   );
 }
 
+const CLAVE_VOZ_JARVIS = 'jb-jarvis-voz';
+
+/* Voz por defecto de Jarvis si no hay una elegida: la primera voz en
+   español con nombre femenino típico (iOS, Android, Windows, macOS); si no
+   hay, una que no parezca masculina; y si no, la primera en español. */
+function vozFemeninaPorDefecto(vocesEs) {
+  const esNombreFemenino = /female|mujer|m[oó]nica|paulina|marisol|soledad|laura|helena|sabina|elvira|lucia|luc[íi]a|conchita|esperanza|isabela|camila|valentina|juliette|maría|maria/i;
+  const esNombreMasculino = /\bmale\b|hombre|pablo|jorge|diego|carlos|miguel|juan|enrique/i;
+  return vocesEs.find(v => esNombreFemenino.test(v.name))
+    || vocesEs.find(v => !esNombreMasculino.test(v.name))
+    || vocesEs[0] || null;
+}
+
 /* Muestra las respuestas de Jarvis con formato: **negrita** y *cursiva*
    se ven como tal (en vez de con asteriscos) y se respetan los saltos de
    línea. La voz ya quita estos símbolos antes de leer (ver hablar()). */
@@ -6281,24 +6294,56 @@ function JarvisPanel({ onClose }) {
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [turnos, pensando]);
   useEffect(() => () => { try { recogRef.current && recogRef.current.stop(); window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} }, []);
 
+  // Voz de Jarvis: la que Jonah Beast elija en el selector se guarda en
+  // este equipo (localStorage) y se usa siempre. Si no eligió ninguna, o
+  // la guardada ya no existe en este navegador, se prefiere una femenina.
   const vozElegidaRef = useRef(null);
+  const [vocesEs, setVocesEs] = useState([]);
+  const [vozGuardada, setVozGuardada] = useState(() => {
+    try { return localStorage.getItem(CLAVE_VOZ_JARVIS) || ''; } catch { return ''; }
+  });
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
-    function elegirVoz() {
+    function cargarVoces() {
       const voces = window.speechSynthesis.getVoices();
       if (!voces.length) return;
-      // Nombres típicos de voces femeninas en español, por sistema
-      // operativo/navegador (iOS, Android, Windows, macOS).
-      const esNombreFemenino = /female|mujer|m[oó]nica|paulina|marisol|soledad|laura|helena|sabina|elvira|lucia|luc[íi]a|conchita|esperanza|isabela|camila|valentina|juliette|maría|maria/i;
-      const esNombreMasculino = /male|hombre|pablo|jorge|diego|carlos|miguel|juan|enrique/i;
-      const candidatas = voces.filter(v => v.lang.startsWith('es'));
-      const femenina = candidatas.find(v => esNombreFemenino.test(v.name));
-      const noMasculina = candidatas.find(v => !esNombreMasculino.test(v.name));
-      vozElegidaRef.current = femenina || noMasculina || candidatas[0] || voces[0];
+      const candidatas = voces
+        .filter(v => (v.lang || '').toLowerCase().startsWith('es'))
+        .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+      setVocesEs(candidatas);
     }
-    elegirVoz();
-    window.speechSynthesis.onvoiceschanged = elegirVoz;
+    cargarVoces();
+    window.speechSynthesis.onvoiceschanged = cargarVoces;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, []);
+  useEffect(() => {
+    vozElegidaRef.current = vocesEs.find(v => v.voiceURI === vozGuardada) || vozFemeninaPorDefecto(vocesEs);
+  }, [vocesEs, vozGuardada]);
+
+  function cambiarVoz(voiceURI) {
+    setVozGuardada(voiceURI);
+    try {
+      if (voiceURI) localStorage.setItem(CLAVE_VOZ_JARVIS, voiceURI);
+      else localStorage.removeItem(CLAVE_VOZ_JARVIS);
+    } catch {}
+  }
+
+  // Frase de prueba con la voz elegida en el selector. Se dispara dentro del
+  // mismo toque del botón, así el navegador no bloquea el audio.
+  function probarVoz() {
+    if (!('speechSynthesis' in window)) return;
+    const voz = vocesEs.find(v => v.voiceURI === vozGuardada) || vozFemeninaPorDefecto(vocesEs);
+    try {
+      pausarMic();
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance('Hola Jonah Beast, así sonaré cuando te responda.');
+      if (voz) { u.voice = voz; u.lang = voz.lang; } else u.lang = 'es-PE';
+      u.pitch = 0.55; u.rate = 0.94;
+      u.onend = () => reanudarMicSiCorresponde();
+      u.onerror = () => reanudarMicSiCorresponde();
+      window.speechSynthesis.speak(u);
+    } catch (e) { reanudarMicSiCorresponde(); }
+  }
 
   // en modo continuo, el micro se pausa mientras Jarvis habla (si no,
   // el parlante se retroalimentaría con el mismo micrófono) y se
@@ -6432,6 +6477,30 @@ function JarvisPanel({ onClose }) {
             <button onClick={onClose} style={{ color: '#6f92a8' }}><X size={18} /></button>
           </div>
         </div>
+
+        {'speechSynthesis' in window && (
+          <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244' }}>
+            <label htmlFor="jarvis-voz" className="text-[10px] shrink-0" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>VOZ</label>
+            {vocesEs.length ? (
+              <select id="jarvis-voz" value={vocesEs.some(v => v.voiceURI === vozGuardada) ? vozGuardada : ''}
+                onChange={e => cambiarVoz(e.target.value)}
+                className="flex-1 min-w-0 rounded px-2 py-1 text-xs outline-none"
+                style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }}>
+                <option value="">Automática (voz femenina)</option>
+                {vocesEs.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="flex-1 text-xs" style={{ color: '#6f92a8' }}>Este navegador no tiene voces en español.</span>
+            )}
+            <button onClick={probarVoz} disabled={!vocesEs.length}
+              className="text-xs px-2 py-1 rounded-full shrink-0 disabled:opacity-40"
+              style={{ border: '1px solid #4dd9ff', color: '#4dd9ff', fontFamily: 'monospace' }}>
+              ▶ Probar
+            </button>
+          </div>
+        )}
 
         <div ref={logRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 220 }}>
           {turnos.map((m, i) => (

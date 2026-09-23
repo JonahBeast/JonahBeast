@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
-import { supabase } from './supabaseClient';
+import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -6274,6 +6274,60 @@ function funcionJarvis() {
   return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'jarvis-chat' : 'jarvis-chat-prueba';
 }
 
+/* Llama a la función de Jarvis. Con `alEvento`, pide la respuesta por
+   partes (streaming): llega una línea JSON por evento ({tipo:"texto"},
+   {tipo:"reiniciar"} y al final {tipo:"fin"} o {tipo:"error"}) y cada una
+   se pasa a `alEvento` apenas llega. Si la función responde en el formato
+   de siempre (un JSON completo), también funciona. */
+async function llamarJarvis(cuerpo, alEvento) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/${funcionJarvis()}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: supabaseKey,
+      authorization: `Bearer ${session?.access_token || supabaseKey}`,
+    },
+    body: JSON.stringify(cuerpo),
+  });
+  const tipo = r.headers.get('content-type') || '';
+  if (alEvento && r.ok && tipo.includes('ndjson') && r.body && r.body.getReader) {
+    const lector = r.body.getReader();
+    const decodificar = new TextDecoder();
+    let pendiente = '';
+    let fin = null;
+    for (;;) {
+      const { value, done } = await lector.read();
+      if (done) break;
+      pendiente += decodificar.decode(value, { stream: true });
+      let corte;
+      while ((corte = pendiente.indexOf('\n')) >= 0) {
+        const linea = pendiente.slice(0, corte).trim();
+        pendiente = pendiente.slice(corte + 1);
+        if (!linea) continue;
+        const ev = JSON.parse(linea);
+        if (ev.tipo === 'fin') fin = ev;
+        else if (ev.tipo === 'error') throw new Error(ev.error || 'error');
+        else alEvento(ev);
+      }
+    }
+    if (!fin) throw new Error('respuesta incompleta');
+    return fin;
+  }
+  const data = await r.json().catch(() => null);
+  if (!r.ok || !data || data.error) throw new Error(data?.error || 'error');
+  return data;
+}
+
+// Mensajes que muestra Jarvis cuando el micrófono no puede funcionar.
+const AVISOS_MIC = {
+  'not-allowed': 'No tengo permiso para usar el micrófono en esta página. Toca el ícono a la izquierda de la dirección web, permite el micrófono y vuelve a tocar 🎤. Mientras tanto puedes escribirme.',
+  'service-not-allowed': 'Este navegador no me deja usar el reconocimiento de voz. Prueba en Google Chrome o Safari, o escríbeme.',
+  'audio-capture': 'No encuentro ningún micrófono en este equipo. Revisa que esté conectado y vuelve a tocar 🎤, o escríbeme.',
+  'network': 'El reconocimiento de voz del navegador no responde (necesita internet; en computadoras funciona en Google Chrome). Vuelve a tocar 🎤 en un momento, o escríbeme.',
+  'sin-soporte': 'Este navegador no reconoce voz. Prueba en Google Chrome o Safari, o escríbeme.',
+};
+
 function JarvisPanel({ onClose }) {
   const [turnos, setTurnos] = useState([
     { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
@@ -6384,6 +6438,9 @@ function JarvisPanel({ onClose }) {
     } catch (e) { reanudarMicSiCorresponde(); }
   }
 
+  const enviarRef = useRef(null);
+  enviarRef.current = enviar;
+
   async function enviar(texto) {
     const t = (texto || '').trim();
     if (!t || pensando) return;
@@ -6392,12 +6449,20 @@ function JarvisPanel({ onClose }) {
     setTurnos(nuevosTurnos);
     setPensando(true);
     if (modoContinuoRef.current) pausarMic();
+    // Al historial solo van los textos (no los botones de confirmar).
+    const historial = nuevosTurnos.slice(-6).map(m => ({ role: m.role, content: m.content }));
+    let enCurso = '';
     try {
-      const { data, error } = await supabase.functions.invoke(funcionJarvis(), {
-        body: { pregunta: t, historial: nuevosTurnos.slice(-6) },
+      // La respuesta aparece mientras se escribe; la voz espera al final
+      // para leerla completa. "reiniciar" = Jarvis va a consultar datos:
+      // se borra lo escrito y se muestra solo la respuesta final.
+      const data = await llamarJarvis({ pregunta: t, historial, stream: true }, (ev) => {
+        if (ev.tipo === 'reiniciar') enCurso = '';
+        else if (ev.tipo === 'texto') enCurso += ev.texto;
+        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true }]);
       });
-      if (error || data?.error) throw new Error(data?.error || error?.message || 'error');
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta }]);
+      const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}) }]);
       hablar(data.respuesta);
     } catch (e) {
       const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
@@ -6405,6 +6470,27 @@ function JarvisPanel({ onClose }) {
       hablar(msgErr);
     } finally {
       setPensando(false);
+    }
+  }
+
+  // Botones del chat para confirmar (o cancelar) una acción que Jarvis dejó
+  // preparada, como activar el add-on de fotos. Solo al confirmar se hace
+  // el cambio en la base de datos.
+  async function responderAccion(iTurno, iAccion, confirmar) {
+    const accion = turnos[iTurno]?.acciones?.[iAccion];
+    if (!accion || accion.estado !== 'pendiente') return;
+    const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
+      : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
+    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
+    if (!confirmar) { marcar('cancelada'); decir('Entendido, Jonah Beast: no activé nada.'); return; }
+    marcar('enviando');
+    try {
+      const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias } });
+      marcar(data.ok ? 'hecha' : 'pendiente');
+      decir(data.respuesta);
+    } catch (e) {
+      marcar('pendiente');
+      decir('No pude activarlo ahora mismo. Intenta de nuevo.');
     }
   }
 
@@ -6447,18 +6533,42 @@ function JarvisPanel({ onClose }) {
     recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
     recog.onresult = (e) => {
       const ultimo = e.results[e.results.length - 1];
-      if (ultimo.isFinal) enviar(ultimo[0].transcript);
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
+      if (ultimo.isFinal) enviarRef.current(ultimo[0].transcript);
     };
-    recog.onerror = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800); };
+    recog.onerror = (e) => {
+      setEscuchando(false);
+      // Errores que no se arreglan reintentando (sin permiso, sin micrófono
+      // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
+      // vez de seguir intentando en silencio.
+      const aviso = AVISOS_MIC[e && e.error];
+      if (aviso) { apagarMicConAviso(aviso); return; }
+      if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
+    };
     recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
+  function apagarMicConAviso(aviso) {
+    modoContinuoRef.current = false;
+    setModoContinuo(false);
+    setEscuchando(false);
+    try { recogRef.current && recogRef.current.stop(); } catch (e) {}
+    setTurnos(ts => [...ts, { role: 'assistant', content: aviso }]);
+  }
+
   function toggleModoContinuo() {
     const nuevo = !modoContinuo;
+    if (nuevo && !(window.SpeechRecognition || window.webkitSpeechRecognition)) {
+      apagarMicConAviso(AVISOS_MIC['sin-soporte']);
+      return;
+    }
     setModoContinuo(nuevo);
     modoContinuoRef.current = nuevo;
-    if (nuevo) arrancarReconocimiento();
+    // Este toque también habilita la voz de Jarvis para las respuestas
+    // que lleguen por micrófono (el navegador exige un toque primero).
+    if (nuevo) { desbloquearVoz(); arrancarReconocimiento(); }
     else { pausarMic(); setEscuchando(false); }
   }
 
@@ -6503,17 +6613,44 @@ function JarvisPanel({ onClose }) {
         )}
 
         <div ref={logRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 220 }}>
-          {turnos.map((m, i) => (
+          {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
                 {m.role === 'user' ? 'TÚ' : 'JARVIS'}
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: '#0d1c28', border: '1px solid #163244' }}>{m.content}</div>
-                : <TextoJarvis texto={m.content} />}
+                : <TextoJarvis texto={m.content + (m.escribiendo ? ' ▍' : '')} />}
+              {(m.acciones || []).map((a, j) => (
+                <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
+                  <div className="text-xs">
+                    Activar el reconocimiento por foto a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong> por {a.dias} días (hasta el {a.hasta}).
+                  </div>
+                  {a.estado === 'pendiente' || a.estado === 'enviando' ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => { desbloquearVoz(); responderAccion(i, j, true); }} disabled={a.estado === 'enviando'}
+                        className="text-xs px-3 py-1.5 rounded font-semibold disabled:opacity-50"
+                        style={{ background: '#4affb0', color: '#050a0f' }}>
+                        {a.estado === 'enviando' ? 'Activando…' : '✅ Confirmar'}
+                      </button>
+                      <button onClick={() => { desbloquearVoz(); responderAccion(i, j, false); }} disabled={a.estado === 'enviando'}
+                        className="text-xs px-3 py-1.5 rounded disabled:opacity-50"
+                        style={{ border: '1px solid #163244', color: '#6f92a8' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[11px]" style={{ color: a.estado === 'hecha' ? '#4affb0' : '#6f92a8', fontFamily: 'monospace' }}>
+                      {a.estado === 'hecha' ? '✓ Activado' : 'Cancelado'}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
-          {pensando && <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>}
+          {pensando && !(turnos[turnos.length - 1]?.escribiendo && turnos[turnos.length - 1]?.content) && (
+            <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>
+          )}
         </div>
 
         <div className="px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>

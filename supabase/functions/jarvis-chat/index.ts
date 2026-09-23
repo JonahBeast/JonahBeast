@@ -60,11 +60,11 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
 
 4) ver_comisiones_pendientes (solo lectura) -- comisiones de referido aún sin pagar, con el alumno, el monto y el código.
 
-5) activar_reconocimiento_foto -- SÍ modifica datos: activa el add-on de Reconocimiento Inteligente (fotos) para un alumno por una cantidad de días. Esta es una acción real y con impacto en el negocio (es un add-on de pago), así que sigue este flujo SIEMPRE, sin saltarte pasos:
+5) activar_reconocimiento_foto -- prepara la activación del add-on de Reconocimiento Inteligente (fotos) para un alumno por una cantidad de días. NO lo activa por sí sola: en el panel aparece un botón "Confirmar" y el cambio solo se hace cuando Jonah Beast lo toca. Es una acción real y con impacto en el negocio (es un add-on de pago), así que sigue este flujo SIEMPRE, sin saltarte pasos:
    a) Primero ubica al alumno con buscar_alumno si aún no tienes su username confirmado en esta conversación.
    b) Si Jonah Beast te pide activar el reconocimiento inteligente pero NO ha dicho por cuánto tiempo (días, semanas o meses), NUNCA llames a activar_reconocimiento_foto todavía -- pregúntale primero cuántos días quiere activarlo (puedes sugerir duraciones típicas como 7, 15 o 30 días si te pide una referencia).
    c) Solo llama a activar_reconocimiento_foto una vez que Jonah Beast haya confirmado explícitamente la duración en la conversación (ya sea en su mensaje original o en su respuesta a tu pregunta). Si te da la duración en otra unidad, conviértela tú mismo a días antes de llamar la herramienta (1 semana = 7, 1 mes = 30).
-   d) Después de activarlo, confírmale con claridad a quién se lo activaste, por cuántos días, y hasta qué fecha queda vigente (la herramienta te devuelve esa fecha).
+   d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
 
 const TOOLS = [
@@ -102,7 +102,7 @@ const TOOLS = [
   },
   {
     name: "activar_reconocimiento_foto",
-    description: "Activa el add-on de Reconocimiento Inteligente (fotos) para un alumno específico, por una cantidad exacta de días. SOLO se debe llamar después de que Jonah Beast haya confirmado explícitamente la duración en días -- nunca con un valor supuesto o inventado.",
+    description: "Prepara la activación del add-on de Reconocimiento Inteligente (fotos) para un alumno específico, por una cantidad exacta de días. No cambia nada todavía: el panel muestra un botón Confirmar y solo se activa cuando Jonah Beast lo toca. SOLO se debe llamar después de que Jonah Beast haya confirmado explícitamente la duración en días -- nunca con un valor supuesto o inventado.",
     input_schema: {
       type: "object",
       properties: {
@@ -187,6 +187,78 @@ function textoEmbudo(e: ReturnType<typeof resumirEmbudo>) {
   return t + ` (${e.vistas} vistas en total)`;
 }
 
+// Activa el add-on de fotos. Solo se llama cuando Jonah Beast toca el botón
+// "Confirmar" en el panel (nunca directamente desde una herramienta).
+async function activarFoto(supabase: any, usernameIn: unknown, diasIn: unknown) {
+  const username = String(usernameIn || "").trim();
+  const dias = Math.round(Number(diasIn));
+  if (!username || !Number.isFinite(dias) || dias <= 0 || dias > 366) {
+    return { error: "Faltan datos válidos (username y días entre 1 y 366) para activar el add-on." };
+  }
+  const hasta = fechaLima(new Date(Date.now() + dias * 86400000));
+  const { data: actualizado, error } = await supabase
+    .from("alumnos")
+    .update({
+      reconocimiento_foto_activo: true,
+      reconocimiento_foto_desde: fechaLima(),
+      reconocimiento_foto_hasta: hasta,
+    })
+    .eq("username", username)
+    .select("nombre, username, reconocimiento_foto_hasta")
+    .maybeSingle();
+  if (error) return { error: "No se pudo activar el add-on: " + error.message };
+  return actualizado
+    ? { ok: true, ...actualizado, dias }
+    : { error: `No se encontró ningún alumno con username "${username}".` };
+}
+
+// Lee la respuesta de Anthropic en modo streaming (eventos SSE), avisa cada
+// pedazo de texto con `alTexto` y arma el mensaje completo igual que en el
+// modo normal: bloques de texto, de razonamiento (con su firma, que hay que
+// devolver tal cual) y de herramientas.
+async function leerStream(r: Response, alTexto: (t: string) => void) {
+  const bloques: any[] = [];
+  const jsonParcial: Record<number, string> = {};
+  const usage: Record<string, number> = {};
+  let stop_reason: string | null = null;
+  const lector = r.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let pendiente = "";
+  for (;;) {
+    const { value, done } = await lector.read();
+    if (done) break;
+    pendiente += value;
+    let corte;
+    while ((corte = pendiente.indexOf("\n")) >= 0) {
+      const linea = pendiente.slice(0, corte).replace(/\r$/, "");
+      pendiente = pendiente.slice(corte + 1);
+      if (!linea.startsWith("data:")) continue;
+      const ev = JSON.parse(linea.slice(5).trim());
+      if (ev.type === "message_start") Object.assign(usage, ev.message?.usage || {});
+      else if (ev.type === "content_block_start") {
+        bloques[ev.index] = { ...ev.content_block };
+        if (ev.content_block.type === "tool_use") jsonParcial[ev.index] = "";
+      } else if (ev.type === "content_block_delta") {
+        const b = bloques[ev.index], d = ev.delta;
+        if (d.type === "text_delta") { b.text = (b.text || "") + d.text; alTexto(d.text); }
+        else if (d.type === "thinking_delta") b.thinking = (b.thinking || "") + d.thinking;
+        else if (d.type === "signature_delta") b.signature = d.signature;
+        else if (d.type === "input_json_delta") jsonParcial[ev.index] += d.partial_json;
+      } else if (ev.type === "content_block_stop") {
+        if (ev.index in jsonParcial) {
+          try { bloques[ev.index].input = jsonParcial[ev.index] ? JSON.parse(jsonParcial[ev.index]) : {}; }
+          catch { bloques[ev.index].input = {}; }
+        }
+      } else if (ev.type === "message_delta") {
+        stop_reason = ev.delta?.stop_reason ?? stop_reason;
+        Object.assign(usage, ev.usage || {});
+      } else if (ev.type === "error") {
+        throw new Error("stream: " + (ev.error?.type || "error"));
+      }
+    }
+  }
+  return { content: bloques.filter(Boolean), stop_reason, usage };
+}
+
 // El panel manda los últimos turnos. Solo se aceptan textos de usuario y
 // de Jarvis, se quita la pregunta actual si viene repetida al final, y la
 // conversación siempre empieza con un mensaje del usuario (lo exige la API).
@@ -218,7 +290,22 @@ Deno.serve(async (req) => {
       .from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
     if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
 
-    const { pregunta, historial } = await req.json();
+    const { pregunta, historial, stream, confirmar } = await req.json();
+
+    // Botón "Confirmar" del panel: aquí sí se aplica el cambio, sin pasar
+    // por Claude (el candado de admin ya se revisó arriba).
+    if (confirmar) {
+      if (confirmar.tipo !== "activar_foto") return json({ error: "Acción desconocida." }, 400);
+      const r: any = await activarFoto(supabase, confirmar.username, confirmar.dias);
+      console.log(JSON.stringify({ evento: "jarvis_confirmacion", tipo: confirmar.tipo, username: confirmar.username, dias: confirmar.dias, ok: !!r.ok }));
+      return json({
+        respuesta: r.ok
+          ? `Listo, Jonah Beast: activé el reconocimiento por foto a **${r.nombre || r.username}** por ${r.dias} días, vigente hasta el ${r.reconocimiento_foto_hasta}.`
+          : r.error,
+        ok: !!r.ok,
+      });
+    }
+
     if (!pregunta || typeof pregunta !== "string") {
       return json({ error: "Falta la pregunta." }, 400);
     }
@@ -319,17 +406,30 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       { type: "text", text: contexto },
     ];
 
+    // Consumo de esta pregunta (se suma en cada llamada a Claude y se deja
+    // en los registros de Supabase al final, para poder medir el costo y si
+    // la parte reutilizable del prompt se está aprovechando).
+    const inicio = Date.now();
+    const uso = { llamadas: 0, reintentos: 0, input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+    const sumarUso = (u: any) => {
+      uso.llamadas++;
+      for (const k of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"] as const) uso[k] += Number(u?.[k] || 0);
+    };
+
     // max_tokens incluye lo que el modelo "piensa" antes de responder: con
     // 500 las respuestas largas podían cortarse. Esfuerzo bajo = piensa poco,
     // suficiente para estas consultas y más rápido.
-    // Si Anthropic está saturado (429/5xx/529) o falla la conexión, se
-    // reintenta hasta 2 veces antes de rendirse.
-    async function llamarClaude(msgs: any[]) {
+    // Si Anthropic está saturado (429/5xx/529) o falla la conexión antes de
+    // empezar a responder, se reintenta hasta 2 veces antes de rendirse.
+    // Con `alTexto`, la respuesta llega por partes (streaming) y cada pedazo
+    // de texto se reenvía al panel apenas llega.
+    async function llamarClaude(msgs: any[], alTexto?: (t: string) => void) {
       const cuerpo = JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 1500,
         output_config: { effort: "low" },
         system, messages: msgs, tools: TOOLS,
+        ...(alTexto ? { stream: true } : {}),
       });
       for (let intento = 0; ; intento++) {
         let r: Response | null = null;
@@ -346,15 +446,23 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         } catch (e) {
           console.error("Sin conexión con Anthropic:", (e as Error)?.message);
         }
-        if (r?.ok) return r.json();
+        if (r?.ok) {
+          const data = alTexto ? await leerStream(r, alTexto) : await r.json();
+          sumarUso(data.usage);
+          return data;
+        }
         const reintentable = !r || r.status === 429 || r.status >= 500;
         const errTxt = r ? await r.text() : "sin respuesta";
         console.error("Error de Anthropic:", r?.status ?? "red", errTxt);
         if (!reintentable || intento >= 2) throw new Error("upstream");
+        uso.reintentos++;
         const espera = Math.min(Number(r?.headers.get("retry-after")) || 0, 5) * 1000 || 1000 * (intento + 1);
         await new Promise((res) => setTimeout(res, espera));
       }
     }
+
+    // Acciones que esperan el botón "Confirmar" del panel.
+    const acciones: any[] = [];
 
     async function ejecutarHerramienta(bloque: any): Promise<unknown> {
       if (bloque.name === "buscar_alumno") {
@@ -371,26 +479,19 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         return resultados || [];
       }
       if (bloque.name === "activar_reconocimiento_foto") {
+        // No se activa aquí: se valida y se deja pendiente del botón.
         const username = String(bloque.input?.username || "").trim();
         const dias = Math.round(Number(bloque.input?.dias));
         if (!username || !Number.isFinite(dias) || dias <= 0 || dias > 366) {
-          return { error: "Faltan datos válidos (username y días entre 1 y 366) para activar el add-on." };
+          return { error: "Faltan datos válidos (username y días entre 1 y 366) para preparar el add-on." };
         }
+        const alumno = alumnoPorUsuario[username.toLowerCase()];
+        if (!alumno) return { error: `No se encontró ningún alumno con username "${username}".` };
         const hasta = fechaLima(new Date(Date.now() + dias * 86400000));
-        const { data: actualizado, error } = await supabase
-          .from("alumnos")
-          .update({
-            reconocimiento_foto_activo: true,
-            reconocimiento_foto_desde: hoyISO,
-            reconocimiento_foto_hasta: hasta,
-          })
-          .eq("username", username)
-          .select("nombre, username, reconocimiento_foto_hasta")
-          .maybeSingle();
-        if (error) return { error: "No se pudo activar el add-on: " + error.message };
-        return actualizado
-          ? { ok: true, ...actualizado, dias_activados: dias }
-          : { error: `No se encontró ningún alumno con username "${username}".` };
+        const accion = { tipo: "activar_foto", username: alumno.username, nombre: alumno.nombre || alumno.username, dias, hasta };
+        const i = acciones.findIndex((x) => x.tipo === accion.tipo && x.username === accion.username);
+        if (i >= 0) acciones[i] = accion; else acciones.push(accion);
+        return { pendiente_confirmacion: true, ...accion, aviso: "Todavía NO está activado. En el panel aparece el botón Confirmar; se activa solo cuando Jonah Beast lo toque." };
       }
       if (bloque.name === "ver_pagos") {
         const detalle = (p: any) => ({ nombre: p.nombre || p.username, monto: p.monto, plan_meses: p.plan_meses, metodo: p.metodo, estado: p.estado, fecha: p.creado_en });
@@ -420,33 +521,74 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       return { error: "Herramienta desconocida." };
     }
 
-    let data = await llamarClaude(mensajes);
-
-    // Bucle de herramientas: permite encadenar varios pasos dentro de una
-    // misma pregunta (ej. buscar al alumno y luego, si ya se dio la
-    // duración, activar el add-on) -- hasta 4 vueltas como tope de
-    // seguridad. Si Claude pide varias herramientas a la vez, se ejecutan
-    // todas y se devuelven todas las respuestas juntas en un solo mensaje.
-    let vueltas = 0;
-    while (data.stop_reason === "tool_use" && vueltas < 4) {
-      vueltas++;
-      const bloques = (data.content || []).filter((c: any) => c.type === "tool_use");
-      if (!bloques.length) break;
-      const resultados = await Promise.all(bloques.map(async (b: any) => {
-        let resultado: unknown;
-        try { resultado = await ejecutarHerramienta(b); }
-        catch (e) { resultado = { error: "Falló la herramienta: " + ((e as Error)?.message || "error") }; }
-        const esError = !!resultado && typeof resultado === "object" && "error" in (resultado as object);
-        return { type: "tool_result", tool_use_id: b.id, content: JSON.stringify(resultado), ...(esError ? { is_error: true } : {}) };
-      }));
-      mensajes.push({ role: "assistant", content: data.content }, { role: "user", content: resultados });
-      data = await llamarClaude(mensajes);
+    // Conversación completa con Claude, incluido el bucle de herramientas:
+    // permite encadenar varios pasos dentro de una misma pregunta -- hasta 4
+    // vueltas como tope de seguridad. Si Claude pide varias herramientas a la
+    // vez, se ejecutan todas y se devuelven juntas en un solo mensaje.
+    // `avisar` (solo en modo streaming) manda al panel cada pedazo de texto
+    // y un aviso de "reiniciar" cuando Jarvis va a consultar datos, para que
+    // el panel borre el texto previo y muestre solo la respuesta final.
+    async function conversar(avisar?: (ev: Record<string, unknown>) => void) {
+      const alTexto = avisar ? (t: string) => avisar({ tipo: "texto", texto: t }) : undefined;
+      let data = await llamarClaude(mensajes, alTexto);
+      let vueltas = 0;
+      while (data.stop_reason === "tool_use" && vueltas < 4) {
+        vueltas++;
+        const bloques = (data.content || []).filter((c: any) => c.type === "tool_use");
+        if (!bloques.length) break;
+        avisar?.({ tipo: "reiniciar" });
+        const resultados = await Promise.all(bloques.map(async (b: any) => {
+          let resultado: unknown;
+          try { resultado = await ejecutarHerramienta(b); }
+          catch (e) { resultado = { error: "Falló la herramienta: " + ((e as Error)?.message || "error") }; }
+          const esError = !!resultado && typeof resultado === "object" && "error" in (resultado as object);
+          return { type: "tool_result", tool_use_id: b.id, content: JSON.stringify(resultado), ...(esError ? { is_error: true } : {}) };
+        }));
+        mensajes.push({ role: "assistant", content: data.content }, { role: "user", content: resultados });
+        data = await llamarClaude(mensajes, alTexto);
+      }
+      const respuesta = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim()
+        || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
+      return { respuesta, acciones };
     }
 
-    const respuesta = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim()
-      || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
+    const registrarUso = (ok: boolean) => console.log(JSON.stringify({
+      evento: "jarvis_uso", ok, streaming: !!stream, ms: Date.now() - inicio, ...uso,
+    }));
 
-    return json({ respuesta });
+    // Modo streaming: el panel recibe una línea JSON por evento
+    // ({tipo:"texto"}, {tipo:"reiniciar"}, y al final {tipo:"fin"} o
+    // {tipo:"error"}), así el texto aparece mientras se escribe.
+    if (stream) {
+      const codificar = new TextEncoder();
+      const cuerpo = new ReadableStream({
+        async start(ctrl) {
+          const avisar = (ev: Record<string, unknown>) => ctrl.enqueue(codificar.encode(JSON.stringify(ev) + "\n"));
+          try {
+            const r = await conversar(avisar);
+            avisar({ tipo: "fin", ...r });
+            registrarUso(true);
+          } catch (e) {
+            console.error("Jarvis (streaming):", (e as Error)?.message);
+            avisar({ tipo: "error", error: "No pude procesar eso ahora mismo." });
+            registrarUso(false);
+          }
+          ctrl.close();
+        },
+      });
+      return new Response(cuerpo, {
+        headers: { ...CORS_HEADERS, "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-cache" },
+      });
+    }
+
+    try {
+      const r = await conversar();
+      registrarUso(true);
+      return json(r);
+    } catch (e) {
+      registrarUso(false);
+      throw e;
+    }
   } catch (e) {
     return json({ error: (e as Error)?.message || "Error inesperado." }, 500);
   }

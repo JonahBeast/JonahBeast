@@ -7972,6 +7972,95 @@ function base64ToUint8(base64) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
+// Estado de las notificaciones en este equipo: 'activo', 'disponible'
+// (se pueden pedir), 'bloqueado', 'iosNoInstalado' o 'nosoportado'.
+async function estadoPushEquipo() {
+  const ua = window.navigator.userAgent || '';
+  const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const instalada = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado';
+  }
+  if (Notification.permission === 'denied') return 'bloqueado';
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub ? 'activo' : 'disponible';
+  } catch { return 'disponible'; }
+}
+
+// Pide el permiso del navegador, crea la suscripción y la guarda para
+// el alumno. Devuelve el estado final ('activo', 'bloqueado' o 'disponible').
+async function activarPushAlumno(username) {
+  const permiso = await Notification.requestPermission();
+  if (permiso !== 'granted') return permiso === 'denied' ? 'bloqueado' : 'disponible';
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64ToUint8(VAPID_PUBLIC),
+    });
+  }
+  const j = sub.toJSON();
+  await supabase.from('push_subs').upsert({
+    username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
+  }, { onConflict: 'endpoint' });
+  return 'activo';
+}
+
+// Después de registrar una comida es el mejor momento para ofrecer los
+// recordatorios: el alumno ya vio para qué sirve la app. Antes solo se
+// pedían en la bienvenida, y el banner del inicio no se ve durante la
+// prueba gratis (ahí va el de la prueba). Se ofrece una sola vez.
+function NotifTrasComidaModal({ username, onClose }) {
+  const [trabajando, setTrabajando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+
+  async function activar() {
+    setTrabajando(true);
+    let estado = 'disponible';
+    try { estado = await activarPushAlumno(username); } catch {}
+    setTrabajando(false);
+    if (estado === 'activo') { setResultado('activo'); setTimeout(onClose, 1800); }
+    else if (estado === 'bloqueado') setResultado('bloqueado');
+    else onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-sm w-full p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
+          {resultado === 'activo' ? '✅' : '🦍'}
+        </div>
+        {resultado === 'activo' ? (
+          <h2 className="jb-display text-xl text-zinc-50">¡LISTO! TE AVISARÉ</h2>
+        ) : resultado === 'bloqueado' ? (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-3">ESTÁN BLOQUEADAS</h2>
+            <p className="jb-body text-sm text-zinc-300 mb-5">Tu navegador bloqueó las notificaciones de esta página. Puedes activarlas en los ajustes del navegador cuando quieras.</p>
+            <button onClick={onClose} className={btnPrimary + ' w-full'}>Entendido</button>
+          </>
+        ) : (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-3">¡COMIDA REGISTRADA! 💪</h2>
+            <p className="jb-body text-sm text-zinc-300 mb-5">
+              ¿Quieres que te avise cuando se te pase registrar una comida? Así no pierdes el ritmo. Solo lo importante, sin spam.
+            </p>
+            <button onClick={activar} disabled={trabajando} className={btnPrimary + ' w-full mb-2'}>
+              {trabajando ? <Loader2 className="animate-spin" size={18} /> : '🔔 Sí, recuérdame'}
+            </button>
+            <button onClick={onClose} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 w-full py-2">
+              Ahora no
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RecordatorioBanner({ username, onEligible }) {
   const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado | iosNoInstalado
   const [ocultoManual, setOcultoManual] = useState(false);
@@ -8017,29 +8106,7 @@ function RecordatorioBanner({ username, onEligible }) {
   async function activar() {
     setTrabajando(true);
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
-        setTrabajando(false);
-        return;
-      }
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
-        });
-      }
-      const j = sub.toJSON();
-      await supabase.from('push_subs').upsert({
-        username,
-        endpoint: j.endpoint,
-        p256dh: j.keys.p256dh,
-        auth: j.keys.auth,
-        activa: true,
-      }, { onConflict: 'endpoint' });
-      setEstado('activo');
+      setEstado(await activarPushAlumno(username));
     } catch (e) {
       setEstado('disponible');
     }
@@ -12132,6 +12199,25 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [tieneFotos, setTieneFotos] = useState(false);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
+  const [ofrecerNotif, setOfrecerNotif] = useState(false);
+
+  // Cuando el alumno pasa de 0 a 1 alimento registrado en el día, se le
+  // ofrecen los recordatorios (una sola vez por equipo, y solo si el
+  // navegador todavía puede pedirlos).
+  const alimentosHoy = Object.values(mealPlan?.meals || {}).reduce((n, e) => n + e.filter(x => x.foodKey).length, 0);
+  const alimentosAntes = useRef(alimentosHoy);
+  useEffect(() => {
+    const antes = alimentosAntes.current;
+    alimentosAntes.current = alimentosHoy;
+    if (!(antes === 0 && alimentosHoy > 0)) return;
+    const marca = 'jb_notif_tras_comida_' + username;
+    try { if (localStorage.getItem(marca)) return; } catch { return; }
+    estadoPushEquipo().then(estado => {
+      if (estado !== 'disponible') return;
+      try { localStorage.setItem(marca, '1'); } catch {}
+      setOfrecerNotif(true);
+    });
+  }, [alimentosHoy, username]);
 
   // Prioridad de banners: solo se muestra el más relevante a la vez,
   // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
@@ -12235,6 +12321,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
+        {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {tab === 'dash' && (
           renewalElegible ? (
             <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />

@@ -3915,20 +3915,26 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
         <div className="max-w-md w-full">
           <div className="mb-6"><Logo size="lg" /></div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-4">
-            <h2 className="jb-display text-xl text-zinc-50 mb-2">TU PRUEBA GRATIS TERMINÓ</h2>
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">
+              {expiredInfo.esPrueba === false ? 'TU PLAN VENCIÓ' : 'TU PRUEBA GRATIS TERMINÓ'}
+            </h2>
             <p className="jb-body text-sm text-zinc-400">
-              Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.
+              {expiredInfo.esPrueba === false
+                ? 'Renueva para seguir donde te quedaste. Nada de lo que hiciste se borró: tu historial completo te está esperando.'
+                : 'Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.'}
             </p>
           </div>
-          <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} />
+          <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false} />
 
           <div className="mt-5">
-            <p className="jb-display text-sm text-zinc-300 mb-3 text-center">ELIGE TU PLAN PARA CONTINUAR</p>
+            <p className="jb-display text-sm text-zinc-300 mb-3 text-center">
+              {expiredInfo.esPrueba === false ? 'ELIGE TU PLAN PARA RENOVAR' : 'ELIGE TU PLAN PARA CONTINUAR'}
+            </p>
             <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} />
           </div>
 
           <button onClick={onClearExpired} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4 w-full text-center">
-            ← Volver a intentar
+            ← Entrar con otra cuenta
           </button>
         </div>
       </div>
@@ -7540,15 +7546,15 @@ async function fetchTrialStats(username) {
   } catch { return null; }
 }
 
-function TrialSummary({ stats, nombre, compacto, onVerPlanes }) {
+function TrialSummary({ stats, nombre, compacto, onVerPlanes, planPagado }) {
   if (!stats) return null;
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    `Hola, terminé mi prueba en Jonah Beast. Registré ${stats.comidas} comidas${stats.adherencia !== null ? ` y cumplí mi objetivo el ${stats.adherencia}% de los días` : ''}. Quiero continuar, ¿cuáles son los planes?`)}`;
+    `Hola, ${planPagado ? 'se venció mi plan' : 'terminé mi prueba'} en Jonah Beast. Registré ${stats.comidas} comidas${stats.adherencia !== null ? ` y cumplí mi objetivo el ${stats.adherencia}% de los días` : ''}. Quiero continuar, ¿cuáles son los planes?`)}`;
 
   return (
     <div className={`rounded-2xl border border-orange-500/50 bg-orange-950/30 ${compacto ? 'p-4' : 'p-6'}`}>
       <h3 className={`jb-display text-orange-400 mb-3 ${compacto ? 'text-sm' : 'text-lg'}`}>
-        ESTO CONSTRUISTE {nombre ? `, ${nombre.split(' ')[0].toUpperCase()}` : ''}
+        ESTO CONSTRUISTE{nombre ? `, ${nombre.split(' ')[0].toUpperCase()}` : ''}
       </h3>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -13527,7 +13533,7 @@ export default function App() {
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) return;
-      const { data: p } = await supabase.from('profiles').select('username, role').eq('id', data.session.user.id).maybeSingle();
+      const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.session.user.id).maybeSingle();
       if (!p) return;
       if (p.role === 'admin') {
         setAdminAuthed(true);
@@ -13539,7 +13545,10 @@ export default function App() {
       if (a) {
         const u = { username: a.username, enabled: a.enabled, plan: a.plan || 'pago',
           fechaInicio: a.fecha_inicio, fechaVencimiento: a.fecha_vencimiento };
-        if (!u.enabled || !membershipActive(u)) return;
+        if (!u.enabled) return;
+        // Prueba o plan vencido: en vez de mostrarle la landing de gente
+        // nueva, va directo a su resumen y a los planes para pagar.
+        if (!membershipActive(u)) { await mostrarVencido(a, p.nombre); return; }
       }
       await loadStudentSession(p.username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
@@ -13607,6 +13616,23 @@ export default function App() {
       setErr('No se pudo iniciar sesión, intenta de nuevo.');
     }
     setBusy(false);
+  }
+
+  // Pantalla de "tu prueba terminó" / "tu plan venció": su resumen y los
+  // planes para pagar. Al pagar, StudentAuth detecta que ya tiene acceso
+  // y entra solo a la app.
+  async function mostrarVencido(cuenta, nombrePerfil) {
+    const esPrueba = cuenta.plan === 'trial' || cuenta.plan === 'prueba';
+    const userRecord = {
+      username: cuenta.username, enabled: cuenta.enabled, plan: cuenta.plan || 'pago',
+      nombre: cuenta.nombre || nombrePerfil, fechaInicio: cuenta.fecha_inicio,
+      fechaVencimiento: cuenta.fecha_vencimiento, telefono: cuenta.telefono,
+      codigoReferido: cuenta.codigo_referido, correo: cuenta.correo,
+      fecha_nacimiento: cuenta.fecha_nacimiento,
+    };
+    const stats = await fetchTrialStats(cuenta.username);
+    setExpiredInfo({ stats, nombre: userRecord.nombre, username: cuenta.username, userRecord, esPrueba });
+    setView('studentAuth');
   }
 
   async function loadStudentSession(username) {
@@ -13714,14 +13740,11 @@ export default function App() {
       };
       if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
       if (!membershipActive(u)) {
-        if (u.plan === 'trial') {
-          const stats = await fetchTrialStats(u.username);
-          setBusy(false);
-          setExpiredInfo({ stats, nombre: u.nombre, username: u.username, userRecord: u });
-          return;
-        }
+        // Prueba o plan pagado vencido: resumen y planes para pagar en la
+        // app (antes, al plan pagado solo se le decía "escríbenos").
+        await mostrarVencido(cuenta, perfil.nombre);
         setBusy(false);
-        return setErr('Tu membresía venció. Escríbenos para renovarla y seguir usando la app.');
+        return;
       }
     }
 
@@ -13946,7 +13969,12 @@ export default function App() {
       )}
       {!tokenRef && view === 'studentAuth' && (
         <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}
-          expiredInfo={expiredInfo} onClearExpired={() => setExpiredInfo(null)}
+          expiredInfo={expiredInfo}
+          onClearExpired={async () => {
+            // Cierra la sesión del alumno vencido para poder entrar con otra cuenta.
+            try { await supabase.auth.signOut(); } catch {}
+            setExpiredInfo(null);
+          }}
           onMembresiaActiva={() => loadStudentSession(expiredInfo.username)} />
       )}
       {!tokenRef && view === 'admin' && adminAuthed && (

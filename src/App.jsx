@@ -6404,32 +6404,80 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
               {formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-800 flex flex-col gap-3">
-                <h2 className="jb-display text-base text-zinc-200">
+            <div className="relative rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(13,28,40,0.9), rgba(10,22,32,0.9))', border: '1px solid #163244' }}>
+              <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'linear-gradient(90deg, #4dd9ff, transparent)' }} />
+              <div className="px-5 py-4 flex flex-col gap-3" style={{ borderBottom: '1px solid #163244' }}>
+                <h2 className="jb-display text-base text-zinc-50 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#4dd9ff', boxShadow: '0 0 6px #4dd9ff' }} />
                   ALUMNOS ({usersFiltrados.length}{busqueda ? ` de ${users.length}` : ''})
                 </h2>
                 <input
                   value={busqueda}
                   onChange={e => setBusqueda(e.target.value)}
                   placeholder="Buscar por nombre o usuario..."
-                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 w-full"
+                  className="rounded-lg px-3 py-2 text-sm text-zinc-200 w-full font-mono"
+                  style={{ background: '#050a0f', border: '1px solid #163244' }}
                 />
               </div>
               {usersFiltrados.length === 0 ? (
                 <p className="text-zinc-500 text-sm px-5 py-8 text-center">
                   {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
                 </p>
-              ) : (
-                <div className="flex flex-col gap-2.5 p-3">
-                  {usersFiltrados.map(u => (
-                    <AlumnoRow key={u.username} u={u}
-                      onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
-                      onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
-                      onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                // Se agrupa por urgencia real, no por orden de registro --
+                // así lo que necesita atención hoy (vencidos, por vencer)
+                // siempre queda arriba, en vez de perdido entre 34 filas
+                // sin ningún orden.
+                const grupos = {
+                  deshabilitados: [], vencidos: [], porVencer: [], enPrueba: [], activos: [],
+                };
+                usersFiltrados.forEach(u => {
+                  const dl = daysLeft(u.fechaVencimiento);
+                  if (!u.enabled) grupos.deshabilitados.push(u);
+                  else if (dl !== null && dl < 0) grupos.vencidos.push(u);
+                  else if (dl !== null && dl <= 7) grupos.porVencer.push(u);
+                  else if (u.plan === 'trial') grupos.enPrueba.push(u);
+                  else grupos.activos.push(u);
+                });
+                grupos.vencidos.sort((a, b) => daysLeft(a.fechaVencimiento) - daysLeft(b.fechaVencimiento));
+                grupos.porVencer.sort((a, b) => daysLeft(a.fechaVencimiento) - daysLeft(b.fechaVencimiento));
+                const porNombre = (a, b) => (a.nombre || a.username).localeCompare(b.nombre || b.username);
+                grupos.enPrueba.sort(porNombre);
+                grupos.activos.sort(porNombre);
+                grupos.deshabilitados.sort(porNombre);
+
+                const SECCIONES = [
+                  { key: 'vencidos', label: 'VENCIDOS', color: '#ff5c5c', emoji: '🔴' },
+                  { key: 'porVencer', label: 'POR VENCER (≤7 DÍAS)', color: '#ffb020', emoji: '🟡' },
+                  { key: 'enPrueba', label: 'EN PRUEBA GRATIS', color: '#4dd9ff', emoji: '🔵' },
+                  { key: 'activos', label: 'ACTIVOS', color: '#4affb0', emoji: '🟢' },
+                  { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
+                ];
+
+                return (
+                  <div className="p-3 flex flex-col gap-5">
+                    {SECCIONES.filter(s => grupos[s.key].length > 0).map(s => (
+                      <div key={s.key}>
+                        <div className="flex items-center gap-2 px-2 mb-2">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}` }} />
+                          <span className="font-mono text-[11px] tracking-widest" style={{ color: s.color }}>
+                            {s.label} · {grupos[s.key].length}
+                          </span>
+                          <span className="flex-1 h-px" style={{ background: '#163244' }} />
+                        </div>
+                        <div className="flex flex-col gap-2.5">
+                          {grupos[s.key].map(u => (
+                            <AlumnoRow key={u.username} u={u}
+                              onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
+                              onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
+                              onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </>
         )}

@@ -1,0 +1,55 @@
+# Publica la función de Jarvis (supabase/functions/jarvis-chat) en
+# Supabase cada vez que un merge a main trae cambios en esa carpeta.
+#
+# Necesita el secreto SUPABASE_ACCESS_TOKEN en GitHub
+# (Settings → Secrets and variables → Actions). Se genera en Supabase:
+# Account → Access Tokens.
+#
+# --no-verify-jwt: Supabase no revisa la sesión antes de llamar a la
+# función; el control de acceso lo hace el propio código de Jarvis
+# (candado de admin), igual que en la versión publicada hoy.
+
+name: Publicar Jarvis en Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/jarvis-chat/**"
+  # Permite publicarlo a mano desde la pestaña Actions si hace falta.
+  workflow_dispatch:
+
+# Si llegan dos merges seguidos, se publican en orden y nunca a la vez.
+concurrency:
+  group: publicar-jarvis
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: jnhvpjrxilubkyhculoh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar que exista el secreto
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN en GitHub (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Publicar jarvis-chat
+        run: |
+          supabase functions deploy jarvis-chat \
+            --project-ref "$SUPABASE_PROJECT_REF" \
+            --no-verify-jwt \
+            --use-api

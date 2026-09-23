@@ -7,21 +7,54 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Topes de un carrito: productos distintos y unidades de cada uno.
+const MAX_PRODUCTOS = 30;
+const MAX_UNIDADES = 99;
+
+function responder(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+  });
+}
+
+// Si el comprador tiene sesión de alumno, el pedido queda a su nombre.
+// El usuario nunca se toma de lo que mande el navegador.
+async function usuarioDeLaSesion(supabase: any, req: Request): Promise<string | null> {
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+  const { data: perfil } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
+  return perfil?.username || null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
   try {
-    const { items, nombreCliente, telefonoCliente, correo, direccion, distrito, username, fechaNacimiento, codigoDescuento } = await req.json();
+    const { items, nombreCliente, telefonoCliente, correo, direccion, distrito, fechaNacimiento, codigoDescuento } = await req.json();
 
     if (!Array.isArray(items) || items.length === 0) {
-      return new Response(JSON.stringify({ error: "El carrito esta vacio." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "El carrito esta vacio." }, 400);
     }
     if (!nombreCliente || !telefonoCliente || !correo) {
-      return new Response(JSON.stringify({ error: "Faltan datos del cliente." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "Faltan datos del cliente." }, 400);
+    }
+
+    // Cada producto debe venir con una cantidad entera entre 1 y 99. Si el
+    // mismo producto viene repetido, se suman sus cantidades antes de
+    // revisar el stock (antes cada línea se revisaba por separado).
+    const cantidades = new Map<string, number>();
+    for (const i of items) {
+      const varianteId = typeof i?.varianteId === "string" ? i.varianteId : "";
+      const cantidad = Number(i?.cantidad);
+      if (!varianteId || !Number.isInteger(cantidad) || cantidad < 1 || cantidad > MAX_UNIDADES) {
+        return responder({ error: "Hay una cantidad inválida en el carrito." }, 400);
+      }
+      cantidades.set(varianteId, (cantidades.get(varianteId) || 0) + cantidad);
+    }
+    if (cantidades.size > MAX_PRODUCTOS) {
+      return responder({ error: "El carrito tiene demasiados productos." }, 400);
     }
 
     const supabase = createClient(
@@ -29,31 +62,29 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const varianteIds = items.map((i: any) => i.varianteId);
+    const username = await usuarioDeLaSesion(supabase, req);
+
     const { data: variantes, error: errVar } = await supabase
       .from("tienda_variantes")
       .select("id, nombre, stock, producto_id, tienda_productos(nombre, precio, precio_oferta, activo)")
-      .in("id", varianteIds);
+      .in("id", [...cantidades.keys()]);
 
     if (errVar || !variantes) {
-      return new Response(JSON.stringify({ error: "No se pudo validar el carrito." }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "No se pudo validar el carrito." }, 400);
     }
 
-    // Validamos el codigo de descuento en el servidor (nunca confiamos en un % que mande el navegador)
+    // Validamos el codigo de descuento en el servidor (nunca confiamos en un % que mande el navegador).
+    // El uso del código se cuenta recién cuando el pedido se paga (lo hace la base de datos).
     let descuentoPct = 0;
     let codigoValidado: string | null = null;
     if (codigoDescuento) {
       const { data: cod } = await supabase.from("tienda_codigos_descuento")
-        .select("*").eq("codigo", codigoDescuento.toUpperCase().trim()).eq("activo", true).maybeSingle();
+        .select("*").eq("codigo", String(codigoDescuento).toUpperCase().trim()).eq("activo", true).maybeSingle();
       if (cod && (cod.usos_maximos === null || cod.usos_actuales < cod.usos_maximos)) {
-        descuentoPct = Number(cod.porcentaje);
+        descuentoPct = Math.min(Math.max(Number(cod.porcentaje) || 0, 0), 100);
         codigoValidado = cod.codigo;
       } else {
-        return new Response(JSON.stringify({ error: "El código de descuento no es válido o ya expiró." }), {
-          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
+        return responder({ error: "El código de descuento no es válido o ya expiró." }, 400);
       }
     }
 
@@ -61,29 +92,29 @@ Deno.serve(async (req: Request) => {
     const mpItems: any[] = [];
     const detalleItems: any[] = [];
 
-    for (const pedido of items) {
-      const v = variantes.find((x: any) => x.id === pedido.varianteId);
+    for (const [varianteId, cantidad] of cantidades) {
+      const v: any = variantes.find((x: any) => x.id === varianteId);
       if (!v || !v.tienda_productos?.activo) {
-        return new Response(JSON.stringify({ error: "Un producto ya no esta disponible." }), {
-          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
+        return responder({ error: "Un producto ya no esta disponible." }, 400);
       }
-      if (v.stock < pedido.cantidad) {
-        return new Response(JSON.stringify({ error: `Sin stock suficiente de ${v.tienda_productos.nombre} (${v.nombre}).` }), {
-          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        });
+      if (v.stock < cantidad) {
+        return responder({ error: `Sin stock suficiente de ${v.tienda_productos.nombre} (${v.nombre}).` }, 400);
       }
-      let precio = v.tienda_productos.precio_oferta || v.tienda_productos.precio;
+      let precio = Number(v.tienda_productos.precio_oferta || v.tienda_productos.precio);
       if (descuentoPct > 0) precio = Math.round(precio * (1 - descuentoPct / 100) * 100) / 100;
-      montoTotal += precio * pedido.cantidad;
-      mpItems.push({ title: `${v.tienda_productos.nombre} - ${v.nombre}`, quantity: pedido.cantidad, unit_price: precio, currency_id: "PEN" });
-      detalleItems.push({ varianteId: v.id, cantidad: pedido.cantidad, precioUnitario: precio });
+      montoTotal += precio * cantidad;
+      mpItems.push({ title: `${v.tienda_productos.nombre} - ${v.nombre}`, quantity: cantidad, unit_price: precio, currency_id: "PEN" });
+      detalleItems.push({ varianteId: v.id, cantidad, precioUnitario: precio });
     }
+    montoTotal = Math.round(montoTotal * 100) / 100;
+
+    const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
+    if (!accessToken) return responder({ error: "Falta configurar MP_ACCESS_TOKEN." }, 500);
 
     const { data: pedidoCreado, error: errPedido } = await supabase
       .from("tienda_pedidos")
       .insert({
-        origen: "web", username: username || null, nombre_cliente: nombreCliente,
+        origen: "web", username, nombre_cliente: nombreCliente,
         telefono_cliente: telefonoCliente, direccion, distrito,
         monto_total: montoTotal, metodo_pago: "Mercado Pago", estado: "pendiente",
         nota_motivo: codigoValidado ? `Código: ${codigoValidado}` : null,
@@ -92,36 +123,29 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (errPedido || !pedidoCreado) {
-      return new Response(JSON.stringify({ error: "No se pudo crear el pedido." }), {
-        status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      return responder({ error: "No se pudo crear el pedido." }, 500);
     }
 
     await supabase.from("tienda_pedido_items").insert(
       detalleItems.map(d => ({ pedido_id: pedidoCreado.id, variante_id: d.varianteId, cantidad: d.cantidad, precio_unitario: d.precioUnitario }))
     );
 
-    if (codigoValidado) {
-      await supabase.from("tienda_codigos_descuento").update({ usos_actuales: (await supabase.from("tienda_codigos_descuento").select("usos_actuales").eq("codigo", codigoValidado).single()).data!.usos_actuales + 1 }).eq("codigo", codigoValidado);
-    }
-
+    // Cliente nuevo: se guarda con 0 compras (la compra se suma cuando el
+    // pedido se paga). Cliente que ya existe: NO se cambian sus datos, para
+    // que nadie pueda sobrescribir el nombre, correo o dirección de otra
+    // persona solo con saber su celular.
     const telLimpio = String(telefonoCliente).replace(/\D/g, '');
-    const { data: clienteExistente } = await supabase.from("tienda_clientes").select("telefono, total_compras").eq("telefono", telLimpio).maybeSingle();
-    if (clienteExistente) {
-      await supabase.from("tienda_clientes").update({
-        nombre: nombreCliente, correo, direccion, distrito,
-        fecha_nacimiento: fechaNacimiento || undefined,
-        ultima_compra: new Date().toISOString().slice(0, 10),
-        total_compras: (clienteExistente.total_compras || 0) + 1,
-      }).eq("telefono", telLimpio);
-    } else {
-      await supabase.from("tienda_clientes").insert({
-        telefono: telLimpio, nombre: nombreCliente, correo, direccion, distrito,
-        fecha_nacimiento: fechaNacimiento || null,
-      });
+    if (telLimpio) {
+      const { data: clienteExistente } = await supabase.from("tienda_clientes").select("telefono").eq("telefono", telLimpio).maybeSingle();
+      if (!clienteExistente) {
+        await supabase.from("tienda_clientes").insert({
+          telefono: telLimpio, nombre: nombreCliente, correo, direccion, distrito,
+          fecha_nacimiento: fechaNacimiento || null,
+          total_compras: 0,
+        });
+      }
     }
 
-    const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
     const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -135,17 +159,13 @@ Deno.serve(async (req: Request) => {
     });
     const mpData = await mpRes.json();
     if (!mpRes.ok) {
-      return new Response(JSON.stringify({ error: "Mercado Pago rechazo la solicitud.", detalle: mpData }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-      });
+      console.error("Mercado Pago rechazo el pedido:", mpRes.status, JSON.stringify(mpData));
+      return responder({ error: "Mercado Pago rechazo la solicitud." }, 400);
     }
 
-    return new Response(JSON.stringify({ init_point: mpData.init_point, pedidoId: pedidoCreado.id }), {
-      status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    return responder({ init_point: mpData.init_point, pedidoId: pedidoCreado.id });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Error interno.", detalle: String(err) }), {
-      status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-    });
+    console.error("crear-pedido-tienda:", String(err));
+    return responder({ error: "Error interno." }, 500);
   }
 });

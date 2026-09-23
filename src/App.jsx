@@ -12706,9 +12706,13 @@ function TiendaAdminPanel() {
     if (!ventaFisica.varianteId || !ventaFisica.monto) return;
     setRegistrandoVenta(true);
     try {
+      // Se crea "pendiente" y se aprueba después de agregar el producto: el
+      // paso de la base que descuenta stock y registra en Finanzas corre al
+      // pasar a "aprobado". Si se creara ya aprobado, correría sin productos
+      // y el stock nunca se descontaba.
       const { data: pedidoCreado } = await supabase.from('tienda_pedidos').insert({
         origen: 'fisica', nombre_cliente: ventaFisica.cliente || 'Cliente en persona',
-        monto_total: parseFloat(ventaFisica.monto), metodo_pago: 'Efectivo', estado: 'aprobado',
+        monto_total: parseFloat(ventaFisica.monto), metodo_pago: 'Efectivo', estado: 'pendiente',
         motivo_especial: ventaFisica.motivo || null, nota_motivo: ventaFisica.nota || null,
       }).select('id').single();
       if (pedidoCreado) {

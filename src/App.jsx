@@ -6238,6 +6238,29 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
   );
 }
 
+/* Muestra las respuestas de Jarvis con formato: **negrita** y *cursiva*
+   se ven como tal (en vez de con asteriscos) y se respetan los saltos de
+   línea. La voz ya quita estos símbolos antes de leer (ver hablar()). */
+function TextoJarvis({ texto }) {
+  const partes = String(texto || '').split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g);
+  return (
+    <div className="whitespace-pre-wrap">
+      {partes.map((p, i) => {
+        if (/^\*\*[^*\n]+\*\*$/.test(p)) return <strong key={i} className="font-semibold" style={{ color: '#ffffff' }}>{p.slice(2, -2)}</strong>;
+        if (/^\*[^*\n]+\*$/.test(p)) return <em key={i}>{p.slice(1, -1)}</em>;
+        return <React.Fragment key={i}>{p}</React.Fragment>;
+      })}
+    </div>
+  );
+}
+
+/* La versión de prueba de Vercel (y la compu local) habla con una copia de
+   prueba de Jarvis, para poder probar cambios de Jarvis antes del merge sin
+   tocar el que usa el sitio real. */
+function funcionJarvis() {
+  return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'jarvis-chat' : 'jarvis-chat-prueba';
+}
+
 function JarvisPanel({ onClose }) {
   const [turnos, setTurnos] = useState([
     { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
@@ -6325,7 +6348,7 @@ function JarvisPanel({ onClose }) {
     setPensando(true);
     if (modoContinuoRef.current) pausarMic();
     try {
-      const { data, error } = await supabase.functions.invoke('jarvis-chat', {
+      const { data, error } = await supabase.functions.invoke(funcionJarvis(), {
         body: { pregunta: t, historial: nuevosTurnos.slice(-6) },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || 'error');
@@ -6418,7 +6441,7 @@ function JarvisPanel({ onClose }) {
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: '#0d1c28', border: '1px solid #163244' }}>{m.content}</div>
-                : <div>{m.content}</div>}
+                : <TextoJarvis texto={m.content} />}
             </div>
           ))}
           {pensando && <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>}

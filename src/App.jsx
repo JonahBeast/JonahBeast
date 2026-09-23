@@ -3009,7 +3009,13 @@ function Landing({ onChoose }) {
   // Embudo: una 'vista' al abrir la landing y un 'clic_cta' al tocar
   // cualquiera de los botones de prueba gratis. Las reglas de qué se
   // cuenta y qué no están en embudoDebeContar().
-  useEffect(() => { registrarEventoEmbudo('vista'); }, []);
+  // Si en este equipo hay una sesión iniciada (un alumno que vuelve), no es
+  // un visitante nuevo: no se cuenta como vista.
+  useEffect(() => {
+    supabase.auth.getSession()
+      .then(({ data }) => { if (!data?.session) registrarEventoEmbudo('vista'); })
+      .catch(() => registrarEventoEmbudo('vista'));
+  }, []);
   function registrarClicCTA() {
     registrarEventoEmbudo('clic_cta');
     onChoose('trial');
@@ -3193,13 +3199,13 @@ function Landing({ onChoose }) {
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
         <button onClick={registrarClicCTA} style={step(540)}
-          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
+          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex flex-col items-center justify-center gap-0.5">
           <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
-          <span className="jb-body text-[11px] text-zinc-800">· 15 días sin tarjeta</span>
+          <span className="jb-body text-[11px] text-zinc-800">15 días sin tarjeta</span>
         </button>
 
-        <div className="grid sm:grid-cols-2 gap-3 mt-3" style={step(600)}>
-          <button onClick={() => onChoose('studentAuth')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
+        <div className="mt-3" style={step(600)}>
+          <button onClick={() => onChoose('studentAuth')} className="group w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
                 <User className="text-orange-500" size={16} />
@@ -3210,22 +3216,14 @@ function Landing({ onChoose }) {
               </div>
             </div>
           </button>
-          <button onClick={() => onChoose('free')} className="group bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
-                <span className="text-sm">📏</span>
-              </div>
-              <div>
-                <div className="jb-display text-sm text-zinc-50">SOLO MEDIRME</div>
-                <p className="jb-body text-[11px] text-zinc-500">Sin registro</p>
-              </div>
-            </div>
-          </button>
         </div>
 
-        <button onClick={() => onChoose('studentAuth')} style={step(660)}
-          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-6 mb-36">
-          Acceso de administración →
+        {/* Medirse sin registro queda como opción secundaria, para no
+            desviar a quien está por empezar la prueba gratis. El admin
+            entra por "Soy alumno" (es el mismo inicio de sesión). */}
+        <button onClick={() => onChoose('free')} style={step(660)}
+          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-36">
+          📏 ¿Solo quieres medirte? Hazlo sin registro →
         </button>
       </div>
 
@@ -13239,6 +13237,10 @@ export default function App() {
     } catch { return 'landing'; }
   });
   const [loading, setLoading] = useState(true);
+  // La landing recién se muestra cuando ya se sabe si hay una sesión
+  // guardada: así un alumno que abre la app no la ve un instante (ni
+  // cuenta como visita del embudo) antes de entrar a su panel.
+  const [sesionRevisada, setSesionRevisada] = useState(false);
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState([]);
   const [adminPass, setAdminPass] = useState('');
@@ -13268,6 +13270,7 @@ export default function App() {
     if (hash.includes('type=recovery')) setView('resetPassword');
     init();
     if (!hash.includes('type=recovery')) restoreSession();
+    else setSesionRevisada(true);
     return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
   }, []);
 
@@ -13291,6 +13294,7 @@ export default function App() {
       }
       await loadStudentSession(p.username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    finally { setSesionRevisada(true); }
   }
 
   async function init() {
@@ -13671,7 +13675,11 @@ export default function App() {
         setTokenRef(null);
       }} />}
       {!tokenRef && view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
-      {!tokenRef && view === 'landing' && <Landing onChoose={setView} />}
+      {!tokenRef && view === 'landing' && (sesionRevisada ? <Landing onChoose={setView} /> : (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+          <Loader2 className="animate-spin text-orange-500" size={28} />
+        </div>
+      ))}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
       {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}

@@ -6507,7 +6507,9 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {(() => {
           const total = users.length;
           const activos = users.filter(membershipActive).length;
-          const enPrueba = users.filter(u => u.plan === 'trial').length;
+          // Solo pruebas vigentes: una prueba vencida ya cuenta en "Vencidos"
+          // (mismo criterio que la tarjeta del embudo).
+          const enPrueba = users.filter(u => (u.plan === 'trial' || u.plan === 'prueba') && membershipActive(u)).length;
           const vencidos = total - activos;
           const stats = [
             [total, 'Alumnos totales', '#4dd9ff'],

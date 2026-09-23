@@ -4743,6 +4743,138 @@ function LeadsPanel() {
   );
 }
 
+/* Embudo completo en Métricas: los pasos de la landing (lo que pasó en
+   el periodo elegido) + cuántos alumnos hay HOY en prueba y pagando, y
+   la evolución día a día que guarda el cron embudo-historico. */
+function EmbudoCompletoMetricas() {
+  const [dias, setDias] = useState(7);
+  const [datos, setDatos] = useState(null);
+  const [historial, setHistorial] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { load(); }, [dias]);
+
+  async function load() {
+    setLoading(true);
+    const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
+    const desde = desdeSolicitado > INICIO_EMBUDO ? desdeSolicitado : INICIO_EMBUDO;
+    try {
+      const [eventos, { data: alumnos }, { data: hist }] = await Promise.all([
+        traerEventosEmbudo(desde),
+        supabase.from('alumnos').select('plan, enabled, fecha_vencimiento'),
+        supabase.from('embudo_historico')
+          .select('fecha, visitantes, clics, registros, en_prueba, pagando')
+          .order('fecha', { ascending: false }).limit(14),
+      ]);
+      // Mismo criterio que el cron embudo-historico: deshabilitado o con
+      // fecha de vencimiento pasada no cuenta ni en prueba ni pagando.
+      const hoy = todayISO();
+      let enPrueba = 0, pagando = 0;
+      (alumnos || []).forEach(a => {
+        if (!a.enabled || (a.fecha_vencimiento && a.fecha_vencimiento < hoy)) return;
+        if (a.plan === 'trial' || a.plan === 'prueba') enPrueba++;
+        else if (a.plan === 'pago') pagando++;
+      });
+      setDatos({ ...resumirEmbudo(eventos), enPrueba, pagando });
+      setHistorial(hist || []);
+    } catch { setDatos(null); }
+    setLoading(false);
+  }
+
+  const pct = (num, den) => den ? Math.round((num / den) * 100) + '%' : '—';
+  const celda = v => (v === null || v === undefined) ? '—' : v;
+
+  const PASOS = datos ? [
+    { valor: datos.visitantes, label: 'Visitantes', color: 'text-zinc-100' },
+    { valor: datos.clics, label: 'Tocaron el botón', color: 'text-orange-400', paso: pct(datos.clics, datos.visitantes) },
+    { valor: datos.registros, label: 'Se registraron', color: 'text-orange-300', paso: pct(datos.registros, datos.clics) },
+    { valor: datos.enPrueba, label: 'En prueba hoy', color: 'text-sky-400' },
+    { valor: datos.pagando, label: 'Pagando hoy', color: 'text-emerald-400', paso: pct(datos.pagando, datos.enPrueba + datos.pagando) },
+  ] : [];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="jb-display text-sm text-zinc-300">EMBUDO COMPLETO</h3>
+        <div className="flex gap-1.5">
+          {[1, 7, 30].map(d => (
+            <button key={d} onClick={() => setDias(d)}
+              className={`jb-body text-xs whitespace-nowrap px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+              {d === 1 ? '24 h' : `${d} días`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-24 w-full rounded-xl" />
+      ) : !datos ? (
+        <p className="jb-body text-xs text-zinc-500">No se pudo cargar el embudo. Intenta de nuevo.</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            {PASOS.map((p, i) => (
+              <div key={p.label}>
+                {i === 3 && (
+                  <p className="jb-body text-[10px] text-zinc-600 uppercase tracking-wide mt-1 mb-1.5">Alumnos activos hoy</p>
+                )}
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                  <span className="jb-body text-sm text-zinc-400">{p.label}</span>
+                  <span className="flex items-baseline gap-2">
+                    {p.paso && <span className="jb-body text-[11px] text-zinc-500">{p.paso}</span>}
+                    <span className={`jb-display text-lg ${p.color}`}>{p.valor}</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="jb-body text-[10px] text-zinc-600">
+            Visitantes, clics y registros: personas únicas de la landing en el periodo elegido (sin tus visitas ni la versión de prueba).
+            El % de cada paso es sobre el paso anterior; en "Pagando hoy", sobre los alumnos activos.
+          </p>
+
+          <div>
+            <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5">Evolución día a día (se guarda cada noche)</p>
+            {historial.length === 0 ? (
+              <p className="jb-body text-xs text-zinc-500">Todavía no hay días guardados.</p>
+            ) : (
+              <div className="overflow-x-auto -mx-1 px-1">
+                <table className="w-full jb-body text-xs">
+                  <thead>
+                    <tr className="text-zinc-500 text-[10px] uppercase tracking-wide">
+                      <th className="text-left font-medium py-1 pr-2">Día</th>
+                      <th className="text-right font-medium py-1 px-1">Visit.</th>
+                      <th className="text-right font-medium py-1 px-1">Clics</th>
+                      <th className="text-right font-medium py-1 px-1">Reg.</th>
+                      <th className="text-right font-medium py-1 px-1">Prueba</th>
+                      <th className="text-right font-medium py-1 pl-1">Pagando</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historial.map(h => (
+                      <tr key={h.fecha} className="border-t border-zinc-800">
+                        <td className="text-zinc-400 py-1.5 pr-2 whitespace-nowrap">
+                          {new Date(h.fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                        </td>
+                        <td className="text-right text-zinc-200 px-1">{celda(h.visitantes)}</td>
+                        <td className="text-right text-orange-400 px-1">{celda(h.clics)}</td>
+                        <td className="text-right text-orange-300 px-1">{celda(h.registros)}</td>
+                        <td className="text-right text-sky-400 px-1">{celda(h.en_prueba)}</td>
+                        <td className="text-right text-emerald-400 pl-1">{celda(h.pagando)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="jb-body text-[10px] text-zinc-600 mt-1">"—" = ese día todavía no se guardaba ese dato.</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function MetricasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -4871,15 +5003,17 @@ function MetricasPanel() {
 
       {open && (
         <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
+          <EmbudoCompletoMetricas />
+
           {loading ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Conversión prueba → pago</div>
+                  <div className="text-[11px] text-zinc-500 mb-0.5">Pagando sobre todos los alumnos</div>
                   <div className="text-emerald-400 jb-display text-lg">{conversion.pct}%</div>
-                  <div className="text-[11px] text-zinc-500">{conversion.pagos} de {conversion.total} alumnos</div>
+                  <div className="text-[11px] text-zinc-500">{conversion.pagos} de {conversion.total} (incluye vencidos)</div>
                 </div>
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-0.5">Alumnos vencidos</div>
@@ -4909,7 +5043,7 @@ function MetricasPanel() {
               </div>
 
               <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS POR PLAN</h3>
+                <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS POR PLAN <span className="jb-body text-[11px] text-zinc-500 normal-case">(incluye vencidos)</span></h3>
                 <div className="flex flex-col gap-1.5">
                   {alumnosPorPlan.map(([plan, count]) => (
                     <div key={plan} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
@@ -5672,7 +5806,7 @@ function EmbudoLandingPanel() {
         <div className="flex gap-1.5">
           {[1, 7, 30].map(d => (
             <button key={d} onClick={() => setDias(d)}
-              className={`jb-body text-xs px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
+              className={`jb-body text-xs whitespace-nowrap px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
               {d === 1 ? '24 h' : `${d} días`}
             </button>
           ))}

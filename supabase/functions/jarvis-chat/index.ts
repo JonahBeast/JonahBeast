@@ -50,11 +50,17 @@ Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jo
 - Categoría en Play Store: Salud y deportes. Publicada como TWA/PWA, package_name com.jonahbeast.twa
 - Sin acceso en vivo a TikTok Ads: si te preguntan por eso, dilo con honestidad
 
-Tienes dos herramientas (puedes pedir varias a la vez si hace falta, por ejemplo buscar a dos alumnos):
+Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemplo buscar a dos alumnos). En el estado del negocio solo recibes totales: cuando Jonah Beast pregunte por nombres, montos o celulares concretos, consulta la herramienta de lectura que corresponda en vez de decir que no tienes el detalle.
 
 1) buscar_alumno (solo lectura) -- busca alumnos por nombre o username. Úsala SIEMPRE que Jonah Beast mencione cualquier nombre de persona, por corto o incompleto que parezca (ej. "Yara", "Bru", "el chico nuevo") -- la búsqueda es parcial y encuentra coincidencias aunque solo escriba una parte del nombre, así que nunca asumas que no vas a encontrar a alguien solo porque el nombre es corto. Si la búsqueda no devuelve resultados, ahí sí dilo con honestidad -- pero intenta primero, no lo des por hecho.
 
-2) activar_reconocimiento_foto -- SÍ modifica datos: activa el add-on de Reconocimiento Inteligente (fotos) para un alumno por una cantidad de días. Esta es una acción real y con impacto en el negocio (es un add-on de pago), así que sigue este flujo SIEMPRE, sin saltarte pasos:
+2) ver_pagos (solo lectura) -- detalle de pagos: los de hoy, los de los últimos 7 días o los pendientes de revisar.
+
+3) ver_alumnos_por_vencer (solo lectura) -- alumnos activos que vencen en los próximos días (7 por defecto), con su celular.
+
+4) ver_comisiones_pendientes (solo lectura) -- comisiones de referido aún sin pagar, con el alumno, el monto y el código.
+
+5) activar_reconocimiento_foto -- SÍ modifica datos: activa el add-on de Reconocimiento Inteligente (fotos) para un alumno por una cantidad de días. Esta es una acción real y con impacto en el negocio (es un add-on de pago), así que sigue este flujo SIEMPRE, sin saltarte pasos:
    a) Primero ubica al alumno con buscar_alumno si aún no tienes su username confirmado en esta conversación.
    b) Si Jonah Beast te pide activar el reconocimiento inteligente pero NO ha dicho por cuánto tiempo (días, semanas o meses), NUNCA llames a activar_reconocimiento_foto todavía -- pregúntale primero cuántos días quiere activarlo (puedes sugerir duraciones típicas como 7, 15 o 30 días si te pide una referencia).
    c) Solo llama a activar_reconocimiento_foto una vez que Jonah Beast haya confirmado explícitamente la duración en la conversación (ya sea en su mensaje original o en su respuesta a tu pregunta). Si te da la duración en otra unidad, conviértela tú mismo a días antes de llamar la herramienta (1 semana = 7, 1 mes = 30).
@@ -62,6 +68,29 @@ Tienes dos herramientas (puedes pedir varias a la vez si hace falta, por ejemplo
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
 
 const TOOLS = [
+  {
+    name: "ver_pagos",
+    description: "Devuelve el detalle de pagos (nombre o username, monto, método, estado y fecha). periodo: 'hoy' (hora de Lima), 'semana' (últimos 7 días) o 'pendientes' (todos los que esperan revisión, de cualquier fecha).",
+    input_schema: {
+      type: "object",
+      properties: { periodo: { type: "string", enum: ["hoy", "semana", "pendientes"] } },
+      required: ["periodo"],
+    },
+  },
+  {
+    name: "ver_alumnos_por_vencer",
+    description: "Devuelve los alumnos activos cuya membresía vence en los próximos días (nombre, username, celular, plan y fecha de vencimiento).",
+    input_schema: {
+      type: "object",
+      properties: { dias: { type: "number", description: "Cuántos días hacia adelante mirar (1 a 60). Si no lo dice, usa 7." } },
+      required: [],
+    },
+  },
+  {
+    name: "ver_comisiones_pendientes",
+    description: "Devuelve las comisiones de referido que aún no se pagan (alumno, monto y código de referido).",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
   {
     name: "buscar_alumno",
     description: "Busca uno o más alumnos de Jonah Beast Fuel por nombre o username. Devuelve sus datos básicos (nombre, username, teléfono, plan, fecha de vencimiento, si tiene el add-on de reconocimiento por foto activo).",
@@ -267,11 +296,11 @@ Deno.serve(async (req) => {
 - Con add-on de reconocimiento por foto activo: ${conAddonFoto}
 - Con código de referido asignado: ${conReferido}
 - Últimos 5 registros: ${recientes.map((r) => r.username).join(", ") || "ninguno"}
-- Pagos registrados hoy: ${pagosHoy.length} (monto aprobado hoy: S/${montoAprobado(pagosHoy).toFixed(2)})${pagosHoy.length ? " -- detalle: " + pagosHoy.map((p) => `${p.nombre || p.username} (S/${p.monto}, ${p.metodo}, ${p.estado})`).join("; ") : ""}
-- Pagos registrados en los últimos 7 días: ${pagosSemana.length} (monto aprobado en la semana: S/${montoAprobado(pagosSemana).toFixed(2)})${pagosSemana.length ? " -- detalle: " + pagosSemana.map((p) => `${p.nombre || p.username} (S/${p.monto}, ${p.metodo}, ${p.estado}, ${p.creado_en})`).join("; ") : ""}
+- Pagos registrados hoy: ${pagosHoy.length} (monto aprobado hoy: S/${montoAprobado(pagosHoy).toFixed(2)}) -- detalle con ver_pagos
+- Pagos registrados en los últimos 7 días: ${pagosSemana.length} (monto aprobado en la semana: S/${montoAprobado(pagosSemana).toFixed(2)}) -- detalle con ver_pagos
 - Pagos pendientes de revisar (todos, no solo hoy): ${pagosPendientes ?? 0}
-- Alumnos activos que vencen en los próximos 7 días: ${proximosAVencer.length}${proximosAVencer.length ? " -- detalle: " + proximosAVencer.map((a) => `${a.nombre || a.username} (vence ${a.fecha_vencimiento}, tel: ${a.telefono || "sin celular"})`).join("; ") : ""}
-- Comisiones de referido pendientes de pagar: ${comisionesPendientes.length} alumnos, total S/${totalComisionesPendientes.toFixed(2)}${comisionesPendientes.length ? " -- detalle: " + comisionesPendientes.map((c) => `${c.nombre || c.username} (S/${c.comision_monto}, código ${c.codigo_referido || "sin código"})`).join("; ") : ""}
+- Alumnos activos que vencen en los próximos 7 días: ${proximosAVencer.length} -- detalle con ver_alumnos_por_vencer
+- Comisiones de referido pendientes de pagar: ${comisionesPendientes.length} alumnos, total S/${totalComisionesPendientes.toFixed(2)} -- detalle con ver_comisiones_pendientes
 - Embudo de la landing HOY (personas únicas, sin las visitas de Jonah Beast ni de la versión de prueba): ${textoEmbudo(embudoHoy)}
 - Embudo de la landing ÚLTIMOS 7 DÍAS: ${textoEmbudo(embudoSemana)}
 - Por fuente de tráfico (últimos 7 días): ${fuentesTexto}
@@ -290,22 +319,41 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       { type: "text", text: contexto },
     ];
 
+    // max_tokens incluye lo que el modelo "piensa" antes de responder: con
+    // 500 las respuestas largas podían cortarse. Esfuerzo bajo = piensa poco,
+    // suficiente para estas consultas y más rápido.
+    // Si Anthropic está saturado (429/5xx/529) o falla la conexión, se
+    // reintenta hasta 2 veces antes de rendirse.
     async function llamarClaude(msgs: any[]) {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: 500, system, messages: msgs, tools: TOOLS }),
+      const cuerpo = JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 1500,
+        output_config: { effort: "low" },
+        system, messages: msgs, tools: TOOLS,
       });
-      if (!r.ok) {
-        const errTxt = await r.text();
-        console.error("Error de Anthropic:", r.status, errTxt);
-        throw new Error("upstream");
+      for (let intento = 0; ; intento++) {
+        let r: Response | null = null;
+        try {
+          r = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": ANTHROPIC_API_KEY,
+              "anthropic-version": "2023-06-01",
+            },
+            body: cuerpo,
+          });
+        } catch (e) {
+          console.error("Sin conexión con Anthropic:", (e as Error)?.message);
+        }
+        if (r?.ok) return r.json();
+        const reintentable = !r || r.status === 429 || r.status >= 500;
+        const errTxt = r ? await r.text() : "sin respuesta";
+        console.error("Error de Anthropic:", r?.status ?? "red", errTxt);
+        if (!reintentable || intento >= 2) throw new Error("upstream");
+        const espera = Math.min(Number(r?.headers.get("retry-after")) || 0, 5) * 1000 || 1000 * (intento + 1);
+        await new Promise((res) => setTimeout(res, espera));
       }
-      return r.json();
     }
 
     async function ejecutarHerramienta(bloque: any): Promise<unknown> {
@@ -343,6 +391,31 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         return actualizado
           ? { ok: true, ...actualizado, dias_activados: dias }
           : { error: `No se encontró ningún alumno con username "${username}".` };
+      }
+      if (bloque.name === "ver_pagos") {
+        const detalle = (p: any) => ({ nombre: p.nombre || p.username, monto: p.monto, plan_meses: p.plan_meses, metodo: p.metodo, estado: p.estado, fecha: p.creado_en });
+        const periodo = String(bloque.input?.periodo || "");
+        if (periodo === "hoy") return pagosHoy.map(detalle);
+        if (periodo === "semana") return pagosSemana.map(detalle);
+        if (periodo === "pendientes") {
+          const { data, error } = await supabase.from("pagos")
+            .select("username, nombre, monto, plan_meses, metodo, estado, creado_en")
+            .eq("estado", "pendiente").order("creado_en", { ascending: false }).limit(50);
+          if (error) return { error: "No se pudo leer los pagos pendientes: " + error.message };
+          return (data || []).map(detalle);
+        }
+        return { error: "periodo debe ser 'hoy', 'semana' o 'pendientes'." };
+      }
+      if (bloque.name === "ver_alumnos_por_vencer") {
+        const dias = Math.min(Math.max(Math.round(Number(bloque.input?.dias) || 7), 1), 60);
+        const hasta = fechaLima(new Date(Date.now() + dias * 86400000));
+        return alumnos
+          .filter((a) => esActivo(a, hoyISO) && a.fecha_vencimiento && a.fecha_vencimiento <= hasta)
+          .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
+          .map((a) => ({ nombre: a.nombre || a.username, username: a.username, telefono: a.telefono || "sin celular", plan: a.plan, vence: a.fecha_vencimiento }));
+      }
+      if (bloque.name === "ver_comisiones_pendientes") {
+        return comisionesPendientes.map((c) => ({ nombre: c.nombre || c.username, username: c.username, monto: c.comision_monto, codigo_referido: c.codigo_referido || "sin código" }));
       }
       return { error: "Herramienta desconocida." };
     }

@@ -764,7 +764,25 @@ const ANGULOS = [
 const WHATSAPP_NUMBER = '51963760819';
 const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 
-const EMPTY_FORM = { sexo: 'M', edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95, actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
+// Un alumno nuevo empieza con los campos vacíos: antes venían llenos con
+// valores de ejemplo (70 kg, 170 cm...) que parecían datos reales.
+const EMPTY_FORM = { sexo: 'M', edad: '', estatura: '', peso: '', cuello: '', cintura: '', cadera: '', actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
+// La calculadora gratis de la landing sí arranca con un ejemplo lleno.
+const FORM_EJEMPLO = { ...EMPTY_FORM, edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95 };
+
+// Datos básicos (sin cinta métrica): con esto ya se calculan las calorías.
+// Se descartan los valores de ejemplo 70/170/85 de las cuentas antiguas.
+function tieneDatosBasicos(f) {
+  const edad = Number(f?.edad), estatura = Number(f?.estatura), peso = Number(f?.peso);
+  if (!(edad > 0 && estatura >= 90 && peso >= 20)) return false;
+  return !(peso === 70 && estatura === 170 && Number(f?.cintura) === 85);
+}
+
+// Medidas con cinta (opcionales): solo sirven para el % de grasa.
+function tieneMedidasCinta(f) {
+  const cuello = Number(f?.cuello), cintura = Number(f?.cintura), cadera = Number(f?.cadera);
+  return cuello >= 15 && cintura > cuello && (f?.sexo === 'M' || cadera >= 40);
+}
 const EMPTY_MEALS = () => ({ Desayuno: [], 'Media mañana': [], Almuerzo: [], 'Media tarde': [], Cena: [] });
 const EMPTY_MEALPLAN = () => ({ targetKcal: 2000, macros: { p: 0.3, c: 0.4, f: 0.3 }, meals: EMPTY_MEALS(), restricciones: [] });
 
@@ -815,7 +833,12 @@ function calcAll(f) {
     ? 2.447 - 0.09156 * edad + 0.1074 * estatura + 0.3362 * peso
     : -2.097 + 0.1069 * estatura + 0.2466 * peso;
 
-  return { bmi, bmiCat, bf, bfCat, fatKg, leanKg, muscleKg, tmb, tdee, iccVal, iccCat, idealMin, idealMax, water };
+  // basicos: hay edad, estatura y peso reales (calorías, IMC, peso ideal).
+  // cinta: hay cuello, cintura y cadera (grasa, masa magra y muscular).
+  const basicos = tieneDatosBasicos(f);
+  const cinta = basicos && tieneMedidasCinta(f);
+
+  return { bmi, bmiCat, bf, bfCat, fatKg, leanKg, muscleKg, tmb, tdee, iccVal, iccCat, idealMin, idealMax, water, basicos, cinta };
 }
 
 /* Tope de seguridad: 5 kg de un mismo alimento en una comida.
@@ -3276,7 +3299,7 @@ function Landing({ onChoose }) {
 /* ------------------------------------------------------------------ */
 
 function FreeCalculator({ onBack }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(FORM_EJEMPLO);
   const [step, setStep] = useState('form');
   const [gate, setGate] = useState({ telefono: '', red: 'Instagram', codigo: '', nombre: '' });
   const [gateErr, setGateErr] = useState('');
@@ -4067,7 +4090,7 @@ async function verifyPassword(password, hashHex, saltHex) {
 const TRIAL_DAYS = 15;
 
 const TRIAL_JOURNEY = {
-  1: { titulo: 'Día 1 · Define tu objetivo', texto: 'Empieza midiendo tu composición corporal, elige tu objetivo y registra tus primeras comidas.', cta: null },
+  1: { titulo: 'Día 1 · Define tu objetivo', texto: 'Completa tus datos básicos, elige tu objetivo y registra tus primeras comidas.', cta: null },
   2: { titulo: 'Día 2 · ¿Cómo vas comiendo?', texto: 'Revisa tu plan de alimentación: mira cuántas calorías llevas frente a tu objetivo del día.', cta: null },
   3: { titulo: 'Día 3 · Recomendaciones para ti', texto: 'Usa el botón "¿Qué puedo comer?" y descubre combinaciones que encajan con lo que te queda del día.', cta: null },
   4: { titulo: 'Día 4 · Tus patrones', texto: 'Ya tienes varios días registrados. Entra a "Mi progreso" y observa cómo se comporta tu alimentación.', cta: null },
@@ -7042,12 +7065,16 @@ function StudentDataModal({ username, data, onClose }) {
           <p className="text-zinc-500 text-sm">Este alumno todavía no ha registrado sus datos.</p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
-              <StatCard label="% Grasa" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-              <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día" />
-              <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" />
-            </div>
+            {results.basicos ? (
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
+                <StatCard label="% Grasa" value={results.cinta ? results.bf.toFixed(1) + '%' : '—'} sub={results.cinta ? results.bfCat : 'Sin medidas con cinta'} />
+                <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día" />
+                <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" />
+              </div>
+            ) : (
+              <p className="text-zinc-500 text-sm mb-5">Aún no completa sus datos básicos (edad, estatura y peso).</p>
+            )}
             {totals && (
               <div className="border-t border-zinc-800 pt-4">
                 <h3 className="jb-display text-sm text-zinc-300 mb-2">PLAN DE ALIMENTACIÓN — TOTAL DEL DÍA</h3>
@@ -7185,7 +7212,7 @@ function goalTargets(form, tdee) {
   let magra = peso * 0.75; // respaldo si aún no hay medidas
   try {
     const r = calcAll(form);
-    if (r && Number.isFinite(r.leanKg) && r.leanKg > 0) magra = r.leanKg;
+    if (r && r.cinta && Number.isFinite(r.leanKg) && r.leanKg > 0) magra = r.leanKg;
   } catch {}
 
   let protein = magra * 2.2;
@@ -7229,7 +7256,7 @@ function goalTargets(form, tdee) {
   return { goal, pct, kcal, protein, carbs, fat, magra };
 }
 
-function GoalSelector({ form, setForm, tdee, peso }) {
+function GoalSelector({ form, setForm, tdee, peso, datosListos = true, onCompletarDatos, onIrComidas }) {
   const goal = form.objetivo || '';
   const defaultPct = goal ? GOALS[goal].pct : 0;
   let pct = form.ajustePct === null || form.ajustePct === undefined ? defaultPct : Number(form.ajustePct);
@@ -7253,6 +7280,15 @@ function GoalSelector({ form, setForm, tdee, peso }) {
       <h2 className="jb-display text-base text-zinc-200 mb-1">🎯 ¿CUÁL ES TU OBJETIVO?</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Elige uno y calculamos tus calorías y macros diarios.</p>
 
+      {!datosListos && (
+        <div className="bg-orange-950/30 border border-orange-500/40 rounded-xl p-4 mb-4">
+          <p className="jb-body text-sm text-zinc-200 mb-3">Para calcular tus calorías primero necesito tu edad, estatura y peso. Toma 30 segundos.</p>
+          <button onClick={onCompletarDatos} className={btnPrimary + ' w-full'}>
+            Completar mis datos básicos <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-3 gap-3">
         {Object.entries(GOALS).map(([name, g]) => (
           <button key={name} onClick={() => pickGoal(name)}
@@ -7266,7 +7302,7 @@ function GoalSelector({ form, setForm, tdee, peso }) {
         ))}
       </div>
 
-      {goal && (
+      {goal && datosListos && (
         <div className="mt-5 flex flex-col gap-4">
           <div>
             <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">
@@ -7336,13 +7372,19 @@ function GoalSelector({ form, setForm, tdee, peso }) {
             <AlertTriangle className="text-amber-500 shrink-0" size={16} />
             <p className="text-amber-200 text-xs jb-body">Estos valores son una estimación de referencia, no una prescripción médica. Consúltalo con un profesional de la salud antes de aplicarlo.</p>
           </div>
+
+          {onIrComidas && (
+            <button onClick={onIrComidas} className={btnPrimary + ' w-full'}>
+              🍽️ Ir a registrar mis comidas <ChevronRight size={16} />
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function CuerpoTab({ form, setForm, results, vistaInicial }) {
+function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas }) {
   const [vista, setVista] = useState(vistaInicial === 'objetivo' ? 'objetivo' : 'composicion');
 
   return (
@@ -7350,7 +7392,7 @@ function CuerpoTab({ form, setForm, results, vistaInicial }) {
       <div className="flex gap-2">
         <button onClick={() => setVista('composicion')}
           className={`jb-display text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${vista === 'composicion' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
-          <Flame size={13} /> Composición
+          <Flame size={13} /> Mis datos
         </button>
         <button onClick={() => setVista('objetivo')}
           className={`jb-display text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${vista === 'objetivo' ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
@@ -7358,69 +7400,116 @@ function CuerpoTab({ form, setForm, results, vistaInicial }) {
         </button>
       </div>
       {vista === 'composicion'
-        ? <CalculatorTab form={form} setForm={setForm} results={results} />
-        : <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso} />}
+        ? <CalculatorTab form={form} setForm={setForm} results={results}
+            onSiguiente={() => { if (form.objetivo) onIrComidas?.(); else setVista('objetivo'); window.scrollTo({ top: 0 }); }} />
+        : <GoalSelector form={form} setForm={setForm} tdee={results.tdee} peso={form.peso}
+            datosListos={results.basicos}
+            onCompletarDatos={() => { setVista('composicion'); window.scrollTo({ top: 0 }); }}
+            onIrComidas={onIrComidas} />}
     </div>
   );
 }
 
-function CalculatorTab({ form, setForm, results }) {
+function CalculatorTab({ form, setForm, results, onSiguiente }) {
   const num = (k) => ({
-    value: form[k],
+    value: form[k] ?? '',
     onChange: (e) => setForm(v => ({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) })),
   });
+  const faltan = [['edad', 'edad'], ['estatura', 'estatura'], ['peso', 'peso']]
+    .filter(([k]) => !(Number(form[k]) > 0)).map(([, n]) => n);
+
   return (
     <div className="grid lg:grid-cols-2 gap-6 min-w-0">
       <div className="lg:col-span-2">
-        <AyudaTab id="composicion" texto="Ingresa tus medidas con una cinta métrica. Toca «¿Cómo medir?» junto a cada campo si tienes dudas. No necesitas hacerlo todos los días: tus datos quedan guardados y solo debes actualizarlos cada 2 semanas o cuando cambie tu peso." />
+        <AyudaTab id="composicion-basicos" texto="Empieza con tus datos básicos: no necesitas cinta métrica. Con ellos calculamos cuántas calorías necesitas. Si luego te mides con una cinta, sabrás también tu % de grasa." />
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-        <h2 className="jb-display text-base text-zinc-200 mb-4">TUS DATOS</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Sexo">
-            <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls}>
-              <option value="M">Hombre</option>
-              <option value="F">Mujer</option>
-            </select>
-          </Field>
-          <Field label="Edad (años)"><input type="number" className={inputCls} {...num('edad')} /></Field>
-          <Field label="Estatura (cm)"><input type="number" className={inputCls} {...num('estatura')} /></Field>
-          <Field label="Peso (kg)"><input type="number" className={inputCls} {...num('peso')} /></Field>
-          <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg"><input type="number" className={inputCls} {...num('cuello')} /></Field>
-          <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg"><input type="number" className={inputCls} {...num('cintura')} /></Field>
-          <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg"><input type="number" className={inputCls} {...num('cadera')} /></Field>
-          <Field label="Actividad física">
-            <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
-              {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
-            </select>
-          </Field>
+      <div className="flex flex-col gap-4 min-w-0">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
+          <h2 className="jb-display text-base text-zinc-200 mb-1">TUS DATOS BÁSICOS</h2>
+          <p className="jb-body text-xs text-zinc-500 mb-4">Solo lo que ya sabes de memoria.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Sexo">
+              <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls}>
+                <option value="M">Hombre</option>
+                <option value="F">Mujer</option>
+              </select>
+            </Field>
+            <Field label="Edad (años)"><input type="number" inputMode="numeric" className={inputCls} placeholder="Ej. 30" {...num('edad')} /></Field>
+            <Field label="Estatura (cm)"><input type="number" inputMode="numeric" className={inputCls} placeholder="Ej. 165" {...num('estatura')} /></Field>
+            <Field label="Peso (kg)"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 72" {...num('peso')} /></Field>
+            <div className="col-span-2">
+              <Field label="Actividad física">
+                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
+                  {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
+                </select>
+              </Field>
+            </div>
+          </div>
+          {results.basicos ? (
+            <button onClick={onSiguiente} className={btnPrimary + ' w-full mt-4'}>
+              {form.objetivo ? 'Listo · Registrar mis comidas' : 'Guardar y elegir mi objetivo'} <ChevronRight size={16} />
+            </button>
+          ) : (
+            <p className="jb-body text-xs text-zinc-500 mt-4 text-center">
+              {faltan.length ? `Completa tu ${faltan.length > 1 ? faltan.slice(0, -1).join(', ') + ' y ' + faltan[faltan.length - 1] : faltan[0]} para seguir.` : 'Revisa que tu estatura esté en centímetros (ej. 165).'}
+            </p>
+          )}
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
+          <h2 className="jb-display text-base text-zinc-200 mb-1">📏 % DE GRASA <span className="text-zinc-500 text-xs">· OPCIONAL</span></h2>
+          <p className="jb-body text-xs text-zinc-500 mb-4">
+            ¿Tienes una cinta métrica? Mide tu cuello, cintura y cadera para saber tu % de grasa y tu masa muscular. Puedes hacerlo cuando quieras.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 36" {...num('cuello')} /></Field>
+            <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 82" {...num('cintura')} /></Field>
+            <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 96" {...num('cadera')} /></Field>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-col gap-4 min-w-0">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-          <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
-            <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={64} stroke={6} />
-            <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={64} stroke={6} />
-            <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantener" colorHex="#34d399" size={64} stroke={6} />
+        {!results.basicos ? (
+          <div className="bg-zinc-900 border border-dashed border-zinc-700 rounded-2xl p-6 text-center">
+            <div className="text-3xl mb-2">🔥</div>
+            <p className="jb-body text-sm text-zinc-300">Completa tus datos básicos y aquí verás cuántas calorías quema tu cuerpo al día.</p>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
-          <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
-          <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
-          <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
-          <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-          <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
-          <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
-        </div>
-        <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
-          <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-          <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
-        </div>
-        <p className="jb-body text-[11px] text-zinc-600 text-center">
-          Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
-        </p>
+        ) : (
+          <>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
+              <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
+                {results.cinta
+                  ? <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={64} stroke={6} />
+                  : <MacroRing pct={0} value="—" label="Grasa (con cinta)" colorHex="#fbbf24" size={64} stroke={6} />}
+                <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={64} stroke={6} />
+                <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantener" colorHex="#34d399" size={64} stroke={6} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
+              <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
+              <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
+              {results.cinta && (
+                <>
+                  <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
+                  <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+                  <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+                  {Number(form.cadera) >= 40 && (
+                    <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
+                  )}
+                </>
+              )}
+            </div>
+            <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
+              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+              <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
+            </div>
+            <p className="jb-body text-[11px] text-zinc-600 text-center">
+              Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -10114,37 +10203,24 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       texto: 'Es lo más importante que puedes activar: así Jonah te avisa si se te pasa una comida, te acompaña cuando lo necesites, y te avisa a tiempo antes de que venza tu plan — para que nunca pierdas tu progreso por no enterarte.',
       esNotificacion: true,
     }] : []),
+    // Antes eran 7 pantallas de explicación; ahora son 2, para que el
+    // alumno llegue rápido a usar la app.
     {
       emoji: '👋', titulo: `¡BIENVENIDO${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}!`,
-      texto: 'Jonah Beast Fuel te ayuda a saber exactamente cuánto comer y qué comer para llegar a tu objetivo. Te explico en 30 segundos cómo usarla.',
+      texto: 'Te ayudo a saber cuánto y qué comer para llegar a tu objetivo, con comida peruana y sin pesar nada. Así funciona:',
+      extra: [
+        ['1 · Tus datos', 'Edad, estatura y peso. Sin cinta métrica'],
+        ['2 · Tu objetivo', 'Perder grasa, ganar músculo o mantener'],
+        ['3 · Tus comidas', '"1 taza de arroz", "2 huevos"… y listo'],
+      ],
     },
     {
-      emoji: '📏', titulo: 'PRIMERO: TUS NÚMEROS',
-      texto: 'Ingresa tus medidas con una cinta métrica (cuello, cintura, cadera). La app calcula tu % de grasa y cuántas calorías quema tu cuerpo al día. Hay guías con fotos para medirte bien.',
-    },
-    {
-      emoji: '🎯', titulo: 'SEGUNDO: TU OBJETIVO',
-      texto: 'Elige si quieres perder grasa, ganar músculo o mantenerte. La app calcula sola cuántas calorías y proteína necesitas cada día.',
-    },
-    {
-      emoji: '🍽️', titulo: 'TERCERO: REGISTRA LO QUE COMES',
-      texto: 'Anota tus comidas con medidas de casa: "1 taza de arroz", "2 huevos", "1 plato de lomo saltado". Sin pesar nada. Verás al instante cuánto te queda del día.',
-    },
-    {
-      emoji: '💪', titulo: '¿NO SABES QUÉ COMER?',
-      texto: 'Toca el botón "¿Qué puedo comer?" y la app te sugiere combinaciones reales con comida peruana que encajan con las calorías que te quedan.',
-    },
-    {
-      emoji: '📸', titulo: 'MIDE TU AVANCE',
-      texto: 'Toma tus fotos cada 2 semanas y registra tu peso. En "Mi progreso" verás tus gráficos y en "Mis fotos" podrás comparar el antes y el ahora.',
-    },
-    {
-      emoji: '📅', titulo: 'TU RUTINA DIARIA ES SIMPLE',
-      texto: 'Solo registra tus comidas cada día. Nada más. Tus medidas quedan guardadas y no cambian hasta que tú las actualices.',
+      emoji: '📅', titulo: 'TU RUTINA ES SIMPLE',
+      texto: 'Solo registra lo que comes cada día. Tus datos quedan guardados.',
       extra: [
         ['Todos los días', 'Registra lo que comes'],
-        ['Cada 2 semanas', 'Vuelve a medirte y toma fotos'],
-        ['Cuando quieras', 'Revisa tu progreso'],
+        ['Si no sabes qué comer', 'Toca «¿Qué puedo comer?»'],
+        ['Cada 2 semanas', 'Actualiza tu peso y tus fotos'],
       ],
     },
   ];
@@ -10263,8 +10339,8 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         </div>
 
         {!ultimo && !p.esNombre && !p.esNotificacion && !p.esTelefono && (
-          <button onClick={onClose} className="jb-body text-xs text-zinc-600 hover:text-zinc-400 mt-3 w-full text-center">
-            Saltar guía
+          <button onClick={onClose} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-3 w-full text-center">
+            Saltar y empezar
           </button>
         )}
       </div>
@@ -10275,14 +10351,12 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
 function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
   const [oculto, setOculto] = useState(false);
 
-  const midio = Number(form.cuello) > 0 && Number(form.cintura) > 0
-    && Number(form.peso) > 0 && Number(form.estatura) > 0
-    && !(Number(form.peso) === 70 && Number(form.estatura) === 170 && Number(form.cintura) === 85);
+  const midio = tieneDatosBasicos(form);
   const eligioObjetivo = !!form.objetivo;
   const registroComida = Object.values(mealPlan.meals || {}).some(e => e.some(x => x.foodKey));
 
   const pasos = [
-    { id: 'calc', hecho: midio, titulo: 'Ingresa tus medidas', texto: 'Cuello, cintura, cadera y peso', tab: 'calc' },
+    { id: 'calc', hecho: midio, titulo: 'Completa tus datos básicos', texto: 'Edad, estatura y peso · sin cinta métrica', tab: 'calc' },
     { id: 'goal', hecho: eligioObjetivo, titulo: 'Elige tu objetivo', texto: 'Perder grasa, ganar músculo o mantener', tab: 'goal' },
     { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Con medidas de casa: taza, plato, unidad', tab: 'meal' },
     { id: 'photo', hecho: tieneFotos, titulo: 'Toma tus fotos de inicio', texto: 'Tu punto de partida para comparar después', tab: 'photos' },
@@ -10541,7 +10615,13 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
         className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-4 flex items-center gap-3 text-left transition-colors">
         <Flame className="text-amber-400 shrink-0" size={18} />
         <p className="jb-body text-sm text-zinc-300 flex-1">
-          <span className="text-zinc-100 font-semibold">{results.bf.toFixed(1)}% grasa</span> · IMC {results.bmi.toFixed(1)} · {results.bfCat}
+          {!results.basicos ? (
+            <span className="text-zinc-100 font-semibold">Completa tus datos básicos para calcular tus calorías</span>
+          ) : results.cinta ? (
+            <><span className="text-zinc-100 font-semibold">{results.bf.toFixed(1)}% grasa</span> · IMC {results.bmi.toFixed(1)} · {results.bfCat}</>
+          ) : (
+            <><span className="text-zinc-100 font-semibold">IMC {results.bmi.toFixed(1)}</span> · 📏 Mide tu % de grasa (opcional)</>
+          )}
         </p>
         <ChevronRight className="text-zinc-600 shrink-0" size={16} />
       </button>
@@ -12188,7 +12268,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           </>
         )}
         {(tab === 'calc' || tab === 'goal') && (
-          <CuerpoTab form={form} setForm={setForm} results={results} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} />
+          <CuerpoTab form={form} setForm={setForm} results={results} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} />}
         {(tab === 'progress' || tab === 'photos') && (
@@ -13566,8 +13646,17 @@ export default function App() {
       plan = { ...plan, meals: EMPTY_MEALS() };
     }
 
+    // Cuentas antiguas que nunca cambiaron los valores de ejemplo
+    // (30 años, 170 cm, 70 kg...): se muestran vacíos para que el alumno
+    // ingrese los suyos, en vez de parecer datos reales.
+    let formGuardado = data?.form || EMPTY_FORM;
+    const ej = FORM_EJEMPLO;
+    if (['edad', 'estatura', 'peso', 'cuello', 'cintura', 'cadera'].every(k => Number(formGuardado[k]) === ej[k])) {
+      formGuardado = { ...formGuardado, edad: '', estatura: '', peso: '', cuello: '', cintura: '', cadera: '' };
+    }
+
     setCurrentUser(username);
-    setForm(data?.form || EMPTY_FORM);
+    setForm(formGuardado);
     setMealPlan(plan);
     skipNextSave.current = true;
     setView('student');
@@ -13671,17 +13760,17 @@ export default function App() {
             t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
           });
         });
-        // Si todavía no se midió de verdad (sigue con los valores de
-        // fábrica 70/170/85), no guardamos ese peso como si fuera real —
-        // contaminaría la tendencia de peso más adelante.
-        const esPlaceholder = Number(form.peso) === 70 && Number(form.estatura) === 170 && Number(form.cintura) === 85;
+        // Solo se guardan los datos que el alumno ingresó de verdad: sin
+        // datos básicos no hay peso ni IMC, y sin medidas con cinta no hay
+        // % de grasa (antes se guardaban valores de ejemplo como si fueran
+        // reales y ensuciaban su progreso).
         await supabase.from('historial').upsert({
           username: currentUser, fecha: todayISO(),
-          peso: esPlaceholder ? null : (Number(form.peso) || null),
-          grasa_pct: Number(r.bf.toFixed(1)),
-          masa_muscular: Number(r.muscleKg.toFixed(1)),
-          masa_magra: Number(r.leanKg.toFixed(1)),
-          imc: Number(r.bmi.toFixed(1)),
+          peso: r.basicos ? (Number(form.peso) || null) : null,
+          grasa_pct: r.cinta ? Number(r.bf.toFixed(1)) : null,
+          masa_muscular: r.cinta ? Number(r.muscleKg.toFixed(1)) : null,
+          masa_magra: r.cinta ? Number(r.leanKg.toFixed(1)) : null,
+          imc: r.basicos ? Number(r.bmi.toFixed(1)) : null,
           kcal_consumidas: Math.round(t.kcal),
           proteina_g: Math.round(t.protein),
           carbos_g: Math.round(t.carbs),

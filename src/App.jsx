@@ -2892,6 +2892,71 @@ const HERO_BG_FOTOS = [
   TESTIMONIOS[1].antes, TESTIMONIOS[1].despues,
 ];
 
+/* ------------------------------------------------------------------ */
+/* EMBUDO DE LA LANDING                                                */
+/* ------------------------------------------------------------------ */
+
+/* Solo se cuenta el tráfico del sitio real. Las versiones de prueba de
+   Vercel (jonah-beast-xxxx.vercel.app) y la compu local usan la misma
+   base de datos, así que sin este filtro ensuciarían los números. */
+const HOSTS_PRODUCCION = ['jonahbeast.com', 'www.jonahbeast.com', 'jonah-beast.vercel.app'];
+
+/* Marca este navegador para que nunca cuente en el embudo. Se usa al
+   abrir cualquier página con ?preview=1 y al entrar como admin, y se
+   guarda para siempre en este navegador (no solo en la pestaña). */
+function marcarNoContarEmbudo() {
+  try { localStorage.setItem('jb-no-contar', '1'); } catch {}
+}
+
+function embudoDebeContar() {
+  try {
+    if (new URLSearchParams(window.location.search).get('preview') === '1') marcarNoContarEmbudo();
+  } catch {}
+  if (!HOSTS_PRODUCCION.includes(window.location.hostname)) return false;
+  try {
+    if (localStorage.getItem('jb-no-contar') === '1') return false;
+    // Un alumno que ya inició sesión en este celular no es un visitante nuevo.
+    if (localStorage.getItem('jb-conocido') === '1') return false;
+  } catch {}
+  return true;
+}
+
+/* Identificador anónimo y aleatorio de este navegador, para contar
+   personas (visitantes únicos) y no solo cargas de página. No guarda
+   ningún dato personal. */
+function visitanteEmbudo() {
+  try {
+    let id = localStorage.getItem('jb-visitante');
+    if (!id) {
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : Date.now().toString(36) + Math.random().toString(36).slice(2);
+      localStorage.setItem('jb-visitante', id);
+    }
+    return id;
+  } catch { return null; }
+}
+
+/* Fuente del tráfico: se lee de la URL (?utm_source=tiktok o
+   ?fuente=tiktok) y se recuerda en la pestaña, para que el clic y el
+   registro sepan de dónde vino la visita aunque ya no esté en la URL. */
+function fuenteEmbudo() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const deUrl = params.get('utm_source') || params.get('fuente');
+    if (deUrl) { sessionStorage.setItem('jb-fuente', deUrl.toLowerCase()); return deUrl.toLowerCase(); }
+    return sessionStorage.getItem('jb-fuente') || 'directo';
+  } catch { return 'directo'; }
+}
+
+/* Guarda un paso del embudo: 'vista', 'clic_cta' o 'registro'. Falla en
+   silencio -- nunca debe bloquear ni ralentizar al visitante. */
+function registrarEventoEmbudo(evento) {
+  if (!embudoDebeContar()) return;
+  supabase.from('embudo_landing_eventos')
+    .insert({ evento, fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo() })
+    .then(() => {}, () => {});
+}
+
 /* Último día gratis si la persona se registra hoy, ej. "8 de octubre".
    Igual que trialDayOf: el día del registro es el día 1, así que el
    último día de prueba es hoy + (TRIAL_DAYS - 1). Una fecha concreta se
@@ -2941,53 +3006,12 @@ function Landing({ onChoose }) {
   }, []);
   const hastaFecha = fechaFinPrueba();
 
-  // Seguimiento básico del embudo: vista de landing (una vez al montar)
-  // y clic en el CTA. No cuenta si el celular ya inició sesión antes
-  // (ej. un alumno que cerró sesión y volvió) -- eso no es un visitante
-  // nuevo, y mezclarlo infla el número sin que signifique nada real.
-  // Falla en silencio si no hay conexión -- nunca debe bloquear ni
-  // ralentizar la experiencia del visitante.
-  //
-  // Modo de prueba: agregar ?preview=1 a la URL para que esa visita
-  // NUNCA se cuente en el embudo, sin importar el navegador o si ya
-  // inició sesión antes -- pensado para cuando Jonah mismo revisa la
-  // landing y no quiere ensuciar sus propios números. Se recuerda por
-  // el resto de la sesión, así no hay que repetirlo en cada pantalla.
-  //
-  // Fuente del tráfico: se lee de la URL (?utm_source=tiktok o
-  // ?fuente=tiktok, cualquiera de las dos) y se guarda en la sesión del
-  // navegador, para que el clic del botón recuerde de dónde vino la
-  // visita aunque ya no esté el parámetro en la URL.
-  useEffect(() => {
-    let fuente = 'directo';
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('preview') === '1') sessionStorage.setItem('jb-preview', '1');
-      const deUrl = params.get('utm_source') || params.get('fuente');
-      if (deUrl) { fuente = deUrl.toLowerCase(); sessionStorage.setItem('jb-fuente', fuente); }
-      else { fuente = sessionStorage.getItem('jb-fuente') || 'directo'; }
-    } catch {}
-
-    let yaConocido = false;
-    let esPreview = false;
-    try {
-      yaConocido = localStorage.getItem('jb-conocido') === '1';
-      esPreview = sessionStorage.getItem('jb-preview') === '1';
-    } catch {}
-    if (!yaConocido && !esPreview) {
-      supabase.from('embudo_landing_eventos').insert({ evento: 'vista', fuente }).then(() => {}, () => {});
-    }
-  }, []);
+  // Embudo: una 'vista' al abrir la landing y un 'clic_cta' al tocar
+  // cualquiera de los botones de prueba gratis. Las reglas de qué se
+  // cuenta y qué no están en embudoDebeContar().
+  useEffect(() => { registrarEventoEmbudo('vista'); }, []);
   function registrarClicCTA() {
-    let fuente = 'directo';
-    let esPreview = false;
-    try {
-      fuente = sessionStorage.getItem('jb-fuente') || 'directo';
-      esPreview = sessionStorage.getItem('jb-preview') === '1';
-    } catch {}
-    if (!esPreview) {
-      supabase.from('embudo_landing_eventos').insert({ evento: 'clic_cta', fuente }).then(() => {}, () => {});
-    }
+    registrarEventoEmbudo('clic_cta');
     onChoose('trial');
   }
 
@@ -3500,6 +3524,9 @@ function TrialSignup({ onBack, onCreated }) {
     try {
       if (window.ttq) window.ttq.track('CompleteRegistration');
     } catch (e) {}
+
+    // Último paso del embudo de la landing: la cuenta quedó creada.
+    registrarEventoEmbudo('registro');
 
     setBusy(false);
     if (!data.session) {
@@ -5567,10 +5594,52 @@ function ReconocimientoFotoPanel() {
   );
 }
 
-/* Embudo de la landing: cuánta gente VE la página, cuántos tocan el
-   botón, y cuántos terminan de registrarse -- así se puede saber si
-   un problema es de diseño (poca gente convierte) o de tráfico (nadie
-   ve la página en primer lugar, o llegan bots). */
+/* Embudo de la landing: cuántas PERSONAS ven la página, cuántas tocan
+   el botón de prueba gratis y cuántas terminan de registrarse -- así se
+   puede saber si un problema es de diseño (poca gente convierte) o de
+   tráfico (nadie ve la página en primer lugar, o llegan bots). */
+
+// Día en que empezó a guardarse el embudo (antes no hay datos).
+const INICIO_EMBUDO = '2026-09-23T00:00:00.000Z';
+
+// Supabase entrega como máximo 1000 filas por consulta; pedimos en
+// bloques hasta traer todo el periodo.
+async function traerEventosEmbudo(desde) {
+  const filas = [];
+  for (let desdeFila = 0; ; desdeFila += 1000) {
+    const { data, error } = await supabase.from('embudo_landing_eventos')
+      .select('id, evento, fuente, visitante_id')
+      .gte('creado_en', desde)
+      .order('creado_en', { ascending: true })
+      .range(desdeFila, desdeFila + 999);
+    if (error) throw error;
+    filas.push(...(data || []));
+    if (!data || data.length < 1000) return filas;
+  }
+}
+
+function resumirEmbudo(filas) {
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set() });
+  const total = pasos();
+  const porFuente = {};
+  filas.forEach(r => {
+    // Los eventos anteriores a esta versión no tienen visitante: cada uno
+    // cuenta como una persona distinta.
+    const quien = r.visitante_id || ('evento-' + r.id);
+    const f = (porFuente[r.fuente] = porFuente[r.fuente] || pasos());
+    [total, f].forEach(g => {
+      if (r.evento === 'vista') { g.vistas++; g.visitantes.add(quien); }
+      else if (r.evento === 'clic_cta') g.clics.add(quien);
+      else if (r.evento === 'registro') g.registros.add(quien);
+    });
+  });
+  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size });
+  return {
+    ...numeros(total),
+    fuentes: Object.entries(porFuente).map(([k, g]) => [k, numeros(g)]).sort((a, b) => b[1].visitantes - a[1].visitantes),
+  };
+}
+
 function EmbudoLandingPanel() {
   const [dias, setDias] = useState(7);
   const [datos, setDatos] = useState(null);
@@ -5581,82 +5650,68 @@ function EmbudoLandingPanel() {
   async function load() {
     setLoading(true);
     try {
-      // Anclamos el punto de partida a hoy (cuando arrancó este
-      // seguimiento) -- así "registros" nunca cuenta gente de antes de
-      // que existiera esta tabla, y los 3 números siempre comparan la
-      // misma ventana real de tiempo, sin importar el filtro elegido.
-      const inicioTracking = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
       const desdeSolicitado = new Date(Date.now() - dias * 86400000).toISOString();
-      const desde = desdeSolicitado > inicioTracking ? desdeSolicitado : inicioTracking;
-      const [{ count: vistas }, { count: clics }, { count: registros }, { data: porFuenteRaw }] = await Promise.all([
-        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'vista').gte('creado_en', desde),
-        supabase.from('embudo_landing_eventos').select('*', { count: 'exact', head: true }).eq('evento', 'clic_cta').gte('creado_en', desde),
-        supabase.from('alumnos').select('*', { count: 'exact', head: true }).gte('created_at', desde),
-        supabase.from('embudo_landing_eventos').select('fuente, evento').gte('creado_en', desde),
-      ]);
-      const porFuente = {};
-      (porFuenteRaw || []).forEach(r => {
-        porFuente[r.fuente] = porFuente[r.fuente] || { vistas: 0, clics: 0 };
-        if (r.evento === 'vista') porFuente[r.fuente].vistas++;
-        else porFuente[r.fuente].clics++;
-      });
-      const fuentesOrdenadas = Object.entries(porFuente).sort((a, b) => b[1].vistas - a[1].vistas);
-      setDatos({ vistas: vistas || 0, clics: clics || 0, registros: registros || 0, fuentes: fuentesOrdenadas });
-    } catch { setDatos({ vistas: 0, clics: 0, registros: 0 }); }
+      const desde = desdeSolicitado > INICIO_EMBUDO ? desdeSolicitado : INICIO_EMBUDO;
+      setDatos(resumirEmbudo(await traerEventosEmbudo(desde)));
+    } catch { setDatos({ vistas: 0, visitantes: 0, clics: 0, registros: 0, fuentes: [] }); }
     setLoading(false);
   }
 
   const pct = (num, den) => den ? Math.round((num / den) * 100) : 0;
+
+  const PASOS = datos ? [
+    { valor: datos.visitantes, label: 'Visitantes únicos', color: 'text-zinc-100' },
+    { valor: datos.clics, label: 'Tocaron el botón', color: 'text-orange-400' },
+    { valor: datos.registros, label: 'Se registraron', color: 'text-emerald-400' },
+  ] : [];
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-1">
         <h2 className="jb-display text-base text-zinc-200">EMBUDO DE LA LANDING</h2>
         <div className="flex gap-1.5">
-          {[7, 30].map(d => (
+          {[1, 7, 30].map(d => (
             <button key={d} onClick={() => setDias(d)}
               className={`jb-body text-xs px-2.5 py-1 rounded-lg transition-colors ${dias === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
-              {d} días
+              {d === 1 ? '24 h' : `${d} días`}
             </button>
           ))}
         </div>
       </div>
-      <p className="jb-body text-[10px] text-zinc-600 mb-3">Cuenta desde hoy — los días antes de activar esto no están incluidos.</p>
+      <p className="jb-body text-[10px] text-zinc-600 mb-3">
+        Cuenta personas, no cargas de página. No incluye tus visitas, las de la versión de prueba ni las de alumnos que ya iniciaron sesión.
+      </p>
 
       {loading || !datos ? (
         <Skeleton className="h-20 w-full rounded-xl" />
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-zinc-100">{datos.vistas}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Vieron la landing</div>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-orange-400">{datos.clics}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Tocaron el botón</div>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
-              <div className="jb-display text-xl text-emerald-400">{datos.registros}</div>
-              <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">Se registró</div>
-            </div>
+            {PASOS.map(p => (
+              <div key={p.label} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center">
+                <div className={`jb-display text-xl ${p.color}`}>{p.valor}</div>
+                <div className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">{p.label}</div>
+              </div>
+            ))}
           </div>
-          <p className="jb-body text-xs text-zinc-500 mt-3 text-center">
-            {pct(datos.clics, datos.vistas)}% tocó el botón · {pct(datos.registros, datos.clics)}% de los que tocaron terminó de registrarse
-          </p>
-          {datos.vistas > 0 && datos.clics === 0 && (
+          <div className="jb-body text-xs text-zinc-500 mt-3 flex flex-col items-center gap-0.5 text-center">
+            <span><span className="text-orange-400 font-semibold">{pct(datos.clics, datos.visitantes)}%</span> de los visitantes tocó el botón</span>
+            <span><span className="text-emerald-400 font-semibold">{pct(datos.registros, datos.clics)}%</span> de los que tocaron el botón se registró</span>
+            <span className="text-zinc-600">{pct(datos.registros, datos.visitantes)}% de los visitantes terminó registrado · {datos.vistas} vistas en total</span>
+          </div>
+          {datos.visitantes > 0 && datos.clics === 0 && (
             <p className="jb-body text-xs text-amber-400 mt-2 text-center">
-              Hay vistas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
+              Hay visitas pero cero clics — revisa si es tráfico real o algo está fallando en la página.
             </p>
           )}
-          {datos.fuentes && datos.fuentes.length > 0 && (
+          {datos.fuentes.length > 0 && (
             <div className="mt-4 pt-3 border-t border-zinc-800">
               <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide mb-2">Por fuente (?utm_source= o ?fuente=)</p>
               <div className="flex flex-col gap-1.5">
                 {datos.fuentes.map(([fuente, v]) => (
-                  <div key={fuente} className="flex items-center justify-between jb-body text-xs">
+                  <div key={fuente} className="flex items-center justify-between jb-body text-xs gap-2">
                     <span className="text-zinc-300 capitalize">{fuente}</span>
-                    <span className="text-zinc-500">{v.vistas} vistas · {v.clics} clics</span>
+                    <span className="text-zinc-500 text-right">{v.visitantes} visitantes · {v.clics} clics · {v.registros} registros</span>
                   </div>
                 ))}
               </div>
@@ -12895,6 +12950,7 @@ export default function App() {
       if (!p) return;
       if (p.role === 'admin') {
         setAdminAuthed(true);
+        marcarNoContarEmbudo();
         if (!window.location.pathname.startsWith('/tienda')) setView('admin');
         return;
       }
@@ -12963,6 +13019,7 @@ export default function App() {
       }
       setAdminAuthed(true);
       try { localStorage.setItem('jb-conocido', '1'); } catch {}
+      marcarNoContarEmbudo();
       setView('admin');
     } catch {
       setErr('No se pudo iniciar sesión, intenta de nuevo.');
@@ -13044,6 +13101,7 @@ export default function App() {
 
     if (perfil.role === 'admin') {
       setAdminAuthed(true);
+      marcarNoContarEmbudo();
       setBusy(false);
       await init();
       setView('admin');

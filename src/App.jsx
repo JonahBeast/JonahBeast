@@ -6319,6 +6319,15 @@ async function llamarJarvis(cuerpo, alEvento) {
   return data;
 }
 
+// Mensajes que muestra Jarvis cuando el micrófono no puede funcionar.
+const AVISOS_MIC = {
+  'not-allowed': 'No tengo permiso para usar el micrófono en esta página. Toca el ícono a la izquierda de la dirección web, permite el micrófono y vuelve a tocar 🎤. Mientras tanto puedes escribirme.',
+  'service-not-allowed': 'Este navegador no me deja usar el reconocimiento de voz. Prueba en Google Chrome o Safari, o escríbeme.',
+  'audio-capture': 'No encuentro ningún micrófono en este equipo. Revisa que esté conectado y vuelve a tocar 🎤, o escríbeme.',
+  'network': 'El reconocimiento de voz del navegador no responde (necesita internet; en computadoras funciona en Google Chrome). Vuelve a tocar 🎤 en un momento, o escríbeme.',
+  'sin-soporte': 'Este navegador no reconoce voz. Prueba en Google Chrome o Safari, o escríbeme.',
+};
+
 function JarvisPanel({ onClose }) {
   const [turnos, setTurnos] = useState([
     { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
@@ -6429,6 +6438,9 @@ function JarvisPanel({ onClose }) {
     } catch (e) { reanudarMicSiCorresponde(); }
   }
 
+  const enviarRef = useRef(null);
+  enviarRef.current = enviar;
+
   async function enviar(texto) {
     const t = (texto || '').trim();
     if (!t || pensando) return;
@@ -6521,18 +6533,42 @@ function JarvisPanel({ onClose }) {
     recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
     recog.onresult = (e) => {
       const ultimo = e.results[e.results.length - 1];
-      if (ultimo.isFinal) enviar(ultimo[0].transcript);
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
+      if (ultimo.isFinal) enviarRef.current(ultimo[0].transcript);
     };
-    recog.onerror = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800); };
+    recog.onerror = (e) => {
+      setEscuchando(false);
+      // Errores que no se arreglan reintentando (sin permiso, sin micrófono
+      // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
+      // vez de seguir intentando en silencio.
+      const aviso = AVISOS_MIC[e && e.error];
+      if (aviso) { apagarMicConAviso(aviso); return; }
+      if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
+    };
     recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
+  function apagarMicConAviso(aviso) {
+    modoContinuoRef.current = false;
+    setModoContinuo(false);
+    setEscuchando(false);
+    try { recogRef.current && recogRef.current.stop(); } catch (e) {}
+    setTurnos(ts => [...ts, { role: 'assistant', content: aviso }]);
+  }
+
   function toggleModoContinuo() {
     const nuevo = !modoContinuo;
+    if (nuevo && !(window.SpeechRecognition || window.webkitSpeechRecognition)) {
+      apagarMicConAviso(AVISOS_MIC['sin-soporte']);
+      return;
+    }
     setModoContinuo(nuevo);
     modoContinuoRef.current = nuevo;
-    if (nuevo) arrancarReconocimiento();
+    // Este toque también habilita la voz de Jarvis para las respuestas
+    // que lleguen por micrófono (el navegador exige un toque primero).
+    if (nuevo) { desbloquearVoz(); arrancarReconocimiento(); }
     else { pausarMic(); setEscuchando(false); }
   }
 

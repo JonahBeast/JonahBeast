@@ -6131,6 +6131,21 @@ function JarvisPanel({ onClose }) {
     }
   }
 
+  // Los navegadores solo permiten que suene una voz sintetizada si se
+  // dispara DENTRO del toque directo del usuario -- como enviar() espera
+  // la respuesta de Jarvis (una llamada de red) antes de hablar, para
+  // cuando llega la respuesta el navegador ya no lo reconoce como parte
+  // del mismo toque y bloquea el audio en silencio. Se "desbloquea" el
+  // motor de voz aquí mismo, de forma síncrona, en el instante del toque.
+  function desbloquearVoz() {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
   function pausarMic() {
     pausadoParaHablarRef.current = true;
     try { recogRef.current && recogRef.current.stop(); } catch (e) {}
@@ -6203,10 +6218,10 @@ function JarvisPanel({ onClose }) {
             🎤
             {escuchando && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#ff5c5c', boxShadow: '0 0 6px #ff5c5c' }} />}
           </button>
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && enviar(input)}
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (desbloquearVoz(), enviar(input))}
             placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
-          <button onClick={() => enviar(input)} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
+          <button onClick={() => { desbloquearVoz(); enviar(input); }} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
         </div>
       </div>
     </div>

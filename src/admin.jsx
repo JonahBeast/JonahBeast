@@ -2530,7 +2530,8 @@ const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
    "premium:<voz>"; "" (automática) también usa la voz realista. Si la
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
-  { id: 'premium:coral', nombre: 'Coral · femenina (recomendada)' },
+  { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
+  { id: 'premium:coral', nombre: 'Coral · femenina' },
   { id: 'premium:nova', nombre: 'Nova · femenina' },
   { id: 'premium:shimmer', nombre: 'Shimmer · femenina' },
   { id: 'premium:sage', nombre: 'Sage · femenina' },

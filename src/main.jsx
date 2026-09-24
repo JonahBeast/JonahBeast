@@ -19,8 +19,19 @@ inject({
   },
 })
 
+// Mientras se descarga una parte de la app (panel del alumno, admin o
+// tienda) se ve el fondo carbón con el cargador naranja.
+const Cargando = (
+  <div style={{ minHeight: '100vh', background: '#16110D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #3a2e26', borderTopColor: '#E8590C', animation: 'jb-girar .8s linear infinite' }} />
+    <style>{'@keyframes jb-girar { to { transform: rotate(360deg) } }'}</style>
+  </div>
+)
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <React.Suspense fallback={Cargando}>
+      <App />
+    </React.Suspense>
   </React.StrictMode>,
 )

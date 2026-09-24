@@ -125,9 +125,11 @@ Deno.serve(async (req) => {
     }
     const devolverFoto = () => supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
 
-    const listaPlatos = alimentosValidos.map((a: any) => `${a.key} :: ${a.name}`).join("\n");
+    // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
+    // la lista pesa casi la mitad que mandando "clave :: nombre".
+    const listaPlatos = [...new Set(alimentosValidos.map((a: any) => a.key))].join("\n");
 
-    const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (formato "clave :: nombre").
+    const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
 Identifica TODOS los alimentos distintos visibles en la foto que coincidan con algo de esta lista. Si hay varios (ej. café + pan + jugo), devuélvelos todos por separado. Si no reconoces nada de la lista con confianza razonable, devuelve una lista vacía — NUNCA inventes una clave que no esté en la lista.
 
@@ -137,11 +139,13 @@ Si dos o más alimentos de la lista representan la MISMA comida visualmente pero
 
 Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclýyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1. NUNCA estimes gramos, tazas ni ningún otro tipo de porción — solo el conteo de piezas enteras cuando sea obvio a simple vista.
 
+Si en la foto se ve con claridad un plato o alimento que NO está en la lista (ni nada equivalente), escribe su nombre común en español peruano en "no_encontrados" (ej. "Pollo a la olla"), máximo 3, nombres cortos sin marcas ni cantidades. Si todo lo visible está en la lista, deja "no_encontrados" vacío.
+
 Lista de alimentos válidos:
 ${listaPlatos}
 
 Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exacto:
-{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1}]}
+{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1}], "no_encontrados": []}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
     const modelo = "claude-sonnet-5";
@@ -184,10 +188,17 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     const textoRespuesta = (data.content || []).map((c: any) => c.text || "").join("");
     console.log("Respuesta cruda de la IA:", textoRespuesta);
     let items: { key: string; confianza: string; cantidad?: number; opciones?: string[] }[] = [];
+    let noEncontrados: string[] = [];
     try {
       const limpio = textoRespuesta.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(limpio);
       items = Array.isArray(parsed.items) ? parsed.items : [];
+      const vistos = new Set<string>();
+      noEncontrados = (Array.isArray(parsed.no_encontrados) ? parsed.no_encontrados : [])
+        .filter((n: unknown) => typeof n === "string")
+        .map((n: string) => n.replace(/\s+/g, " ").trim().slice(0, 80))
+        .filter((n: string) => n.length > 0 && !vistos.has(n.toLowerCase()) && vistos.add(n.toLowerCase()))
+        .slice(0, 3);
     } catch {
       items = [];
     }
@@ -214,8 +225,16 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
       })
       .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
 
+    // Platos que la IA vio pero no tenemos: quedan anotados para que el
+    // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
+    if (noEncontrados.length) {
+      const { error: errNo } = await supabase.from("platos_no_encontrados")
+        .insert(noEncontrados.map((nombre) => ({ username, nombre })));
+      if (errNo) console.error("No se pudo anotar platos no encontrados:", errNo.message);
+    }
+
     // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, usadas, limite, tieneAddOn, hasta: alumno.reconocimiento_foto_hasta || null });
+    return json({ items, noEncontrados, usadas, limite, tieneAddOn, hasta: alumno.reconocimiento_foto_hasta || null });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);

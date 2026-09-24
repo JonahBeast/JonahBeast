@@ -4929,6 +4929,84 @@ function ReferidosPanel({ users, onCambio }) {
   );
 }
 
+// Platos que la IA vio en fotos de los alumnos pero que no existen en la
+// base de alimentos — para saber qué agregar primero.
+function PlatosNoEncontradosPanel() {
+  const [filas, setFilas] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setCargando(true);
+    try {
+      const { data, error } = await supabase.from('platos_no_encontrados')
+        .select('id, username, nombre, creado_en').order('creado_en', { ascending: false }).limit(500);
+      if (error) throw error;
+      setFilas(data || []);
+    } catch { setFilas([]); }
+    setCargando(false);
+  }
+
+  const grupos = useMemo(() => {
+    const m = new Map();
+    filas.forEach(f => {
+      const clave = f.nombre.trim().toLowerCase();
+      const g = m.get(clave) || { nombre: f.nombre.trim(), ids: [], alumnos: new Set(), ultima: f.creado_en };
+      g.ids.push(f.id); g.alumnos.add(f.username);
+      if (f.creado_en > g.ultima) g.ultima = f.creado_en;
+      m.set(clave, g);
+    });
+    return [...m.values()].sort((a, b) => b.ids.length - a.ids.length || (b.ultima > a.ultima ? 1 : -1));
+  }, [filas]);
+
+  async function yaLoAgregue(g) {
+    if (!confirm(`¿Quitar "${g.nombre}" de la lista? Hazlo cuando ya lo hayas agregado a la app.`)) return;
+    const { error } = await supabase.from('platos_no_encontrados').delete().in('id', g.ids);
+    if (error) { alert('No se pudo quitar: ' + error.message); return; }
+    setFilas(fs => fs.filter(f => !g.ids.includes(f.id)));
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">🍲 PLATOS QUE BUSCAN Y NO TENEMOS · {grupos.length}</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="jb-body text-xs text-zinc-500">Los detecta la IA en las fotos de tus alumnos. Los más pedidos van primero.</p>
+            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
+          </div>
+          {cargando ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : grupos.length === 0 ? (
+            <p className="jb-body text-zinc-500 text-sm">Aún no hay platos pendientes. Aparecerán aquí cuando la IA vea algo que no está en la app.</p>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+              {grupos.map(g => (
+                <div key={g.nombre.toLowerCase()} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="jb-body text-sm text-zinc-100 font-medium truncate">{g.nombre}</p>
+                    <p className="jb-body text-xs text-zinc-500">
+                      <span className="text-orange-400 font-semibold">{g.ids.length} {g.ids.length === 1 ? 'vez' : 'veces'}</span>
+                      {' · '}{g.alumnos.size} {g.alumnos.size === 1 ? 'alumno' : 'alumnos'}
+                      {' · '}{new Date(g.ultima).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+                  <button onClick={() => yaLoAgregue(g)} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Ya lo agregué</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeadsPanel() {
   const [leads, setLeads] = useState([]);
   const [code, setCode] = useState('');
@@ -7291,6 +7369,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <MetricasPanel />
             <FinanzasPanel />
             <ReferidosPanel users={users} onCambio={onRecargar} />
+            <PlatosNoEncontradosPanel />
             <LeadsPanel />
           </>
         )}
@@ -11651,6 +11730,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [seleccionados, setSeleccionados] = useState({});
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [infoLimite, setInfoLimite] = useState(null);
+  const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   const [mensajeError, setMensajeError] = useState('');
   const [extendiendo, setExtendiendo] = useState(false);
   const [progresoIA, setProgresoIA] = useState(0);
@@ -11712,6 +11792,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
 
   async function analizar(base64, mimeType) {
     setEstado('analizando');
+    setNoEncontrados([]);
     try {
       const listaLiviana = todosLosAlimentos.map(a => ({ key: a.key, name: a.name }));
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
@@ -11730,6 +11811,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         return;
       }
       if (data?.error) throw new Error(data.error);
+      setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
 
       const encontrados = (data?.items || [])
         .map(it => {
@@ -11946,13 +12028,30 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después podrás ajustar la cantidad de cada uno con medidas de casa.
             </p>
+            {noEncontrados.length > 0 && (
+              <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5">
+                <p className="jb-body text-xs text-zinc-300">
+                  También vimos <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, que aún no está en la app. Ya le avisamos a Jonah para agregarlo 🙌
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         {estado === 'vacio' && (
           <div className="text-center py-2">
             {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
+            {noEncontrados.length > 0 ? (
+              <>
+                <p className="jb-body text-sm text-zinc-300 mb-1">
+                  Parece <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, y aún no está en la app.
+                </p>
+                <p className="jb-body text-sm text-zinc-400 mb-4">Ya le avisamos a Jonah para agregarlo 🙌 Mientras tanto, búscalo escribiendo o elige algo parecido.</p>
+                <button onClick={onCerrar} className={btnPrimary + ' w-full py-2.5 mb-2'}>Buscarlo escribiendo</button>
+              </>
+            ) : (
             <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo. <span className="text-zinc-500">Tip: si es un líquido (leche, yogurt, jugo) que se parece a otros, funciona mejor fotografiar el envase con la marca que el vaso servido.</span></p>
+            )}
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
           </div>
         )}

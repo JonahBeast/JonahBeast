@@ -5218,6 +5218,133 @@ function BarrasSimples({ datos, formato = v => v, alto = 120, etiquetaCada = 1 }
 // Tablero del negocio: los números clave en un solo lugar (antes estaban
 // repetidos en varias tarjetas) y dos gráficos: ingresos por mes y cuántos
 // alumnos registran comidas cada día.
+// Fecha en que se publicaron las mejoras de la app (rediseño de comidas,
+// inicio, fotos, primera comida, planes y avisos). La tarjeta compara
+// antes y después de esta fecha.
+const FECHA_MEJORAS = '2026-09-24';
+const AVISOS_ANTES = 13; // alumnos vigentes con avisos activos el 24 set 2026
+
+function FuncionandoPanel({ users }) {
+  const [datos, setDatos] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const desde = addDaysISO(FECHA_MEJORAS, -45);
+      const [{ data: hist }, { data: pagos }, { data: subs }] = await Promise.all([
+        supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', desde).range(0, 9999),
+        supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').range(0, 4999),
+        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+      ]);
+      if (!cancelado) setDatos({ hist: hist || [], pagos: pagos || [], subs: subs || [] });
+    })().catch(() => { if (!cancelado) setDatos({ hist: [], pagos: [], subs: [] }); });
+    return () => { cancelado = true; };
+  }, []);
+
+  if (!datos) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex items-center gap-2 text-zinc-500 text-xs jb-body">
+        <Loader2 size={14} className="animate-spin" /> Midiendo resultados…
+      </div>
+    );
+  }
+
+  const hoy = todayISO();
+  const pct = (a, n) => (n ? Math.round((a / n) * 100) : null);
+  const todos = users || [];
+  // Primer pago aprobado de cada alumno (fecha en que pasó a pagar).
+  const primerPago = {};
+  datos.pagos.forEach(p => { const f = String(p.creado_en).slice(0, 10); if (!primerPago[p.username] || f < primerPago[p.username]) primerPago[p.username] = f; });
+  const comidasPorAlumno = {};
+  const alumnosPorDia = {};
+  datos.hist.forEach(r => {
+    (comidasPorAlumno[r.username] = comidasPorAlumno[r.username] || new Set()).add(r.fecha);
+    (alumnosPorDia[r.fecha] = alumnosPorDia[r.fecha] || new Set()).add(r.username);
+  });
+
+  // 1) Pasan a pago: de cada periodo, los que pagaron por primera vez y
+  //    los que terminaron su prueba (fecha real de vencimiento) sin pagar.
+  const esPruebaU = u => u.plan === 'trial' || u.plan === 'prueba';
+  const periodo = (desde, hasta) => {
+    const pagaronP = Object.entries(primerPago).filter(([, f]) => f >= desde && f < hasta).length;
+    const sinPagarP = todos.filter(u => esPruebaU(u) && !primerPago[u.username] && u.fechaVencimiento && u.fechaVencimiento >= desde && u.fechaVencimiento < hasta).length;
+    return { pagaron: pagaronP, total: pagaronP + sinPagarP };
+  };
+  const convAntes = periodo('2000-01-01', FECHA_MEJORAS);
+  const convDespues = periodo(FECHA_MEJORAS, hoy);
+
+  // 2) Primera comida en sus 2 primeros días (solo quienes ya tuvieron esos 2 días).
+  const comioAlInicio = u => [...(comidasPorAlumno[u.username] || [])].some(f => f >= u.fechaInicio && f <= addDaysISO(u.fechaInicio, 1));
+  const nuevos = todos.filter(u => u.fechaInicio && addDaysISO(u.fechaInicio, 1) < hoy && u.fechaInicio >= addDaysISO(FECHA_MEJORAS, -30));
+  const nuevosAntes = nuevos.filter(u => u.fechaInicio < FECHA_MEJORAS);
+  const nuevosDespues = nuevos.filter(u => u.fechaInicio >= FECHA_MEJORAS);
+
+  // 3) Alumnos que registran comida al día (promedio de días completos).
+  const promedioDia = (desde, hasta) => {
+    const dias = [];
+    for (let f = desde; f <= hasta; f = addDaysISO(f, 1)) dias.push(alumnosPorDia[f] ? alumnosPorDia[f].size : 0);
+    return dias.length ? Math.round((dias.reduce((a, b) => a + b, 0) / dias.length) * 10) / 10 : null;
+  };
+  const ayer = addDaysISO(hoy, -1);
+  const diaAntes = promedioDia(addDaysISO(FECHA_MEJORAS, -7), addDaysISO(FECHA_MEJORAS, -1));
+  const diaDespues = ayer >= FECHA_MEJORAS ? promedioDia(FECHA_MEJORAS, ayer) : null;
+  const diasMedidos = ayer >= FECHA_MEJORAS ? Math.round((new Date(ayer) - new Date(FECHA_MEJORAS)) / 86400000) + 1 : 0;
+
+  // 4) Avisos activos hoy entre alumnos vigentes.
+  const vigentes = new Set(todos.filter(u => u.enabled && membershipActive(u)).map(u => u.username));
+  const avisosHoy = new Set(datos.subs.map(x => x.username).filter(n => vigentes.has(n))).size;
+
+  const filas = [
+    { titulo: 'Pasan de la prueba a pagar', unidad: '%',
+      antes: pct(convAntes.pagaron, convAntes.total), nAntes: `${convAntes.pagaron} de ${convAntes.total}`,
+      despues: pct(convDespues.pagaron, convDespues.total), nDespues: `${convDespues.pagaron} de ${convDespues.total}` },
+    { titulo: 'Nuevos que registran comida en sus 2 primeros días', unidad: '%',
+      antes: pct(nuevosAntes.filter(comioAlInicio).length, nuevosAntes.length), nAntes: `${nuevosAntes.filter(comioAlInicio).length} de ${nuevosAntes.length}`,
+      despues: pct(nuevosDespues.filter(comioAlInicio).length, nuevosDespues.length), nDespues: `${nuevosDespues.filter(comioAlInicio).length} de ${nuevosDespues.length}` },
+    { titulo: 'Alumnos que registran comida por día (promedio)', unidad: '',
+      antes: diaAntes, nAntes: '7 días previos',
+      despues: diaDespues, nDespues: diasMedidos ? `${diasMedidos} día(s)` : '' },
+    { titulo: 'Alumnos vigentes que reciben avisos', unidad: '',
+      antes: AVISOS_ANTES, nAntes: '24 set',
+      despues: avisosHoy, nDespues: 'hoy' },
+  ];
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
+      <h2 className="jb-display text-base text-zinc-200 mb-1">📈 ¿ESTÁ FUNCIONANDO?</h2>
+      <p className="jb-body text-xs text-zinc-500 mb-4">
+        Antes y después de las mejoras del {new Date(FECHA_MEJORAS + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' })}. Con pocos alumnos los porcentajes cambian mucho: mira también cuántos son.
+      </p>
+      <div className="flex flex-col gap-2.5">
+        {filas.map(f => {
+          const hayDespues = f.despues !== null && f.despues !== undefined;
+          const dif = hayDespues && f.antes !== null ? f.despues - f.antes : null;
+          return (
+            <div key={f.titulo} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <p className="jb-body text-xs text-zinc-300 mb-2">{f.titulo}</p>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <div>
+                  <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Antes</p>
+                  <p className="jb-display text-2xl text-zinc-400 tabular-nums leading-none">{f.antes !== null ? `${f.antes}${f.unidad}` : '—'}</p>
+                  <p className="jb-body text-[10px] text-zinc-600">{f.nAntes}</p>
+                </div>
+                <span className={`jb-display text-sm tabular-nums ${dif === null ? 'text-zinc-600' : dif > 0 ? 'text-emerald-400' : dif < 0 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                  {dif === null ? '→' : `${dif > 0 ? '▲ +' : dif < 0 ? '▼ ' : '= '}${Math.round(dif * 10) / 10}${f.unidad}`}
+                </span>
+                <div className="text-right">
+                  <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Después</p>
+                  <p className="jb-display text-2xl text-orange-500 tabular-nums leading-none">{hayDespues ? `${f.despues}${f.unidad}` : '—'}</p>
+                  <p className="jb-body text-[10px] text-zinc-600">{hayDespues ? f.nDespues : 'aún midiendo'}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TableroPanel({ users }) {
   const [datos, setDatos] = useState(null);
 
@@ -7442,6 +7569,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'negocio' && (
           <>
             <TableroPanel users={users} />
+            <FuncionandoPanel users={users} />
             <EmbudoResumenPanel />
             <MetricasPanel />
             <FinanzasPanel />

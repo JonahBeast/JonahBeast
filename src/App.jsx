@@ -7021,6 +7021,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'negocio' && (
           <>
             <ReferidosPanel users={users} onCambio={onRecargar} />
+            <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} />
             <CumpleanosPanel users={users} />
             <PagosPanel />
@@ -7688,6 +7689,134 @@ function RenewalBanner({ user, onRenovar }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Rescate de alumnos: todos los que tienen plan o prueba vigente,
+// agrupados por cuántos días llevan sin registrar comidas. La constancia es
+// lo que más se relaciona con que paguen, y por WhatsApp se llega a todos
+// (las notificaciones solo las tiene una parte).
+const GRUPOS_RESCATE = [
+  { key: 'enfriando', emoji: '🟡', label: 'SE ESTÁN ENFRIANDO', detalle: '2 a 7 días sin registrar', necesita: 'Los más fáciles de recuperar: escríbeles primero.', color: 'text-amber-400', borde: 'border-amber-700/50' },
+  { key: 'frio', emoji: '🔴', label: 'FRÍOS', detalle: 'Más de 7 días sin registrar', necesita: 'Pregúntales qué se les complicó.', color: 'text-red-400', borde: 'border-red-700/50' },
+  { key: 'nunca', emoji: '⚫', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Ayúdalos a dar el primer paso.', color: 'text-zinc-300', borde: 'border-zinc-600' },
+];
+
+function RescatePanel({ users }) {
+  const [open, setOpen] = useState(true);
+  // username -> última fecha con comidas registradas
+  const [ultimas, setUltimas] = useState(null);
+
+  const vigentes = useMemo(() => (users || []).filter(u => u.enabled && membershipActive(u)), [users]);
+  const nombres = vigentes.map(u => u.username).sort().join(',');
+
+  useEffect(() => {
+    if (!nombres) { setUltimas({}); return; }
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase.from('historial')
+        .select('username, fecha')
+        .in('username', nombres.split(','))
+        .gt('comidas_count', 0)
+        .range(0, 9999);
+      if (cancelado) return;
+      if (error) { setUltimas({}); return; }
+      const m = {};
+      (data || []).forEach(r => { if (!m[r.username] || r.fecha > m[r.username]) m[r.username] = r.fecha; });
+      setUltimas(m);
+    })();
+    return () => { cancelado = true; };
+  }, [nombres]);
+
+  if (!vigentes.length) return null;
+
+  const alumnos = vigentes.map(u => {
+    const ultima = ultimas ? ultimas[u.username] || null : null;
+    const sinRegistrar = ultima ? -daysLeft(ultima) : null;
+    const grupo = !ultima ? 'nunca' : sinRegistrar <= 1 ? 'aldia' : sinRegistrar <= 7 ? 'enfriando' : 'frio';
+    return { ...u, ultima, sinRegistrar, grupo };
+  }).sort((a, b) => (a.sinRegistrar ?? 999) - (b.sinRegistrar ?? 999));
+  const alDia = alumnos.filter(u => u.grupo === 'aldia').length;
+
+  function linkWhatsApp(u) {
+    const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
+    const texto = u.grupo === 'enfriando'
+      ? `Hola ${nombre}, soy Jonah 🦍 Te extraño por la app: llevas ${u.sinRegistrar} días sin registrar tus comidas. ¿Todo bien? Registra hoy aunque sea tu desayuno y retomamos juntos 💪`
+      : u.grupo === 'frio'
+        ? `Hola ${nombre}, soy Jonah 🦍 Hace ${u.sinRegistrar} días que no te veo por la app. ¿Qué se te complicó? Cuéntame y lo resolvemos juntos, tu objetivo sigue ahí 🔥`
+        : `Hola ${nombre}, soy Jonah 🦍 Vi que aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto y ahí empezamos a trabajar tu objetivo 💪`;
+    const num = (u.telefono || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  const porRescatar = alumnos.filter(u => u.grupo !== 'aldia').length;
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-sm shrink-0">🔥</div>
+          <h2 className="jb-display text-base text-zinc-200">
+            RESCATE DE ALUMNOS
+            {ultimas && porRescatar > 0 && <span className="ml-2 bg-orange-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{porRescatar}</span>}
+          </h2>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          {ultimas === null ? (
+            <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
+          ) : (
+            <>
+              <p className="jb-body text-xs text-zinc-500 mb-3">
+                Alumnos con plan o prueba vigente según cuándo registraron comidas por última vez. 🟢 {alDia} registraron ayer u hoy.
+              </p>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {GRUPOS_RESCATE.map(g => (
+                  <div key={g.key} className={`bg-zinc-950 border ${g.borde} rounded-lg p-2.5`}>
+                    <div className={`jb-display text-2xl ${g.color}`}>{g.emoji} {alumnos.filter(u => u.grupo === g.key).length}</div>
+                    <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{g.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-4">
+                {GRUPOS_RESCATE.map(g => {
+                  const lista = alumnos.filter(u => u.grupo === g.key);
+                  if (!lista.length) return null;
+                  return (
+                    <div key={g.key}>
+                      <div className={`jb-display text-xs ${g.color}`}>{g.emoji} {g.label} · {lista.length}</div>
+                      <div className="jb-body text-[11px] text-zinc-500 mb-2">{g.detalle}. {g.necesita}</div>
+                      <div className="flex flex-col gap-2">
+                        {lista.map(u => (
+                          <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
+                              <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
+                                {u.ultima ? `Última comida hace ${u.sinRegistrar} días` : 'Aún no registra ninguna comida'}
+                                {u.plan === 'trial' || u.plan === 'prueba' ? ' · prueba gratis' : ' · plan pagado'}
+                                {!u.telefono && ' · sin celular'}
+                              </div>
+                            </div>
+                            <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                              <MessageCircle size={13} /> Escribir
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

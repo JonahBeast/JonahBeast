@@ -3322,7 +3322,7 @@ function Landing({ onChoose }) {
         if (held) return p;
         if (p >= 100) {
           held = true;
-          setTimeout(() => { held = false; setScanPct(0); }, 1800);
+          setTimeout(() => { held = false; setScanPct(0); }, 2600);
           return 100;
         }
         return p + 1;
@@ -3391,29 +3391,66 @@ function Landing({ onChoose }) {
             y el porcentaje comparten el mismo valor (scanPct), así que se
             mueven exactamente igual de rápido — no hay dos animaciones
             corriendo por separado que se puedan desincronizar. */}
-        <div className="flex justify-center mb-3" style={step(220)}>
-          <div className="w-40 h-40 sm:w-48 sm:h-48 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden">
-            <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-2" />
-            <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
-              style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
-            <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
-              <span className="jb-display text-lg text-orange-400 bg-zinc-950/70 px-2.5 py-1 rounded-md" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-                {scanPct}%
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="flex justify-center mb-3" style={step(250)}>
-          <div className={`bg-zinc-900 border border-orange-500/50 rounded-xl px-3 py-1.5 flex flex-col items-center gap-0.5 transition-all ${scanPct >= 85 ? 'py-2' : ''}`}>
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="text-orange-500 shrink-0" size={12} />
-              <span className="jb-body text-[10.5px] font-semibold text-zinc-100">Lomo saltado detectado</span>
-            </div>
-            {scanPct >= 85 && (
-              <span className="jb-body text-[10px] text-zinc-400">612 kcal · 38g proteína · 40g carbos</span>
-            )}
-          </div>
-        </div>
+        {(() => {
+          // Mismo lenguaje visual que el escáner real de la app: esquinas
+          // que laten, rejilla, etiqueta ESCANEANDO, pasos, y al final la
+          // fila del alimento con su porción y calorías (de la base real).
+          const detectado = scanPct >= 85;
+          const porcionDemo = { unit: 'plato', qty: 1 };
+          const m = entryMacros({ foodKey: 'Lomo saltado (-)', ...porcionDemo });
+          const pasoDemo = scanPct < 30 ? 'Detectando alimentos en la foto' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías y macros';
+          return (
+            <>
+              <style>{ESTILOS_ESCANER}</style>
+              <div className="flex justify-center mb-3" style={step(220)}>
+                <div className="w-40 h-40 sm:w-48 sm:h-48 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden transition-shadow duration-500"
+                  style={{ boxShadow: detectado ? '0 0 34px -6px rgba(232,89,12,.7)' : '0 0 0 rgba(0,0,0,0)' }}>
+                  <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-2" />
+                  {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
+                  <div className="absolute inset-2 pointer-events-none">
+                    <div className="jbe-esquina absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-orange-500 rounded-tl-md" />
+                    <div className="jbe-esquina absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-orange-500 rounded-tr-md" />
+                    <div className="jbe-esquina absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-orange-500 rounded-bl-md" />
+                    <div className="jbe-esquina absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-orange-500 rounded-br-md" />
+                  </div>
+                  {!detectado && (
+                    <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
+                      style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
+                  )}
+                  <span className={`absolute top-2 left-1/2 -translate-x-1/2 jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 whitespace-nowrap ${detectado
+                    ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 bg-zinc-950/80 border border-orange-500/40'}`}>
+                    {detectado ? '⚡ DETECTADO' : 'ESCANEANDO'}
+                  </span>
+                  <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
+                    <span className="jb-display text-lg text-orange-400 bg-zinc-950/70 px-2.5 py-1 rounded-md tabular-nums" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+                      {scanPct}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-center mb-3 h-[58px]" style={step(250)}>
+                {detectado ? (
+                  <div key="res" className="jbe-entrar w-[300px] max-w-full bg-zinc-950/90 border border-orange-500/50 rounded-xl pl-2.5 pr-3 py-2 flex items-center gap-2.5 text-left"
+                    style={{ boxShadow: '0 8px 24px -10px rgba(232,89,12,.6)' }}>
+                    <span className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">🍽️</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight">Lomo saltado</span>
+                      <span className="block jb-body text-[10px] text-zinc-400 tabular-nums whitespace-nowrap">
+                        {textoPorcion(porcionDemo)} · P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g
+                      </span>
+                    </span>
+                    <span className="jb-display text-base text-orange-400 tabular-nums shrink-0">{Math.round(m.kcal)} <span className="text-[10px]">kcal</span></span>
+                  </div>
+                ) : (
+                  <div key="paso" className="self-center flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 rounded-full px-3 py-1.5">
+                    <Loader2 className="animate-spin text-orange-400 shrink-0" size={12} />
+                    <span className="jb-body text-[11px] text-orange-300">{pasoDemo}…</span>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
 
         <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
           Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.

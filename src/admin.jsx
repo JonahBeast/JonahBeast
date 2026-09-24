@@ -3836,6 +3836,35 @@ const GRUPOS_RESCATE = [
   { key: 'nunca', emoji: '⚫', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Ayúdalos a dar el primer paso.', color: 'text-zinc-300', borde: 'border-zinc-600' },
 ];
 
+/* Tarjetas de colores que funcionan como botones: al tocar una se ven solo
+   los alumnos de ese color; al tocarla de nuevo, la lista se guarda. */
+function TarjetasColor({ grupos, contar, activo, onElegir }) {
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {grupos.map(g => {
+          const n = contar(g.key);
+          const elegida = activo === g.key;
+          return (
+            <button key={g.key} type="button" onClick={() => onElegir(elegida ? null : g.key)} disabled={!n}
+              aria-pressed={elegida}
+              className={`text-left bg-zinc-950 border rounded-lg p-2.5 transition-all ${g.borde} ${elegida ? 'ring-2 ring-orange-500 bg-zinc-900' : n ? 'hover:bg-zinc-900' : 'opacity-50 cursor-default'}`}>
+              <div className={`jb-display text-2xl ${g.color}`}>{g.emoji} {n}</div>
+              <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{g.label}</div>
+              {n > 0 && (
+                <div className={`jb-body text-[10px] mt-1 ${elegida ? 'text-orange-400' : 'text-zinc-500'}`}>
+                  {elegida ? '▲ Ocultar' : '▼ Ver'}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {!activo && <p className="jb-body text-[11px] text-zinc-500 mb-2">Toca un color para ver a esos alumnos.</p>}
+    </>
+  );
+}
+
 const ESTADOS_AVISOS_PANEL = [
   { key: 'activo', plural: 'activos', uno: '🔔 Recibe avisos' },
   { key: 'iphone_sin_instalar', plural: 'iPhone sin instalar', uno: '📵 iPhone sin instalar la app: no recibe avisos' },
@@ -3847,6 +3876,7 @@ const ESTADOS_AVISOS_PANEL = [
 
 function RescatePanel({ users }) {
   const [open, setOpen] = useState(true);
+  const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   // username -> última fecha con comidas registradas
   const [ultimas, setUltimas] = useState(null);
 
@@ -3933,16 +3963,10 @@ function RescatePanel({ users }) {
                 {ESTADOS_AVISOS_PANEL.filter(e => conteoAvisos[e.key]).map(e => `${conteoAvisos[e.key]} ${e.plural}`).join(' · ') || 'sin datos aún'}
                 <span className="block text-zinc-600">Se actualiza cuando cada alumno abre la app.</span>
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {GRUPOS_RESCATE.map(g => (
-                  <div key={g.key} className={`bg-zinc-950 border ${g.borde} rounded-lg p-2.5`}>
-                    <div className={`jb-display text-2xl ${g.color}`}>{g.emoji} {alumnos.filter(u => u.grupo === g.key).length}</div>
-                    <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{g.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col gap-4">
-                {GRUPOS_RESCATE.map(g => {
+              <TarjetasColor grupos={GRUPOS_RESCATE} contar={k => alumnos.filter(u => u.grupo === k).length}
+                activo={grupoVisible} onElegir={setGrupoVisible} />
+              <div className="flex flex-col gap-4 mt-2">
+                {GRUPOS_RESCATE.filter(g => g.key === grupoVisible).map(g => {
                   const lista = alumnos.filter(u => u.grupo === g.key);
                   if (!lista.length) return null;
                   return (
@@ -4015,6 +4039,7 @@ function textoUltimaComida(fecha) {
 
 function VencimientosPanel({ users, onRenew }) {
   const [open, setOpen] = useState(true);
+  const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   // username -> { dias, ultima } con los días en que registró comidas.
   const [actividad, setActividad] = useState(null);
 
@@ -4138,16 +4163,10 @@ function VencimientosPanel({ users, onRenew }) {
                 <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    {SEMAFORO_PRUEBA.map(s => (
-                      <div key={s.key} className={`bg-zinc-950 border ${s.borde} rounded-lg p-2.5`}>
-                        <div className={`jb-display text-2xl ${s.color}`}>{s.emoji} {pruebas.filter(u => u.grupo === s.key).length}</div>
-                        <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    {SEMAFORO_PRUEBA.map(s => {
+                  <TarjetasColor grupos={SEMAFORO_PRUEBA} contar={k => pruebas.filter(u => u.grupo === k).length}
+                    activo={grupoVisible} onElegir={setGrupoVisible} />
+                  <div className="flex flex-col gap-4 mt-2">
+                    {SEMAFORO_PRUEBA.filter(s => s.key === grupoVisible).map(s => {
                       const lista = pruebas.filter(u => u.grupo === s.key);
                       if (!lista.length) return null;
                       return (

@@ -9387,6 +9387,120 @@ function RetoPrueba({ user, mealPlan }) {
   );
 }
 
+/* Invitar en el momento de orgullo: la gente recomienda cuando acaba de
+   lograr algo, no cuando ve una tarjeta al fondo de la pantalla. Aparece una
+   sola vez por logro (racha de 7, 14 o 30 días, reto de la prueba cumplido,
+   o 20 días registrados con plan pagado) y como máximo una vez por semana.
+   El mensaje de WhatsApp lleva el logro del alumno y su link con 10% de
+   descuento (mismo código de "Invita a un amigo"). */
+const MOMENTOS_INVITAR = [
+  { id: 'racha30', cumple: d => d.racha >= 30, emoji: '🏆', titulo: '30 DÍAS SEGUIDOS', logro: 'Llevo 30 días seguidos registrando lo que como' },
+  { id: 'racha14', cumple: d => d.racha >= 14, emoji: '🔥', titulo: '14 DÍAS SEGUIDOS', logro: 'Llevo 14 días seguidos registrando lo que como' },
+  { id: 'racha7', cumple: d => d.racha >= 7, emoji: '🔥', titulo: '7 DÍAS SEGUIDOS', logro: 'Llevo una semana seguida registrando lo que como' },
+  { id: 'reto', cumple: d => d.prueba && d.total >= RETO_DIAS, emoji: '🏆', titulo: 'RETO CUMPLIDO', logro: 'Completé mi reto de 7 días registrando lo que como' },
+  { id: 'mes', cumple: d => !d.prueba && d.total >= 20, emoji: '💪', titulo: d => `${d.total} DÍAS REGISTRANDO`, logro: d => `Llevo ${d.total} días registrando lo que como` },
+];
+const INVITAR_CADA_DIAS = 7;
+
+function InvitaMomento({ user, mealPlan }) {
+  const username = user?.username;
+  const [fechas, setFechas] = useState(null);
+  const [momento, setMomento] = useState(null);
+  const [codigo, setCodigo] = useState(null);
+  const hoy = todayISO();
+
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const { data } = await supabase.from('historial').select('fecha')
+          .eq('username', username).gt('comidas_count', 0).lt('fecha', hoy)
+          .gte('fecha', addDaysISO(hoy, -120));
+        setFechas(new Set((data || []).map(r => r.fecha)));
+      } catch { setFechas(new Set()); }
+    })();
+  }, [username]);
+
+  const hoyCuenta = totalesDePlan(mealPlan).comidas > 0;
+  useEffect(() => {
+    if (!fechas || momento || !username) return;
+    const clave = id => `jb-invita-${username}-${id}`;
+    const leer = k => { try { return localStorage.getItem(k); } catch { return '1'; } };
+    const ultimo = Number(leer(`jb-invita-${username}-ultimo`)) || 0;
+    if (Date.now() - ultimo < INVITAR_CADA_DIAS * 86400000) return;
+    const registro = f => (f === hoy ? hoyCuenta : fechas.has(f));
+    let racha = 0;
+    let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+    while (registro(cursor)) { racha++; cursor = addDaysISO(cursor, -1); }
+    const datos = { racha, total: fechas.size + (hoyCuenta ? 1 : 0), prueba: user.plan === 'trial' || user.plan === 'prueba' };
+    const i = MOMENTOS_INVITAR.findIndex(m => m.cumple(datos) && leer(clave(m.id)) !== '1');
+    if (i < 0) return;
+    const m = MOMENTOS_INVITAR[i];
+    const texto = v => (typeof v === 'function' ? v(datos) : v);
+    const t = setTimeout(() => {
+      // Se anota como visto recién al mostrarse. Los logros menores ya no
+      // se muestran después de uno mayor.
+      try {
+        MOMENTOS_INVITAR.slice(i).forEach(x => { if (x.cumple(datos)) localStorage.setItem(clave(x.id), '1'); });
+        localStorage.setItem(`jb-invita-${username}-ultimo`, String(Date.now()));
+      } catch { return; }
+      setMomento({ ...m, titulo: texto(m.titulo), logro: texto(m.logro) });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [fechas, hoyCuenta, username]);
+
+  useEffect(() => {
+    if (!momento) return;
+    supabase.rpc('mi_codigo_invitacion').then(({ data, error }) => {
+      if (!error && data?.codigo) setCodigo(data.codigo);
+    });
+  }, [momento]);
+
+  if (!momento) return null;
+  const link = codigo ? `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion` : null;
+  const mensaje = link && `${momento.logro} con Jonah Beast Fuel 🦍 Te dice cuánto y qué comer, con comida peruana. Pruébala 15 días gratis y con mi link tienes 10% de descuento: ${link}`;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setMomento(null)}>
+      <div className="relative bg-zinc-900 border border-orange-500/50 rounded-3xl max-w-sm w-full p-6 text-center overflow-hidden"
+        style={{ boxShadow: '0 0 50px -12px rgba(232,89,12,.55)' }} onClick={e => e.stopPropagation()}>
+        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(232,89,12,.25), transparent 70%)' }} />
+        <div className="relative w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-4xl mx-auto mb-3">
+          {momento.emoji}
+        </div>
+        <p className="relative jb-body text-[11px] text-orange-300 uppercase tracking-wider mb-0.5">¡Lo lograste!</p>
+        <h2 className="relative jb-display text-2xl text-zinc-50 mb-3">{momento.titulo}</h2>
+        <p className="relative jb-body text-sm text-zinc-300 mb-4">
+          ¿Conoces a alguien que también quiere comer mejor? Compártele tu logro.
+        </p>
+        <div className="relative grid grid-cols-2 gap-2 mb-5 text-left">
+          <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3">
+            <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Tu amigo</p>
+            <p className="jb-body text-xs text-zinc-200 mt-0.5">15 días gratis y <span className="text-orange-400 font-semibold">10% de descuento</span></p>
+          </div>
+          <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3">
+            <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Tú</p>
+            <p className="jb-body text-xs text-zinc-200 mt-0.5"><span className="text-orange-400 font-semibold">15 días gratis</span> cuando pague su plan</p>
+          </div>
+        </div>
+        {mensaje ? (
+          <a href={`https://wa.me/?text=${encodeURIComponent(mensaje)}`} target="_blank" rel="noopener noreferrer"
+            onClick={() => setTimeout(() => setMomento(null), 300)}
+            className={btnPrimary + ' relative w-full py-3 mb-2'}>
+            <MessageCircle size={16} /> Invitar por WhatsApp
+          </a>
+        ) : (
+          <button disabled className={btnPrimary + ' relative w-full py-3 mb-2'}><Loader2 className="animate-spin" size={16} /></button>
+        )}
+        <button onClick={() => setMomento(null)} className="relative jb-body text-sm text-zinc-500 hover:text-zinc-300 w-full py-2">
+          Ahora no
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TrialBanner({ user, onVerPlanes, mealPlan }) {
   const dia = trialDayOf(user);
   const [stats, setStats] = useState(null);
@@ -14326,6 +14440,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
+          <InvitaMomento user={userRecord} mealPlan={mealPlan} />
+        )}
         {ajustarMeta && !verGuia && (
           <AjustaMetaModal faltanDatos={!tieneDatosBasicos(form)}
             onAjustar={() => { setAjustarMeta(false); setRegistrarAl(null); setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }}

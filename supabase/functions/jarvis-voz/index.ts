@@ -20,14 +20,20 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Voces que ofrece el panel (la primera es la de por defecto).
-const VOCES = ["coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+// Voces que ofrece el panel (la primera es la de por defecto). "jarvis" no
+// es una voz aparte: es la voz masculina "onyx" con instrucciones de estilo
+// de mayordomo inteligente (no imita la voz de ningún actor real).
+const VOCES = ["jarvis", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
 // Tope de texto por llamada: acota el costo de cada respuesta.
 const MAX_CARACTERES = 1500;
 const INSTRUCCIONES =
   "Habla en español latinoamericano neutro, como una asistente de inteligencia artificial futurista " +
   "y elegante: tono calmado, seguro y cercano, ritmo ágil, pronunciación clara de nombres y cifras. " +
   "Suena natural, nunca robótica.";
+const INSTRUCCIONES_JARVIS =
+  "Habla en español latinoamericano neutro como un mayordomo de inteligencia artificial muy sofisticado: " +
+  "voz masculina grave, serena y elegante, formal pero cercana, con total seguridad y un toque sutil de ironía fina. " +
+  "Ritmo pausado y preciso, pronunciación impecable de nombres y cifras. Nunca suenes robótico ni exagerado.";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
@@ -49,19 +55,21 @@ Deno.serve(async (req) => {
     const { texto, voz } = await req.json();
     const input = String(texto || "").replace(/\s+/g, " ").trim().slice(0, MAX_CARACTERES);
     if (!input) return json({ error: "Falta el texto." }, 400);
-    const voice = VOCES.includes(voz) ? voz : VOCES[0];
+    const elegida = VOCES.includes(voz) ? voz : VOCES[0];
+    const voice = elegida === "jarvis" ? "onyx" : elegida;
+    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : INSTRUCCIONES;
 
     const r = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "authorization": `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions: INSTRUCCIONES, response_format: "mp3" }),
+      body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
     });
     if (!r.ok || !r.body) {
       console.error("jarvis-voz: OpenAI respondió", r.status, (await r.text().catch(() => "")).slice(0, 300));
       return json({ error: "No se pudo generar la voz." }, 502);
     }
     // Consumo, para poder medir el costo en los registros de Supabase.
-    console.log(JSON.stringify({ evento: "jarvis_voz", caracteres: input.length, voz: voice }));
+    console.log(JSON.stringify({ evento: "jarvis_voz", caracteres: input.length, voz: elegida }));
     return new Response(r.body, {
       headers: { ...CORS_HEADERS, "content-type": "audio/mpeg", "cache-control": "no-store" },
     });

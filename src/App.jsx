@@ -1085,6 +1085,47 @@ function esTWA() {
   try { return document.referrer.startsWith('android-app://'); } catch { return false; }
 }
 
+/* Pago con Google Play dentro de la app de Android (Digital Goods API).
+   Solo existe cuando la app se abre desde la versión de Play Store que
+   trae el cobro de Google activado; en la web o en una versión vieja de
+   la app devuelve null y se sigue mostrando lo de siempre. El plan lo
+   activa el servidor (/api/google-play/verificar) después de confirmar
+   la compra directo con Google. */
+const PLAY_BILLING = 'https://play.google.com/billing';
+const PRODUCTOS_PLAY = { 1: 'jb_plan_mensual', 3: 'jb_plan_trimestral', 6: 'jb_plan_semestral', 12: 'jb_plan_anual' };
+const URL_SUSCRIPCIONES_PLAY = 'https://play.google.com/store/account/subscriptions?package=com.jonahbeast.twa';
+
+async function servicioGooglePlay() {
+  if (!esTWA() || !('getDigitalGoodsService' in window)) return null;
+  try { return await window.getDigitalGoodsService(PLAY_BILLING); } catch { return null; }
+}
+
+async function enviarCompraGoogle(purchaseToken) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch('/api/google-play/verificar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify({ purchaseToken }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) throw new Error(data.error || 'No pudimos activar tu plan.');
+  return data;
+}
+
+/* Reenvía al servidor las compras de Google que tenga el celular, por si
+   alguna quedó sin activar (se cerró la app o falló el internet justo
+   después de pagar). Devuelve true si activó algún plan. */
+async function sincronizarComprasGoogle(servicio) {
+  let activo = false;
+  try {
+    const compras = await servicio.listPurchases();
+    for (const c of compras || []) {
+      try { const r = await enviarCompraGoogle(c.purchaseToken); if (r.activado) activo = true; } catch {}
+    }
+  } catch {}
+  return activo;
+}
+
 
 
 
@@ -3480,8 +3521,59 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [correo, setCorreo] = useState(userRecord?.correo || '');
   const [creandoMP, setCreandoMP] = useState(false);
   const [mpTipo, setMpTipo] = useState('unico');
+  // Google Play (solo en la app de Android con el cobro de Google activado)
+  const [playSrv, setPlaySrv] = useState(null);
+  const [playPrecios, setPlayPrecios] = useState({});
+  const [comprandoPlay, setComprandoPlay] = useState(null);
+  const [playMsg, setPlayMsg] = useState('');
 
   useEffect(() => { cargar(); }, [username]);
+
+  useEffect(() => {
+    if (!esTWA()) return;
+    let vivo = true;
+    (async () => {
+      const srv = await servicioGooglePlay();
+      if (!srv || !vivo) return;
+      try {
+        const detalles = await srv.getDetails(Object.values(PRODUCTOS_PLAY));
+        const m = {};
+        (detalles || []).forEach(d => { m[d.itemId] = d.price; });
+        if (!vivo || Object.keys(m).length === 0) return;
+        setPlayPrecios(m); setPlaySrv(srv);
+      } catch { return; }
+      if (await sincronizarComprasGoogle(srv)) window.location.reload();
+    })();
+    return () => { vivo = false; };
+  }, [username]);
+
+  async function comprarConGooglePlay(plan) {
+    const sku = PRODUCTOS_PLAY[plan.meses];
+    if (!playSrv || !sku || comprandoPlay) return;
+    setPlayMsg(''); setComprandoPlay(sku);
+    try {
+      const pedido = new PaymentRequest(
+        [{ supportedMethods: PLAY_BILLING, data: { sku } }],
+        { total: { label: 'Total', amount: { currency: 'PEN', value: '0' } } },
+      );
+      const respuesta = await pedido.show();
+      const { purchaseToken } = respuesta.details;
+      // El cobro ya lo hizo Google: se cierra su ventana como exitosa y
+      // luego el servidor activa el plan.
+      try { await respuesta.complete('success'); } catch {}
+      try {
+        await enviarCompraGoogle(purchaseToken);
+        showToast('¡Listo! Tu plan ya está activo 💪');
+        setTimeout(() => window.location.reload(), 1200);
+      } catch (e) {
+        setPlayMsg('Tu pago quedó registrado en Google. Estamos activando tu plan: vuelve a abrir la app en unos minutos. Si no se activa, escríbenos por WhatsApp.');
+      }
+    } catch (e) {
+      // El alumno cerró la ventana de pago: no es un error.
+      if (e?.name !== 'AbortError') setPlayMsg('No se pudo abrir el pago de Google Play. Intenta de nuevo.');
+    }
+    setComprandoPlay(null);
+  }
 
   async function cargar() {
     setLoading(true);
@@ -3597,6 +3689,69 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   // Versión para Play Store: solo precios como información, sin botón
   // de pago ni datos bancarios — así cumplimos la política de Google
   // sin dejar de ser transparentes con el precio real.
+  // App de Android con el cobro de Google activado: se paga con Google
+  // Play, con renovación automática. Los precios salen de Google.
+  if (esTWA() && playSrv) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
+          <p className="jb-body text-sm text-zinc-400">
+            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de prueba gratis. ` : 'Tu prueba gratis terminó. ') : ''}
+            Paga seguro con tu cuenta de Google Play.
+          </p>
+        </div>
+
+        <div className="grid gap-3">
+          {PLANES.map(plan => {
+            const sku = PRODUCTOS_PLAY[plan.meses];
+            const precio = playPrecios[sku];
+            if (!precio) return null;
+            const valor = Number(precio.value);
+            const cargando = comprandoPlay === sku;
+            return (
+              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.badge ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
+                    {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
+                  </div>
+                  <div className="text-right">
+                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor)}</p>
+                    <p className="jb-body text-xs text-zinc-400">
+                      {plan.meses > 1 ? `cada ${plan.meses} meses · ` : 'al mes · '}{fmtS(valor / (plan.meses * 30))} al día
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => comprarConGooglePlay(plan)} disabled={!!comprandoPlay}
+                  className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
+                  {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {playMsg && <p className="jb-body text-sm text-amber-300 text-center">{playMsg}</p>}
+
+        <div className="flex flex-col gap-1.5">
+          {BENEFICIOS.map(b => (
+            <p key={b} className="jb-body text-sm text-zinc-300">✅ {b}</p>
+          ))}
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 text-center">
+          La suscripción se renueva sola al terminar cada periodo. Puedes cancelarla cuando quieras desde Google Play y
+          mantienes tu acceso hasta el final del periodo pagado.
+        </p>
+        <a href={URL_SUSCRIPCIONES_PLAY} target="_blank" rel="noopener noreferrer"
+          className="jb-body text-xs text-orange-400 text-center underline">
+          Administrar mi suscripción en Google Play
+        </a>
+      </div>
+    );
+  }
+
   if (esTWA()) {
     const waUrlPlan = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
       `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;

@@ -1841,7 +1841,6 @@ function TarjetaTestimonio({ t, raiz }) {
       </button>
       <div className="px-1 pt-3">
         <p className="jb-display text-lg text-zinc-100 leading-none">{t.nombre}</p>
-        <p className="jb-body text-xs text-orange-400 font-semibold mt-1 mb-1.5">{t.dato}</p>
         <p className="jb-body text-sm text-zinc-400 leading-snug border-l-2 border-orange-500/60 pl-2.5">"{t.quote}"</p>
       </div>
     </div>
@@ -1875,9 +1874,7 @@ function ResultadosReales() {
   return (
     <div>
       <style>{ESTILOS_TESTIMONIOS}</style>
-      <p className="jb-body text-[11px] text-orange-400 font-semibold tracking-[0.25em] mb-1">⚡ TRANSFORMACIONES</p>
-      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-1">RESULTADOS <span className="text-orange-500">REALES</span></h2>
-      <p className="jb-body text-xs text-zinc-400 mb-4">Desliza para ver cada cambio · toca una foto para que caiga el rayo otra vez</p>
+      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-4">RESULTADOS <span className="text-orange-500">REALES</span></h2>
       <div ref={carrilRef} onScroll={alDeslizar}
         className="flex gap-4 overflow-x-auto pb-3 -mx-6 px-[9%] sm:px-[15%] snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TESTIMONIOS.map(t => <TarjetaTestimonio key={t.nombre} t={t} raiz={carrilRef} />)}
@@ -2002,14 +1999,21 @@ function Landing({ onChoose }) {
   // landing es corta: cuando el principal sale, el final ya se ve, y la
   // barra casi nunca llegaría a mostrarse.
   const heroCtaRef = useRef(null);
-  const [mostrarBarra, setMostrarBarra] = useState(false);
+  // La barra fija aparece al pasar el botón de arriba y se esconde cuando
+  // se ve el botón grande de abajo (para no mostrar dos botones iguales).
+  const finalCtaRef = useRef(null);
+  const [pasoHero, setPasoHero] = useState(false);
+  const [veFinal, setVeFinal] = useState(false);
+  const mostrarBarra = pasoHero && !veFinal;
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined' || !heroCtaRef.current) return;
     const obs = new IntersectionObserver(([e]) => {
-      setMostrarBarra(!e.isIntersecting && e.boundingClientRect.top < 0);
+      setPasoHero(!e.isIntersecting && e.boundingClientRect.top < 0);
     });
     obs.observe(heroCtaRef.current);
-    return () => obs.disconnect();
+    const obsFinal = new IntersectionObserver(([e]) => setVeFinal(e.isIntersecting));
+    if (finalCtaRef.current) obsFinal.observe(finalCtaRef.current);
+    return () => { obs.disconnect(); obsFinal.disconnect(); };
   }, []);
   const hastaFecha = fechaFinPrueba();
 
@@ -2183,10 +2187,6 @@ function Landing({ onChoose }) {
           );
         })()}
 
-        <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
-          Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
-        </p>
-
         <div className="mb-3" style={step(300)}>
           <PruebaSocialMini />
         </div>
@@ -2196,23 +2196,19 @@ function Landing({ onChoose }) {
           <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
           <ChevronRight className="text-zinc-950" size={16} />
         </button>
-        <p className="jb-body text-orange-400 text-xs font-semibold mb-1" style={step(325)}>Gratis hasta el {hastaFecha}</p>
-        <p className="jb-body text-zinc-500 text-[11px] mb-4" style={step(330)}>Registro en 30 segundos · Sin tarjeta · Cancela cuando quieras</p>
-
-        <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-zinc-400 text-xs mb-8" style={step(325)}>
+          <span className="text-orange-400 font-semibold">Gratis hasta el {hastaFecha}</span> · Sin tarjeta
+        </p>
 
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
         <div className="mb-6" style={step(500)}>
           <ResultadosReales />
-          <p className="jb-body text-[10px] text-zinc-600 mt-2">
-            Resultados de alumnos reales, logrados con el mismo sistema de control alimentario que ahora automatiza la app.
-          </p>
         </div>
 
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button onClick={registrarClicCTA} style={step(540)}
+        <button ref={finalCtaRef} onClick={registrarClicCTA} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex flex-col items-center justify-center gap-0.5">
           <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
           <span className="jb-body text-[11px] text-zinc-800">15 días sin tarjeta</span>
@@ -2236,7 +2232,7 @@ function Landing({ onChoose }) {
             desviar a quien está por empezar la prueba gratis. El admin
             entra por "Soy alumno" (es el mismo inicio de sesión). */}
         <button onClick={() => onChoose('free')} style={step(660)}
-          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-36">
+          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-10">
           📏 ¿Solo quieres medirte? Hazlo sin registro →
         </button>
       </div>
@@ -2252,15 +2248,11 @@ function Landing({ onChoose }) {
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
         }}>
         <div className="max-w-xl mx-auto px-4 pt-3 flex flex-col gap-2">
-          <PruebaSocialMini size={22} />
           <button onClick={registrarClicCTA} tabIndex={mostrarBarra ? 0 : -1}
             className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
             <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
             <ChevronRight className="text-zinc-950" size={16} />
           </button>
-          <p className="jb-body text-[10.5px] text-zinc-500 text-center -mt-0.5">
-            Registro en 30 segundos · Gratis hasta el {hastaFecha}
-          </p>
         </div>
       </div>
     </div>

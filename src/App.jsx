@@ -15726,9 +15726,12 @@ export default function App() {
     });
     const hash = window.location.hash || '';
     if (hash.includes('type=recovery')) setView('resetPassword');
-    init();
+    // La lista de alumnos solo sirve con una sesión abierta (admin o
+    // alumno), y sin sesión la base la devuelve vacía. Antes la landing
+    // esperaba esas consultas antes de mostrarse; ahora un visitante nuevo
+    // ve la página apenas se sabe que no tiene sesión.
     if (!hash.includes('type=recovery')) restoreSession();
-    else setSesionRevisada(true);
+    else { setSesionRevisada(true); setLoading(false); }
     return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
   }, []);
 
@@ -15741,6 +15744,7 @@ export default function App() {
       if (p.role === 'admin') {
         setAdminAuthed(true);
         marcarNoContarEmbudo();
+        await init();
         if (!window.location.pathname.startsWith('/tienda')) setView('admin');
         return;
       }
@@ -15755,7 +15759,7 @@ export default function App() {
       }
       await loadStudentSession(p.username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    finally { setSesionRevisada(true); }
+    finally { setSesionRevisada(true); setLoading(false); }
   }
 
   async function init() {
@@ -15815,6 +15819,7 @@ export default function App() {
       setAdminAuthed(true);
       try { localStorage.setItem('jb-conocido', '1'); } catch {}
       marcarNoContarEmbudo();
+      await init();
       setView('admin');
     } catch {
       setErr('No se pudo iniciar sesión, intenta de nuevo.');

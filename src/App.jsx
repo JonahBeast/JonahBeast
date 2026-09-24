@@ -2992,6 +2992,116 @@ function fechaLocalISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/* ------------------------------------------------------------------ */
+/* GUARDADO DEL ALUMNO                                                 */
+/* ------------------------------------------------------------------ */
+
+// Cada cambio del alumno se copia primero en el celular y la copia se
+// borra recién cuando la base confirma que lo recibió. Si no hay internet
+// o la sesión venció, la copia queda ahí, se reintenta sola y se recupera
+// al volver a abrir la app. Antes el error se ignoraba en silencio: el
+// alumno veía su comida en pantalla, pero nunca llegaba a la base.
+const clavePendiente = username => `jb-pendiente-${username}`;
+
+function leerPendiente(username) {
+  try {
+    const t = localStorage.getItem(clavePendiente(username));
+    const p = t ? JSON.parse(t) : null;
+    return p && p.mealPlan && p.form && p.fecha ? p : null;
+  } catch { return null; }
+}
+
+function escribirPendiente(username, p) {
+  try { localStorage.setItem(clavePendiente(username), JSON.stringify(p)); } catch {}
+}
+
+// Solo borra la copia si nadie la reemplazó por una más nueva mientras se guardaba.
+function borrarPendiente(username, ts) {
+  try {
+    const p = leerPendiente(username);
+    if (!p || p.ts <= ts) localStorage.removeItem(clavePendiente(username));
+  } catch {}
+}
+
+// Junta dos versiones del mismo día sin perder alimentos: se queda con la
+// del servidor y le suma los alimentos que solo estaban en el celular.
+function unirComidas(servidor, local) {
+  const meals = { ...EMPTY_MEALS(), ...(servidor?.meals || {}) };
+  Object.entries(local?.meals || {}).forEach(([comida, entradas]) => {
+    const ids = new Set((meals[comida] || []).map(en => en.id));
+    meals[comida] = [...(meals[comida] || []), ...(entradas || []).filter(en => en.foodKey && !ids.has(en.id))];
+  });
+  return { ...(servidor || local), meals };
+}
+
+function filaHistorial({ username, form, mealPlan, fecha }) {
+  const r = calcAll({
+    ...form,
+    edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
+    cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
+  });
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  let comidas = 0, alimentos = 0;
+  Object.values(mealPlan.meals || {}).forEach(entries => {
+    const conAlimento = entries.filter(en => en.foodKey);
+    if (conAlimento.length) comidas += 1;
+    alimentos += conAlimento.length;
+    entries.forEach(en => {
+      const m = entryMacros(en);
+      t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
+    });
+  });
+  // Solo se guardan los datos que el alumno ingresó de verdad: sin
+  // datos básicos no hay peso ni IMC, y sin medidas con cinta no hay
+  // % de grasa (antes se guardaban valores de ejemplo como si fueran
+  // reales y ensuciaban su progreso).
+  return {
+    username, fecha,
+    peso: r.basicos ? (Number(form.peso) || null) : null,
+    grasa_pct: r.cinta ? Number(r.bf.toFixed(1)) : null,
+    masa_muscular: r.cinta ? Number(r.muscleKg.toFixed(1)) : null,
+    masa_magra: r.cinta ? Number(r.leanKg.toFixed(1)) : null,
+    imc: r.basicos ? Number(r.bmi.toFixed(1)) : null,
+    kcal_consumidas: Math.round(t.kcal),
+    proteina_g: Math.round(t.protein),
+    carbos_g: Math.round(t.carbs),
+    grasas_g: Math.round(t.fat),
+    kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
+    comidas_count: comidas,
+    alimentos_count: alimentos,
+    meal_plan: mealPlan,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// Sube un cambio a la base. Devuelve 'ok', 'sesion' (hay que volver a
+// entrar) o 'red' (sin internet u otro fallo: se reintenta más tarde).
+async function subirDatosAlumno(p) {
+  try {
+    // Un cambio de un día anterior solo va al historial de ese día: el plan
+    // abierto en la base ya es el de hoy.
+    if (p.fecha === todayISO()) {
+      const { error } = await supabase.from('datos_alumnos').upsert({
+        username: p.username, form: p.form, meal_plan: p.mealPlan,
+        meal_plan_fecha: p.fecha, updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    }
+    const { error } = await supabase.from('historial').upsert(filaHistorial(p), { onConflict: 'username,fecha' });
+    if (error) throw error;
+    return 'ok';
+  } catch (e) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'red';
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return 'sesion';
+    } catch {}
+    const msg = String(e?.message || '').toLowerCase();
+    if (e?.status === 401 || e?.code === 'PGRST301' || e?.code === 'PGRST303' || msg.includes('jwt')) return 'sesion';
+    return 'red';
+  }
+}
+
 function addMonthsISO(iso, months) {
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
   // Si el día no existe en el mes destino (ej. 31 de enero + 1 mes),
@@ -4008,7 +4118,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [mealPlan, setMealPlan] = useState(EMPTY_MEALPLAN());
-  const [saving, setSaving] = useState(false);
+  // 'ok' | 'guardando' | 'pendiente' (sin internet: se reintenta solo) | 'sesion' (hay que volver a entrar)
+  const [estadoGuardado, setEstadoGuardado] = useState('ok');
   const saveTimer = useRef(null);
   const skipNextSave = useRef(true);
 
@@ -4158,11 +4269,37 @@ export default function App() {
     let data = null;
     try {
       const { data: row } = await supabase.from('datos_alumnos')
-        .select('form, meal_plan, meal_plan_fecha').eq('username', username).maybeSingle();
-      data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha } : null;
+        .select('form, meal_plan, meal_plan_fecha, updated_at').eq('username', username).maybeSingle();
+      data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha, updatedAt: row.updated_at } : null;
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
     const hoy = todayISO();
+
+    // Cambios que quedaron en el celular sin llegar a la base (sin internet
+    // o con la sesión vencida): se recuperan en vez de perderse.
+    const pendiente = leerPendiente(username);
+    let hayPendienteHoy = false;
+    if (pendiente) {
+      // Si la base tiene algo más nuevo del mismo día (por ejemplo, desde
+      // otro equipo), se juntan ambos; si no, manda la copia del celular.
+      const servidorMasNuevo = data?.fecha === pendiente.fecha && data?.updatedAt
+        && new Date(data.updatedAt).getTime() > pendiente.ts;
+      const recuperado = servidorMasNuevo
+        ? { ...pendiente, form: data.form || pendiente.form, mealPlan: unirComidas(data.mealPlan, pendiente.mealPlan), ts: Date.now() }
+        : pendiente;
+      if (pendiente.fecha === hoy) {
+        data = { ...(data || {}), form: recuperado.form, mealPlan: recuperado.mealPlan, fecha: hoy };
+        escribirPendiente(username, recuperado);
+        hayPendienteHoy = true;
+      } else {
+        // De un día anterior: va al historial de ese día.
+        const r = await subirDatosAlumno(recuperado);
+        if (r === 'ok') borrarPendiente(username, pendiente.ts);
+        else escribirPendiente(username, recuperado);
+        if (data?.fecha === pendiente.fecha) data = { ...data, mealPlan: recuperado.mealPlan };
+      }
+    }
+
     let plan = data?.mealPlan || EMPTY_MEALPLAN();
 
     // Migración: si el plan viene del esquema anterior de comidas (con
@@ -4203,7 +4340,10 @@ export default function App() {
     setCurrentUser(username);
     setForm(formGuardado);
     setMealPlan(plan);
-    skipNextSave.current = true;
+    // Con una copia pendiente de hoy, se sube apenas abre (el reintento
+    // automático también la toma); si no, no hay nada nuevo que guardar.
+    skipNextSave.current = !hayPendienteHoy;
+    setEstadoGuardado(leerPendiente(username) ? 'guardando' : 'ok');
     setView('student');
   }
 
@@ -4275,60 +4415,53 @@ export default function App() {
   useEffect(() => {
     if (view !== 'student' || !currentUser) return;
     if (skipNextSave.current) { skipNextSave.current = false; return; }
-    setSaving(true);
+    // La copia en el celular se escribe al instante, antes de intentar subirla.
+    const cambio = { username: currentUser, form, mealPlan, fecha: todayISO(), ts: Date.now() };
+    escribirPendiente(currentUser, cambio);
+    setEstadoGuardado('guardando');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      try {
-        await supabase.from('datos_alumnos').upsert({
-          username: currentUser, form, meal_plan: mealPlan,
-          meal_plan_fecha: todayISO(), updated_at: new Date().toISOString(),
-        });
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-      // Guardar foto del día para el historial de progreso
-      try {
-        const r = calcAll({
-          ...form,
-          edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
-          cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
-        });
-        const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-        let comidas = 0, alimentos = 0;
-        Object.values(mealPlan.meals).forEach(entries => {
-          const conAlimento = entries.filter(en => en.foodKey);
-          if (conAlimento.length) comidas += 1;
-          alimentos += conAlimento.length;
-          entries.forEach(en => {
-            const m = entryMacros(en);
-            t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
-          });
-        });
-        // Solo se guardan los datos que el alumno ingresó de verdad: sin
-        // datos básicos no hay peso ni IMC, y sin medidas con cinta no hay
-        // % de grasa (antes se guardaban valores de ejemplo como si fueran
-        // reales y ensuciaban su progreso).
-        await supabase.from('historial').upsert({
-          username: currentUser, fecha: todayISO(),
-          peso: r.basicos ? (Number(form.peso) || null) : null,
-          grasa_pct: r.cinta ? Number(r.bf.toFixed(1)) : null,
-          masa_muscular: r.cinta ? Number(r.muscleKg.toFixed(1)) : null,
-          masa_magra: r.cinta ? Number(r.leanKg.toFixed(1)) : null,
-          imc: r.basicos ? Number(r.bmi.toFixed(1)) : null,
-          kcal_consumidas: Math.round(t.kcal),
-          proteina_g: Math.round(t.protein),
-          carbos_g: Math.round(t.carbs),
-          grasas_g: Math.round(t.fat),
-          kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
-          comidas_count: comidas,
-          alimentos_count: alimentos,
-          meal_plan: mealPlan,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'username,fecha' });
-      } catch {}
-      setSaving(false);
+      const r = await subirDatosAlumno(cambio);
+      if (r === 'ok') {
+        borrarPendiente(currentUser, cambio.ts);
+        setEstadoGuardado(leerPendiente(currentUser) ? 'guardando' : 'ok');
+      } else setEstadoGuardado(r === 'sesion' ? 'sesion' : 'pendiente');
     }, 700);
     return () => clearTimeout(saveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, mealPlan]);
+
+  // Reintenta subir lo que quedó pendiente: al volver el internet, al
+  // volver a la app y cada 30 segundos mientras quede algo sin subir.
+  useEffect(() => {
+    if (view !== 'student' || !currentUser) return;
+    let enCurso = false;
+    const reintentar = async () => {
+      const p = leerPendiente(currentUser);
+      if (!p || enCurso) return;
+      if (navigator.onLine === false) { setEstadoGuardado('pendiente'); return; }
+      enCurso = true;
+      const r = await subirDatosAlumno(p);
+      enCurso = false;
+      if (r === 'ok') {
+        borrarPendiente(currentUser, p.ts);
+        if (!leerPendiente(currentUser)) setEstadoGuardado('ok');
+      } else setEstadoGuardado(r === 'sesion' ? 'sesion' : 'pendiente');
+    };
+    const alVolver = () => { if (document.visibilityState === 'visible') reintentar(); };
+    const sinRed = () => { if (leerPendiente(currentUser)) setEstadoGuardado('pendiente'); };
+    window.addEventListener('online', reintentar);
+    window.addEventListener('offline', sinRed);
+    document.addEventListener('visibilitychange', alVolver);
+    const iv = setInterval(reintentar, 30000);
+    reintentar();
+    return () => {
+      window.removeEventListener('online', reintentar);
+      window.removeEventListener('offline', sinRed);
+      document.removeEventListener('visibilitychange', alVolver);
+      clearInterval(iv);
+    };
+  }, [view, currentUser]);
 
   async function openStudentData(username) {
     setViewingStudent(username);
@@ -4429,6 +4562,7 @@ export default function App() {
   async function logout() {
     try { await supabase.auth.signOut(); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setAdminAuthed(false);
+    setEstadoGuardado('ok');
     setCurrentUser(null);
     setForm(EMPTY_FORM);
     setMealPlan(EMPTY_MEALPLAN());
@@ -4509,7 +4643,7 @@ export default function App() {
       )}
       {!tokenRef && view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
-          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} estadoGuardado={estadoGuardado}
           userRecord={users.find(u => u.username === currentUser)} />
       )}
     </>

@@ -4360,7 +4360,7 @@ async function verifyPassword(password, hashHex, saltHex) {
 const TRIAL_DAYS = 15;
 
 const TRIAL_JOURNEY = {
-  1: { titulo: 'Día 1 · Define tu objetivo', texto: 'Completa tus datos básicos, elige tu objetivo y registra tus primeras comidas.', cta: null },
+  1: { titulo: 'Día 1 · Tu primera comida', texto: 'Tómale foto a lo que comes hoy y mira cómo la app lo calcula. Después ajusta tu meta con tus datos.', cta: null },
   2: { titulo: 'Día 2 · ¿Cómo vas comiendo?', texto: 'Revisa tu plan de alimentación: mira cuántas calorías llevas frente a tu objetivo del día.', cta: null },
   3: { titulo: 'Día 3 · Recomendaciones para ti', texto: 'Usa el botón "¿Qué puedo comer?" y descubre combinaciones que encajan con lo que te queda del día.', cta: null },
   4: { titulo: 'Día 4 · Tus patrones', texto: 'Ya tienes varios días registrados. Entra a "Mi progreso" y observa cómo se comporta tu alimentación.', cta: null },
@@ -11208,10 +11208,12 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
   const eligioObjetivo = !!form.objetivo;
   const registroComida = Object.values(mealPlan.meals || {}).some(e => e.some(x => x.foodKey));
 
+  // Primero la comida: es lo más fácil y donde se ve la magia de la app.
+  // Los datos y el objetivo vienen después, para ajustar la meta.
   const pasos = [
-    { id: 'calc', hecho: midio, titulo: 'Completa tus datos básicos', texto: 'Edad, estatura y peso · sin cinta métrica', tab: 'calc' },
+    { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Tómale foto a tu plato — la IA la reconoce al toque', tab: 'registrar' },
+    { id: 'calc', hecho: midio, titulo: 'Ajusta tu meta a tu cuerpo', texto: 'Edad, estatura y peso · 30 segundos, sin cinta métrica', tab: 'calc' },
     { id: 'goal', hecho: eligioObjetivo, titulo: 'Elige tu objetivo', texto: 'Perder grasa, ganar músculo o mantener', tab: 'goal' },
-    { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Con medidas de casa: taza, plato, unidad', tab: 'meal' },
     { id: 'photo', hecho: tieneFotos, titulo: 'Toma tus fotos de inicio', texto: 'Tu punto de partida para comparar después', tab: 'photos' },
   ];
 
@@ -11236,7 +11238,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
         <span className="jb-body text-xs text-zinc-500">{completados} de {pasos.length}</span>
       </div>
       <p className="jb-body text-xs text-zinc-500 mb-3">
-        Haz esto una sola vez al empezar. Después, tu única tarea diaria es registrar tus comidas.
+        Empieza por lo más fácil: registra lo que comiste hoy. Luego ajustamos tu meta a tu cuerpo.
       </p>
 
       <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
@@ -11444,7 +11446,7 @@ function saludoPorHora(d = new Date()) {
 
 // Inicio: saludo, anillo del día (el mismo de Comidas), botón para
 // registrar la comida que toca y la línea del día con las 5 comidas.
-function CentroDeMando({ nombre, mealPlan, onRegistrar }) {
+function CentroDeMando({ nombre, mealPlan, onRegistrar, metaEstimada = false, onAjustarMeta }) {
   const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
     const m = entryMacros(en);
@@ -11472,6 +11474,16 @@ function CentroDeMando({ nombre, mealPlan, onRegistrar }) {
 
       <div className="relative mb-4">
         <MedidorComidas fijo={false} totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+        {metaEstimada && (
+          <button onClick={onAjustarMeta}
+            className="mt-3 w-full flex items-center gap-2 bg-zinc-950/70 border border-amber-500/40 rounded-xl px-3 py-2 text-left">
+            <span className="text-amber-400 text-sm shrink-0">≈</span>
+            <span className="jb-body text-[11px] text-zinc-300 flex-1">
+              <span className="text-amber-300 font-semibold">Meta estimada.</span> Ajústala a tu cuerpo en 30 segundos
+            </span>
+            <ChevronRight size={14} className="text-amber-400 shrink-0" />
+          </button>
+        )}
       </div>
 
       <button onClick={() => { vibrar(10); onRegistrar(ahora); }}
@@ -13593,6 +13605,33 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
   );
 }
 
+// Tras la primera comida del día, si el alumno todavía no tiene datos u
+// objetivo: ya vio que la app funciona, así que es el mejor momento para
+// pedirle lo que falta para calcular su meta real.
+function AjustaMetaModal({ faltanDatos, onAjustar, onCerrar }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 text-center"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-5" />
+        <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-2xl mx-auto mb-3">🔥</div>
+        <h3 className="jb-display text-xl text-zinc-50 mb-1">¡PRIMERA COMIDA REGISTRADA!</h3>
+        <p className="jb-body text-sm text-zinc-400 mb-5 max-w-xs mx-auto">
+          Tu meta de hoy es <span className="text-amber-300 font-semibold">estimada</span>. {faltanDatos
+            ? 'Con tu edad, estatura y peso la calculamos exacta para tu cuerpo — toma 30 segundos.'
+            : 'Elige tu objetivo y la ajustamos a lo que quieres lograr.'}
+        </p>
+        <button onClick={onAjustar} className={btnPrimary + ' w-full py-3 mb-2'}>
+          {faltanDatos ? 'Ajustar mi meta' : 'Elegir mi objetivo'}
+        </button>
+        <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Después</button>
+      </div>
+    </div>
+  );
+}
+
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
   const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
@@ -13629,6 +13668,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  const [ajustarMeta, setAjustarMeta] = useState(false);
+  const metaEstimada = !tieneDatosBasicos(form) || !form.objetivo;
 
   // Cuando el alumno pasa de 0 a 1 alimento registrado en el día, se le
   // ofrecen los recordatorios (una sola vez por equipo, y solo si el
@@ -13639,6 +13680,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const antes = alimentosAntes.current;
     alimentosAntes.current = alimentosHoy;
     if (!(antes === 0 && alimentosHoy > 0)) return;
+    // Sin datos u objetivo: primero se le ofrece ajustar su meta (una vez
+    // al día); los recordatorios se le ofrecen otro día.
+    if (metaEstimada) {
+      const marcaMeta = 'jb_ajusta_meta_' + username + '_' + todayISO();
+      try { if (!localStorage.getItem(marcaMeta)) { localStorage.setItem(marcaMeta, '1'); setAjustarMeta(true); return; } } catch {}
+    }
     const marca = 'jb_notif_tras_comida_' + username;
     try { if (localStorage.getItem(marca)) return; } catch { return; }
     estadoPushEquipo().then(estado => {
@@ -13751,6 +13798,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <div className="max-w-4xl mx-auto px-6 pt-6">
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {ajustarMeta && !verGuia && (
+          <AjustaMetaModal faltanDatos={!tieneDatosBasicos(form)}
+            onAjustar={() => { setAjustarMeta(false); setRegistrarAl(null); setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }}
+            onCerrar={() => setAjustarMeta(false)} />
+        )}
         {tab === 'dash' && (
           renewalElegible ? (
             <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
@@ -13769,9 +13821,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'dash' && (
           <>
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
-              onIr={setTab} onVerGuia={() => setVerGuia(true)} />
+              onIr={t => (t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
             <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
-              onRegistrar={irARegistrar} />
+              onRegistrar={irARegistrar} metaEstimada={metaEstimada}
+              onAjustarMeta={() => { setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }} />
             <ResumenSemanalCard username={username} />
             <RachaCard username={username} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />

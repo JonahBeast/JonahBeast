@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
+import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import {
   ACTIVITY_DESC,
@@ -6547,7 +6547,56 @@ function AjustaMetaModal({ faltanDatos, onAjustar, onCerrar }) {
   );
 }
 
-function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
+// Estado del guardado, siempre a la vista: el alumno sabe si lo que anotó
+// ya llegó o si está esperando internet.
+function IndicadorGuardado({ estado }) {
+  if (estado === 'pendiente' || estado === 'sesion') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/40 rounded-full p-1.5 sm:px-2 sm:py-1 jb-body" title="Sin guardar">
+        <CloudOff size={14} /> <span className="hidden sm:inline">Sin guardar</span>
+      </span>
+    );
+  }
+  if (estado === 'guardando') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-zinc-500 px-1 jb-body">
+        <Loader2 size={13} className="animate-spin" /> <span className="hidden sm:inline">Guardando…</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-zinc-500 px-1 jb-body">
+      <Check size={13} className="text-orange-500" /> <span className="hidden sm:inline">Guardado</span>
+    </span>
+  );
+}
+
+function AvisoGuardado({ estado, onVolverAEntrar }) {
+  if (estado !== 'pendiente' && estado !== 'sesion') return null;
+  return (
+    <div className="mb-4 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-3 jb-body">
+      <CloudOff size={20} className="text-orange-400 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        {estado === 'sesion' ? (
+          <>
+            <div className="text-zinc-50 font-semibold text-sm">Tu sesión se cerró</div>
+            <div className="text-zinc-300 text-sm">Lo que anotaste quedó a salvo en este celular. Vuelve a entrar con tu correo y se sube solo.</div>
+            <button onClick={onVolverAEntrar} className="mt-2 bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-sm rounded-lg px-3 py-1.5">
+              Volver a entrar
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-zinc-50 font-semibold text-sm">Sin conexión: aún no se guardó</div>
+            <div className="text-zinc-300 text-sm">Lo que anotas queda en este celular y se sube solo cuando vuelva el internet. No cierres sesión mientras tanto.</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, estadoGuardado, userRecord }) {
   const [tab, setTab] = useState('dash');
   const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
   const formRef = useRef(form);
@@ -6731,12 +6780,14 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             title="Mi plan">
             <CreditCard size={18} />
           </button>
-          <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
+          <IndicadorGuardado estado={estadoGuardado} />
+          <span className="text-zinc-500 text-sm hidden sm:inline">{username}</span>
           <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
+        <AvisoGuardado estado={estadoGuardado} onVolverAEntrar={onLogout} />
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (

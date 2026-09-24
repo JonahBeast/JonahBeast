@@ -28,5 +28,5 @@
 ## Datos del proyecto
 
 - App React + Vite + Tailwind, con Supabase como base de datos y publicada en Vercel.
-- Casi toda la app está en `src/App.jsx`. Las funciones de servidor y tareas automáticas están en `api/`.
+- La app está en `src/`: `App.jsx` tiene la portada, el registro/ingreso y todo lo compartido; `alumno.jsx` (app del alumno), `admin.jsx` (panel de admin y Jarvis), `tienda.jsx` y `referidor.jsx` se descargan solo cuando hacen falta. Las funciones de servidor y tareas automáticas están en `api/`.
 - Comprueba que compila con `npm run build` antes de subir cambios.

@@ -2397,6 +2397,7 @@ const ESTILOS_JARVIS = `
 @keyframes jv-golpe { 0% { transform: scale(1.22); } 100% { transform: scale(1); } }
 @keyframes jv-barrido { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 @keyframes jv-aparece { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes jv-crece { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .jv-rot { transform-box: fill-box; transform-origin: center; }
 .jv-barra { transform-box: view-box; transform-origin: 100px 6px; }
 `;
@@ -2514,6 +2515,93 @@ async function armarInformeJarvis(users) {
   return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
+
+/* Voz realista (función jarvis-voz, OpenAI). En el selector se guardan como
+   "premium:<voz>"; "" (automática) también usa la voz realista. Si la
+   función falla o no tiene clave, Jarvis habla con la voz del celular. */
+const VOCES_PREMIUM_JARVIS = [
+  { id: 'premium:coral', nombre: 'Coral · femenina (recomendada)' },
+  { id: 'premium:nova', nombre: 'Nova · femenina' },
+  { id: 'premium:shimmer', nombre: 'Shimmer · femenina' },
+  { id: 'premium:sage', nombre: 'Sage · femenina' },
+  { id: 'premium:onyx', nombre: 'Onyx · masculina' },
+  { id: 'premium:ash', nombre: 'Ash · masculina' },
+  { id: 'premium:echo', nombre: 'Echo · masculina' },
+];
+const esVozPremium = v => !v || String(v).startsWith('premium:');
+// Audios ya generados en esta sesión (frases repetidas como "¿Sí, Jonah?"
+// no se vuelven a pagar).
+const cacheVozJarvis = new Map();
+// Si la voz realista falla (sin clave, sin la función, sin internet), se
+// recuerda hasta recargar la página para no esperar en cada respuesta.
+let vozPremiumCaida = false;
+async function audioPremiumJarvis(texto, voz) {
+  const clave = `${voz}|${texto}`;
+  if (cacheVozJarvis.has(clave)) return cacheVozJarvis.get(clave);
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+    body: JSON.stringify({ texto, voz }),
+  });
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) { vozPremiumCaida = true; throw new Error('sin voz premium'); }
+  const bytes = await r.arrayBuffer();
+  if (cacheVozJarvis.size > 30) cacheVozJarvis.delete(cacheVozJarvis.keys().next().value);
+  cacheVozJarvis.set(clave, bytes);
+  return bytes;
+}
+
+/* Mientras Jarvis escribe, el bloque de tarjetas (que llega al final del
+   texto) no se muestra: se corta desde donde empieza. */
+function sinBloqueTarjetas(texto) {
+  const i = String(texto || '').indexOf('<tarjetas');
+  return i >= 0 ? texto.slice(0, i).trimEnd() : texto;
+}
+
+// Tarjetas holográficas con las cifras de una respuesta de Jarvis.
+function TarjetasJarvis({ visual }) {
+  const tarjetas = visual?.tarjetas || [];
+  const barras = visual?.barras;
+  const max = barras ? Math.max(1, ...barras.datos.map(d => d.valor)) : 1;
+  return (
+    <div className="mt-2 flex flex-col gap-2" style={{ animation: 'jv-aparece .45s ease-out' }}>
+      {tarjetas.length > 0 && (
+        <div className={`grid gap-2 ${tarjetas.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {tarjetas.map((t, i) => (
+            <div key={i} className="relative rounded px-3 py-2 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(77,217,255,0.10), rgba(10,22,32,0.6))', border: '1px solid #1c6b85', boxShadow: 'inset 0 0 18px rgba(77,217,255,0.08)', animation: `jv-aparece .4s ease-out ${i * 0.08}s both` }}>
+              <span className="absolute top-0 left-0 w-2 h-2" style={{ borderTop: '2px solid #4dd9ff', borderLeft: '2px solid #4dd9ff' }} />
+              <div className="text-[9px] tracking-[0.2em] uppercase" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{t.titulo}</div>
+              <div className="text-xl font-semibold tabular-nums leading-tight" style={{ color: '#ffffff', textShadow: '0 0 12px rgba(77,217,255,0.7)', fontFamily: 'monospace' }}>{t.valor}</div>
+              {t.detalle && <div className="text-[10px] leading-snug" style={{ color: '#8fb8cc' }}>{t.detalle}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {barras && (
+        <div className="rounded px-3 py-2" style={{ background: 'rgba(10,22,32,0.6)', border: '1px solid #163244' }}>
+          {barras.titulo && <div className="text-[9px] tracking-[0.2em] uppercase mb-2" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{barras.titulo}</div>}
+          <div className="flex items-end gap-1.5 h-20">
+            {barras.datos.map((d, i) => (
+              <div key={i} className="flex-1 min-w-0 flex flex-col items-center justify-end h-full">
+                <span className="text-[9px] tabular-nums mb-0.5" style={{ color: '#dff2ff', fontFamily: 'monospace' }}>{Math.round(d.valor * 10) / 10}</span>
+                <div className="w-full rounded-t" style={{
+                  height: `${Math.max(4, (d.valor / max) * 100)}%`, background: 'linear-gradient(180deg, #7ff0ff, #1c6b85)',
+                  boxShadow: '0 0 8px rgba(77,217,255,0.6)', transformOrigin: 'bottom', animation: `jv-crece .6s ease-out ${i * 0.05}s both`,
+                }} />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-1.5 mt-1">
+            {barras.datos.map((d, i) => (
+              <span key={i} className="flex-1 min-w-0 text-center text-[8px] truncate" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>{d.etiqueta}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const COLOR_ESTADO_JARVIS = { reposo: '#4dd9ff', escuchando: '#ff5c5c', pensando: '#ffb020', hablando: '#7ff0ff' };
 
@@ -2659,6 +2747,51 @@ function JarvisPanel({ onClose, users }) {
   useEffect(() => {
     vozElegidaRef.current = vocesEs.find(v => v.voiceURI === vozGuardada) || vozFemeninaPorDefecto(vocesEs);
   }, [vocesEs, vozGuardada]);
+  const vozGuardadaRef = useRef(vozGuardada);
+  vozGuardadaRef.current = vozGuardada;
+
+  // Voz realista: el audio se reproduce con el mismo contexto de audio de
+  // los sonidos (ya habilitado al tocar el botón de Jarvis) y pasa por un
+  // analizador, así el núcleo del reactor late al ritmo real de la voz.
+  const fuenteVozRef = useRef(null);
+  const turnoVozRef = useRef(0);
+  function callarVozPremium() {
+    turnoVozRef.current++;
+    try { fuenteVozRef.current && fuenteVozRef.current.stop(); } catch {}
+    fuenteVozRef.current = null;
+  }
+  useEffect(() => () => callarVozPremium(), []);
+  async function hablarPremium(texto, voz, alTerminar) {
+    const mio = ++turnoVozRef.current;
+    const ctx = contextoAudioJarvis();
+    if (!ctx) throw new Error('sin audio');
+    const bytes = await audioPremiumJarvis(texto, voz);
+    const buffer = await ctx.decodeAudioData(bytes.slice(0));
+    if (mio !== turnoVozRef.current) return; // llegó otra respuesta mientras tanto
+    const fuente = ctx.createBufferSource();
+    fuente.buffer = buffer;
+    const analizador = ctx.createAnalyser();
+    analizador.fftSize = 512;
+    fuente.connect(analizador).connect(ctx.destination);
+    fuenteVozRef.current = fuente;
+    const muestras = new Uint8Array(analizador.fftSize);
+    let ultimoGolpe = 0, anterior = 0, activo = true;
+    const medir = () => {
+      if (!activo) return;
+      analizador.getByteTimeDomainData(muestras);
+      let suma = 0;
+      for (let i = 0; i < muestras.length; i++) { const x = (muestras[i] - 128) / 128; suma += x * x; }
+      const nivel = Math.sqrt(suma / muestras.length);
+      const ahora = performance.now();
+      if (nivel > 0.06 && nivel > anterior * 1.25 && ahora - ultimoGolpe > 140) { ultimoGolpe = ahora; setPulsoVoz(n => n + 1); }
+      anterior = nivel;
+      requestAnimationFrame(medir);
+    };
+    fuente.onended = () => { activo = false; if (fuenteVozRef.current === fuente) fuenteVozRef.current = null; alTerminar(); };
+    setHablando(true);
+    fuente.start();
+    requestAnimationFrame(medir);
+  }
 
   function cambiarVoz(voiceURI) {
     setVozGuardada(voiceURI);
@@ -2671,6 +2804,18 @@ function JarvisPanel({ onClose, users }) {
   // Frase de prueba con la voz elegida en el selector. Se dispara dentro del
   // mismo toque del botón, así el navegador no bloquea el audio.
   function probarVoz() {
+    const frase = 'Hola Jonah Beast, así sonaré cuando te responda.';
+    if (esVozPremium(vozGuardada)) {
+      contextoAudioJarvis();
+      pausarMic();
+      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
+      const fin = () => { setHablando(false); reanudarMicSiCorresponde(); };
+      hablarPremium(frase, (vozGuardada || VOCES_PREMIUM_JARVIS[0].id).slice(8), fin).catch(() => {
+        setTurnos(ts => [...ts, { role: 'assistant', content: 'La voz realista aún no está disponible: te hablaré con la voz del celular.' }]);
+        fin();
+      });
+      return;
+    }
     if (!('speechSynthesis' in window)) return;
     const voz = vocesEs.find(v => v.voiceURI === vozGuardada) || vozFemeninaPorDefecto(vocesEs);
     try {
@@ -2706,6 +2851,25 @@ function JarvisPanel({ onClose, users }) {
     // números de 6+ dígitos seguidos (celulares, IDs) se leen dígito por
     // dígito -- si no, el sintetizador los lee como si fueran millones
     texto = texto.replace(/\d{6,}/g, (n) => n.split('').join(' '));
+    if (!vozOnRef.current) {
+      if (modoContinuoRef.current) reanudarMicSiCorresponde();
+      return;
+    }
+    callarVozPremium();
+    if (esVozPremium(vozGuardadaRef.current) && !vozPremiumCaida) {
+      pausarMic();
+      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
+      const voz = (vozGuardadaRef.current || VOCES_PREMIUM_JARVIS[0].id).slice(8);
+      hablarPremium(texto, voz, () => { setHablando(false); reanudarMicSiCorresponde(); })
+        .catch(() => hablarConCelular(texto));
+      return;
+    }
+    hablarConCelular(texto);
+  }
+
+  // Voz del celular (la de siempre): se usa si se eligió una voz del
+  // celular o si la voz realista no está disponible.
+  function hablarConCelular(texto) {
     if (!vozOnRef.current || !('speechSynthesis' in window)) {
       if (modoContinuoRef.current) reanudarMicSiCorresponde();
       return;
@@ -2778,7 +2942,7 @@ function JarvisPanel({ onClose, users }) {
         setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true }]);
       });
       const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}) }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
       sonidoJarvis('respuesta');
       hablar(data.respuesta);
     } catch (e) {
@@ -2939,7 +3103,7 @@ function JarvisPanel({ onClose, users }) {
             <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setVozOn(v => !v)} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
+            <button onClick={() => { if (vozOn) { callarVozPremium(); try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} setHablando(false); } setVozOn(v => !v); }} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
               🔊 {vozOn ? 'ON' : 'OFF'}
             </button>
             <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
@@ -2961,23 +3125,26 @@ function JarvisPanel({ onClose, users }) {
           </button>
         </div>
 
-        {'speechSynthesis' in window && (
+        {(
           <div className="relative flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244', borderTop: '1px solid #163244' }}>
             <label htmlFor="jarvis-voz" className="text-[10px] shrink-0" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>VOZ</label>
-            {vocesEs.length ? (
-              <select id="jarvis-voz" value={vocesEs.some(v => v.voiceURI === vozGuardada) ? vozGuardada : ''}
-                onChange={e => cambiarVoz(e.target.value)}
-                className="flex-1 min-w-0 rounded px-2 py-1 text-xs outline-none"
-                style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }}>
-                <option value="">Automática (voz femenina)</option>
-                {vocesEs.map(v => (
-                  <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>
-                ))}
-              </select>
-            ) : (
-              <span className="flex-1 text-xs" style={{ color: '#6f92a8' }}>Este navegador no tiene voces en español.</span>
-            )}
-            <button onClick={probarVoz} disabled={!vocesEs.length}
+            <select id="jarvis-voz"
+              value={esVozPremium(vozGuardada) ? (vozGuardada || VOCES_PREMIUM_JARVIS[0].id) : (vocesEs.some(v => v.voiceURI === vozGuardada) ? vozGuardada : VOCES_PREMIUM_JARVIS[0].id)}
+              onChange={e => cambiarVoz(e.target.value)}
+              className="flex-1 min-w-0 rounded px-2 py-1 text-xs outline-none"
+              style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }}>
+              <optgroup label="✨ Voz realista">
+                {VOCES_PREMIUM_JARVIS.map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+              </optgroup>
+              {vocesEs.length > 0 && (
+                <optgroup label="Voces del celular">
+                  {vocesEs.map(v => (
+                    <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button onClick={probarVoz}
               className="text-xs px-2 py-1 rounded-full shrink-0 disabled:opacity-40"
               style={{ border: '1px solid #4dd9ff', color: '#4dd9ff', fontFamily: 'monospace' }}>
               ▶ Probar
@@ -2993,7 +3160,8 @@ function JarvisPanel({ onClose, users }) {
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
-                : <div className="pl-3 py-1" style={{ borderLeft: '2px solid #4dd9ff', boxShadow: '-6px 0 12px -8px #4dd9ff' }}><TextoJarvis texto={m.content + (m.escribiendo ? ' ▍' : '')} /></div>}
+                : <div className="pl-3 py-1" style={{ borderLeft: '2px solid #4dd9ff', boxShadow: '-6px 0 12px -8px #4dd9ff' }}><TextoJarvis texto={(m.escribiendo ? sinBloqueTarjetas(m.content) : m.content) + (m.escribiendo ? ' ▍' : '')} /></div>}
+              {m.role !== 'user' && m.visual && <TarjetasJarvis visual={m.visual} />}
               {(m.acciones || []).map((a, j) => (
                 <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
                   <div className="text-xs">

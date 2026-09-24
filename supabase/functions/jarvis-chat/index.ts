@@ -39,10 +39,13 @@ const PLANES = [
 // entre llamadas). Los datos en vivo y los precios van en un bloque aparte.
 const JARVIS_PERSONA = `Eres Jarvis, el asistente del panel de administrador de Jonah Beast Fuel, la app de nutrición peruana de Jonah Beast. Responde en español, tono servicial, directo y ligeramente formal, sin inventar datos que no tengas -- si algo no está en el estado del negocio que recibes, dilo con honestidad en vez de adivinar. Sé breve (2-4 frases salvo que te pidan más detalle). No das consejos legales ni financieros formales, solo apoyas con lo operativo del negocio. Puedes usar **negritas** para resaltar nombres o cifras clave; evita tablas y encabezados. Importante: escribe siempre tu propio nombre como "Jarvis", nunca como "J.A.R.V.I.S." ni con puntos entre letras -- estas respuestas se leen en voz alta automáticamente por el navegador (con una voz sintetizada) apenas las escribes -- si Jonah Beast te pregunta si puedes hablar o por qué no te escucha, confirma que sí hablas por defecto y sugiérele revisar el botón 🔊 arriba del panel (debe decir ON) -- nunca digas que solo escribes texto o que no puedes hablar, porque no es cierto. Esa forma con puntos entre letras se pronuncia letra por letra, por eso se evita. Refiérete a la persona con la que hablas como "Jonah Beast, fundador de Jonah Beast Fuel" (o simplemente "Jonah Beast" en el resto de la conversación, sin repetir "fundador" en cada frase) -- nunca uses su nombre legal (Martin Huamani) salvo que él mismo lo use primero. Jonah Beast también tiene su propia cuenta de alumno dentro de la app, con username "martin" (aparece como "JonahBeast" en el campo nombre) -- cuando te pida buscarlo a él mismo ("búscame", "mis datos", "mi cuenta", "a mí mismo"), usa buscar_alumno con la query "martin" directamente, sin pedirle que aclare cuál es su username.
 
+
+Tarjetas visuales: el panel muestra tus cifras clave como tarjetas holográficas. Cuando tu respuesta incluya entre 1 y 4 cifras importantes (alumnos, ventas, pagos, conversión, registros...), agrega AL FINAL, después de tu texto, un solo bloque con este formato exacto: <tarjetas>{"tarjetas":[{"titulo":"Alumnos activos","valor":"28","detalle":"13 con avisos activos"}],"barras":{"titulo":"Registros por día","datos":[{"etiqueta":"Lun","valor":8},{"etiqueta":"Mar","valor":10}]}}</tarjetas>. Reglas: solo cifras reales que tengas en los datos (nunca inventadas); máximo 4 tarjetas; "valor" corto (ej. "28", "S/ 124.50", "27%"); "detalle" es opcional y breve; "barras" es opcional y solo para series en el tiempo o comparaciones de 2 a 12 valores numéricos. El texto de tu respuesta debe entenderse completo sin el bloque (el bloque no se lee en voz alta). Si la respuesta no trae cifras, no agregues el bloque.
+
 Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jonah Beast Fuel):
 - Eslogan: "La alimentación que impulsa tu objetivo". Web: jonahbeast.com
 - Modelo: suscripción con prueba gratis de 15 días. Planes de 1, 3, 6 y 12 meses (los precios vigentes están en el estado del negocio)
-- Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo. El alumno sigue eligiendo la porción, la IA solo identifica el plato
+- Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo (y en los primeros 3 días de la prueba gratis, 3 fotos por día de bienvenida). El alumno sigue eligiendo la porción, la IA solo identifica el plato
 - Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente)
 - Programa de referidos/embajadores: cada alumno tiene un código de referido con comisión variable según el plan que compre el referido
 - Registro: pide nombre y celular obligatorios en el onboarding (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp)
@@ -547,9 +550,10 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         mensajes.push({ role: "assistant", content: data.content }, { role: "user", content: resultados });
         data = await llamarClaude(mensajes, alTexto);
       }
-      const respuesta = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim()
-        || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
-      return { respuesta, acciones };
+      const textoFinal = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim();
+      const { texto, visual } = separarVisual(textoFinal);
+      const respuesta = texto || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
+      return { respuesta, acciones, ...(visual ? { visual } : {}) };
     }
 
     const registrarUso = (ok: boolean) => console.log(JSON.stringify({
@@ -593,6 +597,30 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
     return json({ error: (e as Error)?.message || "Error inesperado." }, 500);
   }
 });
+
+// Separa el bloque <tarjetas>{...}</tarjetas> del texto de la respuesta y lo
+// deja limpio y acotado para que el panel lo dibuje. Si viene mal formado, se
+// descarta y queda solo el texto.
+function separarVisual(textoFinal: string): { texto: string; visual: any } {
+  const m = textoFinal.match(/<tarjetas>([\s\S]*?)<\/tarjetas>/);
+  const texto = textoFinal.replace(/<tarjetas>[\s\S]*?(<\/tarjetas>|$)/g, "").trim();
+  if (!m) return { texto, visual: null };
+  try {
+    const v = JSON.parse(m[1]);
+    const corto = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+    const tarjetas = (Array.isArray(v?.tarjetas) ? v.tarjetas : []).slice(0, 4)
+      .map((t: any) => ({ titulo: corto(t?.titulo, 40), valor: corto(t?.valor, 20), ...(t?.detalle ? { detalle: corto(t.detalle, 60) } : {}) }))
+      .filter((t: any) => t.titulo && t.valor);
+    const datos = (Array.isArray(v?.barras?.datos) ? v.barras.datos : []).slice(0, 12)
+      .map((d: any) => ({ etiqueta: corto(d?.etiqueta, 12), valor: Number(d?.valor) }))
+      .filter((d: any) => d.etiqueta && Number.isFinite(d.valor));
+    const barras = datos.length >= 2 ? { titulo: corto(v.barras?.titulo, 50), datos } : null;
+    if (!tarjetas.length && !barras) return { texto, visual: null };
+    return { texto, visual: { tarjetas, ...(barras ? { barras } : {}) } };
+  } catch {
+    return { texto, visual: null };
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

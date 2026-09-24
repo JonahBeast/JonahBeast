@@ -2377,29 +2377,48 @@ const AVISOS_MIC = {
   'sin-soporte': 'Este navegador no reconoce voz. Prueba en Google Chrome o Safari, o escríbeme.',
 };
 
-// Estilo "J.A.R.V.I.S." de Iron Man: un reactor de anillos que giran,
-// en cian holográfico. Cambia según lo que Jarvis está haciendo:
-// reposo (gira lento), escuchando (rojo, más rápido), pensando (ámbar,
-// arcos que corren) y hablando (el núcleo late).
+// Estilo "J.A.R.V.I.S." de Iron Man: un reactor de anillos en cian
+// holográfico que nunca se queda quieto, como en la película: los anillos
+// giran y oscilan, el núcleo respira y el anillo exterior es una onda de
+// voz que late todo el tiempo "esperando órdenes". Cambia según lo que
+// Jarvis está haciendo: reposo (onda suave), escuchando (rojo, onda
+// rápida), pensando (ámbar, arcos que corren) y hablando (la onda salta
+// con cada palabra que dice).
+// No se apaga con "reducir movimiento": el panel es solo del admin y
+// Jarvis debe verse siempre vivo.
 const ESTILOS_JARVIS = `
 @keyframes jv-giro { to { transform: rotate(360deg); } }
 @keyframes jv-giro-inv { to { transform: rotate(-360deg); } }
+@keyframes jv-oscila { 0% { transform: rotate(-35deg); } 100% { transform: rotate(35deg); } }
 @keyframes jv-late { 0%,100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.12); opacity: 1; } }
-@keyframes jv-aura { 0%,100% { opacity: .35; } 50% { opacity: .75; } }
+@keyframes jv-respira { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes jv-aura { 0%,100% { opacity: .35; transform: scale(.97); } 50% { opacity: .8; transform: scale(1.03); } }
+@keyframes jv-onda { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+@keyframes jv-golpe { 0% { transform: scale(1.22); } 100% { transform: scale(1); } }
 @keyframes jv-barrido { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
 @keyframes jv-aparece { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 .jv-rot { transform-box: fill-box; transform-origin: center; }
-@media (prefers-reduced-motion: reduce) { .jv-rot, .jv-anim { animation: none !important; } }
+.jv-barra { transform-box: view-box; transform-origin: 100px 6px; }
 `;
+
+// Cómo se mueve la onda de voz en cada estado: duración de un latido y
+// cuánto se desfasa cada barra (la onda "viaja" alrededor del anillo).
+const ONDA_JARVIS = {
+  reposo: { dur: 2.2, paso: 0.09, alto: 1 },
+  escuchando: { dur: 0.7, paso: 0.035, alto: 1.35 },
+  pensando: { dur: 1.1, paso: 0.02, alto: 1.1 },
+  hablando: { dur: 0.42, paso: 0.05, alto: 1.6 },
+};
 
 const COLOR_ESTADO_JARVIS = { reposo: '#4dd9ff', escuchando: '#ff5c5c', pensando: '#ffb020', hablando: '#7ff0ff' };
 
 const TEXTO_ESTADO_JARVIS = { reposo: 'EN LÍNEA', escuchando: 'ESCUCHANDO', pensando: 'PROCESANDO', hablando: 'RESPONDIENDO' };
 
-function ReactorJarvis({ estado = 'reposo', tam = 120 }) {
+function ReactorJarvis({ estado = 'reposo', tam = 120, pulso = 0 }) {
   const c = COLOR_ESTADO_JARVIS[estado] || COLOR_ESTADO_JARVIS.reposo;
   const rapido = estado === 'pensando' ? 0.35 : estado === 'escuchando' ? 0.6 : 1;
-  const marcas = Array.from({ length: 60 });
+  const onda = ONDA_JARVIS[estado] || ONDA_JARVIS.reposo;
+  const barras = Array.from({ length: 60 });
   const segmentos = Array.from({ length: 10 });
   return (
     <svg width={tam} height={tam} viewBox="0 0 200 200" aria-hidden="true" style={{ overflow: 'visible' }}>
@@ -2414,39 +2433,54 @@ function ReactorJarvis({ estado = 'reposo', tam = 120 }) {
           <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
-      {/* aura */}
-      <circle cx="100" cy="100" r="96" fill={c} opacity=".08" className="jv-anim" style={{ animation: 'jv-aura 3s ease-in-out infinite' }} />
-      <g filter="url(#jv-brillo)" stroke={c} fill="none">
-        {/* anillo exterior con marcas */}
-        <g className="jv-rot" style={{ animation: `jv-giro ${40 * rapido}s linear infinite` }}>
-          <circle cx="100" cy="100" r="92" strokeWidth="1" opacity=".5" />
-          {marcas.map((_, i) => (
-            <line key={i} x1="100" y1="8" x2="100" y2={i % 5 === 0 ? 18 : 13} strokeWidth={i % 5 === 0 ? 2 : 1}
-              opacity={i % 5 === 0 ? .9 : .45} transform={`rotate(${i * 6} 100 100)`} />
+      {/* todo el reactor respira suavemente */}
+      <g className="jv-rot" style={{ animation: 'jv-respira 3.2s ease-in-out infinite' }}>
+        {/* aura */}
+        <circle cx="100" cy="100" r="98" fill={c} fillOpacity=".16" className="jv-rot" style={{ animation: 'jv-aura 2.6s ease-in-out infinite' }} />
+        {/* onda de voz: 60 barras que laten todo el tiempo, desfasadas para
+            que la onda recorra el anillo (fuera del filtro de brillo para
+            que el celular no se esfuerce) */}
+        <g className="jv-rot" style={{ animation: `jv-giro ${24 * rapido}s linear infinite` }}>
+          <circle cx="100" cy="100" r="93" stroke={c} strokeWidth="1" fill="none" opacity=".45" />
+          {barras.map((_, i) => (
+            <g key={i} transform={`rotate(${i * 6} 100 100)`}>
+              <line x1="100" y1="6" x2="100" y2={6 + (i % 5 === 0 ? 14 : 10) * onda.alto} stroke={c}
+                strokeWidth={i % 5 === 0 ? 2.4 : 1.4} strokeLinecap="round" opacity={i % 5 === 0 ? .95 : .6}
+                className="jv-barra"
+                style={{ animation: `jv-onda ${onda.dur}s ease-in-out ${-(i * onda.paso)}s infinite` }} />
+            </g>
           ))}
         </g>
-        {/* anillo punteado que gira al revés */}
-        <g className="jv-rot" style={{ animation: `jv-giro-inv ${18 * rapido}s linear infinite` }}>
-          <circle cx="100" cy="100" r="76" strokeWidth="3" strokeDasharray="4 10" opacity=".8" />
+        <g filter="url(#jv-brillo)" stroke={c} fill="none">
+          {/* anillo punteado que oscila de un lado a otro */}
+          <g className="jv-rot" style={{ animation: `jv-oscila ${5 * rapido}s ease-in-out infinite alternate` }}>
+            <circle cx="100" cy="100" r="76" strokeWidth="3" strokeDasharray="4 10" opacity=".8" />
+          </g>
+          {/* arcos que corren (más rápidos al pensar) */}
+          <g className="jv-rot" style={{ animation: `jv-giro ${(estado === 'pensando' ? 1.6 : 6)}s linear infinite` }}>
+            <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="60 342" strokeLinecap="round" opacity=".95" />
+            <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="30 372" strokeDashoffset="-200" strokeLinecap="round" opacity=".6" />
+          </g>
+          {/* segmentos del reactor */}
+          <g className="jv-rot" style={{ animation: `jv-giro-inv ${16 * rapido}s linear infinite` }}>
+            {segmentos.map((_, i) => (
+              <path key={i} d="M100 50 L106 50 L104 62 L96 62 L94 50 Z" fill={c} fillOpacity=".25" strokeWidth="1.2"
+                transform={`rotate(${i * 36} 100 100)`} />
+            ))}
+          </g>
+          {/* anillo interior que oscila al revés */}
+          <g className="jv-rot" style={{ animation: `jv-oscila ${3.4 * rapido}s ease-in-out infinite alternate-reverse` }}>
+            <circle cx="100" cy="100" r="40" strokeWidth="1.2" strokeDasharray="18 8" opacity=".7" />
+          </g>
+          <circle cx="100" cy="100" r="34" strokeWidth="2" opacity=".9" />
         </g>
-        {/* arcos que corren (más visibles al pensar) */}
-        <g className="jv-rot" style={{ animation: `jv-giro ${(estado === 'pensando' ? 1.6 : 9)}s linear infinite` }}>
-          <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="60 342" strokeLinecap="round" opacity=".95" />
-          <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="30 372" strokeDashoffset="-200" strokeLinecap="round" opacity=".6" />
+        {/* núcleo: late siempre y da un golpe con cada palabra que dice */}
+        <g className="jv-rot" style={{ animation: `jv-late ${estado === 'hablando' ? 0.5 : estado === 'escuchando' ? 1 : 2.4}s ease-in-out infinite` }}>
+          <g key={pulso} className="jv-rot" style={pulso ? { animation: 'jv-golpe .28s ease-out' } : undefined}>
+            <circle cx="100" cy="100" r="30" fill={`url(#jv-nucleo-${estado})`} />
+            <circle cx="100" cy="100" r="12" fill="#ffffff" opacity=".9" />
+          </g>
         </g>
-        {/* segmentos del reactor */}
-        <g className="jv-rot" style={{ animation: `jv-giro-inv ${30 * rapido}s linear infinite` }}>
-          {segmentos.map((_, i) => (
-            <path key={i} d="M100 50 L106 50 L104 62 L96 62 L94 50 Z" fill={c} fillOpacity=".25" strokeWidth="1.2"
-              transform={`rotate(${i * 36} 100 100)`} />
-          ))}
-        </g>
-        <circle cx="100" cy="100" r="34" strokeWidth="2" opacity=".9" />
-      </g>
-      {/* núcleo */}
-      <g className="jv-rot jv-anim" style={{ animation: `jv-late ${estado === 'hablando' ? 0.5 : estado === 'escuchando' ? 1 : 2.4}s ease-in-out infinite` }}>
-        <circle cx="100" cy="100" r="30" fill={`url(#jv-nucleo-${estado})`} />
-        <circle cx="100" cy="100" r="12" fill="#ffffff" opacity=".9" />
       </g>
     </svg>
   );
@@ -2481,6 +2515,7 @@ function JarvisPanel({ onClose }) {
   const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
   const [hablando, setHablando] = useState(false);
+  const [pulsoVoz, setPulsoVoz] = useState(0); // sube con cada palabra que dice Jarvis
   const logRef = useRef(null);
   const recogRef = useRef(null);
   const modoContinuoRef = useRef(false);
@@ -2538,6 +2573,7 @@ function JarvisPanel({ onClose }) {
       if (voz) { u.voice = voz; u.lang = voz.lang; } else u.lang = 'es-PE';
       u.pitch = 0.55; u.rate = 0.94;
       u.onstart = () => setHablando(true);
+      u.onboundary = () => setPulsoVoz(n => n + 1);
       u.onend = () => { setHablando(false); reanudarMicSiCorresponde(); };
       u.onerror = () => { setHablando(false); reanudarMicSiCorresponde(); };
       window.speechSynthesis.speak(u);
@@ -2575,6 +2611,7 @@ function JarvisPanel({ onClose }) {
       else u.lang = 'es-PE';
       u.pitch = 0.55; u.rate = 0.94;
       u.onstart = () => setHablando(true);
+      u.onboundary = () => setPulsoVoz(n => n + 1);
       u.onend = () => { setHablando(false); reanudarMicSiCorresponde(); };
       u.onerror = () => { setHablando(false); reanudarMicSiCorresponde(); };
       // iOS a veces "pierde" la voz si speak() llega inmediatamente
@@ -2753,7 +2790,7 @@ function JarvisPanel({ onClose }) {
         </div>
 
         <div className="relative flex flex-col items-center pt-4 pb-2">
-          <ReactorJarvis estado={estadoJarvis} tam={128} />
+          <ReactorJarvis estado={estadoJarvis} tam={128} pulso={pulsoVoz} />
           <div className="mt-2 text-[11px] tracking-[0.3em]" style={{ fontFamily: 'monospace', color: colorEstado, textShadow: `0 0 8px ${colorEstado}` }}>
             {TEXTO_ESTADO_JARVIS[estadoJarvis]}
           </div>

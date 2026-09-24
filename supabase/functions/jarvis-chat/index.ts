@@ -45,7 +45,7 @@ Tarjetas visuales: el panel muestra tus cifras clave como tarjetas holográficas
 Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jonah Beast Fuel):
 - Eslogan: "La alimentación que impulsa tu objetivo". Web: jonahbeast.com
 - Modelo: suscripción con prueba gratis de 15 días. Planes de 1, 3, 6 y 12 meses (los precios vigentes están en el estado del negocio)
-- Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo. El alumno sigue eligiendo la porción, la IA solo identifica el plato
+- Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo (y en los primeros 3 días de la prueba gratis, 3 fotos por día de bienvenida). El alumno sigue eligiendo la porción, la IA solo identifica el plato
 - Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente)
 - Programa de referidos/embajadores: cada alumno tiene un código de referido con comisión variable según el plan que compre el referido
 - Registro: pide nombre y celular obligatorios en el onboarding (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp)

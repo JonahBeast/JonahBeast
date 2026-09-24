@@ -3181,7 +3181,10 @@ function ResultadosReales() {
 
 // Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
 // sección completa de testimonios de abajo, pero no en este fondo).
-const HERO_TRANSFORMACION = TESTIMONIOS[0];
+const HERO_TRANSFORMACIONES = [
+  { ...TESTIMONIOS[0], nombreCorto: 'JONAH', logro: '−37 KG' },
+  { ...TESTIMONIOS[1], nombreCorto: 'ANDREA', logro: 'EN 6 MESES' },
+];
 
 /* ------------------------------------------------------------------ */
 /* EMBUDO DE LA LANDING                                                */
@@ -3312,6 +3315,13 @@ function Landing({ onChoose }) {
     onChoose('trial');
   }
 
+  // Transformación del fondo (Jonah / Andrea) que se muestra ahora.
+  const [heroIdx, setHeroIdx] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_TRANSFORMACIONES.length), 6000);
+    return () => clearInterval(iv);
+  }, []);
+
   // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
   // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
   const [scanPct, setScanPct] = useState(0);
@@ -3350,20 +3360,28 @@ function Landing({ onChoose }) {
       <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '78vh', minHeight: 520 }}>
         <div className="relative h-full mx-auto max-w-2xl"
           style={{ WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)', maskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)' }}>
-          <div className="grid grid-cols-2 h-full">
-            <div className="overflow-hidden relative">
-              <img src={HERO_TRANSFORMACION.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-[0.85]" />
+          {/* Alterna la transformación de Jonah y la de Andrea (fundido
+              suave cada 6 s) para que hombres y mujeres se vean reflejados. */}
+          {HERO_TRANSFORMACIONES.map((t, i) => (
+            <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
+              style={{ opacity: i === heroIdx ? 1 : 0 }}>
+              <div className="overflow-hidden relative">
+                <img src={t.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-[0.85]" />
+              </div>
+              <div className="overflow-hidden relative">
+                <img src={t.despues} alt="" className="w-full h-full object-cover object-top" />
+              </div>
             </div>
-            <div className="overflow-hidden relative">
-              <img src={HERO_TRANSFORMACION.despues} alt="" className="w-full h-full object-cover object-top" />
-            </div>
-          </div>
+          ))}
           <div className="absolute top-0 left-1/2 w-px h-24" style={{ background: 'linear-gradient(to bottom, rgba(232,89,12,0.7), transparent)' }} />
           <span className="absolute left-3 jb-body text-[10px] tracking-widest text-zinc-300 bg-zinc-950/70 border border-zinc-700 rounded-full px-2.5 py-1"
-            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>ANTES</span>
+            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>{HERO_TRANSFORMACIONES[heroIdx].nombreCorto} · ANTES</span>
           <span className="absolute right-3 jb-body text-[10px] tracking-widest text-zinc-950 bg-orange-500 rounded-full px-2.5 py-1 font-semibold"
-            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>AHORA · −37 KG</span>
+            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>AHORA · {HERO_TRANSFORMACIONES[heroIdx].logro}</span>
         </div>
+        {/* En celulares el título queda encima de las fotos: una sombra
+            extra detrás del texto para que siempre se lea bien. */}
+        <div className="absolute inset-0 sm:hidden" style={{ background: 'linear-gradient(to bottom, rgba(22,17,13,0.2) 0%, rgba(22,17,13,0.55) 18%, rgba(22,17,13,0.45) 40%, transparent 60%)' }} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(22,17,13,0.15) 0%, rgba(22,17,13,0.35) 35%, rgba(22,17,13,0.7) 65%, #16110D 100%)' }} />
       </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{

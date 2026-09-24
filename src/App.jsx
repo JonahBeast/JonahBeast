@@ -10581,6 +10581,118 @@ function InvitaAmigoCard({ username }) {
   );
 }
 
+// Fecha corta para gráficos: "24 set".
+function fechaCorta(iso) {
+  try { return new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }).replace('.', ''); }
+  catch { return String(iso).slice(5, 10); }
+}
+
+// Gráfico del peso: una sola serie en naranja, la meta como línea
+// punteada, el último valor marcado y el detalle de cada día al tocar.
+function GraficoPeso({ puntos, meta }) {
+  const [activo, setActivo] = useState(null);
+  const pts = (puntos || []).filter(p => Number.isFinite(p.v));
+  if (pts.length < 2) return <p className="jb-body text-xs text-zinc-500 py-8 text-center">Registra tu peso al menos 2 días para ver tu tendencia.</p>;
+  const W = 320, H = 150, PX = 10, PT = 16, PB = 20;
+  const vals = pts.map(p => p.v).concat(Number.isFinite(meta) && meta > 0 ? [meta] : []);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  const margen = Math.max(0.5, (max - min) * 0.12); min -= margen; max += margen;
+  const x = i => PX + (i / (pts.length - 1)) * (W - PX * 2);
+  const y = v => PT + (1 - (v - min) / (max - min)) * (H - PT - PB);
+  const linea = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  const area = `M${x(0)},${H - PB} L${linea.split(' ').join(' L')} L${x(pts.length - 1)},${H - PB} Z`;
+  const ultimo = pts[pts.length - 1];
+  const sel = activo !== null ? pts[activo] : null;
+
+  function mover(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const fx = ((e.clientX - r.left) / r.width) * W;
+    const i = Math.round(((fx - PX) / (W - PX * 2)) * (pts.length - 1));
+    setActivo(Math.max(0, Math.min(pts.length - 1, i)));
+  }
+
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40 touch-none" onPointerMove={mover} onPointerDown={mover} onPointerLeave={() => setActivo(null)}>
+        <defs>
+          <linearGradient id="jb-peso-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E8590C" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#E8590C" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1={PX} x2={W - PX} y1={H - PB} y2={H - PB} stroke="#2a211a" strokeWidth="1" />
+        {Number.isFinite(meta) && meta > 0 && (
+          <g>
+            <line x1={PX} x2={W - PX} y1={y(meta)} y2={y(meta)} stroke="#a8a29e" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+            <text x={W - PX} y={y(meta) - 4} textAnchor="end" fontSize="9" fill="#a8a29e" fontFamily="Work Sans">Meta {meta} kg</text>
+          </g>
+        )}
+        <path d={area} fill="url(#jb-peso-area)" />
+        <polyline points={linea} fill="none" stroke="#E8590C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={x(pts.length - 1)} cy={y(ultimo.v)} r="4" fill="#E8590C" stroke="#16110D" strokeWidth="2" />
+        {!sel && (
+          <text x={x(pts.length - 1) - 6} y={y(ultimo.v) - 8} textAnchor="end" fontSize="10" fontWeight="600" fill="#f5efe6" fontFamily="Work Sans">{ultimo.v.toFixed(1)} kg</text>
+        )}
+        {sel && (
+          <g>
+            <line x1={x(activo)} x2={x(activo)} y1={PT - 6} y2={H - PB} stroke="#78716c" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(activo)} cy={y(sel.v)} r="4.5" fill="#E8590C" stroke="#16110D" strokeWidth="2" />
+          </g>
+        )}
+        <text x={PX} y={H - 6} fontSize="9" fill="#78716c" fontFamily="Work Sans">{fechaCorta(pts[0].fecha)}</text>
+        <text x={W - PX} y={H - 6} textAnchor="end" fontSize="9" fill="#78716c" fontFamily="Work Sans">{fechaCorta(ultimo.fecha)}</text>
+      </svg>
+      {sel && (
+        <div className="absolute top-0 pointer-events-none bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 jb-body text-[11px] text-zinc-200 whitespace-nowrap"
+          style={{ left: `${(x(activo) / W) * 100}%`, transform: `translateX(${activo > pts.length / 2 ? '-105%' : '5%'})` }}>
+          <span className="text-zinc-400">{fechaCorta(sel.fecha)}</span> · <span className="font-semibold">{sel.v.toFixed(1)} kg</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Constancia de las últimas 4 semanas: cada día con ✓ si registró comida.
+function CalendarioConstancia({ rows }) {
+  const hoy = todayISO();
+  const registrados = new Set((rows || [])
+    .filter(r => Number(r.comidas_count) > 0 || Number(r.kcal_consumidas) > 0)
+    .map(r => String(r.fecha).slice(0, 10)));
+  const dow = new Date(hoy + 'T12:00:00').getDay();
+  const lunesActual = addDaysISO(hoy, dow === 0 ? -6 : 1 - dow);
+  const inicio = addDaysISO(lunesActual, -21);
+  const dias = Array.from({ length: 28 }, (_, i) => addDaysISO(inicio, i));
+  const pasados = dias.filter(d => d <= hoy);
+  const hechos = pasados.filter(d => registrados.has(d)).length;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="jb-display text-sm text-zinc-200">TU CONSTANCIA · 4 SEMANAS</h3>
+        <span className="jb-body text-xs text-zinc-400 tabular-nums"><span className="text-orange-400 font-semibold">{hechos}</span>/{pasados.length} días</span>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5 mb-1">
+        {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((l, i) => <span key={i} className="jb-body text-[10px] text-zinc-500 text-center">{l}</span>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {dias.map(d => {
+          const futuro = d > hoy;
+          const hecho = registrados.has(d);
+          const esHoy = d === hoy;
+          return (
+            <div key={d} title={fechaCorta(d)}
+              className={`aspect-square rounded-lg flex items-center justify-center text-[11px] jb-body border ${futuro
+                ? 'border-transparent bg-zinc-900/40 text-zinc-700'
+                : hecho ? 'bg-orange-500 border-orange-500 text-zinc-950 font-bold' : 'bg-zinc-950 border-zinc-800 text-zinc-600'} ${esHoy ? 'ring-2 ring-orange-400 ring-offset-1 ring-offset-zinc-900' : ''}`}>
+              {hecho && !futuro ? '✓' : Number(d.slice(8, 10))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
   const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
   const [rows, setRows] = useState([]);
@@ -10709,61 +10821,95 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
     );
   }
 
+  const puntosPeso = serie('peso');
+  const pesoActual = Number(form?.peso) || (puntosPeso.length ? puntosPeso[puntosPeso.length - 1].v : 0);
+  const cambioPeso = puntosPeso.length >= 2 ? puntosPeso[puntosPeso.length - 1].v - puntosPeso[0].v : null;
+  const pesoInicial = Number(form?.pesoInicial) || null;
+  const pesoObjetivo = Number(form?.pesoObjetivo) || null;
+  let avanceMeta = null;
+  if (pesoInicial && pesoObjetivo && pesoInicial !== pesoObjetivo && pesoActual) {
+    avanceMeta = Math.max(0, Math.min(100, ((pesoInicial - pesoActual) / (pesoInicial - pesoObjetivo)) * 100));
+  }
+  const etiquetaRango = rango === 7 ? '7 días' : rango === 30 ? '30 días' : rango === 90 ? '3 meses' : rango === 180 ? '6 meses' : '1 año';
+
   return (
-    <div className="flex flex-col gap-6 min-w-0">
+    <div className="flex flex-col gap-5 min-w-0">
       {subNav}
-      <RachaCard username={username} />
-      {setForm && <MetaPesoCard form={form} setForm={setForm} />}
-      <div className="flex gap-2 flex-wrap">
+
+      {/* Tablero: dónde estás hoy y cuánto avanzaste en el periodo */}
+      <div className="relative bg-zinc-900 border border-orange-500/30 rounded-3xl p-5 overflow-hidden"
+        style={{ boxShadow: '0 0 40px -12px rgba(232,89,12,.35)' }}>
+        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(232,89,12,.18), transparent 70%)' }} />
+        <p className="relative jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Tu peso hoy</p>
+        <div className="relative flex items-end gap-3 mb-3">
+          <p className="jb-display text-5xl text-zinc-50 leading-none tabular-nums">{pesoActual ? Number(pesoActual).toFixed(1) : '—'}<span className="text-lg text-zinc-400 ml-1">kg</span></p>
+          {cambioPeso !== null && Math.abs(cambioPeso) >= 0.05 && (
+            <p className="jb-body text-sm pb-1 tabular-nums">
+              <span className="text-orange-400 font-semibold">{cambioPeso > 0 ? '+' : '−'}{Math.abs(cambioPeso).toFixed(1)} kg</span>
+              <span className="text-zinc-500"> en {etiquetaRango}</span>
+            </p>
+          )}
+        </div>
+        {avanceMeta !== null && (
+          <div className="relative mb-4">
+            <div className="flex justify-between jb-body text-[11px] text-zinc-400 mb-1 tabular-nums">
+              <span>Meta: {pesoObjetivo} kg</span>
+              <span className="text-orange-400 font-semibold">{Math.round(avanceMeta)}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+              <div className="h-full rounded-full bg-orange-500" style={{ width: `${avanceMeta}%`, transition: 'width .7s ease' }} />
+            </div>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1">
+              {avanceMeta >= 100 ? '¡Llegaste a tu meta!' : `Te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg`}
+            </p>
+          </div>
+        )}
+        {stats && (
+          <div className="relative grid grid-cols-3 gap-2">
+            {[
+              [`${stats.diasRegistrados}`, `días registrados de ${stats.totalDias}`],
+              [stats.adherencia !== null ? `${Math.round(stats.adherencia)}%` : '—', 'días en tu objetivo'],
+              [Math.round(stats.promKcal) || '—', 'kcal por día'],
+            ].map(([valor, texto]) => (
+              <div key={texto} className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+                <p className="jb-display text-xl text-orange-500 tabular-nums leading-none">{valor}</p>
+                <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{texto}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}
-            className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${rango === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
+            className={`jb-body text-xs px-3 py-1.5 rounded-full shrink-0 transition-colors ${rango === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             {d === 7 ? '7 días' : d === 30 ? '30 días' : d === 90 ? '3 meses' : d === 180 ? '6 meses' : '1 año'}
           </button>
         ))}
       </div>
 
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="jb-display text-sm text-zinc-200">TU PESO</h3>
+          <span className="jb-body text-[11px] text-zinc-500">Toca el gráfico para ver cada día</span>
+        </div>
+        <GraficoPeso puntos={puntosPeso} meta={pesoObjetivo} />
+      </div>
+
+      <CalendarioConstancia rows={rows} />
+
       {analisis && <CoachCard analisis={analisis} />}
 
       <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
 
-      <InvitaAmigoCard username={username} />
-
-      {stats && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-          <h2 className="jb-display text-base text-zinc-200 mb-4">MIS TENDENCIAS</h2>
-          <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
-            <MacroRing pct={stats.promObj ? (stats.promKcal / stats.promObj) * 100 : 0}
-              value={Math.round(stats.promKcal)} label="Kcal/día" colorHex="#f97316" size={60} stroke={6} />
-            <MacroRing pct={Math.min(100, (stats.promProt / 150) * 100)}
-              value={Math.round(stats.promProt) + 'g'} label="Proteína/día" colorHex="#34d399" size={60} stroke={6} />
-            <MacroRing pct={stats.totalDias ? (stats.diasRegistrados / stats.totalDias) * 100 : 0}
-              value={stats.diasRegistrados} label="Registros" colorHex="#a78bfa" size={60} stroke={6} />
-          </div>
-          {stats.adherencia !== null && (
-            <div className="mt-4 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="jb-body text-sm text-zinc-300">Adherencia a tu objetivo</span>
-                <span className="jb-display text-xl text-orange-500">{Math.round(stats.adherencia)}%</span>
-              </div>
-              <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${stats.adherencia}%` }} />
-              </div>
-              <p className="jb-body text-xs text-zinc-400 mt-2">
-                Estuviste cerca de tu objetivo en {stats.enRango} de {stats.objetivos} días registrados. ¡Eso es lo que construye resultados!
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-3 gap-3">
         {[
-          ['peso', 'PESO', ' kg', '#f97316'],
-          ['grasa_pct', '% GRASA CORPORAL', '%', '#fbbf24'],
-          ['masa_muscular', 'MASA MUSCULAR', ' kg', '#34d399'],
-          ['kcal_consumidas', 'CALORÍAS DIARIAS', '', '#60a5fa'],
-        ].map(([campo, titulo, sufijo, color]) => {
+          ['grasa_pct', '% GRASA CORPORAL', '%'],
+          ['masa_muscular', 'MASA MUSCULAR', ' kg'],
+          ['kcal_consumidas', 'CALORÍAS DIARIAS', ''],
+        ].map(([campo, titulo, sufijo]) => {
           const pts = serie(campo);
           return (
             <div key={campo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -10771,12 +10917,14 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
               {pts.length < 2 ? (
                 <p className="jb-body text-xs text-zinc-600 py-6 text-center">Necesitas al menos 2 días de registro.</p>
               ) : (
-                <MiniChart points={pts} color={color} suffix={sufijo} />
+                <MiniChart points={pts} color="#E8590C" suffix={sufijo} />
               )}
             </div>
           );
         })}
       </div>
+
+      {setForm && <MetaPesoCard form={form} setForm={setForm} />}
 
       <p className="jb-body text-xs text-zinc-600 text-center">
         Tu historial se guarda solo cada vez que usas la app. Mientras más registres, más claro verás tu avance.

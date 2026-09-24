@@ -3834,6 +3834,7 @@ const GRUPOS_RESCATE = [
   { key: 'enfriando', emoji: '🟡', label: 'SE ESTÁN ENFRIANDO', detalle: '2 a 7 días sin registrar', necesita: 'Los más fáciles de recuperar: escríbeles primero.', color: 'text-amber-400', borde: 'border-amber-700/50' },
   { key: 'frio', emoji: '🔴', label: 'FRÍOS', detalle: 'Más de 7 días sin registrar', necesita: 'Pregúntales qué se les complicó.', color: 'text-red-400', borde: 'border-red-700/50' },
   { key: 'nunca', emoji: '⚫', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Ayúdalos a dar el primer paso.', color: 'text-zinc-300', borde: 'border-zinc-600' },
+  { key: 'aldia', emoji: '🟢', label: 'AL DÍA', detalle: 'Registraron ayer u hoy', necesita: 'Felicítalos: un mensaje tuyo los mantiene constantes.', color: 'text-emerald-400', borde: 'border-emerald-700/50' },
 ];
 
 /* Tarjetas de colores que funcionan como botones: al tocar una se ven solo
@@ -3841,7 +3842,7 @@ const GRUPOS_RESCATE = [
 function TarjetasColor({ grupos, contar, activo, onElegir }) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-2 mb-2">
+      <div className={`grid gap-2 mb-2 ${grupos.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
         {grupos.map(g => {
           const n = contar(g.key);
           const elegida = activo === g.key;
@@ -3909,11 +3910,12 @@ function RescatePanel({ users }) {
     const grupo = !ultima ? 'nunca' : sinRegistrar <= 1 ? 'aldia' : sinRegistrar <= 7 ? 'enfriando' : 'frio';
     return { ...u, ultima, sinRegistrar, grupo };
   }).sort((a, b) => (a.sinRegistrar ?? 999) - (b.sinRegistrar ?? 999));
-  const alDia = alumnos.filter(u => u.grupo === 'aldia').length;
 
   function linkWhatsApp(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
-    const texto = u.grupo === 'enfriando'
+    const texto = u.grupo === 'aldia'
+      ? `Hola ${nombre}, soy Jonah 🦍 Vi que vienes registrando tus comidas, ¡así se hace! Esa constancia es la que trae resultados. Sigue así y cualquier duda me escribes 💪`
+      : u.grupo === 'enfriando'
       ? `Hola ${nombre}, soy Jonah 🦍 Te extraño por la app: llevas ${u.sinRegistrar} días sin registrar tus comidas. ¿Todo bien? Registra hoy aunque sea tu desayuno y retomamos juntos 💪`
       : u.grupo === 'frio'
         ? `Hola ${nombre}, soy Jonah 🦍 Hace ${u.sinRegistrar} días que no te veo por la app. ¿Qué se te complicó? Cuéntame y lo resolvemos juntos, tu objetivo sigue ahí 🔥`
@@ -3956,7 +3958,7 @@ function RescatePanel({ users }) {
           ) : (
             <>
               <p className="jb-body text-xs text-zinc-500 mb-3">
-                Alumnos con plan o prueba vigente según cuándo registraron comidas por última vez. 🟢 {alDia} registraron ayer u hoy.
+                Alumnos con plan o prueba vigente según cuándo registraron comidas por última vez.
               </p>
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 mb-3 jb-body text-[11px] text-zinc-400 leading-relaxed">
                 <span className="text-zinc-200 font-semibold">🔔 Avisos:</span>{' '}
@@ -3979,7 +3981,7 @@ function RescatePanel({ users }) {
                             <div className="min-w-0">
                               <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
                               <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
-                                {u.ultima ? `Última comida hace ${u.sinRegistrar} días` : 'Aún no registra ninguna comida'}
+                                {u.ultima ? (u.sinRegistrar <= 0 ? 'Registró hoy' : u.sinRegistrar === 1 ? 'Registró ayer' : `Última comida hace ${u.sinRegistrar} días`) : 'Aún no registra ninguna comida'}
                                 {u.plan === 'trial' || u.plan === 'prueba' ? ' · prueba gratis' : ' · plan pagado'}
                                 {!u.telefono && ' · sin celular'}
                               </div>

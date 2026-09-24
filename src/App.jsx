@@ -12578,7 +12578,7 @@ function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
    alumno confirme qué agregar — nunca guarda nada automáticamente,
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
-function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHasta, onCerrar, onAgregar }) {
+function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHasta, onCerrar, onAgregar, onEscribir }) {
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
@@ -12595,6 +12595,22 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [pagandoMP, setPagandoMP] = useState(false);
   const [errMP, setErrMP] = useState('');
   const addOnActivo = !!(reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0);
+  // Cuántas fotos le quedan (bienvenida: 3 al día los 3 primeros días de
+  // la prueba; luego 5 por semana; con el complemento, 200 al mes). Si el
+  // servidor aún no responde la consulta, simplemente no se muestra.
+  const [cupo, setCupo] = useState(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('reconocer-comida', { body: { consulta: true } });
+        if (!error && data && typeof data.limite === 'number' && data.tipo) setCupo(data);
+      } catch {}
+    })();
+  }, []);
+  function anotarCupo(data) {
+    if (data && typeof data.limite === 'number' && data.tipo) setCupo(data);
+  }
+  const quedan = cupo ? Math.max(0, cupo.limite - (Number(cupo.usadas) || 0)) : null;
 
   useEffect(() => {
     // Barra de progreso simulada mientras la IA analiza — no viene del
@@ -12662,10 +12678,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       }
       if (data?.error === 'limite_alcanzado') {
         setInfoLimite(data);
+        anotarCupo(data);
         setEstado('limite');
         return;
       }
       if (data?.error) throw new Error(data.error);
+      anotarCupo(data);
       setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
 
       const encontradosIA = (data?.items || [])
@@ -12800,8 +12818,33 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <div className="text-center">
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
-              {!addOnActivo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
+              {!addOnActivo && !cupo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
             </p>
+            {cupo && cupo.tipo !== 'addon' && (
+              <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${cupo.tipo === 'bienvenida'
+                ? 'bg-orange-500/10 border-orange-500/40' : quedan <= 2 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="jb-body text-xs text-zinc-300">
+                    {cupo.tipo === 'bienvenida' ? '🎁 Bienvenida: ' : ''}
+                    Te {quedan === 1 ? 'queda' : 'quedan'} <span className="text-orange-400 font-semibold">{quedan} {quedan === 1 ? 'foto' : 'fotos'}</span> {cupo.tipo === 'bienvenida' ? 'hoy' : 'esta semana'}
+                  </p>
+                  <div className="flex gap-1 shrink-0" aria-hidden="true">
+                    {Array.from({ length: cupo.limite }).map((_, i) => (
+                      <span key={i} className={`w-2 h-2 rounded-full ${i < quedan ? 'bg-orange-500' : 'bg-zinc-700'}`} />
+                    ))}
+                  </div>
+                </div>
+                <p className="jb-body text-[11px] text-zinc-500 mt-1">
+                  {cupo.tipo === 'bienvenida'
+                    ? (cupo.diasBienvenidaRestantes > 0
+                      ? `Tus primeros 3 días tienes 3 fotos al día. Después, 5 por semana.`
+                      : 'Hoy es tu último día de bienvenida. Desde mañana, 5 fotos por semana.')
+                    : quedan <= 2
+                      ? 'Fotos sin límite con Reconocimiento Inteligente: solo S/0.40 al día.'
+                      : 'Se renuevan cada lunes.'}
+                </p>
+              </div>
+            )}
             <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
               <Camera size={16} /> Tomar foto
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
@@ -12974,12 +13017,19 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <div className="text-center py-2">
             <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
             <p className="jb-display text-sm text-orange-500 mb-1">
-              {infoLimite?.tieneAddOn ? 'Llegaste a tu límite del mes' : 'Ya usaste tus fotos gratis de esta semana'}
+              {infoLimite?.tieneAddOn ? 'Llegaste a tu límite del mes'
+                : infoLimite?.tipo === 'bienvenida' ? 'Usaste tus 3 fotos de hoy' : 'Ya usaste tus fotos gratis de esta semana'}
             </p>
             <p className="jb-body text-sm text-zinc-400 mb-4">
               {infoLimite?.tieneAddOn
                 ? `Usaste tus ${infoLimite.limite} fotos de este mes con Reconocimiento Inteligente.`
-                : `Con Reconocimiento Inteligente identificas tu plato con solo una foto — sin escribir, sin buscar.`}
+                : <>
+                  {infoLimite?.tipo === 'bienvenida' && (infoLimite.diasBienvenidaRestantes > 0
+                    ? 'Mañana tienes 3 fotos más. '
+                    : 'Desde mañana tienes 5 fotos por semana. ')}
+                  Con Reconocimiento Inteligente identificas tu plato con solo una foto, sin escribir ni buscar.{' '}
+                  <span className="text-zinc-200 font-semibold">Fotos sin límite por solo S/0.40 al día</span> (S/11.90 al mes).
+                </>}
             </p>
             {!infoLimite?.tieneAddOn && (
               <div className="text-left mb-2">
@@ -13021,8 +13071,8 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 </a>
               </div>
             )}
-            <button onClick={onCerrar} className={btnGhost + ' w-full py-2.5'}>
-              {infoLimite?.tieneAddOn ? 'Entendido' : 'Seguir sin esto por ahora'}
+            <button onClick={infoLimite?.tieneAddOn || !onEscribir ? onCerrar : onEscribir} className={btnGhost + ' w-full py-2.5'}>
+              {infoLimite?.tieneAddOn ? 'Entendido' : 'Registrarlo escribiendo'}
             </button>
           </div>
         )}
@@ -13639,6 +13689,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
           todosLosAlimentos={todosLosAlimentos}
           reconocimientoFotoHasta={reconocimientoFotoHasta}
           onCerrar={() => setFotoPara(null)}
+          onEscribir={() => { const m = fotoPara; setFotoPara(null); setEnfocar(addEntry(m)); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
         />
       )}

@@ -4061,7 +4061,11 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
 /* ------------------------------------------------------------------ */
 
 function todayISO() {
-  const d = new Date();
+  return fechaLocalISO(new Date());
+}
+
+// Fecha YYYY-MM-DD en la hora del equipo (no en UTC).
+function fechaLocalISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -4873,13 +4877,156 @@ function LeadsPanel() {
   );
 }
 
+// Gráfico de barras simple (una sola serie, así que no lleva leyenda: el
+// título dice qué es). Barras naranja ají con la punta redondeada, 2px de
+// separación y el valor al tocar o pasar el mouse. Se marcan solo el último
+// valor y el más alto, para no llenar de números.
+function BarrasSimples({ datos, formato = v => v, alto = 120, etiquetaCada = 1 }) {
+  const [activo, setActivo] = useState(null);
+  const max = Math.max(1, ...datos.map(d => d.valor));
+  const iMax = datos.reduce((im, d, i) => (d.valor > datos[im].valor ? i : im), 0);
+  const mostrado = activo !== null ? activo : datos.length - 1;
+  return (
+    <div>
+      <div className="jb-body text-xs text-zinc-400 h-5 mb-1">
+        {datos[mostrado] && <><span className="text-zinc-500">{datos[mostrado].etiquetaLarga || datos[mostrado].etiqueta}:</span> <span className="text-zinc-50 font-semibold">{formato(datos[mostrado].valor)}</span></>}
+      </div>
+      <div className="flex items-end gap-[2px] border-b border-zinc-700" style={{ height: alto }}
+        onMouseLeave={() => setActivo(null)}>
+        {datos.map((d, i) => (
+          <button key={d.clave} type="button"
+            aria-label={`${d.etiquetaLarga || d.etiqueta}: ${formato(d.valor)}`}
+            onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
+            className="flex-1 h-full flex flex-col justify-end items-center group min-w-0">
+            {(i === iMax || i === datos.length - 1) && d.valor > 0 && (
+              <span className="jb-body text-[10px] text-zinc-300 mb-0.5 whitespace-nowrap">{formato(d.valor)}</span>
+            )}
+            <span className={`w-full rounded-t-[4px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-50'}`}
+              style={{ height: `${(d.valor / max) * 100}%`, minHeight: d.valor > 0 ? 2 : 0, background: '#E8590C', maxHeight: `calc(100% - 16px)` }} />
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-[2px] mt-1">
+        {datos.map((d, i) => (
+          <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
+            <span className="jb-body text-[10px] text-zinc-500 whitespace-nowrap">
+              {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Tablero del negocio: los números clave en un solo lugar (antes estaban
+// repetidos en varias tarjetas) y dos gráficos: ingresos por mes y cuántos
+// alumnos registran comidas cada día.
+function TableroPanel({ users }) {
+  const [datos, setDatos] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const hace30 = fechaLocalISO(new Date(Date.now() - 29 * 86400000));
+      const inicioMeses = new Date(); inicioMeses.setDate(1); inicioMeses.setMonth(inicioMeses.getMonth() - 5);
+      const [{ data: pagos }, { data: hist }, { data: subs }] = await Promise.all([
+        supabase.from('pagos').select('monto, creado_en').eq('estado', 'aprobado')
+          .gte('creado_en', fechaLocalISO(inicioMeses)).range(0, 4999),
+        supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', hace30).range(0, 9999),
+        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+      ]);
+      if (cancelado) return;
+      setDatos({ pagos: pagos || [], hist: hist || [], subs: subs || [] });
+    })().catch(() => { if (!cancelado) setDatos({ pagos: [], hist: [], subs: [] }); });
+    return () => { cancelado = true; };
+  }, []);
+
+  const hoy = todayISO();
+  const vigentes = (users || []).filter(u => u.enabled && membershipActive(u));
+  const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
+  const pagando = vigentes.filter(u => !esPrueba(u)).length;
+  const enPrueba = vigentes.filter(esPrueba).length;
+  // Conversión aproximada: de los que ya terminaron su prueba o pagaron,
+  // cuántos pagaron (incluye a los que registraste tú directo como pago).
+  const pagaron = (users || []).filter(u => u.plan === 'pago').length;
+  const pruebasSinPagar = (users || []).filter(u => esPrueba(u) && u.fechaVencimiento && u.fechaVencimiento < hoy).length;
+  const conversion = pagaron + pruebasSinPagar > 0 ? Math.round((pagaron / (pagaron + pruebasSinPagar)) * 100) : null;
+
+  let usanApp = null, conNotif = null, ingresoMes = null, graficoIngresos = [], graficoUso = [];
+  if (datos) {
+    const ultimaPorAlumno = {};
+    datos.hist.forEach(r => { if (!ultimaPorAlumno[r.username] || r.fecha > ultimaPorAlumno[r.username]) ultimaPorAlumno[r.username] = r.fecha; });
+    usanApp = vigentes.filter(u => ultimaPorAlumno[u.username] && -daysLeft(ultimaPorAlumno[u.username]) <= 1).length;
+    const vigentesSet = new Set(vigentes.map(u => u.username));
+    conNotif = new Set(datos.subs.map(x => x.username).filter(n => vigentesSet.has(n))).size;
+
+    const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+    const porMes = {};
+    datos.pagos.forEach(p => { const k = String(p.creado_en).slice(0, 7); porMes[k] = (porMes[k] || 0) + (Number(p.monto) || 0); });
+    const base = new Date(); base.setDate(1);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      graficoIngresos.push({ clave: k, etiqueta: MESES[d.getMonth()], etiquetaLarga: `${MESES[d.getMonth()]} ${d.getFullYear()}`, valor: Math.round((porMes[k] || 0) * 100) / 100 });
+    }
+    ingresoMes = graficoIngresos[graficoIngresos.length - 1].valor;
+
+    const porDia = {};
+    datos.hist.forEach(r => { (porDia[r.fecha] = porDia[r.fecha] || new Set()).add(r.username); });
+    for (let i = 29; i >= 0; i--) {
+      const f = new Date(Date.now() - i * 86400000);
+      const k = fechaLocalISO(f);
+      graficoUso.push({ clave: k, etiqueta: String(f.getDate()), etiquetaLarga: f.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' }), valor: porDia[k] ? porDia[k].size : 0 });
+    }
+  }
+
+  const fmtSoles = v => {
+    const n = Number(v || 0);
+    return `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: n % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}`;
+  };
+  const tarjetas = [
+    { v: vigentes.length, l: 'Alumnos activos', sub: `${pagando} pagando · ${enPrueba} en prueba` },
+    { v: conversion === null ? '—' : `${conversion}%`, l: 'Pruebas que pagan', sub: `${pagaron} de ${pagaron + pruebasSinPagar} (aprox.)` },
+    { v: usanApp === null ? '…' : usanApp, l: 'Usan la app', sub: `registraron ayer u hoy, de ${vigentes.length}` },
+    { v: conNotif === null ? '…' : conNotif, l: 'Con notificaciones', sub: `de ${vigentes.length} activos` },
+    { v: ingresoMes === null ? '…' : fmtSoles(ingresoMes), l: 'Ingresos del mes', sub: 'pagos de planes aprobados' },
+  ];
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-5">
+      <h2 className="jb-display text-base text-zinc-200">📊 CÓMO VA TU NEGOCIO</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {tarjetas.map(t => (
+          <div key={t.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+            <div className="jb-display text-2xl text-orange-400">{t.v}</div>
+            <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+            <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
+          </div>
+        ))}
+      </div>
+      {!datos ? (
+        <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Cargando gráficos…</div>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">INGRESOS POR MES</h3>
+            <BarrasSimples datos={graficoIngresos} formato={fmtSoles} />
+          </div>
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS</h3>
+            <BarrasSimples datos={graficoUso} formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MetricasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [pagos, setPagos] = useState({ count: 0, monto: 0 });
-  const [referidores, setReferidores] = useState([]);
   const [leadsPorRed, setLeadsPorRed] = useState([]);
-  const [comisionesPendientes, setComisionesPendientes] = useState({ count: 0, monto: 0 });
   const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
   const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
   const [ajustesDias, setAjustesDias] = useState([]);
@@ -4893,13 +5040,6 @@ function MetricasPanel() {
       const { data: alumnos } = await supabase.from('alumnos')
         .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto, telefono');
       alumnosData = alumnos || [];
-
-      // Comisiones pendientes: alumnos con código de referido y comisión aún no pagada
-      const pendientes = alumnosData.filter(a => a.codigo_referido && !a.comision_pagada);
-      setComisionesPendientes({
-        count: pendientes.length,
-        monto: pendientes.reduce((acc, a) => acc + (parseFloat(a.comision_monto) || 0), 0),
-      });
 
       // Proyección: alumnos "por vencer" (0-7 días, habilitados) × precio estimado de su plan
       const porVencer = alumnosData.filter(a => {
@@ -4927,16 +5067,6 @@ function MetricasPanel() {
         acc + (precioPorUsuario[a.username] ?? PLANES[0].precioDefault), 0);
       setProyeccion({ count: porVencer.length, monto: montoProyectado });
     } catch {}
-    try {
-      const { data: pagosData } = await supabase.from('pagos').select('estado, monto');
-      const aprobados = (pagosData || []).filter(p => (p.estado || '').toLowerCase() === 'aprobado');
-      const monto = aprobados.reduce((acc, p) => acc + (parseFloat(p.monto) || 0), 0);
-      setPagos({ count: aprobados.length, monto });
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    try {
-      const { data: refs } = await supabase.from('referidores').select('nombre, codigo, tipo, activo');
-      setReferidores(refs || []);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     try {
       const { data: leadsData } = await supabase.from('leads').select('red, telefono');
       const counts = {};
@@ -4979,11 +5109,6 @@ function MetricasPanel() {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Comisiones pendientes</div>
-                  <div className="text-orange-400 jb-display text-lg">S/ {comisionesPendientes.monto.toFixed(2)}</div>
-                  <div className="text-[11px] text-zinc-500">{comisionesPendientes.count} por pagar</div>
-                </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-0.5">Proyección por vencer (7 días)</div>
                   <div className="text-emerald-400 jb-display text-lg">S/ {proyeccion.monto.toFixed(2)}</div>
                   <div className="text-[11px] text-zinc-500">{proyeccion.count} alumnos · estimado</div>
@@ -4992,25 +5117,6 @@ function MetricasPanel() {
                   <div className="text-[11px] text-zinc-500 mb-0.5">Leads convertidos a alumno</div>
                   <div className="text-emerald-400 jb-display text-lg">{leadsConvertidos.convertidos} de {leadsConvertidos.total}</div>
                   <div className="text-[11px] text-zinc-500">cruce por teléfono</div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">PAGOS APROBADOS</h3>
-                <p className="text-zinc-100 text-lg">{pagos.count} pagos · S/ {pagos.monto.toFixed(2)}</p>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">EMBAJADORES</h3>
-                <div className="flex flex-col gap-1.5">
-                  {referidores.map(r => (
-                    <div key={r.codigo} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
-                      <span className="text-zinc-400">{r.nombre} <span className="text-zinc-600">· {r.codigo}</span></span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${r.activo ? 'bg-emerald-950/60 text-emerald-400' : 'bg-zinc-900 text-zinc-500'}`}>
-                        {r.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -5846,22 +5952,6 @@ function EmbudoResumenPanel() {
             <span className="text-zinc-600">El % de cada paso es sobre el paso anterior. El % de "Pagaron" sube con el tiempo: la prueba dura {TRIAL_DAYS} días.</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-1.5 pt-3 border-t border-zinc-800">
-            {[
-              { v: datos.enPruebaHoy, l: 'En prueba', c: 'text-sky-400' },
-              { v: datos.pagandoHoy, l: 'Pagando', c: 'text-emerald-400' },
-              { v: datos.vencidosHoy, l: 'Vencidos', c: 'text-red-400' },
-              { v: datos.leads, l: 'Leads calc.', c: 'text-zinc-300' },
-            ].map(x => (
-              <div key={x.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-center">
-                <div className={`jb-display text-base ${x.c}`}>{x.v}</div>
-                <div className="jb-body text-[9.5px] text-zinc-500 uppercase tracking-wide leading-tight">{x.l}</div>
-              </div>
-            ))}
-          </div>
-          <p className="jb-body text-[10px] text-zinc-600 -mt-1.5">
-            Todos los alumnos hoy (también los que llegaron por referido o creaste tú). Leads = personas que usaron la calculadora gratis en el periodo.
-          </p>
 
           <button onClick={() => setVerFuentes(v => !v)} className="flex items-center justify-between jb-body text-xs text-zinc-400 pt-2 border-t border-zinc-800">
             <span>Por fuente (?utm_source= o ?fuente=)</span>
@@ -5929,8 +6019,6 @@ function EmbudoPanel() {
   const [leads, setLeads] = useState([]);
   const [alumnos, setAlumnos] = useState([]);
   const [notas, setNotas] = useState([]);
-  const [perfilesCompletos, setPerfilesCompletos] = useState({}); // username -> bool
-  const [ultimoRegistroComida, setUltimoRegistroComida] = useState({}); // username -> fecha ISO o null
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [notaAbierta, setNotaAbierta] = useState(null);
@@ -5943,37 +6031,14 @@ function EmbudoPanel() {
   async function load() {
     setLoading(true);
     try {
-      const [{ data: l }, { data: a }, { data: n }, { data: d }] = await Promise.all([
+      const [{ data: l }, { data: a }, { data: n }] = await Promise.all([
         supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento').order('created_at', { ascending: false }),
         supabase.from('seguimiento_crm').select('*').order('created_at', { ascending: false }),
-        supabase.from('datos_alumnos').select('username, form'),
       ]);
       setLeads(l || []);
       setAlumnos(a || []);
-      const completos = {};
-      (d || []).forEach(row => { completos[row.username] = !!(row.form && row.form.objetivo); });
-      setPerfilesCompletos(completos);
       setNotas(n || []);
-
-      // Última vez que cada alumno en prueba registró alguna comida —
-      // para el grupo de "no registran comidas". Se limita a los que
-      // están en prueba gratis, no hace falta para todos.
-      const usernamesPrueba = (a || [])
-        .filter(al => (al.plan === 'trial' || al.plan === 'prueba') && al.enabled)
-        .map(al => al.username);
-      if (usernamesPrueba.length) {
-        const { data: h } = await supabase.from('historial')
-          .select('username, fecha, comidas_count')
-          .in('username', usernamesPrueba)
-          .gt('comidas_count', 0)
-          .order('fecha', { ascending: false });
-        const ultimos = {};
-        (h || []).forEach(row => { if (!ultimos[row.username]) ultimos[row.username] = row.fecha; });
-        setUltimoRegistroComida(ultimos);
-      } else {
-        setUltimoRegistroComida({});
-      }
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setLoading(false);
   }
@@ -6043,13 +6108,6 @@ function EmbudoPanel() {
       ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
       : `https://wa.me/?text=${encodeURIComponent(texto)}`;
   }
-
-  const MENSAJES_SEGUIMIENTO_WA = {
-    1: 'Hola [NOMBRE] 🦍 Vi que aún no completaste tus medidas en la app. Toma solo 2 minutitos y ahí ya calculamos tu objetivo juntos. ¿Te ayudo con algo para que lo hagas ahora?',
-    2: 'Hola [NOMBRE], sigo aquí pendiente de ti 🦍 Cuando puedas, entra a la app y completa tus medidas — sin apuro, pero quiero que arranquemos pronto. ¿Hay algo que te esté trabando?',
-    3: '[NOMBRE], no dejes que se te pase esto 🔥 Un par de minutos y arrancamos tu cambio real. Si tienes alguna duda o trabas para completarlo, dime y te ayudo directo por aquí 🦍💪',
-  };
-  const MENSAJE_SIN_COMIDAS_WA = 'Hola [NOMBRE] 🦍 Vi que no has registrado tus comidas en estos últimos días. ¿Todo bien? Si hay algo que te está costando o alguna duda, aquí estoy para ayudarte 💪';
 
   function fmt(fecha) {
     return fecha ? new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', { day: '2-digit', month: 'short' }) : '—';
@@ -6122,7 +6180,7 @@ function EmbudoPanel() {
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
         <h2 className="jb-display text-base text-zinc-200">
           🔔 SEGUIMIENTO
-          <span className="ml-2 text-xs text-zinc-500 font-normal">· a quién escribir hoy</span>
+          <span className="ml-2 text-xs text-zinc-500 font-normal">· notas y recordatorios</span>
         </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
@@ -6166,88 +6224,19 @@ function EmbudoPanel() {
                   sub={fmt(l.created_at.slice(0, 10))} />
               )} />
 
-              {(() => {
-                // Clasificamos cada alumno en prueba en UN solo grupo,
-                // por orden de prioridad — así nadie aparece repetido
-                // en dos listas a la vez. El que no completó perfil
-                // pesa más que el que no registra comidas, porque sin
-                // perfil tampoco puede registrar nada útil todavía.
-                const sinPerfilList = [];
-                const sinComidasList = [];
-                const alDiaList = [];
-                enPrueba.forEach(a => {
-                  const diasReg = a.fecha_inicio ? Math.round((new Date(hoy) - new Date(a.fecha_inicio)) / 86400000) : null;
-                  const sinPerfil = !perfilesCompletos[a.username];
-                  if (sinPerfil && diasReg !== null && diasReg >= 1) {
-                    sinPerfilList.push({ a, diasReg, diaAlerta: Math.min(diasReg, 3) });
-                    return;
-                  }
-                  const ultimaComida = ultimoRegistroComida[a.username];
-                  const diasSinComida = ultimaComida ? Math.round((new Date(hoy) - new Date(ultimaComida)) / 86400000) : (diasReg !== null ? diasReg : null);
-                  if (!perfilesCompletos[a.username]) { alDiaList.push(a); return; } // recién se registró hoy, sin perfil aún pero no alertamos de más
-                  if (diasSinComida !== null && diasSinComida >= 2) {
-                    sinComidasList.push({ a, diasSinComida });
-                    return;
-                  }
-                  alDiaList.push(a);
-                });
-
-                return (
-                  <>
-                    <div>
-                      <h3 className="jb-display text-sm text-amber-400 mb-2">🚨 SIN COMPLETAR PERFIL · {sinPerfilList.length}</h3>
-                      {sinPerfilList.length === 0 ? (
-                        <p className="text-zinc-600 text-xs">Nadie en este grupo — todos completaron sus medidas y objetivo.</p>
-                      ) : (
-                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
-                          {sinPerfilList.map(({ a, diasReg, diaAlerta }) => (
-                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                              sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={`sin completar perfil · día ${diasReg}`}
-                              mensajeWa={MENSAJES_SEGUIMIENTO_WA[diaAlerta]} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="jb-display text-sm text-amber-400 mb-2">🍽️ NO REGISTRAN COMIDAS · {sinComidasList.length}</h3>
-                      {sinComidasList.length === 0 ? (
-                        <p className="text-zinc-600 text-xs">Nadie en este grupo — todos vienen registrando.</p>
-                      ) : (
-                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
-                          {sinComidasList.map(({ a, diasSinComida }) => (
-                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                              sub={`vence ${fmt(a.fecha_vencimiento)}`} alerta={`sin registrar comidas · ${diasSinComida} día(s)`}
-                              mensajeWa={MENSAJE_SIN_COMIDAS_WA} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <h3 className="jb-display text-sm text-zinc-300 mb-2">✅ AL DÍA · {alDiaList.length}</h3>
-                      {alDiaList.length === 0 ? (
-                        <p className="text-zinc-600 text-xs">Nadie en este grupo todavía.</p>
-                      ) : (
-                        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
-                          {alDiaList.map(a => (
-                            <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                              sub={`vence ${fmt(a.fecha_vencimiento)}`} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                );
-              })()}
-              <Etapa titulo="PAGANDO" emoji="💰" items={pagando} render={a => (
-                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                  sub={`vence ${fmt(a.fecha_vencimiento)}`} />
-              )} />
-              <Etapa titulo="VENCIDO" emoji="⏳" items={vencidos} render={a => (
-                <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
-                  sub={`venció ${fmt(a.fecha_vencimiento)}`} />
-              )} />
+              {/* Las listas de "no registran comidas" y "por vencer" ahora
+                  están en 🔥 Rescate y ⏰ Por vencer. Aquí quedan las notas:
+                  se busca al alumno para anotar algo o ver sus notas. */}
+              {busqueda.trim() ? (
+                <Etapa titulo="ALUMNOS" emoji="👤" items={[...enPrueba, ...pagando, ...vencidos]} render={a => (
+                  <Persona key={a.username} tipo="alumno" referencia={a.username} nombre={a.nombre || a.username} telefono={a.telefono}
+                    sub={`${a.plan === 'pago' ? 'plan pagado' : 'prueba gratis'} · ${a.fecha_vencimiento && a.fecha_vencimiento < hoy ? 'venció' : 'vence'} ${fmt(a.fecha_vencimiento)}`} />
+                )} />
+              ) : (
+                <p className="jb-body text-xs text-zinc-500">
+                  Para anotar algo sobre un alumno (o ver sus notas), búscalo arriba por nombre, usuario o celular. A quién escribirle hoy está en 🔥 Rescate y ⏰ Por vencer.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -6862,31 +6851,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>
         </div>
 
-        {(() => {
-          const total = users.length;
-          const activos = users.filter(membershipActive).length;
-          // Solo pruebas vigentes: una prueba vencida ya cuenta en "Vencidos"
-          // (mismo criterio que la tarjeta del embudo).
-          const enPrueba = users.filter(u => (u.plan === 'trial' || u.plan === 'prueba') && membershipActive(u)).length;
-          const vencidos = total - activos;
-          const stats = [
-            [total, 'Alumnos totales', '#4dd9ff'],
-            [activos, 'Activos', '#4affb0'],
-            [enPrueba, 'En prueba gratis', '#ffb020'],
-            [vencidos, 'Vencidos', '#ff5c5c'],
-          ];
-          return (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {stats.map(([valor, label, color]) => (
-                <div key={label} className="relative rounded-lg p-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(13,28,40,0.9), rgba(10,22,32,0.9))', border: '1px solid #163244' }}>
-                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `linear-gradient(90deg, ${color}, transparent)` }} />
-                  <div className="font-mono text-2xl font-bold" style={{ color }}>{valor}</div>
-                  <div className="font-mono text-[10px] tracking-wide mt-1" style={{ color: '#6f92a8' }}>{label.toUpperCase()}</div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
 
         {(() => {
           const TABS = [
@@ -6916,8 +6880,11 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
-            <EmbudoResumenPanel />
+            <PagosPanel />
+            <RescatePanel users={users} />
+            <VencimientosPanel users={users} onRenew={onRenew} />
             <EmbudoPanel />
+            <CumpleanosPanel users={users} />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
               <div className="flex items-center gap-2.5 mb-4">
@@ -6976,23 +6943,20 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   {busqueda ? 'No se encontraron alumnos con ese nombre o usuario.' : 'Aún no has agregado alumnos.'}
                 </p>
               ) : (() => {
-                // Se agrupa por urgencia real, no por orden de registro --
-                // así lo que necesita atención hoy (vencidos, por vencer)
-                // siempre queda arriba, en vez de perdido entre 34 filas
-                // sin ningún orden.
+                // Se agrupa por estado, con los vencidos arriba. Los que están
+                // por vencer se ven en el panel ⏰ Por vencer (y aquí dicen
+                // "Vence en N días").
                 const grupos = {
-                  deshabilitados: [], vencidos: [], porVencer: [], enPrueba: [], activos: [],
+                  deshabilitados: [], vencidos: [], enPrueba: [], activos: [],
                 };
                 usersFiltrados.forEach(u => {
                   const dl = daysLeft(u.fechaVencimiento);
                   if (!u.enabled) grupos.deshabilitados.push(u);
                   else if (dl !== null && dl < 0) grupos.vencidos.push(u);
-                  else if (dl !== null && dl <= 7) grupos.porVencer.push(u);
-                  else if (u.plan === 'trial') grupos.enPrueba.push(u);
+                  else if (u.plan === 'trial' || u.plan === 'prueba') grupos.enPrueba.push(u);
                   else grupos.activos.push(u);
                 });
                 grupos.vencidos.sort((a, b) => daysLeft(a.fechaVencimiento) - daysLeft(b.fechaVencimiento));
-                grupos.porVencer.sort((a, b) => daysLeft(a.fechaVencimiento) - daysLeft(b.fechaVencimiento));
                 const porNombre = (a, b) => (a.nombre || a.username).localeCompare(b.nombre || b.username);
                 grupos.enPrueba.sort(porNombre);
                 grupos.activos.sort(porNombre);
@@ -7000,7 +6964,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
                 const SECCIONES = [
                   { key: 'vencidos', label: 'VENCIDOS', color: '#ff5c5c', emoji: '🔴' },
-                  { key: 'porVencer', label: 'POR VENCER (≤7 DÍAS)', color: '#ffb020', emoji: '🟡' },
                   { key: 'enPrueba', label: 'EN PRUEBA GRATIS', color: '#4dd9ff', emoji: '🔵' },
                   { key: 'activos', label: 'ACTIVOS', color: '#4affb0', emoji: '🟢' },
                   { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
@@ -7060,14 +7023,12 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'negocio' && (
           <>
-            <ReferidosPanel users={users} onCambio={onRecargar} />
-            <RescatePanel users={users} />
-            <VencimientosPanel users={users} onRenew={onRenew} />
-            <CumpleanosPanel users={users} />
-            <PagosPanel />
-            <LeadsPanel />
+            <TableroPanel users={users} />
+            <EmbudoResumenPanel />
             <MetricasPanel />
             <FinanzasPanel />
+            <ReferidosPanel users={users} onCambio={onRecargar} />
+            <LeadsPanel />
           </>
         )}
 
@@ -8753,9 +8714,6 @@ function PagosPanel({ onAprobado }) {
 
   const pendientes = pagos.filter(p => p.estado === 'pendiente');
   const visibles = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
-  const ingresoMes = pagos
-    .filter(p => p.estado === 'aprobado' && new Date(p.creado_en).getMonth() === new Date().getMonth())
-    .reduce((a, p) => a + Number(p.monto), 0);
 
   return (
     <div className={`rounded-2xl overflow-hidden border ${pendientes.length ? 'bg-zinc-900 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
@@ -8770,11 +8728,6 @@ function PagosPanel({ onAprobado }) {
 
       {open && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <StatCard label="Por revisar" value={pendientes.length} />
-            <StatCard label="Ingresos del mes" value={fmtS(ingresoMes)} accent="text-emerald-400" />
-            <StatCard label="Total pagos" value={pagos.filter(p => p.estado === 'aprobado').length} sub="aprobados" />
-          </div>
 
           <div className="flex gap-2 mb-3 flex-wrap">
             {[['pendiente', 'Por revisar'], ['aprobado', 'Aprobados'], ['rechazado', 'Rechazados'], ['todos', 'Todos']].map(([v, l]) => (

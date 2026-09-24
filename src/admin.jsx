@@ -4042,18 +4042,21 @@ function textoUltimaComida(fecha) {
 function VencimientosPanel({ users, onRenew }) {
   const [open, setOpen] = useState(true);
   const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
+  const [verVencidos, setVerVencidos] = useState(false);
   // username -> { dias, ultima } con los días en que registró comidas.
   const [actividad, setActividad] = useState(null);
 
-  const porVencer = useMemo(() => {
-    return (users || [])
-      .filter(u => u.fechaVencimiento && u.enabled)
-      .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento), esPrueba: u.plan === 'trial' || u.plan === 'prueba' }))
-      .filter(u => u.dl !== null && u.dl <= 7)
-      .sort((a, b) => a.dl - b.dl);
-  }, [users]);
+  // Por vencer = membresía todavía vigente que vence de hoy a 7 días.
+  // Las que ya vencieron (hasta hace 7 días) van aparte en "Ya vencieron";
+  // las más antiguas ya no se muestran aquí.
+  const conVencimiento = useMemo(() => (users || [])
+    .filter(u => u.fechaVencimiento && u.enabled)
+    .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento), esPrueba: u.plan === 'trial' || u.plan === 'prueba' }))
+    .filter(u => u.dl !== null), [users]);
+  const porVencer = useMemo(() => conVencimiento.filter(u => u.dl >= 0 && u.dl <= 7).sort((a, b) => a.dl - b.dl), [conVencimiento]);
+  const vencidos = useMemo(() => conVencimiento.filter(u => u.dl < 0 && u.dl >= -7).sort((a, b) => b.dl - a.dl), [conVencimiento]);
 
-  const nombresPrueba = porVencer.filter(u => u.esPrueba).map(u => u.username).sort().join(',');
+  const nombresPrueba = [...porVencer, ...vencidos].filter(u => u.esPrueba).map(u => u.username).sort().join(',');
 
   useEffect(() => {
     if (!nombresPrueba) { setActividad({}); return; }
@@ -4077,12 +4080,13 @@ function VencimientosPanel({ users, onRenew }) {
     return () => { cancelado = true; };
   }, [nombresPrueba]);
 
-  if (porVencer.length === 0) return null;
+  if (porVencer.length === 0 && vencidos.length === 0) return null;
 
-  const pruebas = porVencer.filter(u => u.esPrueba).map(u => {
+  const conActividad = u => {
     const act = (actividad && actividad[u.username]) || { dias: 0, ultima: null };
     return { ...u, diasActivos: act.dias, ultima: act.ultima, grupo: grupoSemaforo(act.dias) };
-  });
+  };
+  const pruebas = porVencer.filter(u => u.esPrueba).map(conActividad);
   const planesPagados = porVencer.filter(u => !u.esPrueba);
 
   function linkWhatsApp(u, texto) {
@@ -4109,6 +4113,17 @@ function VencimientosPanel({ users, onRenew }) {
     if (u.dl < 0) return `Hola ${nombre}, tu plan de Jonah Beast Fuel venció hace ${Math.abs(u.dl)} día(s). ¿Te ayudo a renovarlo para que no pierdas tu progreso?`;
     if (u.dl === 0) return `Hola ${nombre}, tu plan de Jonah Beast Fuel vence hoy. ¿Lo renovamos para que sigas sin interrupciones?`;
     return `Hola ${nombre}, te escribo porque tu plan de Jonah Beast Fuel vence en ${u.dl} día(s). ¿Quieres renovarlo?`;
+  }
+
+  function detalleActividad(u) {
+    return (
+      <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
+        {u.diasActivos > 0
+          ? `${u.diasActivos} día(s) registrando · última comida ${textoUltimaComida(u.ultima)}`
+          : 'Aún no registra ninguna comida'}
+        {!u.telefono && ' · sin celular'}
+      </div>
+    );
   }
 
   function textoVence(u) {
@@ -4176,14 +4191,7 @@ function VencimientosPanel({ users, onRenew }) {
                           <div className={`jb-display text-xs ${s.color}`}>{s.emoji} {s.label} · {lista.length}</div>
                           <div className="jb-body text-[11px] text-zinc-500 mb-2">{s.detalle}. {s.necesita}</div>
                           <div className="flex flex-col gap-2">
-                            {lista.map(u => filaAlumno(u, mensajePrueba(u),
-                              <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
-                                {u.diasActivos > 0
-                                  ? `${u.diasActivos} día(s) registrando · última comida ${textoUltimaComida(u.ultima)}`
-                                  : 'Aún no registra ninguna comida'}
-                                {!u.telefono && ' · sin celular'}
-                              </div>
-                            ))}
+                            {lista.map(u => filaAlumno(u, mensajePrueba(u), detalleActividad(u)))}
                           </div>
                         </div>
                       );
@@ -4203,6 +4211,30 @@ function VencimientosPanel({ users, onRenew }) {
               <div className="flex flex-col gap-2">
                 {planesPagados.map(u => filaAlumno(u, mensajeRenovacion(u)))}
               </div>
+            </div>
+          )}
+
+          {porVencer.length === 0 && (
+            <p className="jb-body text-xs text-zinc-500">Nadie vence en los próximos 7 días.</p>
+          )}
+
+          {vencidos.length > 0 && (
+            <div>
+              <button type="button" onClick={() => setVerVencidos(v => !v)} aria-expanded={verVencidos}
+                className={`w-full text-left bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 transition-all ${verVencidos ? 'ring-2 ring-orange-500' : 'hover:bg-zinc-900'}`}>
+                <div>
+                  <div className="jb-display text-sm text-zinc-200">⌛ YA VENCIERON · {vencidos.length}</div>
+                  <div className="jb-body text-[11px] text-zinc-500">En los últimos 7 días. Aún puedes escribirles para que continúen.</div>
+                </div>
+                <span className={`jb-body text-[11px] shrink-0 ${verVencidos ? 'text-orange-400' : 'text-zinc-500'}`}>{verVencidos ? '▲ Ocultar' : '▼ Ver'}</span>
+              </button>
+              {verVencidos && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {vencidos.map(u => u.esPrueba
+                    ? filaAlumno(conActividad(u), mensajePrueba(conActividad(u)), detalleActividad(conActividad(u)))
+                    : filaAlumno(u, mensajeRenovacion(u)))}
+                </div>
+              )}
             </div>
           )}
         </div>

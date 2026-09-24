@@ -4184,13 +4184,11 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 : 'Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.'}
             </p>
           </div>
-          <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false} />
+          <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false}
+            onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 
-          <div className="mt-5">
-            <p className="jb-display text-sm text-zinc-300 mb-3 text-center">
-              {expiredInfo.esPrueba === false ? 'ELIGE TU PLAN PARA RENOVAR' : 'ELIGE TU PLAN PARA CONTINUAR'}
-            </p>
-            <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} />
+          <div id="planes-para-continuar" className="mt-5 scroll-mt-4">
+            <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} ocultarEstado />
           </div>
 
           <button onClick={onClearExpired} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4 w-full text-center">
@@ -9394,7 +9392,7 @@ function PagosPanel({ onAprobado }) {
   );
 }
 
-function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
+function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [refNombre, setRefNombre] = useState('');
@@ -9575,7 +9573,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
 
   return (
     <div className="flex flex-col gap-6 min-w-0">
-      {userRecord && dl !== null && (
+      {userRecord && dl !== null && !ocultarEstado && (
         <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden flex items-center gap-4 ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
           <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`} />
           <div className={`w-11 h-11 rounded-full flex items-center justify-center text-lg shrink-0 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`}>
@@ -9610,7 +9608,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
           <div className="text-center">
             <h2 className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</h2>
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
-            <p className="jb-body text-xs text-zinc-500 mt-2">Cada día sin registrar es un día que no sabes si vas por buen camino.</p>
+            <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3">
+              {[['🟣', 'Yape'], ['🔵', 'Plin'], ['💳', 'Tarjeta'], ['🏦', 'Transferencia']].map(([e, m]) => (
+                <span key={m} className="jb-body text-[11px] text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1">{e} {m}</span>
+              ))}
+            </div>
+            <div className="mt-3"><PruebaSocialMini size={22} /></div>
           </div>
 
           {dcto > 0 && (
@@ -9646,6 +9649,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado }) {
                   <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(precio)}</div>
                   <div className="jb-body text-xs text-zinc-500 mb-1">
                     {plan.meses === 1 ? 'por mes' : `${fmtS(porMes)} por mes`}
+                    <span className="text-zinc-300"> · {fmtS(precio / (plan.meses * 30))} al día</span>
                   </div>
                   {ahorro > 0 && (
                     <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>

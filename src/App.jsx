@@ -8191,6 +8191,15 @@ const GRUPOS_RESCATE = [
   { key: 'nunca', emoji: '⚫', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Ayúdalos a dar el primer paso.', color: 'text-zinc-300', borde: 'border-zinc-600' },
 ];
 
+const ESTADOS_AVISOS_PANEL = [
+  { key: 'activo', plural: 'activos', uno: '🔔 Recibe avisos' },
+  { key: 'iphone_sin_instalar', plural: 'iPhone sin instalar', uno: '📵 iPhone sin instalar la app: no recibe avisos' },
+  { key: 'bloqueado', plural: 'bloqueados', uno: '🔕 Bloqueó los avisos' },
+  { key: 'no_activados', plural: 'no los activaron', uno: '🔕 No activó los avisos' },
+  { key: 'no_compatible', plural: 'celular no compatible', uno: '📵 Su celular no permite avisos' },
+  { key: 'sin_dato', plural: 'sin dato aún', uno: '' },
+];
+
 function RescatePanel({ users }) {
   const [open, setOpen] = useState(true);
   // username -> última fecha con comidas registradas
@@ -8234,13 +8243,23 @@ function RescatePanel({ users }) {
       : u.grupo === 'frio'
         ? `Hola ${nombre}, soy Jonah 🦍 Hace ${u.sinRegistrar} días que no te veo por la app. ¿Qué se te complicó? Cuéntame y lo resolvemos juntos, tu objetivo sigue ahí 🔥`
         : `Hola ${nombre}, soy Jonah 🦍 Vi que aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto y ahí empezamos a trabajar tu objetivo 💪`;
+    const extra = u.estadoAvisos === 'iphone_sin_instalar'
+      ? '\n\nPD: para que te lleguen mis recordatorios en tu iPhone, abre la app en Safari → botón Compartir → "Agregar a pantalla de inicio" 📲'
+      : u.estadoAvisos === 'bloqueado'
+        ? '\n\nPD: tienes bloqueadas mis notificaciones; si quieres que te recuerde tus comidas, actívalas en los ajustes del navegador para la app 🔔'
+        : u.estadoAvisos === 'no_activados'
+          ? '\n\nPD: activa las notificaciones en la app (en Inicio) y te aviso cuando se te pase alguna comida 🔔'
+          : '';
+    const textoFinal = texto + extra;
     const num = (u.telefono || '').replace(/\D/g, '');
     const full = num ? (num.length <= 9 ? '51' + num : num) : '';
-    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
-                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(textoFinal)}`
+                : `https://wa.me/?text=${encodeURIComponent(textoFinal)}`;
   }
 
   const porRescatar = alumnos.filter(u => u.grupo !== 'aldia').length;
+  const conteoAvisos = {};
+  alumnos.forEach(u => { const k = u.estadoAvisos || 'sin_dato'; conteoAvisos[k] = (conteoAvisos[k] || 0) + 1; });
 
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl overflow-hidden">
@@ -8264,6 +8283,11 @@ function RescatePanel({ users }) {
               <p className="jb-body text-xs text-zinc-500 mb-3">
                 Alumnos con plan o prueba vigente según cuándo registraron comidas por última vez. 🟢 {alDia} registraron ayer u hoy.
               </p>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 mb-3 jb-body text-[11px] text-zinc-400 leading-relaxed">
+                <span className="text-zinc-200 font-semibold">🔔 Avisos:</span>{' '}
+                {ESTADOS_AVISOS_PANEL.filter(e => conteoAvisos[e.key]).map(e => `${conteoAvisos[e.key]} ${e.plural}`).join(' · ') || 'sin datos aún'}
+                <span className="block text-zinc-600">Se actualiza cuando cada alumno abre la app.</span>
+              </div>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {GRUPOS_RESCATE.map(g => (
                   <div key={g.key} className={`bg-zinc-950 border ${g.borde} rounded-lg p-2.5`}>
@@ -8290,6 +8314,11 @@ function RescatePanel({ users }) {
                                 {u.plan === 'trial' || u.plan === 'prueba' ? ' · prueba gratis' : ' · plan pagado'}
                                 {!u.telefono && ' · sin celular'}
                               </div>
+                              {u.estadoAvisos && (
+                                <div className={`text-[11px] jb-body mt-0.5 ${u.estadoAvisos === 'activo' ? 'text-zinc-500' : 'text-amber-400'}`}>
+                                  {(ESTADOS_AVISOS_PANEL.find(e => e.key === u.estadoAvisos) || {}).uno}
+                                </div>
+                              )}
                             </div>
                             <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
                               <MessageCircle size={13} /> Escribir
@@ -8635,9 +8664,28 @@ async function estadoPushEquipo() {
   } catch { return 'disponible'; }
 }
 
+// Estado de avisos del equipo -> palabra que se guarda en la ficha del
+// alumno (columna estado_avisos), para que Jonah sepa por qué alguien no
+// recibe recordatorios.
+const ESTADO_AVISOS_DB = {
+  activo: 'activo', iosNoInstalado: 'iphone_sin_instalar', bloqueado: 'bloqueado',
+  disponible: 'no_activados', nosoportado: 'no_compatible',
+};
+function anotarEstadoAvisos(estado) {
+  const valor = ESTADO_AVISOS_DB[estado];
+  if (!valor) return;
+  supabase.rpc('registrar_estado_avisos', { p_estado: valor }).then(() => {}, () => {});
+}
+
 // Pide el permiso del navegador, crea la suscripción y la guarda para
 // el alumno. Devuelve el estado final ('activo', 'bloqueado' o 'disponible').
 async function activarPushAlumno(username) {
+  const final = await activarPushAlumnoInterno(username);
+  anotarEstadoAvisos(final);
+  return final;
+}
+
+async function activarPushAlumnoInterno(username) {
   const permiso = await Notification.requestPermission();
   if (permiso !== 'granted') return permiso === 'denied' ? 'bloqueado' : 'disponible';
   const reg = await navigator.serviceWorker.ready;
@@ -13731,6 +13779,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
   const [ajustarMeta, setAjustarMeta] = useState(false);
+
+  // Anota en su ficha si le llegan los avisos (o por qué no), una vez al
+  // abrir la app, para que Jonah lo vea en su panel.
+  useEffect(() => {
+    estadoPushEquipo().then(anotarEstadoAvisos).catch(() => {});
+  }, [username]);
   const metaEstimada = !tieneDatosBasicos(form) || !form.objetivo;
 
   // Cuando el alumno pasa de 0 a 1 alimento registrado en el día, se le
@@ -15191,6 +15245,7 @@ export default function App() {
         planMesesReferido: u.plan_meses_referido || null,
         reconocimientoFotoDesde: u.reconocimiento_foto_desde || null,
         reconocimientoFotoHasta: u.reconocimiento_foto_hasta || null,
+        estadoAvisos: u.estado_avisos || null,
       }));
     } catch { usersList = []; }
     try {

@@ -334,6 +334,7 @@ const RAW_FOODS = [
   ["Pescados","Langostinos","Cocidos",99,20.9,0.2,1.4,0.0],
   ["Lácteos","Queso parmesano","-",392,35.8,3.2,25.8,0.0],
   ["Lácteos","Yogur griego natural","-",59,10.0,3.6,0.4,0.0],
+  ["Lácteos","Yogur saborizado","Con azúcar",90,2.8,15.0,2.2,0.0],
   /* --- Carta PECAFIT (restaurante aliado) --- */
   /* Valores por 100g, recalculados desde "Resumen de Macros Validados — Carta Pecafit"
      (correcciones: filete de pollo en sandwich y bowl andino, stevia en gotas para waffles,
@@ -11745,39 +11746,65 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
   );
 }
 
-/* Bebidas que en una foto se ven casi iguales (café negro, con leche,
-   capuchino, con o sin azúcar): si la IA reconoce cualquiera, se muestran
-   todas las variantes para que el alumno toque la suya — primero las que
-   sugirió la IA. */
+/* Alimentos que en una foto se ven casi iguales pero cambian mucho en
+   calorías (café negro o con leche, gaseosa normal o cero, leche entera o
+   descremada, atún en agua o en aceite, jugo con o sin azúcar...): si la
+   IA reconoce cualquiera, se muestran todas las variantes para que el
+   alumno toque la suya — primero las que sugirió la IA. No se aplica a lo
+   que la foto sí distingue (pan, huevo, arroz), para no sumarle pasos. */
+const baseBebida = n => n.replace(/\s*\(.*\)$/, '').replace(/ natural$/i, '').replace(/ (con|sin) azúcar$/i, '').trim();
+
 const FAMILIAS_FOTO = [
-  { es: f => /^(Café|Capuchino)/.test(f.name),
-    claves: ['Café negro sin azúcar (-)', 'Café negro (Con azúcar)', 'Café con leche (-)', 'Café con leche (Con azúcar)', 'Café con leche descremada (-)', 'Capuchino (-)', 'Capuchino (Con azúcar)'] },
-  { es: f => /^Té \/ infusión/.test(f.name),
-    claves: ['Té / infusión sin azúcar (-)', 'Té / infusión (Con azúcar)'] },
+  { id: 'cafe', es: f => /^(Café|Capuchino)/.test(f.name),
+    claves: () => ['Café negro sin azúcar (-)', 'Café negro (Con azúcar)', 'Café con leche (-)', 'Café con leche (Con azúcar)', 'Café con leche descremada (-)', 'Capuchino (-)', 'Capuchino (Con azúcar)'] },
+  { id: 'te', es: f => /^Té \/ infusión/.test(f.name),
+    claves: () => ['Té / infusión sin azúcar (-)', 'Té / infusión (Con azúcar)'] },
+  { id: 'gaseosa', es: f => /^Gaseosa/.test(f.name),
+    claves: () => ['Gaseosa regular (-)', 'Gaseosa dietética (-)'] },
+  { id: 'leche', es: f => /^Leche (entera|descremada|sin lactosa|de almendras)/.test(f.name),
+    claves: () => ['Leche entera (-)', 'Leche descremada (-)', 'Leche sin lactosa (-)', 'Leche de almendras sin azúcar (-)'] },
+  { id: 'atun', es: f => /^Atún en lata/.test(f.name),
+    claves: () => ['Atún en lata en agua (escurrido) (-)', 'Atún en lata en aceite (escurrido) (-)', 'Atún en lata en aceite (sin escurrir) (-)'] },
+  { id: 'yogur', es: f => /^Yogur/.test(f.name),
+    claves: () => ['Yogur natural (-)', 'Yogur griego natural (-)', 'Yogur saborizado (Con azúcar)', 'Yogur bebible (-)'] },
+  // Jugos, chicha, limonada, refrescos: cada sabor con sus versiones con y sin azúcar.
+  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco)/.test(f.name),
+    claves: f => FOODS.filter(x => x.group === 'Bebidas' && baseBebida(x.name) === baseBebida(f.name)).map(x => x.key) },
 ];
 
 function ampliarFamiliasFoto(items) {
   const resultado = [];
-  const grupos = new Map(); // familia -> grupo ya creado
+  const grupos = new Map(); // id de familia -> { grupo, original, familia, food }
   items.forEach(it => {
     const foods = it.esOpciones ? it.alternativas : [it];
-    const fam = FAMILIAS_FOTO.find(F => foods.some(f => F.es(f)));
-    if (!fam) { resultado.push(it); return; }
-    let grupo = grupos.get(fam);
-    if (!grupo) {
-      grupo = { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1 };
-      grupos.set(fam, grupo);
-      resultado.push(grupo);
+    let fam = null, foodFam = null;
+    for (const f of foods) {
+      if (f.esPersonal) continue;
+      fam = FAMILIAS_FOTO.find(F => F.es(f));
+      if (fam) { foodFam = f; break; }
     }
-    foods.forEach(f => { if (!grupo.alternativas.some(a => a.key === f.key)) grupo.alternativas.push(f); });
+    if (!fam) { resultado.push(it); return; }
+    const id = typeof fam.id === 'function' ? fam.id(foodFam) : fam.id;
+    let g = grupos.get(id);
+    if (!g) {
+      g = { grupo: { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1 }, original: it, familia: fam, food: foodFam };
+      grupos.set(id, g);
+      resultado.push(g.grupo);
+    }
+    foods.forEach(f => { if (!g.grupo.alternativas.some(a => a.key === f.key)) g.grupo.alternativas.push(f); });
   });
-  grupos.forEach((grupo, fam) => {
-    fam.claves.forEach(k => {
+  grupos.forEach(g => {
+    g.familia.claves(g.food).forEach(k => {
       const f = buscarFood(k);
-      if (f && !grupo.alternativas.some(a => a.key === f.key)) grupo.alternativas.push(f);
+      if (f && !g.grupo.alternativas.some(a => a.key === f.key)) g.grupo.alternativas.push(f);
     });
   });
-  return resultado;
+  // Si al final solo hay una variante, se deja como alimento normal.
+  return resultado.map(it => {
+    if (!it.esOpciones || it.alternativas.length >= 2) return it;
+    const g = [...grupos.values()].find(x => x.grupo === it);
+    return g && !g.original.esOpciones ? g.original : { ...it.alternativas[0], _cantidadIA: it._cantidadIA, _confianzaIA: 'media' };
+  });
 }
 
 /* Porción con la que entra un alimento reconocido por foto: la medida de

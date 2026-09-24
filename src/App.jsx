@@ -14952,6 +14952,11 @@ export default function App() {
   }
 
   async function loadStudentSession(username) {
+    // La ficha del alumno (nombre, plan, fechas...) se vuelve a cargar al
+    // entrar: si inició sesión recién, la lista cargada al abrir la página
+    // todavía no la tenía (sin sesión no se puede leer) y la app no sabía
+    // ni su nombre hasta recargar.
+    await init();
     let data = null;
     try {
       const { data: row } = await supabase.from('datos_alumnos')

@@ -1648,10 +1648,13 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
   );
 }
 
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones }) {
-  const [open, setOpen] = useState(false);
+// embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
+// su selector de comida, porque la comida ya se eligió en la hoja).
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
+  const [open, setOpen] = useState(embebido);
   const [modo, setModo] = useState('voz');
-  const [mealDestino, setMealDestino] = useState(MEAL_NAMES[0]);
+  const [mealDestinoPropio, setMealDestino] = useState(MEAL_NAMES[0]);
+  const mealDestino = embebido && mealFijo ? mealFijo : mealDestinoPropio;
   const favoritos = useComidasFrecuentes(username);
 
   function agregarDirecta(food) {
@@ -1691,6 +1694,23 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
     vibrar(20);
     showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
+  }
+
+  if (embebido) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-2 border-b border-zinc-800 pb-2">
+          {[['voz', '🎤 Por voz'], ['favoritos', '⭐ Favoritos']].map(([v, l]) => (
+            <button key={v} onClick={() => setModo(v)}
+              className={`jb-body text-xs px-3 py-1.5 rounded-lg transition-colors ${modo === v ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+      </div>
+    );
   }
 
   return (
@@ -11360,7 +11380,7 @@ function CalorieStatus({ consumed, target }) {
 /* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
 /* ------------------------------------------------------------------ */
 
-function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra }) {
+function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
 
@@ -11374,6 +11394,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra }) {
   return (
     <div className="relative sm:flex-[3] min-w-0">
       <input
+        autoFocus={autoFocus}
         value={texto}
         onChange={e => { setTexto(e.target.value); setAbierto(true); }}
         onFocus={() => setAbierto(true)}
@@ -12229,6 +12250,181 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   );
 }
 
+const ICONO_COMIDA = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' };
+
+// Qué comida toca según la hora (hora del celular del alumno).
+function comidaDeAhora(d = new Date()) {
+  const min = d.getHours() * 60 + d.getMinutes();
+  if (min >= 5 * 60 && min < 10 * 60 + 30) return 'Desayuno';
+  if (min >= 10 * 60 + 30 && min < 12 * 60 + 30) return 'Media mañana';
+  if (min >= 12 * 60 + 30 && min < 15 * 60 + 30) return 'Almuerzo';
+  if (min >= 15 * 60 + 30 && min < 18 * 60 + 30) return 'Media tarde';
+  return 'Cena';
+}
+
+const ESTILOS_COMIDAS = `
+@keyframes jbm-pulso { 0% { filter: drop-shadow(0 0 0 rgba(255,112,32,0)); } 35% { filter: drop-shadow(0 0 12px rgba(255,112,32,.9)); } 100% { filter: drop-shadow(0 0 3px rgba(255,112,32,.35)); } }
+@keyframes jbm-subir { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes jbm-aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jbm-latido { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,89,12,.55), 0 8px 24px rgba(232,89,12,.35); } 50% { box-shadow: 0 0 0 8px rgba(232,89,12,0), 0 8px 24px rgba(232,89,12,.35); } }
+.jbm-pulso { animation: jbm-pulso .9s ease-out both; }
+.jbm-hoja { animation: jbm-subir .28s cubic-bezier(.2,.8,.3,1) both; }
+.jbm-fondo { animation: jbm-aparecer .2s ease-out both; }
+.jbm-fab { animation: jbm-latido 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .jbm-pulso, .jbm-hoja, .jbm-fondo, .jbm-fab { animation: none !important; } }
+`;
+
+// Medidor fijo arriba de Comidas: anillo con lo que queda del día y
+// barras de proteína, carbos y grasas. Se queda pegado bajo el
+// encabezado mientras el alumno baja.
+function MedidorComidas({ totals, targetKcal, objP, objC, objF }) {
+  const [topHeader, setTopHeader] = useState(64);
+  const [pulso, setPulso] = useState(0);
+  const kcalPrevia = useRef(totals.kcal);
+
+  useEffect(() => {
+    const medir = () => { const h = document.querySelector('header'); if (h) setTopHeader(h.offsetHeight); };
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, []);
+
+  // Destello del anillo cada vez que se suma comida.
+  useEffect(() => {
+    if (totals.kcal > kcalPrevia.current + 0.5) setPulso(p => p + 1);
+    kcalPrevia.current = totals.kcal;
+  }, [totals.kcal]);
+
+  const objetivo = Math.max(1, targetKcal || 0);
+  const restante = Math.round(objetivo - totals.kcal);
+  const pasado = restante < 0;
+  const avance = Math.min(1, totals.kcal / objetivo);
+  const R = 32, C = 2 * Math.PI * R;
+  const colorAnillo = pasado ? '#f59e0b' : '#E8590C';
+  const macros = [
+    ['Proteína', totals.protein, objP],
+    ['Carbos', totals.carbs, objC],
+    ['Grasas', totals.fat, objF],
+  ];
+
+  return (
+    <div className="sticky z-10 -mx-6 px-6 pt-2 pb-3 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/80" style={{ top: topHeader }}>
+      <div className="flex items-center gap-4">
+        <div key={pulso} className={`relative w-[84px] h-[84px] shrink-0 ${pulso ? 'jbm-pulso' : ''}`}>
+          <svg viewBox="0 0 84 84" className="w-full h-full -rotate-90">
+            <circle cx="42" cy="42" r={R} fill="none" stroke="#2a211a" strokeWidth="8" />
+            <circle cx="42" cy="42" r={R} fill="none" stroke={colorAnillo} strokeWidth="8" strokeLinecap="round"
+              strokeDasharray={C} strokeDashoffset={C * (1 - avance)}
+              style={{ transition: 'stroke-dashoffset .7s cubic-bezier(.2,.8,.3,1), stroke .3s' }} />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+            <span className={`jb-display text-xl tabular-nums ${pasado ? 'text-amber-400' : 'text-zinc-50'}`}>
+              <AnimatedNumber value={Math.abs(restante)} />
+            </span>
+            <span className="jb-body text-[9px] text-zinc-400 mt-0.5">{pasado ? 'kcal de más' : 'kcal quedan'}</span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <p className="jb-body text-[11px] text-zinc-400 tabular-nums">
+            <span className="text-zinc-200 font-semibold">{Math.round(totals.kcal)}</span> de {Math.round(objetivo)} kcal
+          </p>
+          {macros.map(([nombre, val, obj]) => {
+            const pct = obj > 0 ? Math.min(1, val / obj) : 0;
+            const excedido = obj > 0 && val > obj * 1.05;
+            return (
+              <div key={nombre}>
+                <div className="flex justify-between jb-body text-[10px] text-zinc-400 mb-0.5 tabular-nums">
+                  <span>{nombre}</span><span className={excedido ? 'text-amber-400' : ''}>{Math.round(val)}/{Math.round(obj)} g</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className={`h-full rounded-full ${excedido ? 'bg-amber-500' : 'bg-orange-500'}`} style={{ width: `${pct * 100}%`, transition: 'width .7s cubic-bezier(.2,.8,.3,1)' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Hoja que sube desde abajo al tocar "Registrar": elegir la comida (ya
+// viene la que toca por la hora), y cómo registrar — foto, voz o escribir —
+// más los atajos (repetir ayer, mis comidas, frecuentes).
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onEscribir, username, mealPlan, setMealPlan }) {
+  const [modo, setModo] = useState(null); // null | 'voz'
+  const ahora = comidaDeAhora();
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const opciones = [
+    { id: 'foto', icono: <Camera size={22} />, titulo: 'Foto', sub: 'La IA lo reconoce', accion: () => onFoto(meal) },
+    { id: 'voz', icono: <Mic size={22} />, titulo: 'Voz', sub: 'Dile a Jonah', accion: () => setModo(m => m === 'voz' ? null : 'voz') },
+    { id: 'escribir', icono: <span className="jb-display text-lg leading-none">Aa</span>, titulo: 'Escribir', sub: 'Busca el alimento', accion: () => onEscribir(meal) },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl max-h-[88vh] overflow-y-auto px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="jb-display text-lg text-zinc-50 tracking-wide">REGISTRAR</h3>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-5 px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {MEAL_NAMES.map(m => (
+            <button key={m} onClick={() => setMeal(m)}
+              className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 shrink-0 border transition-colors ${meal === m
+                ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
+                : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+              <span>{ICONO_COMIDA[m]}</span>{m}
+              {m === ahora && <span className={`w-1.5 h-1.5 rounded-full ${meal === m ? 'bg-zinc-950' : 'bg-orange-500'}`} title="Ahora" />}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2.5 mb-4">
+          {opciones.map(o => {
+            const activo = o.id === 'voz' && modo === 'voz';
+            return (
+              <button key={o.id} onClick={o.accion}
+                className={`rounded-2xl border px-2 py-4 flex flex-col items-center gap-1.5 transition-colors ${activo
+                  ? 'bg-orange-500 border-orange-500 text-zinc-950'
+                  : 'bg-zinc-950 border-orange-500/40 text-orange-400 hover:bg-orange-500/10'}`}
+                style={activo ? undefined : { boxShadow: 'inset 0 0 18px rgba(232,89,12,.12)' }}>
+                <span className={`w-11 h-11 rounded-full flex items-center justify-center ${activo ? 'bg-zinc-950/15' : 'bg-orange-500/15 border border-orange-500/40'}`}>{o.icono}</span>
+                <span className={`jb-display text-sm ${activo ? 'text-zinc-950' : 'text-zinc-100'}`}>{o.titulo}</span>
+                <span className={`jb-body text-[10px] leading-tight text-center ${activo ? 'text-zinc-900' : 'text-zinc-500'}`}>{o.sub}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {modo === 'voz' && (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
+            <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
+              restricciones={mealPlan.restricciones || []} embebido meal={meal} />
+          </div>
+        )}
+
+        {username && (
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Atajos para {meal.toLowerCase()}</p>
+            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
@@ -12236,6 +12432,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
   const [objetivoAbierto, setObjetivoAbierto] = useState(false);
+  const [hojaMeal, setHojaMeal] = useState(null); // comida elegida en la hoja "Registrar" (null = cerrada)
+  const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
+  const mealAhora = comidaDeAhora();
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
     try { return localStorage.getItem('jb_ayuda_no_comidas') === '1'; } catch { return false; }
   });
@@ -12278,8 +12477,18 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
     }));
   }
   function addEntry(meal) {
-    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], { id: uid(), foodKey: '', qty: 100, unit: 'gramos' }] } }));
+    const id = uid();
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], { id, foodKey: '', qty: 100, unit: 'gramos' }] } }));
+    return id;
   }
+
+  // Al elegir "Escribir" en la hoja: se crea la fila vacía y se lleva al
+  // alumno hasta ella con el buscador listo para escribir.
+  useEffect(() => {
+    if (!enfocar) return;
+    const el = document.getElementById('entrada-' + enfocar);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [enfocar]);
   function removeEntry(meal, id) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
   }
@@ -12324,7 +12533,26 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
   const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
 
   return (
-    <div className="flex flex-col gap-6 min-w-0">
+    <div className="flex flex-col gap-4 min-w-0 pb-16">
+      <style>{ESTILOS_COMIDAS}</style>
+      <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      {hojaMeal && (
+        <HojaRegistrar
+          meal={hojaMeal} setMeal={setHojaMeal} onCerrar={() => setHojaMeal(null)}
+          onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
+          onEscribir={m => { setHojaMeal(null); setEnfocar(addEntry(m)); }}
+          username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
+        />
+      )}
+      {/* Botón principal para registrar: uno solo, siempre a mano */}
+      {!hojaMeal && !fotoPara && !crearPara && (
+        <button onClick={() => { vibrar(10); setHojaMeal(mealAhora); }}
+          className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
+          aria-label="Registrar comida">
+          <Plus size={20} strokeWidth={2.6} />
+          <span className="jb-display text-sm tracking-wide">REGISTRAR</span>
+        </button>
+      )}
       {crearPara && (
         <CrearAlimentoModal
           username={username}
@@ -12347,10 +12575,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         />
       )}
       {!ayudaCerrada && (
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-start gap-2.5 mb-2">
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex items-start gap-2.5">
           <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">💡</span>
           <div className="flex-1">
-            <p className="jb-body text-xs text-zinc-400">Escribe lo que comiste y elige la medida de casa (taza, plato, unidad). No necesitas pesar nada. Abajo verás cuánto llevas del día y cuánto te queda.</p>
+            <p className="jb-body text-xs text-zinc-400">Toca <span className="text-orange-400 font-semibold">+ Registrar</span> y agrega lo que comiste con foto, voz o escribiendo, con medidas de casa (taza, plato, unidad). No necesitas pesar nada. Arriba ves siempre cuánto te queda del día.</p>
             <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Los platos preparados (ají de gallina, ceviche, pollo a la brasa…) son estimaciones promedio — úsalos como referencia, no como medida exacta.</p>
           </div>
           <button onClick={() => { setAyudaCerrada(true); try { localStorage.setItem('jb_ayuda_no_comidas', '1'); } catch {} }}
@@ -12358,45 +12586,34 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         </div>
       )}
 
-      <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-        restricciones={mealPlan.restricciones || []}
-        remaining={{
-          kcal: mealPlan.targetKcal - totals.kcal,
-          protein: objP - totals.protein,
-          carbs: objC - totals.carbs,
-          fat: objF - totals.fat,
-        }} />
 
       {MEAL_NAMES.map(meal => {
-        const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[meal] || '🍴';
+        const entradas = mealPlan.meals[meal];
+        const vacia = entradas.length === 0;
+        const esAhora = meal === mealAhora;
+        const kcalComida = entradas.reduce((a, en) => a + entryMacros(en).kcal, 0);
         return (
-        <div key={meal} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">
-              {mealIcon}
+        <div key={meal} className={`bg-zinc-900 border rounded-2xl ${vacia ? 'px-4 py-3' : 'p-4'} ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}
+          style={esAhora ? { boxShadow: '0 0 22px rgba(232,89,12,.12)' } : undefined}>
+          <div className={`flex items-center gap-2.5 ${vacia ? '' : 'mb-3'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border ${vacia ? 'bg-zinc-800/60 border-zinc-700' : 'bg-orange-500/20 border-orange-500/40'}`}>
+              {ICONO_COMIDA[meal] || '🍴'}
             </div>
-            <h3 className="jb-display text-sm text-orange-500 tracking-wide flex-1">{meal.toUpperCase()}</h3>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <button onClick={() => setFotoPara(meal)}
-              className="border border-dashed border-orange-500/60 hover:bg-orange-500/10 text-orange-500 rounded-lg py-1.5 px-3 text-sm flex items-center gap-1.5 transition-colors">
-              <Camera size={14} /> Foto a tu plato
+            <div className="flex-1 min-w-0">
+              <h3 className={`jb-display text-sm tracking-wide flex items-center gap-2 ${vacia ? 'text-zinc-400' : 'text-orange-500'}`}>
+                {meal.toUpperCase()}
+                {esAhora && <span className="jb-body text-[9px] font-semibold tracking-wider text-zinc-950 bg-orange-500 rounded-full px-1.5 py-0.5">AHORA</span>}
+              </h3>
+              {vacia
+                ? <p className="jb-body text-[11px] text-zinc-600">{esAhora ? 'Es hora de registrar — toca +' : 'Sin registrar'}</p>
+                : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
+            </div>
+            <button onClick={() => { vibrar(10); setHojaMeal(meal); }} aria-label={`Agregar a ${meal}`}
+              className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${esAhora ? 'bg-orange-500 text-zinc-950 hover:bg-orange-400' : 'bg-zinc-950 border border-orange-500/40 text-orange-400 hover:bg-orange-500/10'}`}>
+              <Plus size={18} strokeWidth={2.4} />
             </button>
-            <button onClick={() => addEntry(meal)} className={btnGhost + ' py-1.5 px-3 text-sm'}><Plus size={14} /> Agregar alimento</button>
           </div>
-          {username && (
-            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-          )}
-          <div className="mt-3" />
-          {mealPlan.meals[meal].length === 0 ? (
-            <div className="flex items-center gap-2.5 py-3 text-zinc-600">
-              <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shrink-0">
-                <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; }} />
-              </div>
-              <p className="jb-body text-sm">Jonah dice: aún no hay nada aquí — vamos, registra algo 💪</p>
-            </div>
-          ) : (
+          {vacia ? null : (
             <div className="flex flex-col gap-2">
               {mealPlan.meals[meal].map(en => {
                 const m = entryMacros(en);
@@ -12406,7 +12623,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
                 const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 const swipeDx = (swipe[en.id] && swipe[en.id].dx) || 0;
                 return (
-                  <div key={en.id} className="relative rounded-lg">
+                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-lg">
                     <div className="absolute inset-0 bg-red-500 rounded-lg flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
@@ -12427,6 +12644,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
                         updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
                       }}
                       onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
+                      autoFocus={enfocar === en.id && !en.foodKey}
                     />
                     <div className="flex gap-2 items-center">
                       <input type="number" inputMode="decimal" value={currentQty}
@@ -12960,7 +13178,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }), [form]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 jb-body overflow-x-hidden"
+    <div className="min-h-screen bg-zinc-950 jb-body overflow-x-hidden supports-[overflow:clip]:overflow-x-clip"
       onTouchStart={onPullStart} onTouchMove={onPullMove} onTouchEnd={onPullEnd}>
       <style>{`
         @keyframes jb-tab-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }

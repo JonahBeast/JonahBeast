@@ -2947,7 +2947,7 @@ function Logo({ size = 'md' }) {
       <div className="bg-orange-500 rounded-md p-1.5">
         <Flame className="jb-flame-live text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} fill="currentColor" />
       </div>
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-lg'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }
@@ -10526,7 +10526,7 @@ function InvitaAmigoCard({ username }) {
   );
 }
 
-function ProgressTab({ username, form, nombre, vistaInicial }) {
+function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
   const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10641,6 +10641,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
     return (
       <div className="flex flex-col gap-6 min-w-0">
         {subNav}
+        {setForm && <MetaPesoCard form={form} setForm={setForm} />}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
           <TrendingUp className="text-zinc-700 mx-auto mb-3" size={40} />
           <h2 className="jb-display text-lg text-zinc-200 mb-2">TU PROGRESO EMPIEZA HOY</h2>
@@ -10657,6 +10658,7 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
     <div className="flex flex-col gap-6 min-w-0">
       {subNav}
       <RachaCard username={username} />
+      {setForm && <MetaPesoCard form={form} setForm={setForm} />}
       <div className="flex gap-2 flex-wrap">
         {[7, 30, 90, 180, 365].map(d => (
           <button key={d} onClick={() => setRango(d)}
@@ -11230,7 +11232,108 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
   );
 }
 
-function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerComposicion }) {
+function saludoPorHora(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return 'Buenos días';
+  if (h >= 12 && h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+// Inicio: saludo, anillo del día (el mismo de Comidas), botón para
+// registrar la comida que toca y la línea del día con las 5 comidas.
+function CentroDeMando({ nombre, mealPlan, onRegistrar }) {
+  const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
+    const m = entryMacros(en);
+    totals.kcal += m.kcal; totals.protein += m.protein; totals.carbs += m.carbs; totals.fat += m.fat;
+  }));
+  const objP = (mealPlan.targetKcal * mealPlan.macros.p) / 4;
+  const objC = (mealPlan.targetKcal * mealPlan.macros.c) / 4;
+  const objF = (mealPlan.targetKcal * mealPlan.macros.f) / 9;
+  const ahora = comidaDeAhora();
+  const primerNombre = (nombre || '').trim().split(/\s+/)[0];
+  const tieneComida = ml => (mealPlan.meals[ml] || []).some(e => e.foodKey);
+  const hechas = MEAL_NAMES.filter(tieneComida).length;
+  const ahoraHecha = tieneComida(ahora);
+
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/30 rounded-3xl p-5 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 40px -12px rgba(232,89,12,.35)' }}>
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(232,89,12,.18), transparent 70%)' }} />
+      <p className="relative jb-body text-xs text-zinc-500 mb-0.5">{saludoPorHora()}{primerNombre ? ',' : ''}</p>
+      <h2 className="relative jb-display text-2xl text-zinc-50 leading-none mb-4">
+        {primerNombre ? primerNombre.toUpperCase() : 'HOLA'} <span className="text-orange-500">🔥</span>
+      </h2>
+
+      <div className="relative mb-4">
+        <MedidorComidas fijo={false} totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      </div>
+
+      <button onClick={() => { vibrar(10); onRegistrar(ahora); }}
+        className="relative w-full bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-2xl py-3.5 px-4 flex items-center justify-center gap-2 transition-colors mb-4"
+        style={{ boxShadow: '0 10px 28px -10px rgba(232,89,12,.7)' }}>
+        <Plus size={20} strokeWidth={2.6} />
+        <span className="jb-display text-base tracking-wide">
+          {ahoraHecha ? `AGREGAR MÁS AL ${ahora.toUpperCase()}` : `REGISTRAR ${ahora.toUpperCase()}`}
+        </span>
+      </button>
+
+      <div className="relative">
+        <div className="flex items-center justify-between mb-2">
+          <span className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider">Tu día</span>
+          <span className="jb-body text-[11px] text-zinc-400 tabular-nums">{hechas}/{MEAL_NAMES.length} comidas</span>
+        </div>
+        <div className="relative flex justify-between">
+          <div className="absolute left-5 right-5 top-5 h-0.5 bg-zinc-800" />
+          <div className="absolute left-5 top-5 h-0.5 bg-orange-500 transition-all"
+            style={{ width: `calc((100% - 2.5rem) * ${Math.max(0, MEAL_NAMES.indexOf(ahora)) / (MEAL_NAMES.length - 1)})` }} />
+          {MEAL_NAMES.map(ml => {
+            const hecha = tieneComida(ml);
+            const esAhora = ml === ahora;
+            return (
+              <button key={ml} onClick={() => onRegistrar(ml)} className="relative flex flex-col items-center gap-1 w-14" aria-label={`Registrar ${ml}`}>
+                <span className={`relative w-10 h-10 rounded-full flex items-center justify-center text-base border-2 transition-colors ${hecha
+                  ? 'bg-orange-500/20 border-orange-500'
+                  : esAhora ? 'bg-zinc-950 border-orange-500 jbm-fab' : 'bg-zinc-950 border-zinc-700'}`}>
+                  {ICONO_COMIDA[ml]}
+                  {hecha && <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>}
+                </span>
+                <span className={`jb-body text-[10px] leading-tight text-center ${esAhora ? 'text-orange-400 font-semibold' : hecha ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                  {ml === 'Media mañana' ? 'Media mañ.' : ml}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Meta de peso: se configura en Progreso (en Inicio solo se ve el avance).
+function MetaPesoCard({ form, setForm }) {
+  const pesoActual = Number(form.peso) || 0;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
+      <p className="jb-body text-xs text-zinc-500 mb-4">Tu punto de partida y tu meta. En Inicio verás cuánto avanzas.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Peso inicial (kg)">
+          <input type="number" inputMode="decimal" className={inputCls} value={form.pesoInicial ?? ''} placeholder={pesoActual || ''}
+            onChange={e => setForm(v => ({ ...v, pesoInicial: e.target.value === '' ? null : Number(e.target.value) }))} />
+        </Field>
+        <Field label="Peso objetivo (kg)">
+          <input type="number" inputMode="decimal" className={inputCls} value={form.pesoObjetivo ?? ''} placeholder="Ej. 75"
+            onChange={e => setForm(v => ({ ...v, pesoObjetivo: e.target.value === '' ? null : Number(e.target.value) }))} />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerComposicion, onIrProgreso }) {
   const pesoActual = Number(form.peso) || 0;
   const pesoInicial = form.pesoInicial === null || form.pesoInicial === undefined || form.pesoInicial === '' ? null : Number(form.pesoInicial);
   const pesoObjetivo = form.pesoObjetivo === null || form.pesoObjetivo === undefined || form.pesoObjetivo === '' ? null : Number(form.pesoObjetivo);
@@ -11253,14 +11356,6 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
 
       <InvitaAmigoCard username={username} />
 
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
-        <span className="text-orange-500 shrink-0 text-sm">📅</span>
-        <p className="jb-body text-xs text-zinc-400">
-          <span className="text-zinc-200 font-semibold">Tu única tarea diaria es registrar lo que comes.</span> Tus
-          medidas quedan guardadas y no cambian hasta que las actualices. Vuelve a medirte cada 2 semanas.
-        </p>
-      </div>
-
       <button onClick={onVerComposicion}
         className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-4 flex items-center gap-3 text-left transition-colors">
         <Flame className="text-amber-400 shrink-0" size={18} />
@@ -11276,78 +11371,28 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
         <ChevronRight className="text-zinc-600 shrink-0" size={16} />
       </button>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
-        <p className="jb-body text-xs text-zinc-500 mb-4">Registra tu punto de partida y tu meta para ver tu avance.</p>
-        <div className="grid sm:grid-cols-2 gap-3 mb-4">
-          <Field label="Peso inicial (kg)">
-            <input type="number" className={inputCls} value={form.pesoInicial ?? ''} placeholder={pesoActual || ''}
-              onChange={e => setForm(v => ({ ...v, pesoInicial: e.target.value === '' ? null : Number(e.target.value) }))} />
-          </Field>
-          <Field label="Peso objetivo (kg)">
-            <input type="number" className={inputCls} value={form.pesoObjetivo ?? ''} placeholder="Ej. 75"
-              onChange={e => setForm(v => ({ ...v, pesoObjetivo: e.target.value === '' ? null : Number(e.target.value) }))} />
-          </Field>
-        </div>
-        {progreso !== null ? (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="jb-body text-xs text-zinc-400">{pesoInicial} kg → {pesoObjetivo} kg</span>
-              <span className="jb-display text-lg text-orange-500">{Math.round(progreso)}%</span>
-            </div>
-            <div className="relative pt-3 pb-1">
-              <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Math.max(0, progreso))}%` }} />
-              </div>
-              <div className="absolute left-0 -top-0.5 w-3 h-3 rounded-full bg-zinc-500 border-2 border-zinc-900" title="Inicio" />
-              <div className="absolute right-0 -top-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-900" title="Meta" />
-              <div className="absolute -bottom-0.5 flex items-center gap-1 text-[10px] text-zinc-400"
-                style={{ left: `${Math.min(96, Math.max(0, progreso))}%`, transform: 'translateX(-50%)' }}>
-                📍 {pesoActual} kg
-              </div>
-            </div>
-            <p className="jb-body text-xs text-zinc-500 mt-4">
-              {progreso >= 100 ? '¡Llegaste a tu meta! Escríbenos por WhatsApp para definir el siguiente paso.'
-                : `Te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg para tu meta.`}
-            </p>
+      {progreso !== null ? (
+        <button onClick={onIrProgreso} className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-2xl p-4 text-left transition-colors">
+          <div className="flex items-center justify-between mb-2">
+            <span className="jb-display text-sm text-zinc-200">MI OBJETIVO DE PESO</span>
+            <span className="jb-display text-lg text-orange-500">{Math.round(progreso)}%</span>
           </div>
-        ) : (
-          <p className="jb-body text-xs text-zinc-600">Completa ambos campos para ver tu progreso.</p>
-        )}
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-        <h2 className="jb-display text-base text-zinc-200 mb-4">ALIMENTACIÓN DE HOY</h2>
-        {(() => {
-          const kcalObjetivo = targets ? targets.kcal : mealPlan.targetKcal;
-          const protObjetivo = targets ? targets.protein : null;
-          const carbObjetivo = targets ? targets.carbs : null;
-          const fatObjetivo = targets ? targets.fat : null;
-          const totalsHoyFull = { kcal: totalsHoy.kcal, protein: totalsHoy.protein, carbs: 0, fat: 0 };
-          Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
-            const m = entryMacros(en);
-            totalsHoyFull.carbs += m.carbs;
-            totalsHoyFull.fat += m.fat;
-          }));
-          return (
-            <div className="flex flex-wrap justify-around gap-2 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-4">
-              <MacroRing pct={kcalObjetivo ? (totalsHoyFull.kcal / kcalObjetivo) * 100 : 0}
-                numeric={Math.round(totalsHoyFull.kcal)} label="Kcal" colorHex="#f97316" size={58} stroke={6} />
-              <MacroRing pct={protObjetivo ? (totalsHoyFull.protein / protObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.protein) + 'g'} label="Proteína" colorHex="#34d399" size={58} stroke={6} />
-              <MacroRing pct={carbObjetivo ? (totalsHoyFull.carbs / carbObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.carbs) + 'g'} label="Carbos" colorHex="#a78bfa" size={58} stroke={6} />
-              <MacroRing pct={fatObjetivo ? (totalsHoyFull.fat / fatObjetivo) * 100 : 0}
-                value={Math.round(totalsHoyFull.fat) + 'g'} label="Grasa" colorHex="#fbbf24" size={58} stroke={6} />
-            </div>
-          );
-        })()}
-        <CalorieStatus consumed={totalsHoy.kcal} target={targets ? targets.kcal : mealPlan.targetKcal} />
-        <p className="jb-body text-xs text-zinc-600 mt-3">
-          Mira tus promedios y tendencias de varios días en la pestaña "Mi progreso".
-        </p>
-      </div>
+          <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
+            <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all" style={{ width: `${progreso}%` }} />
+          </div>
+          <p className="jb-body text-xs text-zinc-500">
+            {pesoInicial} kg → {pesoObjetivo} kg · hoy {pesoActual} kg ·{' '}
+            {progreso >= 100 ? '¡Llegaste a tu meta!' : `te faltan ${Math.abs(pesoActual - pesoObjetivo).toFixed(1)} kg`}
+          </p>
+        </button>
+      ) : (
+        <button onClick={onIrProgreso}
+          className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-4 flex items-center gap-3 text-left transition-colors">
+          <Target className="text-orange-500 shrink-0" size={18} />
+          <p className="jb-body text-sm text-zinc-300 flex-1"><span className="text-zinc-100 font-semibold">Define tu meta de peso</span> para ver cuánto avanzas</p>
+          <ChevronRight className="text-zinc-600 shrink-0" size={16} />
+        </button>
+      )}
     </div>
   );
 }
@@ -12353,7 +12398,7 @@ const ESTILOS_COMIDAS = `
 // Medidor fijo arriba de Comidas: anillo con lo que queda del día y
 // barras de proteína, carbos y grasas. Se queda pegado bajo el
 // encabezado mientras el alumno baja.
-function MedidorComidas({ totals, targetKcal, objP, objC, objF }) {
+function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
   const [topHeader, setTopHeader] = useState(64);
   const [pulso, setPulso] = useState(0);
   const kcalPrevia = useRef(totals.kcal);
@@ -12384,7 +12429,7 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF }) {
   ];
 
   return (
-    <div className="sticky z-10 -mx-6 px-6 pt-2 pb-3 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/80" style={{ top: topHeader }}>
+    <div className={fijo ? 'sticky z-10 -mx-6 px-6 pt-2 pb-3 bg-zinc-950/95 backdrop-blur-sm border-b border-zinc-800/80' : ''} style={fijo ? { top: topHeader } : undefined}>
       <div className="flex items-center gap-4">
         <div key={pulso} className={`relative w-[84px] h-[84px] shrink-0 ${pulso ? 'jbm-pulso' : ''}`}>
           <svg viewBox="0 0 84 84" className="w-full h-full -rotate-90">
@@ -12747,7 +12792,7 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta }) {
+function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta, hojaInicial = null }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
@@ -12768,7 +12813,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
     }
     conteosPrevios.current = conteos;
   }, [mealPlan]);
-  const [hojaMeal, setHojaMeal] = useState(null); // comida elegida en la hoja "Registrar" (null = cerrada)
+  const [hojaMeal, setHojaMeal] = useState(hojaInicial); // comida elegida en la hoja "Registrar" (null = cerrada)
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const mealAhora = comidaDeAhora();
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
@@ -13334,6 +13379,7 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
 
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
+  const [registrarAl, setRegistrarAl] = useState(null); // comida a registrar al pasar de Inicio a Comidas
   const [verGuia, setVerGuia] = useState(false);
   const [tieneFotos, setTieneFotos] = useState(false);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
@@ -13441,12 +13487,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           </div>
         </div>
       )}
-      <header className="sticky top-0 z-20 border-b border-zinc-800 px-6 py-4 flex items-center justify-between bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2.5">
+      <header className="sticky top-0 z-20 border-b border-zinc-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+        <div className="flex items-center gap-2.5 min-w-0">
           <Logo />
           <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <SoundToggleButton />
           <button onClick={() => setTab('planes')}
             className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -13454,7 +13500,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <CreditCard size={18} />
           </button>
           <span className="text-zinc-500 text-sm hidden sm:inline">{saving ? 'Guardando…' : 'Guardado'} · {username}</span>
-          <button onClick={onLogout} className={btnGhost}><LogOut size={16} /> Salir</button>
+          <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
 
@@ -13480,31 +13526,20 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <>
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />
-            {(() => {
-              const totalsHoy = { kcal: 0, protein: 0, carbs: 0 };
-              Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
-                const m = entryMacros(en);
-                totalsHoy.kcal += m.kcal; totalsHoy.protein += m.protein; totalsHoy.carbs += m.carbs;
-              }));
-              const targets = goalTargets(form, results.tdee);
-              return (
-                <>
-                  <ResumenDelDia username={username} totalsHoy={totalsHoy} targets={targets} />
-                  <ResumenSemanalCard username={username} />
-                </>
-              );
-            })()}
+            <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
+              onRegistrar={ml => { setRegistrarAl(ml); setTab('meal'); window.scrollTo({ top: 0 }); }} />
+            <ResumenSemanalCard username={username} />
             <RachaCard username={username} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} />
+            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={() => { setTab('progress'); window.scrollTo({ top: 0 }); }} />
           </>
         )}
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} hojaInicial={registrarAl} />}
         {(tab === 'progress' || tab === 'photos') && (
-          <ProgressTab username={username} form={form} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
+          <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
       </main>
@@ -13547,7 +13582,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'calc', icon: Flame, label: 'Mi cuerpo', activo: tab === 'calc' || tab === 'goal' },
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
         ].map(item => (
-          <button key={item.id} onClick={() => setTab(item.id)}
+          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
             <span className="relative">
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />

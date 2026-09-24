@@ -2410,6 +2410,111 @@ const ONDA_JARVIS = {
   hablando: { dur: 0.42, paso: 0.05, alto: 1.6 },
 };
 
+/* Sonidos de interfaz de Jarvis: tonos cortos generados por el mismo
+   celular (sin archivos), como los de un holograma. El navegador solo deja
+   sonar audio después de un toque, así que el contexto se prepara al tocar
+   el botón de Jarvis (prepararAudioJarvis). */
+let audioJarvis = null;
+let sonidosJarvisActivos = true; // se apagan junto con la voz (botón 🔊)
+function contextoAudioJarvis() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audioJarvis) audioJarvis = new AC();
+    if (audioJarvis.state === 'suspended') audioJarvis.resume();
+    return audioJarvis;
+  } catch { return null; }
+}
+const SONIDOS_JARVIS = {
+  // [frecuencia inicial, final, duración en s, retraso] por cada tono
+  abrir: [[320, 880, 0.22, 0], [1320, 1320, 0.09, 0.2]],
+  escuchar: [[880, 880, 0.06, 0], [1320, 1320, 0.07, 0.09]],
+  despierto: [[660, 990, 0.12, 0], [1320, 1320, 0.08, 0.13]],
+  respuesta: [[1046, 1046, 0.12, 0]],
+  cerrar: [[880, 330, 0.2, 0]],
+};
+function sonidoJarvis(tipo) {
+  if (!sonidosJarvisActivos) return;
+  const ctx = contextoAudioJarvis();
+  const tonos = SONIDOS_JARVIS[tipo];
+  if (!ctx || !tonos) return;
+  try {
+    const t0 = ctx.currentTime + 0.01;
+    tonos.forEach(([f1, f2, dur, retraso]) => {
+      const osc = ctx.createOscillator();
+      const vol = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f1, t0 + retraso);
+      osc.frequency.exponentialRampToValueAtTime(f2, t0 + retraso + dur);
+      vol.gain.setValueAtTime(0.0001, t0 + retraso);
+      vol.gain.exponentialRampToValueAtTime(0.07, t0 + retraso + 0.015);
+      vol.gain.exponentialRampToValueAtTime(0.0001, t0 + retraso + dur);
+      osc.connect(vol).connect(ctx.destination);
+      osc.start(t0 + retraso);
+      osc.stop(t0 + retraso + dur + 0.02);
+    });
+  } catch {}
+}
+/* Se llama dentro del toque que abre a Jarvis: deja listos el audio y la
+   voz para que el informe pueda sonar apenas llegan los datos (iOS bloquea
+   la voz si no se "desbloquea" durante un toque). */
+function prepararAudioJarvis() {
+  contextoAudioJarvis();
+  if (!('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('.');
+    u.volume = 0.01; u.rate = 10;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+
+/* Palabra de activación: en modo micrófono continuo Jarvis solo responde
+   cuando le hablan empezando con "Jarvis" (o "oye Jarvis"). El
+   reconocimiento de voz a veces escribe el nombre distinto, por eso se
+   aceptan variantes. Devuelve lo que se dijo después del nombre, o null si
+   no se lo llamó. */
+const PALABRA_JARVIS = /^\s*(?:(?:oye|hey|ok|okay|hola)[\s,]+)?(?:jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi)\b[\s,.:;!¡¿?-]*/i;
+function quitarPalabraJarvis(texto) {
+  const m = String(texto || '').match(PALABRA_JARVIS);
+  return m ? texto.slice(m[0].length).trim() : null;
+}
+// Después de llamarlo (o de que responda), durante estos segundos se le
+// puede seguir hablando sin repetir "Jarvis", como en una conversación.
+const SEGUNDOS_CONVERSACION_JARVIS = 10;
+
+/* Informe al abrir: resumen del día armado con los datos que el panel ya
+   tiene (y dos consultas cortas), sin usar la inteligencia artificial. */
+function saludoJarvis(d = new Date()) {
+  const h = d.getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
+async function armarInformeJarvis(users) {
+  const hoy = todayISO();
+  const ayer = addDaysISO(hoy, -1);
+  let pagosPendientes = 0, registraronAyer = null;
+  try {
+    const { count } = await supabase.from('pagos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
+    pagosPendientes = count || 0;
+  } catch {}
+  try {
+    const { data } = await supabase.from('historial').select('username').eq('fecha', ayer).gt('comidas_count', 0);
+    registraronAyer = new Set((data || []).map(r => r.username)).size;
+  } catch {}
+  const lista = users || [];
+  const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
+  const vencen = lista.filter(u => u.enabled && esPrueba(u) && (() => { const d = daysLeft(u.fechaVencimiento); return d !== null && d >= 0 && d <= 3; })()).length;
+  const nuevos = lista.filter(u => u.fechaInicio === hoy || u.fechaInicio === ayer).length;
+  const activos = lista.filter(u => u.enabled && membershipActive(u)).length;
+  const partes = [];
+  partes.push(pagosPendientes ? `Tienes ${pagosPendientes} ${pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar.` : 'No hay pagos pendientes.');
+  if (vencen) partes.push(`${vencen} ${vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
+  if (registraronAyer !== null) partes.push(`Ayer registraron comida ${registraronAyer} de tus ${activos} alumnos activos.`);
+  if (nuevos) partes.push(`Desde ayer se ${nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${nuevos} alumnos nuevos`}.`);
+  return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
+}
+const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
+
 const COLOR_ESTADO_JARVIS = { reposo: '#4dd9ff', escuchando: '#ff5c5c', pensando: '#ffb020', hablando: '#7ff0ff' };
 
 const TEXTO_ESTADO_JARVIS = { reposo: 'EN LÍNEA', escuchando: 'ESCUCHANDO', pensando: 'PROCESANDO', hablando: 'RESPONDIENDO' };
@@ -2505,10 +2610,12 @@ function BotonJarvis({ onClick }) {
   );
 }
 
-function JarvisPanel({ onClose }) {
+function JarvisPanel({ onClose, users }) {
   const [turnos, setTurnos] = useState([
-    { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
+    { role: 'assistant', content: '', escribiendo: true },
   ]);
+  const [avisoMic, setAvisoMic] = useState('');
+  const despiertoHastaRef = useRef(0);
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
   const [vozOn, setVozOn] = useState(true);
@@ -2523,7 +2630,7 @@ function JarvisPanel({ onClose }) {
   const vozOnRef = useRef(true);
 
   useEffect(() => { modoContinuoRef.current = modoContinuo; }, [modoContinuo]);
-  useEffect(() => { vozOnRef.current = vozOn; }, [vozOn]);
+  useEffect(() => { vozOnRef.current = vozOn; sonidosJarvisActivos = vozOn; }, [vozOn]);
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [turnos, pensando]);
   useEffect(() => () => { try { recogRef.current && recogRef.current.stop(); window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} }, []);
 
@@ -2623,6 +2730,32 @@ function JarvisPanel({ onClose }) {
 
   const enviarRef = useRef(null);
   enviarRef.current = enviar;
+  const hablarRef = useRef(null);
+  hablarRef.current = hablar;
+
+  // Al abrir: la primera vez del día da el informe completo (y lo dice en
+  // voz alta); las demás veces, un saludo corto. El informe se puede pedir
+  // de nuevo con el botón "Informe del día".
+  async function darInforme() {
+    setTurnos(ts => [...ts.filter(m => !(m.escribiendo && !m.content)), { role: 'assistant', content: '', escribiendo: true }]);
+    setPensando(true);
+    const texto = await armarInformeJarvis(users);
+    setPensando(false);
+    setTurnos(ts => [...ts.filter(m => !(m.escribiendo && !m.content)), { role: 'assistant', content: texto }]);
+    sonidoJarvis('respuesta');
+    hablarRef.current(texto);
+  }
+  const abiertoRef = useRef(false);
+  useEffect(() => {
+    if (abiertoRef.current) return;
+    abiertoRef.current = true;
+    sonidoJarvis('abrir');
+    let yaHoy = false;
+    try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
+    if (!yaHoy) { darInforme(); return; }
+    setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
+  }, []);
+  function cerrar() { sonidoJarvis('cerrar'); onClose(); }
 
   async function enviar(texto) {
     const t = (texto || '').trim();
@@ -2646,6 +2779,7 @@ function JarvisPanel({ onClose }) {
       });
       const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
       setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}) }]);
+      sonidoJarvis('respuesta');
       hablar(data.respuesta);
     } catch (e) {
       const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
@@ -2705,6 +2839,8 @@ function JarvisPanel({ onClose }) {
 
   function reanudarMicSiCorresponde() {
     pausadoParaHablarRef.current = false;
+    // Tras responder, se le puede seguir hablando sin decir "Jarvis".
+    if (modoContinuoRef.current) despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
     if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300);
   }
 
@@ -2718,7 +2854,28 @@ function JarvisPanel({ onClose }) {
       const ultimo = e.results[e.results.length - 1];
       // Se usa siempre la versión más reciente de enviar() (con la
       // conversación al día), no la del momento en que se prendió el micro.
-      if (ultimo.isFinal) enviarRef.current(ultimo[0].transcript);
+      if (!ultimo.isFinal) return;
+      const dicho = ultimo[0].transcript.trim();
+      const pedido = quitarPalabraJarvis(dicho);
+      const enConversacion = Date.now() < despiertoHastaRef.current;
+      if (pedido === null && !enConversacion) {
+        // No lo llamaron: no responde (puedes hablar con otras personas).
+        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» primero para hablarme.`);
+        return;
+      }
+      setAvisoMic('');
+      const texto = pedido === null ? dicho : pedido;
+      if (!texto) {
+        // Solo dijo "Jarvis": responde y espera la orden.
+        despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
+        sonidoJarvis('despierto');
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, Jonah?' }]);
+        hablarRef.current('¿Sí, Jonah?');
+        return;
+      }
+      despiertoHastaRef.current = 0;
+      sonidoJarvis('despierto');
+      enviarRef.current(texto);
     };
     recog.onerror = (e) => {
       setEscuchando(false);
@@ -2751,7 +2908,7 @@ function JarvisPanel({ onClose }) {
     modoContinuoRef.current = nuevo;
     // Este toque también habilita la voz de Jarvis para las respuestas
     // que lleguen por micrófono (el navegador exige un toque primero).
-    if (nuevo) { desbloquearVoz(); arrancarReconocimiento(); }
+    if (nuevo) { desbloquearVoz(); sonidoJarvis('escuchar'); setAvisoMic(''); arrancarReconocimiento(); }
     else { pausarMic(); setEscuchando(false); }
   }
 
@@ -2785,7 +2942,7 @@ function JarvisPanel({ onClose }) {
             <button onClick={() => setVozOn(v => !v)} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
               🔊 {vozOn ? 'ON' : 'OFF'}
             </button>
-            <button onClick={onClose} style={{ color: '#6f92a8' }}><X size={18} /></button>
+            <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
           </div>
         </div>
 
@@ -2797,6 +2954,11 @@ function JarvisPanel({ onClose }) {
           <div className="text-[9px] tracking-[0.25em] mt-0.5" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>
             JONAH BEAST FUEL · DATOS EN VIVO
           </div>
+          <button onClick={() => { desbloquearVoz(); darInforme(); }} disabled={pensando}
+            className="mt-2 text-[10px] tracking-[0.2em] px-3 py-1 rounded-full disabled:opacity-40"
+            style={{ fontFamily: 'monospace', color: '#4dd9ff', border: '1px solid #1c6b85', background: 'rgba(77,217,255,0.06)' }}>
+            📋 INFORME DEL DÍA
+          </button>
         </div>
 
         {'speechSynthesis' in window && (
@@ -2865,7 +3027,9 @@ function JarvisPanel({ onClose }) {
         </div>
 
         <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
-          {modoContinuo ? (escuchando ? 'Escuchando… habla cuando quieras' : 'Modo continuo activo') : 'Toca el micrófono para activar el modo continuo'}
+          {avisoMic || (modoContinuo
+            ? (escuchando ? 'Escuchando… di «Jarvis» y tu pregunta' : 'Modo continuo activo')
+            : 'Toca el micrófono y háblame diciendo «Jarvis, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
           <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
@@ -2934,8 +3098,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
-      {!mostrarJarvis && <BotonJarvis onClick={() => setMostrarJarvis(true)} />}
-      {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}
+      {!mostrarJarvis && <BotonJarvis onClick={() => { prepararAudioJarvis(); setMostrarJarvis(true); }} />}
+      {mostrarJarvis && <JarvisPanel users={users} onClose={() => setMostrarJarvis(false)} />}
       <main className="relative max-w-4xl mx-auto px-6 pt-8 pb-32 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>

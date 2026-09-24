@@ -7782,7 +7782,7 @@ function GoalSelector({ form, setForm, tdee, peso, datosListos = true, onComplet
   );
 }
 
-function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas }) {
+function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas, mealPlan, setMealPlan }) {
   const [vista, setVista] = useState(vistaInicial === 'objetivo' ? 'objetivo' : 'composicion');
 
   return (
@@ -7804,6 +7804,10 @@ function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas }) {
             datosListos={results.basicos}
             onCompletarDatos={() => { setVista('composicion'); window.scrollTo({ top: 0 }); }}
             onIrComidas={onIrComidas} />}
+      {vista === 'objetivo' && mealPlan && setMealPlan && (
+        <ObjetivoDiarioCard mealPlan={mealPlan} setMealPlan={setMealPlan}
+          targets={goalTargets(form, results.tdee)} tdee={results.tdee} />
+      )}
     </div>
   );
 }
@@ -12271,7 +12275,13 @@ const ESTILOS_COMIDAS = `
 .jbm-hoja { animation: jbm-subir .28s cubic-bezier(.2,.8,.3,1) both; }
 .jbm-fondo { animation: jbm-aparecer .2s ease-out both; }
 .jbm-fab { animation: jbm-latido 2.6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .jbm-pulso, .jbm-hoja, .jbm-fondo, .jbm-fab { animation: none !important; } }
+@keyframes jbm-onda { from { transform: scale(1); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+@keyframes jbm-pop { 0% { transform: scale(0); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes jbm-brillo { 0% { box-shadow: 0 0 0 rgba(255,112,32,0); } 30% { box-shadow: 0 0 18px rgba(255,112,32,.9); } 100% { box-shadow: 0 0 0 rgba(255,112,32,0); } }
+.jbm-onda { animation: jbm-onda .8s ease-out both; }
+.jbm-completa { animation: jbm-brillo 1.1s ease-out both; }
+.jbm-completa .jbm-check { animation: jbm-pop .45s cubic-bezier(.2,1.6,.4,1) both; }
+@media (prefers-reduced-motion: reduce) { .jbm-pulso, .jbm-hoja, .jbm-fondo, .jbm-fab, .jbm-onda, .jbm-completa, .jbm-check { animation: none !important; } .jbm-onda { display: none; } }
 `;
 
 // Medidor fijo arriba de Comidas: anillo con lo que queda del día y
@@ -12425,13 +12435,273 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onEscribir, username, 
   );
 }
 
+// Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
+function nombreAlimento(food) {
+  if (!food) return '';
+  return food.state && food.state !== '-' ? `${food.name} · ${food.state.toLowerCase()}` : food.name;
+}
+
+// Unidad y cantidad actuales de una entrada (las antiguas guardaban solo gramos).
+function porcionDeEntrada(en) {
+  const sinUnidad = en.unit === undefined || en.unit === null;
+  return { unit: sinUnidad ? 'gramos' : en.unit, qty: Number(sinUnidad ? en.grams : en.qty) || 0 };
+}
+
+// Cuánto sube o baja cada toque de − / + según la medida.
+function pasoDeUnidad(unit) {
+  if (unit === 'gramos') return 10;
+  if (UNIDADES_DISCRETAS.includes(unit)) return 1;
+  return 0.5;
+}
+
+function cambiarCantidad(qty, unit, direccion) {
+  const paso = pasoDeUnidad(unit);
+  const base = Math.round((Number(qty) || 0) / paso) * paso;
+  const nueva = base + direccion * paso;
+  return Math.max(paso, Math.round(nueva * 100) / 100);
+}
+
+function BotonPaso({ onClick, children, grande = false, etiqueta }) {
+  return (
+    <button type="button" onClick={e => { e.stopPropagation(); vibrar(8); onClick(); }} aria-label={etiqueta}
+      className={`${grande ? 'w-12 h-12 text-2xl' : 'w-7 h-7 text-base'} rounded-full bg-zinc-900 border border-orange-500/40 text-orange-400 hover:bg-orange-500/15 active:scale-95 flex items-center justify-center shrink-0 transition-transform jb-display leading-none`}>
+      {children}
+    </button>
+  );
+}
+
+// Panel que sube al tocar un alimento: cantidad con − / + grandes, medida
+// en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
+function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onCerrar }) {
+  const [verSustitutos, setVerSustitutos] = useState(false);
+  const food = buscarFood(en.foodKey);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  if (!food) return null;
+  const porcion = porcionDeEntrada(en);
+  const m = entryMacros(en);
+  const unidades = unitsFor(food);
+  const bucket = grupoDeSustitucion(food);
+
+  const fijar = (patch) => updateEntry(meal, en.id, { ...patch, grams: undefined });
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl max-h-[88vh] overflow-y-auto px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <div className="flex items-start gap-3 mb-5">
+          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+          <div className="flex-1 min-w-0">
+            <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
+            <p className="jb-body text-xs text-zinc-500">{meal}</p>
+          </div>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+        </div>
+
+        <div className="flex items-center justify-center gap-5 mb-3">
+          <BotonPaso grande etiqueta="Menos" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, -1) })}>−</BotonPaso>
+          <div className="text-center min-w-[120px]">
+            <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{porcion.qty}</p>
+            <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
+          </div>
+          <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>
+        </div>
+
+        {unidades.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            {unidades.map(([u]) => (
+              <button key={u} type="button"
+                onClick={() => {
+                  if (u === porcion.unit) return;
+                  const d = u === 'gramos' ? { qty: Math.max(10, Math.round(entryGrams(en) / 10) * 10) } : { qty: 1 };
+                  fijar({ unit: u, qty: d.qty });
+                }}
+                className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${u === porcion.unit ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                {u}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-zinc-950 border border-orange-500/30 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
+          <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
+          <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
+        </div>
+
+        {bucket && (
+          <div className="mb-4">
+            <button type="button" onClick={() => setVerSustitutos(v => !v)}
+              className="w-full flex items-center justify-between jb-body text-sm text-zinc-200 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3">
+              <span>🔄 Cambiar por otro equivalente</span>
+              <ChevronRight size={16} className={`text-zinc-500 transition-transform ${verSustitutos ? 'rotate-90' : ''}`} />
+            </button>
+            {verSustitutos && (() => {
+              const macro = bucket.macro;
+              const valorObjetivo = m[macro];
+              const gramosOriginal = entryGrams(en);
+              return (
+                <div className="mt-2">
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">
+                    La cantidad se ajusta sola para mantener la misma {MACRO_LABEL[macro]} ({valorObjetivo.toFixed(0)}g)
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {opcionesOrdenadasPorPreferencia(food, username, mealPlan.restricciones || []).map(opt => {
+                      const eq = sustitucionEquivalente(valorObjetivo, opt, macro);
+                      const explicacion = explicarSustituto(food, gramosOriginal, opt, eq, macro);
+                      return (
+                        <button key={opt.key}
+                          onClick={() => {
+                            updateEntry(meal, en.id, { foodKey: opt.key, unit: eq.unit, qty: eq.qty, grams: undefined });
+                            vibrar(20);
+                            registrarPreferenciaSustituto(username, food.name, opt.name);
+                            showToast(`🔄 Cambiado a ${opt.name} · ${eq.qty} ${eq.unit} para igualar tu ${MACRO_LABEL[macro]}`);
+                            setVerSustitutos(false);
+                          }}
+                          className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
+                          <span className="text-zinc-200">
+                            {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                            {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
+                          </span>
+                          <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <div className="mb-4">
+          <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">¿Era otro alimento?</p>
+          <BuscadorAlimento valor="" alimentos={todosLosAlimentos}
+            onElegir={key => {
+              const f = buscarFood(key);
+              const d = unidadPorDefecto(f);
+              updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+            }}
+            onNoEncuentra={texto => { onCrear(texto); onCerrar(); }} />
+        </div>
+
+        <div className="flex gap-2">
+          <button type="button" onClick={() => { vibrar(15); removeEntry(meal, en.id); onCerrar(); }}
+            className="flex-1 jb-body text-sm text-red-400 border border-red-500/40 hover:bg-red-500/10 rounded-xl py-3 flex items-center justify-center gap-1.5">
+            <Trash2 size={15} /> Quitar
+          </button>
+          <button type="button" onClick={onCerrar} className={btnPrimary + ' flex-[2] py-3'}>Listo</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Ajuste avanzado del objetivo diario (kcal y % de macros). Vive en
+// "Mi cuerpo → Objetivo"; en Comidas solo queda el aviso si no coincide.
+function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
+  const [abierto, setAbierto] = useState(false);
+  const macroSum = mealPlan.macros.p + mealPlan.macros.c + mealPlan.macros.f;
+  const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
+
+  function applyGoal() {
+    if (!targets || !targets.kcal) return;
+    setMealPlan(v => ({
+      ...v,
+      targetKcal: Math.round(targets.kcal),
+      macros: {
+        p: Math.round((targets.protein * 4 / targets.kcal) * 100) / 100,
+        c: Math.round((targets.carbs * 4 / targets.kcal) * 100) / 100,
+        f: Math.round((targets.fat * 9 / targets.kcal) * 100) / 100,
+      },
+    }));
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <button onClick={() => setAbierto(v => !v)} className="w-full flex items-center justify-between gap-3 text-left">
+        <div className="min-w-0">
+          <h2 className="jb-display text-base text-zinc-200 mb-1 flex items-center gap-1.5">
+            AJUSTE FINO DE CALORÍAS Y MACROS
+            {goalMismatch && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="No coincide con tu objetivo" />}
+          </h2>
+          <p className="jb-body text-xs text-zinc-500 truncate">
+            Lo que usa tu registro de comidas: <span className="text-orange-500 font-semibold">{Math.round(mealPlan.targetKcal)} kcal</span> · P {Math.round(mealPlan.macros.p * 100)}% · C {Math.round(mealPlan.macros.c * 100)}% · G {Math.round(mealPlan.macros.f * 100)}%
+          </p>
+        </div>
+        <ChevronRight className={`text-zinc-500 shrink-0 transition-transform ${abierto ? 'rotate-90' : ''}`} size={18} />
+      </button>
+      {abierto && (
+        <div className="mt-4">
+          {goalMismatch && (
+            <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
+              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+              <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
+            </div>
+          )}
+          <div className="grid sm:grid-cols-5 gap-3 items-end">
+            <Field label="Calorías objetivo (kcal)">
+              <input type="number" className={inputCls} value={mealPlan.targetKcal}
+                onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0 }))} />
+            </Field>
+            <Field label="% Proteína">
+              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 } }))} />
+            </Field>
+            <Field label="% Carbohidratos">
+              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 } }))} />
+            </Field>
+            <Field label="% Grasas">
+              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
+            </Field>
+            {targets ? (
+              <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
+                <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
+              </button>
+            ) : tdee ? (
+              <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
+                <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
+              </button>
+            ) : null}
+          </div>
+          {Math.abs(macroSum - 1) > 0.001 && (
+            <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
-  const [sustituyendo, setSustituyendo] = useState(null); // id de la entrada con el panel de sustitutos abierto
+  const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
-  const [objetivoAbierto, setObjetivoAbierto] = useState(false);
+  // Destello al completar una comida (cuando recibe su primer alimento).
+  const [destellos, setDestellos] = useState({});
+  const conteosPrevios = useRef(null);
+  useEffect(() => {
+    const conteos = Object.fromEntries(MEAL_NAMES.map(ml => [ml, (mealPlan.meals[ml] || []).filter(e => e.foodKey).length]));
+    const previos = conteosPrevios.current;
+    if (previos) {
+      const nuevos = MEAL_NAMES.filter(ml => previos[ml] === 0 && conteos[ml] > 0);
+      if (nuevos.length) {
+        vibrar(25);
+        setDestellos(d => ({ ...d, ...Object.fromEntries(nuevos.map(ml => [ml, Date.now()])) }));
+      }
+    }
+    conteosPrevios.current = conteos;
+  }, [mealPlan]);
   const [hojaMeal, setHojaMeal] = useState(null); // comida elegida en la hoja "Registrar" (null = cerrada)
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const mealAhora = comidaDeAhora();
@@ -12465,7 +12735,6 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
     return t;
   }, [mealPlan]);
 
-  const macroSum = mealPlan.macros.p + mealPlan.macros.c + mealPlan.macros.f;
   const objP = (mealPlan.targetKcal * mealPlan.macros.p) / 4;
   const objC = (mealPlan.targetKcal * mealPlan.macros.c) / 4;
   const objF = (mealPlan.targetKcal * mealPlan.macros.f) / 9;
@@ -12545,7 +12814,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano */}
-      {!hojaMeal && !fotoPara && !crearPara && (
+      {!hojaMeal && !fotoPara && !crearPara && !editando && (
         <button onClick={() => { vibrar(10); setHojaMeal(mealAhora); }}
           className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
           aria-label="Registrar comida">
@@ -12553,6 +12822,15 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
           <span className="jb-display text-sm tracking-wide">REGISTRAR</span>
         </button>
       )}
+      {editando && (() => {
+        const en = (mealPlan.meals[editando.meal] || []).find(x => x.id === editando.id);
+        return en ? (
+          <HojaEditarAlimento meal={editando.meal} en={en} todosLosAlimentos={todosLosAlimentos}
+            username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={removeEntry}
+            onCrear={texto => setCrearPara({ meal: editando.meal, id: en.id, texto })}
+            onCerrar={() => setEditando(null)} />
+        ) : null;
+      })()}
       {crearPara && (
         <CrearAlimentoModal
           username={username}
@@ -12596,8 +12874,12 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         <div key={meal} className={`bg-zinc-900 border rounded-2xl ${vacia ? 'px-4 py-3' : 'p-4'} ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}
           style={esAhora ? { boxShadow: '0 0 22px rgba(232,89,12,.12)' } : undefined}>
           <div className={`flex items-center gap-2.5 ${vacia ? '' : 'mb-3'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border ${vacia ? 'bg-zinc-800/60 border-zinc-700' : 'bg-orange-500/20 border-orange-500/40'}`}>
+            <div key={destellos[meal] || 0} className={`relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border ${vacia ? 'bg-zinc-800/60 border-zinc-700' : 'bg-orange-500/20 border-orange-500/40'} ${destellos[meal] ? 'jbm-completa' : ''}`}>
               {ICONO_COMIDA[meal] || '🍴'}
+              {!vacia && (
+                <span className="jbm-check absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
+              )}
+              {destellos[meal] && <span className="jbm-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className={`jb-display text-sm tracking-wide flex items-center gap-2 ${vacia ? 'text-zinc-400' : 'text-orange-500'}`}>
@@ -12614,112 +12896,63 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
             </button>
           </div>
           {vacia ? null : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {mealPlan.meals[meal].map(en => {
                 const m = entryMacros(en);
                 const food = buscarFood(en.foodKey);
-                const units = food ? unitsFor(food) : [['gramos', 1]];
-                const currentUnit = en.unit === undefined || en.unit === null ? 'gramos' : en.unit;
-                const currentQty = en.unit === undefined || en.unit === null ? (en.grams ?? '') : (en.qty ?? '');
                 const swipeDx = (swipe[en.id] && swipe[en.id].dx) || 0;
+                // Fila recién creada con "Escribir": todavía no tiene alimento.
+                if (!food) {
+                  return (
+                    <div key={en.id} id={'entrada-' + en.id} className="bg-zinc-950 border border-orange-500/40 rounded-xl p-2 flex items-center gap-2">
+                      <BuscadorAlimento
+                        valor=""
+                        alimentos={todosLosAlimentos}
+                        onElegir={key => {
+                          const f = buscarFood(key);
+                          const d = unidadPorDefecto(f);
+                          updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+                        }}
+                        onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
+                        autoFocus={enfocar === en.id}
+                      />
+                      <button onClick={() => removeEntry(meal, en.id)} aria-label="Quitar"
+                        className="text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={16} /></button>
+                    </div>
+                  );
+                }
+                const porcion = porcionDeEntrada(en);
+                const muyAlta = entryGrams(en) >= MAX_GRAMOS_ENTRADA;
                 return (
-                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-lg">
-                    <div className="absolute inset-0 bg-red-500 rounded-lg flex items-center justify-end pr-4 overflow-hidden">
+                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-xl">
+                    <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
                     <div
-                      className="relative bg-zinc-950 border border-zinc-800 rounded-lg p-2 flex flex-col gap-2"
+                      className="relative bg-zinc-950 border border-zinc-800 rounded-xl pl-2.5 pr-2 py-2 flex items-center gap-2.5"
                       style={{ transform: `translateX(${swipeDx}px)`, transition: swipeDx === 0 ? 'transform 0.2s ease' : 'none' }}
                       onTouchStart={e => onSwipeStart(en.id, e.touches[0].clientX)}
                       onTouchMove={e => onSwipeMove(en.id, e.touches[0].clientX)}
                       onTouchEnd={() => onSwipeEnd(meal, en.id)}
                     >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <BuscadorAlimento
-                      valor={en.foodKey}
-                      alimentos={todosLosAlimentos}
-                      onElegir={key => {
-                        const f = buscarFood(key);
-                        const d = unidadPorDefecto(f);
-                        updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
-                      }}
-                      onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
-                      autoFocus={enfocar === en.id && !en.foodKey}
-                    />
-                    <div className="flex gap-2 items-center">
-                      <input type="number" inputMode="decimal" value={currentQty}
-                        onChange={e => updateEntry(meal, en.id, { qty: e.target.value, unit: currentUnit, grams: undefined })}
-                        className={inputCls + ' py-2 w-20 shrink-0'} placeholder="Cant." />
-                      <select value={currentUnit}
-                        onChange={e => updateEntry(meal, en.id, { unit: e.target.value, qty: currentQty || 1, grams: undefined })}
-                        className={inputCls + ' py-2 flex-1 sm:w-32 min-w-0'}>
-                        {units.map(u => <option key={u[0]} value={u[0]}>{u[0]}</option>)}
-                      </select>
-                      <button onClick={() => removeEntry(meal, en.id)}
-                        className="sm:hidden text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={18} /></button>
-                    </div>
-                    <div className="text-xs jb-body sm:flex-[2] sm:text-center">
-                      <span className="text-zinc-400">
-                        {Math.round(m.kcal)} kcal · P {m.protein.toFixed(0)} · C {m.carbs.toFixed(0)} · G {m.fat.toFixed(0)}
-                      </span>
-                      {food && entryGrams(en) >= MAX_GRAMOS_ENTRADA && (
-                        <span className="text-amber-400 block text-[10px]">Cantidad muy alta, revísala</span>
-                      )}
-                    </div>
-                    {food && grupoDeSustitucion(food) && (
-                      <button onClick={() => setSustituyendo(v => v === en.id ? null : en.id)}
-                        className={`hidden sm:flex items-center gap-1 text-xs shrink-0 px-2 py-1 rounded-lg transition-colors ${sustituyendo === en.id ? 'bg-violet-500 text-zinc-950' : 'text-violet-400 hover:bg-violet-500/10'}`}>
-                        🔄 Cambiar
+                      <button type="button" onClick={() => setEditando({ meal, id: en.id })}
+                        className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
+                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+                        <span className="min-w-0">
+                          <span className="block jb-body text-sm text-zinc-100 leading-snug line-clamp-2 break-words">{nombreAlimento(food)}</span>
+                          <span className="block jb-body text-[11px] text-orange-400 font-semibold tabular-nums">{Math.round(m.kcal)} kcal</span>
+                          {muyAlta && <span className="block text-amber-400 text-[10px]">Cantidad muy alta, revísala</span>}
+                        </span>
                       </button>
-                    )}
-                    <button onClick={() => removeEntry(meal, en.id)}
-                      className="hidden sm:flex text-zinc-600 hover:text-red-400 justify-center shrink-0"><Trash2 size={15} /></button>
-                  </div>
-
-                  {food && grupoDeSustitucion(food) && (
-                    <button onClick={() => setSustituyendo(v => v === en.id ? null : en.id)}
-                      className="sm:hidden flex items-center gap-1 text-xs w-fit px-2 py-1 rounded-lg text-violet-400">
-                      🔄 Cambiar por otro alimento equivalente
-                    </button>
-                  )}
-
-                  {sustituyendo === en.id && food && (() => {
-                    const bucket = grupoDeSustitucion(food);
-                    const macro = bucket.macro;
-                    const valorObjetivo = m[macro];
-                    const gramosOriginal = entryGrams(en);
-                    return (
-                    <div className="bg-zinc-900 border border-violet-500/30 rounded-lg p-3">
-                      <p className="jb-body text-[11px] text-zinc-500 mb-2">
-                        Elige un reemplazo — la cantidad se ajusta sola para mantener la misma {MACRO_LABEL[macro]} ({valorObjetivo.toFixed(0)}g)
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {opcionesOrdenadasPorPreferencia(food, username, mealPlan.restricciones || []).map(opt => {
-                          const eq = sustitucionEquivalente(valorObjetivo, opt, macro);
-                          const explicacion = explicarSustituto(food, gramosOriginal, opt, eq, macro);
-                          return (
-                            <button key={opt.key}
-                              onClick={() => {
-                                updateEntry(meal, en.id, { foodKey: opt.key, unit: eq.unit, qty: eq.qty, grams: undefined });
-                                setSustituyendo(null);
-                                vibrar(20);
-                                registrarPreferenciaSustituto(username, food.name, opt.name);
-                                showToast(`🔄 Cambiado a ${opt.name} · ${eq.qty} ${eq.unit} para igualar tu ${MACRO_LABEL[macro]}`);
-                              }}
-                              className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-violet-500/50'}`}>
-                              <span className="text-zinc-200">
-                                {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
-                                {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
-                              </span>
-                              <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
-                            </button>
-                          );
-                        })}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, -1), grams: undefined })}>−</BotonPaso>
+                        <button type="button" onClick={() => setEditando({ meal, id: en.id })}
+                          className="jb-body text-[11px] text-zinc-200 text-center w-[58px] leading-tight tabular-nums">
+                          {textoPorcion(porcion)}
+                        </button>
+                        <BotonPaso etiqueta={`Más ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1), grams: undefined })}>+</BotonPaso>
                       </div>
                     </div>
-                    );
-                  })()}
-                  </div>
                   </div>
                 );
               })}
@@ -12748,64 +12981,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-        <button onClick={() => setObjetivoAbierto(v => !v)} className="w-full flex items-center justify-between gap-3 text-left">
-          <div className="min-w-0">
-            <h2 className="jb-display text-base text-zinc-200 mb-1 flex items-center gap-1.5">
-              OBJETIVO DIARIO
-              {goalMismatch && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" title="No coincide con tu objetivo" />}
-            </h2>
-            {targets ? (
-              <p className="jb-body text-xs text-zinc-500 truncate">
-                <span className="text-orange-500 font-semibold">{targets.goal}</span> · {Math.round(targets.kcal)} kcal · P {Math.round(targets.protein)}g · C {Math.round(targets.carbs)}g · G {Math.round(targets.fat)}g
-              </p>
-            ) : (
-              <p className="jb-body text-xs text-zinc-500">Elige tu objetivo en "Mi cuerpo" para calcular estos valores automáticamente.</p>
-            )}
-          </div>
-          <ChevronRight className={`text-zinc-500 shrink-0 transition-transform ${objetivoAbierto ? 'rotate-90' : ''}`} size={18} />
-        </button>
-        {objetivoAbierto && (
-          <div className="mt-4">
-            {goalMismatch && (
-              <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
-                <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-                <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
-              </div>
-            )}
-            <div className="grid sm:grid-cols-5 gap-3 items-end">
-              <Field label="Calorías objetivo (kcal)">
-                <input type="number" className={inputCls} value={mealPlan.targetKcal}
-                  onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0 }))} />
-              </Field>
-              <Field label="% Proteína">
-                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
-                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 } }))} />
-              </Field>
-              <Field label="% Carbohidratos">
-                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
-                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 } }))} />
-              </Field>
-              <Field label="% Grasas">
-                <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
-                  onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
-              </Field>
-              {targets ? (
-                <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
-                  <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
-                </button>
-              ) : tdee ? (
-                <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
-                  <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
-                </button>
-              ) : null}
-            </div>
-            {Math.abs(macroSum - 1) > 0.001 && (
-              <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
-            )}
-          </div>
-        )}
-      </div>
+      {goalMismatch && (
+        <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-3">
+          <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+          <p className="text-amber-200 text-xs jb-body flex-1">Tu meta de comidas ({Math.round(mealPlan.targetKcal)} kcal) no coincide con tu objetivo ({Math.round(targets.kcal)} kcal).</p>
+          <button onClick={applyGoal} className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>Usar mi objetivo</button>
+        </div>
+      )}
 
       <RestriccionesCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
 
@@ -13252,7 +13434,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           </>
         )}
         {(tab === 'calc' || tab === 'goal') && (
-          <CuerpoTab form={form} setForm={setForm} results={results} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
+          <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
         {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} />}
         {(tab === 'progress' || tab === 'photos') && (

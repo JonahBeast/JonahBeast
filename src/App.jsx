@@ -1442,7 +1442,7 @@ function ModoVoz({ onElegirVarios }) {
           </>
         )}
         <button onClick={escuchar} disabled={escuchando}
-          className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-violet-600 via-orange-500 to-orange-400 hover:scale-105'}`}
+          className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-orange-600 via-orange-500 to-orange-400 hover:scale-105'}`}
           style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(249,115,22,0.45)' }}>
           <Mic size={30} className="text-white" strokeWidth={2.2} />
         </button>
@@ -1455,14 +1455,14 @@ function ModoVoz({ onElegirVarios }) {
         <div className="w-full flex flex-col gap-2 mt-1">
           {items.map((it, i) => (
             it.necesitaAclarar ? (
-              <div key={i} className="w-full bg-violet-950/30 border border-violet-500/40 rounded-lg p-2.5">
-                <p className="jb-body text-[11px] text-violet-300 mb-2">
+              <div key={i} className="w-full bg-orange-950/30 border border-orange-500/40 rounded-lg p-2.5">
+                <p className="jb-body text-[11px] text-orange-300 mb-2">
                   🤔 Dijiste "{it.textoOriginal}" — ¿cuál de estas es?
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {it.opciones.map((op, j) => (
                     <button key={j} onClick={() => elegirOpcion(i, op)}
-                      className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-violet-500/60 rounded-full px-2.5 py-1 text-zinc-200">
+                      className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
                       {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
@@ -1479,7 +1479,7 @@ function ModoVoz({ onElegirVarios }) {
             )
           ))}
           {items.some(it => it.necesitaAclarar) ? (
-            <p className="jb-body text-[11px] text-violet-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
+            <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
           ) : (
             <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
               Agregar {items.filter(it => it.activo).length} alimento(s)
@@ -12432,6 +12432,17 @@ function comidaDeAhora(d = new Date()) {
   return 'Cena';
 }
 
+// "?registrar=Almuerzo" (o "ahora") en el link de un aviso: a qué comida
+// llevar al alumno. Devuelve null si el link no pide registrar nada.
+function leerRegistrarDeUrl(url) {
+  try {
+    const valor = new URL(url, window.location.origin).searchParams.get('registrar');
+    if (!valor) return null;
+    if (valor === 'ahora') return comidaDeAhora();
+    return MEAL_NAMES.includes(valor) ? valor : null;
+  } catch { return null; }
+}
+
 const ESTILOS_COMIDAS = `
 @keyframes jbm-pulso { 0% { filter: drop-shadow(0 0 0 rgba(255,112,32,0)); } 35% { filter: drop-shadow(0 0 12px rgba(255,112,32,.9)); } 100% { filter: drop-shadow(0 0 3px rgba(255,112,32,.35)); } }
 @keyframes jbm-subir { from { transform: translateY(100%); } to { transform: none; } }
@@ -12868,7 +12879,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
     }
     conteosPrevios.current = conteos;
   }, [mealPlan]);
-  const [hojaMeal, setHojaMeal] = useState(hojaInicial); // comida elegida en la hoja "Registrar" (null = cerrada)
+  const [hojaMeal, setHojaMeal] = useState(hojaInicial?.meal || null); // comida elegida en la hoja "Registrar" (null = cerrada)
+  // Pedido de registrar que llega estando ya en Comidas (ej. desde un aviso).
+  useEffect(() => { if (hojaInicial?.meal) setHojaMeal(hojaInicial.meal); }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const mealAhora = comidaDeAhora();
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
@@ -13434,7 +13447,35 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
 
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
-  const [registrarAl, setRegistrarAl] = useState(null); // comida a registrar al pasar de Inicio a Comidas
+  const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
+  function irARegistrar(meal) {
+    setRegistrarAl({ meal, id: Date.now() });
+    setTab('meal');
+    window.scrollTo({ top: 0 });
+  }
+
+  // Si la app se abrió desde un aviso ("No olvides registrar tu almuerzo"),
+  // va directo al registro de esa comida. También si ya estaba abierta y
+  // el aviso llega por el service worker.
+  useEffect(() => {
+    const deUrl = leerRegistrarDeUrl(window.location.href);
+    if (deUrl) {
+      irARegistrar(deUrl);
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('registrar');
+        window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+      } catch {}
+    }
+    if (!('serviceWorker' in navigator)) return undefined;
+    const alMensaje = (e) => {
+      if (e.data?.tipo !== 'abrir-url') return;
+      const meal = leerRegistrarDeUrl(e.data.url || '/');
+      if (meal) irARegistrar(meal);
+    };
+    navigator.serviceWorker.addEventListener('message', alMensaje);
+    return () => navigator.serviceWorker.removeEventListener('message', alMensaje);
+  }, []);
   const [verGuia, setVerGuia] = useState(false);
   const [tieneFotos, setTieneFotos] = useState(false);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
@@ -13582,7 +13623,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={setTab} onVerGuia={() => setVerGuia(true)} />
             <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
-              onRegistrar={ml => { setRegistrarAl(ml); setTab('meal'); window.scrollTo({ top: 0 }); }} />
+              onRegistrar={irARegistrar} />
             <ResumenSemanalCard username={username} />
             <RachaCard username={username} />
             <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />

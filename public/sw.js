@@ -78,6 +78,9 @@ self.addEventListener('notificationclick', (e) => {
     for (const v of ventanas) {
       if (v.url.includes(self.location.origin)) {
         await v.focus();
+        // La app ya estaba abierta: se le avisa a dónde llevar al alumno
+        // (ej. registrar el almuerzo), sin recargarla.
+        v.postMessage({ tipo: 'abrir-url', url: destino });
         return;
       }
     }

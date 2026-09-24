@@ -119,7 +119,9 @@ async function enviarLote(supabase, targets) {
   const webpush = (await import('web-push')).default;
   const tareas = [];
   for (const { username, mensaje } of targets) {
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: '/' });
+    // url: al tocar el aviso, la app se abre directo en el registro de esa
+    // comida (ver leerRegistrarDeUrl en src/App.jsx).
+    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: mensaje.url || '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
@@ -219,7 +221,7 @@ export default async function handler(req, res) {
           const items = esHoy ? (fila.meal_plan?.meals?.[comida] || []) : [];
           if (!items.length) pendientes.push(NOMBRE_COMIDA[comida]);
         }
-        if (pendientes.length) targets.push({ username: u, mensaje: mensajeAnimo(pendientes) });
+        if (pendientes.length) targets.push({ username: u, mensaje: { ...mensajeAnimo(pendientes), url: '/?registrar=ahora' } });
       }
       const r = await enviarLote(supabase, targets);
       return res.status(200).json({ ok: true, ...r, tipo: 'animo', horaPeru, alumnosConAnimo: targets.length });
@@ -250,7 +252,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'todos ya registraron esa comida' });
     }
 
-    const targets = pendientes.map(u => ({ username: u, mensaje: mensajeJonah(comida, objetivoDe[u], horaPeru) }));
+    const urlComida = `/?registrar=${encodeURIComponent(comida)}`;
+    const targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url: urlComida } }));
     const r = await enviarLote(supabase, targets);
     return res.status(200).json({ ok: true, ...r, comida, pendientes: pendientes.length });
   } catch (e) {

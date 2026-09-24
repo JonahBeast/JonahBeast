@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       const r = await enviarPushA(supabase, users, {
         title: 'Jonah 🦍',
         body: `Llevas ${dias} día(s) seguidos registrando tus comidas. No la rompas hoy — solo toma un minuto.`,
+        url: '/?registrar=ahora',
       });
       totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
     }
@@ -70,7 +71,7 @@ export default async function handler(req, res) {
       // corta de tiempo con muchos alumnos.
       const resultados = await Promise.all(sinRegistro.map(u => {
         const body = variantes[Math.floor(Math.random() * variantes.length)];
-        return enviarPushA(supabase, [u], { title: 'Jonah 🦍', body });
+        return enviarPushA(supabase, [u], { title: 'Jonah 🦍', body, url: '/?registrar=ahora' });
       }));
       resultados.forEach(r => { totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos); });
     }

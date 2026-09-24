@@ -6446,6 +6446,99 @@ const AVISOS_MIC = {
   'sin-soporte': 'Este navegador no reconoce voz. Prueba en Google Chrome o Safari, o escríbeme.',
 };
 
+// Estilo "J.A.R.V.I.S." de Iron Man: un reactor de anillos que giran,
+// en cian holográfico. Cambia según lo que Jarvis está haciendo:
+// reposo (gira lento), escuchando (rojo, más rápido), pensando (ámbar,
+// arcos que corren) y hablando (el núcleo late).
+const ESTILOS_JARVIS = `
+@keyframes jv-giro { to { transform: rotate(360deg); } }
+@keyframes jv-giro-inv { to { transform: rotate(-360deg); } }
+@keyframes jv-late { 0%,100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.12); opacity: 1; } }
+@keyframes jv-aura { 0%,100% { opacity: .35; } 50% { opacity: .75; } }
+@keyframes jv-barrido { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+@keyframes jv-aparece { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+.jv-rot { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .jv-rot, .jv-anim { animation: none !important; } }
+`;
+
+const COLOR_ESTADO_JARVIS = { reposo: '#4dd9ff', escuchando: '#ff5c5c', pensando: '#ffb020', hablando: '#7ff0ff' };
+const TEXTO_ESTADO_JARVIS = { reposo: 'EN LÍNEA', escuchando: 'ESCUCHANDO', pensando: 'PROCESANDO', hablando: 'RESPONDIENDO' };
+
+function ReactorJarvis({ estado = 'reposo', tam = 120 }) {
+  const c = COLOR_ESTADO_JARVIS[estado] || COLOR_ESTADO_JARVIS.reposo;
+  const rapido = estado === 'pensando' ? 0.35 : estado === 'escuchando' ? 0.6 : 1;
+  const marcas = Array.from({ length: 60 });
+  const segmentos = Array.from({ length: 10 });
+  return (
+    <svg width={tam} height={tam} viewBox="0 0 200 200" aria-hidden="true" style={{ overflow: 'visible' }}>
+      <defs>
+        <radialGradient id={`jv-nucleo-${estado}`} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="35%" stopColor={c} />
+          <stop offset="100%" stopColor={c} stopOpacity="0" />
+        </radialGradient>
+        <filter id="jv-brillo" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {/* aura */}
+      <circle cx="100" cy="100" r="96" fill={c} opacity=".08" className="jv-anim" style={{ animation: 'jv-aura 3s ease-in-out infinite' }} />
+      <g filter="url(#jv-brillo)" stroke={c} fill="none">
+        {/* anillo exterior con marcas */}
+        <g className="jv-rot" style={{ animation: `jv-giro ${40 * rapido}s linear infinite` }}>
+          <circle cx="100" cy="100" r="92" strokeWidth="1" opacity=".5" />
+          {marcas.map((_, i) => (
+            <line key={i} x1="100" y1="8" x2="100" y2={i % 5 === 0 ? 18 : 13} strokeWidth={i % 5 === 0 ? 2 : 1}
+              opacity={i % 5 === 0 ? .9 : .45} transform={`rotate(${i * 6} 100 100)`} />
+          ))}
+        </g>
+        {/* anillo punteado que gira al revés */}
+        <g className="jv-rot" style={{ animation: `jv-giro-inv ${18 * rapido}s linear infinite` }}>
+          <circle cx="100" cy="100" r="76" strokeWidth="3" strokeDasharray="4 10" opacity=".8" />
+        </g>
+        {/* arcos que corren (más visibles al pensar) */}
+        <g className="jv-rot" style={{ animation: `jv-giro ${(estado === 'pensando' ? 1.6 : 9)}s linear infinite` }}>
+          <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="60 342" strokeLinecap="round" opacity=".95" />
+          <circle cx="100" cy="100" r="64" strokeWidth="4" strokeDasharray="30 372" strokeDashoffset="-200" strokeLinecap="round" opacity=".6" />
+        </g>
+        {/* segmentos del reactor */}
+        <g className="jv-rot" style={{ animation: `jv-giro-inv ${30 * rapido}s linear infinite` }}>
+          {segmentos.map((_, i) => (
+            <path key={i} d="M100 50 L106 50 L104 62 L96 62 L94 50 Z" fill={c} fillOpacity=".25" strokeWidth="1.2"
+              transform={`rotate(${i * 36} 100 100)`} />
+          ))}
+        </g>
+        <circle cx="100" cy="100" r="34" strokeWidth="2" opacity=".9" />
+      </g>
+      {/* núcleo */}
+      <g className="jv-rot jv-anim" style={{ animation: `jv-late ${estado === 'hablando' ? 0.5 : estado === 'escuchando' ? 1 : 2.4}s ease-in-out infinite` }}>
+        <circle cx="100" cy="100" r="30" fill={`url(#jv-nucleo-${estado})`} />
+        <circle cx="100" cy="100" r="12" fill="#ffffff" opacity=".9" />
+      </g>
+    </svg>
+  );
+}
+
+// Botón flotante para abrir a Jarvis desde cualquier pestaña del panel.
+function BotonJarvis({ onClick }) {
+  return (
+    <button onClick={onClick} aria-label="Abrir a Jarvis"
+      className="fixed z-40 flex flex-col items-center gap-1 group"
+      style={{ right: 'max(1rem, env(safe-area-inset-right))', bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+      <style>{ESTILOS_JARVIS}</style>
+      <span className="rounded-full transition-transform duration-300 group-hover:scale-110 group-active:scale-95"
+        style={{ background: 'radial-gradient(circle, rgba(10,22,32,0.95) 55%, rgba(10,22,32,0) 72%)', filter: 'drop-shadow(0 0 14px rgba(77,217,255,0.55))' }}>
+        <ReactorJarvis estado="reposo" tam={72} />
+      </span>
+      <span className="text-[10px] tracking-[0.3em] px-2 py-0.5 rounded"
+        style={{ fontFamily: 'monospace', color: '#4dd9ff', background: 'rgba(10,22,32,0.85)', border: '1px solid #1c6b85', textShadow: '0 0 6px #4dd9ff' }}>
+        JARVIS
+      </span>
+    </button>
+  );
+}
+
 function JarvisPanel({ onClose }) {
   const [turnos, setTurnos] = useState([
     { role: 'assistant', content: 'A la orden. Tengo acceso a los datos en vivo de Jonah Beast Fuel. Pregúntame lo que necesites.' },
@@ -6455,6 +6548,7 @@ function JarvisPanel({ onClose }) {
   const [vozOn, setVozOn] = useState(true);
   const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
+  const [hablando, setHablando] = useState(false);
   const logRef = useRef(null);
   const recogRef = useRef(null);
   const modoContinuoRef = useRef(false);
@@ -6511,8 +6605,9 @@ function JarvisPanel({ onClose }) {
       const u = new SpeechSynthesisUtterance('Hola Jonah Beast, así sonaré cuando te responda.');
       if (voz) { u.voice = voz; u.lang = voz.lang; } else u.lang = 'es-PE';
       u.pitch = 0.55; u.rate = 0.94;
-      u.onend = () => reanudarMicSiCorresponde();
-      u.onerror = () => reanudarMicSiCorresponde();
+      u.onstart = () => setHablando(true);
+      u.onend = () => { setHablando(false); reanudarMicSiCorresponde(); };
+      u.onerror = () => { setHablando(false); reanudarMicSiCorresponde(); };
       window.speechSynthesis.speak(u);
     } catch (e) { reanudarMicSiCorresponde(); }
   }
@@ -6547,8 +6642,9 @@ function JarvisPanel({ onClose }) {
       if (vozElegidaRef.current) { u.voice = vozElegidaRef.current; u.lang = vozElegidaRef.current.lang; }
       else u.lang = 'es-PE';
       u.pitch = 0.55; u.rate = 0.94;
-      u.onend = () => reanudarMicSiCorresponde();
-      u.onerror = () => reanudarMicSiCorresponde();
+      u.onstart = () => setHablando(true);
+      u.onend = () => { setHablando(false); reanudarMicSiCorresponde(); };
+      u.onerror = () => { setHablando(false); reanudarMicSiCorresponde(); };
       // iOS a veces "pierde" la voz si speak() llega inmediatamente
       // después de cancel() -- un respiro corto lo hace confiable ahí
       // sin que se note la demora en otros navegadores.
@@ -6690,13 +6786,31 @@ function JarvisPanel({ onClose }) {
     else { pausarMic(); setEscuchando(false); }
   }
 
+  const estadoJarvis = pensando ? 'pensando' : hablando ? 'hablando' : escuchando ? 'escuchando' : 'reposo';
+  const colorEstado = COLOR_ESTADO_JARVIS[estadoJarvis];
+  const esquina = (pos) => (
+    <span className="absolute w-5 h-5 pointer-events-none" style={{
+      ...pos, borderColor: '#4dd9ff', borderStyle: 'solid', opacity: 0.8,
+      borderWidth: `${pos.top !== undefined ? 2 : 0}px ${pos.right !== undefined ? 2 : 0}px ${pos.bottom !== undefined ? 2 : 0}px ${pos.left !== undefined ? 2 : 0}px`,
+    }} />
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ background: 'rgba(0,0,0,0.85)' }}>
-      <div className="w-full max-w-lg rounded-lg overflow-hidden flex flex-col" style={{ background: '#0a1620', border: '1px solid #163244', maxHeight: '88vh' }}>
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ background: 'radial-gradient(circle at 50% 30%, rgba(10,40,60,0.92), rgba(0,0,0,0.94))' }}>
+      <style>{ESTILOS_JARVIS}</style>
+      <div className="relative w-full max-w-lg rounded-lg overflow-hidden flex flex-col"
+        style={{ background: 'linear-gradient(180deg, rgba(10,22,32,0.97), rgba(5,12,18,0.97))', border: '1px solid #1c6b85', boxShadow: '0 0 40px rgba(77,217,255,0.18), inset 0 0 60px rgba(77,217,255,0.05)', maxHeight: '92vh', animation: 'jv-aparece .35s ease-out' }}>
+        {/* cuadrícula y barrido de escáner */}
+        <div className="absolute inset-0 pointer-events-none opacity-40" style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px)'
+        }} />
+        <div className="absolute inset-x-0 h-24 pointer-events-none jv-anim" style={{ top: 0, background: 'linear-gradient(180deg, transparent, rgba(77,217,255,0.07), transparent)', animation: 'jv-barrido 5s linear infinite' }} />
+        {esquina({ top: 6, left: 6 })}{esquina({ top: 6, right: 6 })}{esquina({ bottom: 6, left: 6 })}{esquina({ bottom: 6, right: 6 })}
+
+        <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full" style={{ background: '#4dd9ff', boxShadow: '0 0 8px #4dd9ff' }} />
-            <span className="jb-body text-xs tracking-wide" style={{ color: '#dff2ff', fontFamily: 'monospace' }}>J.JARVIS</span>
+            <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
+            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setVozOn(v => !v)} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
@@ -6706,8 +6820,18 @@ function JarvisPanel({ onClose }) {
           </div>
         </div>
 
+        <div className="relative flex flex-col items-center pt-4 pb-2">
+          <ReactorJarvis estado={estadoJarvis} tam={128} />
+          <div className="mt-2 text-[11px] tracking-[0.3em]" style={{ fontFamily: 'monospace', color: colorEstado, textShadow: `0 0 8px ${colorEstado}` }}>
+            {TEXTO_ESTADO_JARVIS[estadoJarvis]}
+          </div>
+          <div className="text-[9px] tracking-[0.25em] mt-0.5" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>
+            JONAH BEAST FUEL · DATOS EN VIVO
+          </div>
+        </div>
+
         {'speechSynthesis' in window && (
-          <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244' }}>
+          <div className="relative flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244', borderTop: '1px solid #163244' }}>
             <label htmlFor="jarvis-voz" className="text-[10px] shrink-0" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>VOZ</label>
             {vocesEs.length ? (
               <select id="jarvis-voz" value={vocesEs.some(v => v.voiceURI === vozGuardada) ? vozGuardada : ''}
@@ -6730,15 +6854,15 @@ function JarvisPanel({ onClose }) {
           </div>
         )}
 
-        <div ref={logRef} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 220 }}>
+        <div ref={logRef} className="relative flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 180 }}>
           {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
                 {m.role === 'user' ? 'TÚ' : 'JARVIS'}
               </div>
               {m.role === 'user'
-                ? <div className="px-3 py-2 rounded" style={{ background: '#0d1c28', border: '1px solid #163244' }}>{m.content}</div>
-                : <TextoJarvis texto={m.content + (m.escribiendo ? ' ▍' : '')} />}
+                ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
+                : <div className="pl-3 py-1" style={{ borderLeft: '2px solid #4dd9ff', boxShadow: '-6px 0 12px -8px #4dd9ff' }}><TextoJarvis texto={m.content + (m.escribiendo ? ' ▍' : '')} /></div>}
               {(m.acciones || []).map((a, j) => (
                 <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
                   <div className="text-xs">
@@ -6771,10 +6895,10 @@ function JarvisPanel({ onClose }) {
           )}
         </div>
 
-        <div className="px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
+        <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
           {modoContinuo ? (escuchando ? 'Escuchando… habla cuando quieras' : 'Modo continuo activo') : 'Toca el micrófono para activar el modo continuo'}
         </div>
-        <div className="flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
+        <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
           <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
             style={{ border: '1px solid ' + (modoContinuo ? '#ff5c5c' : '#163244'), color: modoContinuo ? '#ff5c5c' : '#6f92a8' }}>
             🎤
@@ -6837,15 +6961,13 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <button onClick={() => setMostrarJarvis(true)} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'} style={{ borderColor: '#1c6b85', color: '#4dd9ff' }}>
-            🔷 <span className="hidden sm:inline">Jarvis</span>
-          </button>
           <AdminNotifButton />
           <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
+      {!mostrarJarvis && <BotonJarvis onClick={() => setMostrarJarvis(true)} />}
       {mostrarJarvis && <JarvisPanel onClose={() => setMostrarJarvis(false)} />}
-      <main className="relative max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <main className="relative max-w-4xl mx-auto px-6 pt-8 pb-32 flex flex-col gap-8">
         <div>
           <h1 className="jb-display text-2xl text-zinc-50 mb-1">PANEL DE ADMINISTRACIÓN</h1>
           <p className="text-zinc-500 text-sm">Gestiona usuarios, pagos y suscripciones.</p>

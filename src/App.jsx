@@ -3381,8 +3381,8 @@ function Landing({ onChoose }) {
 
         <div className="mb-4" style={step(180)}>
           <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' }}>
-            <span className="text-zinc-50">COME COMO PERUANO.</span><br />
-            <span className="text-orange-500">RESULTADOS DE BESTIA.</span>
+            <span className="text-zinc-50">SIGUE COMIENDO PERUANO.</span><br />
+            <span className="text-orange-500">ESTA VEZ, CON RESULTADOS.</span>
           </h2>
         </div>
 

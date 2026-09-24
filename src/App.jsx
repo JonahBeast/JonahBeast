@@ -4357,24 +4357,6 @@ async function verifyPassword(password, hashHex, saltHex) {
 
 const TRIAL_DAYS = 15;
 
-const TRIAL_JOURNEY = {
-  1: { titulo: 'Día 1 · Tu primera comida', texto: 'Tómale foto a lo que comes hoy y mira cómo la app lo calcula. Después ajusta tu meta con tus datos.', cta: null },
-  2: { titulo: 'Día 2 · ¿Cómo vas comiendo?', texto: 'Revisa tu plan de alimentación: mira cuántas calorías llevas frente a tu objetivo del día.', cta: null },
-  3: { titulo: 'Día 3 · Recomendaciones para ti', texto: 'Usa el botón "¿Qué puedo comer?" y descubre combinaciones que encajan con lo que te queda del día.', cta: null },
-  4: { titulo: 'Día 4 · Tus patrones', texto: 'Ya tienes varios días registrados. Entra a "Mi progreso" y observa cómo se comporta tu alimentación.', cta: null },
-  5: { titulo: 'Día 5 · Mira tu avance', texto: null, cta: null },
-  6: { titulo: 'Día 6 · Ya llevas una semana', texto: 'Registrar ya se te está haciendo hábito. Revisa tu racha 🔥 en el resumen del día.', cta: null },
-  7: { titulo: 'Día 7 · Prueba algo nuevo', texto: 'Toca el botón "🎲 Sorpresa del día" en "¿Qué puedo comer?" y descubre un combo distinto.', cta: null },
-  8: { titulo: 'Día 8 · Segunda semana', texto: 'Revisa tu reto de la semana en el resumen del día — completarlo suma a tu progreso.', cta: null },
-  9: { titulo: 'Día 9 · Ajusta a tu gusto', texto: '¿Hay algo que no comes? Márcalo en "Nunca me sugieras esto" dentro de tu plan de alimentación.', cta: null },
-  10: { titulo: 'Día 10 · A mitad de camino', texto: 'Ya llevas 10 días de información real sobre cómo comes. Sigue así.', cta: null },
-  11: { titulo: 'Día 11 · Resultados reales', texto: 'Entra a "Mi progreso" y mira cómo han evolucionado tus promedios esta semana.', cta: null },
-  12: { titulo: 'Día 12 · Cada vez más cerca', texto: 'Quedan pocos días de tu prueba gratis. Todo tu historial se queda contigo si continúas.', cta: null },
-  13: { titulo: 'Día 13 · Quedan 2 días', texto: 'Tu prueba gratis está por terminar. Piensa si quieres seguir construyendo tu progreso con nosotros.', cta: 'Ver planes' },
-  14: { titulo: 'Día 14 · Tu prueba termina mañana', texto: 'Todo lo que registraste se queda contigo si continúas. Conserva tu historial y sigue viendo tu progreso.', cta: 'Ver planes' },
-  15: { titulo: 'Día 15 · Último día de tu prueba', texto: 'Hoy termina tu acceso gratuito. Continúa y no pierdas nada de lo que has construido estos días.', cta: 'Continuar con Jonah Beast' },
-};
-
 function trialDayOf(u) {
   if (!u || u.plan !== 'trial' || !u.fechaInicio) return null;
   const [y, m, d] = u.fechaInicio.split('-').map(Number);
@@ -9218,56 +9200,204 @@ function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
   );
 }
 
-function TrialBanner({ user, onVerPlanes }) {
-  const dia = trialDayOf(user);
-  const [stats, setStats] = useState(null);
+/* Reto de la prueba gratis: 7 días registrados, cada uno con una misión.
+   Cuenta días con al menos una comida (no días del calendario), así quien
+   se saltó un día no queda "atrasado". El día 3 desbloquea el primer
+   resumen con sus propios números y el día 7 su semana completa: le da
+   al alumno algo que ganar cada vez que vuelve. */
+const RETO_DIAS = 7;
+const RETO_MISIONES = [
+  { titulo: 'Tu primera comida', texto: 'Tómale foto a tu plato o escríbelo. La app calcula todo.' },
+  { titulo: 'Vuelve mañana', texto: 'Registra otro día. Tip: intenta completar 3 comidas.' },
+  { titulo: 'Primer resumen', texto: 'Con 3 días registrados desbloqueas tu primer resumen.', premio: true },
+  { titulo: 'Cuida tu proteína', texto: 'Mira la barra de proteína y trata de llenarla hoy.' },
+  { titulo: 'Tu racha', texto: 'Registra un día más y la app ya reconoce tus patrones.' },
+  { titulo: 'Ya casi', texto: 'Un día más. Mañana desbloqueas tu semana completa.' },
+  { titulo: 'Tu semana completa', texto: 'Con 7 días registrados ves tu semana completa.', premio: true },
+];
+
+function totalesDePlan(mealPlan) {
+  const t = { kcal: 0, protein: 0, comidas: 0 };
+  Object.values(mealPlan?.meals || {}).forEach(entries => {
+    const con = (entries || []).filter(en => en.foodKey);
+    if (con.length) t.comidas += 1;
+    con.forEach(en => { const m = entryMacros(en); t.kcal += m.kcal; t.protein += m.protein; });
+  });
+  return t;
+}
+
+// Arma el resumen con los días registrados (sin texto de IA: son sus
+// propias cifras redactadas en simple).
+function resumenReto(dias, mealPlan) {
+  if (!dias.length) return null;
+  const n = dias.length;
+  const prom = k => dias.reduce((a, d) => a + d[k], 0) / n;
+  const kcal = Math.round(prom('kcal'));
+  const proteina = Math.round(prom('protein'));
+  const comidas = prom('comidas');
+  const metaKcal = Math.round(mealPlan?.targetKcal || 0);
+  const metaP = Math.round(((mealPlan?.targetKcal || 0) * (mealPlan?.macros?.p || 0)) / 4);
+  const enRango = metaKcal ? dias.filter(d => d.kcal >= metaKcal * 0.85 && d.kcal <= metaKcal * 1.15).length : 0;
+  let consejo;
+  if (comidas < 2.5) {
+    consejo = `En promedio registras ${comidas.toFixed(1).replace('.0', '')} comidas al día. Registra también desayuno y cena para que tus números sean reales.`;
+  } else if (metaP && proteina < metaP * 0.8) {
+    const falta = metaP - proteina;
+    const pechuga = buscarFood('Pollo pechuga (Cocida)');
+    const g = pechuga ? Math.max(50, Math.round((falta / pechuga.protein) * 100 / 10) * 10) : 0;
+    consejo = `Te faltan unos ${falta} g de proteína al día.` + (g
+      ? (g > 150 ? ` Suma unos ${g} g de pechuga de pollo al día, repartidos entre almuerzo y cena.` : ` Suma ${g} g de pechuga de pollo en tu almuerzo o cena.`)
+      : '');
+  } else if (metaKcal && kcal > metaKcal * 1.15) {
+    consejo = `Comes unas ${kcal - metaKcal} kcal más que tu meta. Empieza por reducir la porción de arroz o pan en una comida.`;
+  } else if (metaKcal && kcal < metaKcal * 0.85) {
+    consejo = `Comes unas ${metaKcal - kcal} kcal menos que tu meta. No te saltes comidas: una media mañana te ayuda a llegar.`;
+  } else {
+    consejo = 'Vas muy bien: tus calorías y tu proteína están cerca de tu meta. Mantén este ritmo.';
+  }
+  return { n, kcal, proteina, metaKcal, metaP, enRango, consejo };
+}
+
+function RetoPrueba({ user, mealPlan }) {
+  const username = user?.username;
+  const hoy = todayISO();
+  const [pasados, setPasados] = useState(null);
+  const [recienCumplido, setRecienCumplido] = useState(false);
 
   useEffect(() => {
-    if (dia && dia >= 5 && user) fetchTrialStats(user.username).then(setStats);
-  }, [dia, user?.username]);
+    if (!username) return;
+    (async () => {
+      try {
+        const desde = user.fechaInicio || addDaysISO(hoy, -TRIAL_DAYS);
+        const { data } = await supabase.from('historial')
+          .select('fecha, kcal_consumidas, proteina_g, comidas_count')
+          .eq('username', username).gte('fecha', desde).lt('fecha', hoy).gt('comidas_count', 0)
+          .order('fecha', { ascending: true });
+        setPasados((data || []).map(r => ({
+          fecha: r.fecha, kcal: Number(r.kcal_consumidas) || 0,
+          protein: Number(r.proteina_g) || 0, comidas: Number(r.comidas_count) || 0,
+        })));
+      } catch { setPasados([]); }
+    })();
+  }, [username]);
 
-  if (!dia) return null;
-  if (dia >= TRIAL_DAYS - 2) return <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />;
-  const j = TRIAL_JOURNEY[dia] || TRIAL_JOURNEY[TRIAL_DAYS] || { titulo: '', texto: '', cta: null };
-  const restantes = TRIAL_DAYS - dia;
-  const urgente = dia >= TRIAL_DAYS - 1;
+  const tHoy = totalesDePlan(mealPlan);
+  const hoyCuenta = tHoy.comidas > 0;
+  const dias = [...(pasados || []), ...(hoyCuenta ? [{ fecha: hoy, ...tHoy }] : [])];
+  const cumplidos = Math.min(RETO_DIAS, dias.length);
+  const completo = cumplidos >= RETO_DIAS;
+  const actual = Math.min(cumplidos, RETO_DIAS - 1); // misión en curso (índice)
+  const mision = RETO_MISIONES[actual];
 
-  let texto = j.texto;
-  if (dia === 5) {
-    texto = stats && stats.adherencia !== null
-      ? `Vas al ${stats.adherencia}% de adherencia a tu objetivo, con ${stats.comidas} comidas registradas. Sigue así y los resultados llegan solos.`
-      : 'Entra a "Mi progreso" y mira cuánto has avanzado en estos días.';
-  }
+  // Celebra cuando hoy se suma un día nuevo al reto.
+  useEffect(() => {
+    if (pasados === null || !username) return;
+    const clave = `jb-reto-${username}`;
+    let visto = 0;
+    try { visto = Number(localStorage.getItem(clave)) || 0; } catch {}
+    if (cumplidos > visto) {
+      if (visto > 0 || cumplidos === 1) { setRecienCumplido(true); vibrar([20, 40, 20]); }
+      try { localStorage.setItem(clave, String(cumplidos)); } catch {}
+    }
+  }, [cumplidos, pasados === null, username]);
+
+  if (pasados === null) return null;
+  const resumen = cumplidos >= 3 ? resumenReto(dias.slice(0, RETO_DIAS), mealPlan) : null;
 
   return (
-    <div className="mb-6">
-      <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden ${urgente ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
-        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${urgente ? 'bg-orange-500' : 'bg-zinc-700'}`} />
-        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${urgente ? 'bg-orange-500' : 'bg-zinc-700'}`}>
-              {urgente ? '🔥' : '📅'}
-            </div>
-            <span className={`jb-display text-sm ${urgente ? 'text-orange-400' : 'text-zinc-200'}`}>{j.titulo}</span>
-          </div>
-          <span className="jb-body text-xs text-zinc-500">
-            {restantes > 0 ? `${restantes} día(s) restantes` : 'Último día'}
-          </span>
+    <div className="relative bg-zinc-900 border border-orange-500/40 rounded-3xl p-5 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 40px -14px rgba(232,89,12,.4)' }}>
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(232,89,12,.16), transparent 70%)' }} />
+
+      <div className="relative flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Prueba gratis · Tu reto</p>
+          <h2 className="jb-display text-xl text-zinc-50 leading-tight">
+            {completo ? '¡RETO CUMPLIDO! 🏆' : `DÍA ${cumplidos + (hoyCuenta ? 0 : 1)} DE ${RETO_DIAS}`}
+          </h2>
         </div>
-        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-3">
-          <div className={`h-full rounded-full ${urgente ? 'bg-orange-500' : 'bg-emerald-500'}`}
-            style={{ width: `${(dia / TRIAL_DAYS) * 100}%` }} />
-        </div>
-        <p className="jb-body text-sm text-zinc-300">{texto}</p>
+        <span className="jb-body text-[11px] text-zinc-500 shrink-0 mt-1 tabular-nums">{cumplidos}/{RETO_DIAS} días</span>
       </div>
 
-      {urgente && stats && (
-        <div className="mt-3">
-          <TrialSummary stats={stats} nombre={user.nombre} onVerPlanes={onVerPlanes} />
+      <div className="relative flex justify-between mb-4" role="list" aria-label="Progreso del reto">
+        <div className="absolute left-4 right-4 top-4 h-0.5 bg-zinc-800" />
+        <div className="absolute left-4 top-4 h-0.5 bg-orange-500 transition-all duration-700"
+          style={{ width: `calc((100% - 2rem) * ${Math.max(0, cumplidos - 1) / (RETO_DIAS - 1)})` }} />
+        {RETO_MISIONES.map((m, i) => {
+          const hecho = i < cumplidos;
+          const ahora = i === cumplidos && !completo;
+          const nuevo = recienCumplido && i === cumplidos - 1;
+          return (
+            <div key={i} role="listitem" className="relative flex flex-col items-center w-8"
+              aria-label={`Día ${i + 1}: ${m.titulo}${hecho ? ' (cumplido)' : ''}`}>
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center jb-display text-xs border-2 ${hecho
+                ? 'bg-orange-500 border-orange-500 text-zinc-950' + (nuevo ? ' jbm-completa' : '')
+                : ahora ? 'bg-zinc-950 border-orange-500 text-orange-400 jbm-fab' : 'bg-zinc-950 border-zinc-700 text-zinc-500'}`}>
+                {hecho ? <span className={nuevo ? 'jbm-check inline-block' : ''}>✓</span> : m.premio ? '🎁' : i + 1}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {recienCumplido && cumplidos > 0 && !completo && (
+        <p className="relative jb-body text-xs text-orange-300 mb-2">🔥 ¡Día {cumplidos} cumplido! Vuelve mañana para el siguiente.</p>
+      )}
+
+      {!completo && (!hoyCuenta || cumplidos < 3) && (
+        <div className="relative bg-zinc-950/70 border border-zinc-800 rounded-2xl px-4 py-3 mb-1">
+          <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-0.5">
+            {hoyCuenta ? 'Mañana' : 'Misión de hoy'}
+          </p>
+          <p className="jb-display text-sm text-zinc-100">{mision.premio ? '🎁 ' : ''}{mision.titulo.toUpperCase()}</p>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">{mision.texto}</p>
+        </div>
+      )}
+
+      {resumen && (
+        <div className="relative bg-zinc-950/70 border border-orange-500/30 rounded-2xl p-4 mt-3">
+          <p className="jb-display text-sm text-orange-400 mb-3">
+            {completo ? '📊 TU SEMANA COMPLETA' : '📊 TU PRIMER RESUMEN'}
+            <span className="jb-body text-[11px] text-zinc-500 font-normal ml-2">({resumen.n} días)</span>
+          </p>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {[
+              [resumen.kcal, 'kcal al día', resumen.metaKcal ? `meta ${resumen.metaKcal}` : null],
+              [`${resumen.proteina} g`, 'proteína al día', resumen.metaP ? `meta ${resumen.metaP} g` : null],
+              [`${resumen.enRango}/${resumen.n}`, 'días en tu meta', null],
+            ].map(([v, t, sub]) => (
+              <div key={t} className="bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+                <p className="jb-display text-lg text-zinc-50 tabular-nums leading-none">{v}</p>
+                <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{t}</p>
+                {sub && <p className="jb-body text-[10px] text-zinc-600 leading-tight">{sub}</p>}
+              </div>
+            ))}
+          </div>
+          <p className="jb-body text-sm text-zinc-200"><span className="text-orange-400 font-semibold">Consejo:</span> {resumen.consejo}</p>
+          {completo && (
+            <p className="jb-body text-xs text-zinc-400 mt-2">
+              Esto es lo que la app ya sabe de ti. Mientras más registras, más precisas son tus recomendaciones.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+function TrialBanner({ user, onVerPlanes, mealPlan }) {
+  const dia = trialDayOf(user);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    if (dia && dia >= TRIAL_DAYS - 2 && user) fetchTrialStats(user.username).then(setStats);
+  }, [dia, user?.username]);
+
+  if (!dia) return null;
+  if (dia >= TRIAL_DAYS - 2) return <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />;
+  return <RetoPrueba user={user} mealPlan={mealPlan} />;
 }
 
 
@@ -14146,7 +14276,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           renewalElegible ? (
             <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
           ) : trialElegible ? (
-            <TrialBanner user={userRecord} onVerPlanes={() => setTab('planes')} />
+            <TrialBanner user={userRecord} mealPlan={mealPlan} onVerPlanes={() => setTab('planes')} />
           ) : (
             <>
               <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />

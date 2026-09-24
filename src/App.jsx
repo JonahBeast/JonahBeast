@@ -4442,7 +4442,16 @@ function ReferidosPanel({ users, onCambio }) {
   // de arriba pero no aparecen en ninguna tarjeta de abajo si no se detectan aquí.
   const codigosActivos = new Set(refs.map(r => r.codigo.toUpperCase()));
   const huerfanos = (users || []).filter(u => u.codigoReferido && !codigosActivos.has(u.codigoReferido.toUpperCase()));
-  const embajadoresActivos = refs.filter(r => r.activo).length;
+  // Los códigos de "Invita a un amigo" (tipo 'alumno') se muestran aparte:
+  // no son embajadores y no generan comisión en dinero.
+  const embajadores = refs.filter(r => r.tipo !== 'alumno');
+  const invitaciones = refs.filter(r => r.tipo === 'alumno')
+    .map(r => {
+      const lista = porCodigo[r.codigo.toUpperCase()] || [];
+      return { ...r, registrados: lista.length, pagaron: lista.filter(u => u.plan === 'pago').length };
+    })
+    .sort((a, b) => b.pagaron - a.pagaron || b.registrados - a.registrados);
+  const embajadoresActivos = embajadores.filter(r => r.activo).length;
 
   function waRef(r, monto, cantidad) {
     const num = (r.telefono || '').replace(/\D/g, '');
@@ -4548,11 +4557,11 @@ function ReferidosPanel({ users, onCambio }) {
 
             {loading ? (
               <Loader2 className="animate-spin text-orange-500" size={20} />
-            ) : refs.length === 0 ? (
+            ) : embajadores.length === 0 ? (
               <p className="text-zinc-500 text-sm">Aún no has creado códigos.</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {refs.map(r => {
+                {embajadores.map(r => {
                   const lista = porCodigo[r.codigo.toUpperCase()] || [];
                   const pagaron = lista.filter(u => u.plan === 'pago');
                   const porPagar = pagaron.filter(u => !u.comisionPagada && u.comisionMonto);
@@ -4703,6 +4712,25 @@ function ReferidosPanel({ users, onCambio }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <h3 className="jb-display text-sm text-zinc-300 mb-1">🎁 INVITACIONES DE ALUMNOS</h3>
+            <p className="jb-body text-[11px] text-zinc-500 mb-3">
+              Cada alumno puede invitar con su link. El amigo tiene 10% de descuento y, cuando paga su primer plan, quien invitó gana 15 días gratis (se aplican solos).
+            </p>
+            {invitaciones.length === 0 ? (
+              <p className="text-zinc-500 text-xs jb-body">Ningún alumno ha abierto su link de invitación todavía.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {invitaciones.map(r => (
+                  <div key={r.codigo} className="flex items-center justify-between gap-2 text-xs jb-body">
+                    <span className="text-zinc-200 truncate">{r.nombre} <span className="text-zinc-500">· {r.codigo}</span></span>
+                    <span className="text-zinc-400 shrink-0">{r.registrados} registrado(s) · <span className={r.pagaron ? 'text-emerald-400 font-semibold' : ''}>{r.pagaron} pagaron</span></span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -9953,6 +9981,59 @@ function BotonCompartir({ username, nombre, rows, stats }) {
   );
 }
 
+// "Invita a un amigo": el alumno comparte su link personal. El amigo
+// entra con 10% de descuento y, cuando paga su primer plan, el que lo
+// invitó recibe 15 días gratis (lo aplica la base de datos, ver la
+// migración invita_a_un_amigo). El código se crea la primera vez.
+function InvitaAmigoCard({ username }) {
+  const [datos, setDatos] = useState(null);
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    supabase.rpc('mi_codigo_invitacion').then(({ data, error }) => {
+      if (!cancelado && !error && data?.codigo) setDatos(data);
+    });
+    return () => { cancelado = true; };
+  }, [username]);
+
+  if (!datos) return null;
+  const link = `https://jonahbeast.com/?ref=${encodeURIComponent(datos.codigo)}&fuente=invitacion`;
+  const mensaje = `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu plan: ${link}`;
+
+  async function copiar() {
+    try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch {}
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5 min-w-0">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="text-3xl leading-none">🎁</div>
+        <div className="min-w-0">
+          <h2 className="jb-display text-base text-zinc-50">INVITA A UN AMIGO</h2>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">
+            Tu amigo prueba 15 días gratis y tiene <span className="text-orange-400 font-semibold">10% de descuento</span>. Cuando pague su plan, <span className="text-orange-400 font-semibold">tú ganas 15 días gratis</span>.
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <a href={`https://wa.me/?text=${encodeURIComponent(mensaje)}`} target="_blank" rel="noopener noreferrer"
+          className={btnPrimary + ' flex-1 min-w-[160px]'}>
+          <MessageCircle size={16} /> Invitar por WhatsApp
+        </a>
+        <button onClick={copiar} className={btnGhost + ' flex-1 min-w-[120px]'}>
+          {copiado ? '✓ Copiado' : 'Copiar mi link'}
+        </button>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 mt-3">
+        Tu código: <span className="text-zinc-300 font-semibold">{datos.codigo}</span>
+        {datos.registrados > 0 && ` · ${datos.registrados} amigo(s) registrado(s)`}
+        {datos.premiados > 0 && ` · ${datos.premiados * 15} días ganados 🎉`}
+      </p>
+    </div>
+  );
+}
+
 function ProgressTab({ username, form, nombre, vistaInicial }) {
   const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
   const [rows, setRows] = useState([]);
@@ -10096,6 +10177,8 @@ function ProgressTab({ username, form, nombre, vistaInicial }) {
       {analisis && <CoachCard analisis={analisis} />}
 
       <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
+
+      <InvitaAmigoCard username={username} />
 
       {stats && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
@@ -10675,6 +10758,8 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
   return (
     <div className="flex flex-col gap-6 min-w-0">
       <BeastScoreCard totalsHoy={totalsHoy} targets={targets} username={username} />
+
+      <InvitaAmigoCard username={username} />
 
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 flex gap-2">
         <span className="text-orange-500 shrink-0 text-sm">📅</span>

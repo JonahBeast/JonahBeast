@@ -2934,6 +2934,7 @@ const TESTIMONIOS = [
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
     dato: '37 kg perdidos en 4 años',
+    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 4 años',
     quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
   },
   {
@@ -2941,6 +2942,7 @@ const TESTIMONIOS = [
     antes: '/testimonios/andrea-antes.jpg',
     despues: '/testimonios/andrea-despues.jpg',
     dato: 'Cambios notables en 6 meses',
+    cifra: 6, prefijo: '', unidad: 'MESES', detalle: 'de cambio visible',
     quote: 'Apliqué un déficit calórico y logré cambios notables. Esta app va a ser un boom para quienes buscan cambios verdaderos.',
   },
   {
@@ -2948,9 +2950,206 @@ const TESTIMONIOS = [
     antes: '/testimonios/cesar-antes.jpg',
     despues: '/testimonios/cesar-despues.jpg',
     dato: 'Mejoró su composición corporal en 1 año',
+    cifra: 1, prefijo: '', unidad: 'AÑO', detalle: 'recomponiendo su cuerpo',
     quote: 'No bastaba con ir al gimnasio — el 70% de los resultados están en la comida. Aprendí a comer estratégicamente.',
   },
 ];
+
+// Estilos de la sección "Resultados reales": el rayo cae por la unión de las
+// dos fotos, la tarjeta tiembla, la foto de "después" se enciende y aparece
+// el sello con la cifra. Cada golpe se reinicia cambiando la "key".
+const ESTILOS_TESTIMONIOS = `
+@keyframes jbt-draw { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
+@keyframes jbt-bolt { 0% { opacity: 1; } 45% { opacity: 1; } 55% { opacity: .3; } 62% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes jbt-flash { 0%, 18% { opacity: 0; } 24% { opacity: .9; } 60%, 100% { opacity: 0; } }
+@keyframes jbt-shake {
+  0%, 20% { transform: translate(0, 0); }
+  24% { transform: translate(-5px, 3px) rotate(-.6deg); }
+  30% { transform: translate(5px, -3px) rotate(.6deg); }
+  36% { transform: translate(-3px, 2px); }
+  42% { transform: translate(2px, -1px); }
+  50%, 100% { transform: translate(0, 0); }
+}
+@keyframes jbt-encender {
+  0%, 22% { filter: grayscale(1) brightness(.3); transform: scale(1.12); }
+  30% { filter: grayscale(0) brightness(1.8); }
+  100% { filter: none; transform: scale(1); }
+}
+@keyframes jbt-sello {
+  0%, 35% { opacity: 0; transform: translateX(-50%) scale(2.4) rotate(-14deg); }
+  48% { opacity: 1; transform: translateX(-50%) scale(.9) rotate(-5deg); }
+  56%, 100% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-5deg); }
+}
+@keyframes jbt-chispa {
+  0%, 20% { opacity: 0; transform: translate(0, 0) scale(1); }
+  24% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); }
+}
+@keyframes jbt-costura { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes jbt-titulo { 0%, 100% { text-shadow: 0 0 10px rgba(232,89,12,.35); } 50% { text-shadow: 0 0 22px rgba(255,112,32,.8); } }
+.jbt-golpe { animation: jbt-shake .9s ease-out both; }
+.jbt-golpe .jbt-rayo { animation: jbt-bolt 1.1s ease-out both; }
+.jbt-golpe .jbt-rayo path { stroke-dasharray: 420; animation: jbt-draw .22s ease-in both; }
+.jbt-golpe .jbt-flash { animation: jbt-flash .9s ease-out both; }
+.jbt-golpe .jbt-despues { animation: jbt-encender 1.2s ease-out both; }
+.jbt-golpe .jbt-sello { animation: jbt-sello 1.4s cubic-bezier(.2,1.4,.4,1) both; }
+.jbt-golpe .jbt-chispa { animation: jbt-chispa .9s ease-out both; }
+.jbt-costura { animation: jbt-costura 1.6s ease-in-out infinite; }
+.jbt-titulo { animation: jbt-titulo 2.4s ease-in-out infinite; }
+.jbt-espera .jbt-despues { filter: grayscale(1) brightness(.3); }
+.jbt-espera .jbt-sello { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .jbt-golpe, .jbt-golpe *, .jbt-costura, .jbt-titulo { animation: none !important; }
+  .jbt-golpe .jbt-rayo, .jbt-golpe .jbt-flash, .jbt-golpe .jbt-chispa { opacity: 0; }
+}
+`;
+
+const CHISPAS_TESTIMONIO = [
+  [-38, -30], [34, -40], [-44, 10], [42, 16], [-20, 44], [24, 48], [-8, -52], [10, 34],
+];
+
+// Cuenta de 0 hasta la cifra cuando cae el rayo.
+function useCuentaTestimonio(meta, golpe) {
+  const [valor, setValor] = useState(meta);
+  useEffect(() => {
+    if (!golpe) return undefined;
+    const reducido = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reducido) { setValor(meta); return undefined; }
+    let raf;
+    const inicio = performance.now() + 450; // arranca cuando aparece el sello
+    const paso = (t) => {
+      const avance = Math.min(1, Math.max(0, (t - inicio) / 700));
+      setValor(Math.round(meta * (1 - Math.pow(1 - avance, 3))));
+      if (avance < 1) raf = requestAnimationFrame(paso);
+    };
+    setValor(0);
+    raf = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(raf);
+  }, [meta, golpe]);
+  return valor;
+}
+
+function TarjetaTestimonio({ t, raiz }) {
+  const ref = useRef(null);
+  const [golpe, setGolpe] = useState(0);
+  const cifra = useCuentaTestimonio(t.cifra, golpe);
+
+  // El rayo cae cada vez que la tarjeta entra a la vista.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setGolpe(1); return undefined; }
+    let visible = false;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !visible) setGolpe(g => g + 1);
+      visible = e.isIntersecting;
+    }, { root: raiz?.current || null, threshold: 0.7 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [raiz]);
+
+  return (
+    <div ref={ref} className="snap-center shrink-0 w-[82%] sm:w-[70%] text-left">
+      <button type="button" onClick={() => setGolpe(g => g + 1)} aria-label={`Ver otra vez la transformación de ${t.nombre}`}
+        className="block w-full rounded-2xl p-[2px] bg-gradient-to-b from-orange-500 via-orange-500/40 to-zinc-800 shadow-xl shadow-orange-500/20">
+        <div key={golpe} className={`relative rounded-[14px] overflow-hidden bg-zinc-950 ${golpe ? 'jbt-golpe' : 'jbt-espera'}`}>
+          <div className="relative grid grid-cols-2">
+            <div className="relative aspect-[3/4] overflow-hidden">
+              <img src={t.antes} alt={`${t.nombre} antes`} loading="lazy" className="w-full h-full object-cover object-top" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-transparent to-transparent" />
+              <span className="absolute top-2 left-2 jb-display text-[10px] tracking-wider px-2 py-0.5 rounded-full bg-zinc-950/80 text-zinc-300 border border-zinc-700">ANTES</span>
+            </div>
+            <div className="relative aspect-[3/4] overflow-hidden">
+              <img src={t.despues} alt={`${t.nombre} después`} loading="lazy" className="jbt-despues w-full h-full object-cover object-top" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-transparent to-transparent" />
+              <span className="absolute top-2 right-2 jb-display text-[10px] tracking-wider px-2 py-0.5 rounded-full bg-orange-500 text-zinc-950">DESPUÉS</span>
+            </div>
+
+            {/* Costura encendida entre las dos fotos */}
+            <div className="jbt-costura absolute inset-y-0 left-1/2 -translate-x-1/2 w-[3px] bg-orange-400 pointer-events-none"
+              style={{ boxShadow: '0 0 10px 2px rgba(255,112,32,.8), 0 0 24px 6px rgba(232,89,12,.45)' }} />
+
+            {/* Destello del impacto */}
+            <div className="jbt-flash absolute inset-0 bg-orange-50 pointer-events-none opacity-0" />
+
+            {/* El rayo */}
+            <svg className="jbt-rayo absolute inset-y-0 left-1/2 -translate-x-1/2 h-full pointer-events-none opacity-0" width="48" viewBox="0 0 48 200"
+              preserveAspectRatio="none" fill="none" style={{ filter: 'drop-shadow(0 0 4px #fff) drop-shadow(0 0 12px #FF7020) drop-shadow(0 0 26px #E8590C)' }}>
+              <path d="M26 0 L17 40 L31 66 L14 108 L32 134 L19 172 L25 200" stroke="#FF7020" strokeWidth="7" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              <path d="M26 0 L17 40 L31 66 L14 108 L32 134 L19 172 L25 200" stroke="#fff7ed" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              <path d="M31 66 L44 82 L40 96" stroke="#fde68a" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+              <path d="M14 108 L3 120 L6 134" stroke="#fde68a" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+            </svg>
+
+            {/* Chispas en el punto de impacto */}
+            <div className="absolute left-1/2 top-[55%] pointer-events-none">
+              {CHISPAS_TESTIMONIO.map(([dx, dy], i) => (
+                <span key={i} className="jbt-chispa absolute w-1.5 h-1.5 rounded-full bg-amber-200 opacity-0"
+                  style={{ '--dx': `${dx}px`, '--dy': `${dy}px`, boxShadow: '0 0 6px #FF7020' }} />
+              ))}
+            </div>
+
+            {/* Sello con la cifra */}
+            <div className="jbt-sello absolute bottom-3 left-1/2 pointer-events-none" style={{ transform: 'translateX(-50%) rotate(-5deg)' }}>
+              <div className="bg-orange-500 text-zinc-950 rounded-lg px-3 py-1.5 text-center border-2 border-zinc-950 shadow-lg shadow-orange-500/40 whitespace-nowrap">
+                <p className="jb-display text-2xl leading-none tabular-nums">{t.prefijo}{cifra} {t.unidad}</p>
+                <p className="jb-body text-[10px] font-semibold leading-tight mt-0.5">{t.detalle}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </button>
+      <div className="px-1 pt-3">
+        <p className="jb-display text-lg text-zinc-100 leading-none">{t.nombre}</p>
+        <p className="jb-body text-xs text-orange-400 font-semibold mt-1 mb-1.5">{t.dato}</p>
+        <p className="jb-body text-sm text-zinc-400 leading-snug border-l-2 border-orange-500/60 pl-2.5">"{t.quote}"</p>
+      </div>
+    </div>
+  );
+}
+
+function ResultadosReales() {
+  const carrilRef = useRef(null);
+  const [activo, setActivo] = useState(0);
+
+  const alDeslizar = () => {
+    const el = carrilRef.current;
+    if (!el) return;
+    const tarjetas = Array.from(el.children);
+    const centro = el.scrollLeft + el.clientWidth / 2;
+    let mejor = 0, dist = Infinity;
+    tarjetas.forEach((c, i) => {
+      const d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - centro);
+      if (d < dist) { dist = d; mejor = i; }
+    });
+    setActivo(mejor);
+  };
+
+  const irA = (i) => {
+    const el = carrilRef.current;
+    const c = el?.children[i];
+    if (!c) return;
+    el.scrollTo({ left: c.offsetLeft - (el.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' });
+  };
+
+  return (
+    <div>
+      <style>{ESTILOS_TESTIMONIOS}</style>
+      <p className="jb-body text-[11px] text-orange-400 font-semibold tracking-[0.25em] mb-1">⚡ TRANSFORMACIONES</p>
+      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-1">RESULTADOS <span className="text-orange-500">REALES</span></h2>
+      <p className="jb-body text-xs text-zinc-400 mb-4">Desliza para ver cada cambio · toca una foto para que caiga el rayo otra vez</p>
+      <div ref={carrilRef} onScroll={alDeslizar}
+        className="flex gap-4 overflow-x-auto pb-3 -mx-6 px-[9%] sm:px-[15%] snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {TESTIMONIOS.map(t => <TarjetaTestimonio key={t.nombre} t={t} raiz={carrilRef} />)}
+      </div>
+      <div className="flex justify-center gap-2 mt-1">
+        {TESTIMONIOS.map((t, i) => (
+          <button key={t.nombre} type="button" onClick={() => irA(i)} aria-label={`Ver a ${t.nombre}`}
+            className={`h-2 rounded-full transition-all ${i === activo ? 'w-6 bg-orange-500' : 'w-2 bg-zinc-700'}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
 // sección completa de testimonios de abajo, pero no en este fondo).
@@ -3209,69 +3408,7 @@ function Landing({ onChoose }) {
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
         <div className="mb-6" style={step(500)}>
-          <style>{`
-            @keyframes jb-bolt-fall {
-              0%, 28% { opacity: 0; transform: translate(-50%, -40%); }
-              32% { opacity: 1; transform: translate(-50%, -10%); }
-              36% { opacity: 1; transform: translate(-50%, 40%); }
-              40% { opacity: 0; transform: translate(-50%, 60%); }
-              100% { opacity: 0; }
-            }
-            @keyframes jb-flash-hit {
-              0%, 37% { opacity: 0; }
-              38% { opacity: 0.85; }
-              42% { opacity: 0; }
-              100% { opacity: 0; }
-            }
-            @keyframes jb-reveal-wipe {
-              0%, 35% { clip-path: inset(0 100% 0 0); }
-              55%, 90% { clip-path: inset(0 0% 0 0); }
-              100% { clip-path: inset(0 100% 0 0); }
-            }
-            @keyframes jb-tag-in {
-              0%, 48% { opacity: 0; transform: scale(0.7); }
-              58%, 90% { opacity: 1; transform: scale(1); }
-              100% { opacity: 0; }
-            }
-            .jb-bolt-wrap { animation: jb-bolt-fall 4.5s ease-in infinite; }
-            .jb-flash { animation: jb-flash-hit 4.5s ease-out infinite; }
-            .jb-reveal { animation: jb-reveal-wipe 4.5s ease-in-out infinite; }
-            .jb-tag-ahora { animation: jb-tag-in 4.5s ease-in-out infinite; }
-          `}</style>
-          <p className="jb-display text-base text-orange-500 mb-3 tracking-wide">🔥 RESULTADOS REALES</p>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3">
-            {TESTIMONIOS.map((t, i) => (
-              <div key={t.nombre} className="snap-start shrink-0 w-64 sm:w-auto bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden text-left">
-                <div className="relative grid grid-cols-2">
-                  {/* Rayo que cae justo por el medio, entre "antes" y "después" */}
-                  <div className="jb-bolt-wrap absolute z-10 pointer-events-none" style={{ top: '-25%', left: '50%', width: 22, height: 170, animationDelay: `${i * 1.5}s` }}>
-                    <svg width="22" height="170" viewBox="0 0 22 170" fill="none" style={{ filter: 'drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px #f97316)' }}>
-                      <path d="M13 0 3 85h8l-5 85 17-98H13L18 0z" fill="#fde68a" />
-                    </svg>
-                  </div>
-                  {/* Flash blanco en el momento del impacto */}
-                  <div className="jb-flash absolute inset-0 z-[9] bg-white pointer-events-none" style={{ animationDelay: `${i * 1.5}s` }} />
-
-                  <div className="relative">
-                    <img src={t.antes} alt={`${t.nombre} antes`} className="w-full h-40 object-cover object-top" />
-                    <span className="absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">ANTES</span>
-                  </div>
-                  <div className="relative overflow-hidden">
-                    <div className="jb-reveal" style={{ animationDelay: `${i * 1.5}s` }}>
-                      <img src={t.despues} alt={`${t.nombre} después`} className="w-full h-40 object-cover object-top" />
-                    </div>
-                    <span className="jb-tag-ahora absolute top-1.5 left-1.5 jb-display text-[9px] px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950"
-                      style={{ animationDelay: `${i * 1.5}s` }}>AHORA</span>
-                  </div>
-                </div>
-                <div className="p-3">
-                  <p className="jb-display text-sm text-zinc-100">{t.nombre}</p>
-                  {t.dato && <p className="jb-body text-[11px] text-orange-500 mb-1">{t.dato}</p>}
-                  <p className="jb-body text-xs text-zinc-400 leading-snug">"{t.quote}"</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ResultadosReales />
           <p className="jb-body text-[10px] text-zinc-600 mt-2">
             Resultados de alumnos reales, logrados con el mismo sistema de control alimentario que ahora automatiza la app.
           </p>

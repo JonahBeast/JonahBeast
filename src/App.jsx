@@ -9012,6 +9012,84 @@ function InstalarBanner({ onEligible }) {
   );
 }
 
+// Últimos 3 días de la prueba: cuenta regresiva grande, lo que logró y
+// un botón directo a los planes con el precio más bajo por día.
+function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
+  const [precioDia, setPrecioDia] = useState(null);
+  useEffect(() => {
+    (async () => {
+      let precios = {};
+      try {
+        const { data } = await supabase.from('config').select('key, value').in('key', PLANES.map(p => p.configKey));
+        (data || []).forEach(r => { precios[r.key] = Number(r.value); });
+      } catch {}
+      const minimo = Math.min(...PLANES.map(p => (precios[p.configKey] > 0 ? precios[p.configKey] : p.precioDefault) / (p.meses * 30)));
+      setPrecioDia(minimo);
+    })();
+  }, []);
+
+  const restantes = Math.max(0, TRIAL_DAYS - dia);
+  const ultimo = restantes === 0;
+  const primerNombre = (user?.nombre || '').trim().split(/\s+/)[0];
+  const logros = stats ? [
+    [stats.dias, stats.dias === 1 ? 'día registrado' : 'días registrados'],
+    [stats.comidas, 'comidas'],
+    stats.deltaPeso !== null && Math.abs(stats.deltaPeso) >= 0.1
+      ? [`${stats.deltaPeso > 0 ? '+' : '−'}${Math.abs(stats.deltaPeso).toFixed(1)}`, 'kg']
+      : [stats.adherencia !== null ? `${stats.adherencia}%` : '—', 'en tu objetivo'],
+  ] : null;
+
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/50 rounded-3xl p-5 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.45)' }}>
+      <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(232,89,12,.22), transparent 70%)' }} />
+      <div className="relative flex items-center gap-4 mb-4">
+        <div className="w-20 h-20 rounded-2xl bg-orange-500 flex flex-col items-center justify-center shrink-0"
+          style={{ boxShadow: '0 10px 28px -10px rgba(232,89,12,.8)' }}>
+          {ultimo ? (
+            <span className="jb-display text-lg text-zinc-950 leading-none text-center">ÚLTIMO<br />DÍA</span>
+          ) : (
+            <>
+              <span className="jb-display text-4xl text-zinc-950 leading-none tabular-nums">{restantes}</span>
+              <span className="jb-body text-[10px] font-semibold text-zinc-900">{restantes === 1 ? 'día' : 'días'}</span>
+            </>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Prueba gratis</p>
+          <p className="jb-display text-lg text-zinc-50 leading-tight">
+            {ultimo ? 'HOY TERMINA TU PRUEBA' : `TE ${restantes === 1 ? 'QUEDA 1 DÍA' : `QUEDAN ${restantes} DÍAS`}`}
+          </p>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">
+            {ultimo
+              ? `${primerNombre ? primerNombre + ', si' : 'Si'} continúas, conservas todo tu historial y tu progreso.`
+              : 'Todo lo que construiste se queda contigo si continúas.'}
+          </p>
+        </div>
+      </div>
+
+      {logros && (
+        <div className="relative grid grid-cols-3 gap-2 mb-4">
+          {logros.map(([valor, texto]) => (
+            <div key={texto} className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+              <p className="jb-display text-xl text-orange-500 tabular-nums leading-none">{valor}</p>
+              <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{texto}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={onVerPlanes} className={btnPrimary + ' relative w-full py-3.5 rounded-2xl'}>
+        <span className="jb-display text-sm sm:text-base tracking-wide whitespace-nowrap">
+          {precioDia ? `CONTINUAR DESDE ${fmtS(precioDia)} AL DÍA` : 'VER PLANES PARA CONTINUAR'}
+        </span>
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+}
+
 function TrialBanner({ user, onVerPlanes }) {
   const dia = trialDayOf(user);
   const [stats, setStats] = useState(null);
@@ -9021,6 +9099,7 @@ function TrialBanner({ user, onVerPlanes }) {
   }, [dia, user?.username]);
 
   if (!dia) return null;
+  if (dia >= TRIAL_DAYS - 2) return <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />;
   const j = TRIAL_JOURNEY[dia] || TRIAL_JOURNEY[TRIAL_DAYS] || { titulo: '', texto: '', cta: null };
   const restantes = TRIAL_DAYS - dia;
   const urgente = dia >= TRIAL_DAYS - 1;

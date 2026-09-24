@@ -293,6 +293,9 @@ const RAW_FOODS = [
   ["Postres","Galleta dulce rellena","-",480,5.0,66.0,21.0,2.0],
   ["Bebidas","Café negro sin azúcar","-",2,0.3,0.0,0.0,0.0],
   ["Bebidas","Café con leche","-",42,2.2,3.3,2.2,0.0],
+  ["Bebidas","Café con leche descremada","-",22,2.0,3.0,0.1,0.0],
+  ["Bebidas","Capuchino","-",40,2.3,3.4,1.9,0.0],
+  ["Bebidas","Capuchino","Con azúcar",58,2.3,7.8,1.9,0.0],
   ["Bebidas","Té / infusión sin azúcar","-",1,0.0,0.2,0.0,0.0],
   ["Bebidas","Agua","-",0,0.0,0.0,0.0,0.0],
   ["Bebidas","Jugo de naranja natural","-",45,0.7,10.4,0.2,0.2],
@@ -11742,6 +11745,41 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
   );
 }
 
+/* Bebidas que en una foto se ven casi iguales (café negro, con leche,
+   capuchino, con o sin azúcar): si la IA reconoce cualquiera, se muestran
+   todas las variantes para que el alumno toque la suya — primero las que
+   sugirió la IA. */
+const FAMILIAS_FOTO = [
+  { es: f => /^(Café|Capuchino)/.test(f.name),
+    claves: ['Café negro sin azúcar (-)', 'Café negro (Con azúcar)', 'Café con leche (-)', 'Café con leche (Con azúcar)', 'Café con leche descremada (-)', 'Capuchino (-)', 'Capuchino (Con azúcar)'] },
+  { es: f => /^Té \/ infusión/.test(f.name),
+    claves: ['Té / infusión sin azúcar (-)', 'Té / infusión (Con azúcar)'] },
+];
+
+function ampliarFamiliasFoto(items) {
+  const resultado = [];
+  const grupos = new Map(); // familia -> grupo ya creado
+  items.forEach(it => {
+    const foods = it.esOpciones ? it.alternativas : [it];
+    const fam = FAMILIAS_FOTO.find(F => foods.some(f => F.es(f)));
+    if (!fam) { resultado.push(it); return; }
+    let grupo = grupos.get(fam);
+    if (!grupo) {
+      grupo = { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1 };
+      grupos.set(fam, grupo);
+      resultado.push(grupo);
+    }
+    foods.forEach(f => { if (!grupo.alternativas.some(a => a.key === f.key)) grupo.alternativas.push(f); });
+  });
+  grupos.forEach((grupo, fam) => {
+    fam.claves.forEach(k => {
+      const f = buscarFood(k);
+      if (f && !grupo.alternativas.some(a => a.key === f.key)) grupo.alternativas.push(f);
+    });
+  });
+  return resultado;
+}
+
 /* Porción con la que entra un alimento reconocido por foto: la medida de
    casa por defecto y, si se cuenta por piezas (huevo, pan...), el conteo
    de la IA. Es exactamente lo que se agrega al confirmar. */
@@ -11892,7 +11930,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       if (data?.error) throw new Error(data.error);
       setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
 
-      const encontrados = (data?.items || [])
+      const encontradosIA = (data?.items || [])
         .map(it => {
           if (Array.isArray(it.opciones)) {
             // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
@@ -11905,6 +11943,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           return food ? { ...food, _cantidadIA: it.cantidad || 1, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
+      const encontrados = ampliarFamiliasFoto(encontradosIA);
       if (!encontrados.length) { setEstado('vacio'); return; }
 
       setItems(encontrados);
@@ -12094,7 +12133,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                           <button key={alt.key} type="button"
                             onClick={() => setElecciones(v => ({ ...v, [f.id]: v[f.id] === alt.key ? undefined : alt.key }))}
                             className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elegido === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
-                            {alt.name}
+                            {nombreAlimento(alt)}
                           </button>
                         ))}
                       </div>

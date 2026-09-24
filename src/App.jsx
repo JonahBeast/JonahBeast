@@ -13837,21 +13837,33 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // Si la app se abrió desde un aviso ("No olvides registrar tu almuerzo"),
   // va directo al registro de esa comida. También si ya estaba abierta y
   // el aviso llega por el service worker.
+  // "?ir=planes" (avisos de fin de prueba o de renovación) abre Planes.
+  function irAPlanesSiPide(url) {
+    try {
+      if (new URL(url, window.location.origin).searchParams.get('ir') === 'planes') {
+        setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 });
+        return true;
+      }
+    } catch {}
+    return false;
+  }
   useEffect(() => {
     const deUrl = leerRegistrarDeUrl(window.location.href);
-    if (deUrl) {
-      irARegistrar(deUrl);
-      try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('registrar');
+    if (deUrl) irARegistrar(deUrl);
+    else irAPlanesSiPide(window.location.href);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has('registrar') || u.searchParams.has('ir')) {
+        u.searchParams.delete('registrar'); u.searchParams.delete('ir');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
-      } catch {}
-    }
+      }
+    } catch {}
     if (!('serviceWorker' in navigator)) return undefined;
     const alMensaje = (e) => {
       if (e.data?.tipo !== 'abrir-url') return;
       const meal = leerRegistrarDeUrl(e.data.url || '/');
       if (meal) irARegistrar(meal);
+      else irAPlanesSiPide(e.data.url || '/');
     };
     navigator.serviceWorker.addEventListener('message', alMensaje);
     return () => navigator.serviceWorker.removeEventListener('message', alMensaje);

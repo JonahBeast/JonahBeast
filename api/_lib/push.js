@@ -67,7 +67,7 @@ export function numeroDeSemana(hoyISO) {
 
 /* Envía un push a la lista de usernames indicada, con el texto dado.
    Desactiva automáticamente las suscripciones que ya no son válidas. */
-export async function enviarPushA(supabase, usernames, { title, body }) {
+export async function enviarPushA(supabase, usernames, { title, body, url = '/' }) {
   if (!usernames.length) return { enviados: 0, fallidos: [] };
 
   const { data: subs } = await supabase
@@ -81,7 +81,7 @@ export async function enviarPushA(supabase, usernames, { title, body }) {
   // El Service Worker (public/sw.js) espera las claves en español
   // (titulo, cuerpo, url) — deben coincidir exactamente o el mensaje
   // no se muestra y cae al texto genérico por defecto.
-  const payload = JSON.stringify({ titulo: title, cuerpo: body, url: '/' });
+  const payload = JSON.stringify({ titulo: title, cuerpo: body, url });
 
   for (const sub of subs || []) {
     try {

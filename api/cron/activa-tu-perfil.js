@@ -1,61 +1,35 @@
 // api/cron/activa-tu-perfil.js
 //
-// Corre una vez al día. Si un alumno lleva exactamente 1, 2 o 3 días
-// desde que se registró y todavía no completó sus medidas y objetivo
-// (datos_alumnos.form vacío o sin objetivo), le manda un push
-// motivador de Jonah para que arranque. Un mensaje distinto por día,
-// cada vez con un poco más de cercanía — no se repite después del
-// día 3, para no sentirse insistente.
+// Corre una vez al día a las 12:30pm hora Perú (hora de almuerzo, el
+// mejor momento para tomarle foto al plato). Avisos de arranque para
+// alumnos nuevos, alineados con la app: lo primero es registrar una
+// comida, no las medidas.
+//   - Quien todavía NO registró ninguna comida recibe un aviso en sus
+//     días 1, 2, 3 y 5 desde que se inscribió (un mensaje distinto cada
+//     día). Al tocarlo se abre directo el registro de la comida de ahora.
+//   - Quien ya registra comidas pero no tiene sus datos u objetivo
+//     recibe UN solo aviso amable (día 3) para ajustar su meta; al
+//     tocarlo se abre su pantalla de datos u objetivo.
+//
+// Cron en vercel.json: "30 17 * * *" (17:30 UTC = 12:30 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, enviarPushA } from '../_lib/push.js';
 
-const MENSAJES = {
-  1: { title: 'Jonah 🦍', body: 'Hola, soy Jonah — vi que aún no completaste tus medidas. Toma solo 2 minutos, y ahí empezamos a trabajar juntos en tu objetivo 💪' },
-  2: { title: 'Jonah 🦍', body: 'Sigo aquí, esperándote. Cuando estés listo, solo entra y completa tus medidas — sin apuro, pero quiero ayudarte a arrancar 🔥' },
-  3: { title: 'Jonah 🦍', body: 'No dejes que se te pase esta oportunidad. Un par de minutos y arrancamos tu cambio real. Aquí estoy cuando quieras 🦍💪' },
+const PRIMERA_COMIDA = {
+  1: '¿Qué vas a almorzar hoy? Tómale una foto y te digo cuántas calorías y proteína tiene 📸',
+  2: 'Tu primer registro toma 10 segundos: foto al plato y listo. Hoy empezamos 🦍',
+  3: 'Aquí sigo. Registra solo tu almuerzo de hoy y mira lo que la app hace con él 🔥',
+  5: 'Tu prueba gratis sigue activa. Una foto a tu plato y arrancamos juntos cuando quieras 💪',
 };
-
-// Mismo envío en paralelo que el resto de los crons de notificaciones,
-// para no repetir el problema de timeout con muchos alumnos a la vez.
-async function enviarLote(supabase, targets) {
-  if (!targets.length) return { enviados: 0, fallidos: 0, detalleFallos: [] };
-  const usernames = [...new Set(targets.map(t => t.username))];
-  const { data: subs } = await supabase.from('push_subs').select('*').eq('activa', true).in('username', usernames);
-
-  const subsPorUser = {};
-  (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
-
-  const webpush = (await import('web-push')).default;
-  const tareas = [];
-  for (const { username, mensaje } of targets) {
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: '/' });
-    for (const sub of subsPorUser[username] || []) {
-      tareas.push(
-        webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
-          .then(() => ({ ok: true, username }))
-          .catch(err => {
-            console.error(`Push fallido para ${username} (endpoint ...${sub.endpoint.slice(-20)}): statusCode=${err.statusCode} body=${err.body || err.message}`);
-            return { ok: false, endpoint: sub.endpoint, username, statusCode: err.statusCode, mensaje: err.body || err.message };
-          })
-      );
-    }
-  }
-
-  const resultados = await Promise.allSettled(tareas);
-  let enviados = 0;
-  const endpointsInvalidos = [];
-  const detalleFallos = [];
-  resultados.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) { enviados++; return; }
-    const val = r.status === 'fulfilled' ? r.value : { ok: false, mensaje: String(r.reason) };
-    detalleFallos.push({ username: val.username, statusCode: val.statusCode, mensaje: val.mensaje });
-    if (val.statusCode === 410 || val.statusCode === 404) endpointsInvalidos.push(val.endpoint);
-  });
-  if (endpointsInvalidos.length) {
-    await supabase.from('push_subs').update({ activa: false }).in('endpoint', endpointsInvalidos);
-  }
-  return { enviados, fallidos: detalleFallos.length, detalleFallos };
+// Misma regla que la app (src/App.jsx → tieneDatosBasicos): los valores
+// de ejemplo (70 kg, 170 cm, cintura 85) no cuentan como datos reales.
+function tieneDatosBasicos(f) {
+  const edad = Number(f?.edad), estatura = Number(f?.estatura), peso = Number(f?.peso);
+  if (!(edad > 0 && estatura >= 90 && peso >= 20)) return false;
+  return !(peso === 70 && estatura === 170 && Number(f?.cintura) === 85);
 }
+
+const AJUSTA_META = { dia: 3, body: 'Vas bien registrando 💪 Ahora ajusta tu meta a tu cuerpo: edad, estatura y peso, 30 segundos.' };
 
 export default async function handler(req, res) {
   if (!verificarCronSecret(req)) return res.status(401).json({ error: 'No autorizado' });
@@ -67,33 +41,45 @@ export default async function handler(req, res) {
   try {
     const { data: alumnos, error } = await supabase
       .from('alumnos').select('username, fecha_inicio')
-      .eq('enabled', true);
+      .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
-    if (!alumnos || alumnos.length === 0) {
-      return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });
-    }
 
-    // Solo nos importan los que llevan exactamente 1, 2 o 3 días.
-    const candidatos = alumnos.filter(a => a.fecha_inicio && [1, 2, 3].includes(diasDesde(a.fecha_inicio, hoyISO)));
-    if (candidatos.length === 0) {
-      return res.status(200).json({ ok: true, enviados: 0, motivo: 'nadie en su día 1, 2 o 3 hoy' });
-    }
+    const candidatos = (alumnos || []).filter(a => a.fecha_inicio && diasDesde(a.fecha_inicio, hoyISO) >= 1 && diasDesde(a.fecha_inicio, hoyISO) <= 5);
+    if (!candidatos.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'nadie en sus primeros 5 días' });
 
     const usernames = candidatos.map(a => a.username);
-    const { data: datos } = await supabase
-      .from('datos_alumnos').select('username, form').in('username', usernames);
-    const completoDe = {};
-    (datos || []).forEach(d => { completoDe[d.username] = !!(d.form && d.form.objetivo); });
+    const [{ data: comidas }, { data: datos }] = await Promise.all([
+      supabase.from('historial').select('username').in('username', usernames).gt('comidas_count', 0),
+      supabase.from('datos_alumnos').select('username, form').in('username', usernames),
+    ]);
+    const registro = new Set((comidas || []).map(r => r.username));
+    const metaLista = {};
+    (datos || []).forEach(d => {
+      const f = d.form || {};
+      metaLista[d.username] = !!f.objetivo && tieneDatosBasicos(f);
+    });
 
-    const targets = [];
+    const envios = [];
     for (const a of candidatos) {
-      if (completoDe[a.username]) continue; // ya completó medidas y objetivo, no le insistimos
       const dia = diasDesde(a.fecha_inicio, hoyISO);
-      targets.push({ username: a.username, mensaje: MENSAJES[dia] });
+      if (!registro.has(a.username)) {
+        if (PRIMERA_COMIDA[dia]) envios.push({ username: a.username, body: PRIMERA_COMIDA[dia], url: '/?registrar=ahora', tipo: 'primera_comida' });
+      } else if (!metaLista[a.username] && dia === AJUSTA_META.dia) {
+        envios.push({ username: a.username, body: AJUSTA_META.body, url: '/?ir=meta', tipo: 'ajusta_meta' });
+      }
     }
 
-    const r = await enviarLote(supabase, targets);
-    return res.status(200).json({ ok: true, ...r, tipo: 'activa_tu_perfil', candidatos: targets.length });
+    // En paralelo, no uno por uno, para no quedarse sin tiempo.
+    const resultados = await Promise.all(envios.map(e =>
+      enviarPushA(supabase, [e.username], { title: 'Jonah 🦍', body: e.body, url: e.url })));
+    let enviados = 0; const fallidos = [];
+    resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
+
+    return res.status(200).json({
+      ok: true, enviados, fallidos,
+      primera_comida: envios.filter(e => e.tipo === 'primera_comida').length,
+      ajusta_meta: envios.filter(e => e.tipo === 'ajusta_meta').length,
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ ok: false, error: e.message });

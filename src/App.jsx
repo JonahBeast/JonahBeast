@@ -14086,6 +14086,8 @@ function AjustaMetaModal({ faltanDatos, onAjustar, onCerrar }) {
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, saving, userRecord }) {
   const [tab, setTab] = useState('dash');
   const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
+  const formRef = useRef(form);
+  formRef.current = form;
   function irARegistrar(meal) {
     setRegistrarAl({ meal, id: Date.now() });
     setTab('meal');
@@ -14096,10 +14098,16 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // va directo al registro de esa comida. También si ya estaba abierta y
   // el aviso llega por el service worker.
   // "?ir=planes" (avisos de fin de prueba o de renovación) abre Planes.
+  // "?ir=meta" (aviso de ajustar la meta) abre sus datos o su objetivo.
   function irAPlanesSiPide(url) {
     try {
-      if (new URL(url, window.location.origin).searchParams.get('ir') === 'planes') {
+      const ir = new URL(url, window.location.origin).searchParams.get('ir');
+      if (ir === 'planes') {
         setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 });
+        return true;
+      }
+      if (ir === 'meta') {
+        setRegistrarAl(null); setTab(tieneDatosBasicos(formRef.current) ? 'goal' : 'calc'); window.scrollTo({ top: 0 });
         return true;
       }
     } catch {}

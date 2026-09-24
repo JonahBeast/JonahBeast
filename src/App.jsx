@@ -7871,107 +7871,169 @@ function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas, mealPlan
   );
 }
 
-function CalculatorTab({ form, setForm, results, onSiguiente }) {
-  const num = (k) => ({
-    value: form[k] ?? '',
-    onChange: (e) => setForm(v => ({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) })),
-  });
-  const faltan = [['edad', 'edad'], ['estatura', 'estatura'], ['peso', 'peso']]
-    .filter(([k]) => !(Number(form[k]) > 0)).map(([, n]) => n);
-
+// Campo numérico con − / + grandes; también se puede tocar el número y
+// escribirlo. Si está vacío, el primer + / − parte de un valor típico.
+function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, inicial, unidad, placeholder, ayuda }) {
+  const n = Number(valor);
+  const vacio = valor === '' || valor === null || valor === undefined || !Number.isFinite(n) || n === 0;
+  const decimales = paso < 1 ? 1 : 0;
+  const mover = (dir) => {
+    vibrar(8);
+    const base = vacio ? (inicial ?? min) : n;
+    const nuevo = vacio ? base : Math.round((base + dir * paso) / paso) * paso;
+    onCambio(Math.min(max, Math.max(min, Number(nuevo.toFixed(decimales)))));
+  };
   return (
-    <div className="grid lg:grid-cols-2 gap-6 min-w-0">
-      <div className="lg:col-span-2">
-        <AyudaTab id="composicion-basicos" texto="Empieza con tus datos básicos: no necesitas cinta métrica. Con ellos calculamos cuántas calorías necesitas. Si luego te mides con una cinta, sabrás también tu % de grasa." />
-      </div>
-      <div className="flex flex-col gap-4 min-w-0">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-          <h2 className="jb-display text-base text-zinc-200 mb-1">TUS DATOS BÁSICOS</h2>
-          <p className="jb-body text-xs text-zinc-500 mb-4">Solo lo que ya sabes de memoria.</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Sexo">
-              <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls}>
-                <option value="M">Hombre</option>
-                <option value="F">Mujer</option>
-              </select>
-            </Field>
-            <Field label="Edad (años)"><input type="number" inputMode="numeric" className={inputCls} placeholder="Ej. 30" {...num('edad')} /></Field>
-            <Field label="Estatura (cm)"><input type="number" inputMode="numeric" className={inputCls} placeholder="Ej. 165" {...num('estatura')} /></Field>
-            <Field label="Peso (kg)"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 72" {...num('peso')} /></Field>
-            <div className="col-span-2">
-              <Field label="Actividad física">
-                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
-                  {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
-                </select>
-              </Field>
-            </div>
-          </div>
-          {results.basicos ? (
-            <button onClick={onSiguiente} className={btnPrimary + ' w-full mt-4'}>
-              {form.objetivo ? 'Listo · Registrar mis comidas' : 'Guardar y elegir mi objetivo'} <ChevronRight size={16} />
-            </button>
-          ) : (
-            <p className="jb-body text-xs text-zinc-500 mt-4 text-center">
-              {faltan.length ? `Completa tu ${faltan.length > 1 ? faltan.slice(0, -1).join(', ') + ' y ' + faltan[faltan.length - 1] : faltan[0]} para seguir.` : 'Revisa que tu estatura esté en centímetros (ej. 165).'}
-            </p>
-          )}
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-          <h2 className="jb-display text-base text-zinc-200 mb-1">📏 % DE GRASA <span className="text-zinc-500 text-xs">· OPCIONAL</span></h2>
-          <p className="jb-body text-xs text-zinc-500 mb-4">
-            ¿Tienes una cinta métrica? Mide tu cuello, cintura y cadera para saber tu % de grasa y tu masa muscular. Puedes hacerlo cuando quieras.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 36" {...num('cuello')} /></Field>
-            <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 82" {...num('cintura')} /></Field>
-            <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg"><input type="number" inputMode="decimal" className={inputCls} placeholder="Ej. 96" {...num('cadera')} /></Field>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 min-w-0">
-        {!results.basicos ? (
-          <div className="bg-zinc-900 border border-dashed border-zinc-700 rounded-2xl p-6 text-center">
-            <div className="text-3xl mb-2">🔥</div>
-            <p className="jb-body text-sm text-zinc-300">Completa tus datos básicos y aquí verás cuántas calorías quema tu cuerpo al día.</p>
-          </div>
-        ) : (
-          <>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 min-w-0">
-              <div className="flex justify-around gap-1 bg-zinc-950/60 border border-zinc-800 rounded-xl py-4 px-2 mb-1">
-                {results.cinta
-                  ? <MacroRing pct={Math.min(100, (results.bf / 35) * 100)} value={results.bf.toFixed(1) + '%'} label="Grasa corporal" colorHex="#fbbf24" size={64} stroke={6} />
-                  : <MacroRing pct={0} value="—" label="Grasa (con cinta)" colorHex="#fbbf24" size={64} stroke={6} />}
-                <MacroRing pct={Math.min(100, (results.tmb / results.tdee) * 100)} value={Math.round(results.tmb)} label="Basal (kcal)" colorHex="#f97316" size={64} stroke={6} />
-                <MacroRing pct={100} value={Math.round(results.tdee)} label="Mantener" colorHex="#34d399" size={64} stroke={6} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
-              <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
-              <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-              {results.cinta && (
-                <>
-                  <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
-                  <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
-                  <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
-                  {Number(form.cadera) >= 40 && (
-                    <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
-                  )}
-                </>
-              )}
-            </div>
-            <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
-              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-              <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
-            </div>
-            <p className="jb-body text-[11px] text-zinc-600 text-center">
-              Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
-            </p>
-          </>
+    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-3 pt-2.5 pb-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-400">{label}</span>
+        {ayuda && (
+          <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>
         )}
       </div>
+      <div className="flex items-center gap-2">
+        <BotonPaso etiqueta={`Menos ${label}`} onClick={() => mover(-1)}>−</BotonPaso>
+        <div className="flex-1 min-w-0 flex items-baseline justify-center gap-1">
+          <input type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
+            onChange={e => onCambio(e.target.value === '' ? '' : Number(e.target.value))}
+            className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+        </div>
+        <BotonPaso etiqueta={`Más ${label}`} onClick={() => mover(1)}>+</BotonPaso>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 text-center mt-0.5">{unidad}</p>
+    </div>
+  );
+}
+
+function CalculatorTab({ form, setForm, results, onSiguiente }) {
+  const [cintaAbierta, setCintaAbierta] = useState(!!results.cinta);
+  const fijar = (k) => (v) => setForm(f => ({ ...f, [k]: v }));
+  const faltan = [['edad', 'edad'], ['estatura', 'estatura'], ['peso', 'peso']]
+    .filter(([k]) => !(Number(form[k]) > 0)).map(([, n]) => n);
+  const esMujer = form.sexo === 'F';
+
+  return (
+    <div className="flex flex-col gap-5 min-w-0 max-w-2xl">
+      <style>{ESTILOS_COMIDAS}</style>
+
+      {/* Tablero: lo que su cuerpo gasta y cómo está hoy */}
+      {results.basicos ? (
+        <div className="relative bg-zinc-900 border border-orange-500/30 rounded-3xl p-5 overflow-hidden"
+          style={{ boxShadow: '0 0 40px -12px rgba(232,89,12,.35)' }}>
+          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(232,89,12,.18), transparent 70%)' }} />
+          <p className="relative jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Tu cuerpo gasta al día</p>
+          <p className="relative jb-display text-5xl text-zinc-50 leading-none tabular-nums mb-1">
+            <AnimatedNumber value={Math.round(results.tdee)} /><span className="text-lg text-zinc-400 ml-1.5">kcal</span>
+          </p>
+          <p className="relative jb-body text-xs text-zinc-400 mb-4">
+            para mantener tu peso · en reposo quemas <span className="text-zinc-200 font-semibold">{Math.round(results.tmb)} kcal</span>
+          </p>
+          <div className="relative grid grid-cols-3 gap-2">
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+              <p className="jb-display text-xl text-orange-500 tabular-nums leading-none">{results.bmi.toFixed(1)}</p>
+              <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">IMC · {results.bmiCat}</p>
+            </div>
+            <button type="button" onClick={() => setCintaAbierta(true)}
+              className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+              <p className="jb-display text-xl text-orange-500 tabular-nums leading-none">{results.cinta ? results.bf.toFixed(1) + '%' : '—'}</p>
+              <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{results.cinta ? `grasa · ${results.bfCat}` : 'grasa · mídela con cinta'}</p>
+            </button>
+            <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+              <p className="jb-display text-xl text-orange-500 tabular-nums leading-none">{results.idealMin.toFixed(0)}–{results.idealMax.toFixed(0)}</p>
+              <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">kg peso saludable</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-zinc-900 border border-dashed border-orange-500/40 rounded-3xl p-5 text-center">
+          <div className="text-3xl mb-2">🔥</div>
+          <p className="jb-display text-lg text-zinc-100 mb-1">3 DATOS Y LISTO</p>
+          <p className="jb-body text-sm text-zinc-400">Con tu edad, estatura y peso calculamos cuánto gasta tu cuerpo al día. Sin cinta métrica.</p>
+        </div>
+      )}
+
+      {/* Datos básicos */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 min-w-0">
+        <h2 className="jb-display text-base text-zinc-200 mb-3">TUS DATOS</h2>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {[['M', 'Hombre'], ['F', 'Mujer']].map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setForm(f => ({ ...f, sexo: v }))}
+              className={`jb-body text-sm rounded-xl py-2.5 border transition-colors ${form.sexo === v
+                ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+          <CampoNumero label="Edad" valor={form.edad} onCambio={fijar('edad')} paso={1} min={12} max={99} inicial={30} unidad="años" placeholder="30" />
+          <CampoNumero label="Estatura" valor={form.estatura} onCambio={fijar('estatura')} paso={1} min={120} max={220} inicial={esMujer ? 158 : 168} unidad="centímetros" placeholder={esMujer ? '158' : '168'} />
+          <CampoNumero label="Peso" valor={form.peso} onCambio={fijar('peso')} paso={0.5} min={30} max={250} inicial={esMujer ? 62 : 75} unidad="kilos" placeholder={esMujer ? '62' : '75'} />
+        </div>
+        <p className="jb-body text-[11px] uppercase tracking-wider text-zinc-400 mb-2">Actividad física</p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {Object.keys(ACTIVITY_FACTORS).map(a => (
+            <button key={a} type="button" onClick={() => setForm(f => ({ ...f, actividad: a }))}
+              className={`jb-body text-xs px-3 py-2 rounded-full border transition-colors ${form.actividad === a
+                ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+              {a}
+            </button>
+          ))}
+        </div>
+        <p className="jb-body text-xs text-zinc-500 mb-4">{ACTIVITY_DESC[form.actividad] || ''}</p>
+        {results.basicos ? (
+          <button onClick={onSiguiente} className={btnPrimary + ' w-full py-3'}>
+            {form.objetivo ? 'Listo · Registrar mis comidas' : 'Guardar y elegir mi objetivo'} <ChevronRight size={16} />
+          </button>
+        ) : (
+          <p className="jb-body text-xs text-zinc-500 text-center">
+            {faltan.length ? `Completa tu ${faltan.length > 1 ? faltan.slice(0, -1).join(', ') + ' y ' + faltan[faltan.length - 1] : faltan[0]} para seguir.` : 'Revisa que tu estatura esté en centímetros (ej. 165).'}
+          </p>
+        )}
+      </div>
+
+      {/* Cinta métrica (opcional) */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 min-w-0">
+        <button type="button" onClick={() => setCintaAbierta(v => !v)} className="w-full flex items-center justify-between gap-3 text-left">
+          <div>
+            <h2 className="jb-display text-base text-zinc-200">📏 TU % DE GRASA <span className="text-zinc-500 text-xs">· OPCIONAL</span></h2>
+            <p className="jb-body text-xs text-zinc-500">Con una cinta métrica: cuello, cintura y cadera.</p>
+          </div>
+          <ChevronRight size={18} className={`text-zinc-500 shrink-0 transition-transform ${cintaAbierta ? 'rotate-90' : ''}`} />
+        </button>
+        {cintaAbierta && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+            <CampoNumero label="Cuello" valor={form.cuello} onCambio={fijar('cuello')} paso={0.5} min={20} max={70} inicial={esMujer ? 33 : 38} unidad="centímetros" placeholder={esMujer ? '33' : '38'} ayuda="/guia-cuello.jpg" />
+            <CampoNumero label="Cintura" valor={form.cintura} onCambio={fijar('cintura')} paso={0.5} min={40} max={200} inicial={esMujer ? 78 : 88} unidad="centímetros" placeholder={esMujer ? '78' : '88'} ayuda="/guia-cintura.jpg" />
+            <CampoNumero label="Cadera" valor={form.cadera} onCambio={fijar('cadera')} paso={0.5} min={50} max={200} inicial={esMujer ? 98 : 98} unidad="centímetros" placeholder="98" ayuda="/guia-cadera.jpg" />
+          </div>
+        )}
+      </div>
+
+      {results.basicos && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
+            {results.cinta && (
+              <>
+                <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
+                <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+                <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+                {Number(form.cadera) >= 40 && (
+                  <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
+                )}
+              </>
+            )}
+          </div>
+          <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
+            <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+            <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo: una persona muy musculosa puede salir "sobrepeso" sin serlo. Úsalo junto al % de grasa corporal.</p>
+          </div>
+          <p className="jb-body text-[11px] text-zinc-600 text-center">
+            Cálculos basados en fórmulas de composición corporal (Navy) y gasto calórico (Mifflin-St Jeor)
+          </p>
+        </>
+      )}
     </div>
   );
 }

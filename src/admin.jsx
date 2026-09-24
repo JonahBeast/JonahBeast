@@ -2490,28 +2490,38 @@ function saludoJarvis(d = new Date()) {
   const h = d.getHours();
   return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 }
-async function armarInformeJarvis(users) {
+async function datosNegocioJarvis(users) {
   const hoy = todayISO();
   const ayer = addDaysISO(hoy, -1);
-  let pagosPendientes = 0, registraronAyer = null;
+  let pagosPendientes = null, registraronAyer = null, registraronHoy = null;
   try {
     const { count } = await supabase.from('pagos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
     pagosPendientes = count || 0;
   } catch {}
   try {
-    const { data } = await supabase.from('historial').select('username').eq('fecha', ayer).gt('comidas_count', 0);
-    registraronAyer = new Set((data || []).map(r => r.username)).size;
+    const { data } = await supabase.from('historial').select('username, fecha').in('fecha', [ayer, hoy]).gt('comidas_count', 0);
+    registraronAyer = new Set((data || []).filter(r => r.fecha === ayer).map(r => r.username)).size;
+    registraronHoy = new Set((data || []).filter(r => r.fecha === hoy).map(r => r.username)).size;
   } catch {}
   const lista = users || [];
   const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
-  const vencen = lista.filter(u => u.enabled && esPrueba(u) && (() => { const d = daysLeft(u.fechaVencimiento); return d !== null && d >= 0 && d <= 3; })()).length;
-  const nuevos = lista.filter(u => u.fechaInicio === hoy || u.fechaInicio === ayer).length;
-  const activos = lista.filter(u => u.enabled && membershipActive(u)).length;
+  const activosL = lista.filter(u => u.enabled && membershipActive(u));
+  return {
+    pagosPendientes, registraronAyer, registraronHoy,
+    activos: activosL.length,
+    enPrueba: activosL.filter(esPrueba).length,
+    pagando: activosL.filter(u => !esPrueba(u)).length,
+    vencen: lista.filter(u => u.enabled && esPrueba(u) && (() => { const d = daysLeft(u.fechaVencimiento); return d !== null && d >= 0 && d <= 3; })()).length,
+    nuevos: lista.filter(u => u.fechaInicio === hoy || u.fechaInicio === ayer).length,
+  };
+}
+async function armarInformeJarvis(users) {
+  const d = await datosNegocioJarvis(users);
   const partes = [];
-  partes.push(pagosPendientes ? `Tienes ${pagosPendientes} ${pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar.` : 'No hay pagos pendientes.');
-  if (vencen) partes.push(`${vencen} ${vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
-  if (registraronAyer !== null) partes.push(`Ayer registraron comida ${registraronAyer} de tus ${activos} alumnos activos.`);
-  if (nuevos) partes.push(`Desde ayer se ${nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${nuevos} alumnos nuevos`}.`);
+  partes.push(d.pagosPendientes ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar.` : 'No hay pagos pendientes.');
+  if (d.vencen) partes.push(`${d.vencen} ${d.vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
+  if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
+  if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
   return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
@@ -2556,6 +2566,49 @@ async function audioPremiumJarvis(texto, voz) {
 function sinBloqueTarjetas(texto) {
   const i = String(texto || '').indexOf('<tarjetas');
   return i >= 0 ? texto.slice(0, i).trimEnd() : texto;
+}
+
+/* Modo pantalla completa tipo HUD: el reactor grande al centro, un anillo
+   de texto que orbita, los datos del negocio en vivo alrededor, la hora y
+   el chat abajo. Se recuerda en este equipo si Jonah lo dejó activado. */
+const CLAVE_HUD_JARVIS = 'jb-jarvis-hud';
+
+function DatoHud({ titulo, valor, detalle, avance = null, alerta = false, i = 0 }) {
+  const c = alerta ? '#ffb020' : '#4dd9ff';
+  return (
+    <div className="relative rounded-md px-3 py-2.5 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, rgba(77,217,255,0.08), rgba(5,12,18,0.75))', border: `1px solid ${alerta ? '#8a5a12' : '#1c6b85'}`,
+        boxShadow: `inset 0 0 22px ${alerta ? 'rgba(255,176,32,0.08)' : 'rgba(77,217,255,0.07)'}`, animation: `jv-aparece .5s ease-out ${0.15 + i * 0.1}s both` }}>
+      <span className="absolute top-0 left-0 w-2.5 h-2.5" style={{ borderTop: `2px solid ${c}`, borderLeft: `2px solid ${c}` }} />
+      <span className="absolute bottom-0 right-0 w-2.5 h-2.5" style={{ borderBottom: `2px solid ${c}`, borderRight: `2px solid ${c}` }} />
+      <div className="text-[9px] tracking-[0.22em] uppercase" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{titulo}</div>
+      <div className="text-2xl md:text-3xl font-semibold tabular-nums leading-tight" style={{ fontFamily: 'monospace', color: '#ffffff', textShadow: `0 0 14px ${c}` }}>
+        {valor === null || valor === undefined ? '—' : valor}
+      </div>
+      {detalle && <div className="text-[10px] leading-snug" style={{ color: '#8fb8cc' }}>{detalle}</div>}
+      {avance !== null && (
+        <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: '#0d1c28' }}>
+          <div className="h-full rounded-full" style={{ width: `${Math.round(Math.min(1, Math.max(0, avance)) * 100)}%`, background: c, boxShadow: `0 0 8px ${c}`, transition: 'width .8s ease-out' }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Texto que orbita alrededor del reactor (se adapta al tamaño del contenedor).
+function OrbitaHud({ color }) {
+  const texto = 'JONAH BEAST FUEL · SISTEMA EN LÍNEA · DATOS EN VIVO · ESPERANDO ÓRDENES · ';
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 200 200" className="absolute inset-0 pointer-events-none jv-rot" aria-hidden="true"
+      style={{ animation: 'jv-giro 60s linear infinite', overflow: 'visible' }}>
+      <defs><path id="jv-orbita" d="M 100 100 m -94 0 a 94 94 0 1 1 188 0 a 94 94 0 1 1 -188 0" /></defs>
+      <circle cx="100" cy="100" r="99" fill="none" stroke={color} strokeWidth=".4" strokeDasharray="1.5 4" opacity=".45" />
+      {/* textLength = largo del círculo: el texto da la vuelta exacta, sin cortarse ni encimarse */}
+      <text fontFamily="monospace" fontSize="5.2" fill={color} opacity=".75">
+        <textPath href="#jv-orbita" textLength="585" lengthAdjust="spacing">{texto}</textPath>
+      </text>
+    </svg>
+  );
 }
 
 // Tarjetas holográficas con las cifras de una respuesta de Jarvis.
@@ -2703,6 +2756,30 @@ function JarvisPanel({ onClose, users }) {
     { role: 'assistant', content: '', escribiendo: true },
   ]);
   const [avisoMic, setAvisoMic] = useState('');
+  const [hud, setHud] = useState(() => { try { return localStorage.getItem(CLAVE_HUD_JARVIS) === '1'; } catch { return false; } });
+  const [datosHud, setDatosHud] = useState(null);
+  const [ahoraHud, setAhoraHud] = useState(() => new Date());
+  // En modo HUD: datos del negocio al abrir y cada minuto, y reloj en vivo.
+  useEffect(() => {
+    if (!hud) return undefined;
+    let vivo = true;
+    const cargar = () => datosNegocioJarvis(users).then(d => { if (vivo) setDatosHud(d); });
+    cargar();
+    const datos = setInterval(cargar, 60000);
+    const reloj = setInterval(() => setAhoraHud(new Date()), 1000);
+    return () => { vivo = false; clearInterval(datos); clearInterval(reloj); };
+  }, [hud, users]);
+  function cambiarHud() {
+    const nuevo = !hud;
+    setHud(nuevo);
+    sonidoJarvis(nuevo ? 'despierto' : 'cerrar');
+    try { localStorage.setItem(CLAVE_HUD_JARVIS, nuevo ? '1' : '0'); } catch {}
+    // Pantalla completa de verdad donde el navegador lo permite (en iPhone no).
+    try {
+      if (nuevo && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      if (!nuevo && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    } catch {}
+  }
   const despiertoHastaRef = useRef(0);
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
@@ -2919,7 +2996,11 @@ function JarvisPanel({ onClose, users }) {
     if (!yaHoy) { darInforme(); return; }
     setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
   }, []);
-  function cerrar() { sonidoJarvis('cerrar'); onClose(); }
+  function cerrar() {
+    sonidoJarvis('cerrar');
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch {}
+    onClose();
+  }
 
   async function enviar(texto) {
     const t = (texto || '').trim();
@@ -3085,48 +3166,8 @@ function JarvisPanel({ onClose, users }) {
     }} />
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ background: 'radial-gradient(circle at 50% 30%, rgba(10,40,60,0.92), rgba(0,0,0,0.94))' }}>
-      <style>{ESTILOS_JARVIS}</style>
-      <div className="relative w-full max-w-lg rounded-lg overflow-hidden flex flex-col"
-        style={{ background: 'linear-gradient(180deg, rgba(10,22,32,0.97), rgba(5,12,18,0.97))', border: '1px solid #1c6b85', boxShadow: '0 0 40px rgba(77,217,255,0.18), inset 0 0 60px rgba(77,217,255,0.05)', maxHeight: '92vh', animation: 'jv-aparece .35s ease-out' }}>
-        {/* cuadrícula y barrido de escáner */}
-        <div className="absolute inset-0 pointer-events-none opacity-40" style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px)'
-        }} />
-        <div className="absolute inset-x-0 h-24 pointer-events-none jv-anim" style={{ top: 0, background: 'linear-gradient(180deg, transparent, rgba(77,217,255,0.07), transparent)', animation: 'jv-barrido 5s linear infinite' }} />
-        {esquina({ top: 6, left: 6 })}{esquina({ top: 6, right: 6 })}{esquina({ bottom: 6, left: 6 })}{esquina({ bottom: 6, right: 6 })}
-
-        <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { if (vozOn) { callarVozPremium(); try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} setHablando(false); } setVozOn(v => !v); }} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
-              🔊 {vozOn ? 'ON' : 'OFF'}
-            </button>
-            <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
-          </div>
-        </div>
-
-        <div className="relative flex flex-col items-center pt-4 pb-2">
-          <ReactorJarvis estado={estadoJarvis} tam={128} pulso={pulsoVoz} />
-          <div className="mt-2 text-[11px] tracking-[0.3em]" style={{ fontFamily: 'monospace', color: colorEstado, textShadow: `0 0 8px ${colorEstado}` }}>
-            {TEXTO_ESTADO_JARVIS[estadoJarvis]}
-          </div>
-          <div className="text-[9px] tracking-[0.25em] mt-0.5" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>
-            JONAH BEAST FUEL · DATOS EN VIVO
-          </div>
-          <button onClick={() => { desbloquearVoz(); darInforme(); }} disabled={pensando}
-            className="mt-2 text-[10px] tracking-[0.2em] px-3 py-1 rounded-full disabled:opacity-40"
-            style={{ fontFamily: 'monospace', color: '#4dd9ff', border: '1px solid #1c6b85', background: 'rgba(77,217,255,0.06)' }}>
-            📋 INFORME DEL DÍA
-          </button>
-        </div>
-
-        {(
-          <div className="relative flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244', borderTop: '1px solid #163244' }}>
+  const bloqueVoz = (
+<div className="relative flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid #163244', borderTop: '1px solid #163244' }}>
             <label htmlFor="jarvis-voz" className="text-[10px] shrink-0" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>VOZ</label>
             <select id="jarvis-voz"
               value={esVozPremium(vozGuardada) ? (vozGuardada || VOCES_PREMIUM_JARVIS[0].id) : (vocesEs.some(v => v.voiceURI === vozGuardada) ? vozGuardada : VOCES_PREMIUM_JARVIS[0].id)}
@@ -3150,9 +3191,9 @@ function JarvisPanel({ onClose, users }) {
               ▶ Probar
             </button>
           </div>
-        )}
-
-        <div ref={logRef} className="relative flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 180 }}>
+  );
+  const bloqueRegistro = (
+<div ref={logRef} className="relative flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: hud ? 0 : 180 }}>
           {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
@@ -3193,8 +3234,10 @@ function JarvisPanel({ onClose, users }) {
             <div className="text-xs" style={{ color: '#ffb020', fontFamily: 'monospace' }}>Procesando…</div>
           )}
         </div>
-
-        <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
+  );
+  const bloqueEntrada = (
+    <>
+<div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
           {avisoMic || (modoContinuo
             ? (escuchando ? 'Escuchando… di «Jarvis» y tu pregunta' : 'Modo continuo activo')
             : 'Toca el micrófono y háblame diciendo «Jarvis, …»')}
@@ -3210,6 +3253,143 @@ function JarvisPanel({ onClose, users }) {
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
           <button onClick={() => { desbloquearVoz(); enviar(input); }} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
         </div>
+    </>
+  );
+  const botonesCabecera = (
+    <>
+      <button onClick={() => { if (vozOn) { callarVozPremium(); try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} setHablando(false); } setVozOn(v => !v); }} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
+        🔊 {vozOn ? 'ON' : 'OFF'}
+      </button>
+      <button onClick={cambiarHud} aria-label={hud ? 'Salir de pantalla completa' : 'Pantalla completa'} className="text-xs px-2 py-1 rounded-full"
+        style={{ border: '1px solid ' + (hud ? '#4dd9ff' : '#163244'), color: hud ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
+        {hud ? '⤡ VENTANA' : '⛶ HUD'}
+      </button>
+      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
+    </>
+  );
+
+  if (hud) {
+    const d = datosHud;
+    const tamReactor = 'min(58vw, 34vh, 300px)';
+    const datos = [
+      { titulo: 'Alumnos activos', valor: d?.activos, detalle: d ? `${d.enPrueba} en prueba · ${d.pagando} pagando` : null },
+      { titulo: 'Registraron hoy', valor: d?.registraronHoy, detalle: d && d.registraronAyer !== null ? `ayer: ${d.registraronAyer}` : null, avance: d && d.activos ? (d.registraronHoy || 0) / d.activos : null },
+      { titulo: 'Pagos por revisar', valor: d?.pagosPendientes, detalle: d ? (d.pagosPendientes ? 'revísalos en HOY' : 'todo al día') : null, alerta: !!d?.pagosPendientes },
+      { titulo: 'Pruebas por vencer', valor: d?.vencen, detalle: d ? `en 3 días · nuevos desde ayer: ${d.nuevos}` : null, alerta: !!d?.vencen },
+    ];
+    const hora = ahoraHud.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    const fecha = ahoraHud.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
+    const esquinaHud = (pos) => (
+      <span className="absolute w-8 h-8 pointer-events-none" style={{
+        ...pos, borderColor: '#4dd9ff', borderStyle: 'solid', opacity: 0.7,
+        borderWidth: `${pos.top !== undefined ? 2 : 0}px ${pos.right !== undefined ? 2 : 0}px ${pos.bottom !== undefined ? 2 : 0}px ${pos.left !== undefined ? 2 : 0}px`,
+      }} />
+    );
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: 'radial-gradient(circle at 50% 32%, #0c2536 0%, #061119 45%, #020508 100%)', animation: 'jv-aparece .35s ease-out',
+        paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <style>{ESTILOS_JARVIS}</style>
+        <div className="absolute inset-0 pointer-events-none opacity-40" style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.05) 0 1px, transparent 1px 32px), repeating-linear-gradient(90deg, rgba(77,217,255,0.05) 0 1px, transparent 1px 32px)'
+        }} />
+        <div className="absolute inset-x-0 h-32 pointer-events-none" style={{ top: 0, background: 'linear-gradient(180deg, transparent, rgba(77,217,255,0.06), transparent)', animation: 'jv-barrido 7s linear infinite' }} />
+        {esquinaHud({ top: 10, left: 10 })}{esquinaHud({ top: 10, right: 10 })}{esquinaHud({ bottom: 10, left: 10 })}{esquinaHud({ bottom: 10, right: 10 })}
+
+        {/* barra superior: estado, hora y botones */}
+        <div className="relative flex items-center justify-between gap-2 px-5 pt-4 pb-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
+              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+            </div>
+            <div className="text-[9px] tracking-[0.25em] mt-0.5 hidden sm:block" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>PANEL DE OPERACIONES · JONAH BEAST FUEL</div>
+          </div>
+          <div className="text-center hidden sm:block">
+            <div className="text-xl tabular-nums tracking-widest" style={{ fontFamily: 'monospace', color: '#dff2ff', textShadow: '0 0 10px rgba(77,217,255,0.6)' }}>{hora}</div>
+            <div className="text-[9px] tracking-[0.2em] uppercase" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{fecha}</div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">{botonesCabecera}</div>
+        </div>
+        <div className="relative text-center sm:hidden -mt-1">
+          <span className="text-sm tabular-nums tracking-widest" style={{ fontFamily: 'monospace', color: '#dff2ff', textShadow: '0 0 10px rgba(77,217,255,0.6)' }}>{hora}</span>
+          <span className="text-[9px] tracking-[0.2em] uppercase ml-2" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{fecha}</span>
+        </div>
+
+        {/* núcleo: datos a los lados (pantallas grandes) y reactor al centro */}
+        <div className="relative shrink-0 w-full max-w-5xl mx-auto px-4 pt-2 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-6 md:items-center">
+          <div className="hidden md:flex flex-col gap-3">{datos.slice(0, 2).map((x, i) => <DatoHud key={x.titulo} {...x} i={i} />)}</div>
+          <div className="flex flex-col items-center">
+            <div className="relative flex items-center justify-center" style={{ width: `calc(${tamReactor} + 70px)`, height: `calc(${tamReactor} + 70px)` }}>
+              <div className="absolute inset-0"><OrbitaHud color={colorEstado} /></div>
+              <div style={{ width: tamReactor, height: tamReactor }}>
+                <ReactorJarvis estado={estadoJarvis} tam="100%" pulso={pulsoVoz} />
+              </div>
+            </div>
+            <div className="text-[11px] tracking-[0.3em] mt-1" style={{ fontFamily: 'monospace', color: colorEstado, textShadow: `0 0 8px ${colorEstado}` }}>
+              {TEXTO_ESTADO_JARVIS[estadoJarvis]}
+            </div>
+            <button onClick={() => { desbloquearVoz(); darInforme(); }} disabled={pensando}
+              className="mt-2 text-[10px] tracking-[0.2em] px-3 py-1 rounded-full disabled:opacity-40"
+              style={{ fontFamily: 'monospace', color: '#4dd9ff', border: '1px solid #1c6b85', background: 'rgba(77,217,255,0.06)' }}>
+              📋 INFORME DEL DÍA
+            </button>
+          </div>
+          <div className="hidden md:flex flex-col gap-3">{datos.slice(2).map((x, i) => <DatoHud key={x.titulo} {...x} i={i + 2} />)}</div>
+          {/* en celular, los datos van en una grilla debajo del reactor */}
+          <div className="grid grid-cols-2 gap-2 mt-3 md:hidden">{datos.map((x, i) => <DatoHud key={x.titulo} {...x} i={i} />)}</div>
+        </div>
+
+        {/* conversación */}
+        <div className="relative flex-1 min-h-0 w-full max-w-3xl mx-auto flex flex-col mt-2" style={{ borderTop: '1px solid #163244' }}>
+          {bloqueRegistro}
+          {bloqueEntrada}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ background: 'radial-gradient(circle at 50% 30%, rgba(10,40,60,0.92), rgba(0,0,0,0.94))' }}>
+      <style>{ESTILOS_JARVIS}</style>
+      <div className="relative w-full max-w-lg rounded-lg overflow-hidden flex flex-col"
+        style={{ background: 'linear-gradient(180deg, rgba(10,22,32,0.97), rgba(5,12,18,0.97))', border: '1px solid #1c6b85', boxShadow: '0 0 40px rgba(77,217,255,0.18), inset 0 0 60px rgba(77,217,255,0.05)', maxHeight: '92vh', animation: 'jv-aparece .35s ease-out' }}>
+        {/* cuadrícula y barrido de escáner */}
+        <div className="absolute inset-0 pointer-events-none opacity-40" style={{
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, rgba(77,217,255,0.06) 0 1px, transparent 1px 24px)'
+        }} />
+        <div className="absolute inset-x-0 h-24 pointer-events-none jv-anim" style={{ top: 0, background: 'linear-gradient(180deg, transparent, rgba(77,217,255,0.07), transparent)', animation: 'jv-barrido 5s linear infinite' }} />
+        {esquina({ top: 6, left: 6 })}{esquina({ top: 6, right: 6 })}{esquina({ bottom: 6, left: 6 })}{esquina({ bottom: 6, right: 6 })}
+
+        <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
+            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {botonesCabecera}
+          </div>
+        </div>
+
+        <div className="relative flex flex-col items-center pt-4 pb-2">
+          <ReactorJarvis estado={estadoJarvis} tam={128} pulso={pulsoVoz} />
+          <div className="mt-2 text-[11px] tracking-[0.3em]" style={{ fontFamily: 'monospace', color: colorEstado, textShadow: `0 0 8px ${colorEstado}` }}>
+            {TEXTO_ESTADO_JARVIS[estadoJarvis]}
+          </div>
+          <div className="text-[9px] tracking-[0.25em] mt-0.5" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>
+            JONAH BEAST FUEL · DATOS EN VIVO
+          </div>
+          <button onClick={() => { desbloquearVoz(); darInforme(); }} disabled={pensando}
+            className="mt-2 text-[10px] tracking-[0.2em] px-3 py-1 rounded-full disabled:opacity-40"
+            style={{ fontFamily: 'monospace', color: '#4dd9ff', border: '1px solid #1c6b85', background: 'rgba(77,217,255,0.06)' }}>
+            📋 INFORME DEL DÍA
+          </button>
+        </div>
+
+        {bloqueVoz}
+
+        {bloqueRegistro}
+
+        {bloqueEntrada}
       </div>
     </div>
   );

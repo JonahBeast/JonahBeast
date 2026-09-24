@@ -11717,6 +11717,60 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
   );
 }
 
+/* Porción con la que entra un alimento reconocido por foto: la medida de
+   casa por defecto y, si se cuenta por piezas (huevo, pan...), el conteo
+   de la IA. Es exactamente lo que se agrega al confirmar. */
+function porcionDeFoto(food, cantidadIA) {
+  const d = unidadPorDefecto(food);
+  const cantidad = cantidadIA || 1;
+  return { unit: d.unit, qty: UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty };
+}
+
+function textoPorcion({ unit, qty }) {
+  if (unit === 'gramos') return `${Math.round(qty)} g`;
+  if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
+  const plural = unit === 'porción' ? 'porciones' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
+  return `${qty} ${plural}`;
+}
+
+function macrosDeFoto(food, porcion) {
+  return entryMacros({ foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
+}
+
+// Pasos que se muestran mientras la IA analiza la foto (avanzan con la
+// barra de progreso simulada).
+const PASOS_ESCANER = [
+  { hasta: 30, texto: 'Detectando alimentos en la foto' },
+  { hasta: 65, texto: 'Comparando con platos peruanos' },
+  { hasta: 101, texto: 'Calculando calorías y macros' },
+];
+
+const ESTILOS_ESCANER = `
+@keyframes jb-scan-sweep { 0% { top: -15%; } 50% { top: 100%; } 100% { top: -15%; } }
+@keyframes jbe-esquina { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes jbe-entrar { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes jbe-punto { 0%, 100% { opacity: .15; } 50% { opacity: .6; } }
+.jbe-esquina { animation: jbe-esquina 1.2s ease-in-out infinite; }
+.jbe-entrar { animation: jbe-entrar .45s cubic-bezier(.2,.8,.3,1) both; }
+.jbe-rejilla { background-image: radial-gradient(rgba(255,112,32,.55) 1px, transparent 1.2px); background-size: 14px 14px; animation: jbe-punto 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .jbe-esquina, .jbe-entrar, .jbe-rejilla { animation: none !important; } }
+`;
+
+function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
+  return (
+    <div className={`relative w-full ${alto} overflow-hidden rounded-xl mb-4 border border-orange-500/30`}>
+      <img src={src} alt="" className={`w-full ${alto} object-cover`} />
+      <div className="absolute inset-3 pointer-events-none">
+        <div className="jbe-esquina absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-orange-500 rounded-tl-md" />
+        <div className="jbe-esquina absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-orange-500 rounded-tr-md" />
+        <div className="jbe-esquina absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-orange-500 rounded-bl-md" />
+        <div className="jbe-esquina absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-orange-500 rounded-br-md" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /* Modal de reconocimiento de comida por foto. Le manda la imagen a la
    Edge Function 'reconocer-comida' junto con la lista liviana de
    alimentos del alumno (solo key + name, sin macros), y deja que el
@@ -11849,20 +11903,16 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         const key = elecciones[f.id];
         const food = key && f.alternativas.find(a => a.key === key);
         if (!food) return;
-        const d = unidadPorDefecto(food);
-        const cantidad = f._cantidadIA || 1;
-        const qty = UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty;
-        onAgregar({ id: uid(), foodKey: food.key, unit: d.unit, qty });
+        const porcion = porcionDeFoto(food, f._cantidadIA);
+        onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
         return;
       }
       if (!seleccionados[f.key]) return;
-      const d = unidadPorDefecto(f);
       // Solo confiamos en el conteo de la IA para piezas enteras y
       // contables (huevo, pan...) — nunca para ajustar peso o volumen,
       // que sigue siendo el alumno quien lo decide.
-      const cantidad = f._cantidadIA || 1;
-      const qty = UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty;
-      onAgregar({ id: uid(), foodKey: f.key, unit: d.unit, qty });
+      const porcion = porcionDeFoto(f, f._cantidadIA);
+      onAgregar({ id: uid(), foodKey: f.key, unit: porcion.unit, qty: porcion.qty });
     });
     registrarFeedbackReconocimiento();
     onCerrar();
@@ -11896,6 +11946,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <style>{ESTILOS_ESCANER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
@@ -11957,43 +12008,61 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
         )}
 
         {estado === 'analizando' && (
-          <div className="text-center py-4">
+          <div className="text-center py-2">
             {previewUrl && (
-              <div className="relative w-full max-h-56 overflow-hidden rounded-xl mb-4">
-                <img src={previewUrl} alt="" className="w-full max-h-56 object-cover" />
-                <div className="absolute inset-0 bg-zinc-950/30" />
-                {/* esquinas tipo escáner */}
-                <div className="absolute inset-3 pointer-events-none">
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-orange-500 rounded-tl-md" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-orange-500 rounded-tr-md" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-orange-500 rounded-bl-md" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-orange-500 rounded-br-md" />
-                </div>
+              <MarcoEscaner src={previewUrl}>
+                <div className="absolute inset-0 bg-zinc-950/40" />
+                <div className="jbe-rejilla absolute inset-0 pointer-events-none" />
                 {/* línea de escaneo que sube y baja */}
                 <div className="absolute left-0 right-0 h-12 pointer-events-none"
                   style={{
                     top: '-15%',
-                    background: 'linear-gradient(180deg, transparent, rgba(249,115,22,0.6), transparent)',
+                    background: 'linear-gradient(180deg, transparent, rgba(255,112,32,0.65), transparent)',
                     animation: 'jb-scan-sweep 1.8s ease-in-out infinite',
                   }} />
-              </div>
+                <span className="absolute top-2 left-1/2 -translate-x-1/2 jb-display text-[10px] tracking-[0.2em] text-orange-400 bg-zinc-950/80 border border-orange-500/40 rounded-full px-2.5 py-0.5">
+                  ESCANEANDO
+                </span>
+              </MarcoEscaner>
             )}
-            <p className="jb-display text-3xl text-orange-500 mb-1 tabular-nums">{progresoIA}%</p>
-            <p className="jb-body text-sm text-zinc-400">Identificando tu comida…</p>
-            <style>{`@keyframes jb-scan-sweep { 0% { top: -15%; } 50% { top: 100%; } 100% { top: -15%; } }`}</style>
+            <p className="jb-display text-3xl text-orange-500 mb-3 tabular-nums">{progresoIA}%</p>
+            <div className="flex flex-col gap-1.5 text-left max-w-xs mx-auto">
+              {PASOS_ESCANER.map((paso, i) => {
+                const desde = i === 0 ? 0 : PASOS_ESCANER[i - 1].hasta;
+                const listo = progresoIA >= paso.hasta;
+                const activo = !listo && progresoIA >= desde;
+                return (
+                  <div key={paso.texto} className={`flex items-center gap-2 jb-body text-sm ${listo ? 'text-zinc-300' : activo ? 'text-orange-400' : 'text-zinc-600'}`}>
+                    <span className="w-4 shrink-0 text-center">
+                      {listo ? '✓' : activo ? <Loader2 className="animate-spin inline" size={13} /> : '·'}
+                    </span>
+                    {paso.texto}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {estado === 'resultados' && (
           <div>
-            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
-            <p className="jb-body text-xs text-zinc-500 mb-3">Encontramos esto — desmarca lo que no corresponda:</p>
+            {previewUrl && (
+              <MarcoEscaner src={previewUrl} alto="max-h-40">
+                <span className="absolute bottom-2 left-1/2 -translate-x-1/2 jb-display text-[10px] tracking-[0.15em] text-zinc-950 bg-orange-500 rounded-full px-2.5 py-0.5 whitespace-nowrap">
+                  ⚡ {items.length} {items.length === 1 ? 'ALIMENTO DETECTADO' : 'ALIMENTOS DETECTADOS'}
+                </span>
+              </MarcoEscaner>
+            )}
+            <p className="jb-body text-xs text-zinc-500 mb-3">Desmarca lo que no corresponda. Esto es lo que se sumará a tu comida:</p>
             <div className="flex flex-col gap-2 mb-4">
-              {items.map(f => {
+              {items.map((f, i) => {
+                const retraso = { animationDelay: `${i * 90}ms` };
                 if (f.esOpciones) {
                   const elegido = elecciones[f.id];
+                  const foodElegido = elegido && f.alternativas.find(a => a.key === elegido);
+                  const porcionElegida = foodElegido && porcionDeFoto(foodElegido, f._cantidadIA);
                   return (
-                    <div key={f.id} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5">
+                    <div key={f.id} style={retraso} className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5">
                       <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es?</p>
                       <div className="flex flex-wrap gap-2">
                         {f.alternativas.map(alt => (
@@ -12004,29 +12073,64 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                           </button>
                         ))}
                       </div>
+                      {porcionElegida && (
+                        <p className="jb-body text-xs text-zinc-400 mt-2">
+                          {textoPorcion(porcionElegida)} · <span className="text-orange-400 font-semibold">{Math.round(macrosDeFoto(foodElegido, porcionElegida).kcal)} kcal</span>
+                        </p>
+                      )}
                     </div>
                   );
                 }
-                const d = unidadPorDefecto(f);
-                const cantidad = f._cantidadIA || 1;
-                const mostrarConteo = UNIDADES_DISCRETAS.includes(d.unit) && cantidad > 1;
+                const porcion = porcionDeFoto(f, f._cantidadIA);
+                const m = macrosDeFoto(f, porcion);
+                const marcado = !!seleccionados[f.key];
                 return (
-                <label key={f.key} className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 cursor-pointer">
-                  <input type="checkbox" checked={!!seleccionados[f.key]}
+                <label key={f.key} style={retraso}
+                  className={`jbe-entrar flex items-center gap-3 bg-zinc-950 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
+                  <input type="checkbox" checked={marcado}
                     onChange={() => setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }))}
                     className="w-4 h-4 accent-orange-500 shrink-0" />
-                  <span className="jb-body text-sm text-zinc-200 flex-1">{f.name}</span>
-                  {mostrarConteo && <span className="jb-display text-xs text-orange-500 shrink-0">×{cantidad}</span>}
+                  <span className="flex-1 min-w-0">
+                    <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{f.name}</span>
+                    <span className="block jb-body text-xs text-zinc-500">{textoPorcion(porcion)}</span>
+                  </span>
+                  <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{Math.round(m.kcal)} kcal</span>
                 </label>
                 );
               })}
             </div>
+            {(() => {
+              // Total de lo que está marcado (y de las opciones ya elegidas).
+              const elegidos = [];
+              items.forEach(f => {
+                if (f.esOpciones) {
+                  const food = elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id]);
+                  if (food) elegidos.push(macrosDeFoto(food, porcionDeFoto(food, f._cantidadIA)));
+                } else if (seleccionados[f.key]) {
+                  elegidos.push(macrosDeFoto(f, porcionDeFoto(f, f._cantidadIA)));
+                }
+              });
+              if (!elegidos.length) return null;
+              const t = elegidos.reduce((a, x) => ({ kcal: a.kcal + x.kcal, protein: a.protein + x.protein, carbs: a.carbs + x.carbs, fat: a.fat + x.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+              return (
+                <div className="jbe-entrar bg-gradient-to-r from-orange-500/15 to-transparent border border-orange-500/40 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3"
+                  style={{ animationDelay: `${items.length * 90}ms` }}>
+                  <div>
+                    <p className="jb-body text-[11px] tracking-widest text-zinc-400">TOTAL DE ESTA COMIDA</p>
+                    <p className="jb-body text-xs text-zinc-400 mt-0.5 tabular-nums">
+                      P {Math.round(t.protein)}g · C {Math.round(t.carbs)}g · G {Math.round(t.fat)}g
+                    </p>
+                  </div>
+                  <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(t.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
+                </div>
+              );
+            })()}
             <button onClick={confirmar} disabled={!Object.values(seleccionados).some(Boolean) && !Object.values(elecciones).some(Boolean)}
               className={btnPrimary + ' w-full py-3'}>
               Agregar {(Object.values(seleccionados).filter(Boolean).length + Object.values(elecciones).filter(Boolean).length) || ''} a esta comida
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
-              Después podrás ajustar la cantidad de cada uno con medidas de casa.
+              ¿Comiste más o menos? Después ajustas la cantidad de cada uno con medidas de casa.
             </p>
             {noEncontrados.length > 0 && (
               <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5">

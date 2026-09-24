@@ -29,7 +29,7 @@
     },
     {
       "path": "/api/cron/activa-tu-perfil",
-      "schedule": "0 16 * * *"
+      "schedule": "30 17 * * *"
     }
   ]
 }

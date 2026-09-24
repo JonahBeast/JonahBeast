@@ -16,6 +16,12 @@ const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.ge
 
 const LIMITE_GRATIS_SEMANAL = 5;
 const LIMITE_PAGO_MENSUAL = 200;
+// Bienvenida: los primeros 3 días de la prueba gratis, 3 fotos por día
+// (desayuno, almuerzo y cena), para que el alumno viva la función completa
+// justo cuando decide si se queda. Desde el día 4 vuelve a 5 por semana, y
+// quien quiera más compra Reconocimiento Inteligente.
+const LIMITE_BIENVENIDA_DIARIO = 3;
+const DIAS_BIENVENIDA = 3;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +56,11 @@ function fechaLima(d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(d);
 }
 
+// Días entre dos fechas YYYY-MM-DD (b - a).
+function diasEntre(a: string, b: string) {
+  return Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86400000);
+}
+
 // El alumno sale de la sesión iniciada, nunca de lo que mande el navegador:
 // así nadie puede usar la IA (y gastar créditos) a nombre de otro o con
 // usuarios inventados.
@@ -77,7 +88,39 @@ Deno.serve(async (req) => {
     const username = await usuarioDeLaSesion(supabase, req);
     if (!username) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
 
-    const { imagenBase64, mimeType, alimentos } = await req.json();
+    const { imagenBase64, mimeType, alimentos, consulta } = await req.json();
+
+    // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
+    // sin fecha de vencimiento), igual que en la app.
+    const { data: alumno } = await supabase
+      .from("alumnos")
+      .select("enabled, plan, fecha_inicio, fecha_vencimiento, reconocimiento_foto_desde, reconocimiento_foto_hasta")
+      .eq("username", username)
+      .maybeSingle();
+    if (!alumno || !alumno.enabled || (alumno.fecha_vencimiento && alumno.fecha_vencimiento < fechaLima())) {
+      return json({ error: "Tu membresía no está activa. Renueva tu plan para usar el reconocimiento por foto." }, 403);
+    }
+
+    const hoy = new Date();
+    const hoyLima = fechaLima(hoy);
+    const tieneAddOn = !!(alumno.reconocimiento_foto_hasta && new Date(alumno.reconocimiento_foto_hasta + "T23:59:59Z") > hoy);
+    const esPrueba = alumno.plan === "trial" || alumno.plan === "prueba";
+    const diaPrueba = esPrueba && alumno.fecha_inicio ? diasEntre(alumno.fecha_inicio, hoyLima) + 1 : null;
+    const enBienvenida = !tieneAddOn && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
+    const tipo = tieneAddOn ? "addon" : enBienvenida ? "bienvenida" : "semanal";
+    const periodo = tieneAddOn ? periodoDesdeActivacion(alumno.reconocimiento_foto_desde, hoy)
+      : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
+    const limite = tieneAddOn ? LIMITE_PAGO_MENSUAL : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
+    // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
+    const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
+    const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
+
+    // Consulta: solo dice cuántas fotos le quedan, sin usar la IA.
+    if (consulta === true) {
+      const { data: fila } = await supabase.from("fotos_reconocimiento_uso")
+        .select("usadas").eq("username", username).eq("periodo", periodo).maybeSingle();
+      return json({ ...cupo, usadas: Number(fila?.usadas) || 0 });
+    }
 
     if (typeof imagenBase64 !== "string" || !imagenBase64 || !Array.isArray(alimentos) || !alimentos.length) {
       return json({ error: "Faltan datos (imagenBase64 o alimentos)." }, 400);
@@ -94,22 +137,6 @@ Deno.serve(async (req) => {
       .map((a: any) => ({ key: a.key.slice(0, MAX_TEXTO_ALIMENTO), name: a.name.slice(0, MAX_TEXTO_ALIMENTO) }));
     if (!alimentosValidos.length) return json({ error: "Faltan datos (alimentos)." }, 400);
 
-    // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
-    // sin fecha de vencimiento), igual que en la app.
-    const { data: alumno } = await supabase
-      .from("alumnos")
-      .select("enabled, fecha_vencimiento, reconocimiento_foto_desde, reconocimiento_foto_hasta")
-      .eq("username", username)
-      .maybeSingle();
-    if (!alumno || !alumno.enabled || (alumno.fecha_vencimiento && alumno.fecha_vencimiento < fechaLima())) {
-      return json({ error: "Tu membresía no está activa. Renueva tu plan para usar el reconocimiento por foto." }, 403);
-    }
-
-    const hoy = new Date();
-    const tieneAddOn = !!(alumno.reconocimiento_foto_hasta && new Date(alumno.reconocimiento_foto_hasta + "T23:59:59Z") > hoy);
-    const periodo = tieneAddOn ? periodoDesdeActivacion(alumno.reconocimiento_foto_desde, hoy) : numeroDeSemanaISO(hoy);
-    const limite = tieneAddOn ? LIMITE_PAGO_MENSUAL : LIMITE_GRATIS_SEMANAL;
-
     // Se reserva la foto ANTES de llamar a la IA, en un solo paso en la
     // base de datos: si mandan muchas fotos a la vez, solo pasan las que
     // entran en el cupo. Si la IA falla, la foto se devuelve más abajo.
@@ -121,7 +148,7 @@ Deno.serve(async (req) => {
       return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
     }
     if (usadas === null || usadas === undefined) {
-      return json({ error: "limite_alcanzado", tieneAddOn, usadas: limite, limite, hasta: alumno.reconocimiento_foto_hasta || null }, 200);
+      return json({ error: "limite_alcanzado", ...cupo, usadas: limite }, 200);
     }
     const devolverFoto = () => supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
 
@@ -234,7 +261,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     }
 
     // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, noEncontrados, usadas, limite, tieneAddOn, hasta: alumno.reconocimiento_foto_hasta || null });
+    return json({ items, noEncontrados, ...cupo, usadas });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);

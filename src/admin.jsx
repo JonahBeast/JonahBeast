@@ -3396,6 +3396,306 @@ function JarvisPanel({ onClose, users }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* WHATSAPP: conectar el número (coexistencia) y el asistente          */
+/* ------------------------------------------------------------------ */
+// App "Jonah Beast Asistente" en Meta for Developers. El ID de configuración
+// lo da Meta al crear la configuración de "Inicio de sesión con Facebook
+// para empresas" (registro insertado de WhatsApp); sin él, el botón avisa.
+const WA_APP_ID = '1123671916889585';
+const WA_CONFIG_ID = '1069612025663283'; // "Registro insertado de WhatsApp" (la llave dura 60 días)
+const WA_GRAPH_VERSION = 'v23.0';
+
+async function llamarWhatsApp(cuerpo) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-conectar`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: supabaseKey,
+      authorization: `Bearer ${session?.access_token || supabaseKey}`,
+    },
+    body: JSON.stringify(cuerpo),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || 'No se pudo conectar con el servidor.');
+  return data;
+}
+
+// La ventana oficial de Meta (registro insertado) necesita su SDK.
+function cargarSdkFacebook() {
+  return new Promise((resolve, reject) => {
+    if (window.FB) return resolve(window.FB);
+    window.fbAsyncInit = () => {
+      window.FB.init({ appId: WA_APP_ID, autoLogAppEvents: true, xfbml: false, version: WA_GRAPH_VERSION });
+      resolve(window.FB);
+    };
+    const s = document.createElement('script');
+    s.src = 'https://connect.facebook.net/es_LA/sdk.js';
+    s.async = true; s.defer = true; s.crossOrigin = 'anonymous';
+    s.onerror = () => reject(new Error('No se pudo abrir la ventana de Meta. Revisa tu conexión.'));
+    document.body.appendChild(s);
+  });
+}
+
+function fechaHoraCorta(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }); } catch { return ''; }
+}
+
+const MOTIVOS_WHATSAPP = {
+  pago: 'Pago', descuento: 'Descuento', medico: 'Tema médico', reclamo: 'Reclamo',
+  no_se: 'No sabía la respuesta', pide_persona: 'Pidió hablar contigo', otro: 'Otro',
+};
+
+function WhatsAppPanel() {
+  const [estado, setEstado] = useState(null);
+  const [conectando, setConectando] = useState(false);
+  const [aviso, setAviso] = useState('');
+  const [modo, setModo] = useState('apagado');
+  const [numeros, setNumeros] = useState('');
+  const [guardado, setGuardado] = useState({ modo: 'apagado', numeros: '' });
+  const [chats, setChats] = useState([]);
+  const [abierto, setAbierto] = useState(null);
+  const [mensajes, setMensajes] = useState([]);
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    try { setEstado(await llamarWhatsApp({ accion: 'estado' })); }
+    catch (e) { setEstado({ error: e.message }); }
+    try {
+      const { data } = await supabase.from('config').select('key, value')
+        .in('key', ['whatsapp_asistente', 'whatsapp_numeros_prueba']);
+      const m = {};
+      (data || []).forEach(c => { m[c.key] = c.value; });
+      const g = { modo: m.whatsapp_asistente || 'apagado', numeros: m.whatsapp_numeros_prueba || '' };
+      setModo(g.modo); setNumeros(g.numeros); setGuardado(g);
+    } catch {}
+    await cargarChats();
+  }
+
+  async function cargarChats() {
+    try {
+      const { data } = await supabase.from('whatsapp_chats').select('*')
+        .order('ultimo_mensaje_en', { ascending: false }).limit(50);
+      setChats(data || []);
+    } catch { setChats([]); }
+  }
+
+  async function guardarAjustes() {
+    try {
+      await supabase.from('config').upsert([
+        { key: 'whatsapp_asistente', value: modo },
+        { key: 'whatsapp_numeros_prueba', value: numeros.trim() },
+      ]);
+      setGuardado({ modo, numeros: numeros.trim() });
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  async function conectar() {
+    setAviso('');
+    if (!WA_CONFIG_ID) {
+      setAviso('Falta un dato de Meta (el ID de configuración del registro). Pídeselo a Claude para activar este botón.');
+      return;
+    }
+    setConectando(true);
+    let datos = null, code = null, terminado = false;
+    const terminar = (texto) => {
+      if (terminado) return;
+      terminado = true;
+      window.removeEventListener('message', alMensaje);
+      if (texto) setAviso(texto);
+      setConectando(false);
+    };
+    async function intentar() {
+      if (terminado || !code || !datos) return;
+      terminado = true;
+      window.removeEventListener('message', alMensaje);
+      try {
+        const r = await llamarWhatsApp({ accion: 'conectar', code, waba_id: datos.waba_id, phone_number_id: datos.phone_number_id });
+        setAviso(`✅ ¡Listo! Tu WhatsApp ${r.telefono || ''} quedó conectado.`);
+        await cargar();
+      } catch (e) {
+        setAviso('No se pudo conectar: ' + e.message);
+      }
+      setConectando(false);
+    }
+    function alMensaje(ev) {
+      if (!String(ev.origin || '').endsWith('facebook.com')) return;
+      try {
+        const d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        if (d?.type !== 'WA_EMBEDDED_SIGNUP') return;
+        if (String(d.event || '').startsWith('FINISH')) { datos = d.data || {}; intentar(); }
+        else if (d.event === 'CANCEL') terminar('Se cerró la ventana de Meta antes de terminar. Puedes intentarlo de nuevo.');
+        else if (d.event === 'ERROR') terminar('Meta mostró un error: ' + (d.data?.error_message || 'intenta de nuevo.'));
+      } catch {}
+    }
+    window.addEventListener('message', alMensaje);
+    try {
+      const FB = await cargarSdkFacebook();
+      FB.login((resp) => {
+        code = resp?.authResponse?.code || null;
+        if (!code) { terminar('No se completó la conexión.'); return; }
+        intentar();
+        setTimeout(() => terminar('Meta no envió los datos del número. Intenta de nuevo.'), 20000);
+      }, {
+        config_id: WA_CONFIG_ID,
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
+      });
+    } catch (e) {
+      terminar(e.message);
+    }
+  }
+
+  async function verMensajes(telefono) {
+    if (abierto === telefono) { setAbierto(null); return; }
+    setAbierto(telefono); setMensajes([]);
+    try {
+      const { data } = await supabase.from('whatsapp_mensajes').select('*')
+        .eq('telefono', telefono).order('creado_en', { ascending: false }).limit(50);
+      setMensajes((data || []).reverse());
+    } catch { setMensajes([]); }
+  }
+
+  async function devolverAlAsistente(telefono) {
+    try {
+      await supabase.from('whatsapp_chats')
+        .update({ modo: 'asistente', motivo: null, resumen: null, pausado_hasta: null })
+        .eq('telefono', telefono);
+      await cargarChats();
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  const cambios = modo !== guardado.modo || numeros.trim() !== guardado.numeros;
+  const pendientes = chats.filter(c => c.modo === 'jonah').length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+            <MessageCircle size={16} className="text-orange-500" />
+          </div>
+          <h2 className="jb-display text-base text-zinc-200">TU WHATSAPP</h2>
+        </div>
+        {!estado ? (
+          <p className="jb-body text-sm text-zinc-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Revisando conexión…</p>
+        ) : estado.conectado ? (
+          <>
+          <p className="jb-body text-sm text-zinc-300">
+            ✅ Conectado: <span className="text-orange-400 font-semibold">{estado.telefono || 'tu número'}</span>
+            {estado.nombre ? ` (${estado.nombre})` : ''} · desde {fechaHoraCorta(estado.conectado_en)}
+          </p>
+          {estado.conectado_en && (() => {
+            // La llave que da el registro de Meta dura 60 días: hay que
+            // volver a conectar (o cambiarla por una permanente) antes.
+            const vence = new Date(new Date(estado.conectado_en).getTime() + 60 * 86400000);
+            const dias = Math.ceil((vence - Date.now()) / 86400000);
+            return (
+              <p className={`jb-body text-xs mt-2 ${dias <= 10 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                {dias > 0
+                  ? `La conexión vence el ${vence.toLocaleDateString('es-PE')} (en ${dias} días). Antes de esa fecha hay que renovarla.`
+                  : 'La conexión venció: el asistente ya no puede responder. Vuelve a conectar tu WhatsApp.'}
+              </p>
+            );
+          })()}
+          <button onClick={conectar} disabled={conectando} className={btnGhost + ' text-xs mt-3'}>
+            {conectando ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />} Volver a conectar
+          </button>
+          </>
+        ) : (
+          <>
+            <p className="jb-body text-sm text-zinc-400 mb-4">
+              Conecta tu WhatsApp Business para que el asistente pueda responder. Sigues usando WhatsApp en tu celular como siempre.
+              Se abrirá una ventana de Meta y tendrás que escanear un código QR con tu WhatsApp Business.
+            </p>
+            <button onClick={conectar} disabled={conectando} className={btnPrimary + ' w-full sm:w-auto'}>
+              {conectando ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={16} />} Conectar mi WhatsApp
+            </button>
+          </>
+        )}
+        {estado?.error && <p className="jb-body text-xs text-red-400 mt-3">{estado.error}</p>}
+        {estado?.falta_secreto && <p className="jb-body text-xs text-amber-400 mt-3">Falta guardar el secreto WHATSAPP_APP_SECRET en Supabase.</p>}
+        {aviso && <p className="jb-body text-sm text-zinc-200 mt-3">{aviso}</p>}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-1">🤖 ASISTENTE</h2>
+        <p className="jb-body text-xs text-zinc-500 mb-4">Decide cuándo responde el asistente. Empieza en "Solo prueba" con tu número personal.</p>
+        <div className="grid sm:grid-cols-3 gap-2 mb-4">
+          {[
+            ['apagado', 'Apagado', 'No responde a nadie. Solo guarda los mensajes.'],
+            ['prueba', 'Solo prueba', 'Responde solo a los números de abajo.'],
+            ['activo', 'Activo', 'Responde a todos tus clientes.'],
+          ].map(([id, titulo, desc]) => (
+            <button key={id} onClick={() => setModo(id)}
+              className={`text-left rounded-xl p-3 border transition-colors ${modo === id ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-950 border-zinc-800 text-zinc-200 hover:border-orange-500'}`}>
+              <div className="jb-display text-sm">{titulo.toUpperCase()}</div>
+              <div className={`jb-body text-[11px] mt-0.5 ${modo === id ? 'text-zinc-800' : 'text-zinc-500'}`}>{desc}</div>
+            </button>
+          ))}
+        </div>
+        {modo === 'prueba' && (
+          <Field label="Números de prueba (separados por comas)">
+            <input value={numeros} onChange={e => setNumeros(e.target.value)} className={inputCls} placeholder="Ej. 987654321, 912345678" />
+          </Field>
+        )}
+        <button onClick={guardarAjustes} disabled={!cambios} className={btnPrimary + ' text-sm mt-4'}>
+          {cambios ? 'Guardar' : 'Guardado'}
+        </button>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="jb-display text-base text-zinc-200">💬 CHATS {pendientes > 0 && <span className="text-orange-400">· {pendientes} te esperan 🙋</span>}</h2>
+          <button onClick={cargarChats} className={btnGhost + ' text-xs'}>Actualizar</button>
+        </div>
+        {chats.length === 0 ? (
+          <p className="jb-body text-sm text-zinc-500">Todavía no hay chats. Aparecerán aquí cuando te escriban.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {chats.map(c => (
+              <div key={c.telefono} className={`bg-zinc-950 border rounded-xl p-3 ${c.modo === 'jonah' ? 'border-orange-500/50' : 'border-zinc-800'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <button onClick={() => verMensajes(c.telefono)} className="text-left min-w-0 flex-1">
+                    <div className="jb-body text-sm text-zinc-100 truncate">
+                      {c.modo === 'jonah' ? '🙋' : '🤖'} {c.nombre || `+${c.telefono}`}
+                      {c.username && <span className="text-zinc-500"> · @{c.username}</span>}
+                    </div>
+                    {c.modo === 'jonah' && c.resumen && (
+                      <div className="jb-body text-xs text-orange-300 mt-0.5">{MOTIVOS_WHATSAPP[c.motivo] || 'Te lo pasó'}: {c.resumen}</div>
+                    )}
+                    <div className="jb-body text-[11px] text-zinc-500 mt-0.5">+{c.telefono} · {fechaHoraCorta(c.ultimo_mensaje_en)}</div>
+                  </button>
+                  {c.modo === 'jonah' && (
+                    <button onClick={() => devolverAlAsistente(c.telefono)} className={btnGhost + ' text-xs shrink-0'}>Devolver al asistente</button>
+                  )}
+                </div>
+                {abierto === c.telefono && (
+                  <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-col gap-1.5 max-h-80 overflow-y-auto">
+                    {mensajes.length === 0 && <p className="jb-body text-xs text-zinc-500">Cargando…</p>}
+                    {mensajes.map(m => (
+                      <div key={m.id} className={`jb-body text-xs rounded-lg px-2.5 py-1.5 max-w-[85%] ${m.direccion === 'entrante' ? 'bg-zinc-800 text-zinc-100 self-start' : m.direccion === 'jonah' ? 'bg-orange-500/20 text-orange-100 self-end' : 'bg-zinc-700/50 text-zinc-200 self-end'}`}>
+                        <div className="text-[10px] text-zinc-500 mb-0.5">
+                          {m.direccion === 'entrante' ? 'Cliente' : m.direccion === 'jonah' ? 'Tú' : 'Asistente'} · {fechaHoraCorta(m.creado_en)}
+                        </div>
+                        <div className="whitespace-pre-wrap break-words">{m.texto}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
@@ -3462,6 +3762,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             { id: 'negocio', label: 'NEGOCIO', emoji: '💰' },
             { id: 'ia', label: 'IA', emoji: '📸' },
             { id: 'tienda', label: 'TIENDA', emoji: '🛍️' },
+            { id: 'whatsapp', label: 'WHATSAPP', emoji: '💬' },
           ];
           return (
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -3644,6 +3945,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'tienda' && (
           <TiendaAdminPanel />
+        )}
+
+        {tabActiva === 'whatsapp' && (
+          <WhatsAppPanel />
         )}
       </main>
     </div>

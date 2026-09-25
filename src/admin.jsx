@@ -3403,7 +3403,7 @@ function JarvisPanel({ onClose, users }) {
 // lo da Meta al crear la configuración de "Inicio de sesión con Facebook
 // para empresas" (registro insertado de WhatsApp); sin él, el botón avisa.
 const WA_APP_ID = '1123671916889585';
-const WA_CONFIG_ID = '';
+const WA_CONFIG_ID = '1069612025663283'; // "Registro insertado de WhatsApp" (la llave dura 60 días)
 const WA_GRAPH_VERSION = 'v23.0';
 
 async function llamarWhatsApp(cuerpo) {
@@ -3584,10 +3584,28 @@ function WhatsAppPanel() {
         {!estado ? (
           <p className="jb-body text-sm text-zinc-500 flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Revisando conexión…</p>
         ) : estado.conectado ? (
+          <>
           <p className="jb-body text-sm text-zinc-300">
             ✅ Conectado: <span className="text-orange-400 font-semibold">{estado.telefono || 'tu número'}</span>
             {estado.nombre ? ` (${estado.nombre})` : ''} · desde {fechaHoraCorta(estado.conectado_en)}
           </p>
+          {estado.conectado_en && (() => {
+            // La llave que da el registro de Meta dura 60 días: hay que
+            // volver a conectar (o cambiarla por una permanente) antes.
+            const vence = new Date(new Date(estado.conectado_en).getTime() + 60 * 86400000);
+            const dias = Math.ceil((vence - Date.now()) / 86400000);
+            return (
+              <p className={`jb-body text-xs mt-2 ${dias <= 10 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                {dias > 0
+                  ? `La conexión vence el ${vence.toLocaleDateString('es-PE')} (en ${dias} días). Antes de esa fecha hay que renovarla.`
+                  : 'La conexión venció: el asistente ya no puede responder. Vuelve a conectar tu WhatsApp.'}
+              </p>
+            );
+          })()}
+          <button onClick={conectar} disabled={conectando} className={btnGhost + ' text-xs mt-3'}>
+            {conectando ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />} Volver a conectar
+          </button>
+          </>
         ) : (
           <>
             <p className="jb-body text-sm text-zinc-400 mb-4">

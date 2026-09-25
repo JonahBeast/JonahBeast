@@ -20,7 +20,7 @@
 
 ## 1. Qué es Jonah Beast Fuel
 
-- App peruana de nutrición creada por Jonah Beast. Lema: **"SIGUE COMIENDO PERUANO. ESTA VEZ, CON RESULTADOS."**
+- App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
 - **Prueba gratis de 15 días, sin tarjeta.** Después, planes pagados de 1, 3, 6 o 12 meses.
 - **Todos los planes incluyen:** composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
@@ -30,11 +30,14 @@
 
 ## 2. La portada (jonahbeast.com)
 
-- Botón principal **"PRUEBA GRATIS 15 DÍAS"** → registro. Debajo dice "Gratis hasta el [fecha]" y "Registro en 30 segundos · Sin tarjeta · Cancela cuando quieras".
-- **"🚀 EMPEZAR MI PRUEBA GRATIS"** → también lleva al registro.
+- Arriba: **"JONAH BEAST FUEL"**, "App de nutrición y pérdida de grasa" y el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca."
+- Debajo: el antes/después de Jonah (−37 kg en 4 años), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
+- Botón principal **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "15 días gratis · Sin tarjeta · Hasta el [fecha]".
+- Más abajo, **"RESULTADOS REALES"**: Andrea y César con sus testimonios.
+- **"🚀 EMPIEZA A BAJAR DE PESO"** (15 días gratis · Sin tarjeta) → también lleva al registro.
 - Tarjeta **"SOY ALUMNO"** ("Ya tengo cuenta") → ingresar.
 - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
-- La animación del escáner de la portada es solo una demostración, no se puede usar ahí.
+- La animación del escaneo de la portada es solo una demostración, no se puede usar ahí.
 
 ### 2.1 Calculadora gratis ("MIDE TU COMPOSICIÓN CORPORAL")
 
@@ -160,6 +163,7 @@ De arriba hacia abajo:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
 - Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
+- **¿Se guardó?** Arriba a la derecha hay un indicador: **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar (ver 8.8).
 
 ### 8.2 Cómo registrar (paso común)
 
@@ -237,6 +241,13 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - **Anillo naranja:** dentro de tu meta. **Ámbar con "kcal de más":** te pasaste.
 - **Barras de macros:** ámbar = pasaste ese objetivo en más de 5%.
 - **"TOTAL DEL DÍA VS. OBJETIVO":** verde (menos de 85%, "Vas bien…"), ámbar (85–105%, "Ya casi llegas…"), naranja (más de 105%, "Pasaste tu objetivo de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.").
+
+### 8.8 "Sin guardar": sin internet o sesión cerrada
+
+- Todo lo que anotas se guarda primero **en el celular** y luego se sube solo. No se pierde aunque no haya internet.
+- **"Sin conexión: aún no se guardó"** → el celular no tiene internet. Lo anotado se sube solo cuando vuelve la conexión. **No cerrar sesión** mientras tanto.
+- **"Tu sesión se cerró"** → tocar **"Volver a entrar"** e ingresar con el correo; lo anotado se sube solo al entrar.
+- Si un alumno dice que "no se guardan sus comidas": que abra la app **con internet**, revise que arriba salga ✓ y, si sale la nube tachada, siga el aviso. Si cerró la app sin internet, al volver a abrirla (en el mismo celular) sus comidas aparecen y se suben.
 
 ---
 
@@ -401,7 +412,10 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 ### 13.4 App descargada de Play Store
 
-Ahí solo se ven los precios y el botón **"Escribir por WhatsApp para activar"**. El pago se coordina por WhatsApp.
+- En "Planes" aparece **"ELIGE TU PLAN"** ("Paga seguro con tu cuenta de Google Play") con los 4 planes y el botón **"Suscribirme"** en cada uno. Los precios los muestra Google.
+- Es una **suscripción con renovación automática**: se renueva sola al terminar cada periodo. Se cancela desde Google Play (enlace **"Administrar mi suscripción en Google Play"**) y el acceso sigue hasta el final del periodo pagado.
+- El plan se activa solo cuando Google confirma el pago.
+- Si sale "Conectando con Google Play…" por mucho rato o la app no logra conectar con Google, se ven los precios con el botón **"Escribir por WhatsApp para activar"** y el pago se coordina por WhatsApp.
 
 ### 13.5 La prueba gratis dentro de la app
 
@@ -509,7 +523,8 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | ¿Pierdo mis datos si no renuevo? | No, el historial y las fotos se guardan. |
 | ¿Cuánto tarda la aprobación de Yape/Plin? | Menos de 24 horas; el acceso se activa solo. |
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |
-| ¿Cómo cancelo la suscripción? | Desde tu cuenta de Mercado Pago → Suscripciones. |
+| ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. |
+| No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |
 | ¿Cada cuánto me peso y tomo fotos? | Cada 2 semanas (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |

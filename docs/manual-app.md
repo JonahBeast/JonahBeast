@@ -115,7 +115,9 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 **Barra de abajo (4 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**.
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
 
-**Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros), ícono de **tarjeta "Mi plan"** (planes y pagos) y **"Salir"**. Los datos se guardan solos.
+**Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
+
+**Indicador de guardado** (arriba a la derecha, junto a "Salir", **en todas las pestañas**): **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar. Si sale la nube, ver la sección 8.8.
 
 **Pie de la pantalla (letra pequeña):** "Política de Privacidad" · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
 
@@ -163,7 +165,7 @@ De arriba hacia abajo:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
 - Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
-- **¿Se guardó?** Arriba a la derecha hay un indicador: **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar (ver 8.8).
+- **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
 
 ### 8.2 Cómo registrar (paso común)
 
@@ -244,10 +246,11 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ### 8.8 "Sin guardar": sin internet o sesión cerrada
 
+- Aplica a todo lo que se anota en la app (comidas y datos de "Mi cuerpo"). El indicador está en la barra de arriba, en todas las pestañas; el aviso grande aparece debajo de esa barra.
 - Todo lo que anotas se guarda primero **en el celular** y luego se sube solo. No se pierde aunque no haya internet.
 - **"Sin conexión: aún no se guardó"** → el celular no tiene internet. Lo anotado se sube solo cuando vuelve la conexión. **No cerrar sesión** mientras tanto.
 - **"Tu sesión se cerró"** → tocar **"Volver a entrar"** e ingresar con el correo; lo anotado se sube solo al entrar.
-- Si un alumno dice que "no se guardan sus comidas": que abra la app **con internet**, revise que arriba salga ✓ y, si sale la nube tachada, siga el aviso. Si cerró la app sin internet, al volver a abrirla (en el mismo celular) sus comidas aparecen y se suben.
+- Si un alumno dice que "no se guardan sus comidas": que abra la app **con internet**, revise que en la barra de arriba (cualquier pestaña) salga ✓ y, si sale la nube tachada, siga el aviso. Si cerró la app sin internet, al volver a abrirla (en el mismo celular) sus comidas aparecen y se suben.
 
 ---
 

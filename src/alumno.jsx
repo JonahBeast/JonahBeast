@@ -175,6 +175,7 @@ const SINONIMOS = {
   'avena': 'avena', 'quaker': 'avena',
   'clara': 'clara huevo', 'claras': 'clara huevo',
   'atun': 'atun', 'pechuga': 'pechuga pollo',
+  'bellaco': 'platano bellaco', 'platano verde': 'platano bellaco', 'platano sancochado': 'platano bellaco', 'platano de freir': 'platano bellaco', 'platano para sancochar': 'platano bellaco',
   'pecana': 'pecanas', 'pecan': 'pecanas', 'nuez pecana': 'pecanas', 'nueces pecanas': 'pecanas',
   'papa': 'papa', 'arroz': 'arroz',
 };

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/manual-jarvis.mjs --revisar && vite build",
+    "manual-jarvis": "node scripts/manual-jarvis.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

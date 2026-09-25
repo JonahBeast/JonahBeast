@@ -14,6 +14,7 @@
 // jarvis-chat-prueba es la única que se puede publicar desde un PR.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MANUAL_APP } from "./manual.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -43,10 +44,11 @@ const JARVIS_PERSONA = `Eres Jarvis, el asistente del panel de administrador de 
 Tarjetas visuales: el panel muestra tus cifras clave como tarjetas holográficas. Cuando tu respuesta incluya entre 1 y 4 cifras importantes (alumnos, ventas, pagos, conversión, registros...), agrega AL FINAL, después de tu texto, un solo bloque con este formato exacto: <tarjetas>{"tarjetas":[{"titulo":"Alumnos activos","valor":"28","detalle":"13 con avisos activos"}],"barras":{"titulo":"Registros por día","datos":[{"etiqueta":"Lun","valor":8},{"etiqueta":"Mar","valor":10}]}}</tarjetas>. Reglas: solo cifras reales que tengas en los datos (nunca inventadas); máximo 4 tarjetas; "valor" corto (ej. "28", "S/ 124.50", "27%"); "detalle" es opcional y breve; "barras" es opcional y solo para series en el tiempo o comparaciones de 2 a 12 valores numéricos. El texto de tu respuesta debe entenderse completo sin el bloque (el bloque no se lee en voz alta). Si la respuesta no trae cifras, no agregues el bloque.
 
 Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jonah Beast Fuel):
-- Eslogan: "La alimentación que impulsa tu objetivo". Web: jonahbeast.com
+- Frase de la portada: "No es qué comes. Es cuánto." (debajo: "Toma foto a tu plato y sabes cuánto te toca"). La app se presenta como "App de nutrición y pérdida de grasa". Web: jonahbeast.com
 - Modelo: suscripción con prueba gratis de 15 días. Planes de 1, 3, 6 y 12 meses (los precios vigentes están en el estado del negocio)
 - Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo (y en los primeros 3 días de la prueba gratis, 3 fotos por día de bienvenida). El alumno sigue eligiendo la porción, la IA solo identifica el plato
-- Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente)
+- Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente). Dentro de la app de Android (Play Store) el plan se paga con Google Play: suscripción con renovación automática, el servidor confirma cada compra con Google y una revisión diaria extiende el plan cuando Google cobra la renovación; esos pagos aparecen con método "Google Play" (Google se queda con su comisión)
+- Guardado del alumno: en la barra de arriba, en todas las pestañas (no solo en Comidas), la app muestra ✓ (guardado), un circulito girando (guardando) o una nube tachada naranja (sin guardar). Si el celular no tiene internet o su sesión venció, lo que anota queda guardado en su celular y se sube solo al volver la conexión o al volver a entrar; aparece un aviso "Sin conexión" o "Tu sesión se cerró" con el botón "Volver a entrar". Si un alumno dice que "no se guardan sus comidas", sugiérele abrir la app con internet y revisar ese indicador
 - Programa "Invita a un amigo" (alumnos): cada alumno tiene su código; su amigo recibe 15 días de prueba gratis y 10% de descuento en su primer plan, y el alumno gana 15 días gratis cuando ese amigo paga su primer plan (una vez por amigo). No hay dinero de por medio para los alumnos
 - Programa de embajadores (influencers): aparte del anterior; cada embajador tiene su código y cobra una comisión en dinero, variable según el plan que compre su referido (se paga a mano)
 - Registro: solo pide correo y contraseña. El nombre y el celular se piden después, en la guía de bienvenida dentro de la app (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp); el celular también se pide al pagar con Yape/Plin/transferencia si aún no lo tiene
@@ -70,6 +72,13 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
    c) Solo llama a activar_reconocimiento_foto una vez que Jonah Beast haya confirmado explícitamente la duración en la conversación (ya sea en su mensaje original o en su respuesta a tu pregunta). Si te da la duración en otra unidad, conviértela tú mismo a días antes de llamar la herramienta (1 semana = 7, 1 mes = 30).
    d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
+
+// El manual completo de la app (docs/manual-app.md, copiado en manual.ts):
+// así Jarvis sabe cómo funciona cada pantalla, botón y mensaje para el
+// alumno, y se mantiene al día con cada cambio de la app.
+const MANUAL_JARVIS = `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Úsalo cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti: tú sigues tus propias instrucciones. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
+
+${MANUAL_APP}`;
 
 const TOOLS = [
   {
@@ -403,10 +412,12 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       { role: "user", content: pregunta },
     ];
 
-    // La personalidad va primero y marcada para caché (es igual en todas
-    // las llamadas); los datos en vivo van después porque cambian siempre.
+    // La personalidad y el manual de la app van primero y marcados para
+    // caché (son iguales en todas las llamadas); los datos en vivo van
+    // después porque cambian siempre.
     const system = [
-      { type: "text", text: JARVIS_PERSONA, cache_control: { type: "ephemeral" } },
+      { type: "text", text: JARVIS_PERSONA },
+      { type: "text", text: MANUAL_JARVIS, cache_control: { type: "ephemeral" } },
       { type: "text", text: contexto },
     ];
 

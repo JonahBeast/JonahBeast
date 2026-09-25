@@ -2167,10 +2167,15 @@ function Landing({ onChoose }) {
           <div className="jb-body text-[10px] tracking-[0.2em] uppercase text-zinc-400 mt-1.5">App de nutrición y pérdida de grasa</div>
         </div>
 
-        <h1 className="jb-display text-[2.6rem] sm:text-6xl leading-[0.95] mb-4" style={step(120)}>
-          <span className="text-zinc-50">BAJA DE PESO</span><br />
-          <span className="text-orange-500 text-[1.55rem] sm:text-4xl leading-none">SIN DEJAR LA COMIDA PERUANA</span>
+        {/* La idea central del método: nada está prohibido, lo que cambia
+            el cuerpo es la cantidad. Y justo eso es lo que mide la app. */}
+        <h1 className="jb-display leading-[0.95] mb-2" style={step(120)}>
+          <span className="block text-zinc-50 text-[2.1rem] sm:text-5xl">NO ES QUÉ COMES.</span>
+          <span className="block text-orange-500 text-[2.9rem] sm:text-7xl mt-1.5">ES CUÁNTO.</span>
         </h1>
+        <p className="jb-body text-sm text-zinc-300 mb-4" style={step(160)}>
+          Toma foto a tu plato y sabes cuánto te toca.
+        </p>
 
         {/* Antes / después al frente, nítido y a color. Alterna Jonah y
             Andrea cada 6 s para que hombres y mujeres se vean reflejados. */}

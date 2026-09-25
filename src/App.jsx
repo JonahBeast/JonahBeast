@@ -388,6 +388,52 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
+/* Alimentos que Jonah agrega desde el panel (tabla alimentos_extra, ver
+   "Pedidos de alimentos"). Se suman a FOODS al abrir la app, sin publicar
+   una versión nueva. Las pantallas que los muestran se enteran con
+   usarAlimentosExtra(), que las vuelve a dibujar cuando llegan. */
+let versionAlimentos = 0;
+const oyentesAlimentos = new Set();
+let cargaAlimentosExtra = null;
+function cargarAlimentosExtra(forzar = false) {
+  if (cargaAlimentosExtra && !forzar) return cargaAlimentosExtra;
+  cargaAlimentosExtra = (async () => {
+    try {
+      const { data, error } = await supabase.from('alimentos_extra').select('*').order('id');
+      if (error || !data) return;
+      let cambio = false;
+      for (const a of data) {
+        const state = a.estado || '-';
+        const key = `${a.nombre} (${state})`;
+        if (FOODS.some(f => f.key === key)) continue;
+        FOODS.push({
+          group: a.grupo, name: a.nombre, state, key, esExtra: true,
+          kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos), fat: Number(a.grasa), fiber: Number(a.fibra) || 0,
+        });
+        if (a.unidad && Number(a.gramos_unidad) > 0 && !UNITS_BY_NAME[a.nombre]) {
+          UNITS_BY_NAME[a.nombre] = [[a.unidad, Number(a.gramos_unidad)], ...(UNITS_BY_GROUP[a.grupo] || []).filter(u => u[0] !== a.unidad)];
+        }
+        cambio = true;
+      }
+      if (cambio) {
+        versionAlimentos++;
+        oyentesAlimentos.forEach(avisar => avisar(versionAlimentos));
+      }
+    } catch {}
+  })();
+  return cargaAlimentosExtra;
+}
+function usarAlimentosExtra() {
+  const [version, setVersion] = useState(versionAlimentos);
+  useEffect(() => {
+    oyentesAlimentos.add(setVersion);
+    setVersion(versionAlimentos);
+    cargarAlimentosExtra();
+    return () => { oyentesAlimentos.delete(setVersion); };
+  }, []);
+  return version;
+}
+
 
 
 
@@ -4407,6 +4453,9 @@ const CATEGORIAS_TIENDA = [
 
 
 
+// Se piden apenas carga la página, en paralelo con la sesión.
+cargarAlimentosExtra();
+
 export default function App() {
   const [view, setView] = useState(() => {
     try {
@@ -4975,6 +5024,8 @@ export {
   CATEGORIAS_TIENDA,
   ESTILOS_ESCANER,
   FOODS,
+  cargarAlimentosExtra,
+  usarAlimentosExtra,
   Field,
   HOSTS_PRODUCCION,
   Logo,

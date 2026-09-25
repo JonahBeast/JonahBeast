@@ -4,6 +4,10 @@
 // celular, gracias a la coexistencia). El asistente responde con Claude,
 // usando el manual de la app (manual.ts, copiado de docs/manual-app.md con
 // "npm run manual-jarvis") y los datos del alumno si ya es alumno.
+// Si piden un alimento que no está en la app, lo deja en la lista de
+// "Pedidos de alimentos" del panel (tabla pedidos_alimentos) y le avisa a
+// Jonah; cuando Jonah lo aprueba, la función alimentos-pedidos le escribe al
+// cliente que ya está.
 //
 // Cuándo responde (ajuste "whatsapp_asistente" en la tabla config):
 //   apagado (o sin ajuste) → solo guarda los mensajes, no responde.
@@ -23,6 +27,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 import { MANUAL_APP } from "./manual.ts";
+import { ALIMENTOS_APP } from "./alimentos.ts";
 
 const GRAPH = "https://graph.facebook.com/v23.0";
 const MODELO = "claude-opus-5";
@@ -37,6 +42,8 @@ const PAUSA_TRAS_RESPUESTA_DE_JONAH = 12;
 const MAX_IMAGEN = 5 * 1024 * 1024; // límite de imágenes de la API de Claude
 
 const MENSAJE_PASO_A_JONAH = "🙋 Te paso con Jonah para que te ayude personalmente. Te escribe en breve.";
+const mensajePedido = (alimento: string) =>
+  `🍽️ ¡Buen pedido! Estamos calculando los macros de *${alimento}*… Te aviso apenas esté en la app 💪`;
 
 const PERSONA = `Eres el asistente virtual de WhatsApp de Jonah Beast Fuel, la app peruana de nutrición de Jonah Beast. Atiendes a clientes y alumnos por WhatsApp en nombre del equipo.
 
@@ -55,9 +62,22 @@ Reglas (además de las de la sección 0 del manual):
 - Nunca apruebes pagos, des accesos, prometas descuentos, ni des consejos médicos.
 - Nunca des información sensible: datos de otras personas, números de Yape/Plin o cuentas bancarias (di que están en la app, en el ícono de tarjeta "Mi plan"), el código de la calculadora, contraseñas o códigos de verificación.
 - Solo hablas de Jonah Beast Fuel (la app, planes, alimentación dentro de la app, la tienda). Si preguntan otra cosa, di con amabilidad que solo puedes ayudar con la app.
+- Si piden agregar un alimento o plato a la app: primero revisa la lista "Alimentos que ya están en la app" y los que Jonah agregó hace poco. Si ya existe (aunque se escriba distinto), dile con qué nombre buscarlo en "REGISTRAR" → "Escribir". Si no existe, usa la herramienta pedir_alimento (sin escribir texto: el sistema le responde al cliente que se están calculando los macros y le avisa cuando esté listo). No uses pasar_a_jonah para esto.
 - Usa la herramienta pasar_a_jonah cuando: haya un pago por aprobar, rechazado o con problemas; pidan descuentos o precios especiales; haya temas médicos (embarazo, diabetes, lesiones, medicamentos, trastornos de la alimentación); haya reclamos, enojo o pedidos de reembolso; no sepas la respuesta; o pidan hablar con una persona. Cuando la uses, no escribas texto: el sistema le avisa al cliente.`;
 
 const HERRAMIENTAS = [{
+  name: "pedir_alimento",
+  description: "Deja anotado un alimento o plato que el cliente quiere que se agregue a la app porque no está. Jonah calcula los macros y lo agrega; cuando esté listo, el sistema le avisa al cliente por aquí. El asistente sigue atendiendo este chat.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {
+      alimento: { type: "string", description: "Nombre corto del alimento o plato, en español peruano, sin cantidades. Ej.: \"Plátano bellaco\", \"Tallarines verdes con bistec\"." },
+    },
+    required: ["alimento"],
+    additionalProperties: false,
+  },
+}, {
   name: "pasar_a_jonah",
   description: "Pasa la conversación a Jonah (una persona) y deja al asistente en silencio en este chat. El sistema le manda al cliente un mensaje avisando que Jonah le escribe en breve, y le avisa a Jonah en su celular.",
   strict: true,
@@ -188,7 +208,7 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
 
   await graph(cuenta, `/${cuenta.phone_number_id}/messages`, { messaging_product: "whatsapp", status: "read", message_id: msg.id }).catch(() => {});
 
-  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string } };
+  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string };
   try {
     respuesta = await preguntarAClaude(cuenta, telefono, msg, alumno, nombreWa);
   } catch (e) {
@@ -203,8 +223,35 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
       pausado_hasta: new Date(Date.now() + PAUSA_TRAS_PASAR_A_JONAH * 3600000).toISOString(),
     }).eq("telefono", telefono);
     await avisarAJonah(telefono, alumno?.nombre || nombreWa, respuesta.pasar.resumen);
+  } else if (respuesta.pedido) {
+    await registrarPedido(telefono, alumno, nombreWa, respuesta.pedido);
+    await enviarTexto(cuenta, telefono, mensajePedido(respuesta.pedido));
   } else if (respuesta.texto) {
     await enviarTexto(cuenta, telefono, respuesta.texto);
+  }
+}
+
+// El plato queda en "Pedidos de alimentos" del panel (si ya lo pidió otra
+// persona, se suma al mismo pedido) y Jonah recibe una notificación.
+async function registrarPedido(telefono: string, alumno: any, nombreWa: string | null, alimento: string) {
+  const quien = alumno?.nombre || nombreWa || null;
+  const { error } = await supabase.rpc("sumar_pedido_alimento", {
+    p_nombre: alimento,
+    p_solicitante: { origen: "whatsapp", telefono, nombre: quien, username: alumno?.username || null, fecha: new Date().toISOString() },
+  });
+  if (error) console.error("No se pudo guardar el pedido de alimento:", error.message);
+  if (!AVISO_SECRETO) return;
+  try {
+    await fetch("https://jonahbeast.com/api/aviso-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-webhook-secret": AVISO_SECRETO },
+      body: JSON.stringify({
+        admin: true,
+        body: `🍽️ ${quien || "+" + telefono} pide agregar "${alimento}" a la app. Revísalo en Pedidos de alimentos.`,
+      }),
+    });
+  } catch (e) {
+    console.error("No se pudo avisar del pedido:", (e as Error)?.message);
   }
 }
 
@@ -263,7 +310,10 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
     const v = parseFloat((config || []).find((c: any) => c.key === k)?.value);
     return (v > 0 ? v : respaldo[k]).toFixed(2);
   };
+  const { data: extras } = await supabase.from("alimentos_extra").select("nombre, estado").order("nombre");
+  const agregados = (extras || []).map((a: any) => a.estado && a.estado !== "-" ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre);
   let t = `Datos de esta conversación (hoy es ${hoy}, hora de Lima):
+- Alimentos que Jonah agregó hace poco (también están en la app): ${agregados.length ? agregados.join(", ") : "ninguno"}.
 - Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Semestral S/${precio("precio_6")}, Anual S/${precio("precio_12")}. Complemento Reconocimiento Inteligente: S/11.90 al mes.
 - Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.`;
 
@@ -332,7 +382,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
     // El manual es igual en todas las llamadas: va primero y queda en caché.
     // Los datos de la conversación cambian siempre: van después.
     system: [
-      { type: "text", text: `${PERSONA}\n\n# Manual de la app\n\n${MANUAL_APP}`, cache_control: { type: "ephemeral" } },
+      { type: "text", text: `${PERSONA}\n\n# Manual de la app\n\n${MANUAL_APP}\n\n# Alimentos que ya están en la app (nombre y cómo se come)\n\n${ALIMENTOS_APP.join("\n")}`, cache_control: { type: "ephemeral" } },
       { type: "text", text: await contexto(alumno, nombreWa, telefono) },
     ],
     tools: HERRAMIENTAS,
@@ -373,6 +423,9 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   if (herramienta) {
     return { pasar: { motivo: String(herramienta.input?.motivo || "otro"), resumen: String(herramienta.input?.resumen || "").slice(0, 300) } };
   }
+  const pedido = bloques.find((b: any) => b.type === "tool_use" && b.name === "pedir_alimento");
+  const alimento = String(pedido?.input?.alimento || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (alimento) return { pedido: alimento };
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
   return { texto };
 }

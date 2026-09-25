@@ -253,9 +253,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.5 Si no encuentras un plato
 
 - Prueba con otra palabra, elige algo parecido o créalo (8.4).
-- **Pídelo por WhatsApp** al **+51 963 760 819** (ej. "¿Pueden agregar plátano bellaco?"). Te responden "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪".
+- **Pídelo desde la app:** en el buscador, si no aparece, toca **"🙋 Pedirle a Jonah que lo agregue"** (también sale al final de la lista como **"🙋 Pedirle a Jonah que agregue "[lo que escribiste]""**). Sale "🍽️ ¡Buen pedido! Jonah va a calcular los macros de [plato]. Te avisamos apenas esté en la app 💪". Máximo 10 pedidos al día.
+- O **pídelo por WhatsApp** al **+51 963 760 819** (ej. "¿Pueden agregar plátano bellaco?"). Te responden "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪".
 - Si la foto detecta un plato que no está en la app, avisa "Ya le avisamos a Jonah para agregarlo 🙌": el pedido le llega a Jonah igual que por WhatsApp.
-- Jonah revisa los macros y lo agrega. **Cuando está listo te avisan**: por WhatsApp ("✅ ¡Listo! [plato] ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?") o, si lo pediste desde la foto, con una notificación en la app (si tienes los avisos activados, sección 14).
+- Jonah revisa los macros y lo agrega. **Cuando está listo te avisan**: por WhatsApp ("✅ ¡Listo! [plato] ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?") o, si lo pediste desde la app o la foto, con una notificación ("✅ ¡Listo! [plato] ya está en la app…"; si tienes los avisos activados, sección 14).
 - Los alimentos nuevos aparecen al **cerrar y volver a abrir la app** (no hace falta actualizarla desde Play Store). Se buscan y se reconocen en fotos igual que los demás.
 
 ### 8.6 "NUNCA ME SUGIERAS ESTO"
@@ -569,7 +570,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |
 | ¿Cada cuánto me peso y tomo fotos? | El peso, **cada domingo** en ayunas (la app lo pide en Inicio). Medidas con cinta y fotos, **cada 2 semanas** (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
-| ¿Pueden agregar un plato que no está? | Sí: pídelo por WhatsApp; Jonah calcula los macros y te avisan cuando está (8.5). |
+| ¿Pueden agregar un plato que no está? | Sí: en el buscador toca "🙋 Pedirle a Jonah que lo agregue", o pídelo por WhatsApp. Jonah calcula los macros y te avisan cuando está (8.5). |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |
 | ¿Por qué mi meta de comidas no cambió? | Si la ajustó a mano, toca "Usar mi objetivo" en Comidas (sección 10.3). |

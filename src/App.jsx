@@ -1096,9 +1096,44 @@ const PLAY_BILLING = 'https://play.google.com/billing';
 const PRODUCTOS_PLAY = { 1: 'jb_plan_mensual', 3: 'jb_plan_trimestral', 6: 'jb_plan_semestral', 12: 'jb_plan_anual' };
 const URL_SUSCRIPCIONES_PLAY = 'https://play.google.com/store/account/subscriptions?package=com.jonahbeast.twa';
 
-async function servicioGooglePlay() {
-  if (!esTWA() || !('getDigitalGoodsService' in window)) return null;
-  try { return await window.getDigitalGoodsService(PLAY_BILLING); } catch { return null; }
+const esperar = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* Conecta con el cobro de Google Play. Recién instalada la app, Chrome a
+   veces tarda en tener lista la conexión, así que se reintenta varias
+   veces antes de rendirse. Devuelve { srv, precios, listo, diag }:
+   listo = se puede mostrar "Suscribirme"; diag = código corto de lo que
+   falló (se muestra chiquito en pantalla para poder revisarlo). */
+async function conectarGooglePlay(skus) {
+  let diag = 'sin-servicio';
+  for (let intento = 0; intento < 5; intento++) {
+    if (intento > 0) await esperar(1000 * intento);
+    if (!('getDigitalGoodsService' in window)) { diag = 'sin-api'; continue; }
+    let srv;
+    try { srv = await window.getDigitalGoodsService(PLAY_BILLING); } catch (e) { diag = 'servicio:' + (e?.name || 'error'); continue; }
+    if (!srv) { diag = 'servicio-vacio'; continue; }
+    try {
+      const detalles = await srv.getDetails(skus);
+      const precios = {};
+      (detalles || []).forEach(d => { precios[d.itemId] = d.price; });
+      if (Object.keys(precios).length > 0) return { srv, precios, listo: true, diag: '' };
+      diag = 'sin-productos';
+    } catch (e) { diag = 'precios:' + (e?.name || 'error'); }
+    // Hay conexión con Google pero no llegaron los precios: al último
+    // intento se muestra igual el pago, con los precios de la web.
+    if (intento === 4) return { srv, precios: {}, listo: true, diag };
+  }
+  // Sin la API de precios, igual se prueba si Chrome puede abrir el pago
+  // de Google Play directamente.
+  try {
+    if (window.PaymentRequest) {
+      const pr = new PaymentRequest(
+        [{ supportedMethods: PLAY_BILLING, data: { sku: skus[0] } }],
+        { total: { label: 'Total', amount: { currency: 'PEN', value: '0' } } },
+      );
+      if (await pr.canMakePayment()) return { srv: null, precios: {}, listo: true, diag: diag + '+pago' };
+    }
+  } catch {}
+  return { srv: null, precios: {}, listo: false, diag };
 }
 
 async function enviarCompraGoogle(purchaseToken) {
@@ -3524,6 +3559,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [mpTipo, setMpTipo] = useState('unico');
   // Google Play (solo en la app de Android con el cobro de Google activado)
   const [playSrv, setPlaySrv] = useState(null);
+  const [playListo, setPlayListo] = useState(false);
+  const [playDiag, setPlayDiag] = useState('');
+  const [playBuscando, setPlayBuscando] = useState(() => esTWA());
   const [playPrecios, setPlayPrecios] = useState({});
   const [comprandoPlay, setComprandoPlay] = useState(null);
   const [playMsg, setPlayMsg] = useState('');
@@ -3534,23 +3572,19 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     if (!esTWA()) return;
     let vivo = true;
     (async () => {
-      const srv = await servicioGooglePlay();
-      if (!srv || !vivo) return;
-      try {
-        const detalles = await srv.getDetails(Object.values(PRODUCTOS_PLAY));
-        const m = {};
-        (detalles || []).forEach(d => { m[d.itemId] = d.price; });
-        if (!vivo || Object.keys(m).length === 0) return;
-        setPlayPrecios(m); setPlaySrv(srv);
-      } catch { return; }
-      if (await sincronizarComprasGoogle(srv)) window.location.reload();
+      const r = await conectarGooglePlay(Object.values(PRODUCTOS_PLAY));
+      if (!vivo) return;
+      setPlayDiag(r.diag); setPlayBuscando(false);
+      if (!r.listo) return;
+      setPlayPrecios(r.precios); setPlaySrv(r.srv); setPlayListo(true);
+      if (r.srv && await sincronizarComprasGoogle(r.srv)) window.location.reload();
     })();
     return () => { vivo = false; };
   }, [username]);
 
   async function comprarConGooglePlay(plan) {
     const sku = PRODUCTOS_PLAY[plan.meses];
-    if (!playSrv || !sku || comprandoPlay) return;
+    if (!playListo || !sku || comprandoPlay) return;
     setPlayMsg(''); setComprandoPlay(sku);
     try {
       const pedido = new PaymentRequest(
@@ -3692,7 +3726,16 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   // sin dejar de ser transparentes con el precio real.
   // App de Android con el cobro de Google activado: se paga con Google
   // Play, con renovación automática. Los precios salen de Google.
-  if (esTWA() && playSrv) {
+  if (esTWA() && playBuscando) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12">
+        <Loader2 className="animate-spin text-orange-500" size={28} />
+        <p className="jb-body text-sm text-zinc-400">Conectando con Google Play…</p>
+      </div>
+    );
+  }
+
+  if (esTWA() && playListo) {
     return (
       <div className="flex flex-col gap-5">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
@@ -3707,8 +3750,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           {PLANES.map(plan => {
             const sku = PRODUCTOS_PLAY[plan.meses];
             const precio = playPrecios[sku];
-            if (!precio) return null;
-            const valor = Number(precio.value);
+            const valor = precio ? Number(precio.value) : precioBase(plan);
             const cargando = comprandoPlay === sku;
             return (
               <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.badge ? 'border-orange-500/60' : 'border-zinc-800'}`}>
@@ -3792,6 +3834,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </a>
         <p className="jb-body text-xs text-zinc-500 text-center">
           Te ayudamos a coordinar tu pago y activamos tu cuenta al toque.
+          {playDiag && <span className="block mt-1 text-[10px] text-zinc-700">GP: {playDiag}</span>}
         </p>
       </div>
     );

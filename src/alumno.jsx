@@ -6523,6 +6523,80 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
 // Tras la primera comida del día, si el alumno todavía no tiene datos u
 // objetivo: ya vio que la app funciona, así que es el mejor momento para
 // pedirle lo que falta para calcular su meta real.
+// Primera comida en 1 toque. Casi todos los que abandonan la prueba sin
+// registrar nada se van justo después de poner sus datos: ya armaron su
+// plan pero nunca vieron la app funcionar. Apenas su meta está lista (datos
+// + objetivo) y aún no registraron ninguna comida, se les muestra su meta y
+// platos comunes de la hora: un toque y la comida queda registrada.
+const PLATOS_PRIMERA_COMIDA = {
+  'Desayuno': [
+    ['Pan con pollo (-)', '🥪'], ['Pan con jamonada (-)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
+    ['Avena (Cocida)', '🥣'], ['Pan francés (-)', '🥖'], ['Yogur natural (-)', '🥛'],
+  ],
+  'Media mañana': [
+    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
+    ['Yogur natural (-)', '🥛'], ['Pan con pollo (-)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
+  ],
+  'Almuerzo': [
+    ['Lomo saltado (-)', '🥩'], ['Arroz con pollo (-)', '🍗'], ['Ají de gallina (-)', '🍛'],
+    ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Ceviche de pescado (-)', '🐟'], ['Tallarines rojos con pollo (-)', '🍝'],
+  ],
+  'Media tarde': [
+    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
+    ['Yogur natural (-)', '🥛'], ['Pan con pollo (-)', '🥪'], ['Pan con jamonada (-)', '🥪'],
+  ],
+  'Cena': [
+    ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Lomo saltado (-)', '🥩'], ['Tallarines verdes (-)', '🍝'],
+    ['Caldo de gallina (-)', '🍲'], ['Estofado de pollo (-)', '🍛'], ['Pan con pollo (-)', '🥪'],
+  ],
+};
+
+function PrimeraComidaModal({ kcalMeta, onElegir, onOtro, onCerrar }) {
+  const meal = comidaDeAhora();
+  const platos = (PLATOS_PRIMERA_COMIDA[meal] || []).map(([key, emoji]) => {
+    const food = buscarFood(key);
+    if (!food) return null;
+    const porcion = unidadPorDefecto(food);
+    const kcal = Math.round(entryMacros({ foodKey: key, ...porcion }).kcal);
+    return { key, emoji, food, porcion, kcal };
+  }).filter(Boolean);
+  const titulo = meal === 'Desayuno' ? '¿Qué desayunaste hoy?' : meal === 'Almuerzo' ? '¿Qué almorzaste hoy?' : meal === 'Cena' ? '¿Qué cenaste hoy?' : `¿Qué comiste en tu ${meal.toLowerCase()}?`;
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 max-h-[92vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <div className="text-center mb-4">
+          <h3 className="jb-display text-2xl text-zinc-50 leading-none">¡TU PLAN ESTÁ LISTO!</h3>
+          {kcalMeta > 0 && (
+            <p className="jb-body text-sm text-zinc-300 mt-2">
+              Te tocan <span className="jb-display text-lg text-orange-500">{Math.round(kcalMeta).toLocaleString('es-PE')} kcal</span> al día
+            </p>
+          )}
+        </div>
+        <p className="jb-display text-base text-zinc-50 mb-1">{titulo.toUpperCase()}</p>
+        <p className="jb-body text-xs text-zinc-400 mb-3">Toca uno y queda registrado. La cantidad la ajustas después.</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {platos.map(p => (
+            <button key={p.key} onClick={() => onElegir(meal, p)}
+              className="bg-zinc-950 border border-zinc-800 hover:border-orange-500 active:scale-[0.98] rounded-xl p-3 text-left transition-all">
+              <span className="text-2xl leading-none">{p.emoji}</span>
+              <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1.5">{p.food.name}</span>
+              <span className="block jb-body text-[11px] text-zinc-500 mt-0.5">{p.porcion.qty === 1 && /^\d/.test(p.porcion.unit) ? p.porcion.unit : textoPorcion(p.porcion)} · {p.kcal} kcal</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => onOtro(meal)} className={btnPrimary + ' w-full py-3 mb-2'}>
+          <Camera size={18} /> Foto o buscar otro plato
+        </button>
+        <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Ahora no</button>
+      </div>
+    </div>
+  );
+}
+
 function AjustaMetaModal({ faltanDatos, onAjustar, onCerrar }) {
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
@@ -6685,6 +6759,32 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     });
   }, [alimentosHoy, username]);
 
+  // Primera comida en 1 toque (ver PrimeraComidaModal): solo para quien
+  // nunca registró una comida y ya tiene su meta lista. "Ahora no" la
+  // guarda hasta el día siguiente.
+  const [nuncaRegistro, setNuncaRegistro] = useState(false);
+  const [primeraDescartada, setPrimeraDescartada] = useState(() => {
+    try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
+  });
+  useEffect(() => {
+    let vivo = true;
+    supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).limit(1)
+      .then(({ data, error }) => { if (vivo && !error) setNuncaRegistro((data || []).length === 0); })
+      .then(null, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  function registrarPrimeraComida(meal, p) {
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
+    setNuncaRegistro(false);
+    vibrar(30);
+    showToast(`✅ ${p.food.name} registrado en ${meal}`);
+    setRegistrarAl(null); setTab('meal'); window.scrollTo({ top: 0 });
+  }
+  function descartarPrimeraComida() {
+    try { localStorage.setItem('jb_primera_comida_no_' + username, todayISO()); } catch {}
+    setPrimeraDescartada(true);
+  }
+
   // Prioridad de banners: solo se muestra el más relevante a la vez,
   // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
   const renewalElegible = !!(userRecord && userRecord.plan !== 'trial'
@@ -6758,6 +6858,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
      objetivo. Al abrir la app solo se corrige a quien sigue con la meta
      de ejemplo (2000 kcal) sin haberla tocado nunca.                   */
   const targetsObjetivo = goalTargets(form, results.tdee);
+  const metaListaPrimera = targetsObjetivo?.kcal || 0;
+  const verPrimeraComida = nuncaRegistro && !primeraDescartada && alimentosHoy === 0
+    && tieneDatosBasicos(form) && !!form.objetivo && metaListaPrimera > 0;
   const firmaObjetivo = targetsObjetivo
     ? [targetsObjetivo.kcal, targetsObjetivo.protein, targetsObjetivo.fat].map(Math.round).join('|') : '';
   const firmaAntes = useRef(null);
@@ -6814,6 +6917,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         <AvisoGuardado estado={estadoGuardado} onVolverAEntrar={onLogout} />
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
+          <PrimeraComidaModal kcalMeta={metaListaPrimera}
+            onElegir={registrarPrimeraComida}
+            onOtro={(meal) => { setNuncaRegistro(false); irARegistrar(meal); }}
+            onCerrar={descartarPrimeraComida} />
+        )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
           <InvitaMomento user={userRecord} mealPlan={mealPlan} />
         )}

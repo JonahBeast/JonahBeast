@@ -2038,6 +2038,28 @@ function fuenteEmbudo() {
 
 /* Guarda un paso del embudo: 'vista', 'clic_cta' o 'registro'. Falla en
    silencio -- nunca debe bloquear ni ralentizar al visitante. */
+/* Camino al pago de un alumno: vio los planes → eligió un plan → eligió
+   cómo pagar → envió el pago. Solo en el sitio real (nunca el admin ni las
+   versiones de prueba) y cada paso una vez al día por alumno, para que
+   recargar la pantalla no lo cuente dos veces. "detalle" = meses del plan
+   o medio de pago. */
+function registrarPasoPago(evento, username, detalle = null) {
+  try {
+    if (new URLSearchParams(window.location.search).get('preview') === '1') marcarNoContarEmbudo();
+  } catch {}
+  try {
+    if (!HOSTS_PRODUCCION.includes(window.location.hostname) && localStorage.getItem('jb-probar-embudo') !== '1') return Promise.resolve();
+    if (localStorage.getItem('jb-no-contar') === '1') return Promise.resolve();
+    const clave = `jb-pago-${evento}-${username}-${detalle || ''}-${todayISO()}`;
+    if (localStorage.getItem(clave)) return Promise.resolve();
+    localStorage.setItem(clave, '1');
+  } catch { return Promise.resolve(); }
+  if (!username) return Promise.resolve();
+  return supabase.from('embudo_landing_eventos')
+    .insert({ evento, username, detalle: detalle === null ? null : String(detalle), fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo() })
+    .then(() => {}, () => {});
+}
+
 function registrarEventoEmbudo(evento, extra = {}) {
   if (!embudoDebeContar()) return;
   supabase.from('embudo_landing_eventos')
@@ -3558,6 +3580,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [playMsg, setPlayMsg] = useState('');
 
   useEffect(() => { cargar(); }, [username]);
+  useEffect(() => { registrarPasoPago('vio_planes', username); }, [username]);
 
   useEffect(() => {
     if (!esTWA()) return;
@@ -3577,6 +3600,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     const sku = PRODUCTOS_PLAY[plan.meses];
     if (!playListo || !sku || comprandoPlay) return;
     setPlayMsg(''); setComprandoPlay(sku);
+    registrarPasoPago('eligio_plan', username, plan.meses);
+    registrarPasoPago('eligio_metodo', username, 'Google Play');
     try {
       const pedido = new PaymentRequest(
         [{ supportedMethods: PLAY_BILLING, data: { sku } }],
@@ -3584,6 +3609,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       );
       const respuesta = await pedido.show();
       const { purchaseToken } = respuesta.details;
+      registrarPasoPago('pago_enviado', username, 'Google Play');
       // El cobro ya lo hizo Google: se cierra su ventana como exitosa y
       // luego el servidor activa el plan.
       try { await respuesta.complete('success'); } catch {}
@@ -3664,6 +3690,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         comprobante_ruta: ruta, estado: 'pendiente',
       });
       if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
+      registrarPasoPago('pago_enviado', username, metodo);
 
       if (!userRecord?.telefono && tel.length >= 9) {
         try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
@@ -3704,6 +3731,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dcto },
       });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
+      // Se anota antes de salir a Mercado Pago (máximo 1.5 s de espera).
+      await Promise.race([registrarPasoPago('pago_enviado', username, mpTipo === 'recurrente' ? 'Mercado Pago (suscripción)' : 'Mercado Pago'), new Promise(r => setTimeout(r, 1500))]);
       window.location.href = data.init_point;
     } catch (e) {
       setErr(e.message || 'No se pudo conectar con Mercado Pago.');
@@ -3826,7 +3855,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           </p>
         )}
 
-        <a href={waUrlPlan} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' justify-center py-3'}>
+        <a href={waUrlPlan} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' justify-center py-3'}
+          onClick={() => registrarPasoPago('eligio_metodo', username, 'WhatsApp')}>
           <MessageCircle size={18} /> Escribir por WhatsApp para activar
         </a>
         <p className="jb-body text-xs text-zinc-500 text-center">
@@ -3921,7 +3951,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                     <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>
                   )}
                   {ahorro === 0 && <div className="mb-3" />}
-                  <button onClick={() => setSeleccion(plan)}
+                  <button onClick={() => { setSeleccion(plan); registrarPasoPago('eligio_plan', username, plan.meses); }}
                     className={(plan.badge === 'MÁS ELEGIDO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
                     Elegir
                   </button>
@@ -3964,7 +3994,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               ['Transferencia', '🏦', 'bg-zinc-600'],
               ['Mercado Pago', '💳', 'bg-sky-500'],
             ].map(([m, emoji, dot]) => (
-              <button key={m} onClick={() => setMetodo(m)}
+              <button key={m} onClick={() => { setMetodo(m); registrarPasoPago('eligio_metodo', username, m); }}
                 className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 flex items-center justify-center gap-1.5 transition-colors ${metodo === m
                   ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
                 <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${metodo === m ? 'bg-zinc-950/20' : dot}`}>

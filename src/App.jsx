@@ -228,6 +228,7 @@ const RAW_FOODS = [
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
   ["Platos preparados","Tallarines rojos con pollo","-",170,9.5,20.0,5.5,1.5],
+  ["Platos preparados","Tallarines rojos con carne molida","-",160,8.5,18.0,6.0,1.5],
   ["Platos preparados","Tallarines verdes","-",185,8.0,22.0,7.5,1.8],
   ["Platos preparados","Causa limeña","-",145,4.5,20.0,5.5,1.8],
   ["Platos preparados","Papa a la huancaína","-",150,4.5,15.0,8.0,1.6],

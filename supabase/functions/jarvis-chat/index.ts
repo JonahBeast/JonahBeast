@@ -47,8 +47,9 @@ Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jo
 - Modelo: suscripción con prueba gratis de 15 días. Planes de 1, 3, 6 y 12 meses (los precios vigentes están en el estado del negocio)
 - Add-on de reconocimiento de comida por foto: S/11.90/mes adicional sobre cualquier plan, con 5 fotos gratis por semana para probarlo (y en los primeros 3 días de la prueba gratis, 3 fotos por día de bienvenida). El alumno sigue eligiendo la porción, la IA solo identifica el plato
 - Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente)
-- Programa de referidos/embajadores: cada alumno tiene un código de referido con comisión variable según el plan que compre el referido
-- Registro: pide nombre y celular obligatorios en el onboarding (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp)
+- Programa "Invita a un amigo" (alumnos): cada alumno tiene su código; su amigo recibe 15 días de prueba gratis y 10% de descuento en su primer plan, y el alumno gana 15 días gratis cuando ese amigo paga su primer plan (una vez por amigo). No hay dinero de por medio para los alumnos
+- Programa de embajadores (influencers): aparte del anterior; cada embajador tiene su código y cobra una comisión en dinero, variable según el plan que compre su referido (se paga a mano)
+- Registro: solo pide correo y contraseña. El nombre y el celular se piden después, en la guía de bienvenida dentro de la app (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp); el celular también se pide al pagar con Yape/Plin/transferencia si aún no lo tiene
 - Soporte de WhatsApp: hoy es 100% manual (enlaces wa.me), no hay API oficial de WhatsApp Business integrada todavía
 - Categoría en Play Store: Salud y deportes. Publicada como TWA/PWA, package_name com.jonahbeast.twa
 - Sin acceso en vivo a TikTok Ads: si te preguntan por eso, dilo con honestidad

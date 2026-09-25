@@ -3363,6 +3363,7 @@ const BENEFICIOS = [
 function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
+  const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
   const [datosPago, setDatosPago] = useState({});
   const [seleccion, setSeleccion] = useState(null);
@@ -3389,17 +3390,23 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       (data || []).forEach(c => { m[c.key] = c.value; });
       setPrecios(m); setDatosPago(m);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    let pagos = [];
     try {
       const { data } = await supabase.from('pagos').select('*')
         .eq('username', username).order('creado_en', { ascending: false }).limit(10);
-      setMisPagos(data || []);
+      pagos = data || [];
+      setMisPagos(pagos);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    // Descuento si entró con código de influencer
+    // Descuento si entró con código de embajador, influencer o de un amigo.
+    // El de un amigo ("Invita a un amigo", tipo alumno) es solo para su
+    // primer plan: igual que en las funciones de pago.
+    const yaPagoUnPlan = pagos.some(p => p.estado === 'aprobado' && !/add-on/i.test(p.metodo || ''));
     try {
       if (userRecord && userRecord.codigoReferido) {
         const { data } = await supabase.rpc('validar_codigo', { p_codigo: userRecord.codigoReferido });
-        if (data && data.ok && Number(data.descuento_pct) > 0) {
+        if (data && data.ok && Number(data.descuento_pct) > 0 && !(data.tipo === 'alumno' && yaPagoUnPlan)) {
           setDcto(Number(data.descuento_pct));
+          setDctoSoloPrimerPlan(data.tipo === 'alumno');
           setRefNombre(data.nombre || '');
         }
       }
@@ -3588,7 +3595,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
               <span className="text-lg">🎁</span>
               <p className="jb-body text-sm text-emerald-300">
-                Tienes <span className="font-semibold">{dcto}% de descuento</span> en todos los planes
+                Tienes <span className="font-semibold">{dcto}% de descuento</span> {dctoSoloPrimerPlan ? 'en tu primer plan' : 'en todos los planes'}
                 {refNombre ? ` por venir de ${refNombre}` : ''}. Ya está aplicado en los precios.
               </p>
             </div>
@@ -3794,7 +3801,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               {enviando ? <Loader2 className="animate-spin" size={18} /> : 'ENVIAR MI PAGO'}
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center">
-              Revisamos tu pago en menos de 24 horas. Te avisamos por WhatsApp cuando se active.
+              Revisamos tu pago en menos de 24 horas. Te avisamos con una notificación en tu celular apenas se active.
             </p>
           </div>
           </>

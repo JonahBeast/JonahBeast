@@ -17,6 +17,17 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// El descuento de "Invita a un amigo" (códigos de tipo alumno) es solo
+// para el primer plan del amigo. Los de embajadores e influencers
+// descuentan siempre. Un plan ya pagado = un pago aprobado que no sea del
+// add-on de fotos.
+async function yaPagoUnPlan(supabase: any, username: string): Promise<boolean> {
+  const { data } = await supabase.from("pagos").select("id")
+    .eq("username", username).eq("estado", "aprobado")
+    .or("metodo.is.null,metodo.not.ilike.*add-on*").limit(1);
+  return (data || []).length > 0;
+}
+
 // Mismo cálculo que crear-pago-unico / crear-suscripcion: precio de config
 // (o de respaldo) menos el descuento del código de referido del alumno.
 // Devuelve null si el alumno no existe.
@@ -32,14 +43,34 @@ async function precioDelPlan(supabase: any, username: string, meses: number): Pr
   const codigo = String(alumno.codigo_referido || "").trim();
   if (codigo) {
     const { data: referidor } = await supabase.from("referidores")
-      .select("descuento_pct").ilike("codigo", codigo.replace(/[\\%_]/g, (c) => "\\" + c))
+      .select("descuento_pct, tipo").ilike("codigo", codigo.replace(/[\\%_]/g, (c) => "\\" + c))
       .eq("activo", true).maybeSingle();
     descuento = Math.min(Math.max(Number(referidor?.descuento_pct) || 0, 0), 100);
+    if (descuento > 0 && referidor?.tipo === "alumno" && await yaPagoUnPlan(supabase, username)) descuento = 0;
   }
   return Math.round(base * (1 - descuento / 100) * 100) / 100;
 }
 
 const soles = (n: number) => `S/${n.toFixed(2)}`;
+
+// Aviso al celular del alumno: "tu pago fue aprobado" (lo manda
+// /api/pago-aprobado en Vercel). Necesita el secreto NUEVO_ALUMNO_SECRET
+// en esta función; sin él no se avisa, pero el pago igual se activa.
+async function avisarPagoAprobado(supabase: any, operacion: string) {
+  const secreto = Deno.env.get("NUEVO_ALUMNO_SECRET");
+  if (!secreto) return;
+  try {
+    const { data: fila } = await supabase.from("pagos").select("id").eq("operacion", operacion).eq("estado", "aprobado").maybeSingle();
+    if (!fila?.id) return;
+    await fetch("https://jonahbeast.com/api/pago-aprobado", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-webhook-secret": secreto },
+      body: JSON.stringify({ pagoId: fila.id }),
+    });
+  } catch (e) {
+    console.error("No se pudo avisar el pago aprobado:", String(e));
+  }
+}
 
 Deno.serve(async (req: Request) => {
   try {
@@ -55,21 +86,53 @@ Deno.serve(async (req: Request) => {
       } catch { /* sin cuerpo JSON */ }
     }
 
-    if (type !== "payment" || !dataId) return new Response("ok", { status: 200 });
+    if (!dataId || (type !== "payment" && type !== "subscription_authorized_payment")) {
+      return new Response("ok", { status: 200 });
+    }
 
     const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
     if (!accessToken) return new Response("falta MP_ACCESS_TOKEN", { status: 500 });
+    const conLlave = { headers: { "Authorization": `Bearer ${accessToken}` } };
+
+    // Los cobros mensuales de una suscripción pueden llegar como
+    // "subscription_authorized_payment" en vez de "payment": se busca el
+    // pago real detrás del cobro y se procesa igual que cualquier otro.
+    // Si llegan los dos avisos, el pago se registra una sola vez (la base
+    // no acepta dos veces la misma operación).
+    let preapprovalId = "";
+    if (type === "subscription_authorized_payment") {
+      const cobroRes = await fetch(`https://api.mercadopago.com/authorized_payments/${dataId}`, conLlave);
+      if (!cobroRes.ok) return new Response("ok", { status: 200 });
+      const cobro = await cobroRes.json();
+      if (!cobro?.payment?.id) return new Response("ok", { status: 200 }); // aún no se cobra
+      preapprovalId = String(cobro.preapproval_id || "");
+      dataId = String(cobro.payment.id);
+    }
 
     // El pago siempre se consulta directo a Mercado Pago con nuestra llave:
     // un aviso falso no puede inventar un pago aprobado.
-    const pagoRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
-      headers: { "Authorization": `Bearer ${accessToken}` },
-    });
+    const pagoRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, conLlave);
     if (!pagoRes.ok) return new Response("ok", { status: 200 });
     const pago = await pagoRes.json();
     if (pago.status !== "approved") return new Response("ok", { status: 200 });
 
-    const referencia: string = pago.external_reference || "";
+    let referencia: string = pago.external_reference || "";
+
+    // Pago de una suscripción: su referencia (usuario::meses) y su monto
+    // acordado están en la suscripción. Se usan si el pago no trae la
+    // referencia, y para aceptar el monto con el que se creó (el precio o
+    // el descuento pueden haber cambiado después).
+    preapprovalId = preapprovalId || String(pago.metadata?.preapproval_id
+      || pago.point_of_interaction?.transaction_data?.subscription_id || "");
+    let montoSuscripcion = 0;
+    if (preapprovalId) {
+      const suscRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, conLlave);
+      if (suscRes.ok) {
+        const susc = await suscRes.json();
+        referencia = referencia || susc.external_reference || "";
+        montoSuscripcion = Number(susc.auto_recurring?.transaction_amount) || 0;
+      }
+    }
     const monto = Number(pago.transaction_amount);
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!);
 
@@ -156,6 +219,7 @@ Deno.serve(async (req: Request) => {
         reconocimiento_foto_desde: nuevaDesde, reconocimiento_foto_hasta: nuevaHasta,
       }).eq("username", usernameAddon);
 
+      await avisarPagoAprobado(supabase, String(pago.id));
       return new Response("ok", { status: 200 });
     }
 
@@ -164,8 +228,9 @@ Deno.serve(async (req: Request) => {
     const meses = parseInt(mesesStr, 10);
     if (!username || !PRECIOS_RESPALDO[meses]) return new Response("ok", { status: 200 });
 
-    const esperado = await precioDelPlan(supabase, username, meses);
+    let esperado = await precioDelPlan(supabase, username, meses);
     if (esperado === null) return new Response("ok", { status: 200 }); // el alumno no existe
+    if (montoSuscripcion > 0) esperado = Math.min(esperado, montoSuscripcion);
 
     // Si se pagó menos de lo que cuesta el plan, se registra el pago como
     // pendiente, con una nota, y no se activa nada: el admin decide desde
@@ -189,6 +254,7 @@ Deno.serve(async (req: Request) => {
     const nuevaFecha = addMonthsISO(base, meses);
     await supabase.from("alumnos").update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: "pago" }).eq("username", username);
 
+    await avisarPagoAprobado(supabase, String(pago.id));
     return new Response("ok", { status: 200 });
   } catch (err) {
     console.error("webhook-mercadopago:", String(err));

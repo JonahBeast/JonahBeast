@@ -4408,6 +4408,16 @@ function PagosPanel({ onAprobado }) {
       await supabase.from('pagos')
         .update({ estado: 'aprobado', revisado_en: new Date().toISOString() })
         .eq('id', pago.id);
+      // Aviso al celular del alumno: "tu pago fue aprobado". Si falla, la
+      // aprobación igual queda hecha.
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        fetch('/api/pago-aprobado', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+          body: JSON.stringify({ pagoId: pago.id }),
+        }).catch(() => {});
+      } catch {}
       await cargar();
       if (onAprobado) onAprobado();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }

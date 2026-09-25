@@ -297,11 +297,11 @@ Errores: "Completa tu edad, estatura y peso para seguir." · "Revisa que tu esta
 
 - La proteína se calcula según tu masa magra. Son estimaciones de referencia, no una receta médica.
 
-### 10.3 ⚠️ Mis calorías de "Comidas" no coinciden con mi objetivo
+### 10.3 La meta de "Comidas" sigue sola al objetivo
 
-Es la duda más probable. Elegir el objetivo **no cambia solo** el medidor de Comidas.
-- En la pestaña "Comidas" aparece un aviso amarillo "Tu meta de comidas (X kcal) no coincide con tu objetivo (Y kcal)." → tocar **"Usar mi objetivo"**.
-- O en "Mi cuerpo" → "Objetivo" → **"AJUSTE FINO DE CALORÍAS Y MACROS"** → "Usar mi objetivo (X)". Ahí también se pueden escribir calorías y porcentajes a mano (deben sumar 100%).
+- Al elegir o cambiar el objetivo, o al actualizar tus datos (peso, edad…), la meta de calorías y macros de "Comidas" **se actualiza sola**.
+- **Ajuste manual:** en "Mi cuerpo" → "Objetivo" → **"AJUSTE FINO DE CALORÍAS Y MACROS"** se pueden escribir calorías y porcentajes a mano (deben sumar 100%). Si lo haces, la app respeta tus valores hasta que cambies de objetivo.
+- Si aparece el aviso amarillo "Tu meta de comidas (X kcal) no coincide con tu objetivo (Y kcal)." (pasa si la ajustaste a mano), toca **"Usar mi objetivo"** para volver a la meta calculada.
 
 ---
 
@@ -334,7 +334,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 ## 12. Invitar amigos
 
 **Qué gana cada uno:**
-- **Tu amigo:** 15 días de prueba gratis y **10% de descuento** en su plan.
+- **Tu amigo:** 15 días de prueba gratis y **10% de descuento en su primer plan** (las renovaciones van a precio normal).
 - **Tú:** **15 días gratis** cuando tu amigo **pague** su plan (no basta con que se registre). Se suman solos a tu fecha de vencimiento. Una vez por amigo.
 
 **Cómo invitar:**
@@ -342,7 +342,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 2. Toca **"Invitar por WhatsApp"** o **"Copiar mi link"**.
 3. Ahí mismo ves "Tu código", cuántos amigos se registraron y cuántos días ganaste.
 
-**Qué hace el amigo:** entra por tu link (el código ya viene puesto) o escribe tu código en "¿Tienes un código?" al registrarse. En Planes verá los precios ya rebajados.
+**Qué hace el amigo:** entra por tu link (el código ya viene puesto) o escribe tu código en "¿Tienes un código?" al registrarse. En Planes verá los precios ya rebajados y el aviso "Tienes 10% de descuento en tu primer plan".
 
 **Aviso del premio:** "🎁 [Nombre] se unió a Jonah Beast Fuel gracias a ti. ¡Te regalo 15 días más!"
 
@@ -369,7 +369,7 @@ Problemas:
 | Anual | S/209.90 ("MEJOR PRECIO") |
 
 - El precio vigente es el que muestra la app (el asistente lo lee de la configuración).
-- Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados.
+- Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados. El de un amigo ("Invita a un amigo") vale solo para el primer plan; el de un embajador o influencer vale para todos los planes.
 - **"Tengo una consulta antes de pagar"** abre WhatsApp.
 
 ### 13.2 Pagar con Yape, Plin o transferencia
@@ -380,6 +380,7 @@ Problemas:
 4. En "2 · CONFIRMA TU PAGO" llena: "Tu celular (WhatsApp)" (si falta, 9 dígitos), fecha de nacimiento (opcional), **"Número de operación"** y la **captura del pago** ("Toca para adjuntar tu captura", imagen o PDF).
 5. Toca **"ENVIAR MI PAGO"**.
 6. Verás **"Tu pago está en revisión"**: se confirma **en menos de 24 horas** y el acceso se activa solo.
+7. Cuando se aprueba, llega una notificación: "✅ ¡Listo! Tu pago fue aprobado y tu plan está activo hasta el DD/MM/AAAA." (solo si activaste las notificaciones; si no, lo ves en "MIS PAGOS").
 
 - En **"MIS PAGOS"** ves cada pago: "En revisión" (amarillo), "Aprobado" (verde) o "Rechazado" (rojo).
 - Si sale **"Rechazado"**, la app no muestra el motivo → pasar a Jonah.
@@ -391,7 +392,8 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 1. Toca **"Elegir"** en el plan y luego **"Mercado Pago"**.
 2. Elige **"Pago único"** (pagas una vez y renuevas cuando quieras) o **"Suscripción automática"** (se cobra solo cada periodo hasta que la canceles).
 3. Escribe tu correo y toca **"PAGAR CON MERCADO PAGO"**.
-4. El plan **se activa automáticamente** apenas se aprueba el pago. No hay que subir comprobante.
+4. El plan **se activa automáticamente** apenas se aprueba el pago (también llega la notificación de pago aprobado). No hay que subir comprobante.
+- Con **suscripción automática**, cada cobro mensual extiende el acceso solo.
 
 - Si aún tenías días de plan o de prueba, **no los pierdes**: los meses nuevos se suman.
 - **Cancelar la suscripción:** no se hace desde la app, sino desde **tu cuenta de Mercado Pago → Suscripciones**. Tu acceso sigue hasta la fecha que ya pagaste.
@@ -512,4 +514,4 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |
-| ¿Por qué mi meta sigue en 2000 kcal? | Toca "Usar mi objetivo" en Comidas (sección 10.3). |
+| ¿Por qué mi meta de comidas no cambió? | Si la ajustó a mano, toca "Usar mi objetivo" en Comidas (sección 10.3). |

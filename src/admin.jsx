@@ -4228,6 +4228,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <PedidosAlimentosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} />
+            <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
             <EmbudoPanel />
             <CumpleanosPanel users={users} />
 
@@ -5028,6 +5029,206 @@ function VencimientosPanel({ users, onRenew }) {
                 </div>
               )}
             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Volver a invitar: quienes ya salieron de "Por vencer" (su prueba o plan
+// terminó hace más de 7 días) y no volvieron. Cada uno con un WhatsApp ya
+// escrito según si llegó a pagar y cuánto usó la app. Al tocar "Escribir"
+// queda marcado como invitado (en este aparato) y pasa a "Ya invitados"
+// por 30 días, para no escribirle dos veces seguidas.
+const CLAVE_INVITADOS = 'jb-volver-invitar';
+const DIAS_ENTRE_INVITACIONES = 30;
+
+function leerInvitados() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_INVITADOS) || '{}') || {}; } catch { return {}; }
+}
+
+const GRUPOS_VOLVER = [
+  { key: 'usaron', emoji: '🟢', label: 'PROBARON Y USARON', detalle: 'Registraron comidas en su prueba pero no pagaron', necesita: 'Ya conocen el valor: invítalos con 7 días más.', color: 'text-emerald-400', borde: 'border-emerald-700/50' },
+  { key: 'pagaron', emoji: '🔵', label: 'PAGARON ANTES', detalle: 'Tuvieron plan pagado y no renovaron', necesita: 'Pregúntales cómo van y ayúdalos a retomar.', color: 'text-sky-400', borde: 'border-sky-700/50' },
+  { key: 'nunca', emoji: '⚫', label: 'NUNCA EMPEZARON', detalle: 'Se registraron pero no registraron comidas', necesita: 'Cuéntales que ahora empezar es un toque.', color: 'text-zinc-300', borde: 'border-zinc-600' },
+];
+
+function VolverInvitarPanel({ users, onAdjustDays }) {
+  const [open, setOpen] = useState(false);
+  const [grupoVisible, setGrupoVisible] = useState(null);
+  const [verInvitados, setVerInvitados] = useState(false);
+  const [invitados, setInvitados] = useState(leerInvitados);
+  // username -> días en que registró comidas
+  const [actividad, setActividad] = useState(null);
+
+  const salieron = useMemo(() => (users || [])
+    .filter(u => u.fechaVencimiento)
+    .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento), esPrueba: u.plan === 'trial' || u.plan === 'prueba' }))
+    .filter(u => u.dl !== null && u.dl < -7), [users]);
+  const nombres = salieron.map(u => u.username).sort().join(',');
+
+  useEffect(() => {
+    if (!nombres) { setActividad({}); return; }
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase.from('historial')
+        .select('username, fecha')
+        .in('username', nombres.split(','))
+        .gt('comidas_count', 0)
+        .range(0, 9999);
+      if (cancelado) return;
+      if (error) { setActividad({}); return; }
+      const m = {};
+      (data || []).forEach(r => { m[r.username] = (m[r.username] || 0) + 1; });
+      setActividad(m);
+    })();
+    return () => { cancelado = true; };
+  }, [nombres]);
+
+  if (!salieron.length) return null;
+
+  const hoyMs = Date.now();
+  const alumnos = salieron.map(u => {
+    const diasActivos = actividad ? actividad[u.username] || 0 : 0;
+    const grupo = !u.esPrueba ? 'pagaron' : diasActivos > 0 ? 'usaron' : 'nunca';
+    const invitadoEl = invitados[u.username] || null;
+    const invitadoHace = invitadoEl ? Math.floor((hoyMs - new Date(invitadoEl).getTime()) / 86400000) : null;
+    const yaInvitado = invitadoHace !== null && invitadoHace < DIAS_ENTRE_INVITACIONES;
+    return { ...u, diasActivos, grupo, invitadoHace, yaInvitado };
+  }).sort((a, b) => b.diasActivos - a.diasActivos || b.dl - a.dl);
+  const pendientes = alumnos.filter(u => !u.yaInvitado);
+  const yaInvitados = alumnos.filter(u => u.yaInvitado);
+
+  function marcarInvitado(username) {
+    const nuevo = { ...leerInvitados(), [username]: new Date().toISOString() };
+    try { localStorage.setItem(CLAVE_INVITADOS, JSON.stringify(nuevo)); } catch { /* sin memoria del navegador: solo se ve en esta sesión */ }
+    setInvitados(nuevo);
+  }
+
+  function desmarcarInvitado(username) {
+    const nuevo = { ...leerInvitados() };
+    delete nuevo[username];
+    try { localStorage.setItem(CLAVE_INVITADOS, JSON.stringify(nuevo)); } catch { /* igual que arriba */ }
+    setInvitados(nuevo);
+  }
+
+  function mensaje(u) {
+    const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
+    if (u.grupo === 'pagaron') {
+      return `Hola ${nombre}, soy Jonah 🦍 Hace un tiempo que no te veo por la app y quería saber cómo vas con tu objetivo. Si quieres retomar, te ayudo a renovar tu plan y seguimos donde lo dejaste 🔥`;
+    }
+    if (u.grupo === 'usaron') {
+      return `Hola ${nombre}, soy Jonah 🦍 Hace unas semanas probaste Jonah Beast Fuel y llegaste a registrar ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'}. Desde entonces mejoramos bastante la app 💪 ¿Te animas a retomarla? Te activo 7 días más sin costo para que la pruebes de nuevo.`;
+    }
+    return `Hola ${nombre}, soy Jonah 🦍 Hace un tiempo creaste tu cuenta en Jonah Beast Fuel pero no llegamos a empezar. Ahora registrar tu primera comida es un toque 👆 ¿Te activo 7 días más sin costo para que la pruebes con calma?`;
+  }
+
+  function linkWhatsApp(u) {
+    const num = (u.telefono || '').replace(/\D/g, '');
+    const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+    const texto = mensaje(u);
+    return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}`
+                : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  }
+
+  function darSieteDias(u) {
+    if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
+    onAdjustDays(u.username, 7, 'Volver a invitar: 7 días más de prueba', true);
+  }
+
+  function fila(u) {
+    const semanas = Math.floor(Math.abs(u.dl) / 7);
+    return (
+      <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
+          <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
+            {u.esPrueba ? 'Su prueba terminó' : 'Su plan venció'} hace {semanas >= 2 ? `${semanas} semanas` : `${Math.abs(u.dl)} días`}
+            {u.diasActivos > 0 ? ` · registró ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'}` : ''}
+            {!u.enabled && ' · cuenta apagada'}
+            {!u.telefono && ' · sin celular'}
+          </div>
+          {u.yaInvitado && (
+            <div className="text-[11px] jb-body text-emerald-400 mt-0.5">
+              ✓ Invitado {u.invitadoHace === 0 ? 'hoy' : u.invitadoHace === 1 ? 'ayer' : `hace ${u.invitadoHace} días`}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
+            className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+            <MessageCircle size={13} /> {u.yaInvitado ? 'Escribir otra vez' : 'Escribir'}
+          </a>
+          {u.esPrueba && (
+            <button type="button" onClick={() => darSieteDias(u)} className={btnGhost + ' py-1.5 px-3 text-xs'}>+7 días</button>
+          )}
+          {u.yaInvitado && (
+            <button type="button" onClick={() => desmarcarInvitado(u.username)} className={btnGhost + ' py-1.5 px-3 text-xs'}>Desmarcar</button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-sm shrink-0">💌</div>
+          <h2 className="jb-display text-base text-zinc-200">
+            VOLVER A INVITAR
+            {pendientes.length > 0 && <span className="ml-2 bg-orange-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{pendientes.length}</span>}
+          </h2>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          {actividad === null ? (
+            <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
+          ) : (
+            <>
+              <p className="jb-body text-xs text-zinc-500 mb-3">
+                Personas cuya prueba o plan terminó hace más de 7 días y no volvieron. Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
+                {' '}<span className="text-zinc-400">"+7 días" les vuelve a abrir la app una semana desde hoy.</span>
+              </p>
+              {pendientes.length === 0 ? (
+                <p className="jb-body text-xs text-zinc-400 mb-2">✓ Ya invitaste a todos. En {DIAS_ENTRE_INVITACIONES} días vuelven a aparecer aquí si no regresaron.</p>
+              ) : (
+                <>
+                  <TarjetasColor grupos={GRUPOS_VOLVER} contar={k => pendientes.filter(u => u.grupo === k).length}
+                    activo={grupoVisible} onElegir={setGrupoVisible} />
+                  <div className="flex flex-col gap-4 mt-2">
+                    {GRUPOS_VOLVER.filter(g => g.key === grupoVisible).map(g => {
+                      const lista = pendientes.filter(u => u.grupo === g.key);
+                      if (!lista.length) return null;
+                      return (
+                        <div key={g.key}>
+                          <div className={`jb-display text-xs ${g.color}`}>{g.emoji} {g.label} · {lista.length}</div>
+                          <div className="jb-body text-[11px] text-zinc-500 mb-2">{g.detalle}. {g.necesita}</div>
+                          <div className="flex flex-col gap-2">{lista.map(fila)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {yaInvitados.length > 0 && (
+                <div className="mt-4">
+                  <button type="button" onClick={() => setVerInvitados(v => !v)} aria-expanded={verInvitados}
+                    className={`w-full text-left bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 flex items-center justify-between gap-3 transition-all ${verInvitados ? 'ring-2 ring-orange-500' : 'hover:bg-zinc-900'}`}>
+                    <div>
+                      <div className="jb-display text-sm text-zinc-200">✓ YA INVITADOS · {yaInvitados.length}</div>
+                      <div className="jb-body text-[11px] text-zinc-500">Les escribiste en los últimos {DIAS_ENTRE_INVITACIONES} días.</div>
+                    </div>
+                    <span className={`jb-body text-[11px] shrink-0 ${verInvitados ? 'text-orange-400' : 'text-zinc-500'}`}>{verInvitados ? '▲ Ocultar' : '▼ Ver'}</span>
+                  </button>
+                  {verInvitados && <div className="flex flex-col gap-2 mt-2">{yaInvitados.map(fila)}</div>}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

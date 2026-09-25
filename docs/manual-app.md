@@ -165,6 +165,9 @@ De arriba hacia abajo:
   - Si aparece **"Meta estimada. Ajústala a tu cuerpo en 30 segundos"**, faltan tus datos o tu objetivo (ver sección 10).
 - **"¿COMISTE PARECIDO A AYER?"** (solo si hoy no registraste nada y ayer sí): **"Repetir ayer"** copia todas las comidas de ayer.
 - **"📊 TU SEMANA EN NÚMEROS"** (solo los domingos): kcal promedio, días registrados y comparación con la semana pasada.
+- **"TU SEMANA · [lunes] – [domingo]"** (lunes, martes y miércoles, si la semana pasada registró al menos 1 día): resumen de la semana que terminó: días registrados (X/7), días en su meta (entre 85% y 115% de sus calorías), cambio de peso o racha. Títulos: "¡SEMANA DE BESTIA! 🔥" (5 días o más), "BUENA SEMANA 💪" (3–4) o "ARRANCASTE: ESTA SEMANA VAMOS POR MÁS" (1–2).
+  - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO." y jonahbeast.com) y abre el menú de compartir del celular (Instagram, WhatsApp…). Si el celular no permite compartir, se descarga la imagen.
+  - La **X** la cierra hasta la próxima semana.
 - **Racha "🔥 N días seguidos":** días seguidos con al menos una comida registrada. La racha de hoy no se rompe hasta que termina el día.
   - Insignias: 3 días Cebiche Starter 🐟 · 7 días Ají de Gallina Warrior 🌶️ · 14 días Lomo Saltado Master 🥩 · 30 días Pollo a la Brasa Legend 🍗 · 60 días Chicha Morada Beast 🟣 · 90 días Jonah Beast Elite 👑.
 - **Beast Score "¿CÓMO VAS HOY? N%":** qué tan cerca estás de tus calorías del día, más puntos por racha. Niveles: 🌱 "El día recién empieza" · 💪 "Aún puedes con más" · 🔥 "Vas con todo hoy" · 🦍 "¡Modo bestia total!". Al quedar entre 85% y 115% de tu meta cae confeti: "🔥 ¡Completaste tu objetivo de hoy!".
@@ -500,6 +503,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 | 9:00 pm | Registrar cena (si falta) |
 | 10:00 pm | Buenas noches |
 | Sábado 6:00 pm | Reto semanal |
+| Lunes 9:00 am | "Tu semana" lista (solo si registró algo la semana pasada): "Semana de bestia 🔥 X/7 días…" o "Tu semana: X/7 días registrados 📊…" |
 
 Tocar un aviso de comida abre la app directo en esa comida.
 

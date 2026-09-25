@@ -28,6 +28,7 @@ import {
   fmtS,
   inputCls,
   membershipActive,
+  tieneDatosBasicos,
   todayISO,
 } from './App.jsx';
 
@@ -849,6 +850,111 @@ function FuncionandoPanel({ users }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* Embudo de activación: de los que se registraron, cuántos pasan cada paso
+   (datos del cuerpo → primera comida → 3 días registrando → pagaron). Así
+   se ve en qué paso se pierde la gente y si las mejoras lo cambian. */
+function ActivacionPanel({ users }) {
+  const [rango, setRango] = useState(30); // días; 0 = desde siempre
+  const [datos, setDatos] = useState(null);
+  const todos = users || [];
+  const nombres = todos.map(u => u.username).sort().join(',');
+
+  useEffect(() => {
+    if (!nombres) { setDatos({ cuerpo: {}, dias: {}, pagaron: new Set() }); return; }
+    let cancelado = false;
+    (async () => {
+      const lista = nombres.split(',');
+      const [{ data: dat }, { data: hist }, { data: pagos }] = await Promise.all([
+        supabase.from('datos_alumnos').select('username, form').in('username', lista),
+        supabase.from('historial').select('username, fecha').in('username', lista).gt('comidas_count', 0).range(0, 19999),
+        supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0).range(0, 4999),
+      ]);
+      if (cancelado) return;
+      const cuerpo = {};
+      (dat || []).forEach(d => { cuerpo[d.username] = tieneDatosBasicos(d.form || {}); });
+      const dias = {};
+      (hist || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
+      setDatos({ cuerpo, dias, pagaron: new Set((pagos || []).map(p => p.username)) });
+    })().catch(() => { if (!cancelado) setDatos({ cuerpo: {}, dias: {}, pagaron: new Set() }); });
+    return () => { cancelado = true; };
+  }, [nombres]);
+
+  if (!datos) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex items-center gap-2 text-zinc-500 text-xs jb-body">
+        <Loader2 size={14} className="animate-spin" /> Calculando la activación…
+      </div>
+    );
+  }
+
+  const desde = rango ? addDaysISO(todayISO(), -rango) : '0000-00-00';
+  const cohorte = todos.filter(u => (String(u.createdAt || u.fechaInicio || '').slice(0, 10)) >= desde);
+  const nDias = u => (datos.dias[u.username] ? datos.dias[u.username].size : 0);
+  const pasos = [
+    { titulo: 'Se registraron', n: cohorte.length },
+    { titulo: 'Pusieron sus datos del cuerpo', n: cohorte.filter(u => datos.cuerpo[u.username] || nDias(u) > 0).length },
+    { titulo: 'Registraron su primera comida', n: cohorte.filter(u => nDias(u) >= 1).length },
+    { titulo: 'Registraron 3 días o más', n: cohorte.filter(u => nDias(u) >= 3).length },
+    { titulo: 'Pagaron un plan', n: cohorte.filter(u => datos.pagaron.has(u.username)).length },
+  ];
+  const total = pasos[0].n;
+  // El paso donde se pierde más gente (en cantidad de personas).
+  let peor = -1, peorPerdida = 0;
+  for (let i = 1; i < pasos.length; i++) {
+    const perdida = pasos[i - 1].n - pasos[i].n;
+    if (perdida > peorPerdida) { peorPerdida = perdida; peor = i; }
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h2 className="jb-display text-base text-zinc-200">🚦 ACTIVACIÓN DE NUEVOS</h2>
+        <div className="flex gap-1.5">
+          {[[30, '30 días'], [90, '90 días'], [0, 'Todo']].map(([v, t]) => (
+            <button key={v} type="button" onClick={() => setRango(v)}
+              className={`jb-body text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${rango === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-400 hover:border-orange-500'}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="jb-body text-xs text-zinc-500 mb-4">
+        De los que se registraron {rango ? `en los últimos ${rango} días` : 'desde el inicio'}, cuántos llegan a cada paso. Con pocos alumnos, mira también cuántos son.
+      </p>
+      {!total ? (
+        <p className="jb-body text-sm text-zinc-500">Nadie se registró en este periodo.</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {pasos.map((p, i) => {
+            const pct = Math.round((p.n / total) * 100);
+            const perdida = i > 0 ? pasos[i - 1].n - p.n : 0;
+            return (
+              <div key={p.titulo}>
+                {i > 0 && perdida > 0 && (
+                  <p className={`jb-body text-[11px] pl-2 my-0.5 ${i === peor ? 'text-orange-400 font-semibold' : 'text-zinc-500'}`}>
+                    ↓ {perdida} se {perdida === 1 ? 'quedó' : 'quedaron'} aquí{i === peor ? ' · el paso donde más se pierde' : ''}
+                  </p>
+                )}
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                    <span className="jb-body text-xs text-zinc-300">{p.titulo}</span>
+                    <span className="jb-body text-xs text-zinc-400 tabular-nums whitespace-nowrap">
+                      <span className="jb-display text-base text-zinc-50">{p.n}</span> · {pct}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2506,8 +2612,26 @@ async function datosNegocioJarvis(users) {
   const lista = users || [];
   const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
   const activosL = lista.filter(u => u.enabled && membershipActive(u));
+  // "A medias": pusieron sus datos del cuerpo hace 3 horas o más (y no más
+  // de 3 días) pero nunca registraron una comida (mismo criterio que Rescate).
+  let aMedias = null;
+  try {
+    const nombresActivos = activosL.map(u => u.username);
+    if (nombresActivos.length) {
+      const { data: conComida } = await supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0).range(0, 9999);
+      const comieron = new Set((conComida || []).map(r => r.username));
+      const sinComida = nombresActivos.filter(n => !comieron.has(n));
+      const { data: dat } = sinComida.length
+        ? await supabase.from('datos_alumnos').select('username, form, updated_at').in('username', sinComida)
+        : { data: [] };
+      aMedias = (dat || []).filter(d => {
+        const h = (Date.now() - new Date(d.updated_at).getTime()) / 3600000;
+        return tieneDatosBasicos(d.form || {}) && h >= 3 && h <= 72;
+      }).length;
+    } else aMedias = 0;
+  } catch {}
   return {
-    pagosPendientes, registraronAyer, registraronHoy,
+    pagosPendientes, registraronAyer, registraronHoy, aMedias,
     activos: activosL.length,
     enPrueba: activosL.filter(esPrueba).length,
     pagando: activosL.filter(u => !esPrueba(u)).length,
@@ -2521,6 +2645,7 @@ async function armarInformeJarvis(users) {
   partes.push(d.pagosPendientes ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar.` : 'No hay pagos pendientes.');
   if (d.vencen) partes.push(`${d.vencen} ${d.vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
   if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
+  if (d.aMedias) partes.push(`${d.aMedias === 1 ? '1 alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias: ${d.aMedias === 1 ? 'puso sus datos' : 'pusieron sus datos'} pero no ${d.aMedias === 1 ? 'registró' : 'registraron'} su primera comida. Están en Rescate para escribirles hoy.`);
   if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
   return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
 }
@@ -3930,6 +4055,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <TableroPanel users={users} />
             <FuncionandoPanel users={users} />
+            <ActivacionPanel users={users} />
             <EmbudoResumenPanel />
             <MetricasPanel />
             <FinanzasPanel />
@@ -4136,6 +4262,7 @@ function StudentDataModal({ username, data, onClose }) {
 // lo que más se relaciona con que paguen, y por WhatsApp se llega a todos
 // (las notificaciones solo las tiene una parte).
 const GRUPOS_RESCATE = [
+  { key: 'medias', emoji: '🟠', label: 'SE QUEDARON A MEDIAS', detalle: 'Pusieron sus datos pero nunca registraron comida', necesita: 'Ya armaron su plan: un mensaje tuyo hoy los trae de vuelta.', color: 'text-orange-400', borde: 'border-orange-600/60' },
   { key: 'enfriando', emoji: '🟡', label: 'SE ESTÁN ENFRIANDO', detalle: '2 a 7 días sin registrar', necesita: 'Los más fáciles de recuperar: escríbeles primero.', color: 'text-amber-400', borde: 'border-amber-700/50' },
   { key: 'frio', emoji: '🔴', label: 'FRÍOS', detalle: 'Más de 7 días sin registrar', necesita: 'Pregúntales qué se les complicó.', color: 'text-red-400', borde: 'border-red-700/50' },
   { key: 'nunca', emoji: '⚫', label: 'NUNCA REGISTRARON', detalle: 'Ninguna comida registrada', necesita: 'Ayúdalos a dar el primer paso.', color: 'text-zinc-300', borde: 'border-zinc-600' },
@@ -4147,7 +4274,7 @@ const GRUPOS_RESCATE = [
 function TarjetasColor({ grupos, contar, activo, onElegir }) {
   return (
     <>
-      <div className={`grid gap-2 mb-2 ${grupos.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+      <div className={`grid gap-2 mb-2 ${grupos.length === 5 ? 'grid-cols-2 sm:grid-cols-5' : grupos.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
         {grupos.map(g => {
           const n = contar(g.key);
           const elegida = activo === g.key;
@@ -4180,11 +4307,28 @@ const ESTADOS_AVISOS_PANEL = [
   { key: 'sin_dato', plural: 'sin dato aún', uno: '' },
 ];
 
+// "hace 40 min", "hace 5 h", "hace 3 días".
+function textoHoras(h) {
+  if (h === null || h === undefined) return 'un tiempo';
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  if (h < 48) return `${Math.round(h)} h`;
+  return `${Math.round(h / 24)} días`;
+}
+
+// A medias: primero los que ya toca escribir (3 h o más, el más reciente
+// arriba) y al final los que se fueron hace menos de 3 horas.
+function ordenMedias(h) {
+  if (h === null || h === undefined) return 1e9;
+  return h < 3 ? 1e6 + h : h;
+}
+
 function RescatePanel({ users }) {
   const [open, setOpen] = useState(true);
   const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   // username -> última fecha con comidas registradas
   const [ultimas, setUltimas] = useState(null);
+  // username -> { datos: puso sus datos del cuerpo, en: última vez que guardó }
+  const [cuerpos, setCuerpos] = useState({});
 
   const vigentes = useMemo(() => (users || []).filter(u => u.enabled && membershipActive(u)), [users]);
   const nombres = vigentes.map(u => u.username).sort().join(',');
@@ -4202,6 +4346,15 @@ function RescatePanel({ users }) {
       if (error) { setUltimas({}); return; }
       const m = {};
       (data || []).forEach(r => { if (!m[r.username] || r.fecha > m[r.username]) m[r.username] = r.fecha; });
+      // Los que nunca registraron: ¿pusieron sus datos? (= "a medias")
+      const sinComida = nombres.split(',').filter(n => !m[n]);
+      const c = {};
+      if (sinComida.length) {
+        const { data: dat } = await supabase.from('datos_alumnos').select('username, form, updated_at').in('username', sinComida);
+        (dat || []).forEach(d => { c[d.username] = { datos: tieneDatosBasicos(d.form || {}), en: d.updated_at }; });
+      }
+      if (cancelado) return;
+      setCuerpos(c);
       setUltimas(m);
     })();
     return () => { cancelado = true; };
@@ -4212,13 +4365,20 @@ function RescatePanel({ users }) {
   const alumnos = vigentes.map(u => {
     const ultima = ultimas ? ultimas[u.username] || null : null;
     const sinRegistrar = ultima ? -daysLeft(ultima) : null;
-    const grupo = !ultima ? 'nunca' : sinRegistrar <= 1 ? 'aldia' : sinRegistrar <= 7 ? 'enfriando' : 'frio';
-    return { ...u, ultima, sinRegistrar, grupo };
-  }).sort((a, b) => (a.sinRegistrar ?? 999) - (b.sinRegistrar ?? 999));
+    const cuerpo = cuerpos[u.username];
+    const grupo = !ultima ? (cuerpo?.datos ? 'medias' : 'nunca') : sinRegistrar <= 1 ? 'aldia' : sinRegistrar <= 7 ? 'enfriando' : 'frio';
+    const horasSinVolver = grupo === 'medias' && cuerpo?.en ? (Date.now() - new Date(cuerpo.en).getTime()) / 3600000 : null;
+    return { ...u, ultima, sinRegistrar, grupo, horasSinVolver };
+  }).sort((a, b) => (a.sinRegistrar ?? 999) - (b.sinRegistrar ?? 999) || ordenMedias(a.horasSinVolver) - ordenMedias(b.horasSinVolver));
+  // A medias "para escribir hoy": se fueron hace 3 horas o más, y no hace
+  // más de 3 días (después ya se enfrían y el mensaje pesa menos).
+  const mediasHoy = alumnos.filter(u => u.grupo === 'medias' && u.horasSinVolver !== null && u.horasSinVolver >= 3 && u.horasSinVolver <= 72);
 
   function linkWhatsApp(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
-    const texto = u.grupo === 'aldia'
+    const texto = u.grupo === 'medias'
+      ? `Hola ${nombre}, soy Jonah 🦍 Vi que ya armaste tu plan 💪 ¿Te ayudo a registrar tu primera comida? Es un toque: abre la app y elige lo que comiste hoy.`
+      : u.grupo === 'aldia'
       ? `Hola ${nombre}, soy Jonah 🦍 Vi que vienes registrando tus comidas, ¡así se hace! Esa constancia es la que trae resultados. Sigue así y cualquier duda me escribes 💪`
       : u.grupo === 'enfriando'
       ? `Hola ${nombre}, soy Jonah 🦍 Te extraño por la app: llevas ${u.sinRegistrar} días sin registrar tus comidas. ¿Todo bien? Registra hoy aunque sea tu desayuno y retomamos juntos 💪`
@@ -4270,6 +4430,17 @@ function RescatePanel({ users }) {
                 {ESTADOS_AVISOS_PANEL.filter(e => conteoAvisos[e.key]).map(e => `${conteoAvisos[e.key]} ${e.plural}`).join(' · ') || 'sin datos aún'}
                 <span className="block text-zinc-600">Se actualiza cuando cada alumno abre la app.</span>
               </div>
+              {mediasHoy.length > 0 && (
+                <button type="button" onClick={() => setGrupoVisible('medias')}
+                  className="w-full text-left bg-orange-500/10 border border-orange-500/50 rounded-lg px-3 py-2.5 mb-3 flex items-center gap-2.5 hover:bg-orange-500/15 transition-colors">
+                  <span className="text-lg">🟠</span>
+                  <span className="flex-1 min-w-0 jb-body text-xs text-zinc-200">
+                    <span className="font-semibold text-orange-300">{mediasHoy.length} {mediasHoy.length === 1 ? 'se quedó' : 'se quedaron'} a medias:</span>{' '}
+                    {mediasHoy.length === 1 ? 'puso sus datos' : 'pusieron sus datos'} hace más de 3 horas y no {mediasHoy.length === 1 ? 'registró' : 'registraron'} comida. Escríbeles hoy.
+                  </span>
+                  <ChevronRight size={16} className="text-orange-400 shrink-0" />
+                </button>
+              )}
               <TarjetasColor grupos={GRUPOS_RESCATE} contar={k => alumnos.filter(u => u.grupo === k).length}
                 activo={grupoVisible} onElegir={setGrupoVisible} />
               <div className="flex flex-col gap-4 mt-2">
@@ -4286,7 +4457,9 @@ function RescatePanel({ users }) {
                             <div className="min-w-0">
                               <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
                               <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
-                                {u.ultima ? (u.sinRegistrar <= 0 ? 'Registró hoy' : u.sinRegistrar === 1 ? 'Registró ayer' : `Última comida hace ${u.sinRegistrar} días`) : 'Aún no registra ninguna comida'}
+                                {u.ultima ? (u.sinRegistrar <= 0 ? 'Registró hoy' : u.sinRegistrar === 1 ? 'Registró ayer' : `Última comida hace ${u.sinRegistrar} días`)
+                                  : u.grupo === 'medias' ? `Puso sus datos · no vuelve hace ${textoHoras(u.horasSinVolver)}${u.horasSinVolver !== null && u.horasSinVolver < 3 ? ' (dale unas horas)' : ''}`
+                                  : 'Aún no registra ninguna comida'}
                                 {u.plan === 'trial' || u.plan === 'prueba' ? ' · prueba gratis' : ' · plan pagado'}
                                 {!u.telefono && ' · sin celular'}
                               </div>

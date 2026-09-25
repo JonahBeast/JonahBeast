@@ -4936,6 +4936,20 @@ function CalorieStatus({ consumed, target }) {
 function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
+  const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error', nombre, error? }
+
+  /* "Pedirle a Jonah que lo agregue": el pedido llega a "Pedidos de
+     alimentos" del panel y, cuando Jonah lo aprueba, le avisamos al alumno. */
+  async function pedirAJonah() {
+    const nombre = texto.trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setAbierto(false);
+    setPedido({ estado: 'enviando', nombre });
+    const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
+    setPedido(error
+      ? { estado: 'error', nombre, error: error.message?.startsWith('Ya enviaste') ? error.message : 'No se pudo enviar el pedido. Intenta de nuevo.' }
+      : { estado: 'ok', nombre });
+  }
 
   useEffect(() => { setTexto(valor || ''); }, [valor]);
 
@@ -4949,7 +4963,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
       <input
         autoFocus={autoFocus}
         value={texto}
-        onChange={e => { setTexto(e.target.value); setAbierto(true); }}
+        onChange={e => { setTexto(e.target.value); setAbierto(true); setPedido(null); }}
         onFocus={() => setAbierto(true)}
         onBlur={() => setTimeout(() => setAbierto(false), 180)}
         className={inputCls + ' py-2 w-full'}
@@ -4967,6 +4981,12 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 className={btnPrimary + ' w-full py-2 text-xs'}>
                 + Crear mi alimento
               </button>
+              {texto.trim().length >= 2 && (
+                <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
+                  className={btnGhost + ' w-full py-2 text-xs mt-2'}>
+                  🙋 Pedirle a Jonah que lo agregue
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -4991,9 +5011,22 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 className="w-full text-left px-3 py-2 text-orange-500 jb-body text-xs hover:bg-zinc-800">
                 + No está en la lista, crearlo
               </button>
+              {texto.trim().length >= 2 && (
+                <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
+                  className="w-full text-left px-3 py-2 text-zinc-300 jb-body text-xs hover:bg-zinc-800 border-t border-zinc-800">
+                  🙋 Pedirle a Jonah que agregue "{texto.trim().slice(0, 40)}"
+                </button>
+              )}
             </>
           )}
         </div>
+      )}
+      {pedido && (
+        <p className={`jb-body text-xs mt-1.5 ${pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+          {pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+          {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Jonah va a calcular los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
+          {pedido.estado === 'error' && pedido.error}
+        </p>
       )}
     </div>
   );

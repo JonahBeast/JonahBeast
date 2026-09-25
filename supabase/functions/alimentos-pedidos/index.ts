@@ -232,7 +232,7 @@ async function avisarSolicitantes(solicitantes: any[], nombre: string) {
   }
 
   if (usernames.length) {
-    await enviarPush({ usernames, body: `✅ ${nombre} ya está en la app. Búscalo en "REGISTRAR" → "Escribir" 🙌` });
+    await enviarPush({ usernames, body: `✅ ¡Listo! ${nombre} ya está en la app. Búscalo en "REGISTRAR" → "Escribir" 🙌` });
   }
   return avisos;
 }

@@ -555,7 +555,7 @@ function quienesPidieron(solicitantes) {
     const clave = s.origen === 'whatsapp' ? 'w' + s.telefono : 'a' + s.username;
     if (vistos.has(clave)) return;
     vistos.add(clave);
-    lista.push(s.origen === 'whatsapp' ? `💬 ${s.nombre || '+' + s.telefono}` : `📷 ${s.username}`);
+    lista.push(s.origen === 'whatsapp' ? `💬 ${s.nombre || '+' + s.telefono}` : s.origen === 'app' ? `🙋 ${s.username}` : `📷 ${s.username}`);
   });
   return lista;
 }
@@ -778,10 +778,11 @@ function PedidosAlimentosPanel() {
         .select('id, nombre, propuesta, solicitantes, actualizado_en')
         .eq('estado', 'pendiente').order('actualizado_en', { ascending: false }).limit(100);
       if (error) throw error;
-      // Primero los que pidió más gente; los de WhatsApp tienen a alguien esperando.
-      const orden = p => quienesPidieron(p.solicitantes).length + ((p.solicitantes || []).some(s => s.origen === 'whatsapp') ? 100 : 0);
+      // Primero los que tienen a alguien esperando (WhatsApp o el botón de la app), luego los que pidió más gente.
+      const esperando = p => (p.solicitantes || []).some(s => s.origen === 'whatsapp' || s.origen === 'app');
+      const orden = p => quienesPidieron(p.solicitantes).length + (esperando(p) ? 100 : 0);
       setPedidos((data || []).sort((a, b) => orden(b) - orden(a)));
-      if ((data || []).some(p => (p.solicitantes || []).some(s => s.origen === 'whatsapp'))) setAbierto(true);
+      if ((data || []).some(esperando)) setAbierto(true);
     } catch { setPedidos([]); }
     setCargando(false);
   }
@@ -800,7 +801,7 @@ function PedidosAlimentosPanel() {
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬) o los ve la IA en las fotos (📷). Al aprobar, el alimento aparece al momento en la app y avisamos a quien lo pidió.</p>
+            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar, el alimento aparece al momento en la app y avisamos a quien lo pidió.</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
 
@@ -4224,6 +4225,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'hoy' && (
           <>
             <PagosPanel />
+            <PedidosAlimentosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} />
             <EmbudoPanel />
@@ -4373,7 +4375,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <MetricasPanel />
             <FinanzasPanel />
             <ReferidosPanel users={users} onCambio={onRecargar} />
-            <PedidosAlimentosPanel />
             <LeadsPanel />
           </>
         )}

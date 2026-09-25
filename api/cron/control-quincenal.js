@@ -2,16 +2,21 @@
 //
 // Corre una vez al día. Por cada alumno con acceso vigente, calcula
 // cuántos días pasaron desde su último control real — el más reciente
-// entre: la última vez que registró su peso en el historial, y la
-// última foto de progreso que subió (o su fecha de inicio, si nunca
-// se ha controlado). Si hoy se cumplen exactamente 15, 30, 45... días
-// desde esa fecha, le manda un push recordándole que le toca pesarse,
-// medirse y subir sus fotos de progreso.
+// entre: la última vez que anotó sus medidas con cinta, la última foto de
+// progreso que subió (o su fecha de inicio, si nunca se ha controlado).
+// Si hoy se cumplen exactamente 15, 30, 45... días desde esa fecha, le
+// manda un push recordándole medirse y subir sus fotos (el peso se pide
+// aparte, cada domingo: api/cron/pesaje-semanal.js).
 //
-// El conteo se reinicia solo: en cuanto el alumno registra un nuevo
-// peso o una nueva foto, "días desde su último control" vuelve a 0,
-// así que no se le vuelve a avisar hasta que pasen otros 15 días
-// reales desde ESE control — no desde una fecha fija de calendario.
+// Ojo: el historial guarda cada día una copia del peso y del % de grasa
+// aunque el alumno no se haya vuelto a medir. Antes se usaba "el último
+// día con peso" y a quien usaba la app a diario nunca le llegaba el aviso.
+// Ahora se usa la fecha que la app anota cuando cambian las medidas
+// (form.medidasFecha) o, para datos anteriores, el último día en que su
+// % de grasa cambió de verdad.
+//
+// El conteo se reinicia solo: en cuanto el alumno anota nuevas medidas o
+// sube una foto, "días desde su último control" vuelve a 0.
 //
 // Mismo patrón de envío en paralelo que api/cron/recordatorio.js, para
 // no repetir el problema de timeout de Vercel con muchos alumnos.
@@ -22,9 +27,9 @@ const INTERVALO_DIAS = 15;
 
 function mensajeControl() {
   const variantes = [
-    { title: 'Jonah 🦍', body: 'Hoy te toca tu control quincenal: pésate, mídete y sube tus fotos de progreso 📸' },
-    { title: 'Jonah 🦍', body: 'Cada 15 días es momento de revisar cómo vas de verdad — pésate y actualiza tus fotos 💪' },
-    { title: 'Jonah 🦍', body: 'Toca control: registra tu peso y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
+    { title: 'Jonah 🦍', body: 'Hoy te toca tu control quincenal: mídete con la cinta (cuello, cintura, cadera) y sube tus fotos de progreso 📸' },
+    { title: 'Jonah 🦍', body: 'Cada 15 días es momento de ver cómo cambia tu cuerpo de verdad — mídete y actualiza tus fotos 💪' },
+    { title: 'Jonah 🦍', body: 'Toca control: anota tus medidas y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
     { title: 'Jonah 🦍', body: 'Han pasado 15 días desde tu último control — buen momento para medirte y fotografiarte otra vez 📸' },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
@@ -94,13 +99,25 @@ export default async function handler(req, res) {
     const inicioDe = {};
     alumnos.forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
 
-    // Último peso registrado por alumno (fecha más reciente con peso no nulo).
-    const { data: pesos } = await supabase
-      .from('historial').select('username, fecha, peso')
-      .in('username', usernames).not('peso', 'is', null)
-      .order('fecha', { ascending: false });
+    // Últimas medidas por alumno: la fecha que anota la app al cambiarlas
+    // (form.medidasFecha) o, para datos anteriores, el último día en que su
+    // % de grasa cambió en el historial (no el último día con dato: ese
+    // dato se copia a diario).
     const ultimoPesoDe = {};
-    (pesos || []).forEach(r => { if (!ultimoPesoDe[r.username]) ultimoPesoDe[r.username] = r.fecha; });
+    const { data: datos } = await supabase.from('datos_alumnos').select('username, form').in('username', usernames);
+    (datos || []).forEach(d => { if (d.form?.medidasFecha) ultimoPesoDe[d.username] = d.form.medidasFecha; });
+    const { data: grasas } = await supabase
+      .from('historial').select('username, fecha, grasa_pct')
+      .in('username', usernames).not('grasa_pct', 'is', null)
+      .order('fecha', { ascending: true }).range(0, 19999);
+    const grasaAntes = {};
+    (grasas || []).forEach(r => {
+      const g = Number(r.grasa_pct);
+      if (grasaAntes[r.username] === undefined || grasaAntes[r.username] !== g) {
+        if (!ultimoPesoDe[r.username] || r.fecha > ultimoPesoDe[r.username]) ultimoPesoDe[r.username] = r.fecha;
+      }
+      grasaAntes[r.username] = g;
+    });
 
     // Última foto de progreso por alumno.
     const { data: fotos } = await supabase

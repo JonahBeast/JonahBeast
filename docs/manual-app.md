@@ -140,7 +140,7 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 1. "¿CÓMO TE LLAMAS?" → nombre → "Guardar y seguir".
 2. "¿QUIERES QUE TE ACOMPAÑE DE CERCA?" → WhatsApp (9 dígitos) → "Guardar y seguir".
 3. "ACTIVA TUS NOTIFICACIONES" → "Activar notificaciones" (si lo rechaza, igual puede seguir con "Continuar").
-4. Explicación de los 3 pasos (Tus datos, Tu objetivo, Tus comidas) y de la rutina: registrar todos los días, usar «¿Qué puedo comer?» y cada 2 semanas actualizar peso y fotos.
+4. Explicación de los 3 pasos (Tus datos, Tu objetivo, Tus comidas) y de la rutina: registrar todos los días, usar «¿Qué puedo comer?», pesarse cada domingo y cada 2 semanas medirse y tomarse fotos.
 5. **"¡Empecemos!"** (también se puede "Saltar y empezar").
 
 Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**.
@@ -165,6 +165,7 @@ De arriba hacia abajo:
   - Si aparece **"Meta estimada. Ajústala a tu cuerpo en 30 segundos"**, faltan tus datos o tu objetivo (ver sección 10).
 - **"¿COMISTE PARECIDO A AYER?"** (solo si hoy no registraste nada y ayer sí): **"Repetir ayer"** copia todas las comidas de ayer.
 - **"📊 TU SEMANA EN NÚMEROS"** (solo los domingos): kcal promedio, días registrados y comparación con la semana pasada.
+- **"¿CUÁNTO PESAS HOY? ⚖️"** (domingo, y lunes si no se pesó el domingo): "Pesaje de la semana" con su último peso ya escrito, botones − / + de 0.1 kg (o escribirlo) y **"Guardar mi peso"** → "✅ Peso guardado: 69.4 kg (−0.6 kg)". Recomendación: en ayunas, después del baño. **"Ahora no"** la esconde ese día. El peso guardado aquí es el mismo de "Mi cuerpo" → "Mis datos".
 - **"TU SEMANA · [lunes] – [domingo]"** (lunes, martes y miércoles, si la semana pasada registró al menos 1 día): resumen de la semana que terminó: días registrados (X/7), días en su meta (entre 85% y 115% de sus calorías), cambio de peso o racha. Títulos: "¡SEMANA DE BESTIA! 🔥" (5 días o más), "BUENA SEMANA 💪" (3–4) o "ARRANCASTE: ESTA SEMANA VAMOS POR MÁS" (1–2).
   - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO." y jonahbeast.com) y abre el menú de compartir del celular (Instagram, WhatsApp…). Si el celular no permite compartir, se descarga la imagen.
   - La **X** la cierra hasta la próxima semana.
@@ -492,7 +493,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 |---|---|
 | 7:00 am | Buenos días (y cada 30 días de uso, felicitación) |
 | 9:00 am | Registrar desayuno (si falta) · aviso de vencimiento de prueba o plan (2 días antes y el día que vence) |
-| 10:00 am | Control quincenal: pesarse, medirse y fotos (cada 15 días) |
+| 10:00 am | Control quincenal: medirse con cinta y fotos de progreso (cada 15 días desde las últimas medidas o fotos) |
 | 11:00 am | Registrar media mañana (si falta) |
 | 12:30 pm | Ayuda para alumnos nuevos (primeros 5 días) |
 | 1:00 pm | Registrar almuerzo (si falta) |
@@ -503,6 +504,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 | 9:00 pm | Registrar cena (si falta) |
 | 10:00 pm | Buenas noches |
 | Sábado 6:00 pm | Reto semanal |
+| Domingo 8:00 am | Pesaje de la semana: pesarse en ayunas y anotarlo (a quien ya tiene un peso anotado) |
 | Lunes 9:00 am | "Tu semana" lista (solo si registró algo la semana pasada): "Semana de bestia 🔥 X/7 días…" o "Tu semana: X/7 días registrados 📊…" |
 
 Tocar un aviso de comida abre la app directo en esa comida.
@@ -561,7 +563,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |
 | ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. |
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |
-| ¿Cada cuánto me peso y tomo fotos? | Cada 2 semanas (la app avisa). |
+| ¿Cada cuánto me peso y tomo fotos? | El peso, **cada domingo** en ayunas (la app lo pide en Inicio). Medidas con cinta y fotos, **cada 2 semanas** (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |

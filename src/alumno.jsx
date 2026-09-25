@@ -2889,6 +2889,62 @@ async function imagenSemana({ nombre, r }) {
   });
 }
 
+/* Pesaje del domingo: el domingo (y el lunes, si no lo hizo) Inicio pide
+   el peso de hoy con su último peso ya escrito y − / + de 0.1 kg. Así el
+   resumen "Tu semana" del lunes muestra el cambio real. */
+function PesajeCard({ form, setForm }) {
+  const hoy = todayISO();
+  const diaSemana = (new Date().getDay() + 6) % 7; // 0 = lunes, 6 = domingo
+  const domingo = diaSemana === 6 ? hoy : diaSemana === 0 ? addDaysISO(hoy, -1) : null;
+  const clave = 'jb_pesaje_no_' + hoy;
+  const [oculto, setOculto] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
+  const pesoActual = Math.round((Number(form.peso) || 0) * 10) / 10;
+  const [valor, setValor] = useState(pesoActual);
+  useEffect(() => { setValor(pesoActual); }, [pesoActual]);
+
+  const yaSePeso = !!(domingo && form.pesoFecha && form.pesoFecha >= domingo);
+  if (!domingo || yaSePeso || oculto || !(pesoActual > 0)) return null;
+
+  const mover = d => setValor(v => Math.min(250, Math.max(30, Math.round((Number(v) + d) * 10) / 10)));
+  function guardar() {
+    const nuevo = Math.round(Number(valor) * 10) / 10;
+    if (!(nuevo >= 30 && nuevo <= 250)) { showToast('Revisa tu peso: debe estar entre 30 y 250 kg.', 'error'); return; }
+    const dif = Math.round((nuevo - pesoActual) * 10) / 10;
+    setForm(v => ({ ...v, peso: nuevo, pesoFecha: hoy }));
+    vibrar(20);
+    showToast(dif === 0 ? `✅ Peso guardado: ${nuevo} kg (igual que la vez pasada)`
+      : `✅ Peso guardado: ${nuevo} kg (${dif > 0 ? '+' : '−'}${Math.abs(dif).toFixed(1)} kg)`);
+  }
+  function ahoraNo() {
+    try { localStorage.setItem(clave, '1'); } catch {}
+    setOculto(true);
+  }
+
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/50 rounded-2xl p-4 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 30px -12px rgba(232,89,12,.5)' }}>
+      <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Pesaje de la semana</p>
+      <p className="jb-display text-lg text-zinc-50 leading-tight mt-0.5">¿CUÁNTO PESAS HOY? ⚖️</p>
+      <p className="jb-body text-xs text-zinc-400 mt-1">En ayunas, después del baño y sin ropa pesada. Toma 10 segundos.</p>
+      <div className="flex items-center justify-center gap-3 mt-3">
+        <button type="button" onClick={() => mover(-0.1)} aria-label="Bajar 0.1 kg"
+          className="w-12 h-12 rounded-full bg-zinc-950 border border-zinc-700 text-2xl text-zinc-200 hover:border-orange-500">−</button>
+        <div className="flex items-baseline gap-1">
+          <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+            onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
+            className="jb-display text-4xl text-orange-400 bg-transparent w-28 text-center tabular-nums focus:outline-none border-b border-zinc-700 focus:border-orange-500" />
+          <span className="jb-body text-sm text-zinc-400">kg</span>
+        </div>
+        <button type="button" onClick={() => mover(0.1)} aria-label="Subir 0.1 kg"
+          className="w-12 h-12 rounded-full bg-zinc-950 border border-zinc-700 text-2xl text-zinc-200 hover:border-orange-500">+</button>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">La vez pasada: {pesoActual} kg</p>
+      <button onClick={guardar} className={btnPrimary + ' w-full py-2.5 mt-3'}>Guardar mi peso</button>
+      <button onClick={ahoraNo} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
+    </div>
+  );
+}
+
 function TuSemanaCard({ username, nombre }) {
   const hoy = todayISO();
   const lunesPasado = addDaysISO(lunesDe(hoy), -7);
@@ -4288,7 +4344,8 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       extra: [
         ['Todos los días', 'Registra lo que comes'],
         ['Si no sabes qué comer', 'Toca «¿Qué puedo comer?»'],
-        ['Cada 2 semanas', 'Actualiza tu peso y tus fotos'],
+        ['Cada domingo', 'Pésate en ayunas y anótalo'],
+        ['Cada 2 semanas', 'Mídete y toma tus fotos'],
       ],
     },
   ];
@@ -7026,6 +7083,24 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     navigator.serviceWorker.addEventListener('message', alMensaje);
     return () => navigator.serviceWorker.removeEventListener('message', alMensaje);
   }, []);
+  // Fecha en que el alumno anotó su peso o sus medidas con cinta. La base
+  // guarda cada día una copia del peso aunque no se haya vuelto a pesar, así
+  // que esta fecha es la que dice cuándo se pesó o midió de verdad (la usan
+  // el pesaje del domingo y el control quincenal).
+  const pesoAntes = useRef(form.peso);
+  const medidasAntes = useRef([form.cuello, form.cintura, form.cadera].join('|'));
+  useEffect(() => {
+    if (String(form.peso ?? '') === String(pesoAntes.current ?? '')) return;
+    pesoAntes.current = form.peso;
+    if (Number(form.peso) > 0 && form.pesoFecha !== todayISO()) setForm(v => ({ ...v, pesoFecha: todayISO() }));
+  }, [form.peso]);
+  useEffect(() => {
+    const ahora = [form.cuello, form.cintura, form.cadera].join('|');
+    if (ahora === medidasAntes.current) return;
+    medidasAntes.current = ahora;
+    if (form.medidasFecha !== todayISO()) setForm(v => ({ ...v, medidasFecha: todayISO() }));
+  }, [form.cuello, form.cintura, form.cadera]);
+
   const [verGuia, setVerGuia] = useState(false);
   const [tieneFotos, setTieneFotos] = useState(false);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
@@ -7251,6 +7326,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           )
         )}
+        {tab === 'dash' && <PesajeCard form={form} setForm={setForm} />}
         {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
       </div>
 

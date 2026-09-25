@@ -4225,6 +4225,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'hoy' && (
           <>
             <PagosPanel />
+            <PedidosAlimentosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} />
             <EmbudoPanel />
@@ -4374,7 +4375,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <MetricasPanel />
             <FinanzasPanel />
             <ReferidosPanel users={users} onCambio={onRecargar} />
-            <PedidosAlimentosPanel />
             <LeadsPanel />
           </>
         )}

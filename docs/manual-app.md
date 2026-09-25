@@ -441,15 +441,25 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 ### 13.5 La prueba gratis dentro de la app
 
 - **Días 1 a 12: "Prueba gratis · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
-- **Días 13 a 15:** cuenta regresiva ("TE QUEDAN N DÍAS" / "HOY TERMINA TU PRUEBA") con el botón para ver planes.
+- **Días 13 a 15:** cuenta regresiva ("TE QUEDAN N DÍAS" / "HOY TERMINA TU PRUEBA") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
 
 ### 13.6 Cuando vence la prueba o el plan
 
 - **Faltando 7 días o menos:** aviso "TU PLAN VENCE EN N DÍAS" con "Renovar mi plan" y "Consultar".
-- **Al vencer:** al entrar se ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ", con un resumen de lo logrado.
+- **Al vencer:** al entrar se ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ", con un resumen de lo logrado. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
   - **Nada se borra:** el historial y las fotos te esperan.
   - Botones "QUIERO CONTINUAR" (baja a los planes) y "Prefiero consultar por WhatsApp".
 - Si el alumno pagó y está esperando en esa pantalla, la app revisa sola cada 20 segundos y **entra automáticamente** cuando se aprueba.
+
+### 13.7 Bono: +7 días gratis por suscribirse a tiempo
+
+- **Quién:** alumnos en prueba gratis, en su **primer plan pagado** (cualquier plan: 1, 3, 6 o 12 meses).
+- **Hasta cuándo:** si envían el pago **antes de que termine su prueba o hasta 48 horas después**. Con Yape, Plin o transferencia cuenta **cuándo enviaron el comprobante**, aunque Jonah lo apruebe después.
+- **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
+- **Dónde se ve:** desde el día 13, un reloj en vivo en "Inicio" y arriba de "Planes": **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.
+- **Avisos al celular:** a 2 días de terminar, el último día ("Hoy termina tu prueba… te regalamos 7 días extra 🎁") y al día siguiente ("Última oportunidad…").
+- Las **renovaciones** de los meses siguientes no vuelven a sumar los 7 días. En la app de Play Store el precio es el mismo de Google; los 7 días se suman igual.
+- En Google Play el aviso de activación dice "¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁".
 
 ---
 

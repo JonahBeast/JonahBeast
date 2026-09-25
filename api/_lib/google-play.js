@@ -95,6 +95,22 @@ function hoyPeruISO() {
   return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+function sumarDiasISO(iso, dias) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
+// Bono por suscribirse a tiempo (mismo criterio que la app y Mercado Pago):
+// el PRIMER plan pagado de alguien en prueba gratis, comprado antes de que
+// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+const BONO_DIAS = 7;
+function ganaBono(alumno, primerPlan, enviadoEn) {
+  if (!primerPlan || !alumno || !(alumno.plan === 'trial' || alumno.plan === 'prueba') || !alumno.fecha_vencimiento) return false;
+  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime() + 48 * 3600 * 1000;
+  const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
+  return Number.isFinite(enviado) && enviado <= limite;
+}
+
 function sumarMesesISO(iso, meses) {
   const [y, m, d] = iso.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1 + meses, d));
@@ -167,8 +183,13 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
   const esPrueba = !!sub.testPurchase;
   const monto = esPrueba ? 0 : await precioDeLista(supabase, producto);
   const { data: alumno } = await supabase.from('alumnos')
-    .select('nombre, fecha_vencimiento').eq('username', dueno).maybeSingle();
+    .select('nombre, fecha_vencimiento, plan').eq('username', dueno).maybeSingle();
   if (!alumno) return { ok: false, error: 'El alumno no existe.' };
+  // ¿Es su primer plan? (antes de registrar este cobro; para el bono)
+  const { data: planesPrevios } = await supabase.from('pagos').select('id')
+    .eq('username', dueno).eq('estado', 'aprobado')
+    .or('metodo.is.null,metodo.not.ilike.*add-on*').limit(1);
+  const bono = !esPrueba && ganaBono(alumno, (planesPrevios || []).length === 0, sub.startTime || null);
 
   // Registrar el cobro. Si este número de pedido ya estaba, es un cobro
   // que ya se procesó: no se vuelve a extender.
@@ -187,7 +208,8 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
     estado: esPrueba ? 'prueba' : 'aprobado',
     nota_admin: esPrueba
       ? 'Compra de prueba de Google Play: no se cobró dinero real y no suma tiempo al plan.'
-      : 'Precio de lista. Google descuenta su comisión (15%) e impuestos antes de depositar.',
+      : 'Precio de lista. Google descuenta su comisión (15%) e impuestos antes de depositar.'
+        + (bono ? ` Incluye +${BONO_DIAS} días de regalo por suscribirse a tiempo.` : ''),
     revisado_en: new Date().toISOString(),
   });
   if (errPago) return { ok: true, activado: false, yaProcesado: true, estado };
@@ -195,10 +217,10 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
 
   const hoy = hoyPeruISO();
   const base = alumno.fecha_vencimiento && alumno.fecha_vencimiento > hoy ? alumno.fecha_vencimiento : hoy;
-  const nuevaFecha = sumarMesesISO(base, producto.meses);
+  const nuevaFecha = sumarDiasISO(sumarMesesISO(base, producto.meses), bono ? BONO_DIAS : 0);
   await supabase.from('alumnos')
     .update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: 'pago' })
     .eq('username', dueno);
 
-  return { ok: true, activado: true, estado, fechaVencimiento: nuevaFecha };
+  return { ok: true, activado: true, estado, fechaVencimiento: nuevaFecha, bono };
 }

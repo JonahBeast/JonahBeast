@@ -17,6 +17,7 @@ import {
   MEAL_NAMES,
   PLANES,
   PlanesTab,
+  RelojBono,
   Skeleton,
   StatCard,
   TRIAL_DAYS,
@@ -48,6 +49,7 @@ import {
   todayISO,
   uid,
   unitsFor,
+  ventanaBono,
   vibrar,
 } from './App.jsx';
 
@@ -2658,7 +2660,14 @@ function TrialBanner({ user, onVerPlanes, mealPlan }) {
   }, [dia, user?.username]);
 
   if (!dia) return null;
-  if (dia >= TRIAL_DAYS - 2) return <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />;
+  if (dia >= TRIAL_DAYS - 2) {
+    return (
+      <>
+        {ventanaBono(user) && <div className="mb-4"><RelojBono user={user} onVerPlanes={onVerPlanes} /></div>}
+        <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />
+      </>
+    );
+  }
   return <RetoPrueba user={user} mealPlan={mealPlan} />;
 }
 

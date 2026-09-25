@@ -2978,11 +2978,19 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 : 'Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.'}
             </p>
           </div>
+          {/* Bono de +7 días: en las 48 h después de vencer la prueba, arriba
+              de todo (antes quedaba abajo y había que bajar para verlo). */}
+          {ventanaBono(expiredInfo.userRecord) && (
+            <div className="mb-5">
+              <RelojBono user={expiredInfo.userRecord}
+                onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+            </div>
+          )}
           <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false}
             onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 
           <div id="planes-para-continuar" className="mt-5 scroll-mt-4">
-            <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} ocultarEstado />
+            <PlanesTab username={expiredInfo.username} nombre={expiredInfo.nombre} userRecord={expiredInfo.userRecord} ocultarEstado sinRelojBono />
           </div>
 
           <button onClick={onClearExpired} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4 w-full text-center">
@@ -3356,6 +3364,77 @@ async function fetchTrialStats(username) {
   } catch { return null; }
 }
 
+/* Bono por suscribirse a tiempo: el PRIMER plan pagado de alguien en
+   prueba gratis, enviado antes de que termine su prueba o hasta 48 horas
+   después, recibe 7 días extra (se suman solos al aprobarse el pago). La
+   cuenta regresiva se muestra desde el día 13 de la prueba. Mismo criterio
+   en webhook-mercadopago, api/_lib/google-play.js y la aprobación manual. */
+const BONO_DIAS = 7;
+const BONO_GRACIA_HORAS = 48;
+function finPruebaMs(fechaVencimiento) {
+  return new Date(`${fechaVencimiento}T23:59:59-05:00`).getTime();
+}
+function ganaBonoSuscripcion(u, primerPlan, enviadoEn) {
+  if (!primerPlan || !u || !(u.plan === 'trial' || u.plan === 'prueba') || !u.fechaVencimiento) return false;
+  const limite = finPruebaMs(u.fechaVencimiento) + BONO_GRACIA_HORAS * 3600000;
+  const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
+  return Number.isFinite(enviado) && enviado <= limite;
+}
+// null si no toca mostrar el reloj; si toca: fase 'prueba' (cuenta hasta
+// que termina la prueba) o 'gracia' (las 48 h de después).
+function ventanaBono(u, ahora = Date.now()) {
+  if (!u || !(u.plan === 'trial' || u.plan === 'prueba') || !u.fechaVencimiento) return null;
+  const fin = finPruebaMs(u.fechaVencimiento);
+  const inicio = fin - 3 * 86400000 + 1000; // 00:00 del antepenúltimo día (día 13 de 15)
+  const limite = fin + BONO_GRACIA_HORAS * 3600000;
+  if (ahora < inicio || ahora > limite) return null;
+  return ahora <= fin ? { fase: 'prueba', hasta: fin } : { fase: 'gracia', hasta: limite };
+}
+
+function RelojBono({ user, onVerPlanes }) {
+  const [ahora, setAhora] = useState(Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const v = ventanaBono(user, ahora);
+  if (!v) return null;
+  const resta = Math.max(0, Math.floor((v.hasta - ahora) / 1000));
+  const d = Math.floor(resta / 86400), h = Math.floor((resta % 86400) / 3600), m = Math.floor((resta % 3600) / 60), s = resta % 60;
+  const dos = n => String(n).padStart(2, '0');
+  const gracia = v.fase === 'gracia';
+  return (
+    <div className="relative rounded-2xl border border-orange-500/60 bg-gradient-to-br from-orange-950/60 to-zinc-900 p-4 overflow-hidden"
+      style={{ boxShadow: '0 0 34px -12px rgba(232,89,12,.6)' }}>
+      <p className="jb-display text-base text-zinc-50 leading-tight">
+        {gracia ? '⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS' : '🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS'}
+      </p>
+      <p className="jb-body text-xs text-zinc-300 mt-1">
+        {gracia
+          ? 'Tu prueba terminó, pero si te suscribes ahora igual te regalamos 7 días extra en tu plan.'
+          : 'Si te suscribes antes de que termine tu prueba, sumamos 7 días extra a tu plan. Tus días de prueba no se pierden.'}
+      </p>
+      <div className="flex items-end gap-1.5 mt-3" aria-label={`Quedan ${d} días, ${h} horas y ${m} minutos`}>
+        {[[d, 'días'], [h, 'horas'], [m, 'min'], [s, 'seg']].map(([n, t], i) => (
+          <div key={t} className="flex items-end gap-1.5">
+            {i > 0 && <span className="jb-display text-2xl text-orange-500/70 leading-none pb-4">:</span>}
+            <div className="flex flex-col items-center">
+              <span className="jb-display text-3xl text-orange-400 tabular-nums leading-none bg-zinc-950/70 border border-orange-500/30 rounded-lg px-2 py-1.5 min-w-[3rem] text-center">{i === 0 ? n : dos(n)}</span>
+              <span className="jb-body text-[10px] text-zinc-400 mt-1">{t}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>
+      {onVerPlanes && (
+        <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mt-3'}>
+          Ver planes y suscribirme
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TrialSummary({ stats, nombre, compacto, onVerPlanes, planPagado }) {
   if (!stats) return null;
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
@@ -3551,7 +3630,7 @@ const BENEFICIOS = [
 
 
 
-function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false }) {
+function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
@@ -3615,7 +3694,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       try { await respuesta.complete('success'); } catch {}
       try {
         const r = await enviarCompraGoogle(purchaseToken);
-        showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).' : '¡Listo! Tu plan ya está activo 💪');
+        showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).' : r.bono ? '¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁' : '¡Listo! Tu plan ya está activo 💪');
         setTimeout(() => window.location.reload(), 1200);
       } catch (e) {
         setPlayMsg('Tu pago quedó registrado en Google. Estamos activando tu plan: vuelve a abrir la app en unos minutos. Si no se activa, escríbenos por WhatsApp.');
@@ -3761,9 +3840,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     );
   }
 
+  const relojBono = !sinRelojBono && ventanaBono(userRecord) ? <RelojBono user={userRecord} /> : null;
+
   if (esTWA() && playListo) {
     return (
       <div className="flex flex-col gap-5">
+        {relojBono}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
           <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
           <p className="jb-body text-sm text-zinc-400">
@@ -3826,6 +3908,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;
     return (
       <div className="flex flex-col gap-5">
+        {relojBono}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
           <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
             <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
@@ -3869,6 +3952,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
   return (
     <div className="flex flex-col gap-6 min-w-0">
+      {relojBono}
       {userRecord && dl !== null && !ocultarEstado && (
         <div className={`relative rounded-2xl p-4 pl-5 border overflow-hidden flex items-center gap-4 ${dl <= 3 ? 'bg-orange-950/40 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
           <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dl <= 3 ? 'bg-orange-500' : 'bg-emerald-500'}`} />
@@ -4878,6 +4962,10 @@ export default function App() {
 
 export {
   ACTIVITY_DESC,
+  BONO_DIAS,
+  RelojBono,
+  ganaBonoSuscripcion,
+  ventanaBono,
   ACTIVITY_FACTORS,
   ANGULOS,
   AnimatedNumber,

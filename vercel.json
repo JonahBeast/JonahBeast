@@ -30,6 +30,10 @@
     {
       "path": "/api/cron/activa-tu-perfil",
       "schedule": "30 17 * * *"
+    },
+    {
+      "path": "/api/cron/renovaciones-google",
+      "schedule": "0 12 * * *"
     }
   ]
 }

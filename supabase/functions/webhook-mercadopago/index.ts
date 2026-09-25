@@ -16,6 +16,22 @@ function addMonthsISO(iso: string, months: number): string {
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Bono por suscribirse a tiempo (mismo criterio que la app y Google Play):
+// el PRIMER plan pagado de alguien en prueba gratis, enviado antes de que
+// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+const BONO_DIAS = 7;
+function ganaBono(alumno: any, primerPlan: boolean, enviadoEn: string | null): boolean {
+  if (!primerPlan || !alumno || !(alumno.plan === "trial" || alumno.plan === "prueba") || !alumno.fecha_vencimiento) return false;
+  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime() + 48 * 3600 * 1000;
+  const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
+  return Number.isFinite(enviado) && enviado <= limite;
+}
 
 // El descuento de "Invita a un amigo" (códigos de tipo alumno) es solo
 // para el primer plan del amigo. Los de embajadores e influencers
@@ -244,14 +260,19 @@ Deno.serve(async (req: Request) => {
       return new Response("ok", { status: 200 });
     }
 
+    // Antes de registrar este pago: ¿es su primer plan? (para el bono)
+    const primerPlan = !(await yaPagoUnPlan(supabase, username));
+    const { data: alumno } = await supabase.from("alumnos").select("fecha_vencimiento, plan").eq("username", username).maybeSingle();
+    const bono = ganaBono(alumno, primerPlan, pago.date_created || null);
+
     const { error: errPago } = await supabase.from("pagos").insert({
       username, plan_meses: meses, monto, metodo: "Mercado Pago", operacion: String(pago.id), estado: "aprobado",
+      ...(bono ? { nota_admin: `Incluye +${BONO_DIAS} días de regalo por suscribirse a tiempo.` } : {}),
     });
     if (errPago) return new Response("ok", { status: 200 }); // ya procesado, no duplicar
 
-    const { data: alumno } = await supabase.from("alumnos").select("fecha_vencimiento").eq("username", username).maybeSingle();
     const base = alumno?.fecha_vencimiento && alumno.fecha_vencimiento > todayISO() ? alumno.fecha_vencimiento : todayISO();
-    const nuevaFecha = addMonthsISO(base, meses);
+    const nuevaFecha = addDaysISO(addMonthsISO(base, meses), bono ? BONO_DIAS : 0);
     await supabase.from("alumnos").update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: "pago" }).eq("username", username);
 
     await avisarPagoAprobado(supabase, String(pago.id));

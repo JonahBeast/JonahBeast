@@ -17,6 +17,8 @@ import {
   VAPID_PUBLIC,
   addDaysISO,
   addMonthsISO,
+  BONO_DIAS,
+  ganaBonoSuscripcion,
   base64ToUint8,
   btnGhost,
   btnPrimary,
@@ -28,6 +30,7 @@ import {
   fmtS,
   inputCls,
   membershipActive,
+  showToast,
   tieneDatosBasicos,
   todayISO,
 } from './App.jsx';
@@ -4919,11 +4922,21 @@ function PagosPanel({ onAprobado }) {
   async function aprobar(pago) {
     setProcesando(pago.id);
     try {
-      const { data: al } = await supabase.from('alumnos').select('fecha_vencimiento')
+      const { data: al } = await supabase.from('alumnos').select('fecha_vencimiento, plan')
         .eq('username', pago.username).maybeSingle();
       const base = al?.fecha_vencimiento && daysLeft(al.fecha_vencimiento) > 0
         ? al.fecha_vencimiento : todayISO();
-      const nuevo = addMonthsISO(base, pago.plan_meses);
+      // Bono por suscribirse a tiempo: si es su primer plan y lo envió antes
+      // de que terminara su prueba (o hasta 48 h después), +7 días. Cuenta
+      // cuándo lo ENVIÓ el alumno, no cuándo se aprueba.
+      let bono = false;
+      if (!/add-on/i.test(pago.metodo || '')) {
+        const { data: previos } = await supabase.from('pagos').select('id')
+          .eq('username', pago.username).eq('estado', 'aprobado').neq('id', pago.id)
+          .or('metodo.is.null,metodo.not.ilike.*add-on*').limit(1);
+        bono = ganaBonoSuscripcion({ plan: al?.plan, fechaVencimiento: al?.fecha_vencimiento }, (previos || []).length === 0, pago.creado_en);
+      }
+      const nuevo = addDaysISO(addMonthsISO(base, pago.plan_meses), bono ? BONO_DIAS : 0);
       const cambios = { fecha_vencimiento: nuevo, enabled: true, plan: 'pago' };
 
       // Si vino por referido y aún no tiene comisión asignada, calcularla
@@ -4958,8 +4971,10 @@ function PagosPanel({ onAprobado }) {
 
       await supabase.from('alumnos').update(cambios).eq('username', pago.username);
       await supabase.from('pagos')
-        .update({ estado: 'aprobado', revisado_en: new Date().toISOString() })
+        .update({ estado: 'aprobado', revisado_en: new Date().toISOString(),
+          ...(bono ? { nota_admin: [pago.nota_admin, `Incluye +${BONO_DIAS} días de regalo por suscribirse a tiempo.`].filter(Boolean).join(' · ') } : {}) })
         .eq('id', pago.id);
+      if (bono) showToast(`Aprobado con +${BONO_DIAS} días de regalo (se suscribió a tiempo).`);
       // Aviso al celular del alumno: "tu pago fue aprobado". Si falla, la
       // aprobación igual queda hecha.
       try {

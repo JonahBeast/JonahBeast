@@ -228,6 +228,7 @@ const RAW_FOODS = [
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
   ["Platos preparados","Tallarines rojos con pollo","-",170,9.5,20.0,5.5,1.5],
+  ["Platos preparados","Tallarines rojos con carne molida","-",160,8.5,18.0,6.0,1.5],
   ["Platos preparados","Tallarines verdes","-",185,8.0,22.0,7.5,1.8],
   ["Platos preparados","Causa limeña","-",145,4.5,20.0,5.5,1.8],
   ["Platos preparados","Papa a la huancaína","-",150,4.5,15.0,8.0,1.6],
@@ -335,10 +336,12 @@ const RAW_FOODS = [
   ["Grasas","Aceite de oliva","-",884,0.0,0.0,100.0,0.0],
   ["Grasas","Almendras","Crudas",579,21.2,21.6,49.9,12.5],
   ["Grasas","Nueces","Crudas",654,15.2,13.7,65.2,6.7],
+  ["Grasas","Pecanas","Crudas",691,9.2,13.9,72.0,9.6],
   ["Frutas","Arándanos","Crudos",57,0.7,14.5,0.3,2.4],
   ["Frutas","Sandía","Cruda",30,0.6,7.6,0.2,0.4],
   ["Frutas","Melón","Crudo",34,0.8,8.2,0.2,0.9],
   ["Frutas","Pera","Cruda",57,0.4,15.2,0.1,3.1],
+  ["Frutas","Tuna","Cruda (pelada)",41,0.7,9.6,0.5,3.6],
   ["Verduras","Pepino","Crudo",15,0.7,3.6,0.1,0.5],
   ["Verduras","Pimiento","Crudo",31,1.0,6.0,0.3,2.1],
   ["Verduras","Cebolla","Cruda",40,1.1,9.3,0.1,1.7],
@@ -410,6 +413,7 @@ const UNITS_BY_NAME = {
   'Manzana': [['unidad', 180]],
   'Naranja': [['unidad', 150]],
   'Pera': [['unidad', 170]],
+  'Tuna': [['unidad', 100]],
   'Palta': [['unidad', 200], ['mitad', 100]],
   'Pan francés': [['unidad', 55]],
   'Pan árabe': [['unidad', 60]],
@@ -445,6 +449,7 @@ const UNITS_BY_NAME = {
   'Maní': [['puñado', 30], ['cucharada', 16]],
   'Almendras': [['puñado', 30], ['unidad', 1.2]],
   'Nueces': [['puñado', 30], ['unidad', 5]],
+  'Pecanas': [['puñado', 30], ['unidad', 3]],
   'Chía': [['cucharada', 12], ['cucharadita', 4]],
   'Proteína en polvo (whey)': [['scoop', 30], ['cucharada', 15]],
   'Crema de arroz': [['scoop', 30], ['cucharada', 15]],
@@ -1083,6 +1088,82 @@ function vibrar(patron = 30) {
    siempre empieza con "android-app://". */
 function esTWA() {
   try { return document.referrer.startsWith('android-app://'); } catch { return false; }
+}
+
+/* Pago con Google Play dentro de la app de Android (Digital Goods API).
+   Solo existe cuando la app se abre desde la versión de Play Store que
+   trae el cobro de Google activado; en la web o en una versión vieja de
+   la app devuelve null y se sigue mostrando lo de siempre. El plan lo
+   activa el servidor (/api/google-play/verificar) después de confirmar
+   la compra directo con Google. */
+const PLAY_BILLING = 'https://play.google.com/billing';
+const PRODUCTOS_PLAY = { 1: 'jb_plan_mensual', 3: 'jb_plan_trimestral', 6: 'jb_plan_semestral', 12: 'jb_plan_anual' };
+const URL_SUSCRIPCIONES_PLAY = 'https://play.google.com/store/account/subscriptions?package=com.jonahbeast.twa';
+
+const esperar = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* Conecta con el cobro de Google Play. Recién instalada la app, Chrome a
+   veces tarda en tener lista la conexión, así que se reintenta varias
+   veces antes de rendirse. Devuelve { srv, precios, listo, diag }:
+   listo = se puede mostrar "Suscribirme"; diag = código corto de lo que
+   falló (se muestra chiquito en pantalla para poder revisarlo). */
+async function conectarGooglePlay(skus) {
+  let diag = 'sin-servicio';
+  for (let intento = 0; intento < 5; intento++) {
+    if (intento > 0) await esperar(1000 * intento);
+    if (!('getDigitalGoodsService' in window)) { diag = 'sin-api'; continue; }
+    let srv;
+    try { srv = await window.getDigitalGoodsService(PLAY_BILLING); } catch (e) { diag = 'servicio:' + (e?.name || 'error'); continue; }
+    if (!srv) { diag = 'servicio-vacio'; continue; }
+    try {
+      const detalles = await srv.getDetails(skus);
+      const precios = {};
+      (detalles || []).forEach(d => { precios[d.itemId] = d.price; });
+      if (Object.keys(precios).length > 0) return { srv, precios, listo: true, diag: '' };
+      diag = 'sin-productos';
+    } catch (e) { diag = 'precios:' + (e?.name || 'error'); }
+    // Hay conexión con Google pero no llegaron los precios: al último
+    // intento se muestra igual el pago, con los precios de la web.
+    if (intento === 4) return { srv, precios: {}, listo: true, diag };
+  }
+  // Sin la API de precios, igual se prueba si Chrome puede abrir el pago
+  // de Google Play directamente.
+  try {
+    if (window.PaymentRequest) {
+      const pr = new PaymentRequest(
+        [{ supportedMethods: PLAY_BILLING, data: { sku: skus[0] } }],
+        { total: { label: 'Total', amount: { currency: 'PEN', value: '0' } } },
+      );
+      if (await pr.canMakePayment()) return { srv: null, precios: {}, listo: true, diag: diag + '+pago' };
+    }
+  } catch {}
+  return { srv: null, precios: {}, listo: false, diag };
+}
+
+async function enviarCompraGoogle(purchaseToken) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch('/api/google-play/verificar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify({ purchaseToken }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) throw new Error(data.error || 'No pudimos activar tu plan.');
+  return data;
+}
+
+/* Reenvía al servidor las compras de Google que tenga el celular, por si
+   alguna quedó sin activar (se cerró la app o falló el internet justo
+   después de pagar). Devuelve true si activó algún plan. */
+async function sincronizarComprasGoogle(servicio) {
+  let activo = false;
+  try {
+    const compras = await servicio.listPurchases();
+    for (const c of compras || []) {
+      try { const r = await enviarCompraGoogle(c.purchaseToken); if (r.activado) activo = true; } catch {}
+    }
+  } catch {}
+  return activo;
 }
 
 
@@ -1841,12 +1922,15 @@ function TarjetaTestimonio({ t, raiz }) {
       </button>
       <div className="px-1 pt-3">
         <p className="jb-display text-lg text-zinc-100 leading-none">{t.nombre}</p>
-        <p className="jb-body text-xs text-orange-400 font-semibold mt-1 mb-1.5">{t.dato}</p>
         <p className="jb-body text-sm text-zinc-400 leading-snug border-l-2 border-orange-500/60 pl-2.5">"{t.quote}"</p>
       </div>
     </div>
   );
 }
+
+// Jonah ya está al frente en la primera pantalla: abajo no se repite su
+// foto, así lo que aparece al bajar son otros alumnos.
+const TESTIMONIOS_CARRUSEL = TESTIMONIOS.filter(t => t.nombre !== 'Jonah Beast');
 
 function ResultadosReales() {
   const carrilRef = useRef(null);
@@ -1875,15 +1959,13 @@ function ResultadosReales() {
   return (
     <div>
       <style>{ESTILOS_TESTIMONIOS}</style>
-      <p className="jb-body text-[11px] text-orange-400 font-semibold tracking-[0.25em] mb-1">⚡ TRANSFORMACIONES</p>
-      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-1">RESULTADOS <span className="text-orange-500">REALES</span></h2>
-      <p className="jb-body text-xs text-zinc-400 mb-4">Desliza para ver cada cambio · toca una foto para que caiga el rayo otra vez</p>
+      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-4">RESULTADOS <span className="text-orange-500">REALES</span></h2>
       <div ref={carrilRef} onScroll={alDeslizar}
         className="flex gap-4 overflow-x-auto pb-3 -mx-6 px-[9%] sm:px-[15%] snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {TESTIMONIOS.map(t => <TarjetaTestimonio key={t.nombre} t={t} raiz={carrilRef} />)}
+        {TESTIMONIOS_CARRUSEL.map(t => <TarjetaTestimonio key={t.nombre} t={t} raiz={carrilRef} />)}
       </div>
       <div className="flex justify-center gap-2 mt-1">
-        {TESTIMONIOS.map((t, i) => (
+        {TESTIMONIOS_CARRUSEL.map((t, i) => (
           <button key={t.nombre} type="button" onClick={() => irA(i)} aria-label={`Ver a ${t.nombre}`}
             className={`h-2 rounded-full transition-all ${i === activo ? 'w-6 bg-orange-500' : 'w-2 bg-zinc-700'}`} />
         ))}
@@ -1892,8 +1974,7 @@ function ResultadosReales() {
   );
 }
 
-// Mosaico de fondo del hero — solo Jonah y Andrea (César se queda en la
-// sección completa de testimonios de abajo, pero no en este fondo).
+// Antes/después de la primera pantalla: alterna Jonah y Andrea.
 const HERO_TRANSFORMACIONES = [
   { ...TESTIMONIOS[0], nombreCorto: 'JONAH', logro: '−37 KG' },
   { ...TESTIMONIOS[1], nombreCorto: 'ANDREA', logro: 'EN 6 MESES' },
@@ -2002,14 +2083,21 @@ function Landing({ onChoose }) {
   // landing es corta: cuando el principal sale, el final ya se ve, y la
   // barra casi nunca llegaría a mostrarse.
   const heroCtaRef = useRef(null);
-  const [mostrarBarra, setMostrarBarra] = useState(false);
+  // La barra fija aparece al pasar el botón de arriba y se esconde cuando
+  // se ve el botón grande de abajo (para no mostrar dos botones iguales).
+  const finalCtaRef = useRef(null);
+  const [pasoHero, setPasoHero] = useState(false);
+  const [veFinal, setVeFinal] = useState(false);
+  const mostrarBarra = pasoHero && !veFinal;
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined' || !heroCtaRef.current) return;
     const obs = new IntersectionObserver(([e]) => {
-      setMostrarBarra(!e.isIntersecting && e.boundingClientRect.top < 0);
+      setPasoHero(!e.isIntersecting && e.boundingClientRect.top < 0);
     });
     obs.observe(heroCtaRef.current);
-    return () => obs.disconnect();
+    const obsFinal = new IntersectionObserver(([e]) => setVeFinal(e.isIntersecting));
+    if (finalCtaRef.current) obsFinal.observe(finalCtaRef.current);
+    return () => { obs.disconnect(); obsFinal.disconnect(); };
   }, []);
   const hastaFecha = fechaFinPrueba();
 
@@ -2062,160 +2150,130 @@ function Landing({ onChoose }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
-      {/* Fondo de la primera pantalla: la transformación de Jonah, grande.
-          Antes en blanco y negro a la izquierda, ahora a color a la
-          derecha, para que se entienda de un vistazo que es real. En
-          pantallas anchas las fotos van en un bloque centrado (del ancho de
-          un celular grande) para que se vean de cuerpo entero y no
-          recortadas a la cintura; los bordes se funden con el carbón. El
-          degradado termina en el mismo carbón de la página (#16110D), así
-          no queda una línea donde acaba el fondo. */}
-      <div className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none" aria-hidden="true" style={{ height: '78vh', minHeight: 520 }}>
-        <div className="relative h-full mx-auto max-w-2xl"
-          style={{ WebkitMaskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)', maskImage: 'linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%)' }}>
-          {/* Alterna la transformación de Jonah y la de Andrea (fundido
-              suave cada 6 s) para que hombres y mujeres se vean reflejados. */}
-          {HERO_TRANSFORMACIONES.map((t, i) => (
-            <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
-              style={{ opacity: i === heroIdx ? 1 : 0 }}>
-              <div className="overflow-hidden relative">
-                <img src={t.antes} alt="" className="w-full h-full object-cover object-top grayscale opacity-[0.85]" />
-              </div>
-              <div className="overflow-hidden relative">
-                <img src={t.despues} alt="" className="w-full h-full object-cover object-top" />
-              </div>
-            </div>
-          ))}
-          <div className="absolute top-0 left-1/2 w-px h-24" style={{ background: 'linear-gradient(to bottom, rgba(232,89,12,0.7), transparent)' }} />
-          <span className="absolute left-3 jb-body text-[10px] tracking-widest text-zinc-300 bg-zinc-950/70 border border-zinc-700 rounded-full px-2.5 py-1"
-            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>{HERO_TRANSFORMACIONES[heroIdx].nombreCorto} · ANTES</span>
-          <span className="absolute right-3 jb-body text-[10px] tracking-widest text-zinc-950 bg-orange-500 rounded-full px-2.5 py-1 font-semibold"
-            style={{ top: 'max(0.75rem, env(safe-area-inset-top))' }}>AHORA · {HERO_TRANSFORMACIONES[heroIdx].logro}</span>
-        </div>
-        {/* En celulares el título queda encima de las fotos: una sombra
-            extra detrás del texto para que siempre se lea bien. */}
-        <div className="absolute inset-0 sm:hidden" style={{ background: 'linear-gradient(to bottom, rgba(22,17,13,0.2) 0%, rgba(22,17,13,0.55) 18%, rgba(22,17,13,0.45) 40%, transparent 60%)' }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(22,17,13,0.15) 0%, rgba(22,17,13,0.35) 35%, rgba(22,17,13,0.7) 65%, #16110D 100%)' }} />
-      </div>
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
         backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
       }} />
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
       <div className="relative z-10 max-w-xl w-full text-center">
-        {/* Espacio arriba para que las etiquetas ANTES / AHORA del fondo
-            no queden encima del título. */}
-        <div className="pt-9" style={step(0)}>
-          <h1 className="jb-display text-4xl sm:text-5xl text-zinc-50 leading-none mb-2" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}>JONAH BEAST</h1>
-          <div className="jb-display text-3xl sm:text-4xl text-orange-500 leading-none mb-3 tracking-widest" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.9)' }}>FUEL</div>
+        {/* Primera impresión: lo que se vende es el cambio del cuerpo, no
+            la comida. Antes el centro era un plato con "700 kcal" al lado
+            (se leía como una app de delivery con precio) y la transformación
+            quedaba de fondo, oscurecida. Ahora: qué es la app, la promesa,
+            el antes/después al frente y el plato ya "medido" dentro de un
+            registro del día. */}
+        <div className="pt-2 mb-3" style={step(0)}>
+          <div className="jb-display text-lg text-zinc-50 leading-none tracking-wide">JONAH BEAST <span className="text-orange-500">FUEL</span></div>
+          <div className="jb-body text-[10px] tracking-[0.2em] uppercase text-zinc-400 mt-1.5">App de nutrición y pérdida de grasa</div>
         </div>
 
-        <div className="mb-4" style={step(180)}>
-          <h2 className="jb-display text-2xl sm:text-3xl leading-[0.98]" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.9)' }}>
-            <span className="text-zinc-50">SIGUE COMIENDO PERUANO.</span><br />
-            <span className="text-orange-500">ESTA VEZ, CON RESULTADOS.</span>
-          </h2>
+        <h1 className="jb-display text-[2.6rem] sm:text-6xl leading-[0.95] mb-4" style={step(120)}>
+          <span className="text-zinc-50">BAJA DE PESO</span><br />
+          <span className="text-orange-500 text-[1.55rem] sm:text-4xl leading-none">SIN DEJAR LA COMIDA PERUANA</span>
+        </h1>
+
+        {/* Antes / después al frente, nítido y a color. Alterna Jonah y
+            Andrea cada 6 s para que hombres y mujeres se vean reflejados. */}
+        <div className="relative mx-auto mb-3 h-[230px] sm:h-[300px] rounded-2xl overflow-hidden border border-orange-500/40"
+          style={{ ...step(200), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
+          {HERO_TRANSFORMACIONES.map((t, i) => (
+            <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
+              style={{ opacity: i === heroIdx ? 1 : 0 }} aria-hidden={i !== heroIdx}>
+              <img src={t.antes} alt={i === heroIdx ? `${t.nombre} antes` : ''} className="w-full h-full object-cover object-top" />
+              <img src={t.despues} alt={i === heroIdx ? `${t.nombre} ahora` : ''} className="w-full h-full object-cover object-top" />
+            </div>
+          ))}
+          <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-orange-500" />
+          <span className="absolute top-2.5 left-2.5 jb-display text-[11px] tracking-wider text-zinc-50 bg-zinc-950/75 border border-zinc-600 rounded-full px-2.5 py-0.5">ANTES</span>
+          <span className="absolute top-2.5 right-2.5 jb-display text-[11px] tracking-wider text-zinc-950 bg-orange-500 rounded-full px-2.5 py-0.5">AHORA</span>
+          <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(22,17,13,0.85), transparent)' }} />
+          {(() => {
+            const t = HERO_TRANSFORMACIONES[heroIdx];
+            return (
+              <div key={t.nombre} className="absolute bottom-2.5 inset-x-0 flex flex-col items-center">
+                <span className="jb-display text-3xl sm:text-4xl text-zinc-950 bg-orange-500 rounded-lg px-3 leading-tight -rotate-2 shadow-lg shadow-black/40 whitespace-nowrap">
+                  {t.prefijo}{t.cifra} {t.unidad}
+                </span>
+                <span className="jb-body text-[11px] text-zinc-100 mt-1 whitespace-nowrap" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+                  {t.nombre} · {t.detalle}
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Escaneo de reconocimiento, en flujo normal (no flotando encima
-            de nada), justo junto al texto que explica la función. La línea
-            y el porcentaje comparten el mismo valor (scanPct), así que se
-            mueven exactamente igual de rápido — no hay dos animaciones
-            corriendo por separado que se puedan desincronizar. */}
+        {/* El plato, ya medido: una foto que se escanea y se suma al día.
+            La barra de avance lo hace leer como un registro (seguimiento),
+            no como un producto con precio. */}
         {(() => {
-          // Mismo lenguaje visual que el escáner real de la app: esquinas
-          // que laten, rejilla, etiqueta ESCANEANDO, pasos, y al final la
-          // fila del alimento con su porción y calorías (de la base real).
           const detectado = scanPct >= 85;
           const porcionDemo = { unit: 'plato', qty: 1 };
           const m = entryMacros({ foodKey: 'Lomo saltado (-)', ...porcionDemo });
-          const pasoDemo = scanPct < 30 ? 'Detectando alimentos en la foto' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías y macros';
+          const metaDemo = 1888;
+          const kcal = Math.round(m.kcal);
+          const pasoDemo = scanPct < 30 ? 'Detectando alimentos' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías';
           return (
             <>
               <style>{ESTILOS_ESCANER}</style>
-              <div className="flex justify-center mb-3" style={step(220)}>
-                <div className="w-40 h-40 sm:w-48 sm:h-48 bg-zinc-900 border border-orange-500/40 rounded-2xl relative overflow-hidden transition-shadow duration-500"
-                  style={{ boxShadow: detectado ? '0 0 34px -6px rgba(232,89,12,.7)' : '0 0 0 rgba(0,0,0,0)' }}>
-                  <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-2" />
+              <div className="mx-auto mb-4 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
+                <div className="w-[72px] h-[72px] rounded-xl bg-zinc-950 border border-orange-500/40 relative overflow-hidden shrink-0">
+                  <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
                   {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
-                  <div className="absolute inset-2 pointer-events-none">
-                    <div className="jbe-esquina absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-orange-500 rounded-tl-md" />
-                    <div className="jbe-esquina absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-orange-500 rounded-tr-md" />
-                    <div className="jbe-esquina absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-orange-500 rounded-bl-md" />
-                    <div className="jbe-esquina absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-orange-500 rounded-br-md" />
+                  <div className="absolute inset-1 pointer-events-none">
+                    <div className="jbe-esquina absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-orange-500 rounded-tl" />
+                    <div className="jbe-esquina absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-orange-500 rounded-tr" />
+                    <div className="jbe-esquina absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-orange-500 rounded-bl" />
+                    <div className="jbe-esquina absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-orange-500 rounded-br" />
                   </div>
                   {!detectado && (
-                    <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500"
-                      style={{ top: `${10 + (scanPct / 100) * 72}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
+                    <div className="absolute left-[8%] right-[8%] h-0.5 bg-orange-500"
+                      style={{ top: `${10 + (scanPct / 100) * 78}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
                   )}
-                  <span className={`absolute top-2 left-1/2 -translate-x-1/2 jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 whitespace-nowrap ${detectado
-                    ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 bg-zinc-950/80 border border-orange-500/40'}`}>
-                    {detectado ? '⚡ DETECTADO' : 'ESCANEANDO'}
-                  </span>
-                  <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
-                    <span className="jb-display text-lg text-orange-400 bg-zinc-950/70 px-2.5 py-1 rounded-md tabular-nums" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-                      {scanPct}%
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="jb-display text-[11px] tracking-wider text-zinc-400">HOY</span>
+                    <span className={`jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 ${detectado ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 border border-orange-500/40'}`}>
+                      {detectado ? '⚡ DETECTADO' : `ESCANEANDO ${scanPct}%`}
                     </span>
+                  </div>
+                  <div className="jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1 truncate">
+                    {detectado ? `+ Lomo saltado · ${kcal} kcal` : <span className="text-orange-300 font-normal inline-flex items-center gap-1.5"><Loader2 className="animate-spin" size={12} /> {pasoDemo}…</span>}
+                  </div>
+                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
+                    <div className="h-full bg-orange-500 rounded-full transition-all duration-700"
+                      style={{ width: detectado ? `${Math.round((kcal / metaDemo) * 100)}%` : '0%' }} />
+                  </div>
+                  <div className="jb-body text-[11px] text-zinc-400 mt-1 tabular-nums">
+                    Te quedan <span className="text-zinc-200 font-semibold">{(detectado ? metaDemo - kcal : metaDemo).toLocaleString('es-PE')} kcal</span> para tu meta
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-center mb-3 h-[58px]" style={step(250)}>
-                {detectado ? (
-                  <div key="res" className="jbe-entrar w-[300px] max-w-full bg-zinc-950/90 border border-orange-500/50 rounded-xl pl-2.5 pr-3 py-2 flex items-center gap-2.5 text-left"
-                    style={{ boxShadow: '0 8px 24px -10px rgba(232,89,12,.6)' }}>
-                    <span className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-sm shrink-0">🍽️</span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight">Lomo saltado</span>
-                      <span className="block jb-body text-[10px] text-zinc-400 tabular-nums whitespace-nowrap">
-                        {textoPorcion(porcionDemo)} · P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g
-                      </span>
-                    </span>
-                    <span className="jb-display text-base text-orange-400 tabular-nums shrink-0">{Math.round(m.kcal)} <span className="text-[10px]">kcal</span></span>
-                  </div>
-                ) : (
-                  <div key="paso" className="self-center flex items-center gap-2 bg-zinc-900/80 border border-zinc-800 rounded-full px-3 py-1.5">
-                    <Loader2 className="animate-spin text-orange-400 shrink-0" size={12} />
-                    <span className="jb-body text-[11px] text-orange-300">{pasoDemo}…</span>
-                  </div>
-                )}
               </div>
             </>
           );
         })()}
 
-        <p className="jb-body text-zinc-400 text-base mb-4 max-w-md mx-auto" style={step(260)}>
-          Toma foto a tu plato y calculamos tus macros al toque — comida peruana real.
-        </p>
-
-        <div className="mb-3" style={step(300)}>
-          <PruebaSocialMini />
-        </div>
-
         <button ref={heroCtaRef} onClick={registrarClicCTA} style={step(320)}
-          className="inline-flex items-center gap-2 mb-2 mx-auto bg-orange-500 hover:bg-orange-400 rounded-full py-3 px-6 transition-colors">
-          <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
-          <ChevronRight className="text-zinc-950" size={16} />
+          className="w-full inline-flex items-center justify-center gap-2 mb-2 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 px-6 transition-colors shadow-lg shadow-orange-500/20">
+          <span className="jb-display text-base text-zinc-950 tracking-wide">EMPIEZA A BAJAR DE PESO</span>
+          <ChevronRight className="text-zinc-950" size={18} />
         </button>
-        <p className="jb-body text-orange-400 text-xs font-semibold mb-1" style={step(325)}>Gratis hasta el {hastaFecha}</p>
-        <p className="jb-body text-zinc-500 text-[11px] mb-4" style={step(330)}>Registro en 30 segundos · Sin tarjeta · Cancela cuando quieras</p>
-
-        <p className="jb-body text-orange-500/80 text-xs mb-4 tracking-widest" style={step(340)}>EL FITNESS NO TIENE QUE SER COMPLICADO</p>
+        <p className="jb-body text-zinc-400 text-xs mb-8" style={step(325)}>
+          <span className="text-orange-400 font-semibold">15 días gratis</span> · Sin tarjeta · Hasta el {hastaFecha}
+        </p>
 
         {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
             Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
         <div className="mb-6" style={step(500)}>
           <ResultadosReales />
-          <p className="jb-body text-[10px] text-zinc-600 mt-2">
-            Resultados de alumnos reales, logrados con el mismo sistema de control alimentario que ahora automatiza la app.
-          </p>
         </div>
 
         {/* CTA de cierre — repite el mismo botón de más arriba, para quien
             llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button onClick={registrarClicCTA} style={step(540)}
+        <button ref={finalCtaRef} onClick={registrarClicCTA} style={step(540)}
           className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex flex-col items-center justify-center gap-0.5">
-          <span className="jb-display text-sm text-zinc-950">🚀 EMPEZAR MI PRUEBA GRATIS</span>
-          <span className="jb-body text-[11px] text-zinc-800">15 días sin tarjeta</span>
+          <span className="jb-display text-sm text-zinc-950">🚀 EMPIEZA A BAJAR DE PESO</span>
+          <span className="jb-body text-[11px] text-zinc-800">15 días gratis · Sin tarjeta</span>
         </button>
 
         <div className="mt-3" style={step(600)}>
@@ -2236,7 +2294,7 @@ function Landing({ onChoose }) {
             desviar a quien está por empezar la prueba gratis. El admin
             entra por "Soy alumno" (es el mismo inicio de sesión). */}
         <button onClick={() => onChoose('free')} style={step(660)}
-          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-36">
+          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-10">
           📏 ¿Solo quieres medirte? Hazlo sin registro →
         </button>
       </div>
@@ -2252,15 +2310,11 @@ function Landing({ onChoose }) {
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
         }}>
         <div className="max-w-xl mx-auto px-4 pt-3 flex flex-col gap-2">
-          <PruebaSocialMini size={22} />
           <button onClick={registrarClicCTA} tabIndex={mostrarBarra ? 0 : -1}
             className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
-            <span className="jb-display text-sm text-zinc-950 tracking-wide">PRUEBA GRATIS 15 DÍAS</span>
+            <span className="jb-display text-sm text-zinc-950 tracking-wide">EMPIEZA A BAJAR DE PESO · GRATIS</span>
             <ChevronRight className="text-zinc-950" size={16} />
           </button>
-          <p className="jb-body text-[10.5px] text-zinc-500 text-center -mt-0.5">
-            Registro en 30 segundos · Gratis hasta el {hastaFecha}
-          </p>
         </div>
       </div>
     </div>
@@ -3000,6 +3054,116 @@ function fechaLocalISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/* ------------------------------------------------------------------ */
+/* GUARDADO DEL ALUMNO                                                 */
+/* ------------------------------------------------------------------ */
+
+// Cada cambio del alumno se copia primero en el celular y la copia se
+// borra recién cuando la base confirma que lo recibió. Si no hay internet
+// o la sesión venció, la copia queda ahí, se reintenta sola y se recupera
+// al volver a abrir la app. Antes el error se ignoraba en silencio: el
+// alumno veía su comida en pantalla, pero nunca llegaba a la base.
+const clavePendiente = username => `jb-pendiente-${username}`;
+
+function leerPendiente(username) {
+  try {
+    const t = localStorage.getItem(clavePendiente(username));
+    const p = t ? JSON.parse(t) : null;
+    return p && p.mealPlan && p.form && p.fecha ? p : null;
+  } catch { return null; }
+}
+
+function escribirPendiente(username, p) {
+  try { localStorage.setItem(clavePendiente(username), JSON.stringify(p)); } catch {}
+}
+
+// Solo borra la copia si nadie la reemplazó por una más nueva mientras se guardaba.
+function borrarPendiente(username, ts) {
+  try {
+    const p = leerPendiente(username);
+    if (!p || p.ts <= ts) localStorage.removeItem(clavePendiente(username));
+  } catch {}
+}
+
+// Junta dos versiones del mismo día sin perder alimentos: se queda con la
+// del servidor y le suma los alimentos que solo estaban en el celular.
+function unirComidas(servidor, local) {
+  const meals = { ...EMPTY_MEALS(), ...(servidor?.meals || {}) };
+  Object.entries(local?.meals || {}).forEach(([comida, entradas]) => {
+    const ids = new Set((meals[comida] || []).map(en => en.id));
+    meals[comida] = [...(meals[comida] || []), ...(entradas || []).filter(en => en.foodKey && !ids.has(en.id))];
+  });
+  return { ...(servidor || local), meals };
+}
+
+function filaHistorial({ username, form, mealPlan, fecha }) {
+  const r = calcAll({
+    ...form,
+    edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
+    cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
+  });
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  let comidas = 0, alimentos = 0;
+  Object.values(mealPlan.meals || {}).forEach(entries => {
+    const conAlimento = entries.filter(en => en.foodKey);
+    if (conAlimento.length) comidas += 1;
+    alimentos += conAlimento.length;
+    entries.forEach(en => {
+      const m = entryMacros(en);
+      t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
+    });
+  });
+  // Solo se guardan los datos que el alumno ingresó de verdad: sin
+  // datos básicos no hay peso ni IMC, y sin medidas con cinta no hay
+  // % de grasa (antes se guardaban valores de ejemplo como si fueran
+  // reales y ensuciaban su progreso).
+  return {
+    username, fecha,
+    peso: r.basicos ? (Number(form.peso) || null) : null,
+    grasa_pct: r.cinta ? Number(r.bf.toFixed(1)) : null,
+    masa_muscular: r.cinta ? Number(r.muscleKg.toFixed(1)) : null,
+    masa_magra: r.cinta ? Number(r.leanKg.toFixed(1)) : null,
+    imc: r.basicos ? Number(r.bmi.toFixed(1)) : null,
+    kcal_consumidas: Math.round(t.kcal),
+    proteina_g: Math.round(t.protein),
+    carbos_g: Math.round(t.carbs),
+    grasas_g: Math.round(t.fat),
+    kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
+    comidas_count: comidas,
+    alimentos_count: alimentos,
+    meal_plan: mealPlan,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// Sube un cambio a la base. Devuelve 'ok', 'sesion' (hay que volver a
+// entrar) o 'red' (sin internet u otro fallo: se reintenta más tarde).
+async function subirDatosAlumno(p) {
+  try {
+    // Un cambio de un día anterior solo va al historial de ese día: el plan
+    // abierto en la base ya es el de hoy.
+    if (p.fecha === todayISO()) {
+      const { error } = await supabase.from('datos_alumnos').upsert({
+        username: p.username, form: p.form, meal_plan: p.mealPlan,
+        meal_plan_fecha: p.fecha, updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    }
+    const { error } = await supabase.from('historial').upsert(filaHistorial(p), { onConflict: 'username,fecha' });
+    if (error) throw error;
+    return 'ok';
+  } catch (e) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'red';
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return 'sesion';
+    } catch {}
+    const msg = String(e?.message || '').toLowerCase();
+    if (e?.status === 401 || e?.code === 'PGRST301' || e?.code === 'PGRST303' || msg.includes('jwt')) return 'sesion';
+    return 'red';
+  }
+}
+
 function addMonthsISO(iso, months) {
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
   // Si el día no existe en el mes destino (ej. 31 de enero + 1 mes),
@@ -3379,8 +3543,58 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [correo, setCorreo] = useState(userRecord?.correo || '');
   const [creandoMP, setCreandoMP] = useState(false);
   const [mpTipo, setMpTipo] = useState('unico');
+  // Google Play (solo en la app de Android con el cobro de Google activado)
+  const [playSrv, setPlaySrv] = useState(null);
+  const [playListo, setPlayListo] = useState(false);
+  const [playDiag, setPlayDiag] = useState('');
+  const [playBuscando, setPlayBuscando] = useState(() => esTWA());
+  const [playPrecios, setPlayPrecios] = useState({});
+  const [comprandoPlay, setComprandoPlay] = useState(null);
+  const [playMsg, setPlayMsg] = useState('');
 
   useEffect(() => { cargar(); }, [username]);
+
+  useEffect(() => {
+    if (!esTWA()) return;
+    let vivo = true;
+    (async () => {
+      const r = await conectarGooglePlay(Object.values(PRODUCTOS_PLAY));
+      if (!vivo) return;
+      setPlayDiag(r.diag); setPlayBuscando(false);
+      if (!r.listo) return;
+      setPlayPrecios(r.precios); setPlaySrv(r.srv); setPlayListo(true);
+      if (r.srv && await sincronizarComprasGoogle(r.srv)) window.location.reload();
+    })();
+    return () => { vivo = false; };
+  }, [username]);
+
+  async function comprarConGooglePlay(plan) {
+    const sku = PRODUCTOS_PLAY[plan.meses];
+    if (!playListo || !sku || comprandoPlay) return;
+    setPlayMsg(''); setComprandoPlay(sku);
+    try {
+      const pedido = new PaymentRequest(
+        [{ supportedMethods: PLAY_BILLING, data: { sku } }],
+        { total: { label: 'Total', amount: { currency: 'PEN', value: '0' } } },
+      );
+      const respuesta = await pedido.show();
+      const { purchaseToken } = respuesta.details;
+      // El cobro ya lo hizo Google: se cierra su ventana como exitosa y
+      // luego el servidor activa el plan.
+      try { await respuesta.complete('success'); } catch {}
+      try {
+        const r = await enviarCompraGoogle(purchaseToken);
+        showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).' : '¡Listo! Tu plan ya está activo 💪');
+        setTimeout(() => window.location.reload(), 1200);
+      } catch (e) {
+        setPlayMsg('Tu pago quedó registrado en Google. Estamos activando tu plan: vuelve a abrir la app en unos minutos. Si no se activa, escríbenos por WhatsApp.');
+      }
+    } catch (e) {
+      // El alumno cerró la ventana de pago: no es un error.
+      if (e?.name !== 'AbortError') setPlayMsg('No se pudo abrir el pago de Google Play. Intenta de nuevo.');
+    }
+    setComprandoPlay(null);
+  }
 
   async function cargar() {
     setLoading(true);
@@ -3502,6 +3716,77 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   // Versión para Play Store: solo precios como información, sin botón
   // de pago ni datos bancarios — así cumplimos la política de Google
   // sin dejar de ser transparentes con el precio real.
+  // App de Android con el cobro de Google activado: se paga con Google
+  // Play, con renovación automática. Los precios salen de Google.
+  if (esTWA() && playBuscando) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12">
+        <Loader2 className="animate-spin text-orange-500" size={28} />
+        <p className="jb-body text-sm text-zinc-400">Conectando con Google Play…</p>
+      </div>
+    );
+  }
+
+  if (esTWA() && playListo) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
+          <p className="jb-body text-sm text-zinc-400">
+            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de prueba gratis. ` : 'Tu prueba gratis terminó. ') : ''}
+            Paga seguro con tu cuenta de Google Play.
+          </p>
+        </div>
+
+        <div className="grid gap-3">
+          {PLANES.map(plan => {
+            const sku = PRODUCTOS_PLAY[plan.meses];
+            const precio = playPrecios[sku];
+            const valor = precio ? Number(precio.value) : precioBase(plan);
+            const cargando = comprandoPlay === sku;
+            return (
+              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.badge ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
+                    {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
+                  </div>
+                  <div className="text-right">
+                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor)}</p>
+                    <p className="jb-body text-xs text-zinc-400">
+                      {plan.meses > 1 ? `cada ${plan.meses} meses · ` : 'al mes · '}{fmtS(valor / (plan.meses * 30))} al día
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => comprarConGooglePlay(plan)} disabled={!!comprandoPlay}
+                  className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
+                  {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {playMsg && <p className="jb-body text-sm text-amber-300 text-center">{playMsg}</p>}
+
+        <div className="flex flex-col gap-1.5">
+          {BENEFICIOS.map(b => (
+            <p key={b} className="jb-body text-sm text-zinc-300">✅ {b}</p>
+          ))}
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 text-center">
+          La suscripción se renueva sola al terminar cada periodo. Puedes cancelarla cuando quieras desde Google Play y
+          mantienes tu acceso hasta el final del periodo pagado.
+        </p>
+        <a href={URL_SUSCRIPCIONES_PLAY} target="_blank" rel="noopener noreferrer"
+          className="jb-body text-xs text-orange-400 text-center underline">
+          Administrar mi suscripción en Google Play
+        </a>
+      </div>
+    );
+  }
+
   if (esTWA()) {
     const waUrlPlan = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
       `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;
@@ -3541,6 +3826,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </a>
         <p className="jb-body text-xs text-zinc-500 text-center">
           Te ayudamos a coordinar tu pago y activamos tu cuenta al toque.
+          {playDiag && <span className="block mt-1 text-[10px] text-zinc-700">GP: {playDiag}</span>}
         </p>
       </div>
     );
@@ -4023,7 +4309,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [mealPlan, setMealPlan] = useState(EMPTY_MEALPLAN());
-  const [saving, setSaving] = useState(false);
+  // 'ok' | 'guardando' | 'pendiente' (sin internet: se reintenta solo) | 'sesion' (hay que volver a entrar)
+  const [estadoGuardado, setEstadoGuardado] = useState('ok');
   const saveTimer = useRef(null);
   const skipNextSave = useRef(true);
 
@@ -4173,11 +4460,37 @@ export default function App() {
     let data = null;
     try {
       const { data: row } = await supabase.from('datos_alumnos')
-        .select('form, meal_plan, meal_plan_fecha').eq('username', username).maybeSingle();
-      data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha } : null;
+        .select('form, meal_plan, meal_plan_fecha, updated_at').eq('username', username).maybeSingle();
+      data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha, updatedAt: row.updated_at } : null;
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
     const hoy = todayISO();
+
+    // Cambios que quedaron en el celular sin llegar a la base (sin internet
+    // o con la sesión vencida): se recuperan en vez de perderse.
+    const pendiente = leerPendiente(username);
+    let hayPendienteHoy = false;
+    if (pendiente) {
+      // Si la base tiene algo más nuevo del mismo día (por ejemplo, desde
+      // otro equipo), se juntan ambos; si no, manda la copia del celular.
+      const servidorMasNuevo = data?.fecha === pendiente.fecha && data?.updatedAt
+        && new Date(data.updatedAt).getTime() > pendiente.ts;
+      const recuperado = servidorMasNuevo
+        ? { ...pendiente, form: data.form || pendiente.form, mealPlan: unirComidas(data.mealPlan, pendiente.mealPlan), ts: Date.now() }
+        : pendiente;
+      if (pendiente.fecha === hoy) {
+        data = { ...(data || {}), form: recuperado.form, mealPlan: recuperado.mealPlan, fecha: hoy };
+        escribirPendiente(username, recuperado);
+        hayPendienteHoy = true;
+      } else {
+        // De un día anterior: va al historial de ese día.
+        const r = await subirDatosAlumno(recuperado);
+        if (r === 'ok') borrarPendiente(username, pendiente.ts);
+        else escribirPendiente(username, recuperado);
+        if (data?.fecha === pendiente.fecha) data = { ...data, mealPlan: recuperado.mealPlan };
+      }
+    }
+
     let plan = data?.mealPlan || EMPTY_MEALPLAN();
 
     // Migración: si el plan viene del esquema anterior de comidas (con
@@ -4218,7 +4531,10 @@ export default function App() {
     setCurrentUser(username);
     setForm(formGuardado);
     setMealPlan(plan);
-    skipNextSave.current = true;
+    // Con una copia pendiente de hoy, se sube apenas abre (el reintento
+    // automático también la toma); si no, no hay nada nuevo que guardar.
+    skipNextSave.current = !hayPendienteHoy;
+    setEstadoGuardado(leerPendiente(username) ? 'guardando' : 'ok');
     setView('student');
   }
 
@@ -4290,60 +4606,53 @@ export default function App() {
   useEffect(() => {
     if (view !== 'student' || !currentUser) return;
     if (skipNextSave.current) { skipNextSave.current = false; return; }
-    setSaving(true);
+    // La copia en el celular se escribe al instante, antes de intentar subirla.
+    const cambio = { username: currentUser, form, mealPlan, fecha: todayISO(), ts: Date.now() };
+    escribirPendiente(currentUser, cambio);
+    setEstadoGuardado('guardando');
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      try {
-        await supabase.from('datos_alumnos').upsert({
-          username: currentUser, form, meal_plan: mealPlan,
-          meal_plan_fecha: todayISO(), updated_at: new Date().toISOString(),
-        });
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-      // Guardar foto del día para el historial de progreso
-      try {
-        const r = calcAll({
-          ...form,
-          edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
-          cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
-        });
-        const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-        let comidas = 0, alimentos = 0;
-        Object.values(mealPlan.meals).forEach(entries => {
-          const conAlimento = entries.filter(en => en.foodKey);
-          if (conAlimento.length) comidas += 1;
-          alimentos += conAlimento.length;
-          entries.forEach(en => {
-            const m = entryMacros(en);
-            t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
-          });
-        });
-        // Solo se guardan los datos que el alumno ingresó de verdad: sin
-        // datos básicos no hay peso ni IMC, y sin medidas con cinta no hay
-        // % de grasa (antes se guardaban valores de ejemplo como si fueran
-        // reales y ensuciaban su progreso).
-        await supabase.from('historial').upsert({
-          username: currentUser, fecha: todayISO(),
-          peso: r.basicos ? (Number(form.peso) || null) : null,
-          grasa_pct: r.cinta ? Number(r.bf.toFixed(1)) : null,
-          masa_muscular: r.cinta ? Number(r.muscleKg.toFixed(1)) : null,
-          masa_magra: r.cinta ? Number(r.leanKg.toFixed(1)) : null,
-          imc: r.basicos ? Number(r.bmi.toFixed(1)) : null,
-          kcal_consumidas: Math.round(t.kcal),
-          proteina_g: Math.round(t.protein),
-          carbos_g: Math.round(t.carbs),
-          grasas_g: Math.round(t.fat),
-          kcal_objetivo: Math.round(mealPlan.targetKcal) || null,
-          comidas_count: comidas,
-          alimentos_count: alimentos,
-          meal_plan: mealPlan,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'username,fecha' });
-      } catch {}
-      setSaving(false);
+      const r = await subirDatosAlumno(cambio);
+      if (r === 'ok') {
+        borrarPendiente(currentUser, cambio.ts);
+        setEstadoGuardado(leerPendiente(currentUser) ? 'guardando' : 'ok');
+      } else setEstadoGuardado(r === 'sesion' ? 'sesion' : 'pendiente');
     }, 700);
     return () => clearTimeout(saveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, mealPlan]);
+
+  // Reintenta subir lo que quedó pendiente: al volver el internet, al
+  // volver a la app y cada 30 segundos mientras quede algo sin subir.
+  useEffect(() => {
+    if (view !== 'student' || !currentUser) return;
+    let enCurso = false;
+    const reintentar = async () => {
+      const p = leerPendiente(currentUser);
+      if (!p || enCurso) return;
+      if (navigator.onLine === false) { setEstadoGuardado('pendiente'); return; }
+      enCurso = true;
+      const r = await subirDatosAlumno(p);
+      enCurso = false;
+      if (r === 'ok') {
+        borrarPendiente(currentUser, p.ts);
+        if (!leerPendiente(currentUser)) setEstadoGuardado('ok');
+      } else setEstadoGuardado(r === 'sesion' ? 'sesion' : 'pendiente');
+    };
+    const alVolver = () => { if (document.visibilityState === 'visible') reintentar(); };
+    const sinRed = () => { if (leerPendiente(currentUser)) setEstadoGuardado('pendiente'); };
+    window.addEventListener('online', reintentar);
+    window.addEventListener('offline', sinRed);
+    document.addEventListener('visibilitychange', alVolver);
+    const iv = setInterval(reintentar, 30000);
+    reintentar();
+    return () => {
+      window.removeEventListener('online', reintentar);
+      window.removeEventListener('offline', sinRed);
+      document.removeEventListener('visibilitychange', alVolver);
+      clearInterval(iv);
+    };
+  }, [view, currentUser]);
 
   async function openStudentData(username) {
     setViewingStudent(username);
@@ -4444,6 +4753,7 @@ export default function App() {
   async function logout() {
     try { await supabase.auth.signOut(); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setAdminAuthed(false);
+    setEstadoGuardado('ok');
     setCurrentUser(null);
     setForm(EMPTY_FORM);
     setMealPlan(EMPTY_MEALPLAN());
@@ -4524,7 +4834,7 @@ export default function App() {
       )}
       {!tokenRef && view === 'student' && currentUser && (
         <StudentDashboard username={currentUser} form={form} setForm={setForm}
-          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} saving={saving}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} onLogout={logout} estadoGuardado={estadoGuardado}
           userRecord={users.find(u => u.username === currentUser)} />
       )}
     </>

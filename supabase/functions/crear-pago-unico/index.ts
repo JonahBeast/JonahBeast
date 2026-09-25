@@ -32,6 +32,17 @@ async function usuarioDeLaSesion(supabase: any, req: Request): Promise<string | 
   return perfil?.username || null;
 }
 
+// El descuento de "Invita a un amigo" (códigos de tipo alumno) es solo
+// para el primer plan del amigo. Los de embajadores e influencers
+// descuentan siempre. Un plan ya pagado = un pago aprobado que no sea del
+// add-on de fotos.
+async function yaPagoUnPlan(supabase: any, username: string): Promise<boolean> {
+  const { data } = await supabase.from("pagos").select("id")
+    .eq("username", username).eq("estado", "aprobado")
+    .or("metodo.is.null,metodo.not.ilike.*add-on*").limit(1);
+  return (data || []).length > 0;
+}
+
 // Precio del plan calculado aquí: el de la tabla config (o el de respaldo)
 // menos el descuento del código de referido del alumno, si el código sigue
 // activo. Es el mismo cálculo que muestra la app. Nunca se usa un % que
@@ -48,9 +59,10 @@ async function precioDelPlan(supabase: any, username: string, meses: number): Pr
   const codigo = String(alumno.codigo_referido || "").trim();
   if (codigo) {
     const { data: referidor } = await supabase.from("referidores")
-      .select("descuento_pct").ilike("codigo", codigo.replace(/[\\%_]/g, (c) => "\\" + c))
+      .select("descuento_pct, tipo").ilike("codigo", codigo.replace(/[\\%_]/g, (c) => "\\" + c))
       .eq("activo", true).maybeSingle();
     descuento = Math.min(Math.max(Number(referidor?.descuento_pct) || 0, 0), 100);
+    if (descuento > 0 && referidor?.tipo === "alumno" && await yaPagoUnPlan(supabase, username)) descuento = 0;
   }
   return Math.round(base * (1 - descuento / 100) * 100) / 100;
 }

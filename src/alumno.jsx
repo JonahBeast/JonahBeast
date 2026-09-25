@@ -1518,6 +1518,21 @@ function goalTargets(form, tdee) {
   return { goal, pct, kcal, protein, carbs, fat, magra };
 }
 
+/* Meta del registro de comidas (calorías y % de macros) a partir de los
+   resultados de goalTargets. metaManual en false: vuelve a seguir al
+   objetivo aunque antes la hubiera ajustado a mano.                    */
+function metaDesdeObjetivo(t) {
+  return {
+    targetKcal: Math.round(t.kcal),
+    macros: {
+      p: Math.round((t.protein * 4 / t.kcal) * 100) / 100,
+      c: Math.round((t.carbs * 4 / t.kcal) * 100) / 100,
+      f: Math.round((t.fat * 9 / t.kcal) * 100) / 100,
+    },
+    metaManual: false,
+  };
+}
+
 function GoalSelector({ form, setForm, tdee, peso, datosListos = true, onCompletarDatos, onIrComidas }) {
   const goal = form.objetivo || '';
   const defaultPct = goal ? GOALS[goal].pct : 0;
@@ -2591,7 +2606,7 @@ function InvitaMomento({ user, mealPlan }) {
 
   if (!momento) return null;
   const link = codigo ? `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion` : null;
-  const mensaje = link && `${momento.logro} con Jonah Beast Fuel 🦍 Te dice cuánto y qué comer, con comida peruana. Pruébala 15 días gratis y con mi link tienes 10% de descuento: ${link}`;
+  const mensaje = link && `${momento.logro} con Jonah Beast Fuel 🦍 Te dice cuánto y qué comer, con comida peruana. Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setMomento(null)}>
@@ -2994,7 +3009,7 @@ function analizarProgreso(rows, form) {
   if (pesoInicial === null || pesoActual === null) {
     return { estado: 'inicial', titulo: 'FALTAN DATOS DE PESO',
       mensaje: 'Registra tu peso al menos 2 veces por semana para poder analizar tu tendencia.',
-      accion: 'Actualiza tu peso en "Composición corporal".', color: 'zinc', adherencia, constancia };
+      accion: 'Actualiza tu peso en "Mi cuerpo" → "Mis datos".', color: 'zinc', adherencia, constancia };
   }
 
   const cambio = pesoActual - pesoInicial;
@@ -3443,7 +3458,7 @@ function InvitaAmigoCard({ username }) {
 
   if (!datos) return null;
   const link = `https://jonahbeast.com/?ref=${encodeURIComponent(datos.codigo)}&fuente=invitacion`;
-  const mensaje = `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu plan: ${link}`;
+  const mensaje = `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
 
   async function copiar() {
     try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch {}
@@ -3456,7 +3471,7 @@ function InvitaAmigoCard({ username }) {
         <div className="min-w-0">
           <h2 className="jb-display text-base text-zinc-50">INVITA A UN AMIGO</h2>
           <p className="jb-body text-xs text-zinc-400 mt-0.5">
-            Tu amigo prueba 15 días gratis y tiene <span className="text-orange-400 font-semibold">10% de descuento</span>. Cuando pague su plan, <span className="text-orange-400 font-semibold">tú ganas 15 días gratis</span>.
+            Tu amigo prueba 15 días gratis y tiene <span className="text-orange-400 font-semibold">10% de descuento</span> en su primer plan. Cuando lo pague, <span className="text-orange-400 font-semibold">tú ganas 15 días gratis</span>.
           </p>
         </div>
       </div>
@@ -5864,15 +5879,7 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
 
   function applyGoal() {
     if (!targets || !targets.kcal) return;
-    setMealPlan(v => ({
-      ...v,
-      targetKcal: Math.round(targets.kcal),
-      macros: {
-        p: Math.round((targets.protein * 4 / targets.kcal) * 100) / 100,
-        c: Math.round((targets.carbs * 4 / targets.kcal) * 100) / 100,
-        f: Math.round((targets.fat * 9 / targets.kcal) * 100) / 100,
-      },
-    }));
+    setMealPlan(v => ({ ...v, ...metaDesdeObjetivo(targets) }));
   }
 
   return (
@@ -5900,19 +5907,19 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
           <div className="grid sm:grid-cols-5 gap-3 items-end">
             <Field label="Calorías objetivo (kcal)">
               <input type="number" className={inputCls} value={mealPlan.targetKcal}
-                onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0 }))} />
+                onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0, metaManual: true }))} />
             </Field>
             <Field label="% Proteína">
               <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 } }))} />
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 }, metaManual: true }))} />
             </Field>
             <Field label="% Carbohidratos">
               <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 } }))} />
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 }, metaManual: true }))} />
             </Field>
             <Field label="% Grasas">
               <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 } }))} />
+                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 }, metaManual: true }))} />
             </Field>
             {targets ? (
               <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
@@ -6042,15 +6049,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
 
   function applyGoal() {
     if (!targets || !targets.kcal) return;
-    setMealPlan(v => ({
-      ...v,
-      targetKcal: Math.round(targets.kcal),
-      macros: {
-        p: Math.round((targets.protein * 4 / targets.kcal) * 100) / 100,
-        c: Math.round((targets.carbs * 4 / targets.kcal) * 100) / 100,
-        f: Math.round((targets.fat * 9 / targets.kcal) * 100) / 100,
-      },
-    }));
+    setMealPlan(v => ({ ...v, ...metaDesdeObjetivo(targets) }));
   }
 
   const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
@@ -6752,6 +6751,30 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
     cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
   }), [form]);
+
+  /* La meta del registro de comidas sigue sola al objetivo: al elegirlo
+     o cambiarlo, o al actualizar sus datos (peso, edad...), se recalcula.
+     Si la ajustó a mano en "Ajuste fino", se respeta hasta que cambie de
+     objetivo. Al abrir la app solo se corrige a quien sigue con la meta
+     de ejemplo (2000 kcal) sin haberla tocado nunca.                   */
+  const targetsObjetivo = goalTargets(form, results.tdee);
+  const firmaObjetivo = targetsObjetivo
+    ? [targetsObjetivo.kcal, targetsObjetivo.protein, targetsObjetivo.fat].map(Math.round).join('|') : '';
+  const firmaAntes = useRef(null);
+  const objetivoAntes = useRef(form.objetivo);
+  useEffect(() => {
+    const primera = firmaAntes.current === null;
+    const cambio = !primera && firmaAntes.current !== firmaObjetivo;
+    firmaAntes.current = firmaObjetivo;
+    const cambioObjetivo = objetivoAntes.current !== form.objetivo;
+    objetivoAntes.current = form.objetivo;
+    if (!targetsObjetivo || !targetsObjetivo.kcal || !mealPlan) return;
+    const m = mealPlan.macros || {};
+    const deEjemplo = !mealPlan.metaManual && mealPlan.targetKcal === 2000 && m.p === 0.3 && m.c === 0.4 && m.f === 0.3;
+    if (primera ? !deEjemplo : !cambio) return;
+    if (mealPlan.metaManual && !cambioObjetivo) return;
+    setMealPlan(v => ({ ...v, ...metaDesdeObjetivo(targetsObjetivo) }));
+  }, [firmaObjetivo]);
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body overflow-x-hidden supports-[overflow:clip]:overflow-x-clip"

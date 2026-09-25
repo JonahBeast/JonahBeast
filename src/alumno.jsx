@@ -43,6 +43,7 @@ import {
   gramsPerUnit,
   inputCls,
   setFoodsPersonales,
+  usarAlimentosExtra,
   showToast,
   textoPorcion,
   tieneDatosBasicos,
@@ -94,7 +95,17 @@ const RESTAURANTES_ALIADOS = [
    con el resto de la base de datos al buscar por nombre). */
 const KEYS_RESTAURANTES_ALIADOS = new Set(RESTAURANTES_ALIADOS.flatMap(r => r.platos));
 
-const FOODS_BUSCADOR = FOODS.filter(f => !KEYS_RESTAURANTES_ALIADOS.has(f.key));
+/* Se vuelve a armar cuando llegan los alimentos que Jonah agregó desde el
+   panel (FOODS crece al abrir la app, ver cargarAlimentosExtra). */
+let FOODS_BUSCADOR = [];
+let foodsBuscadorTamano = -1;
+function foodsBuscador() {
+  if (foodsBuscadorTamano !== FOODS.length) {
+    FOODS_BUSCADOR = FOODS.filter(f => !KEYS_RESTAURANTES_ALIADOS.has(f.key));
+    foodsBuscadorTamano = FOODS.length;
+  }
+  return FOODS_BUSCADOR;
+}
 
 /* Sustitución inteligente: grupos de alimentos que cumplen el mismo rol
    nutricional y se pueden intercambiar entre sí, igualando el macro que
@@ -120,7 +131,7 @@ function grupoDeSustitucion(food) {
 function opcionesDeSustitucion(food, restricciones = []) {
   const bucket = grupoDeSustitucion(food);
   if (!bucket) return [];
-  const candidatos = FOODS_BUSCADOR.filter(f => bucket.grupos.includes(f.group) && f.name !== food.name && !restricciones.includes(f.name));
+  const candidatos = foodsBuscador().filter(f => bucket.grupos.includes(f.group) && f.name !== food.name && !restricciones.includes(f.name));
   const vistos = new Set();
   const resultado = [];
   for (const f of candidatos) {
@@ -397,7 +408,7 @@ function RestriccionesCard({ mealPlan, setMealPlan }) {
           )}
           <BuscadorAlimento
             valor=""
-            alimentos={FOODS_BUSCADOR}
+            alimentos={foodsBuscador()}
             onElegir={key => { const f = buscarFood(key); if (f) agregar(f.name); }}
             onNoEncuentra={() => {}}
           />
@@ -6348,7 +6359,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
     } catch {}
   }
 
-  const todosLosAlimentos = useMemo(() => [...personales, ...FOODS_BUSCADOR], [personales]);
+  const versionAlimentos = usarAlimentosExtra();
+  const todosLosAlimentos = useMemo(() => [...personales, ...foodsBuscador()], [personales, versionAlimentos]);
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
     Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -6356,7 +6368,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
       t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
     }));
     return t;
-  }, [mealPlan]);
+  }, [mealPlan, versionAlimentos]);
 
   const objP = (mealPlan.targetKcal * mealPlan.macros.p) / 4;
   const objC = (mealPlan.targetKcal * mealPlan.macros.c) / 4;
@@ -7034,6 +7046,7 @@ function AvisoGuardado({ estado, onVolverAEntrar }) {
 }
 
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, estadoGuardado, userRecord }) {
+  usarAlimentosExtra(); // se vuelve a dibujar cuando llegan los alimentos que Jonah agregó desde el panel
   const [tab, setTab] = useState('dash');
   const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
   const formRef = useRef(form);

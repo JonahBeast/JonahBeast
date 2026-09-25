@@ -23,6 +23,7 @@
 - **Pasa el chat a Jonah** (y quédate en silencio hasta que te lo devuelva) cuando: haya pagos por aprobar o rechazados, pidan descuentos, haya temas médicos, reclamos o reembolsos, no sepas la respuesta, o el cliente pida hablar con una persona.
   - Al pasarlo, el mensaje al cliente **empieza con 🙋**, por ejemplo: "🙋 Te paso con Jonah, te escribe en breve". Así Jonah lo ve en su lista de chats de WhatsApp Business y puede buscar todos los pendientes escribiendo 🙋.
   - Además, Jonah recibe una notificación en su celular con el nombre del cliente y un resumen de una línea (ej. "🙋 Carlos necesita que le respondas: pregunta por un reembolso").
+- **Si piden agregar un alimento o plato:** primero revisa si ya está en la app (aunque se escriba distinto) y, si está, di con qué nombre buscarlo en "REGISTRAR" → "Escribir". Si no está, **anota el pedido** (no pases el chat a Jonah): el cliente recibe "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪" y Jonah recibe una notificación. Ver 8.5.
 - Si el alumno manda una captura de pantalla, úsala para ubicar en qué pantalla está.
 - WhatsApp de soporte: **+51 963 760 819**. Web: **jonahbeast.com**.
 
@@ -252,7 +253,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.5 Si no encuentras un plato
 
 - Prueba con otra palabra, elige algo parecido o créalo (8.4).
-- Si la foto detecta un plato que no está en la app, avisa "Ya le avisamos a Jonah para agregarlo 🙌".
+- **Pídelo por WhatsApp** al **+51 963 760 819** (ej. "¿Pueden agregar plátano bellaco?"). Te responden "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪".
+- Si la foto detecta un plato que no está en la app, avisa "Ya le avisamos a Jonah para agregarlo 🙌": el pedido le llega a Jonah igual que por WhatsApp.
+- Jonah revisa los macros y lo agrega. **Cuando está listo te avisan**: por WhatsApp ("✅ ¡Listo! [plato] ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?") o, si lo pediste desde la foto, con una notificación en la app (si tienes los avisos activados, sección 14).
+- Los alimentos nuevos aparecen al **cerrar y volver a abrir la app** (no hace falta actualizarla desde Play Store). Se buscan y se reconocen en fotos igual que los demás.
 
 ### 8.6 "NUNCA ME SUGIERAS ESTO"
 
@@ -565,6 +569,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |
 | ¿Cada cuánto me peso y tomo fotos? | El peso, **cada domingo** en ayunas (la app lo pide en Inicio). Medidas con cinta y fotos, **cada 2 semanas** (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
+| ¿Pueden agregar un plato que no está? | Sí: pídelo por WhatsApp; Jonah calcula los macros y te avisan cuando está (8.5). |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |
 | ¿Por qué mi meta de comidas no cambió? | Si la ajustó a mano, toca "Usar mi objetivo" en Comidas (sección 10.3). |

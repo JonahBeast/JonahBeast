@@ -24,6 +24,7 @@ import {
   btnPrimary,
   buscarFood,
   calcAll,
+  cargarAlimentosExtra,
   daysLeft,
   entryMacros,
   fechaLocalISO,
@@ -515,78 +516,310 @@ function ReferidosPanel({ users, onCambio }) {
   );
 }
 
-// Platos que la IA vio en fotos de los alumnos pero que no existen en la
-// base de alimentos — para saber qué agregar primero.
-function PlatosNoEncontradosPanel() {
-  const [filas, setFilas] = useState([]);
+// Pedidos de alimentos: platos que piden los clientes por WhatsApp o que la
+// IA vio en sus fotos y no están en la app. La IA propone los macros, Jonah
+// revisa y aprueba: el alimento aparece al momento en la app y se avisa a
+// quienes lo pidieron (función alimentos-pedidos).
+async function llamarPedidosAlimentos(cuerpo) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/alimentos-pedidos`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      apikey: supabaseKey,
+      authorization: `Bearer ${session?.access_token || supabaseKey}`,
+    },
+    body: JSON.stringify(cuerpo),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || 'No se pudo conectar con el servidor.');
+  return data;
+}
+
+const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '' };
+
+function formDesdePropuesta(p, nombre) {
+  if (!p) return { ...ALIMENTO_VACIO, nombre };
+  return {
+    nombre: p.nombre || nombre, grupo: GRUPOS_ALIMENTOS.includes(p.grupo) ? p.grupo : 'Platos preparados', estado: p.estado || '-',
+    kcal: p.kcal ?? '', proteina: p.proteina ?? '', carbos: p.carbos ?? '', grasa: p.grasa ?? '', fibra: p.fibra ?? '',
+    unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '',
+  };
+}
+
+function quienesPidieron(solicitantes) {
+  const vistos = new Set();
+  const lista = [];
+  (solicitantes || []).forEach(s => {
+    const clave = s.origen === 'whatsapp' ? 'w' + s.telefono : 'a' + s.username;
+    if (vistos.has(clave)) return;
+    vistos.add(clave);
+    lista.push(s.origen === 'whatsapp' ? `💬 ${s.nombre || '+' + s.telefono}` : `📷 ${s.username}`);
+  });
+  return lista;
+}
+
+function FormAlimento({ form, setForm }) {
+  const campo = (k) => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const num = (k) => Number(form[k]) || 0;
+  const kcalCalculadas = Math.round(4 * num('proteina') + 4 * num('carbos') + 9 * num('grasa'));
+  const desvio = num('kcal') > 0 && Math.abs(kcalCalculadas - num('kcal')) > Math.max(25, num('kcal') * 0.15);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="col-span-2 jb-body text-[11px] text-zinc-500">Nombre
+          <input value={form.nombre} onChange={campo('nombre')} className={inputCls + ' w-full text-sm mt-0.5'} maxLength={80} />
+        </label>
+        <label className="jb-body text-[11px] text-zinc-500">Grupo
+          <select value={form.grupo} onChange={campo('grupo')} className={inputCls + ' w-full text-sm mt-0.5'}>
+            {GRUPOS_ALIMENTOS.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </label>
+        <label className="jb-body text-[11px] text-zinc-500">Cómo se come
+          <input value={form.estado} onChange={campo('estado')} className={inputCls + ' w-full text-sm mt-0.5'} placeholder='"-", Cocido, Frito…' maxLength={30} />
+        </label>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 mt-1">Por cada 100 g:</p>
+      <div className="grid grid-cols-5 gap-1.5">
+        {[['kcal', 'Kcal'], ['proteina', 'Prot.'], ['carbos', 'Carbos'], ['grasa', 'Grasa'], ['fibra', 'Fibra']].map(([k, t]) => (
+          <label key={k} className="jb-body text-[11px] text-zinc-500">{t}
+            <input type="number" inputMode="decimal" min="0" step="0.1" value={form[k]} onChange={campo(k)} className={inputCls + ' w-full text-sm mt-0.5 px-2 tabular-nums'} />
+          </label>
+        ))}
+      </div>
+      {desvio && (
+        <p className="jb-body text-[11px] text-amber-400">Ojo: con esos macros saldrían ~{kcalCalculadas} kcal, no {num('kcal')}. Revisa los números.</p>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="jb-body text-[11px] text-zinc-500">Medida casera (opcional)
+          <input value={form.unidad} onChange={campo('unidad')} className={inputCls + ' w-full text-sm mt-0.5'} placeholder="unidad, plato, taza…" maxLength={30} />
+        </label>
+        <label className="jb-body text-[11px] text-zinc-500">Gramos de esa medida
+          <input type="number" inputMode="decimal" min="0" value={form.gramos_unidad} onChange={campo('gramos_unidad')} disabled={!form.unidad.trim()} className={inputCls + ' w-full text-sm mt-0.5 tabular-nums disabled:opacity-40'} />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function ResultadoAvisos({ nombre, avisos }) {
+  if (!avisos) return null;
+  const partes = [];
+  if (avisos.whatsapp?.length) partes.push(`${avisos.whatsapp.length} por WhatsApp`);
+  if (avisos.app?.length) partes.push(`${avisos.app.length} con notificación en la app`);
+  const texto = `✅ ¡Listo! *${nombre}* ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?`;
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {partes.length > 0 && <p className="jb-body text-xs text-emerald-400">Avisamos: {partes.join(' y ')}.</p>}
+      {avisos.a_mano?.length > 0 && (
+        <div className="bg-amber-950/40 border border-amber-900 rounded-lg p-2.5">
+          <p className="jb-body text-xs text-amber-300 mb-1.5">Avísale tú (pasaron más de 24 h desde su último mensaje y WhatsApp no deja escribirle solo):</p>
+          <div className="flex flex-wrap gap-1.5">
+            {avisos.a_mano.map(p => (
+              <a key={p.telefono} href={`https://wa.me/${p.telefono}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer"
+                className={btnGhost + ' py-1 px-2.5 text-xs'}>💬 {p.nombre || '+' + p.telefono}</a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PedidoAlimento({ pedido, onResuelto }) {
+  const [form, setForm] = useState(() => formDesdePropuesta(pedido.propuesta, pedido.nombre));
+  const [propuesta, setPropuesta] = useState(pedido.propuesta);
+  const [calculando, setCalculando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const quienes = quienesPidieron(pedido.solicitantes);
+
+  async function calcular() {
+    setCalculando(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'calcular', id: pedido.id, nombre: pedido.nombre });
+      setPropuesta(r.propuesta);
+      setForm(formDesdePropuesta(r.propuesta, pedido.nombre));
+    } catch (e) { setError(e.message); }
+    setCalculando(false);
+  }
+
+  async function aprobar() {
+    setGuardando(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'aprobar', id: pedido.id, alimento: form });
+      await cargarAlimentosExtraDeNuevo();
+      onResuelto(pedido.id, { nombre: form.nombre.trim(), avisos: r.avisos });
+    } catch (e) { setError(e.message); }
+    setGuardando(false);
+  }
+
+  async function descartar() {
+    if (!confirm(`¿Descartar el pedido "${pedido.nombre}"? No se avisa a nadie.`)) return;
+    const { error: err } = await supabase.from('pedidos_alimentos')
+      .update({ estado: 'descartado', resuelto_en: new Date().toISOString(), actualizado_en: new Date().toISOString() }).eq('id', pedido.id);
+    if (err) { setError('No se pudo descartar: ' + err.message); return; }
+    onResuelto(pedido.id, null);
+  }
+
+  const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '';
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-2.5">
+      <div>
+        <p className="jb-body text-sm text-zinc-100 font-semibold">{pedido.nombre}</p>
+        <p className="jb-body text-xs text-zinc-500">
+          <span className="text-orange-400 font-semibold">{quienes.length} {quienes.length === 1 ? 'persona' : 'personas'}</span>
+          {' · '}{quienes.slice(0, 4).join(', ')}{quienes.length > 4 ? '…' : ''}
+          {' · '}{new Date(pedido.actualizado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
+        </p>
+      </div>
+
+      {!propuesta ? (
+        <button onClick={calcular} disabled={calculando} className={btnPrimary + ' text-sm py-2'}>
+          {calculando ? <><Loader2 size={15} className="animate-spin" /> Calculando macros…</> : '🤖 Calcular macros'}
+        </button>
+      ) : (
+        <>
+          {propuesta.ya_existe && (
+            <p className="jb-body text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-2">
+              Parece que ya está en la app como <b>{propuesta.ya_existe}</b>. Si es lo mismo, descártalo y dile a quien lo pidió que lo busque con ese nombre.
+            </p>
+          )}
+          {propuesta.nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {propuesta.nota}</p>}
+          <FormAlimento form={form} setForm={setForm} />
+          <div className="flex gap-2">
+            <button onClick={aprobar} disabled={!listo || guardando} className={btnPrimary + ' flex-1 text-sm py-2'}>
+              {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Aprobar y avisar'}
+            </button>
+            <button onClick={calcular} disabled={calculando} className={btnGhost + ' text-xs py-2 px-3'} title="Volver a calcular">
+              {calculando ? <Loader2 size={14} className="animate-spin" /> : '🔄'}
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+      <button onClick={descartar} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
+    </div>
+  );
+}
+
+// El panel también sirve para agregar un alimento sin que nadie lo pida.
+function AgregarAlimentoSuelto({ onListo }) {
+  const [nombre, setNombre] = useState('');
+  const [form, setForm] = useState(null);
+  const [nota, setNota] = useState('');
+  const [calculando, setCalculando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function calcular() {
+    if (!nombre.trim()) return;
+    setCalculando(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'calcular', nombre: nombre.trim() });
+      setForm(formDesdePropuesta(r.propuesta, nombre.trim()));
+      setNota(r.propuesta?.ya_existe ? `Parece que ya está en la app como "${r.propuesta.ya_existe}".` : (r.propuesta?.nota || ''));
+    } catch (e) { setError(e.message); }
+    setCalculando(false);
+  }
+
+  async function agregar() {
+    setGuardando(true); setError('');
+    try {
+      await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
+      await cargarAlimentosExtraDeNuevo();
+      onListo(form.nombre.trim());
+      setNombre(''); setForm(null); setNota('');
+    } catch (e) { setError(e.message); }
+    setGuardando(false);
+  }
+
+  return (
+    <div className="bg-zinc-950 border border-dashed border-zinc-700 rounded-xl p-3.5 flex flex-col gap-2">
+      <p className="jb-body text-xs text-zinc-400">¿Quieres agregar otro alimento? Escribe el nombre y la IA calcula los macros.</p>
+      <div className="flex gap-2">
+        <input value={nombre} onChange={e => setNombre(e.target.value)} onKeyDown={e => e.key === 'Enter' && calcular()}
+          className={inputCls + ' flex-1 text-sm'} placeholder="Ej. Causa de pollo" maxLength={80} />
+        <button onClick={calcular} disabled={!nombre.trim() || calculando} className={btnGhost + ' text-sm py-2 px-3 shrink-0'}>
+          {calculando ? <Loader2 size={15} className="animate-spin" /> : '🤖 Calcular'}
+        </button>
+      </div>
+      {form && (
+        <>
+          {nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {nota}</p>}
+          <FormAlimento form={form} setForm={setForm} />
+          <button onClick={agregar} disabled={guardando || !form.nombre.trim() || form.kcal === ''} className={btnPrimary + ' text-sm py-2'}>
+            {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
+          </button>
+        </>
+      )}
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+async function cargarAlimentosExtraDeNuevo() {
+  try { await cargarAlimentosExtra(true); } catch {}
+}
+
+function PedidosAlimentosPanel() {
+  const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(false);
+  const [resueltos, setResueltos] = useState([]); // aprobados en esta sesión, con sus avisos
 
   useEffect(() => { cargar(); }, []);
 
   async function cargar() {
     setCargando(true);
     try {
-      const { data, error } = await supabase.from('platos_no_encontrados')
-        .select('id, username, nombre, creado_en').order('creado_en', { ascending: false }).limit(500);
+      const { data, error } = await supabase.from('pedidos_alimentos')
+        .select('id, nombre, propuesta, solicitantes, actualizado_en')
+        .eq('estado', 'pendiente').order('actualizado_en', { ascending: false }).limit(100);
       if (error) throw error;
-      setFilas(data || []);
-    } catch { setFilas([]); }
+      // Primero los que pidió más gente; los de WhatsApp tienen a alguien esperando.
+      const orden = p => quienesPidieron(p.solicitantes).length + ((p.solicitantes || []).some(s => s.origen === 'whatsapp') ? 100 : 0);
+      setPedidos((data || []).sort((a, b) => orden(b) - orden(a)));
+      if ((data || []).some(p => (p.solicitantes || []).some(s => s.origen === 'whatsapp'))) setAbierto(true);
+    } catch { setPedidos([]); }
     setCargando(false);
   }
 
-  const grupos = useMemo(() => {
-    const m = new Map();
-    filas.forEach(f => {
-      const clave = f.nombre.trim().toLowerCase();
-      const g = m.get(clave) || { nombre: f.nombre.trim(), ids: [], alumnos: new Set(), ultima: f.creado_en };
-      g.ids.push(f.id); g.alumnos.add(f.username);
-      if (f.creado_en > g.ultima) g.ultima = f.creado_en;
-      m.set(clave, g);
-    });
-    return [...m.values()].sort((a, b) => b.ids.length - a.ids.length || (b.ultima > a.ultima ? 1 : -1));
-  }, [filas]);
-
-  async function yaLoAgregue(g) {
-    if (!confirm(`¿Quitar "${g.nombre}" de la lista? Hazlo cuando ya lo hayas agregado a la app.`)) return;
-    const { error } = await supabase.from('platos_no_encontrados').delete().in('id', g.ids);
-    if (error) { alert('No se pudo quitar: ' + error.message); return; }
-    setFilas(fs => fs.filter(f => !g.ids.includes(f.id)));
+  function resuelto(id, resultado) {
+    setPedidos(ps => ps.filter(p => p.id !== id));
+    if (resultado) setResueltos(rs => [resultado, ...rs]);
   }
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🍲 PLATOS QUE BUSCAN Y NO TENEMOS · {grupos.length}</h2>
+        <h2 className="jb-display text-base text-zinc-200">🍽️ PEDIDOS DE ALIMENTOS · {pedidos.length}</h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
-        <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <p className="jb-body text-xs text-zinc-500">Los detecta la IA en las fotos de tus alumnos. Los más pedidos van primero.</p>
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬) o los ve la IA en las fotos (📷). Al aprobar, el alimento aparece al momento en la app y avisamos a quien lo pidió.</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
+
+          {resueltos.map((r, i) => (
+            <div key={i} className="bg-emerald-950/30 border border-emerald-900 rounded-xl p-3">
+              <p className="jb-body text-sm text-emerald-300 font-semibold">✅ {r.nombre} ya está en la app</p>
+              <ResultadoAvisos nombre={r.nombre} avisos={r.avisos} />
+            </div>
+          ))}
+
           {cargando ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
-          ) : grupos.length === 0 ? (
-            <p className="jb-body text-zinc-500 text-sm">Aún no hay platos pendientes. Aparecerán aquí cuando la IA vea algo que no está en la app.</p>
+          ) : pedidos.length === 0 ? (
+            <p className="jb-body text-zinc-500 text-sm">No hay pedidos pendientes. Aparecerán aquí cuando alguien pida un plato que no está en la app.</p>
           ) : (
-            <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
-              {grupos.map(g => (
-                <div key={g.nombre.toLowerCase()} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="jb-body text-sm text-zinc-100 font-medium truncate">{g.nombre}</p>
-                    <p className="jb-body text-xs text-zinc-500">
-                      <span className="text-orange-400 font-semibold">{g.ids.length} {g.ids.length === 1 ? 'vez' : 'veces'}</span>
-                      {' · '}{g.alumnos.size} {g.alumnos.size === 1 ? 'alumno' : 'alumnos'}
-                      {' · '}{new Date(g.ultima).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}
-                    </p>
-                  </div>
-                  <button onClick={() => yaLoAgregue(g)} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Ya lo agregué</button>
-                </div>
-              ))}
-            </div>
+            pedidos.map(p => <PedidoAlimento key={p.id} pedido={p} onResuelto={resuelto} />)
           )}
+
+          <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ nombre, avisos: null }, ...rs])} />
         </div>
       )}
     </div>
@@ -4140,7 +4373,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <MetricasPanel />
             <FinanzasPanel />
             <ReferidosPanel users={users} onCambio={onRecargar} />
-            <PlatosNoEncontradosPanel />
+            <PedidosAlimentosPanel />
             <LeadsPanel />
           </>
         )}

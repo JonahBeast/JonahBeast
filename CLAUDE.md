@@ -30,3 +30,9 @@
 - App React + Vite + Tailwind, con Supabase como base de datos y publicada en Vercel.
 - La app está en `src/`: `App.jsx` tiene la portada, el registro/ingreso y todo lo compartido; `alumno.jsx` (app del alumno), `admin.jsx` (panel de admin y Jarvis), `tienda.jsx` y `referidor.jsx` se descargan solo cuando hacen falta. Las funciones de servidor y tareas automáticas están en `api/`.
 - Comprueba que compila con `npm run build` antes de subir cambios.
+
+## Manual de la app y Jarvis
+
+- `docs/manual-app.md` es el manual de la app (pantallas, botones y mensajes). Lo usan Jarvis y el asistente de WhatsApp.
+- **Cada cambio que el alumno vea en la app se anota en el manual en el mismo PR**, y después se corre `npm run manual-jarvis` para copiarlo a Jarvis (`supabase/functions/jarvis-chat/manual.ts`). Si se olvida, `npm run build` falla y avisa.
+- Si el cambio toca el manual, después del merge se publica también `jarvis-chat` (con `manual.ts`), para que Jarvis quede al día.

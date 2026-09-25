@@ -14,6 +14,7 @@
 // jarvis-chat-prueba es la única que se puede publicar desde un PR.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MANUAL_APP } from "./manual.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -71,6 +72,13 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
    c) Solo llama a activar_reconocimiento_foto una vez que Jonah Beast haya confirmado explícitamente la duración en la conversación (ya sea en su mensaje original o en su respuesta a tu pregunta). Si te da la duración en otra unidad, conviértela tú mismo a días antes de llamar la herramienta (1 semana = 7, 1 mes = 30).
    d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
+
+// El manual completo de la app (docs/manual-app.md, copiado en manual.ts):
+// así Jarvis sabe cómo funciona cada pantalla, botón y mensaje para el
+// alumno, y se mantiene al día con cada cambio de la app.
+const MANUAL_JARVIS = `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Úsalo cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti: tú sigues tus propias instrucciones. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
+
+${MANUAL_APP}`;
 
 const TOOLS = [
   {
@@ -404,10 +412,12 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       { role: "user", content: pregunta },
     ];
 
-    // La personalidad va primero y marcada para caché (es igual en todas
-    // las llamadas); los datos en vivo van después porque cambian siempre.
+    // La personalidad y el manual de la app van primero y marcados para
+    // caché (son iguales en todas las llamadas); los datos en vivo van
+    // después porque cambian siempre.
     const system = [
-      { type: "text", text: JARVIS_PERSONA, cache_control: { type: "ephemeral" } },
+      { type: "text", text: JARVIS_PERSONA },
+      { type: "text", text: MANUAL_JARVIS, cache_control: { type: "ephemeral" } },
       { type: "text", text: contexto },
     ];
 

@@ -135,6 +135,14 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**.
 
+### 6.2 "¡TU PLAN ESTÁ LISTO!" (primera comida en 1 toque)
+
+- Aparece a quien **nunca registró una comida**, apenas tiene sus datos del cuerpo y su objetivo (o sea, su meta ya está calculada).
+- Muestra **"Te tocan X kcal al día"** y la pregunta según la hora (**"¿QUÉ DESAYUNASTE HOY?"**, **"¿QUÉ ALMORZASTE HOY?"**, **"¿QUÉ CENASTE HOY?"**…), con 6 platos comunes de esa comida, cada uno con su porción y calorías.
+- **Un toque en un plato** lo registra en la comida de la hora, lleva a "Comidas" y sale "✅ [plato] registrado en [comida]". La cantidad se ajusta después con − / +.
+- **"Foto o buscar otro plato"** abre la hoja "REGISTRAR" de esa comida.
+- **"Ahora no"** la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
+
 ---
 
 ## 7. Pestaña "Inicio"

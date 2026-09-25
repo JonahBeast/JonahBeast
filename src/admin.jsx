@@ -857,6 +857,10 @@ function FuncionandoPanel({ users }) {
 /* Embudo de activación: de los que se registraron, cuántos pasan cada paso
    (datos del cuerpo → primera comida → 3 días registrando → pagaron). Así
    se ve en qué paso se pierde la gente y si las mejoras lo cambian. */
+// Día en que se empezó a medir el camino al pago (antes no hay datos).
+const INICIO_CAMINO_PAGO = '2026-09-25';
+const PASOS_PAGO = ['vio_planes', 'eligio_plan', 'eligio_metodo', 'pago_enviado'];
+
 function ActivacionPanel({ users }) {
   const [rango, setRango] = useState(30); // días; 0 = desde siempre
   const [datos, setDatos] = useState(null);
@@ -864,22 +868,23 @@ function ActivacionPanel({ users }) {
   const nombres = todos.map(u => u.username).sort().join(',');
 
   useEffect(() => {
-    if (!nombres) { setDatos({ cuerpo: {}, dias: {}, pagaron: new Set() }); return; }
+    if (!nombres) { setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pasos: [] }); return; }
     let cancelado = false;
     (async () => {
       const lista = nombres.split(',');
-      const [{ data: dat }, { data: hist }, { data: pagos }] = await Promise.all([
+      const [{ data: dat }, { data: hist }, { data: pagos }, { data: pasos }] = await Promise.all([
         supabase.from('datos_alumnos').select('username, form').in('username', lista),
         supabase.from('historial').select('username, fecha').in('username', lista).gt('comidas_count', 0).range(0, 19999),
-        supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0).range(0, 4999),
+        supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 4999),
+        supabase.from('embudo_landing_eventos').select('evento, username, detalle, creado_en').in('evento', PASOS_PAGO).gte('creado_en', INICIO_CAMINO_PAGO).range(0, 19999),
       ]);
       if (cancelado) return;
       const cuerpo = {};
       (dat || []).forEach(d => { cuerpo[d.username] = tieneDatosBasicos(d.form || {}); });
       const dias = {};
       (hist || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
-      setDatos({ cuerpo, dias, pagaron: new Set((pagos || []).map(p => p.username)) });
-    })().catch(() => { if (!cancelado) setDatos({ cuerpo: {}, dias: {}, pagaron: new Set() }); });
+      setDatos({ cuerpo, dias, pagaron: new Set((pagos || []).map(p => p.username)), pagosAprobados: pagos || [], pasos: pasos || [] });
+    })().catch(() => { if (!cancelado) setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pagosAprobados: [], pasos: [] }); });
     return () => { cancelado = true; };
   }, [nombres]);
 
@@ -908,6 +913,35 @@ function ActivacionPanel({ users }) {
     const perdida = pasos[i - 1].n - pasos[i].n;
     if (perdida > peorPerdida) { peorPerdida = perdida; peor = i; }
   }
+
+  // Camino al pago: alumnos que llegaron a cada paso en el periodo. Quien
+  // llegó a un paso posterior cuenta también en los anteriores (por ejemplo,
+  // si pagó con Yape sin tocar el botón porque ya venía marcado).
+  const desdePago = desde > INICIO_CAMINO_PAGO ? desde : INICIO_CAMINO_PAGO;
+  const pasosPeriodo = (datos.pasos || []).filter(e => String(e.creado_en).slice(0, 10) >= desdePago);
+  const llego = PASOS_PAGO.map(() => new Set());
+  pasosPeriodo.forEach(e => {
+    const i = PASOS_PAGO.indexOf(e.evento);
+    for (let j = 0; j <= i; j++) llego[j].add(e.username);
+  });
+  const aprobados = new Set((datos.pagosAprobados || []).filter(p => String(p.creado_en).slice(0, 10) >= desdePago).map(p => p.username).filter(n => llego[0].has(n)));
+  const caminoPago = [
+    { titulo: 'Vieron los planes', n: llego[0].size },
+    { titulo: 'Eligieron un plan', n: llego[1].size },
+    { titulo: 'Eligieron cómo pagar', n: llego[2].size },
+    { titulo: 'Enviaron el pago', n: llego[3].size },
+    { titulo: 'Pago aprobado', n: aprobados.size },
+  ];
+  const conteoDetalle = evento => {
+    const m = {};
+    pasosPeriodo.filter(e => e.evento === evento && e.detalle).forEach(e => { (m[e.detalle] = m[e.detalle] || new Set()).add(e.username); });
+    return Object.entries(m).map(([k, v]) => [k, v.size]).sort((a, b) => b[1] - a[1]);
+  };
+  const medios = conteoDetalle('eligio_metodo');
+  const planesElegidos = conteoDetalle('eligio_plan');
+  const hoyISO = todayISO();
+  const terminaronPrueba = todos.filter(u => (u.plan === 'trial' || u.plan === 'prueba') && u.fechaVencimiento
+    && u.fechaVencimiento >= desdePago && u.fechaVencimiento <= hoyISO).length;
 
   return (
     <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
@@ -955,6 +989,46 @@ function ActivacionPanel({ users }) {
           })}
         </div>
       )}
+
+      <div className="border-t border-zinc-800 mt-5 pt-4">
+        <h3 className="jb-display text-sm text-zinc-200 mb-1">💳 CAMINO AL PAGO</h3>
+        <p className="jb-body text-xs text-zinc-500 mb-3">
+          Alumnos que llegaron a cada paso {rango ? `en los últimos ${rango} días` : 'desde el inicio'}. Se mide desde el {new Date(INICIO_CAMINO_PAGO + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}.
+          {' '}{terminaronPrueba} {terminaronPrueba === 1 ? 'prueba terminó' : 'pruebas terminaron'} en ese tiempo.
+        </p>
+        {!caminoPago[0].n ? (
+          <p className="jb-body text-sm text-zinc-500">Todavía nadie abrió los planes desde que se empezó a medir.</p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-1.5">
+              {caminoPago.map((p, i) => {
+                const pct = Math.round((p.n / caminoPago[0].n) * 100);
+                const perdida = i > 0 ? caminoPago[i - 1].n - p.n : 0;
+                return (
+                  <div key={p.titulo}>
+                    {i > 0 && perdida > 0 && (
+                      <p className="jb-body text-[11px] pl-2 mb-0.5 text-zinc-500">↓ {perdida} se {perdida === 1 ? 'detuvo' : 'detuvieron'} aquí</p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="jb-body text-xs text-zinc-300 w-36 shrink-0">{p.titulo}</span>
+                      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
+                      </div>
+                      <span className="jb-body text-xs text-zinc-400 tabular-nums w-14 text-right"><span className="jb-display text-sm text-zinc-50">{p.n}</span> · {pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {(medios.length > 0 || planesElegidos.length > 0) && (
+              <div className="jb-body text-[11px] text-zinc-400 mt-3 flex flex-col gap-0.5">
+                {planesElegidos.length > 0 && <p><span className="text-zinc-300">Planes elegidos:</span> {planesElegidos.map(([k, n]) => `${k} ${Number(k) === 1 ? 'mes' : 'meses'} (${n})`).join(' · ')}</p>}
+                {medios.length > 0 && <p><span className="text-zinc-300">Cómo quisieron pagar:</span> {medios.map(([k, n]) => `${k} (${n})`).join(' · ')}</p>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

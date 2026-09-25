@@ -4806,14 +4806,17 @@ export default function App() {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
-  async function adjustDaysUser(username, dias, motivo) {
+  // desdeHoy: para quien ya venció hace tiempo ("Volver a invitar"): los
+  // días se cuentan desde hoy y la cuenta se vuelve a encender.
+  async function adjustDaysUser(username, dias, motivo, desdeHoy = false) {
     const target = users.find(u => u.username === username);
     if (!target || !dias) return;
-    const base = target.fechaVencimiento || todayISO();
+    const base = desdeHoy ? todayISO() : target.fechaVencimiento || todayISO();
     const nuevo = addDaysISO(base, dias);
-    setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo } : u));
+    const cambios = desdeHoy ? { fecha_vencimiento: nuevo, enabled: true } : { fecha_vencimiento: nuevo };
+    setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo, ...(desdeHoy ? { enabled: true } : {}) } : u));
     try {
-      await supabase.from('alumnos').update({ fecha_vencimiento: nuevo }).eq('username', username);
+      await supabase.from('alumnos').update(cambios).eq('username', username);
       await supabase.from('ajustes_membresia').insert({ username, dias, motivo: motivo || null, fecha_resultante: nuevo });
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }

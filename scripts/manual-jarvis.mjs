@@ -1,14 +1,16 @@
-// Copia docs/manual-app.md dentro de la función jarvis-chat (Supabase no
-// puede leer archivos del repo cuando corre). Así Jarvis conoce la app
-// entera, pantalla por pantalla.
+// Copia docs/manual-app.md dentro de las funciones que lo usan (Supabase no
+// puede leer archivos del repo cuando corre): jarvis-chat, para que Jarvis
+// conozca la app entera, y whatsapp-webhook, para que el asistente de
+// WhatsApp responda las dudas de los clientes.
 //
-//   npm run manual-jarvis             → regenera supabase/functions/jarvis-chat/manual.ts
-//   node scripts/manual-jarvis.mjs --revisar  → falla si la copia está desactualizada
+//   npm run manual-jarvis             → regenera las copias (manual.ts)
+//   node scripts/manual-jarvis.mjs --revisar  → falla si alguna copia está desactualizada
 //                                       (se corre antes de cada build)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const origen = new URL('../docs/manual-app.md', import.meta.url);
-const destino = new URL('../supabase/functions/jarvis-chat/manual.ts', import.meta.url);
+const destinos = ['jarvis-chat', 'whatsapp-webhook']
+  .map(f => ({ ruta: `supabase/functions/${f}/manual.ts`, url: new URL(`../supabase/functions/${f}/manual.ts`, import.meta.url) }));
 
 const texto = readFileSync(origen, 'utf8');
 const contenido = `// Generado desde docs/manual-app.md con "npm run manual-jarvis". No editar a mano.
@@ -16,13 +18,14 @@ export const MANUAL_APP = ${JSON.stringify(texto)};
 `;
 
 if (process.argv.includes('--revisar')) {
-  const actual = existsSync(destino) ? readFileSync(destino, 'utf8') : '';
-  if (actual !== contenido) {
-    console.error('\n✗ El manual de la app cambió y Jarvis tiene una copia vieja.');
-    console.error('  Corre "npm run manual-jarvis" y sube el archivo supabase/functions/jarvis-chat/manual.ts.\n');
+  const viejos = destinos.filter(d => (existsSync(d.url) ? readFileSync(d.url, 'utf8') : '') !== contenido);
+  if (viejos.length) {
+    console.error('\n✗ El manual de la app cambió y hay copias viejas:');
+    viejos.forEach(d => console.error('  - ' + d.ruta));
+    console.error('  Corre "npm run manual-jarvis" y sube esos archivos.\n');
     process.exit(1);
   }
 } else {
-  writeFileSync(destino, contenido);
-  console.log('Listo: supabase/functions/jarvis-chat/manual.ts actualizado.');
+  destinos.forEach(d => writeFileSync(d.url, contenido));
+  console.log('Listo: ' + destinos.map(d => d.ruta).join(' y ') + ' actualizados.');
 }

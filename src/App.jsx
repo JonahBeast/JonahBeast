@@ -2183,6 +2183,10 @@ function Landing({ onChoose }) {
   }, []);
   function registrarClicCTA() {
     registrarEventoEmbudo('clic_cta');
+    // Avisa a Meta que alguien mostró interés (tocó "prueba gratis").
+    try {
+      if (window.fbq) window.fbq('track', 'Lead');
+    } catch (e) {}
     onChoose('trial');
   }
 
@@ -2676,10 +2680,13 @@ function TrialSignup({ onBack, onCreated }) {
     // El celular y la fecha de nacimiento se piden más adelante, en la
     // pantalla de planes, si es que aún faltan (ver PlanesTab).
 
-    // Avisa a TikTok que se completó un registro exitoso, para que
-    // pueda optimizar la campaña hacia este evento de conversión.
+    // Avisa a TikTok y a Meta que se completó un registro exitoso, para
+    // que puedan optimizar las campañas hacia este evento de conversión.
     try {
       if (window.ttq) window.ttq.track('CompleteRegistration');
+    } catch (e) {}
+    try {
+      if (window.fbq) window.fbq('track', 'CompleteRegistration');
     } catch (e) {}
 
     // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el

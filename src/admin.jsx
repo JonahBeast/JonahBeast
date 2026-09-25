@@ -2676,10 +2676,11 @@ function saludoJarvis(d = new Date()) {
 async function datosNegocioJarvis(users) {
   const hoy = todayISO();
   const ayer = addDaysISO(hoy, -1);
-  let pagosPendientes = null, registraronAyer = null, registraronHoy = null;
+  let pagosPendientes = null, pagosAtrasados = null, registraronAyer = null, registraronHoy = null;
   try {
-    const { count } = await supabase.from('pagos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
-    pagosPendientes = count || 0;
+    const { data } = await supabase.from('pagos').select('creado_en').eq('estado', 'pendiente').range(0, 999);
+    pagosPendientes = (data || []).length;
+    pagosAtrasados = (data || []).filter(p => Date.now() - new Date(p.creado_en).getTime() >= 12 * 3600000).length;
   } catch {}
   try {
     const { data } = await supabase.from('historial').select('username, fecha').in('fecha', [ayer, hoy]).gt('comidas_count', 0);
@@ -2708,7 +2709,7 @@ async function datosNegocioJarvis(users) {
     } else aMedias = 0;
   } catch {}
   return {
-    pagosPendientes, registraronAyer, registraronHoy, aMedias,
+    pagosPendientes, pagosAtrasados, registraronAyer, registraronHoy, aMedias,
     activos: activosL.length,
     enPrueba: activosL.filter(esPrueba).length,
     pagando: activosL.filter(u => !esPrueba(u)).length,
@@ -2719,7 +2720,9 @@ async function datosNegocioJarvis(users) {
 async function armarInformeJarvis(users) {
   const d = await datosNegocioJarvis(users);
   const partes = [];
-  partes.push(d.pagosPendientes ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar.` : 'No hay pagos pendientes.');
+  partes.push(d.pagosPendientes
+    ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar${d.pagosAtrasados ? `, ${d.pagosAtrasados === 1 ? 'uno espera más de 12 horas: ese alumno sigue sin acceso' : `${d.pagosAtrasados} esperan más de 12 horas: esos alumnos siguen sin acceso`}` : ''}.`
+    : 'No hay pagos pendientes.');
   if (d.vencen) partes.push(`${d.vencen} ${d.vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
   if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
   if (d.aMedias) partes.push(`${d.aMedias === 1 ? '1 alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias: ${d.aMedias === 1 ? 'puso sus datos' : 'pusieron sus datos'} pero no ${d.aMedias === 1 ? 'registró' : 'registraron'} su primera comida. Están en Rescate para escribirles hoy.`);
@@ -3477,7 +3480,7 @@ function JarvisPanel({ onClose, users }) {
     const datos = [
       { titulo: 'Alumnos activos', valor: d?.activos, detalle: d ? `${d.enPrueba} en prueba · ${d.pagando} pagando` : null },
       { titulo: 'Registraron hoy', valor: d?.registraronHoy, detalle: d && d.registraronAyer !== null ? `ayer: ${d.registraronAyer}` : null, avance: d && d.activos ? (d.registraronHoy || 0) / d.activos : null },
-      { titulo: 'Pagos por revisar', valor: d?.pagosPendientes, detalle: d ? (d.pagosPendientes ? 'revísalos en HOY' : 'todo al día') : null, alerta: !!d?.pagosPendientes },
+      { titulo: 'Pagos por revisar', valor: d?.pagosPendientes, detalle: d ? (d.pagosAtrasados ? `${d.pagosAtrasados} esperan +12 h` : d.pagosPendientes ? 'revísalos en HOY' : 'todo al día') : null, alerta: !!d?.pagosPendientes },
       { titulo: 'Pruebas por vencer', valor: d?.vencen, detalle: d ? `en 3 días · nuevos desde ayer: ${d.nuevos}` : null, alerta: !!d?.vencen },
     ];
     const hora = ahoraHud.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -5041,6 +5044,9 @@ function PagosPanel({ onAprobado }) {
   }
 
   const pendientes = pagos.filter(p => p.estado === 'pendiente');
+  // Pagos que esperan más de 12 horas: el alumno está sin acceso esperando.
+  const horasEsperando = p => (Date.now() - new Date(p.creado_en).getTime()) / 3600000;
+  const atrasados = pendientes.filter(p => horasEsperando(p) >= 12);
   const visibles = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
 
   return (
@@ -5050,12 +5056,21 @@ function PagosPanel({ onAprobado }) {
           💰 PAGOS {pendientes.length > 0 && (
             <span className="ml-2 bg-orange-500 text-zinc-950 text-xs px-2 py-0.5 rounded-full">{pendientes.length} por revisar</span>
           )}
+          {atrasados.length > 0 && (
+            <span className="ml-1.5 bg-red-500 text-zinc-50 text-xs px-2 py-0.5 rounded-full">⏰ {atrasados.length} +12 h</span>
+          )}
         </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
 
       {open && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4">
+          {atrasados.length > 0 && (
+            <div className="bg-red-950/40 border border-red-700/60 rounded-lg px-3 py-2.5 mb-3 jb-body text-xs text-zinc-200">
+              <span className="font-semibold text-red-300">⏰ {atrasados.length === 1 ? '1 pago espera' : `${atrasados.length} pagos esperan`} más de 12 horas.</span>{' '}
+              {atrasados.length === 1 ? 'Ese alumno está' : 'Esos alumnos están'} sin acceso hasta que apruebes. Los +7 días del bono se respetan igual: cuenta cuándo se envió el comprobante.
+            </div>
+          )}
 
           <div className="flex gap-2 mb-3 flex-wrap">
             {[['pendiente', 'Por revisar'], ['aprobado', 'Aprobados'], ['rechazado', 'Rechazados'], ['todos', 'Todos']].map(([v, l]) => (
@@ -5125,6 +5140,11 @@ function PagosPanel({ onAprobado }) {
                       <div className="text-zinc-500 text-xs jb-body mt-0.5">
                         {p.metodo} · Op. {p.operacion} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
+                      {p.estado === 'pendiente' && (
+                        <div className={`text-xs jb-body mt-0.5 ${horasEsperando(p) >= 12 ? 'text-red-400 font-semibold' : 'text-amber-400'}`}>
+                          ⏰ Esperando hace {textoHoras(horasEsperando(p))}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="jb-display text-xl text-orange-500">{fmtS(p.monto)}</div>

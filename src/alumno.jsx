@@ -2807,6 +2807,164 @@ function TrialBanner({ user, onVerPlanes, mealPlan }) {
   return <RetoPrueba user={user} mealPlan={mealPlan} />;
 }
 
+/* "Tu semana": los lunes, martes y miércoles, un resumen de la semana
+   pasada (lunes a domingo) con un botón para compartirlo en historias.
+   Refuerza el hábito y cada historia compartida muestra la marca. */
+function lunesDe(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const f = new Date(y, m - 1, d);
+  return addDaysISO(iso, -((f.getDay() + 6) % 7));
+}
+
+function resumenSemana(filas, lunes) {
+  const domingo = addDaysISO(lunes, 6);
+  const enSemana = filas.filter(r => r.fecha >= lunes && r.fecha <= domingo);
+  const conComida = enSemana.filter(r => Number(r.comidas_count) > 0);
+  const enMeta = conComida.filter(r => {
+    const obj = Number(r.kcal_objetivo), c = Number(r.kcal_consumidas);
+    return obj > 0 && c / obj >= 0.85 && c / obj <= 1.15;
+  }).length;
+  const pesoDe = lista => { const p = lista.filter(r => Number(r.peso) > 0); return p.length ? Number(p[p.length - 1].peso) : null; };
+  const pesoFin = pesoDe(enSemana);
+  const pesoAntes = pesoDe(filas.filter(r => r.fecha < lunes));
+  const deltaPeso = pesoFin !== null && pesoAntes !== null && Math.abs(pesoFin - pesoAntes) >= 0.1 ? pesoFin - pesoAntes : null;
+  // Racha que sigue viva: días seguidos con comida hasta hoy (o hasta ayer).
+  const dias = new Set(filas.filter(r => Number(r.comidas_count) > 0).map(r => r.fecha));
+  let f = dias.has(todayISO()) ? todayISO() : addDaysISO(todayISO(), -1), racha = 0;
+  while (dias.has(f)) { racha++; f = addDaysISO(f, -1); }
+  return { dias: conComida.length, enMeta, deltaPeso, racha, lunes, domingo };
+}
+
+async function imagenSemana({ nombre, r }) {
+  try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
+  const W = 1080, H = 1920;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const CARBON = '#16110D', CREMA = '#FAF6F0', NARANJA = '#E8590C', NARANJA2 = '#FF7020', GRIS = '#A8A29E';
+  const titulo = t => `${t}px Anton, Impact, Arial Black, sans-serif`;
+  const cuerpo = (t, w = 500) => `${w} ${t}px "Work Sans", Arial, sans-serif`;
+  ctx.fillStyle = CARBON; ctx.fillRect(0, 0, W, H);
+  const brillo = ctx.createRadialGradient(W / 2, 260, 40, W / 2, 260, 900);
+  brillo.addColorStop(0, 'rgba(232,89,12,0.35)'); brillo.addColorStop(1, 'rgba(232,89,12,0)');
+  ctx.fillStyle = brillo; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = titulo(64);
+  const anchoMarca = ctx.measureText('JONAH BEAST ').width, anchoFuel = ctx.measureText('FUEL').width;
+  const xMarca = (W - anchoMarca - anchoFuel) / 2;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = CREMA; ctx.fillText('JONAH BEAST ', xMarca, 190);
+  ctx.fillStyle = NARANJA; ctx.fillText('FUEL', xMarca + anchoMarca, 190);
+  ctx.textAlign = 'center';
+  ctx.font = titulo(150); ctx.fillStyle = CREMA; ctx.fillText('MI SEMANA', W / 2, 420);
+  ctx.font = cuerpo(40); ctx.fillStyle = GRIS;
+  ctx.fillText(`${nombre ? nombre.split(' ')[0] + ' · ' : ''}${fechaCorta(r.lunes)} – ${fechaCorta(r.domingo)}`, W / 2, 490);
+  ctx.font = titulo(330); ctx.fillStyle = NARANJA2; ctx.fillText(`${r.dias}/7`, W / 2, 870);
+  ctx.font = cuerpo(52, 600); ctx.fillStyle = CREMA; ctx.fillText('días registrando mis comidas', W / 2, 950);
+  const cajas = [
+    [`${r.enMeta}`, r.enMeta === 1 ? 'día en mi meta' : 'días en mi meta'],
+    r.deltaPeso !== null ? [`${r.deltaPeso > 0 ? '+' : '−'}${Math.abs(r.deltaPeso).toFixed(1)} kg`, 'esta semana'] : null,
+    r.racha >= 2 ? [`${r.racha} 🔥`, 'días de racha'] : null,
+  ].filter(Boolean);
+  const bw = cajas.length === 3 ? 290 : cajas.length === 2 ? 420 : 600, gap = 40;
+  const total = cajas.length * bw + (cajas.length - 1) * gap;
+  cajas.forEach(([v, t], i) => {
+    const x = (W - total) / 2 + i * (bw + gap), y = 1060;
+    ctx.fillStyle = '#231B15';
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, bw, 260, 28); ctx.fill(); } else ctx.fillRect(x, y, bw, 260);
+    ctx.strokeStyle = 'rgba(232,89,12,0.5)'; ctx.lineWidth = 3;
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(x, y, bw, 260, 28); ctx.stroke(); }
+    // El número se achica si no entra en su recuadro (ej. "−0.6 kg").
+    let tam = cajas.length === 3 ? 96 : 110;
+    ctx.font = titulo(tam);
+    while (tam > 40 && ctx.measureText(v).width > bw - 40) { tam -= 4; ctx.font = titulo(tam); }
+    ctx.fillStyle = CREMA; ctx.fillText(v, x + bw / 2, y + 145);
+    ctx.font = cuerpo(34); ctx.fillStyle = GRIS; ctx.fillText(t, x + bw / 2, y + 210);
+  });
+  ctx.font = titulo(92); ctx.fillStyle = CREMA; ctx.fillText('NO ES QUÉ COMES.', W / 2, 1560);
+  ctx.fillStyle = NARANJA; ctx.fillText('ES CUÁNTO.', W / 2, 1670);
+  ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
+  return new Promise((resolve, reject) => {
+    try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('sin imagen')), 'image/png'); } catch (e) { reject(e); }
+  });
+}
+
+function TuSemanaCard({ username, nombre }) {
+  const hoy = todayISO();
+  const lunesPasado = addDaysISO(lunesDe(hoy), -7);
+  const diaSemana = (new Date().getDay() + 6) % 7; // 0 = lunes
+  const clave = `jb_semana_${username}_${lunesPasado}`;
+  const [cerrada, setCerrada] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
+  const [r, setR] = useState(null);
+  const [compartiendo, setCompartiendo] = useState(false);
+  const toca = diaSemana <= 2 && !cerrada;
+
+  useEffect(() => {
+    if (!toca) return;
+    let vivo = true;
+    supabase.from('historial').select('fecha, comidas_count, kcal_consumidas, kcal_objetivo, peso')
+      .eq('username', username).gte('fecha', addDaysISO(lunesPasado, -30)).lte('fecha', hoy).order('fecha', { ascending: true })
+      .then(({ data }) => { if (vivo) setR(resumenSemana(data || [], lunesPasado)); }, () => {});
+    return () => { vivo = false; };
+  }, [toca, username, lunesPasado]);
+
+  if (!toca || !r || r.dias < 1) return null;
+
+  function cerrar() {
+    try { localStorage.setItem(clave, '1'); } catch {}
+    setCerrada(true);
+  }
+  async function compartir() {
+    setCompartiendo(true);
+    try {
+      const blob = await imagenSemana({ nombre, r });
+      const archivo = new File([blob], 'mi-semana-jonah-beast.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        await navigator.share({ files: [archivo], title: 'Mi semana en Jonah Beast Fuel' });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'mi-semana-jonah-beast.png'; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+    } catch (e) {
+      if (!(e && e.name === 'AbortError')) showToast('No se pudo crear la imagen. Intenta de nuevo.', 'error');
+    }
+    setCompartiendo(false);
+  }
+
+  const titulo = r.dias >= 5 ? '¡SEMANA DE BESTIA! 🔥' : r.dias >= 3 ? 'BUENA SEMANA 💪' : 'ARRANCASTE: ESTA SEMANA VAMOS POR MÁS';
+  const datos = [
+    [`${r.dias}/7`, 'días registrados'],
+    [`${r.enMeta}`, r.enMeta === 1 ? 'día en tu meta' : 'días en tu meta'],
+    r.deltaPeso !== null ? [`${r.deltaPeso > 0 ? '+' : '−'}${Math.abs(r.deltaPeso).toFixed(1)}`, 'kg'] : r.racha >= 2 ? [`${r.racha} 🔥`, 'días de racha'] : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/50 rounded-2xl p-4 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 30px -12px rgba(232,89,12,.5)' }}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Tu semana · {fechaCorta(r.lunes)} – {fechaCorta(r.domingo)}</p>
+          <p className="jb-display text-lg text-zinc-50 leading-tight mt-0.5">{titulo}</p>
+        </div>
+        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 p-1 shrink-0" aria-label="Cerrar"><X size={16} /></button>
+      </div>
+      <div className={`grid gap-2 mt-3 ${datos.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {datos.map(([v, t]) => (
+          <div key={t} className="bg-zinc-950 border border-zinc-800 rounded-xl py-2.5 text-center">
+            <p className="jb-display text-2xl text-orange-400 tabular-nums leading-none">{v}</p>
+            <p className="jb-body text-[10px] text-zinc-400 mt-1">{t}</p>
+          </div>
+        ))}
+      </div>
+      <button onClick={compartir} disabled={compartiendo} className={btnPrimary + ' w-full py-2.5 mt-3'}>
+        {compartiendo ? <Loader2 className="animate-spin" size={16} /> : '📲 Compartir en historias'}
+      </button>
+    </div>
+  );
+}
+
 function PhotosTab({ username, pesoActual }) {
   const [fotos, setFotos] = useState([]);
   const [urls, setUrls] = useState({});
@@ -7093,6 +7251,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           )
         )}
+        {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
       </div>
 
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">

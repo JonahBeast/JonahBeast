@@ -1994,11 +1994,16 @@ function NotifTrasComidaModal({ username, onClose }) {
         ) : (
           <>
             <h2 className="jb-display text-xl text-zinc-50 mb-3">¡COMIDA REGISTRADA! 💪</h2>
-            <p className="jb-body text-sm text-zinc-300 mb-5">
-              ¿Quieres que te avise cuando se te pase registrar una comida? Así no pierdes el ritmo. Solo lo importante, sin spam.
+            <p className="jb-body text-sm text-zinc-300 mb-2">
+              ¿Activamos tus avisos? Solo lo importante, sin spam:
             </p>
+            <ul className="mb-5 flex flex-col gap-1 text-left">
+              {BENEFICIOS_AVISOS.map(([e, t]) => (
+                <li key={t} className="jb-body text-xs text-zinc-300 flex items-start gap-2"><span>{e}</span><span>{t}</span></li>
+              ))}
+            </ul>
             <button onClick={activar} disabled={trabajando} className={btnPrimary + ' w-full mb-2'}>
-              {trabajando ? <Loader2 className="animate-spin" size={18} /> : '🔔 Sí, recuérdame'}
+              {trabajando ? <Loader2 className="animate-spin" size={18} /> : '🔔 Sí, activar avisos'}
             </button>
             <button onClick={onClose} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 w-full py-2">
               Ahora no
@@ -2010,13 +2015,138 @@ function NotifTrasComidaModal({ username, onClose }) {
   );
 }
 
-function RecordatorioBanner({ username, onEligible }) {
+/* Guía con dibujos para iPhone: Apple solo deja recibir notificaciones si
+   la app está en la pantalla de inicio. Es donde más gente se traba, así
+   que se muestra paso a paso con un dibujo simple de cada pantalla. */
+function DibujoIphone({ paso }) {
+  const naranja = '#E8590C';
+  return (
+    <svg viewBox="0 0 120 200" className="w-28 h-auto mx-auto" aria-hidden="true">
+      <rect x="4" y="4" width="112" height="192" rx="16" fill="#18140f" stroke="#57534e" strokeWidth="2" />
+      <rect x="44" y="10" width="32" height="6" rx="3" fill="#292524" />
+      {paso === 1 && (
+        <>
+          <rect x="14" y="26" width="92" height="120" rx="6" fill="#231d17" />
+          <text x="60" y="80" textAnchor="middle" fontSize="9" fill="#a8a29e" fontFamily="sans-serif">jonahbeast.com</text>
+          <rect x="10" y="156" width="100" height="30" rx="6" fill="#292524" />
+          <circle cx="60" cy="171" r="11" fill="none" stroke={naranja} strokeWidth="2.5" />
+          <rect x="54" y="168" width="12" height="10" rx="1.5" fill="none" stroke="#fafaf9" strokeWidth="1.6" />
+          <path d="M60 172 V160 M56 164 L60 160 L64 164" fill="none" stroke="#fafaf9" strokeWidth="1.6" strokeLinecap="round" />
+          <rect x="22" y="168" width="8" height="8" rx="1" fill="#57534e" />
+          <rect x="90" y="168" width="8" height="8" rx="1" fill="#57534e" />
+        </>
+      )}
+      {paso === 2 && (
+        <>
+          <rect x="10" y="60" width="100" height="126" rx="10" fill="#292524" />
+          {[0, 1, 2, 3].map(i => (
+            <rect key={i} x="18" y={72 + i * 26} width="84" height="20" rx="4"
+              fill={i === 2 ? '#3b2415' : '#231d17'} stroke={i === 2 ? naranja : 'none'} strokeWidth="2" />
+          ))}
+          <text x="24" y="136" fontSize="7.5" fill="#fafaf9" fontFamily="sans-serif">Agregar a inicio</text>
+          <rect x="88" y="126" width="10" height="10" rx="2" fill="none" stroke="#fafaf9" strokeWidth="1.3" />
+          <path d="M93 128.5 V133.5 M90.5 131 H95.5" stroke="#fafaf9" strokeWidth="1.3" strokeLinecap="round" />
+          <rect x="24" y="80" width="40" height="4" rx="2" fill="#57534e" />
+          <rect x="24" y="106" width="50" height="4" rx="2" fill="#57534e" />
+          <rect x="24" y="158" width="36" height="4" rx="2" fill="#57534e" />
+        </>
+      )}
+      {paso === 3 && (
+        <>
+          <rect x="10" y="24" width="100" height="100" rx="10" fill="#292524" />
+          <text x="18" y="40" fontSize="7" fill="#a8a29e" fontFamily="sans-serif">Cancelar</text>
+          <rect x="74" y="31" width="30" height="14" rx="4" fill="none" stroke={naranja} strokeWidth="2" />
+          <text x="89" y="41" textAnchor="middle" fontSize="7.5" fill="#fafaf9" fontWeight="bold" fontFamily="sans-serif">Agregar</text>
+          <rect x="20" y="56" width="22" height="22" rx="5" fill={naranja} />
+          <text x="31" y="71" textAnchor="middle" fontSize="10" fill="#18140f" fontWeight="bold" fontFamily="sans-serif">JB</text>
+          <text x="48" y="66" fontSize="7.5" fill="#fafaf9" fontFamily="sans-serif">JB Fuel</text>
+          <rect x="48" y="71" width="40" height="3" rx="1.5" fill="#57534e" />
+        </>
+      )}
+      {paso === 4 && (
+        <>
+          {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+            <rect key={i} x={18 + (i % 4) * 22} y={34 + Math.floor(i / 4) * 26} width="16" height="16" rx="4" fill="#292524" />
+          ))}
+          <rect x="16" y="84" width="20" height="20" rx="5" fill={naranja} stroke="#fafaf9" strokeWidth="1.5" />
+          <text x="26" y="98" textAnchor="middle" fontSize="8.5" fill="#18140f" fontWeight="bold" fontFamily="sans-serif">JB</text>
+          <circle cx="26" cy="94" r="16" fill="none" stroke={naranja} strokeWidth="2" strokeDasharray="3 3" />
+          <text x="60" y="140" textAnchor="middle" fontSize="7.5" fill="#fafaf9" fontFamily="sans-serif">Ábrela desde aquí</text>
+          <text x="60" y="152" textAnchor="middle" fontSize="7.5" fill="#fafaf9" fontFamily="sans-serif">y toca "Activar avisos"</text>
+        </>
+      )}
+    </svg>
+  );
+}
+
+const PASOS_IPHONE = [
+  ['Toca el botón Compartir', 'Es el cuadrito con la flecha hacia arriba, abajo en Safari. (En Chrome de iPhone está arriba a la derecha.)'],
+  ['Elige "Agregar a pantalla de inicio"', 'Desliza la lista hacia abajo si no lo ves al toque.'],
+  ['Toca "Agregar"', 'Arriba a la derecha. Se crea el ícono de JB Fuel en tu celular.'],
+  ['Ábrela desde ese ícono', 'Entra con tu cuenta, toca "Activar avisos" y acepta. ¡Listo!'],
+];
+
+function GuiaIphoneModal({ onCerrar }) {
+  const [paso, setPaso] = useState(0);
+  const [titulo, detalle] = PASOS_IPHONE[paso];
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-sm w-full p-5 text-center" onClick={e => e.stopPropagation()}>
+        <p className="jb-body text-[11px] text-orange-400 uppercase tracking-wider mb-1">Paso {paso + 1} de {PASOS_IPHONE.length}</p>
+        <h3 className="jb-display text-lg text-zinc-50 mb-3">{titulo.toUpperCase()}</h3>
+        <DibujoIphone paso={paso + 1} />
+        <p className="jb-body text-sm text-zinc-300 mt-3 min-h-[40px]">{detalle}</p>
+        <div className="flex justify-center gap-1.5 my-3">
+          {PASOS_IPHONE.map((_, i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-all ${i === paso ? 'w-5 bg-orange-500' : 'w-1.5 bg-zinc-700'}`} />
+          ))}
+        </div>
+        <div className="flex gap-2">
+          {paso > 0 && (
+            <button onClick={() => setPaso(p => p - 1)} className={btnGhost + ' flex-1 py-2.5'}>Atrás</button>
+          )}
+          {paso < PASOS_IPHONE.length - 1 ? (
+            <button onClick={() => setPaso(p => p + 1)} className={btnPrimary + ' flex-1 py-2.5'}>Siguiente</button>
+          ) : (
+            <button onClick={onCerrar} className={btnPrimary + ' flex-1 py-2.5'}>Entendido</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BotonGuiaIphone() {
+  const [ver, setVer] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setVer(true)} className="block mt-2 jb-body text-xs font-semibold text-orange-300 underline">
+        📲 Ver cómo, paso a paso
+      </button>
+      {ver && <GuiaIphoneModal onCerrar={() => setVer(false)} />}
+    </>
+  );
+}
+
+// Lo que gana el alumno al activar los avisos (se repite en los pedidos).
+const BENEFICIOS_AVISOS = [
+  ['🍽️', 'Te aviso si se te pasa registrar una comida'],
+  ['🔥', 'Cuando tu racha está en riesgo'],
+  ['🎁', 'Cuando tengas un regalo o tu prueba esté por terminar'],
+];
+
+// Pide activar los avisos. "soloSiFalta": no muestra nada si ya los
+// tiene (se usa durante la prueba gratis, debajo de la tarjeta del reto;
+// antes, en la prueba no se volvían a pedir y la mitad no los tenía).
+// "Ahora no" lo guarda 7 días: se vuelve a ofrecer una vez por semana.
+function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
   const [estado, setEstado] = useState('cargando'); // cargando | disponible | activo | bloqueado | nosoportado | iosNoInstalado
   const [ocultoManual, setOcultoManual] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
+  const [verGuiaIphone, setVerGuiaIphone] = useState(false);
 
-  const visible = (estado === 'activo' || estado === 'iosNoInstalado')
-    ? true
+  const visible = estado === 'activo'
+    ? !soloSiFalta
     : (estado === 'cargando' || estado === 'nosoportado')
       ? false
       : !ocultoManual;
@@ -2030,18 +2160,19 @@ function RecordatorioBanner({ username, onEligible }) {
       const instalada = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
 
-      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        // En iPhone, esto es normal si todavía no instaló la app —
-        // se lo explicamos en vez de quedarnos en silencio.
-        setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
-        return;
-      }
       try {
         const marca = Number(localStorage.getItem('jb_notif_no'));
         // Igual que con el banner de instalar: la marca de "no
         // mostrar" dura 7 días, no para siempre.
         if (marca && Date.now() - marca < 7 * 24 * 60 * 60 * 1000) setOcultoManual(true);
       } catch {}
+
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        // En iPhone, esto es normal si todavía no instaló la app —
+        // se lo explicamos en vez de quedarnos en silencio.
+        setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        return;
+      }
 
       if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
       try {
@@ -2083,21 +2214,8 @@ function RecordatorioBanner({ username, onEligible }) {
   }
 
   if (estado === 'cargando' || estado === 'nosoportado') return null;
-  if (estado === 'iosNoInstalado') {
-    return (
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-xl p-3 mb-6 flex items-center gap-3">
-        <span className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }} />
-        </span>
-        <p className="jb-body text-xs text-zinc-400">
-          Para que Jonah pueda acompañarte con notificaciones en iPhone, primero instala la app en tu pantalla
-          de inicio — mira el aviso de arriba 📲
-        </p>
-      </div>
-    );
-  }
   if (estado === 'activo') {
+    if (soloSiFalta) return null;
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6 flex items-center gap-3 flex-wrap">
         <span className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
@@ -2115,37 +2233,55 @@ function RecordatorioBanner({ username, onEligible }) {
     );
   }
   if (ocultoManual) return null;
-  if (estado === 'bloqueado') {
-    return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 mb-6">
-        <p className="jb-body text-xs text-zinc-500">
-          🔕 Bloqueaste las notificaciones. Si quieres que Jonah te acompañe con recordatorios, habilítalas
-          en los ajustes de tu navegador para este sitio.
-        </p>
-      </div>
-    );
-  }
+
+  const beneficios = (
+    <ul className="mt-2 flex flex-col gap-1">
+      {BENEFICIOS_AVISOS.map(([e, t]) => (
+        <li key={t} className="jb-body text-xs text-zinc-300 flex items-start gap-2"><span>{e}</span><span>{t}</span></li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 pl-5 mb-6 overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
+      {verGuiaIphone && <GuiaIphoneModal onCerrar={() => setVerGuiaIphone(false)} />}
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shrink-0">
           <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
             onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
-        <div className="flex-1">
-          <p className="jb-display text-sm text-orange-500 mb-1">JONAH QUIERE ACOMPAÑARTE</p>
-          <p className="jb-body text-sm text-zinc-300">
-            No olvides activar las notificaciones — así Jonah estará contigo, y si se te olvida registrar alguna comida, te pregunta cómo vas y te lo recuerda.
+        <div className="flex-1 min-w-0">
+          <p className="jb-display text-sm text-orange-500 mb-0.5">
+            {estado === 'bloqueado' ? 'TUS AVISOS ESTÁN BLOQUEADOS' : 'ACTIVA LOS AVISOS DE JONAH'}
           </p>
-          <button onClick={activar} disabled={trabajando} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
-            {trabajando ? <Loader2 className="animate-spin" size={16} /> : 'Activar y que Jonah me acompañe'}
-          </button>
+          <p className="jb-body text-xs text-zinc-400">
+            {estado === 'iosNoInstalado'
+              ? 'En iPhone los avisos solo llegan si la app está en tu pantalla de inicio. Toma 1 minuto:'
+              : estado === 'bloqueado'
+                ? 'Así te perderías estos avisos:'
+                : 'Solo lo importante, sin spam:'}
+          </p>
+          {beneficios}
+          {estado === 'iosNoInstalado' ? (
+            <button onClick={() => setVerGuiaIphone(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+              📲 Ver cómo, paso a paso
+            </button>
+          ) : estado === 'bloqueado' ? (
+            <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+              <p className="jb-body text-[11px] text-zinc-300 font-semibold mb-1">Para desbloquearlos:</p>
+              <p className="jb-body text-[11px] text-zinc-400">
+                Si abres la app desde Chrome: toca el candado o los tres puntos junto a la dirección → Permisos o Configuración del sitio → Notificaciones → Permitir.
+                Si la tienes instalada: Ajustes del celular → Apps → JB Fuel (o Chrome) → Notificaciones → Activar. Luego vuelve a abrir la app.
+              </p>
+            </div>
+          ) : (
+            <button onClick={activar} disabled={trabajando} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
+              {trabajando ? <Loader2 className="animate-spin" size={16} /> : '🔔 Activar avisos'}
+            </button>
+          )}
+          <button onClick={cerrar} className="block jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
         </div>
-        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1">
-          <X size={16} />
-        </button>
       </div>
     </div>
   );
@@ -4073,9 +4209,10 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
                 </p>
               )}
               {estadoPush === 'iosNoInstalado' && (
-                <p className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5">
-                  En iPhone, primero instala la app en tu pantalla de inicio para poder recibir notificaciones. Puedes hacerlo más tarde y volver a activarlas.
-                </p>
+                <div className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5">
+                  En iPhone, primero instala la app en tu pantalla de inicio para poder recibir notificaciones. Toma 1 minuto.
+                  <BotonGuiaIphone />
+                </div>
               )}
             </div>
           )}
@@ -6456,9 +6593,10 @@ function NotificacionesModal({ username, onClose }) {
               </p>
             )}
             {estado === 'iosNoInstalado' && (
-              <p className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5 mb-4">
+              <div className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5 mb-4">
                 En iPhone, primero instala la app en tu pantalla de inicio para poder recibir notificaciones.
-              </p>
+                <BotonGuiaIphone />
+              </div>
             )}
             <div className="flex gap-2">
               <button onClick={onClose} className={btnGhost + ' flex-1'} disabled={activando}>Cerrar</button>
@@ -6944,7 +7082,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           renewalElegible ? (
             <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
           ) : trialElegible ? (
-            <TrialBanner user={userRecord} mealPlan={mealPlan} onVerPlanes={() => setTab('planes')} />
+            <>
+              <TrialBanner user={userRecord} mealPlan={mealPlan} onVerPlanes={() => setTab('planes')} />
+              <RecordatorioBanner username={username} soloSiFalta />
+            </>
           ) : (
             <>
               <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />

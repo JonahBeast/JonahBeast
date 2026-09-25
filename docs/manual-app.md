@@ -467,8 +467,9 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 ### 14.1 Activar
 
-- En la guía de bienvenida, en la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, recuérdame"), en el aviso de Inicio "JONAH QUIERE ACOMPAÑARTE", o en el pie → **"Activar notificaciones"**.
-- **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono.
+- En la guía de bienvenida, en la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos"), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos"), o en el pie → **"Activar notificaciones"**.
+- La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante la prueba gratis**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 7 días; después vuelve a salir una vez por semana.
+- **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio, la guía de bienvenida y "Activar notificaciones" tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
 - **En Android** (Xiaomi, Huawei, Oppo, Samsung): Ajustes → Batería → Chrome → **"Sin restricciones"**, si no se apagan los avisos.
 
 ### 14.2 Desactivar
@@ -504,7 +505,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 
 ### 14.5 Problemas
 
-- "Parece que ya las bloqueaste antes…" / "ESTÁN BLOQUEADAS" → activarlas a mano en los ajustes del navegador para jonahbeast.com.
+- "Parece que ya las bloqueaste antes…" / "ESTÁN BLOQUEADAS" / tarjeta **"TUS AVISOS ESTÁN BLOQUEADOS"** → activarlas a mano: en Chrome, candado o tres puntos junto a la dirección → Permisos / Configuración del sitio → Notificaciones → Permitir; con la app instalada, Ajustes del celular → Apps → JB Fuel (o Chrome) → Notificaciones → Activar. Luego volver a abrir la app.
 - "En iPhone, primero instala la app en tu pantalla de inicio…" → ver 14.3.
 - "Tu navegador actual no soporta notificaciones." → usar Chrome (Android) o la app instalada (iPhone).
 - "No me llegan" → revisar permisos, batería "Sin restricciones" (Android) y que el plan esté vigente.

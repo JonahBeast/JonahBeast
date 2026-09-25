@@ -172,6 +172,11 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
 
   // Registrar el cobro. Si este número de pedido ya estaba, es un cobro
   // que ya se procesó: no se vuelve a extender.
+  // Las compras de prueba (cuentas de prueba de licencias) quedan solo
+  // como historial, con estado 'prueba': no suman tiempo al plan, no
+  // entran a Finanzas ni cuentan para el premio de invitación. Google
+  // "renueva" las pruebas cada pocos minutos y si no, cada renovación
+  // regalaría un mes.
   const { error: errPago } = await supabase.from('pagos').insert({
     username: dueno,
     nombre: alumno.nombre || '',
@@ -179,13 +184,14 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
     monto,
     metodo: 'Google Play',
     operacion: pedido,
-    estado: 'aprobado',
+    estado: esPrueba ? 'prueba' : 'aprobado',
     nota_admin: esPrueba
-      ? 'Compra de prueba de Google Play (no se cobró dinero real).'
+      ? 'Compra de prueba de Google Play: no se cobró dinero real y no suma tiempo al plan.'
       : 'Precio de lista. Google descuenta su comisión (15%) e impuestos antes de depositar.',
     revisado_en: new Date().toISOString(),
   });
   if (errPago) return { ok: true, activado: false, yaProcesado: true, estado };
+  if (esPrueba) return { ok: true, activado: false, prueba: true, estado };
 
   const hoy = hoyPeruISO();
   const base = alumno.fecha_vencimiento && alumno.fecha_vencimiento > hoy ? alumno.fecha_vencimiento : hoy;

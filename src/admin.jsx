@@ -4584,8 +4584,8 @@ function PagosPanel({ onAprobado }) {
                   ) : (
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className={`jb-body text-xs px-2.5 py-1 rounded-full ${p.estado === 'aprobado'
-                        ? 'bg-emerald-950/60 text-emerald-400' : 'bg-red-950/60 text-red-400'}`}>
-                        {p.estado === 'aprobado' ? '✓ Aprobado' : '✕ Rechazado'}
+                        ? 'bg-emerald-950/60 text-emerald-400' : p.estado === 'prueba' ? 'bg-zinc-800 text-zinc-300' : 'bg-red-950/60 text-red-400'}`}>
+                        {p.estado === 'aprobado' ? '✓ Aprobado' : p.estado === 'prueba' ? '🧪 Prueba' : '✕ Rechazado'}
                         {p.revisado_en && ` · ${new Date(p.revisado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}`}
                       </span>
                       {p.nota_admin && <span className="jb-body text-xs text-zinc-500">{p.nota_admin}</span>}

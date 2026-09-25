@@ -3563,8 +3563,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       // luego el servidor activa el plan.
       try { await respuesta.complete('success'); } catch {}
       try {
-        await enviarCompraGoogle(purchaseToken);
-        showToast('¡Listo! Tu plan ya está activo 💪');
+        const r = await enviarCompraGoogle(purchaseToken);
+        showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).' : '¡Listo! Tu plan ya está activo 💪');
         setTimeout(() => window.location.reload(), 1200);
       } catch (e) {
         setPlayMsg('Tu pago quedó registrado en Google. Estamos activando tu plan: vuelve a abrir la app en unos minutos. Si no se activa, escríbenos por WhatsApp.');

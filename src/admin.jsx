@@ -3609,7 +3609,7 @@ async function armarInformeJarvis(users) {
   if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
   if (d.aMedias) partes.push(`${d.aMedias === 1 ? '1 alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias: ${d.aMedias === 1 ? 'puso sus datos' : 'pusieron sus datos'} pero no ${d.aMedias === 1 ? 'registró' : 'registraron'} su primera comida. Están en Rescate para escribirles hoy.`);
   if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
-  return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
+  return `${saludoJarvis()}, señor Jonah. ${partes.join(' ')} ¿Qué necesita?`;
 }
 // Clima actual de Lima (Open-Meteo: gratis y sin clave). Si no responde
 // en 3 segundos, Jarvis saluda sin el clima.
@@ -3666,7 +3666,7 @@ async function sugerenciasJarvis(users, d) {
     const cuando = dl === 0 ? 'hoy' : 'mañana';
     const otros = porVencer.length - 1;
     sug.push({
-      texto: `${primerNombre(u)} termina su prueba ${cuando} y aún no paga${otros ? ` (y ${otros} más vencen pronto)` : ''}. Un mensaje tuyo ahora vale más que diez anuncios.`,
+      texto: `${primerNombre(u)} termina su prueba ${cuando} y aún no paga${otros ? ` (y ${otros} más vencen pronto)` : ''}. Un mensaje suyo ahora vale más que diez anuncios.`,
       voz: `Sugiero escribirle a ${primerNombre(u)}: su prueba termina ${cuando}.`,
       boton: 'Escribirle por WhatsApp',
       url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍. Tu prueba gratis termina ${cuando}. ¿Cómo te fue? Si quieres seguir, te ayudo a elegir tu plan 💪`),
@@ -3690,7 +3690,7 @@ async function sugerenciasJarvis(users, d) {
         const { u, dias } = quietos[0];
         sug.push({
           texto: `${primerNombre(u)} lleva ${dias} días sin registrar sus comidas${quietos.length > 1 ? ` (${quietos.length - 1} más, igual)` : ''}. Suele ser el primer paso antes de irse; un "¿cómo vas?" a tiempo ayuda.`,
-          voz: `${primerNombre(u)} lleva ${enLetras(dias)} días sin registrar. Un mensaje tuyo ayudaría.`,
+          voz: `${primerNombre(u)} lleva ${enLetras(dias)} días sin registrar. Un mensaje suyo ayudaría.`,
           boton: 'Escribirle por WhatsApp',
           url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah 🦍. Vi que llevas unos días sin registrar tus comidas. ¿Todo bien? Si te trabas con algo, dime y lo vemos juntos 💪`),
         });
@@ -3724,7 +3724,7 @@ async function tarjetasInformeJarvis(users) {
   if (d.vencen) urgentes.push(`${d.vencen === 1 ? 'una prueba' : `${enLetras(d.vencen)} pruebas`} por vencer`);
   if (d.aMedias) urgentes.push(`${d.aMedias === 1 ? 'un alumno' : `${enLetras(d.aMedias)} alumnos`} a medias`);
   const pendientes = juntarFrases(urgentes);
-  const frase = `${saludoJarvis()}, Jonah.${clima ? ` ${clima}.` : ''}${cobrado ? ` ${cobrado}` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
+  const frase = `${saludoJarvis()}, señor Jonah.${clima ? ` ${clima}.` : ''}${cobrado ? ` ${cobrado}` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
   const tarjetas = [];
   if (d.cobradoDesdeAyer !== null) tarjetas.push({
     titulo: '💰 Cobrado desde ayer', valor: `S/${d.cobradoDesdeAyer.toFixed(2)}`,
@@ -4212,7 +4212,7 @@ function JarvisPanel({ onClose, users }) {
     sonidoJarvis('abrir');
     let yaHoy = false;
     try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
-    setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
+    setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, señor Jonah. A la orden. ¿Qué necesita?` }]);
     if (!yaHoy) {
       tarjetasInformeJarvis(users).then(({ frase, visual, sugerencias }) => {
         setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual, sugerencias } : m)));
@@ -4269,7 +4269,7 @@ function JarvisPanel({ onClose, users }) {
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
     const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
-    if (!confirmar) { marcar('cancelada'); decir('Entendido, Jonah Beast: no activé nada.'); return; }
+    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor Jonah: no activé nada.'); return; }
     marcar('enviando');
     try {
       const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias } });
@@ -4339,8 +4339,8 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, Jonah?' }]);
-        hablarRef.current('¿Sí, Jonah?');
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor Jonah?' }]);
+        hablarRef.current('¿Sí, señor Jonah?');
         return;
       }
       despiertoHastaRef.current = 0;

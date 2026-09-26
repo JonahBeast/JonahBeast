@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
     const r = await enviarPushA(supabase, [admin.username], {
       title: 'Jarvis ☀️',
-      body: `Buenos días, Jonah. ${partes.join(' ')}`,
+      body: `Buenos días, señor Jonah. ${partes.join(' ')}`,
     });
     return res.status(200).json({ ok: true, enviados: r.enviados });
   } catch (e) {

@@ -3602,10 +3602,42 @@ async function armarInformeJarvis(users) {
   if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
   return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
 }
-// Al abrir (la primera vez del día): el informe en tarjetas, sin voz ni
-// párrafos. Las que piden acción hoy salen en naranja.
+// Clima actual de Lima (Open-Meteo: gratis y sin clave). Si no responde
+// en 3 segundos, Jarvis saluda sin el clima.
+const CLIMA_POR_CODIGO = [
+  [[0], 'cielo despejado'], [[1], 'cielo mayormente despejado'], [[2], 'cielo parcialmente nublado'],
+  [[3], 'cielo cubierto'], [[45, 48], 'neblina'], [[51, 53, 55, 56, 57], 'garúa'],
+  [[61, 63, 65, 66, 67, 80, 81, 82], 'lluvia'], [[95, 96, 99], 'tormenta'],
+];
+async function climaLimaJarvis() {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-12.05&longitude=-77.04&current=temperature_2m,weather_code&timezone=America%2FLima', { signal: ctrl.signal });
+    clearTimeout(t);
+    const c = (await r.json())?.current;
+    if (!c || typeof c.temperature_2m !== 'number') return null;
+    const desc = (CLIMA_POR_CODIGO.find(([codigos]) => codigos.includes(c.weather_code)) || [null, 'cielo nublado'])[1];
+    return `${Math.round(c.temperature_2m)} grados y ${desc} en Lima`;
+  } catch { return null; }
+}
+const NUMEROS_JARVIS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
+const enLetras = n => NUMEROS_JARVIS[n] || String(n);
+function juntarFrases(partes) {
+  return partes.length <= 1 ? (partes[0] || '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+}
+
+// Al abrir (la primera vez del día): una sola frase dicha en voz alta
+// (saludo, clima y solo lo urgente) y debajo las tarjetas. Las tarjetas
+// que piden acción hoy salen en naranja.
 async function tarjetasInformeJarvis(users) {
-  const d = await datosNegocioJarvis(users);
+  const [d, clima] = await Promise.all([datosNegocioJarvis(users), climaLimaJarvis()]);
+  const urgentes = [];
+  if (d.pagosPendientes) urgentes.push(`${enLetras(d.pagosPendientes)} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar`);
+  if (d.vencen) urgentes.push(`${d.vencen === 1 ? 'una prueba' : `${enLetras(d.vencen)} pruebas`} por vencer`);
+  if (d.aMedias) urgentes.push(`${d.aMedias === 1 ? 'un alumno' : `${enLetras(d.aMedias)} alumnos`} a medias`);
+  const pendientes = juntarFrases(urgentes);
+  const frase = `${saludoJarvis()}, Jonah.${clima ? ` ${clima}.` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
   const tarjetas = [];
   if (d.pagosPendientes !== null) tarjetas.push({
     titulo: '💳 Pagos por revisar', valor: String(d.pagosPendientes),
@@ -3616,7 +3648,7 @@ async function tarjetasInformeJarvis(users) {
   if (d.registraronAyer !== null) tarjetas.push({ titulo: '🍽️ Registraron ayer', valor: `${d.registraronAyer}/${d.activos}`, detalle: 'alumnos activos' });
   if (d.aMedias) tarjetas.push({ titulo: '🆘 A medias', valor: String(d.aMedias), detalle: 'sin primera comida · en Rescate', alerta: true });
   else if (d.nuevos) tarjetas.push({ titulo: '🆕 Nuevos', valor: String(d.nuevos), detalle: 'desde ayer' });
-  return { tarjetas };
+  return { frase, visual: { tarjetas } };
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
 
@@ -4069,9 +4101,9 @@ function JarvisPanel({ onClose, users }) {
   const hablarRef = useRef(null);
   hablarRef.current = hablar;
 
-  // Al abrir: la primera vez del día muestra el informe en tarjetas (sin
-  // voz); las demás veces, un saludo corto. El informe hablado sigue en el
-  // botón "Informe del día".
+  // Al abrir: la primera vez del día dice una sola frase (saludo, clima y
+  // lo urgente) y muestra las tarjetas; las demás veces, un saludo corto.
+  // El informe completo hablado sigue en el botón "Informe del día".
   async function darInforme() {
     setTurnos(ts => [...ts.filter(m => !(m.escribiendo && !m.content)), { role: 'assistant', content: '', escribiendo: true }]);
     setPensando(true);
@@ -4090,8 +4122,10 @@ function JarvisPanel({ onClose, users }) {
     try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
     setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
     if (!yaHoy) {
-      tarjetasInformeJarvis(users).then(visual => {
-        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: `${saludoJarvis()}, Jonah. Así va el día:`, visual } : m)));
+      tarjetasInformeJarvis(users).then(({ frase, visual }) => {
+        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual } : m)));
+        sonidoJarvis('respuesta');
+        hablarRef.current(frase);
       }).catch(() => {});
     }
   }, []);

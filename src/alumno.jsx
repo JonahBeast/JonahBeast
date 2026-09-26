@@ -6246,13 +6246,18 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     let cancelado = false;
     let timer = null;
     setTardando(false);
-    const aviso = setTimeout(() => { if (!cancelado) setTardando(true); }, 7000);
+    const aviso = setTimeout(() => { if (!cancelado) setTardando(true); }, 6000);
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('sin cámara');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        // Alta resolución: con la cámara por defecto (640×480 en iPhone) las
+        // barras salen demasiado finas y el código casi nunca se lee.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false,
+        });
         if (cancelado) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
+        try { await stream.getVideoTracks()[0]?.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
         const video = videoRef.current;
         if (!video) return;
         video.srcObject = stream;
@@ -6279,7 +6284,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             // Si el lector en vivo no funciona en este celular, se pasa a la foto del código.
             if (++fallos >= 12) { apagarCamara(); setMensaje('No pudimos leer el código con la cámara en vivo.'); setEstado('sin_camara'); return; }
           }
-          timer = setTimeout(mirar, 250);
+          timer = setTimeout(mirar, 150);
         };
         mirar();
       } catch {
@@ -6316,11 +6321,26 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     apagarCamara();
     setEstado('buscando');
     try {
-      const [lector, imagen] = await Promise.all([crearLectorCodigo(), createImageBitmap(await comprimirImagen(file, 1600, 0.92))]);
-      const hallados = await lector.detect(imagen);
-      const valor = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8).sort((a, b) => b.length - a.length)[0];
+      const blob = await comprimirImagen(file, 1600, 0.92);
+      let valor = '';
+      try {
+        const [lector, imagen] = await Promise.all([crearLectorCodigo(), createImageBitmap(blob)]);
+        const hallados = await lector.detect(imagen);
+        valor = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8).sort((a, b) => b.length - a.length)[0] || '';
+      } catch {}
+      // Si las barras no se leen, la IA lee los números impresos debajo.
+      if (!valor) {
+        const base64 = await new Promise((ok, mal) => {
+          const reader = new FileReader();
+          reader.onload = () => ok(String(reader.result).split(',')[1] || '');
+          reader.onerror = mal;
+          reader.readAsDataURL(blob);
+        });
+        const r = await llamarProductos({ accion: 'leer_codigo_foto', imagenBase64: base64, mimeType: 'image/jpeg' });
+        valor = r.codigo || '';
+      }
       if (valor) { vibrar(30); buscar(valor); return; }
-      setMensaje('No pudimos leer el código en la foto. Tómala más cerca, con el empaque estirado y sin brillo.');
+      setMensaje('No pudimos leer el código en la foto. Tómala más cerca, que se vean bien las barras y los números, y sin brillo.');
     } catch {
       setMensaje('No pudimos leer el código en la foto. Intenta con otra.');
     }

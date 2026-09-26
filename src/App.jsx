@@ -1838,7 +1838,7 @@ function Logo({ size = 'md' }) {
    cuenta con el código RETO para reconocerlos en el panel.
    RETO_GRUPO_URL es el Grupo de Google que está como lista de
    verificadores en Play Console (unirse al grupo = poder instalar). */
-const RETO_GRUPO_URL = '';
+const RETO_GRUPO_URL = 'https://groups.google.com/g/reto-beast-fuel';
 const RETO_CODIGO = 'RETO';
 const RETO_CUPOS = 30;
 const URL_VERIFICADOR = 'https://play.google.com/apps/testing/com.jonahbeast.twa';

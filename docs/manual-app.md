@@ -430,7 +430,7 @@ Página del reto que Jonah anuncia en TikTok: 15 días usando la **app de Play S
 - Los premios son por participar y por los resultados, **no** por la calificación que pongan a la app en Play Store.
 
 **Cómo entrar (5 pasos de la página):**
-1. Unirse al grupo del reto (Grupo de Google) con su cuenta de Google, o mandar su Gmail a Jonah por WhatsApp.
+1. Unirse al grupo del reto (Grupo de Google "Reto Beast Fuel", groups.google.com/g/reto-beast-fuel) con la misma cuenta de Google de su Play Store.
 2. Aceptar ser verificador en Play Store ("Convertirte en verificador").
 3. Instalar la app desde Play Store y abrirla siempre desde el ícono.
 4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días gratis). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").

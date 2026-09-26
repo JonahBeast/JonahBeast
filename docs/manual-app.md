@@ -68,7 +68,8 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 ## 3. Crear cuenta (prueba gratis de 15 días)
 
 1. Toca **"PRUEBA GRATIS 15 DÍAS"** en la portada.
-2. Escribe tu **"Correo electrónico"** y una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla).
+   - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
+2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"** y una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla).
 3. (Opcional) Si alguien te invitó: toca **"¿Tienes un código?"** y escríbelo en "Código de referido (opcional)". Si es válido verás "✓ Código válido · te recomendó [nombre]". Si llegaste por el link de un amigo, el código ya viene puesto.
 4. Toca **"EMPEZAR MIS 15 DÍAS GRATIS"**.
 5. Puede que entres directo o que veas "Revisa tu correo y confirma tu cuenta para entrar. Si no lo ves, mira en spam."
@@ -86,13 +87,15 @@ Errores del registro y qué hacer:
 | "Ese correo ya tiene una cuenta. Inicia sesión." | Entrar por "SOY ALUMNO". Si no recuerda la contraseña, recuperarla (sección 5). |
 | "Ese código de referido no existe o ya no está activo…" | Revisar cómo está escrito. Si toca de nuevo el botón, la cuenta se crea sin código (sin descuento). |
 | "No se pudo preparar tu cuenta…" / "No se pudo crear tu cuenta: …" | Intentar de nuevo; si sigue, pasar a Jonah. |
+| "No se pudo abrir Google. Intenta de nuevo o usa tu correo." | Intentar de nuevo o registrarse con correo y contraseña. |
 
 ---
 
 ## 4. Ingresar a la cuenta
 
 1. En la portada toca **"SOY ALUMNO"**.
-2. Escribe correo y contraseña y toca **"Entrar"**.
+2. Si te registraste con Google (o tu correo es de Gmail), toca **"Entrar con Google"**. Si no, escribe correo y contraseña y toca **"Entrar"**.
+   - Si te registraste con correo y contraseña y ese correo es de Google, también puedes usar "Entrar con Google": entras a la misma cuenta.
 3. La sesión queda guardada: la próxima vez entras directo.
 
 | Mensaje | Qué hacer |

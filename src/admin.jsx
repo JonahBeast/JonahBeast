@@ -3602,6 +3602,22 @@ async function armarInformeJarvis(users) {
   if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
   return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
 }
+// Al abrir (la primera vez del día): el informe en tarjetas, sin voz ni
+// párrafos. Las que piden acción hoy salen en naranja.
+async function tarjetasInformeJarvis(users) {
+  const d = await datosNegocioJarvis(users);
+  const tarjetas = [];
+  if (d.pagosPendientes !== null) tarjetas.push({
+    titulo: '💳 Pagos por revisar', valor: String(d.pagosPendientes),
+    detalle: d.pagosAtrasados ? `${d.pagosAtrasados} esperan más de 12 h` : d.pagosPendientes ? 'revísalos hoy' : 'al día',
+    alerta: d.pagosPendientes > 0,
+  });
+  tarjetas.push({ titulo: '⏳ Pruebas por vencer', valor: String(d.vencen || 0), detalle: 'en los próximos 3 días', alerta: d.vencen > 0 });
+  if (d.registraronAyer !== null) tarjetas.push({ titulo: '🍽️ Registraron ayer', valor: `${d.registraronAyer}/${d.activos}`, detalle: 'alumnos activos' });
+  if (d.aMedias) tarjetas.push({ titulo: '🆘 A medias', valor: String(d.aMedias), detalle: 'sin primera comida · en Rescate', alerta: true });
+  else if (d.nuevos) tarjetas.push({ titulo: '🆕 Nuevos', valor: String(d.nuevos), detalle: 'desde ayer' });
+  return { tarjetas };
+}
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
 
 /* Voz realista (función jarvis-voz, OpenAI). En el selector se guardan como
@@ -3701,7 +3717,7 @@ function TarjetasJarvis({ visual }) {
         <div className={`grid gap-2 ${tarjetas.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
           {tarjetas.map((t, i) => (
             <div key={i} className="relative rounded px-3 py-2 overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, rgba(77,217,255,0.10), rgba(10,22,32,0.6))', border: '1px solid #1c6b85', boxShadow: 'inset 0 0 18px rgba(77,217,255,0.08)', animation: `jv-aparece .4s ease-out ${i * 0.08}s both` }}>
+              style={{ background: t.alerta ? 'linear-gradient(135deg, rgba(232,89,12,0.18), rgba(10,22,32,0.6))' : 'linear-gradient(135deg, rgba(77,217,255,0.10), rgba(10,22,32,0.6))', border: `1px solid ${t.alerta ? '#E8590C' : '#1c6b85'}`, boxShadow: 'inset 0 0 18px rgba(77,217,255,0.08)', animation: `jv-aparece .4s ease-out ${i * 0.08}s both` }}>
               <span className="absolute top-0 left-0 w-2 h-2" style={{ borderTop: '2px solid #4dd9ff', borderLeft: '2px solid #4dd9ff' }} />
               <div className="text-[9px] tracking-[0.2em] uppercase" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{t.titulo}</div>
               <div className="text-xl font-semibold tabular-nums leading-tight" style={{ color: '#ffffff', textShadow: '0 0 12px rgba(77,217,255,0.7)', fontFamily: 'monospace' }}>{t.valor}</div>
@@ -4053,9 +4069,9 @@ function JarvisPanel({ onClose, users }) {
   const hablarRef = useRef(null);
   hablarRef.current = hablar;
 
-  // Al abrir: la primera vez del día da el informe completo (y lo dice en
-  // voz alta); las demás veces, un saludo corto. El informe se puede pedir
-  // de nuevo con el botón "Informe del día".
+  // Al abrir: la primera vez del día muestra el informe en tarjetas (sin
+  // voz); las demás veces, un saludo corto. El informe hablado sigue en el
+  // botón "Informe del día".
   async function darInforme() {
     setTurnos(ts => [...ts.filter(m => !(m.escribiendo && !m.content)), { role: 'assistant', content: '', escribiendo: true }]);
     setPensando(true);
@@ -4072,8 +4088,12 @@ function JarvisPanel({ onClose, users }) {
     sonidoJarvis('abrir');
     let yaHoy = false;
     try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
-    if (!yaHoy) { darInforme(); return; }
     setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
+    if (!yaHoy) {
+      tarjetasInformeJarvis(users).then(visual => {
+        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: `${saludoJarvis()}, Jonah. Así va el día:`, visual } : m)));
+      }).catch(() => {});
+    }
   }, []);
   function cerrar() {
     sonidoJarvis('cerrar');

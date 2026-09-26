@@ -147,6 +147,7 @@ async function llamarClaude(cuerpo: string) {
     if (r?.ok) {
       const data = await r.json();
       console.log(JSON.stringify({ evento: "alimentos_pedidos_uso", modelo: data.model, stop: data.stop_reason, ...data.usage }));
+      await anotarUsoIA(supabase, { tipo: "alimento", modelo: data.model || MODELO, usage: data.usage });
       return data;
     }
     const reintentable = !r || r.status === 429 || r.status >= 500;
@@ -267,5 +268,22 @@ async function enviarPush(datos: { usernames?: string[]; admin?: boolean; body: 
     });
   } catch (e) {
     console.error("No se pudo mandar el aviso push:", (e as Error)?.message);
+  }
+}
+
+// Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
+// que el panel de Rentabilidad calcule el costo real. Si falla, no
+// interrumpe nada (solo queda en el log).
+async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
+  try {
+    const u = fila.usage || {};
+    const { error } = await supabase.from("ia_uso").insert({
+      funcion: "alimentos-pedidos", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
+      tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
+      tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
+    });
+    if (error) console.error("No se pudo anotar el uso de IA:", error.message);
+  } catch (e) {
+    console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
   }
 }

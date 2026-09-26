@@ -1379,7 +1379,26 @@ const SUPUESTOS_RENTABILIDAD = {
   supabase: 94, vercel: 75, jarvis: 45, dominio: 8, otrosFijos: 0,
   costoFoto: 0.07, fotosAlumnoMes: 21, fotosPrueba: 10, whatsappAlumno: 0.3,
   comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500,
+  tipoCambio: 3.75,
 };
+
+// Precio de la IA en dólares por millón de tokens (entrada, salida, lectura
+// y escritura de caché). Con esto y los tokens de la tabla ia_uso sale el
+// costo real de cada llamada.
+const PRECIOS_IA_USD = {
+  'claude-sonnet-5': [2, 10, 0.2, 2.5],
+  'claude-opus-5': [5, 25, 0.5, 6.25],
+  'claude-opus-5-5': [4, 20, 0.4, 5],
+  'claude-haiku-4-5': [1, 5, 0.1, 1.25],
+};
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp'];
+
+function costoUsdIA(f) {
+  const m = String(f.modelo || '');
+  const p = PRECIOS_IA_USD[m]
+    || (m.includes('haiku') ? PRECIOS_IA_USD['claude-haiku-4-5'] : m.includes('opus') ? PRECIOS_IA_USD['claude-opus-5'] : PRECIOS_IA_USD['claude-sonnet-5']);
+  return (f.tokens_entrada * p[0] + f.tokens_salida * p[1] + f.tokens_cache_lectura * p[2] + f.tokens_cache_escritura * p[3]) / 1e6;
+}
 
 function cuotaNuevoRus(ingresos) {
   if (ingresos <= 5000) return 20;
@@ -1408,11 +1427,13 @@ function RentabilidadPanel({ users }) {
     (async () => {
       const inicio = new Date(); inicio.setDate(1);
       const inicioISO = fechaLocalISO(inicio);
-      const [{ data: cfg }, { data: pagos }, { data: fotos }] = await Promise.all([
+      const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).range(0, 9999),
+        supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
+          .gte('creado_en', inicioISO).range(0, 19999),
       ]);
       if (cancelado) return;
       const p = {};
@@ -1424,8 +1445,8 @@ function RentabilidadPanel({ users }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0) });
-    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0 }); });
+      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [] });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [] }); });
     return () => { cancelado = true; };
   }, []);
 
@@ -1454,14 +1475,34 @@ function RentabilidadPanel({ users }) {
     const pct = m.includes('mercado') ? sup.comisionMP : m.includes('google') ? sup.comisionGoogle : 0;
     return a + (Number(p.monto) || 0) * pct / 100;
   }, 0) : 0;
+  // Costo real de la IA (tabla ia_uso), en soles.
+  const iaFilas = (mes?.ia || []).map(f => ({ ...f, soles: costoUsdIA(f) * sup.tipoCambio }));
+  const suma = filas => filas.reduce((a, f) => a + f.soles, 0);
+  const iaAlumnos = iaFilas.filter(f => TIPOS_IA_ALUMNO.includes(f.tipo));
+  const iaAdmin = iaFilas.filter(f => !TIPOS_IA_ALUMNO.includes(f.tipo));
+  const fotosMedidas = iaFilas.filter(f => f.tipo === 'plato' || f.tipo === 'etiqueta');
+  const costoFotoReal = fotosMedidas.length >= 5 ? suma(fotosMedidas) / fotosMedidas.length : null;
+  const costoFoto = costoFotoReal ?? sup.costoFoto;
+  const porAlumnoIA = {};
+  iaAlumnos.forEach(f => {
+    if (!f.username) return;
+    const a = porAlumnoIA[f.username] || (porAlumnoIA[f.username] = { username: f.username, soles: 0, fotos: 0, mensajes: 0 });
+    a.soles += f.soles;
+    if (f.tipo === 'whatsapp') a.mensajes++; else if (f.tipo !== 'codigo') a.fotos++;
+  });
+  const rankingIA = Object.values(porAlumnoIA).sort((a, b) => b.soles - a.soles);
+  const promedioIA = rankingIA.length ? suma(iaAlumnos.filter(f => f.username)) / rankingIA.length : null;
+  const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
+  const supR = { ...sup, costoFoto };
+
   const cuotaRus = cuotaNuevoRus(ingresosMes);
   const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
   const fijos = fijosTec + (cuotaRus ?? 50);
-  const costoIAMes = mes ? mes.fotos * sup.costoFoto : 0;
+  const costoIAMes = mes ? mes.fotos * costoFoto : 0;
   const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes;
 
   const precioMensual = precios[1] || 24.9;
-  const cv = costoPorAlumno(sup, sup.conversion);
+  const cv = costoPorAlumno(supR, sup.conversion);
   const netoMP = precioMensual * (1 - sup.comisionMP / 100);
   const quedaPorAlumno = netoMP - cv;
   const equilibrio = quedaPorAlumno > 0 ? Math.ceil(fijos / quedaPorAlumno) : null;
@@ -1482,16 +1523,16 @@ function RentabilidadPanel({ users }) {
     const porMes = (precios[p.meses] || p.precioDefault) / p.meses;
     if (minimoRef && porMes < minimoRef) alertas.push(`El plan ${p.nombre.toLowerCase()} equivale a ${fmtS(porMes)} al mes, por debajo del mínimo de ${fmtS(minimoRef)} con ${nRef} alumnos.`);
   });
-  const costoAddOn = 200 * sup.costoFoto;
+  const costoAddOn = 200 * costoFoto;
   const netoAddOn = 11.9 * (1 - sup.comisionMP / 100);
   if (costoAddOn > netoAddOn) alertas.push(`El complemento de fotos te deja ${fmtS(netoAddOn)}, pero alguien que use las 200 fotos te cuesta ${fmtS(costoAddOn)}.`);
-  const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * sup.costoFoto;
+  const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * costoFoto;
   if (costoPruebas > cv / 2) alertas.push(`Tu mayor costo es la prueba gratis: ${fmtS(costoPruebas)} de cada ${fmtS(cv)} por alumno. Subir la conversión es la mejor palanca.`);
   if (cuotaRus === null) alertas.push('Este mes pasaste los S/8,000 de ingresos: ya no calificas para el Nuevo RUS.');
   else if (ingresosMes > 4000) alertas.push(`Vas por ${fmtS(ingresosMes)} este mes; al pasar S/5,000 la cuota del Nuevo RUS sube a S/50.`);
 
   const s = sim || { alumnos: Math.max(pagando, 10), conversion: sup.conversion, precio: precioMensual };
-  const simQueda = s.precio * (1 - sup.comisionMP / 100) - costoPorAlumno(sup, s.conversion);
+  const simQueda = s.precio * (1 - sup.comisionMP / 100) - costoPorAlumno(supR, s.conversion);
   const simResultado = s.alumnos * simQueda - fijos;
   const simEquilibrio = simQueda > 0 ? Math.ceil(fijos / simQueda) : null;
 
@@ -1502,7 +1543,7 @@ function RentabilidadPanel({ users }) {
     ['dominio', 'Dominio y Google Play (S/ al mes)'], ['otrosFijos', 'Otros gastos fijos (S/ al mes)'],
     ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes'],
     ['fotosPrueba', 'Fotos de una prueba gratis'], ['whatsappAlumno', 'WhatsApp por alumno (S/ al mes)'],
-    ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'],
+    ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'], ['tipoCambio', 'Tipo de cambio (S/ por dólar)'],
     ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'],
   ];
 
@@ -1524,7 +1565,7 @@ function RentabilidadPanel({ users }) {
         </div>
         {mes && (
           <p className="jb-body text-[11px] text-zinc-500 mt-1">
-            Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos)
+            Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos a {fmtS(costoFoto)}{costoFotoReal !== null ? ', costo medido' : ', costo estimado'})
           </p>
         )}
         <div className="mt-3">
@@ -1551,6 +1592,51 @@ function RentabilidadPanel({ users }) {
             <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
           </div>
         ))}
+      </div>
+
+      <div className={`${tarjeta} flex flex-col gap-3`}>
+        <div>
+          <h3 className="jb-display text-sm text-zinc-300">🤖 COSTO REAL DE LA IA · ESTE MES</h3>
+          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cada uso de la IA queda anotado con lo que costó de verdad (tipo de cambio {fmtS(sup.tipoCambio)} por dólar).</p>
+        </div>
+        {!mes ? <Loader2 size={14} className="animate-spin text-orange-500" /> : iaFilas.length === 0 ? (
+          <p className="jb-body text-xs text-zinc-500">Todavía no hay usos anotados. Se empiezan a medir apenas se publiquen las funciones de IA actualizadas.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos` },
+                { v: fmtS(suma(iaAlumnos)), l: 'La usan tus alumnos', sub: 'fotos, etiquetas, códigos y WhatsApp' },
+                { v: fmtS(suma(iaAdmin)), l: 'La usas tú', sub: 'Jarvis y pedidos de alimentos' },
+                { v: costoFotoReal === null ? '—' : fmtS(costoFotoReal), l: 'Costo real por foto', sub: costoFotoReal === null ? `faltan fotos para medir (${fotosMedidas.length} de 5)` : `promedio de ${fotosMedidas.length} fotos` },
+              ].map(t => (
+                <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                  <div className="jb-display text-lg text-orange-400">{t.v}</div>
+                  <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+                  <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
+                </div>
+              ))}
+            </div>
+            {rankingIA.length > 0 && (
+              <div>
+                <div className="flex justify-between items-baseline mb-1.5">
+                  <span className="jb-body text-xs text-zinc-400">Alumnos que más gastan en IA</span>
+                  <span className="jb-body text-[11px] text-zinc-500">Promedio: <span className="text-zinc-200">{fmtS(promedioIA)}</span> por alumno</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  {rankingIA.slice(0, 5).map(a => (
+                    <div key={a.username} className="flex justify-between items-center bg-zinc-900 rounded-lg px-3 py-1.5">
+                      <span className="jb-body text-xs text-zinc-200 truncate">{nombreDe(a.username)}
+                        <span className="text-zinc-500"> · {a.fotos} foto{a.fotos === 1 ? '' : 's'}{a.mensajes ? ` · ${a.mensajes} mensaje${a.mensajes === 1 ? '' : 's'}` : ''}</span>
+                      </span>
+                      <span className="jb-display text-sm text-zinc-50 shrink-0">{fmtS(a.soles)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div>
@@ -1664,7 +1750,7 @@ function RentabilidadPanel({ users }) {
                 </label>
               ))}
             </div>
-            <p className="jb-body text-[10px] text-zinc-500">La cuota del Nuevo RUS se calcula sola con lo que cobras en el mes. El costo por foto es aproximado: revísalo en tu cuenta de Anthropic.</p>
+            <p className="jb-body text-[10px] text-zinc-500">La cuota del Nuevo RUS se calcula sola con lo que cobras en el mes. El costo por foto que escribas aquí solo se usa hasta que haya al menos 5 fotos medidas; después manda el costo real.</p>
             <button onClick={guardarSupuestos} disabled={guardando}
               className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg py-2 disabled:opacity-50">
               {guardando ? 'Guardando...' : 'Guardar supuestos'}

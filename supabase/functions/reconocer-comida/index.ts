@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     if (accion === "leer_codigo_foto") {
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto del código." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
-      return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg") });
+      return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: "claude-sonnet-5", usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
     if (accion === "leer_etiqueta") {
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       });
       if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
       if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", ...cupo, usadas: limite }, 200);
-      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg");
+      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: "claude-sonnet-5", usage }));
       if (!leida.ok) {
         // Si la IA falló, la foto se devuelve; si la etiqueta no se leía, cuenta.
         if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
@@ -253,6 +253,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
         return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
       }
       data = await resp.json();
+      await anotarUsoIA(supabase, { tipo: "plato", username, modelo, usage: data.usage });
     } catch (e) {
       console.error("Sin conexión con Anthropic:", (e as Error)?.message);
       await devolverFoto();
@@ -426,7 +427,7 @@ async function guardarProducto(supabase: any, codigo: unknown, producto: unknown
   return { producto: data };
 }
 
-async function leerEtiqueta(imagenBase64: string, tipoImagen: string): Promise<{ ok: true; producto: any } | { ok: false; error: string; fallo?: boolean }> {
+async function leerEtiqueta(imagenBase64: string, tipoImagen: string, anotar: (usage: any) => Promise<void>): Promise<{ ok: true; producto: any } | { ok: false; error: string; fallo?: boolean }> {
   const prompt = `Esta es la foto de la TABLA NUTRICIONAL (información nutricional) de un producto empacado, probablemente peruano.
 
 Lee los valores y devuélvelos POR 100 g (o por 100 ml si es líquido). Si la tabla solo trae valores "por porción", conviértelos a 100 g usando el tamaño de la porción que dice la tabla (ej. porción 30 g con 120 kcal → 400 kcal por 100 g).
@@ -457,6 +458,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
       return { ok: false, fallo: true, error: "No se pudo leer la etiqueta. Intenta de nuevo." };
     }
     data = await resp.json();
+    await anotar(data.usage);
   } catch (e) {
     console.error("Sin conexión con Anthropic (etiqueta):", (e as Error)?.message);
     return { ok: false, fallo: true, error: "No se pudo leer la etiqueta. Intenta de nuevo." };
@@ -484,7 +486,7 @@ function codigoValido(cod: string) {
   return (10 - (suma % 10)) % 10 === control;
 }
 
-async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string): Promise<string | null> {
+async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string, anotar: (usage: any) => Promise<void>): Promise<string | null> {
   try {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -500,6 +502,7 @@ async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string): Prom
     });
     if (!resp.ok) { console.error("Error de Anthropic (código):", resp.status, await resp.text()); return null; }
     const data = await resp.json();
+    await anotar(data.usage);
     const texto = (data.content || []).map((c: any) => c.text || "").join("");
     const cod = texto.replace(/\D/g, "");
     console.log("Código leído por la IA:", texto.trim(), codigoValido(cod) ? "(válido)" : "(no válido)");
@@ -507,5 +510,22 @@ async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string): Prom
   } catch (e) {
     console.error("Sin conexión con Anthropic (código):", (e as Error)?.message);
     return null;
+  }
+}
+
+// Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
+// que el panel de Rentabilidad calcule el costo real. Si falla, no
+// interrumpe nada (solo queda en el log).
+async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
+  try {
+    const u = fila.usage || {};
+    const { error } = await supabase.from("ia_uso").insert({
+      funcion: "reconocer-comida", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
+      tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
+      tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
+    });
+    if (error) console.error("No se pudo anotar el uso de IA:", error.message);
+  } catch (e) {
+    console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
   }
 }

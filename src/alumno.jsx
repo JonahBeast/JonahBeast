@@ -6216,9 +6216,9 @@ async function llamarProductos(body) {
 }
 
 function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
-  const [estado, setEstado] = useState('camara'); // camara | manual | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
+  const [estado, setEstado] = useState('camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
-  const [codigoManual, setCodigoManual] = useState('');
+  const [tardando, setTardando] = useState(false); // la cámara lleva un rato sin leer: se muestran consejos
   const [producto, setProducto] = useState(null); // fila de productos (o lo leído de la etiqueta)
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [marcaNueva, setMarcaNueva] = useState('');
@@ -6245,6 +6245,8 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     if (estado !== 'camara') return;
     let cancelado = false;
     let timer = null;
+    setTardando(false);
+    const aviso = setTimeout(() => { if (!cancelado) setTardando(true); }, 7000);
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('sin cámara');
@@ -6257,27 +6259,34 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         await video.play().catch(() => {});
         const lector = await crearLectorCodigo();
         let fallos = 0;
+        let anterior = '';
         const mirar = async () => {
           if (cancelado) return;
           try {
             if (video.readyState >= 2) {
               const hallados = await lector.detect(video);
               fallos = 0;
-              const valor = hallados?.[0]?.rawValue?.replace(/\D/g, '');
-              if (valor && valor.length >= 6) { vibrar(30); apagarCamara(); buscar(valor); return; }
+              // Se prefiere el código largo (EAN-13 / UPC-A) y solo se acepta
+              // cuando sale igual en dos lecturas seguidas: con el empaque
+              // arrugado o de costado, el lector a veces "ve" un código
+              // corto que no existe.
+              const valores = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8);
+              const valor = valores.sort((a, b) => b.length - a.length)[0] || '';
+              if (valor && valor === anterior) { vibrar(30); apagarCamara(); buscar(valor); return; }
+              anterior = valor;
             }
           } catch {
-            // Si el lector no funciona en este celular, se pasa a escribir el código.
-            if (++fallos >= 12) { apagarCamara(); setMensaje('No pudimos leer el código con la cámara. Escribe los números que están debajo.'); setEstado('manual'); return; }
+            // Si el lector en vivo no funciona en este celular, se pasa a la foto del código.
+            if (++fallos >= 12) { apagarCamara(); setMensaje('No pudimos leer el código con la cámara en vivo.'); setEstado('sin_camara'); return; }
           }
           timer = setTimeout(mirar, 250);
         };
         mirar();
       } catch {
-        if (!cancelado) { apagarCamara(); setMensaje('No pudimos abrir la cámara. Escribe los números del código de barras.'); setEstado('manual'); }
+        if (!cancelado) { apagarCamara(); setMensaje('No pudimos abrir la cámara en vivo.'); setEstado('sin_camara'); }
       }
     })();
-    return () => { cancelado = true; clearTimeout(timer); };
+    return () => { cancelado = true; clearTimeout(timer); clearTimeout(aviso); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado]);
 
@@ -6297,6 +6306,25 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
       if (r.encontrado && r.producto) mostrarProducto(r.producto);
       else { setMensaje(r.error || ''); setEstado('no_encontrado'); }
     } catch (e) { setMensaje(e.message); setEstado('error'); }
+  }
+
+  // Plan B cuando la cámara en vivo no lee: una foto normal del código.
+  async function fotoCodigo(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    apagarCamara();
+    setEstado('buscando');
+    try {
+      const [lector, imagen] = await Promise.all([crearLectorCodigo(), createImageBitmap(await comprimirImagen(file, 1600, 0.92))]);
+      const hallados = await lector.detect(imagen);
+      const valor = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8).sort((a, b) => b.length - a.length)[0];
+      if (valor) { vibrar(30); buscar(valor); return; }
+      setMensaje('No pudimos leer el código en la foto. Tómala más cerca, con el empaque estirado y sin brillo.');
+    } catch {
+      setMensaje('No pudimos leer el código en la foto. Intenta con otra.');
+    }
+    setEstado('sin_camara');
   }
 
   async function fotoEtiqueta(e) {
@@ -6347,6 +6375,15 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     onCerrar();
   }
 
+  // Foto normal del código (plan B de la cámara en vivo). Destacado cuando
+  // la cámara ya falló o lleva rato sin leer; si no, discreto.
+  const botonFotoCodigo = (destacado) => (
+    <label className={(destacado ? btnPrimary + ' py-3' : btnGhost + ' py-2.5 text-sm') + ' w-full cursor-pointer'}>
+      <Camera size={16} /> Tomar foto al código
+      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoCodigo} />
+    </label>
+  );
+
   const botonFotoEtiqueta = (
     <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
       <Camera size={16} /> Tomar foto a la tabla nutricional
@@ -6372,18 +6409,24 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               <div className="absolute left-[14%] right-[14%] top-1/2 h-0.5 bg-orange-500/80 pointer-events-none" style={{ animation: 'jbe-punto 1.2s ease-in-out infinite' }} />
             </div>
             <p className="jb-body text-sm text-zinc-300 text-center mb-3">Apunta al código de barras del producto. Se lee solo.</p>
-            <button onClick={() => { apagarCamara(); setMensaje(''); setEstado('manual'); }} className={btnGhost + ' w-full py-2.5 text-sm'}>Escribir los números</button>
+            {tardando && (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-3 jb-body text-xs text-zinc-400">
+                <p className="text-zinc-200 font-semibold mb-0.5">¿No lo lee?</p>
+                Acerca el celular hasta que las barras llenen el recuadro, estira el empaque si está arrugado y evita el brillo de la luz.
+              </div>
+            )}
+            {botonFotoCodigo(tardando)}
+            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
           </div>
         )}
 
-        {estado === 'manual' && (
+        {estado === 'sin_camara' && (
           <div>
-            {mensaje && <p className="jb-body text-xs text-amber-400 mb-2">{mensaje}</p>}
-            <p className="jb-body text-sm text-zinc-300 mb-2">Escribe los números que están debajo del código de barras:</p>
-            <input value={codigoManual} onChange={e => setCodigoManual(e.target.value.replace(/\D/g, '').slice(0, 14))}
-              inputMode="numeric" placeholder="Ej. 7751271012345" className={inputCls + ' w-full text-lg tracking-widest tabular-nums mb-3'} />
-            <button onClick={() => buscar(codigoManual)} disabled={codigoManual.length < 8} className={btnPrimary + ' w-full py-3 mb-2'}>Buscar producto</button>
-            <button onClick={() => setEstado('camara')} className={btnGhost + ' w-full py-2.5 text-sm'}>Usar la cámara</button>
+            {mensaje && <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje}</p>}
+            <p className="jb-body text-sm text-zinc-400 mb-4">Tómale una <span className="text-orange-400 font-semibold">foto al código de barras</span>, de cerca y sin brillo, y lo leemos desde la foto.</p>
+            {botonFotoCodigo(true)}
+            <button onClick={() => { setMensaje(''); setEstado('camara'); }} className={btnGhost + ' w-full py-2.5 text-sm mt-2'}>Volver a la cámara en vivo</button>
+            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
           </div>
         )}
 
@@ -6439,12 +6482,18 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         {estado === 'no_encontrado' && (
           <div>
             <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje || 'Aún no tenemos este producto.'}</p>
+            {codigo && (
+              <p className="jb-body text-xs text-zinc-500 mb-2">
+                Código leído: <span className="text-zinc-300 tabular-nums tracking-wider">{codigo}</span>. ¿No es el que está debajo de las barras?{' '}
+                <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="text-orange-400 underline">Escanear de nuevo</button>
+              </p>
+            )}
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y el producto queda guardado: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
             </p>
             {botonFotoEtiqueta}
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta usa una de tus fotos de reconocimiento.</p>
-            <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco escribiendo</button>
+            <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco por su nombre</button>
           </div>
         )}
 

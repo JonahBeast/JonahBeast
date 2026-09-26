@@ -420,6 +420,28 @@ Problemas:
 
 **Embajadores (influencers):** es otro programa. Cada embajador tiene su código y un panel privado (jonahbeast.com/r/…) donde ve sus referidos y comisiones. Dudas de comisiones → pasar a Jonah.
 
+### 12.1 Reto Beast 15 días (jonahbeast.com/reto)
+
+Página del reto que Jonah anuncia en TikTok: 15 días usando la **app de Play Store** (Android), registrando las comidas **todos los días**. Solo **30 cupos**.
+
+**Premios:**
+- **Completar el reto:** 1 mes gratis de plan al terminar.
+- **Mejor transformación:** 3 meses gratis + creatina de 300 g. Se elige comparando las **fotos de progreso del día 1 y del día 15** tomadas en la app (Progreso → Fotos). Sin fotos del día 1 no se puede ganar este premio.
+- Los premios son por participar y por los resultados, **no** por la calificación que pongan a la app en Play Store.
+
+**Cómo entrar (5 pasos de la página):**
+1. Unirse al grupo del reto (Grupo de Google) con su cuenta de Google, o mandar su Gmail a Jonah por WhatsApp.
+2. Aceptar ser verificador en Play Store ("Convertirte en verificador").
+3. Instalar la app desde Play Store y abrirla siempre desde el ícono.
+4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días gratis). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
+5. Tomarse las fotos el día 1 (frente, perfil y espalda).
+
+Problemas:
+- "Tengo iPhone" → puede usar la app desde el navegador con el código RETO, pero el reto es para quienes usan la app de Play Store.
+- "No puedo instalar la app / Play Store dice que no está disponible" → revisar que se unió al grupo (paso 1) y aceptó ser verificador (paso 2) con la **misma** cuenta de Google de su Play Store.
+- "Estoy en prueba y se me acaba antes del reto" o "ya pago mi plan" → Jonah ajusta su prueba o le suma el premio a su plan: pasar a Jonah.
+- Entrega de premios y creatina → los coordina Jonah por WhatsApp al terminar el reto.
+
 ---
 
 ## 13. Planes, pagos y renovación

@@ -2669,7 +2669,7 @@ async function traerEventosEmbudo(desde) {
   const filas = [];
   for (let desdeFila = 0; ; desdeFila += 1000) {
     const { data, error } = await supabase.from('embudo_landing_eventos')
-      .select('id, evento, fuente, visitante_id, username')
+      .select('id, evento, fuente, visitante_id, username, detalle')
       .gte('creado_en', desde)
       .order('creado_en', { ascending: true })
       .range(desdeFila, desdeFila + 999);
@@ -2679,11 +2679,32 @@ async function traerEventosEmbudo(desde) {
   }
 }
 
+const MOTIVOS_TROPIEZO = {
+  correo_vacio: 'No escribió su correo',
+  correo_invalido: 'Correo mal escrito',
+  contrasena_corta: 'Contraseña de menos de 6 caracteres',
+  contrasena_rechazada: 'Contraseña rechazada por ser muy común',
+  correo_existente: 'Ese correo ya tenía cuenta',
+  referido_invalido: 'Código de referido que no existe',
+  error_usuario: 'Error al preparar la cuenta',
+  error_sistema: 'Error del sistema',
+  google: 'Falló o canceló el ingreso con Google',
+};
+
 function resumirEmbudo(filas) {
   const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set() });
   const total = pasos();
   const porFuente = {};
+  // Tropiezos del registro (evento 'error_registro'): motivo -> personas.
+  const tropiezos = {};
+  let conGoogle = 0;
   filas.forEach(r => {
+    if (r.evento === 'error_registro') {
+      const motivo = String(r.detalle || 'otro').replace(/:.*$/, '');
+      (tropiezos[motivo] = tropiezos[motivo] || new Set()).add(r.visitante_id || ('evento-' + r.id));
+      return;
+    }
+    if (r.evento === 'registro' && r.detalle === 'google') conGoogle++;
     // Los eventos anteriores a esta versión no tienen visitante: cada uno
     // cuenta como una persona distinta.
     const quien = r.visitante_id || ('evento-' + r.id);
@@ -2697,6 +2718,8 @@ function resumirEmbudo(filas) {
   const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios] });
   return {
     ...numeros(total),
+    conGoogle,
+    tropiezos: Object.entries(tropiezos).map(([m, set]) => [m, set.size]).sort((a, b) => b[1] - a[1]),
     fuentes: Object.entries(porFuente).map(([k, g]) => [k, numeros(g)]).sort((a, b) => b[1].visitantes - a[1].visitantes),
   };
 }
@@ -2826,6 +2849,22 @@ function EmbudoResumenPanel() {
             )}
             <span className="text-zinc-600">El % de cada paso es sobre el paso anterior. El % de "Pagaron" sube con el tiempo: la prueba dura {TRIAL_DAYS} días.</span>
           </div>
+
+          {(datos.tropiezos.length > 0 || datos.conGoogle > 0) && (
+            <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 jb-body text-xs text-zinc-400">
+              {datos.conGoogle > 0 && (
+                <p className="mb-1"><span className="text-zinc-200 font-semibold">{datos.conGoogle}</span> {datos.conGoogle === 1 ? 'registro fue' : 'registros fueron'} con Google.</p>
+              )}
+              {datos.tropiezos.length > 0 && (
+                <>
+                  <p className="text-zinc-200 font-semibold mb-0.5">⚠️ En qué se trabaron al registrarse (personas):</p>
+                  {datos.tropiezos.map(([m, n]) => (
+                    <p key={m}>{MOTIVOS_TROPIEZO[m] || m}: <span className="text-amber-400 font-semibold">{n}</span></p>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
 
 
           <button onClick={() => setVerFuentes(v => !v)} className="flex items-center justify-between jb-body text-xs text-zinc-400 pt-2 border-t border-zinc-800">

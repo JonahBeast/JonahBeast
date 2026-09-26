@@ -2645,6 +2645,47 @@ function mensajeContrasenaRechazada(error) {
   return 'Esa contraseña es muy fácil de adivinar. Elige otra más segura.';
 }
 
+/* "Continuar con Google": crea la cuenta (o entra) con un toque, sin
+   escribir correo ni contraseña. Google devuelve a la persona a la app ya
+   con la sesión abierta; restoreSession la lleva a su prueba. La base le
+   arma un usuario único a partir del correo (handle_new_user). */
+async function entrarConGoogle(setErr) {
+  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); } catch {}
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/' + (window.location.search || '') },
+  });
+  if (error) {
+    registrarEventoEmbudo('error_registro', { detalle: 'google: ' + String(error.message || '').slice(0, 80) });
+    if (setErr) setErr('No se pudo abrir Google. Intenta de nuevo o usa tu correo.');
+  }
+}
+
+function BotonGoogle({ onClick, texto = 'Continuar con Google' }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-zinc-50 hover:bg-white text-zinc-900 jb-body font-semibold text-base py-3 transition-colors">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+      </svg>
+      {texto}
+    </button>
+  );
+}
+
+function SeparadorO({ texto = 'o con tu correo' }) {
+  return (
+    <div className="flex items-center gap-3 my-1">
+      <span className="flex-1 h-px bg-zinc-800" />
+      <span className="jb-body text-xs text-zinc-500">{texto}</span>
+      <span className="flex-1 h-px bg-zinc-800" />
+    </div>
+  );
+}
+
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
@@ -2680,11 +2721,14 @@ function TrialSignup({ onBack, onCreated }) {
     e.preventDefault();
     setErr(''); setAviso('');
     const email = f.email.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr('Escribe un correo válido.');
-    if (f.password.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
+    // Cada tropiezo queda anotado en el embudo ("error_registro"), para
+    // saber qué frena a quien quiere registrarse.
+    const tropiezo = (detalle, texto) => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', 'Escribe un correo válido.');
+    if (f.password.length < 6) return tropiezo('contrasena_corta', 'La contraseña debe tener al menos 6 caracteres.');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
-      return setErr('Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
+      return tropiezo('referido_invalido', 'Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
     }
 
     setBusy(true);
@@ -2693,7 +2737,7 @@ function TrialSignup({ onBack, onCreated }) {
       user = await generarUsuarioDesdeCorreo(email);
     } catch (e) {
       setBusy(false);
-      return setErr('No se pudo preparar tu cuenta. Intenta de nuevo.');
+      return tropiezo('error_usuario', 'No se pudo preparar tu cuenta. Intenta de nuevo.');
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -2704,10 +2748,10 @@ function TrialSignup({ onBack, onCreated }) {
     if (error) {
       setBusy(false);
       if ((error.message || '').toLowerCase().includes('already registered'))
-        return setErr('Ese correo ya tiene una cuenta. Inicia sesión.');
+        return tropiezo('correo_existente', 'Ese correo ya tiene una cuenta. Inicia sesión.');
       const rechazo = mensajeContrasenaRechazada(error);
-      if (rechazo) return setErr(rechazo);
-      return setErr('No se pudo crear tu cuenta: ' + error.message);
+      if (rechazo) return tropiezo('contrasena_rechazada', rechazo);
+      return tropiezo('error_sistema: ' + String(error.message || '').slice(0, 80), 'No se pudo crear tu cuenta: ' + error.message);
     }
 
     // El registro de alumno y su prueba de 15 días se crean
@@ -2766,6 +2810,8 @@ function TrialSignup({ onBack, onCreated }) {
             </div>
           ) : (
             <form onSubmit={submit} className="flex flex-col gap-3">
+              <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
+              <SeparadorO />
               <Field label="Correo electrónico">
                 <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
@@ -3141,8 +3187,14 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
             </form>
           ) : (
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
+              {modo === 'login' && (
+                <>
+                  <BotonGoogle onClick={() => entrarConGoogle(setErr)} texto="Entrar con Google" />
+                  <SeparadorO />
+                </>
+              )}
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
@@ -4538,6 +4590,18 @@ export default function App() {
     });
     const hash = window.location.hash || '';
     if (hash.includes('type=recovery')) setView('resetPassword');
+    // Google devolvió un error (la persona canceló o algo falló): se anota
+    // en el embudo y se limpia la dirección.
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const h = new URLSearchParams(hash.replace(/^#/, ''));
+      const errorOAuth = q.get('error_description') || h.get('error_description') || q.get('error') || h.get('error');
+      if (errorOAuth && sessionStorage.getItem('jb-google-inicio')) {
+        sessionStorage.removeItem('jb-google-inicio');
+        registrarEventoEmbudo('error_registro', { detalle: 'google: ' + errorOAuth.slice(0, 80) });
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch {}
     // La lista de alumnos solo sirve con una sesión abierta (admin o
     // alumno), y sin sesión la base la devuelve vacía. Antes la landing
     // esperaba esas consultas antes de mostrarse; ahora un visitante nuevo
@@ -4553,12 +4617,28 @@ export default function App() {
     if (view === 'studentAuth' || view === 'trial') import('./alumno.jsx').catch(() => {});
   }, [view]);
 
+  /* Vuelta de "Continuar con Google": si la cuenta se acaba de crear, se
+     cuenta como 'registro' en el embudo y se avisa a TikTok y Meta, igual
+     que el registro con correo. Solo si salió del botón en esta pestaña. */
+  function volvioDeGoogle(user, perfil) {
+    let inicio = null;
+    try { inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    if (!inicio) return;
+    try { localStorage.setItem('jb-conocido', '1'); } catch {}
+    const nueva = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 15 * 60 * 1000;
+    if (!nueva || perfil.role === 'admin') return;
+    registrarEventoEmbudo('registro', { username: perfil.username, detalle: 'google' });
+    try { if (window.ttq) window.ttq.track('CompleteRegistration'); } catch (e) {}
+    try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
+  }
+
   async function restoreSession() {
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) return;
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.session.user.id).maybeSingle();
       if (!p) return;
+      volvioDeGoogle(data.session.user, p);
       import(p.role === 'admin' ? './admin.jsx' : './alumno.jsx').catch(() => {});
       if (p.role === 'admin') {
         setAdminAuthed(true);

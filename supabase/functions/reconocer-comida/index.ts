@@ -175,7 +175,8 @@ Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (e
 
 Para cada alimento, calcula también cuántos GRAMOS de ese alimento hay servidos en la foto ("gramos"; en bebidas, los ml del vaso o taza). Usa como referencia el tamaño del plato (un plato llano peruano mide unos 26 cm; uno de postre, unos 20 cm), los cubiertos, el vaso o la mano, y piensa en el volumen: altura y superficie que ocupa. Referencias: una taza de arroz cocido ≈ 160 g y ocupa más o menos un puño; un filete o bistec del tamaño de la palma ≈ 120 g; una presa de pollo mediana ≈ 130 g; un vaso ≈ 250 ml. Si un alimento se cuenta por piezas, da los gramos de todas las piezas juntas. Da un número redondo, sin rangos.
 Cuidado con dos errores comunes que hacen calcular DE MÁS:
-- Carnes planas (bistec, churrasco delgado, milanesa, filete de pollo apanado): en casa peruana suelen ser DELGADAS (0.5–1 cm). Aunque cubran medio plato, un bistec grande y delgado pesa unos 120–150 g. Fíjate en el grosor, no solo en lo que ocupa.
+- Carnes planas (bistec, milanesa, filete de pollo apanado): en casa peruana suelen ser DELGADAS (0.5–1 cm). Un bistec casero delgado pesa 100–150 g AUNQUE cubra medio plato: una lámina delgada de carne se extiende mucho y pesa poco. Da más de 150 g solo si la carne se ve claramente gruesa (1.5 cm o más) o si hay dos piezas o más.
+- Bistec vs. churrasco: si la carne de res es una lámina delgada, es "bistec", no "churrasco". El churrasco es un corte GRUESO (1.5–2 cm) con borde de grasa visible; úsalo solo si se ve ese grosor.
 - Fideos, tallarines y ensaladas sueltas: si están esparcidos en capa delgada por el plato, pesan menos de lo que parece; un plato llano con fideos esparcidos suele tener 100–150 g. Cuenta la altura del montón, no solo la superficie.
 
 Marca "aceite": true si el alimento se ve frito, saltado, apanado o brillante de aceite; si no, false.

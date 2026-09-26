@@ -2041,6 +2041,111 @@ function AdminNotifButton() {
   );
 }
 
+// Productos escaneados por código de barras (tabla productos). Salen de
+// Open Food Facts o de la etiqueta que leyó la IA; aquí Jonah revisa los
+// más recientes y corrige los números si alguno se leyó mal. El nombre no
+// se cambia: los alumnos que ya lo registraron lo tienen guardado así.
+const FUENTES_PRODUCTO = { open_food_facts: 'Open Food Facts', etiqueta: 'Etiqueta (IA)', admin: 'Admin' };
+
+function ProductosPanel() {
+  const [filas, setFilas] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [abierto, setAbierto] = useState(false);
+  const [editando, setEditando] = useState(null); // { codigo, kcal, proteina, carbos, grasa, fibra, porcion_g }
+  const [error, setError] = useState('');
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setCargando(true);
+    const { data } = await supabase.from('productos').select('*').order('creado_en', { ascending: false }).limit(200);
+    setFilas(data || []);
+    setCargando(false);
+  }
+
+  async function guardar() {
+    setError('');
+    const n = k => Number(editando[k]);
+    if (![n('kcal'), n('proteina'), n('carbos'), n('grasa')].every(v => Number.isFinite(v) && v >= 0) || n('kcal') > 900) {
+      setError('Revisa los números (por 100 g).'); return;
+    }
+    const cambios = {
+      kcal: n('kcal'), proteina: n('proteina'), carbos: n('carbos'), grasa: n('grasa'), fibra: Number(editando.fibra) || 0,
+      porcion_g: Number(editando.porcion_g) > 0 ? Number(editando.porcion_g) : null, actualizado_en: new Date().toISOString(),
+    };
+    const { error: err } = await supabase.from('productos').update(cambios).eq('codigo', editando.codigo);
+    if (err) { setError('No se pudo guardar: ' + err.message); return; }
+    setFilas(fs => fs.map(f => f.codigo === editando.codigo ? { ...f, ...cambios } : f));
+    setEditando(null);
+  }
+
+  const deEtiqueta = filas.filter(f => f.fuente === 'etiqueta').length;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">📦 PRODUCTOS ESCANEADOS · {filas.length}</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
+          <p className="jb-body text-xs text-zinc-500">
+            Productos que los alumnos registraron con el código de barras. Los de "Etiqueta (IA)" ({deEtiqueta}) los leyó la IA de la foto de la tabla nutricional: revisa que los números tengan sentido. Valores por 100 g.
+          </p>
+          {cargando ? <Loader2 className="animate-spin text-orange-500" size={20} /> : filas.length === 0 ? (
+            <p className="jb-body text-sm text-zinc-500">Aún nadie escaneó productos.</p>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-[28rem] overflow-y-auto">
+              {filas.map(f => {
+                const kcalMacros = Math.round(4 * Number(f.proteina) + 4 * Number(f.carbos) + 9 * Number(f.grasa));
+                const raro = Number(f.kcal) > 0 && Math.abs(kcalMacros - Number(f.kcal)) > Math.max(30, Number(f.kcal) * 0.2);
+                const enEdicion = editando?.codigo === f.codigo;
+                return (
+                  <div key={f.codigo} className={`bg-zinc-950 border rounded-lg p-3 ${raro ? 'border-amber-700/60' : 'border-zinc-800'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="jb-body text-sm text-zinc-100 font-medium">{f.nombre}{f.marca ? <span className="text-zinc-500"> · {f.marca}</span> : null}</p>
+                        <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                          {Math.round(f.kcal)} kcal · P {f.proteina} · C {f.carbos} · G {f.grasa}{Number(f.porcion_g) > 0 ? ` · porción ${Math.round(f.porcion_g)} g` : ''}
+                        </p>
+                        <p className="jb-body text-[11px] text-zinc-600">
+                          {FUENTES_PRODUCTO[f.fuente] || f.fuente}{f.creado_por ? ` · ${f.creado_por}` : ''} · usado {f.veces_usado || 0} {f.veces_usado === 1 ? 'vez' : 'veces'} · {f.codigo}
+                        </p>
+                        {raro && <p className="jb-body text-[11px] text-amber-400 mt-0.5">Ojo: con esos macros saldrían ~{kcalMacros} kcal. Revisa los números.</p>}
+                      </div>
+                      {!enEdicion && (
+                        <button onClick={() => { setError(''); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
+                          className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Corregir</button>
+                      )}
+                    </div>
+                    {enEdicion && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                          {[['kcal', 'Kcal'], ['proteina', 'Prot.'], ['carbos', 'Carbos'], ['grasa', 'Grasa'], ['fibra', 'Fibra'], ['porcion_g', 'Porción g']].map(([k, t]) => (
+                            <label key={k} className="jb-body text-[11px] text-zinc-500">{t}
+                              <input type="number" inputMode="decimal" min="0" value={editando[k] ?? ''} onChange={e => setEditando(v => ({ ...v, [k]: e.target.value }))}
+                                className={inputCls + ' w-full text-sm mt-0.5 px-2 tabular-nums'} />
+                            </label>
+                          ))}
+                        </div>
+                        {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+                        <div className="flex gap-2">
+                          <button onClick={guardar} className={btnPrimary + ' text-sm py-1.5 flex-1'}>Guardar</button>
+                          <button onClick={() => setEditando(null)} className={btnGhost + ' text-sm py-1.5'}>Cancelar</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReconocimientoFotoPanel() {
   const [filas, setFilas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4412,7 +4517,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         )}
 
         {tabActiva === 'ia' && (
-          <ReconocimientoFotoPanel />
+          <>
+            <ReconocimientoFotoPanel />
+            <ProductosPanel />
+          </>
         )}
 
         {tabActiva === 'tienda' && (

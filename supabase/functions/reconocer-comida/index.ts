@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     const username = await usuarioDeLaSesion(supabase, req);
     if (!username) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
 
-    const { imagenBase64, mimeType, alimentos, consulta } = await req.json();
+    const { imagenBase64, mimeType, alimentos, consulta, accion, codigo, producto } = await req.json();
 
     // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
     // sin fecha de vencimiento), igual que en la app.
@@ -115,6 +115,31 @@ Deno.serve(async (req) => {
     // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
     const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
     const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
+
+    // Código de barras (ver "PRODUCTOS" al final del archivo):
+    // - buscar_codigo: tabla productos → Open Food Facts. No gasta fotos.
+    // - leer_etiqueta: la IA lee la tabla nutricional de la foto. Gasta
+    //   una foto del cupo, igual que reconocer un plato.
+    // - guardar_producto: guarda lo leído (con el nombre que confirma el
+    //   alumno) para que el siguiente que lo escanee lo encuentre.
+    if (accion === "buscar_codigo") return json(await buscarProducto(supabase, codigo));
+    if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
+    if (accion === "leer_etiqueta") {
+      if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
+      if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
+      const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
+        p_username: username, p_periodo: periodo, p_limite: limite,
+      });
+      if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
+      if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", ...cupo, usadas: limite }, 200);
+      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg");
+      if (!leida.ok) {
+        // Si la IA falló, la foto se devuelve; si la etiqueta no se leía, cuenta.
+        if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
+        return json({ error: leida.error, ...cupo, usadas: leida.fallo ? usadasEtiqueta - 1 : usadasEtiqueta }, leida.fallo ? 502 : 200);
+      }
+      return json({ producto: leida.producto, ...cupo, usadas: usadasEtiqueta });
+    }
 
     // Consulta: solo dice cuántas fotos le quedan, sin usar la IA.
     if (consulta === true) {
@@ -296,4 +321,148 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, "content-type": "application/json" },
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* PRODUCTOS (código de barras)                                         */
+/* Valores siempre por 100 g (o 100 ml).                                */
+/* ------------------------------------------------------------------ */
+
+const CODIGO_VALIDO = /^[0-9]{6,14}$/;
+
+function numeroEn(v: unknown, max: number): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null;
+}
+function textoCorto(v: unknown, max: number): string {
+  return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
+}
+
+// Lo que sale de la base, de Open Food Facts o de la etiqueta, en un solo formato.
+function productoLimpio(p: any) {
+  const kcal = numeroEn(p?.kcal, 900);
+  const proteina = numeroEn(p?.proteina, 100);
+  const carbos = numeroEn(p?.carbos, 100);
+  const grasa = numeroEn(p?.grasa, 100);
+  if (kcal === null || proteina === null || carbos === null || grasa === null) return null;
+  const porcion = numeroEn(p?.porcion_g, 2000);
+  return {
+    nombre: textoCorto(p?.nombre, 80), marca: textoCorto(p?.marca, 40) || null,
+    kcal, proteina, carbos, grasa, fibra: numeroEn(p?.fibra, 100) ?? 0,
+    porcion_g: porcion && porcion > 0 ? porcion : null,
+  };
+}
+
+async function buscarProducto(supabase: any, codigo: unknown) {
+  const cod = String(codigo || "").replace(/\D/g, "");
+  if (!CODIGO_VALIDO.test(cod)) return { encontrado: false, error: "Ese código no parece válido." };
+
+  const { data: guardado } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
+  if (guardado) {
+    await supabase.from("productos").update({ veces_usado: (guardado.veces_usado || 0) + 1 }).eq("codigo", cod);
+    return { encontrado: true, producto: guardado };
+  }
+
+  // Open Food Facts: base mundial y gratuita. Solo sirve si trae calorías y
+  // los tres macros por 100 g.
+  try {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cod}.json?fields=product_name,product_name_es,brands,nutriments,serving_quantity`, {
+      headers: { "User-Agent": "JonahBeastFuel/1.0 (https://jonahbeast.com)" },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const n = d?.product?.nutriments || {};
+      const kcal = n["energy-kcal_100g"] ?? (n["energy_100g"] !== undefined ? Number(n["energy_100g"]) / 4.184 : undefined);
+      const p = productoLimpio({
+        nombre: d?.product?.product_name_es || d?.product?.product_name,
+        marca: String(d?.product?.brands || "").split(",")[0],
+        kcal, proteina: n.proteins_100g, carbos: n.carbohydrates_100g, grasa: n.fat_100g, fibra: n.fiber_100g,
+        porcion_g: d?.product?.serving_quantity,
+      });
+      if (d?.status === 1 && p && p.nombre) {
+        const fila = { codigo: cod, ...p, nombre: await nombreUnico(supabase, cod, p.nombre, p.marca), fuente: "open_food_facts", veces_usado: 1 };
+        const { data: nuevo, error } = await supabase.from("productos").upsert(fila).select("*").single();
+        if (error) console.error("No se pudo guardar el producto de Open Food Facts:", error.message);
+        return { encontrado: true, producto: nuevo || fila };
+      }
+    }
+  } catch (e) {
+    console.error("Open Food Facts no respondió:", (e as Error)?.message);
+  }
+  return { encontrado: false };
+}
+
+// Si ya hay otro producto con el mismo nombre y marca (otra presentación),
+// se le agregan los últimos dígitos del código para que en la app no se
+// confundan.
+async function nombreUnico(supabase: any, codigo: string, nombre: string, marca: string | null) {
+  let q = supabase.from("productos").select("codigo").eq("nombre", nombre).neq("codigo", codigo).limit(1);
+  q = marca ? q.eq("marca", marca) : q.is("marca", null);
+  const { data } = await q;
+  return data && data.length ? `${nombre.slice(0, 72)} · ${codigo.slice(-4)}` : nombre;
+}
+
+async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
+  const cod = String(codigo || "").replace(/\D/g, "");
+  if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
+  const p = productoLimpio(producto);
+  if (!p || !p.nombre) return { error: "Revisa el nombre y los valores del producto." };
+  const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
+  if (existe) return { producto: existe }; // otro alumno lo guardó antes: se usa ese
+  const fila = { codigo: cod, ...p, nombre: await nombreUnico(supabase, cod, p.nombre, p.marca), fuente: "etiqueta", creado_por: username, veces_usado: 1 };
+  const { data, error } = await supabase.from("productos").insert(fila).select("*").single();
+  if (error) {
+    console.error("No se pudo guardar el producto:", error.message);
+    return { error: "No se pudo guardar el producto. Intenta de nuevo." };
+  }
+  return { producto: data };
+}
+
+async function leerEtiqueta(imagenBase64: string, tipoImagen: string): Promise<{ ok: true; producto: any } | { ok: false; error: string; fallo?: boolean }> {
+  const prompt = `Esta es la foto de la TABLA NUTRICIONAL (información nutricional) de un producto empacado, probablemente peruano.
+
+Lee los valores y devuélvelos POR 100 g (o por 100 ml si es líquido). Si la tabla solo trae valores "por porción", conviértelos a 100 g usando el tamaño de la porción que dice la tabla (ej. porción 30 g con 120 kcal → 400 kcal por 100 g).
+- "kcal": energía en kilocalorías (si solo viene en kJ, divide entre 4.184).
+- "carbos": carbohidratos totales. "grasa": grasa total. "fibra": fibra (0 si no aparece).
+- "porcion_g": el tamaño de UNA porción en gramos o ml según la tabla (null si no aparece).
+- "nombre" y "marca": solo si se leen en la foto; si no, cadena vacía. Nombre corto en español, sin la marca ni el peso (ej. "Yogurt bebible sabor fresa").
+Si la foto no es una tabla nutricional o no se puede leer con seguridad, responde {"legible": false}.
+
+Responde ÚNICAMENTE con JSON válido, sin texto adicional:
+{"legible": true, "nombre": "", "marca": "", "porcion_g": 30, "kcal": 400, "proteina": 8, "carbos": 70, "grasa": 10, "fibra": 3}`;
+  let data: any;
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 400,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
+          { type: "text", text: prompt },
+        ] }],
+      }),
+    });
+    if (!resp.ok) {
+      console.error("Error de Anthropic (etiqueta):", resp.status, await resp.text());
+      return { ok: false, fallo: true, error: "No se pudo leer la etiqueta. Intenta de nuevo." };
+    }
+    data = await resp.json();
+  } catch (e) {
+    console.error("Sin conexión con Anthropic (etiqueta):", (e as Error)?.message);
+    return { ok: false, fallo: true, error: "No se pudo leer la etiqueta. Intenta de nuevo." };
+  }
+  const texto = (data.content || []).map((c: any) => c.text || "").join("");
+  console.log("Etiqueta leída por la IA:", texto);
+  try {
+    const parsed = JSON.parse(texto.replace(/```json|```/g, "").trim());
+    if (parsed?.legible === false) return { ok: false, error: "No pudimos leer la tabla nutricional. Toma la foto más cerca, con buena luz y sin reflejos." };
+    const p = productoLimpio(parsed);
+    if (!p) return { ok: false, error: "No pudimos leer bien los valores. Toma la foto más cerca, con buena luz y sin reflejos." };
+    return { ok: true, producto: p };
+  } catch {
+    return { ok: false, error: "No pudimos leer la tabla nutricional. Intenta con otra foto." };
+  }
 }

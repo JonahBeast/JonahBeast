@@ -2537,6 +2537,104 @@ function ProductosPanel() {
   );
 }
 
+// Precisión de la IA de fotos: compara lo que calculó la IA con lo que
+// el alumno terminó registrando (tabla reconocimiento_foto_feedback).
+// Si el alumno no corrige nada, cuenta como acierto aunque no haya pesado:
+// por eso sirve para ver tendencias, no casos sueltos.
+function PrecisionIAPanel() {
+  const [filas, setFilas] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    supabase.from('reconocimiento_foto_feedback')
+      .select('sugeridos, descartados, created_at')
+      .order('created_at', { ascending: false }).limit(1000)
+      .then(({ data }) => { if (!cancelado) setFilas(data || []); }, () => { if (!cancelado) setFilas([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  if (filas === null) {
+    return <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"><Loader2 className="animate-spin text-orange-500" size={20} /></div>;
+  }
+
+  let sugeridos = 0, descartados = 0;
+  const gramos = [];
+  const porAlimento = {};
+  filas.forEach(f => {
+    const fuera = new Set(f.descartados || []);
+    (f.sugeridos || []).forEach(it => {
+      if (!it?.key) return;
+      sugeridos++;
+      if (fuera.has(it.key)) { descartados++; return; }
+      const ia = Number(it.gramos_ia), fin = Number(it.gramos_final);
+      if (!(ia > 0 && fin > 0)) return;
+      const desvio = (ia - fin) / fin;
+      gramos.push(desvio);
+      const a = porAlimento[it.key] || (porAlimento[it.key] = []);
+      a.push(desvio);
+    });
+  });
+  const promedio = arr => arr.reduce((x, y) => x + y, 0) / arr.length;
+  const pct = v => `${v > 0 ? '+' : ''}${Math.round(v * 100)}%`;
+  const aciertoPlato = sugeridos ? Math.round(((sugeridos - descartados) / sugeridos) * 100) : null;
+  const sesgo = gramos.length ? promedio(gramos) : null;
+  const dentro = gramos.length ? Math.round((gramos.filter(d => Math.abs(d) <= 0.15).length / gramos.length) * 100) : null;
+  const corregidos = gramos.length ? Math.round((gramos.filter(d => Math.abs(d) > 0.01).length / gramos.length) * 100) : null;
+  const ranking = Object.entries(porAlimento)
+    .filter(([, arr]) => arr.length >= 2)
+    .map(([key, arr]) => ({ key, n: arr.length, sesgo: promedio(arr) }))
+    .filter(r => Math.abs(r.sesgo) >= 0.05)
+    .sort((a, b) => Math.abs(b.sesgo) - Math.abs(a.sesgo))
+    .slice(0, 6);
+  const colorSesgo = v => Math.abs(v) <= 0.15 ? 'text-emerald-400' : Math.abs(v) <= 0.3 ? 'text-amber-400' : 'text-red-400';
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-4">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">🎯 PRECISIÓN DE LA IA</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">
+          Lo que calculó la IA vs. lo que el alumno terminó registrando, en {filas.length} fotos. Si el alumno no corrige, cuenta como acierto: mira las tendencias, no casos sueltos.
+        </p>
+      </div>
+      {sugeridos === 0 ? (
+        <p className="jb-body text-xs text-zinc-500">Aún no hay fotos registradas.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { v: aciertoPlato === null ? '—' : `${aciertoPlato}%`, l: 'Acierta el alimento', sub: `${sugeridos - descartados} de ${sugeridos} sugerencias se quedaron`, c: aciertoPlato >= 80 ? 'text-emerald-400' : 'text-amber-400' },
+              { v: sesgo === null ? '—' : pct(sesgo), l: 'Error promedio en gramos', sub: sesgo === null ? 'sin datos de gramos' : sesgo > 0 ? 'calcula de más' : 'calcula de menos', c: sesgo === null ? 'text-zinc-400' : colorSesgo(sesgo) },
+              { v: dentro === null ? '—' : `${dentro}%`, l: 'Gramos casi exactos', sub: 'a menos de 15% de lo registrado', c: dentro >= 70 ? 'text-emerald-400' : 'text-amber-400' },
+              { v: corregidos === null ? '—' : `${corregidos}%`, l: 'Alumnos que corrigen', sub: 'cambiaron la cantidad de la IA', c: 'text-zinc-50' },
+            ].map(t => (
+              <div key={t.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+                <div className={`jb-display text-xl ${t.c}`}>{t.v}</div>
+                <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+                <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-1.5">DONDE MÁS SE EQUIVOCA CON LOS GRAMOS</h3>
+            {ranking.length === 0 ? (
+              <p className="jb-body text-xs text-zinc-500">Todavía no hay alimentos con 2 o más correcciones para comparar.</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {ranking.map(r => (
+                  <div key={r.key} className="flex justify-between items-center bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5">
+                    <span className="jb-body text-xs text-zinc-200 truncate">{buscarFood(r.key)?.name || r.key} <span className="text-zinc-500">· {r.n} fotos</span></span>
+                    <span className={`jb-display text-sm shrink-0 ${colorSesgo(r.sesgo)}`}>{pct(r.sesgo)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ReconocimientoFotoPanel() {
   const [filas, setFilas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -4951,6 +5049,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'ia' && (
           <>
+            <PrecisionIAPanel />
             <ReconocimientoFotoPanel />
             <ProductosPanel />
           </>

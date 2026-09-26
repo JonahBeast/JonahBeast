@@ -314,7 +314,7 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
   const agregados = (extras || []).map((a: any) => a.estado && a.estado !== "-" ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre);
   let t = `Datos de esta conversación (hoy es ${hoy}, hora de Lima):
 - Alimentos que Jonah agregó hace poco (también están en la app): ${agregados.length ? agregados.join(", ") : "ninguno"}.
-- Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Semestral S/${precio("precio_6")}, Anual S/${precio("precio_12")}. Complemento Reconocimiento Inteligente: S/11.90 al mes.
+- Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Semestral S/${precio("precio_6")}, Anual S/${precio("precio_12")}. La captura inteligente (5 fotos de comida al día) viene incluida en todos los planes; ya no se vende aparte.
 - Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.`;
 
   if (!alumno) {
@@ -327,7 +327,7 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
     .order("creado_en", { ascending: false }).limit(1).maybeSingle();
   t += `\n- Es alumno (el número coincide con su cuenta): ${alumno.nombre || alumno.username}.
 - Plan: ${tipoPlan}, ${vigente ? "vigente" : "vencido o deshabilitado"}${alumno.fecha_vencimiento ? `, vence el ${alumno.fecha_vencimiento}` : ""}.
-- Reconocimiento Inteligente (fotos): ${alumno.reconocimiento_foto_hasta && alumno.reconocimiento_foto_hasta >= hoy ? `activo hasta el ${alumno.reconocimiento_foto_hasta}` : "no activo"}.
+- Complemento antiguo de fotos (ya no se vende; con plan tiene 5 fotos al día igual): ${alumno.reconocimiento_foto_hasta && alumno.reconocimiento_foto_hasta >= hoy ? `activo hasta el ${alumno.reconocimiento_foto_hasta}` : "no activo"}.
 - Último pago: ${pago ? `S/${Number(pago.monto).toFixed(2)} por ${pago.plan_meses} mes(es), ${pago.metodo || "método no indicado"}, estado "${pago.estado}", enviado el ${String(pago.creado_en).slice(0, 10)}` : "no tiene pagos registrados"}.`;
   return t;
 }

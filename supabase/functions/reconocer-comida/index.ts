@@ -5,9 +5,8 @@
 // (tu propia base de datos), para que nunca invente un plato
 // que no exista en Jonah Beast Fuel.
 //
-// Mismo modelo (Sonnet 5) para todos los alumnos, tengan o no el
-// add-on activo -- dar peor calidad a quien paga que a quien prueba
-// gratis sería backwards.
+// Mismo modelo (Sonnet 5) para todos los alumnos -- dar peor calidad a
+// quien paga que a quien prueba gratis sería backwards.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -15,14 +14,19 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 
+// Captura inteligente incluida en todos los planes pagados: 5 fotos por
+// día (desayuno, almuerzo, cena y 2 snacks). Quien aún tenga el antiguo
+// complemento "Reconocimiento Inteligente" recibe lo mismo.
+const LIMITE_PLAN_DIARIO = 5;
+// Prueba gratis: los primeros 3 días, 3 fotos por día (bienvenida), para
+// que el alumno viva la función completa justo cuando decide si se queda.
+// Desde el día 4, 5 por semana; con un plan pasa a 5 por día.
 const LIMITE_GRATIS_SEMANAL = 5;
-const LIMITE_PAGO_MENSUAL = 200;
-// Bienvenida: los primeros 3 días de la prueba gratis, 3 fotos por día
-// (desayuno, almuerzo y cena), para que el alumno viva la función completa
-// justo cuando decide si se queda. Desde el día 4 vuelve a 5 por semana, y
-// quien quiera más compra Reconocimiento Inteligente.
 const LIMITE_BIENVENIDA_DIARIO = 3;
 const DIAS_BIENVENIDA = 3;
+// Leer la tabla nutricional de un producto NO usa las fotos de comida:
+// tiene su propio tope diario. El producto queda guardado para todos.
+const LIMITE_ETIQUETAS_DIARIO = 5;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,16 +44,6 @@ function numeroDeSemanaISO(d = new Date()) {
   const m = String(lunes.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(lunes.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
-}
-function periodoDesdeActivacion(desdeISO: string, d = new Date()) {
-  const desde = new Date(desdeISO + "T00:00:00Z");
-  const diffMs = d.getTime() - desde.getTime();
-  const bloque = Math.max(0, Math.floor(diffMs / (30 * 86400000)));
-  const inicioBloque = new Date(desde.getTime() + bloque * 30 * 86400000);
-  const y = inicioBloque.getUTCFullYear();
-  const m = String(inicioBloque.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(inicioBloque.getUTCDate()).padStart(2, "0");
-  return `addon-${y}-${m}-${dd}`;
 }
 
 // Fecha YYYY-MM-DD en hora de Lima.
@@ -89,7 +83,7 @@ Deno.serve(async (req) => {
     const username = await usuarioDeLaSesion(supabase, req);
     if (!username) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
 
-    const { imagenBase64, mimeType, alimentos, consulta, accion, codigo, producto } = await req.json();
+    const { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto } = await req.json();
 
     // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
     // sin fecha de vencimiento), igual que en la app.
@@ -106,20 +100,20 @@ Deno.serve(async (req) => {
     const hoyLima = fechaLima(hoy);
     const tieneAddOn = !!(alumno.reconocimiento_foto_hasta && new Date(alumno.reconocimiento_foto_hasta + "T23:59:59Z") > hoy);
     const esPrueba = alumno.plan === "trial" || alumno.plan === "prueba";
+    const conPlan = !esPrueba || tieneAddOn;
     const diaPrueba = esPrueba && alumno.fecha_inicio ? diasEntre(alumno.fecha_inicio, hoyLima) + 1 : null;
-    const enBienvenida = !tieneAddOn && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
-    const tipo = tieneAddOn ? "addon" : enBienvenida ? "bienvenida" : "semanal";
-    const periodo = tieneAddOn ? periodoDesdeActivacion(alumno.reconocimiento_foto_desde, hoy)
-      : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
-    const limite = tieneAddOn ? LIMITE_PAGO_MENSUAL : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
+    const enBienvenida = !conPlan && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
+    const tipo = conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
+    const periodo = conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
+    const limite = conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
     // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
     const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
     const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
 
     // Código de barras (ver "PRODUCTOS" al final del archivo):
     // - buscar_codigo: tabla productos → Open Food Facts. No gasta fotos.
-    // - leer_etiqueta: la IA lee la tabla nutricional de la foto. Gasta
-    //   una foto del cupo, igual que reconocer un plato.
+    // - leer_etiqueta: la IA lee la tabla nutricional de la foto. No gasta
+    //   fotos de comida: tiene su propio tope diario (LIMITE_ETIQUETAS_DIARIO).
     // - guardar_producto: guarda lo leído (con el nombre que confirma el
     //   alumno) para que el siguiente que lo escanee lo encuentre.
     if (accion === "buscar_codigo") return json(await buscarProducto(supabase, codigo));
@@ -134,18 +128,19 @@ Deno.serve(async (req) => {
     if (accion === "leer_etiqueta") {
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
+      const periodoEtiqueta = `etiqueta-${hoyLima}`;
       const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
-        p_username: username, p_periodo: periodo, p_limite: limite,
+        p_username: username, p_periodo: periodoEtiqueta, p_limite: LIMITE_ETIQUETAS_DIARIO,
       });
       if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
-      if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", ...cupo, usadas: limite }, 200);
+      if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);
       const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: "claude-sonnet-5", usage }));
       if (!leida.ok) {
-        // Si la IA falló, la foto se devuelve; si la etiqueta no se leía, cuenta.
-        if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
-        return json({ error: leida.error, ...cupo, usadas: leida.fallo ? usadasEtiqueta - 1 : usadasEtiqueta }, leida.fallo ? 502 : 200);
+        // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
+        if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
+        return json({ error: leida.error }, leida.fallo ? 502 : 200);
       }
-      return json({ producto: leida.producto, ...cupo, usadas: usadasEtiqueta });
+      return json({ producto: leida.producto });
     }
 
     // Consulta: solo dice cuántas fotos le quedan, sin usar la IA.
@@ -165,10 +160,16 @@ Deno.serve(async (req) => {
     if (alimentos.length > MAX_ALIMENTOS) {
       return json({ error: "La lista de alimentos es demasiado larga." }, 400);
     }
-    const alimentosValidos = alimentos
+    const limpiarLista = (lista: unknown) => (Array.isArray(lista) ? lista : [])
       .filter((a: any) => a && typeof a.key === "string" && typeof a.name === "string" && a.key && a.name)
       .map((a: any) => ({ key: a.key.slice(0, MAX_TEXTO_ALIMENTO), name: a.name.slice(0, MAX_TEXTO_ALIMENTO) }));
-    if (!alimentosValidos.length) return json({ error: "Faltan datos (alimentos)." }, 400);
+    // "alimentos" es la lista común (igual para todos los alumnos) y
+    // "personales" los alimentos propios de este alumno. Van separados para
+    // que la lista común quede en caché (ver más abajo).
+    const alimentosComunes = limpiarLista(alimentos);
+    const alimentosPersonales = limpiarLista(personales).slice(0, MAX_ALIMENTOS);
+    const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
+    if (!alimentosComunes.length) return json({ error: "Faltan datos (alimentos)." }, 400);
 
     // Se reserva la foto ANTES de llamar a la IA, en un solo paso en la
     // base de datos: si mandan muchas fotos a la vez, solo pasan las que
@@ -187,7 +188,9 @@ Deno.serve(async (req) => {
 
     // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
     // la lista pesa casi la mitad que mandando "clave :: nombre".
-    const listaPlatos = [...new Set(alimentosValidos.map((a: any) => a.key))].join("\n");
+    const listaPlatos = [...new Set(alimentosComunes.map((a: any) => a.key))].join("\n");
+    const clavesComunes = new Set(alimentosComunes.map((a: any) => a.key));
+    const listaPersonales = [...new Set(alimentosPersonales.map((a: any) => a.key))].filter((k) => !clavesComunes.has(k)).join("\n");
 
     const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
@@ -238,11 +241,18 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
         body: JSON.stringify({
           model: modelo,
           max_tokens: 800,
+          // Las instrucciones y la lista común son iguales en todas las
+          // fotos: van primero y quedan en caché unos minutos, así la
+          // siguiente foto (de cualquier alumno) paga ~10% por esa parte.
+          // Lo que cambia (la foto y los alimentos propios) va después.
+          system: [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }],
           messages: [{
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
-              { type: "text", text: prompt },
+              { type: "text", text: listaPersonales
+                ? `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}\n\nIdentifica los alimentos de esta foto.`
+                : "Identifica los alimentos de esta foto." },
             ],
           }],
         }),

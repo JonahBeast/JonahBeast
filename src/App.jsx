@@ -1846,13 +1846,16 @@ const URL_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.jonahb
 
 function RetoPage({ onIrALaApp }) {
   const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, quiero entrar al Reto Beast 15 días y tengo una duda.')}`;
+  const waCuentaUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, ya tengo cuenta en Jonah Beast Fuel y entré al Reto Beast. Mi usuario es: ')}`;
   const pasos = [
     RETO_GRUPO_URL
       ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo' }
       : { t: 'Pásame tu correo de Gmail', d: 'El mismo de tu Play Store. Te agrego a la lista del reto.', url: waUrl, cta: 'Enviar mi Gmail por WhatsApp' },
     { t: 'Acepta ser verificador', d: 'Toca "Convertirte en verificador". Si ya lo eres, sigue al paso 3.', url: URL_VERIFICADOR, cta: 'Aceptar' },
     { t: 'Instala la app', d: 'Desde Play Store. Ábrela siempre desde el ícono de la app, no desde el navegador.', url: URL_PLAY_STORE, cta: 'Instalar en Play Store' },
-    { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.` },
+    { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.`,
+      extra: '¿Ya tienes cuenta? No crees otra: entra con tu cuenta de siempre y avísame por WhatsApp que estás en el reto.',
+      extraUrl: waCuentaUrl, extraCta: 'Ya tengo cuenta: avisar por WhatsApp' },
     { t: 'Tómate tus fotos el día 1', d: 'En la app: Progreso → Fotos. Frente, perfil y espalda. Sin fotos del día 1 no puedes ganar el premio a la mejor transformación.' },
   ];
 
@@ -1908,6 +1911,14 @@ function RetoPage({ onIrALaApp }) {
               <div className="min-w-0 flex-1">
                 <p className="text-zinc-50 font-semibold">{p.t}</p>
                 <p className="text-sm text-zinc-400 mt-0.5">{p.d}</p>
+                {p.extra && (
+                  <div className="mt-3 border-t border-zinc-800 pt-3">
+                    <p className="text-sm text-zinc-300">{p.extra}</p>
+                    <a href={p.extraUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' mt-2 py-2 text-sm'}>
+                      <MessageCircle size={16} /> {p.extraCta}
+                    </a>
+                  </div>
+                )}
                 {p.url && (
                   <a href={p.url} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' mt-3 py-2.5 text-sm'}>
                     {p.cta}

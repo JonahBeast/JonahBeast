@@ -422,7 +422,7 @@ Problemas:
 
 ### 12.1 Reto Beast 15 días (jonahbeast.com/reto)
 
-Página del reto que Jonah anuncia en TikTok: 15 días usando la **app de Play Store** (Android), registrando las comidas **todos los días**. Solo **30 cupos**.
+Página del reto que Jonah anuncia en TikTok. Fechas: **del lunes 28 de septiembre al lunes 12 de octubre de 2026** (15 días) usando la **app de Play Store** (Android), registrando las comidas **todos los días**. Solo **30 cupos**.
 
 **Premios:**
 - **Completar el reto:** 1 mes gratis de plan al terminar.

@@ -1856,7 +1856,7 @@ function RetoPage({ onIrALaApp }) {
     { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.`,
       extra: '¿Ya tienes cuenta? No crees otra: entra con tu cuenta de siempre y avísame por WhatsApp que estás en el reto.',
       extraUrl: waCuentaUrl, extraCta: 'Ya tengo cuenta: avisar por WhatsApp' },
-    { t: 'Tómate tus fotos el día 1', d: 'En la app: Progreso → Fotos. Frente, perfil y espalda. Sin fotos del día 1 no puedes ganar el premio a la mejor transformación.' },
+    { t: 'Tómate tus fotos el día 1', d: 'El lunes 28 de septiembre, en la app: Progreso → Fotos. Frente, perfil y espalda. Sin fotos del día 1 no puedes ganar el premio a la mejor transformación.' },
   ];
 
   return (
@@ -1872,6 +1872,10 @@ function RetoPage({ onIrALaApp }) {
           <span className="text-[11px] font-semibold text-zinc-950 bg-orange-500 rounded-full px-2 py-0.5">SOLO {RETO_CUPOS} CUPOS</span>
         </div>
         <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">15 DÍAS.<br />UN CAMBIO REAL.</h1>
+        <div className="inline-flex items-center gap-2 bg-zinc-900 border border-orange-500/60 rounded-xl px-3 py-2 mb-4">
+          <span className="text-lg">📅</span>
+          <p className="text-sm text-zinc-200">Empieza el <strong className="text-zinc-50">lunes 28 de septiembre</strong> · termina el <strong className="text-zinc-50">lunes 12 de octubre</strong></p>
+        </div>
         <p className="text-zinc-300 mb-6">
           Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.
           Usa la app de Jonah Beast Fuel <strong className="text-zinc-50">los 15 días</strong>, registra todo lo que comes y deja que los resultados hablen. Mientras más constante seas, más se nota el cambio.

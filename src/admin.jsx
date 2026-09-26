@@ -42,7 +42,7 @@ function membershipLabel(u) {
   if (!u.enabled) return { text: 'Deshabilitado por ti', color: 'text-red-400', dot: 'bg-red-500' };
   const dl = daysLeft(u.fechaVencimiento);
   if (dl === null) return { text: 'Activo · sin vencimiento', color: 'text-emerald-400', dot: 'bg-emerald-500' };
-  if (dl < 0) return { text: `Vencido hace ${Math.abs(dl)} día(s)`, color: 'text-red-400', dot: 'bg-red-500' };
+  if (dl < 0) return { text: `${(u.plan === 'trial' || u.plan === 'prueba') ? 'Prueba terminada' : 'Plan vencido'} hace ${Math.abs(dl)} día(s)`, color: 'text-red-400', dot: 'bg-red-500' };
   if (dl === 0) return { text: 'Vence hoy', color: 'text-amber-400', dot: 'bg-amber-500' };
   if (dl <= 7) return { text: `Vence en ${dl} día(s)`, color: 'text-amber-400', dot: 'bg-amber-500' };
   return { text: `Activo · ${dl} días restantes`, color: 'text-emerald-400', dot: 'bg-emerald-500' };
@@ -4708,6 +4708,8 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
+  const [mostrarNuevo, setMostrarNuevo] = useState(false);
+  const [ordenAlumnos, setOrdenAlumnos] = useState('actividad');
 
   function submitNew(e) {
     e.preventDefault();
@@ -4764,6 +4766,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {(() => {
           const TABS = [
             { id: 'hoy', label: 'HOY', emoji: '📋' },
+            { id: 'alumnos', label: `ALUMNOS · ${users.length}`, emoji: '👥' },
             { id: 'negocio', label: 'NEGOCIO', emoji: '💰' },
             { id: 'ia', label: 'IA', emoji: '📸' },
             { id: 'tienda', label: 'TIENDA', emoji: '🛍️' },
@@ -4798,43 +4801,11 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <EmbudoPanel />
             <CumpleanosPanel users={users} />
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
-                  <UserPlus size={16} className="text-orange-500" />
-                </div>
-                <h2 className="jb-display text-base text-zinc-200">NUEVO ALUMNO</h2>
-              </div>
-              <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
-                <Field label="Nombre completo">
-                  <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
-                </Field>
-                <Field label="Celular (WhatsApp)">
-                  <input type="tel" inputMode="tel" value={newUser.telefono} onChange={e => setNewUser(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
-                </Field>
-                <Field label="Usuario">
-                  <input value={newUser.username} onChange={e => setNewUser(v => ({ ...v, username: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
-                </Field>
-                <Field label="Contraseña">
-                  <input value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Contraseña temporal" />
-                </Field>
-                <Field label="Inicio de membresía">
-                  <input type="date" value={newUser.fechaInicio} onChange={e => setNewUser(v => ({ ...v, fechaInicio: e.target.value }))} className={inputCls} />
-                </Field>
-                <Field label="Duración">
-                  <select value={newUser.meses} onChange={e => setNewUser(v => ({ ...v, meses: Number(e.target.value) }))} className={inputCls}>
-                    <option value={1}>1 mes</option>
-                    <option value={2}>2 meses</option>
-                    <option value={3}>3 meses</option>
-                    <option value={6}>6 meses</option>
-                    <option value={12}>12 meses</option>
-                  </select>
-                </Field>
-                <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar alumno</button>
-              </form>
-              {formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
-            </div>
+          </>
+        )}
 
+        {tabActiva === 'alumnos' && (
+          <>
             <div className="relative rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(13,28,40,0.9), rgba(10,22,32,0.9))', border: '1px solid #163244' }}>
               <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'linear-gradient(90deg, #4dd9ff, transparent)' }} />
               <div className="px-5 py-4 flex flex-col gap-3" style={{ borderBottom: '1px solid #163244' }}>
@@ -4849,6 +4820,18 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   className="rounded-lg px-3 py-2 text-sm text-zinc-200 w-full font-mono"
                   style={{ background: '#050a0f', border: '1px solid #163244' }}
                 />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[11px] tracking-wide" style={{ color: '#6f92a8' }}>ORDENAR:</span>
+                  {[['actividad', 'Usó la app hace poco'], ['vence', 'Vence primero'], ['nombre', 'Nombre A-Z']].map(([k, t]) => (
+                    <button key={k} onClick={() => setOrdenAlumnos(k)}
+                      className="font-mono text-[11px] px-2.5 py-1 rounded-full border"
+                      style={ordenAlumnos === k
+                        ? { background: '#4dd9ff', borderColor: '#4dd9ff', color: '#050a0f' }
+                        : { background: 'transparent', borderColor: '#163244', color: '#6f92a8' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
               {usersFiltrados.length === 0 ? (
                 <p className="text-zinc-500 text-sm px-5 py-8 text-center">
@@ -4859,30 +4842,39 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 // por vencer se ven en el panel ⏰ Por vencer (y aquí dicen
                 // "Vence en N días").
                 const grupos = {
-                  deshabilitados: [], vencidos: [], enPrueba: [], activos: [],
+                  deshabilitados: [], pruebaTerminada: [], planVencido: [], enPrueba: [], activos: [], reto: [],
                 };
                 usersFiltrados.forEach(u => {
                   const dl = daysLeft(u.fechaVencimiento);
+                  const esPrueba = u.plan === 'trial' || u.plan === 'prueba';
+                  if (String(u.codigoReferido || '').toUpperCase() === 'RETO') grupos.reto.push(u);
                   if (!u.enabled) grupos.deshabilitados.push(u);
-                  else if (dl !== null && dl < 0) grupos.vencidos.push(u);
-                  else if (u.plan === 'trial' || u.plan === 'prueba') grupos.enPrueba.push(u);
+                  else if (dl !== null && dl < 0) (esPrueba ? grupos.pruebaTerminada : grupos.planVencido).push(u);
+                  else if (esPrueba) grupos.enPrueba.push(u);
                   else grupos.activos.push(u);
                 });
-                grupos.vencidos.sort((a, b) => daysLeft(a.fechaVencimiento) - daysLeft(b.fechaVencimiento));
+                // Orden elegible: los que usaron la app más recientemente
+                // primero (para saber a quién escribir), los que vencen o
+                // vencieron antes primero, o por nombre.
                 const porNombre = (a, b) => (a.nombre || a.username).localeCompare(b.nombre || b.username);
-                grupos.enPrueba.sort(porNombre);
-                grupos.activos.sort(porNombre);
-                grupos.deshabilitados.sort(porNombre);
+                const tiempo = (u) => (u.lastActivity ? new Date(u.lastActivity).getTime() : 0);
+                const porActividad = (a, b) => tiempo(b) - tiempo(a) || porNombre(a, b);
+                const vence = (u) => { const d = daysLeft(u.fechaVencimiento); return d === null ? 99999 : d; };
+                const porVencimiento = (a, b) => vence(a) - vence(b) || porNombre(a, b);
+                const orden = ordenAlumnos === 'nombre' ? porNombre : ordenAlumnos === 'vence' ? porVencimiento : porActividad;
+                Object.values(grupos).forEach(g => g.sort(orden));
 
                 const SECCIONES = [
-                  { key: 'vencidos', label: 'VENCIDOS', color: '#ff5c5c', emoji: '🔴' },
+                  { key: 'pruebaTerminada', label: 'PRUEBA TERMINADA', color: '#ff9f43', emoji: '🟠' },
+                  { key: 'planVencido', label: 'PLAN VENCIDO', color: '#ff5c5c', emoji: '🔴' },
                   { key: 'enPrueba', label: 'EN PRUEBA GRATIS', color: '#4dd9ff', emoji: '🔵' },
-                  { key: 'activos', label: 'ACTIVOS', color: '#4affb0', emoji: '🟢' },
+                  { key: 'activos', label: 'ACTIVOS (PAGAN)', color: '#4affb0', emoji: '🟢' },
+                  { key: 'reto', label: 'RETO BEAST', color: '#E8590C', emoji: '🏁' },
                   { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
                 ];
                 const seccionesConDatos = SECCIONES.filter(s => grupos[s.key].length > 0);
                 const seccionesAMostrar = filtroAlumnos === 'todos'
-                  ? seccionesConDatos
+                  ? seccionesConDatos.filter(s => s.key !== 'reto')
                   : seccionesConDatos.filter(s => s.key === filtroAlumnos);
 
                 return (
@@ -4930,6 +4922,44 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 );
               })()}
             </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+              <button type="button" onClick={() => setMostrarNuevo(v => !v)} className="w-full flex items-center gap-2.5 text-left">
+                <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
+                  <UserPlus size={16} className="text-orange-500" />
+                </div>
+                <h2 className="jb-display text-base text-zinc-200 flex-1">NUEVO ALUMNO</h2>
+                <ChevronRight size={18} className={`text-zinc-500 transition-transform ${mostrarNuevo ? 'rotate-90' : ''}`} />
+              </button>
+              {mostrarNuevo && <form onSubmit={submitNew} className="grid sm:grid-cols-3 gap-3 items-end">
+                <Field label="Nombre completo">
+                  <input value={newUser.nombre} onChange={e => setNewUser(v => ({ ...v, nombre: e.target.value }))} className={inputCls} placeholder="Ej. María Pérez" />
+                </Field>
+                <Field label="Celular (WhatsApp)">
+                  <input type="tel" inputMode="tel" value={newUser.telefono} onChange={e => setNewUser(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="999888777" />
+                </Field>
+                <Field label="Usuario">
+                  <input value={newUser.username} onChange={e => setNewUser(v => ({ ...v, username: e.target.value }))} className={inputCls} placeholder="ej. maria23" />
+                </Field>
+                <Field label="Contraseña">
+                  <input value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} className={inputCls} placeholder="Contraseña temporal" />
+                </Field>
+                <Field label="Inicio de membresía">
+                  <input type="date" value={newUser.fechaInicio} onChange={e => setNewUser(v => ({ ...v, fechaInicio: e.target.value }))} className={inputCls} />
+                </Field>
+                <Field label="Duración">
+                  <select value={newUser.meses} onChange={e => setNewUser(v => ({ ...v, meses: Number(e.target.value) }))} className={inputCls}>
+                    <option value={1}>1 mes</option>
+                    <option value={2}>2 meses</option>
+                    <option value={3}>3 meses</option>
+                    <option value={6}>6 meses</option>
+                    <option value={12}>12 meses</option>
+                  </select>
+                </Field>
+                <button type="submit" className={btnPrimary}><Plus size={16} /> Agregar alumno</button>
+              </form>}
+              {mostrarNuevo && formErr && <p className="text-red-400 text-sm mt-2 flex items-center gap-1.5"><AlertTriangle size={14} />{formErr}</p>}
+            </div>
+
           </>
         )}
 

@@ -220,7 +220,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
    - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.
    - Toca **"Agregar a [comida]"**.
-3. Si sale **"Aún no tenemos este producto"**, toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque.
+3. Si sale **"Aún no tenemos este producto"**, primero revisa el **"Código leído"**: si no coincide con los números que están debajo de las barras, toca **"Escanear de nuevo"** (el empaque arrugado o de costado puede confundir la lectura). Si el código está bien, toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque.
    - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar y continuar"**.
    - Si los números no coinciden con la etiqueta, toca **"Los números no coinciden: otra foto"**.
    - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.

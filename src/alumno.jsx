@@ -6257,14 +6257,21 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         await video.play().catch(() => {});
         const lector = await crearLectorCodigo();
         let fallos = 0;
+        let anterior = '';
         const mirar = async () => {
           if (cancelado) return;
           try {
             if (video.readyState >= 2) {
               const hallados = await lector.detect(video);
               fallos = 0;
-              const valor = hallados?.[0]?.rawValue?.replace(/\D/g, '');
-              if (valor && valor.length >= 6) { vibrar(30); apagarCamara(); buscar(valor); return; }
+              // Se prefiere el código largo (EAN-13 / UPC-A) y solo se acepta
+              // cuando sale igual en dos lecturas seguidas: con el empaque
+              // arrugado o de costado, el lector a veces "ve" un código
+              // corto que no existe.
+              const valores = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8);
+              const valor = valores.sort((a, b) => b.length - a.length)[0] || '';
+              if (valor && valor === anterior) { vibrar(30); apagarCamara(); buscar(valor); return; }
+              anterior = valor;
             }
           } catch {
             // Si el lector no funciona en este celular, se pasa a escribir el código.
@@ -6439,6 +6446,12 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         {estado === 'no_encontrado' && (
           <div>
             <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje || 'Aún no tenemos este producto.'}</p>
+            {codigo && (
+              <p className="jb-body text-xs text-zinc-500 mb-2">
+                Código leído: <span className="text-zinc-300 tabular-nums tracking-wider">{codigo}</span>. ¿No es el que está debajo de las barras?{' '}
+                <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="text-orange-400 underline">Escanear de nuevo</button>
+              </p>
+            )}
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y el producto queda guardado: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
             </p>

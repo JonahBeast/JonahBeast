@@ -34,7 +34,7 @@
 - App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
 - **Prueba gratis de 15 días, sin tarjeta.** Después, planes pagados de 1, 3, 6 o 12 meses.
-- **Todos los planes incluyen:** captura inteligente (5 fotos de comida al día), composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
+- **Todos los planes incluyen** (en Planes, bajo "TODOS LOS PLANES INCLUYEN"): registro de comida en segundos con foto con IA (5 fotos al día), código de barras o voz, composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
 - **La captura inteligente (reconocer la comida con una foto) ya viene incluida en todos los planes.** No hay que pagar nada aparte (ver sección 9).
 
 ---

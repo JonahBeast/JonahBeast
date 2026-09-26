@@ -1830,6 +1830,113 @@ function Logo({ size = 'md' }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* RETO BEAST 14 DÍAS (jonahbeast.com/reto)                            */
+/* ------------------------------------------------------------------ */
+
+/* Página para el live de TikTok: invita a personas que buscan un cambio
+   real a usar la app de Play Store 14 días. Los participantes crean su
+   cuenta con el código RETO para reconocerlos en el panel.
+   RETO_GRUPO_URL es el Grupo de Google que está como lista de
+   verificadores en Play Console (unirse al grupo = poder instalar). */
+const RETO_GRUPO_URL = '';
+const RETO_CODIGO = 'RETO';
+const URL_VERIFICADOR = 'https://play.google.com/apps/testing/com.jonahbeast.twa';
+const URL_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.jonahbeast.twa';
+
+function RetoPage({ onIrALaApp }) {
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, quiero entrar al Reto Beast 14 días y tengo una duda.')}`;
+  const pasos = [
+    RETO_GRUPO_URL
+      ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo' }
+      : { t: 'Pásame tu correo de Gmail', d: 'El mismo de tu Play Store. Te agrego a la lista del reto.', url: waUrl, cta: 'Enviar mi Gmail por WhatsApp' },
+    { t: 'Acepta ser verificador', d: 'Toca "Convertirte en verificador". Si ya lo eres, sigue al paso 3.', url: URL_VERIFICADOR, cta: 'Aceptar' },
+    { t: 'Instala la app', d: 'Desde Play Store. Ábrela siempre desde el ícono de la app, no desde el navegador.', url: URL_PLAY_STORE, cta: 'Instalar en Play Store' },
+    { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.` },
+    { t: 'Tómate tus fotos el día 1', d: 'En la app: Progreso → Fotos. Frente, perfil y espalda. Sin fotos del día 1 no puedes ganar el premio a la mejor transformación.' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 jb-body">
+      <div className="max-w-xl mx-auto px-4 pb-16" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}>
+        <div className="flex items-center justify-between mb-8">
+          <Logo />
+          <button onClick={onIrALaApp} className="text-xs text-zinc-400 hover:text-orange-400">Ir a la app</button>
+        </div>
+
+        <p className="jb-display text-orange-500 text-sm tracking-widest mb-2">RETO BEAST</p>
+        <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">14 DÍAS.<br />UN CAMBIO REAL.</h1>
+        <p className="text-zinc-300 mb-6">
+          Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.
+          Usa la app de Jonah Beast Fuel <strong className="text-zinc-50">14 días</strong>, registra lo que comes y deja que los resultados hablen.
+        </p>
+
+        <div className="grid gap-3 mb-8">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-2xl mb-1">🏅</p>
+            <p className="jb-display text-lg text-zinc-50">COMPLETA EL RETO</p>
+            <p className="text-sm text-zinc-300"><strong className="text-orange-400">1 mes gratis</strong> de tu plan al terminar.</p>
+          </div>
+          <div className="bg-zinc-900 border border-orange-500/60 rounded-2xl p-4">
+            <p className="text-2xl mb-1">🏆</p>
+            <p className="jb-display text-lg text-zinc-50">MEJOR TRANSFORMACIÓN</p>
+            <p className="text-sm text-zinc-300">
+              <strong className="text-orange-400">3 meses gratis</strong> + <strong className="text-orange-400">creatina de 300 g</strong> de regalo.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-orange-500/10 border border-orange-500/50 rounded-2xl p-4 mb-8 flex gap-3">
+          <Camera className="text-orange-400 shrink-0 mt-0.5" size={22} />
+          <div>
+            <p className="jb-display text-base text-zinc-50 mb-1">FOTOS DESDE EL DÍA 1</p>
+            <p className="text-sm text-zinc-300">
+              La mejor transformación se elige comparando tus fotos del <strong className="text-zinc-50">día 1</strong> con las del <strong className="text-zinc-50">día 14</strong>, tomadas dentro de la app.
+              Si no tienes fotos del primer día, no puedes ganar ese premio.
+            </p>
+          </div>
+        </div>
+
+        <h2 className="jb-display text-2xl text-zinc-50 mb-3">CÓMO ENTRAR</h2>
+        <ol className="grid gap-3 mb-8">
+          {pasos.map((p, i) => (
+            <li key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex gap-3">
+              <span className="jb-display text-orange-500 text-2xl leading-none w-6 shrink-0">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-zinc-50 font-semibold">{p.t}</p>
+                <p className="text-sm text-zinc-400 mt-0.5">{p.d}</p>
+                {p.url && (
+                  <a href={p.url} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' mt-3 py-2.5 text-sm'}>
+                    {p.cta}
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        <h2 className="jb-display text-2xl text-zinc-50 mb-3">REGLAS</h2>
+        <ul className="grid gap-2 text-sm text-zinc-300 mb-8">
+          <li>📱 Necesitas un celular <strong className="text-zinc-50">Android</strong> con Play Store.</li>
+          <li>🍽️ Registra tus comidas en la app <strong className="text-zinc-50">al menos 10 de los 14 días</strong>.</li>
+          <li>📸 Fotos de progreso el <strong className="text-zinc-50">día 1</strong> y el <strong className="text-zinc-50">día 14</strong>.</li>
+          <li>💬 Al final, cuéntanos qué mejorarías de la app.</li>
+          <li>🤝 Los premios son por participar y por tus resultados, <strong className="text-zinc-50">no</strong> por la calificación que le pongas a la app en Play Store.</li>
+        </ul>
+
+        <p className="text-xs text-zinc-500 mb-6">
+          ¿Tienes iPhone? Puedes usar la app desde el navegador en jonahbeast.com con el código {RETO_CODIGO}, pero el reto es para quienes usan la app de Play Store.
+          Los premios se entregan al terminar el reto; la creatina se coordina por WhatsApp.
+        </p>
+
+        <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-3'}>
+          <MessageCircle size={18} /> ¿Dudas? Escríbeme por WhatsApp
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* LANDING                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -4302,6 +4409,7 @@ export default function App() {
   const [view, setView] = useState(() => {
     try {
       if (window.location.pathname.startsWith('/tienda')) return 'tienda';
+      if (window.location.pathname.startsWith('/reto')) return 'reto';
       return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing';
     } catch { return 'landing'; }
   });
@@ -4384,6 +4492,9 @@ export default function App() {
 
   async function restoreSession() {
     try {
+      // En la página del reto no se entra a la cuenta: se muestra la página
+      // aunque haya una sesión abierta (al tocar "Ir a la app" recarga en /).
+      if (window.location.pathname.startsWith('/reto')) return;
       const { data } = await supabase.auth.getSession();
       if (!data.session) return;
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.session.user.id).maybeSingle();
@@ -4850,6 +4961,7 @@ export default function App() {
           <Loader2 className="animate-spin text-orange-500" size={28} />
         </div>
       ))}
+      {!tokenRef && view === 'reto' && <RetoPage onIrALaApp={() => { window.location.href = '/'; }} />}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
       {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}

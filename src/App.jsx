@@ -1840,6 +1840,7 @@ function Logo({ size = 'md' }) {
    verificadores en Play Console (unirse al grupo = poder instalar). */
 const RETO_GRUPO_URL = '';
 const RETO_CODIGO = 'RETO';
+const RETO_CUPOS = 30;
 const URL_VERIFICADOR = 'https://play.google.com/apps/testing/com.jonahbeast.twa';
 const URL_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.jonahbeast.twa';
 
@@ -1863,7 +1864,10 @@ function RetoPage({ onIrALaApp }) {
           <button onClick={onIrALaApp} className="text-xs text-zinc-400 hover:text-orange-400">Ir a la app</button>
         </div>
 
-        <p className="jb-display text-orange-500 text-sm tracking-widest mb-2">RETO BEAST</p>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="jb-display text-orange-500 text-sm tracking-widest">RETO BEAST</p>
+          <span className="text-[11px] font-semibold text-zinc-950 bg-orange-500 rounded-full px-2 py-0.5">SOLO {RETO_CUPOS} CUPOS</span>
+        </div>
         <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">15 DÍAS.<br />UN CAMBIO REAL.</h1>
         <p className="text-zinc-300 mb-6">
           Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.
@@ -1916,6 +1920,7 @@ function RetoPage({ onIrALaApp }) {
 
         <h2 className="jb-display text-2xl text-zinc-50 mb-3">REGLAS</h2>
         <ul className="grid gap-2 text-sm text-zinc-300 mb-8">
+          <li>🎟️ Solo <strong className="text-zinc-50">{RETO_CUPOS} cupos</strong>: entran los primeros en completar los pasos.</li>
           <li>📱 Necesitas un celular <strong className="text-zinc-50">Android</strong> con Play Store.</li>
           <li>🍽️ Registra tus comidas en la app <strong className="text-zinc-50">todos los días, los 15 días</strong> del reto.</li>
           <li>📸 Fotos de progreso el <strong className="text-zinc-50">día 1</strong> y el <strong className="text-zinc-50">día 15</strong>.</li>

@@ -216,7 +216,9 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 **B2) Código de barras (productos empacados: yogurt, galletas, leche, atún, barras…)**
 1. Toca **"Código"**. Se abre la cámara con un recuadro: apunta al **código de barras** del empaque y se lee solo.
-   - Si la cámara no abre o no lee el código, toca **"Escribir los números"** y escribe los números que están debajo del código → **"Buscar producto"**.
+   - Si no lo lee en unos segundos, sale **"¿No lo lee?"**: acerca el celular hasta que las barras llenen el recuadro, estira el empaque y evita el brillo.
+   - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, y se lee desde la foto. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece.
+   - O **"Buscarlo por su nombre"** para buscarlo escribiendo como cualquier alimento.
 2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
    - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.
    - Toca **"Agregar a [comida]"**.
@@ -226,7 +228,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
    - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
 - Escanear el código **no gasta fotos**. **Leer la tabla nutricional sí usa una foto** de tu límite (sección 9.4). Si ya no te quedan fotos, busca el producto escribiendo.
 - Los productos escaneados también aparecen al buscar con "Escribir" (grupo 📦 Productos).
-- Si no aparece o no quieres tomar la foto: **"Mejor lo busco escribiendo"**.
+- Si no aparece o no quieres tomar la foto: **"Mejor lo busco por su nombre"**.
 
 **C) Voz**
 1. Toca **"Voz"** → pestaña **"🎤 Por voz"** → micrófono.

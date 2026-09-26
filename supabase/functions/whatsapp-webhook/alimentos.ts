@@ -323,6 +323,7 @@ export const ALIMENTOS_APP: string[] = [
   "Apio (crudo)",
   "Pollo pierna (sin piel) (cocida)",
   "Pavo pechuga (cocida)",
+  "Pavita muslo (medallón, sin piel) (cocida)",
   "Jamón de pavo",
   "Jamón inglés",
   "Chorizo parrillero",

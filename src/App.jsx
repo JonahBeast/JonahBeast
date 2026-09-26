@@ -1838,8 +1838,8 @@ const TESTIMONIOS = [
     nombre: 'Jonah Beast',
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
-    dato: '37 kg perdidos en 3 años',
-    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 3 años',
+    dato: '37 kg perdidos en 3 años y 8 meses',
+    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 3 años y 8 meses',
     quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
   },
   {

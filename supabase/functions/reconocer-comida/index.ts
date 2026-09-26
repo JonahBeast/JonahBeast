@@ -123,6 +123,13 @@ Deno.serve(async (req) => {
     // - guardar_producto: guarda lo leído (con el nombre que confirma el
     //   alumno) para que el siguiente que lo escanee lo encuentre.
     if (accion === "buscar_codigo") return json(await buscarProducto(supabase, codigo));
+    // Plan B de "Tomar foto al código": si las barras no se leen, la IA lee
+    // los números impresos debajo. No gasta fotos (es una lectura corta).
+    if (accion === "leer_codigo_foto") {
+      if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto del código." }, 400);
+      if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
+      return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg") });
+    }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
     if (accion === "leer_etiqueta") {
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
@@ -464,5 +471,41 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     return { ok: true, producto: p };
   } catch {
     return { ok: false, error: "No pudimos leer la tabla nutricional. Intenta con otra foto." };
+  }
+}
+
+// Dígito de control de EAN-8 / UPC-A / EAN-13: descarta lecturas con un
+// número cambiado.
+function codigoValido(cod: string) {
+  if (![8, 12, 13].includes(cod.length)) return false;
+  const d = cod.split("").map(Number);
+  const control = d.pop() as number;
+  const suma = d.reverse().reduce((a, n, i) => a + n * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (suma % 10)) % 10 === control;
+}
+
+async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string): Promise<string | null> {
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 60,
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
+          { type: "text", text: 'En la foto hay un código de barras de un producto. Lee los números impresos debajo (o al lado) de las barras, todos seguidos y sin espacios (normalmente 13 dígitos, ej. 7751271012345). Responde SOLO con los dígitos. Si no se leen con seguridad, responde "NO".' },
+        ] }],
+      }),
+    });
+    if (!resp.ok) { console.error("Error de Anthropic (código):", resp.status, await resp.text()); return null; }
+    const data = await resp.json();
+    const texto = (data.content || []).map((c: any) => c.text || "").join("");
+    const cod = texto.replace(/\D/g, "");
+    console.log("Código leído por la IA:", texto.trim(), codigoValido(cod) ? "(válido)" : "(no válido)");
+    return codigoValido(cod) ? cod : null;
+  } catch (e) {
+    console.error("Sin conexión con Anthropic (código):", (e as Error)?.message);
+    return null;
   }
 }

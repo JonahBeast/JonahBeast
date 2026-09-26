@@ -217,7 +217,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 **B2) Código de barras (productos empacados: yogurt, galletas, leche, atún, barras…)**
 1. Toca **"Código"**. Se abre la cámara con un recuadro: apunta al **código de barras** del empaque y se lee solo.
    - Si no lo lee en unos segundos, sale **"¿No lo lee?"**: acerca el celular hasta que las barras llenen el recuadro, estira el empaque y evita el brillo.
-   - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, y se lee desde la foto. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece.
+   - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, con las barras y los números visibles. Se leen las barras y, si no se puede, la app lee los números impresos debajo. No gasta fotos. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece.
    - O **"Buscarlo por su nombre"** para buscarlo escribiendo como cualquier alimento.
 2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
    - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.

@@ -5365,7 +5365,7 @@ function ampliarFamiliasFoto(items) {
     const id = typeof fam.id === 'function' ? fam.id(foodFam) : fam.id;
     let g = grupos.get(id);
     if (!g) {
-      g = { grupo: { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1 }, original: it, familia: fam, food: foodFam };
+      g = { grupo: { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1, _gramosIA: it._gramosIA || null, _aceiteIA: !!it._aceiteIA }, original: it, familia: fam, food: foodFam };
       grupos.set(id, g);
       resultado.push(g.grupo);
     }
@@ -5381,17 +5381,66 @@ function ampliarFamiliasFoto(items) {
   return resultado.map(it => {
     if (!it.esOpciones || it.alternativas.length >= 2) return it;
     const g = [...grupos.values()].find(x => x.grupo === it);
-    return g && !g.original.esOpciones ? g.original : { ...it.alternativas[0], _cantidadIA: it._cantidadIA, _confianzaIA: 'media' };
+    return g && !g.original.esOpciones ? g.original : { ...it.alternativas[0], _cantidadIA: it._cantidadIA, _gramosIA: it._gramosIA, _aceiteIA: it._aceiteIA, _confianzaIA: 'media' };
   });
 }
 
-/* Porción con la que entra un alimento reconocido por foto: la medida de
-   casa por defecto y, si se cuenta por piezas (huevo, pan...), el conteo
-   de la IA. Es exactamente lo que se agrega al confirmar. */
-function porcionDeFoto(food, cantidadIA) {
+/* Porción con la que entra un alimento reconocido por foto. Es
+   exactamente lo que se agrega al confirmar.
+   - Piezas (huevo, pan, presa...): el conteo de la IA (o el que corrija
+     el alumno con − / +).
+   - Lo demás (arroz, tallarín, bebidas...): los gramos que la IA calculó
+     mirando el plato, en la medida de casa del alimento. Para que un
+     cálculo raro no dispare el total, se acota entre 0.3 y 3 veces la
+     porción normal. Si la IA no dio gramos, va la porción normal.
+   - "Poco / Normal / Mucho" multiplica esa porción. */
+const TAMANOS_FOTO = [
+  { key: 'poco', label: 'Poco', factor: 0.7 },
+  { key: 'normal', label: 'Normal', factor: 1 },
+  { key: 'mucho', label: 'Mucho', factor: 1.4 },
+];
+
+function esPorPiezas(food) {
+  return UNIDADES_DISCRETAS.includes(unidadPorDefecto(food).unit);
+}
+
+function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   const d = unidadPorDefecto(food);
-  const cantidad = cantidadIA || 1;
-  return { unit: d.unit, qty: UNIDADES_DISCRETAS.includes(d.unit) ? d.qty * cantidad : d.qty };
+  if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
+  const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
+  const normal = d.qty * porUnidad;
+  const calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  const gramos = calculado * ((TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1);
+  if (d.unit === 'gramos') return { unit: 'gramos', qty: Math.max(10, Math.round(gramos / 10) * 10) };
+  return { unit: d.unit, qty: Math.max(0.25, Math.round((gramos / porUnidad) * 4) / 4) };
+}
+
+// "1¼ tazas (≈ 250 g)": fracciones de casa en vez de 1.25.
+function textoPorcionFoto(food, porcion) {
+  if (porcion.unit === 'gramos') return `≈ ${Math.round(porcion.qty)} g`;
+  const entero = Math.floor(porcion.qty);
+  const resto = Math.round((porcion.qty - entero) * 4);
+  const fr = ['', '¼', '½', '¾'][resto] || '';
+  const numero = entero === 0 ? fr : `${entero}${fr}`;
+  const plural = porcion.qty > 1 && !/[\s/]/.test(porcion.unit)
+    ? (porcion.unit === 'porción' ? 'porciones' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
+    : porcion.unit;
+  const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
+  return `${numero} ${plural} (≈ ${gramos} g)`;
+}
+
+/* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos
+   ya traen el aceite normal; "Bastante" y "Mucho" suman 1 o 2 cucharadas
+   de aceite vegetal (≈ 124 kcal cada una). */
+const OPCIONES_ACEITE = [
+  { key: 'normal', label: 'Normal', cucharadas: 0 },
+  { key: 'bastante', label: 'Bastante', cucharadas: 1 },
+  { key: 'mucho', label: 'Mucho', cucharadas: 2 },
+];
+const CLAVE_ACEITE = 'Aceite vegetal (-)';
+
+function esConAceite(food, aceiteIA) {
+  return !!aceiteIA || /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
 }
 
 function macrosDeFoto(food, porcion) {
@@ -5433,6 +5482,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
   const [seleccionados, setSeleccionados] = useState({});
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
+  const [tamanos, setTamanos] = useState({}); // { [key o id]: 'poco' | 'normal' | 'mucho' }
+  const [conteos, setConteos] = useState({}); // piezas corregidas por el alumno: { [key o id]: n }
+  const [aceite, setAceite] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   const [mensajeError, setMensajeError] = useState('');
@@ -5542,10 +5594,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
             // sola clave, mostramos las alternativas para que el alumno
             // toque la correcta.
             const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
-            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1 } : null;
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true } : null;
           }
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1, _confianzaIA: it.confianza || null } : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);
@@ -5559,6 +5611,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
       // de opciones ambiguas nunca vienen con nada pre-elegido.
       setSeleccionados(Object.fromEntries(encontrados.filter(f => !f.esOpciones).map(f => [f.key, f._confianzaIA === 'alta'])));
       setElecciones({});
+      setTamanos({});
+      setConteos({});
+      setAceite('normal');
       setEstado('resultados');
     } catch (e) {
       setMensajeError(e?.message || '');
@@ -5566,45 +5621,72 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
     }
   }
 
-  function confirmar() {
+  // Lo que se va a agregar: [{ item, food, porcion }] con el alimento
+  // elegido (o el de la opción tocada) y su porción con los ajustes.
+  function elegidosConPorcion() {
+    const lista = [];
     items.forEach(f => {
-      if (f.esOpciones) {
-        const key = elecciones[f.id];
-        const food = key && f.alternativas.find(a => a.key === key);
-        if (!food) return;
-        const porcion = porcionDeFoto(food, f._cantidadIA);
-        onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
-        return;
-      }
-      if (!seleccionados[f.key]) return;
-      // Solo confiamos en el conteo de la IA para piezas enteras y
-      // contables (huevo, pan...) — nunca para ajustar peso o volumen,
-      // que sigue siendo el alumno quien lo decide.
-      const porcion = porcionDeFoto(f, f._cantidadIA);
-      onAgregar({ id: uid(), foodKey: f.key, unit: porcion.unit, qty: porcion.qty });
+      const id = f.esOpciones ? f.id : f.key;
+      const food = f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : (seleccionados[f.key] ? f : null);
+      if (!food) return;
+      const porcion = porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
+      lista.push({ item: f, id, food, porcion });
     });
-    registrarFeedbackReconocimiento();
+    return lista;
+  }
+  function extraAceite(elegidos) {
+    if (!elegidos.some(e => esConAceite(e.food, e.item._aceiteIA))) return 0;
+    return (OPCIONES_ACEITE.find(o => o.key === aceite) || {}).cucharadas || 0;
+  }
+
+  function confirmar() {
+    const elegidos = elegidosConPorcion();
+    elegidos.forEach(({ food, porcion }) => {
+      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
+    });
+    const cucharadas = extraAceite(elegidos);
+    if (cucharadas && buscarFood(CLAVE_ACEITE)) {
+      onAgregar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
+    }
+    registrarFeedbackReconocimiento(elegidos);
     onCerrar();
   }
 
-  function registrarFeedbackReconocimiento() {
+  function registrarFeedbackReconocimiento(elegidos = []) {
     // Guarda, sin bloquear la UI, qué sugirió la IA vs. qué terminó
     // desmarcando el alumno — para ir detectando patrones de error
     // reales con datos, en vez de solo capturas sueltas. Los grupos de
     // opciones ambiguas cuentan como sugeridas todas sus alternativas,
     // y descartadas las que no se eligieron.
     try {
+      // Además de qué se quitó, se guarda la porción: los gramos que
+      // calculó la IA, el tamaño que eligió el alumno (poco/normal/mucho),
+      // si corrigió las piezas y el aceite. Así se mide cuánto acierta.
       const sugeridos = [];
       const descartados = [];
+      const final = new Map(elegidos.map(e => [e.food.key, e]));
+      const conPorcion = (key, f, base) => {
+        const e = final.get(key);
+        if (!e) return base;
+        const id = f.esOpciones ? f.id : f.key;
+        return {
+          ...base,
+          gramos_ia: f._gramosIA || null,
+          gramos_final: Math.round(e.porcion.qty * gramsPerUnit(e.food, e.porcion.unit)),
+          tamano: tamanos[id] || 'normal',
+          piezas_corregidas: conteos[id] !== undefined && conteos[id] !== (f._cantidadIA || 1) ? conteos[id] : null,
+          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : null,
+        };
+      };
       items.forEach(f => {
         if (f.esOpciones) {
           const elegido = elecciones[f.id];
           f.alternativas.forEach(alt => {
-            sugeridos.push({ key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 });
+            sugeridos.push(conPorcion(alt.key, f, { key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 }));
             if (alt.key !== elegido) descartados.push(alt.key);
           });
         } else {
-          sugeridos.push({ key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 });
+          sugeridos.push(conPorcion(f.key, f, { key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 }));
           if (!seleccionados[f.key]) descartados.push(f.key);
         }
       });
@@ -5747,75 +5829,122 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                 </span>
               </MarcoEscaner>
             )}
-            <p className="jb-body text-xs text-zinc-500 mb-3">Desmarca lo que no corresponda. Esto es lo que se sumará a tu comida:</p>
+            <p className="jb-body text-xs text-zinc-500 mb-3">Desmarca lo que no corresponda y ajusta la porción si comiste más o menos. Las cantidades son un cálculo aproximado mirando tu plato.</p>
             <div className="flex flex-col gap-2 mb-4">
               {items.map((f, i) => {
                 const retraso = { animationDelay: `${i * 90}ms` };
+                const id = f.esOpciones ? f.id : f.key;
+                const food = f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : f;
+                const marcado = f.esOpciones ? !!food : !!seleccionados[f.key];
+                const porcion = food && porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
+                const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
+                // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
+                const ajuste = food && marcado && (esPorPiezas(food) ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
+                    <button type="button" aria-label="Una menos"
+                      onClick={() => setConteos(v => ({ ...v, [id]: Math.max(1, (v[id] ?? f._cantidadIA ?? 1) - 1) }))}
+                      className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">−</button>
+                    <span className="jb-display text-sm text-zinc-100 w-5 text-center tabular-nums">{conteos[id] ?? f._cantidadIA ?? 1}</span>
+                    <button type="button" aria-label="Una más"
+                      onClick={() => setConteos(v => ({ ...v, [id]: Math.min(12, (v[id] ?? f._cantidadIA ?? 1) + 1) }))}
+                      className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">+</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1.5 mt-2" role="group" aria-label="Tamaño de la porción">
+                    {TAMANOS_FOTO.map(t => {
+                      const activo = (tamanos[id] || 'normal') === t.key;
+                      return (
+                        <button key={t.key} type="button" aria-pressed={activo}
+                          onClick={() => setTamanos(v => ({ ...v, [id]: t.key }))}
+                          className={`jb-body text-xs px-3 py-1 rounded-full border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ));
                 if (f.esOpciones) {
-                  const elegido = elecciones[f.id];
-                  const foodElegido = elegido && f.alternativas.find(a => a.key === elegido);
-                  const porcionElegida = foodElegido && porcionDeFoto(foodElegido, f._cantidadIA);
                   return (
-                    <div key={f.id} style={retraso} className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5">
+                    <div key={f.id} style={retraso} className={`jbe-entrar bg-zinc-950 border rounded-lg px-3 py-2.5 ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
                       <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es?</p>
                       <div className="flex flex-wrap gap-2">
                         {f.alternativas.map(alt => (
                           <button key={alt.key} type="button"
                             onClick={() => setElecciones(v => ({ ...v, [f.id]: v[f.id] === alt.key ? undefined : alt.key }))}
-                            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elegido === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
+                            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elecciones[f.id] === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
                             {nombreAlimento(alt)}
                           </button>
                         ))}
                       </div>
-                      {porcionElegida && (
+                      {food && (
                         <p className="jb-body text-xs text-zinc-400 mt-2">
-                          {textoPorcion(porcionElegida)} · <span className="text-orange-400 font-semibold">{Math.round(macrosDeFoto(foodElegido, porcionElegida).kcal)} kcal</span>
+                          {textoPorcionFoto(food, porcion)} · <span className="text-orange-400 font-semibold">{kcal} kcal</span>
                         </p>
                       )}
+                      {ajuste}
                     </div>
                   );
                 }
-                const porcion = porcionDeFoto(f, f._cantidadIA);
-                const m = macrosDeFoto(f, porcion);
-                const marcado = !!seleccionados[f.key];
                 return (
-                <label key={f.key} style={retraso}
-                  className={`jbe-entrar flex items-center gap-3 bg-zinc-950 border rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
-                  <input type="checkbox" checked={marcado}
-                    onChange={() => setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }))}
-                    className="w-4 h-4 accent-orange-500 shrink-0" />
-                  <span className="flex-1 min-w-0">
-                    <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{f.name}</span>
-                    <span className="block jb-body text-xs text-zinc-500">{textoPorcion(porcion)}</span>
-                  </span>
-                  <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{Math.round(m.kcal)} kcal</span>
-                </label>
+                  <div key={f.key} style={retraso}
+                    className={`jbe-entrar bg-zinc-950 border rounded-lg px-3 py-2.5 transition-colors ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={marcado}
+                        onChange={() => setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }))}
+                        className="w-4 h-4 accent-orange-500 shrink-0" />
+                      <span className="flex-1 min-w-0">
+                        <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{f.name}</span>
+                        <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(f, porcion)}</span>
+                      </span>
+                      <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
+                    </label>
+                    {ajuste && <div className="pl-7">{ajuste}</div>}
+                  </div>
                 );
               })}
             </div>
             {(() => {
-              // Total de lo que está marcado (y de las opciones ya elegidas).
-              const elegidos = [];
-              items.forEach(f => {
-                if (f.esOpciones) {
-                  const food = elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id]);
-                  if (food) elegidos.push(macrosDeFoto(food, porcionDeFoto(food, f._cantidadIA)));
-                } else if (seleccionados[f.key]) {
-                  elegidos.push(macrosDeFoto(f, porcionDeFoto(f, f._cantidadIA)));
-                }
-              });
+              // Pregunta del aceite: solo si hay algo frito o saltado marcado.
+              const elegidos = elegidosConPorcion();
+              if (!elegidos.some(e => esConAceite(e.food, e.item._aceiteIA))) return null;
+              return (
+                <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
+                  <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">Los fritos y saltados ya incluyen el aceite normal. "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
+                    {OPCIONES_ACEITE.map(o => {
+                      const activo = aceite === o.key;
+                      return (
+                        <button key={o.key} type="button" aria-pressed={activo} onClick={() => setAceite(o.key)}
+                          className={`jb-body text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            {(() => {
+              // Total de lo que está marcado, con los ajustes y el aceite extra.
+              const elegidos = elegidosConPorcion();
               if (!elegidos.length) return null;
-              const t = elegidos.reduce((a, x) => ({ kcal: a.kcal + x.kcal, protein: a.protein + x.protein, carbs: a.carbs + x.carbs, fat: a.fat + x.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion));
+              const cucharadas = extraAceite(elegidos);
+              const aceiteFood = cucharadas ? buscarFood(CLAVE_ACEITE) : null;
+              if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
+              const t = macros.reduce((a, x) => ({ kcal: a.kcal + x.kcal, protein: a.protein + x.protein, carbs: a.carbs + x.carbs, fat: a.fat + x.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
               return (
                 <div className="jbe-entrar bg-gradient-to-r from-orange-500/15 to-transparent border border-orange-500/40 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3"
                   style={{ animationDelay: `${items.length * 90}ms` }}>
                   <div>
-                    <p className="jb-body text-[11px] tracking-widest text-zinc-400">TOTAL DE ESTA COMIDA</p>
+                    <p className="jb-body text-[11px] tracking-widest text-zinc-400">TOTAL APROXIMADO</p>
                     <p className="jb-body text-xs text-zinc-400 mt-0.5 tabular-nums">
                       P {Math.round(t.protein)}g · C {Math.round(t.carbs)}g · G {Math.round(t.fat)}g
                     </p>
                   </div>
-                  <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(t.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
+                  <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">≈{Math.round(t.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
                 </div>
               );
             })()}
@@ -5824,7 +5953,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
               Agregar {(Object.values(seleccionados).filter(Boolean).length + Object.values(elecciones).filter(Boolean).length) || ''} a esta comida
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
-              ¿Comiste más o menos? Después ajustas la cantidad de cada uno con medidas de casa.
+              Después también puedes cambiar la cantidad exacta de cada uno.
             </p>
             {noEncontrados.length > 0 && (
               <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5">

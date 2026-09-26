@@ -204,8 +204,14 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 1. Toca **"Foto"** → **"Tomar foto"**.
 2. Espera el escaneo. Verás "⚡ N ALIMENTOS DETECTADOS".
 3. Desmarca lo que no corresponda. Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light…), pregunta "¿cuál es?" y tú eliges.
-4. Toca **"Agregar N a esta comida"** y después ajusta las cantidades.
-- La foto reconoce **qué** comiste; **la porción la ajustas tú**.
+4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
+   - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
+   - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?").
+5. Si hay algo **frito o saltado**, aparece **"🍳 ¿Cuánto aceite tenía?"**.
+   - **"Normal"** no suma nada, porque esos platos ya incluyen el aceite normal.
+   - **"Bastante"** agrega 1 cucharada de aceite vegetal y **"Mucho"**, 2.
+6. Mira el **"TOTAL APROXIMADO"** y toca **"Agregar N a esta comida"**. Después también puedes cambiar la cantidad exacta de cada uno.
+- La foto da un **cálculo aproximado**: la porción se calcula a ojo desde la foto, y lo que no se ve (aceite, azúcar, salsas escondidas) no se puede medir. Por eso conviene revisar la porción antes de agregar.
 - Límite de fotos: ver sección 9.4.
 
 **C) Voz**

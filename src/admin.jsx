@@ -3163,11 +3163,9 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
   const [expanded, setExpanded] = useState(false);
   const [dias, setDias] = useState('');
   const [motivo, setMotivo] = useState('');
-  const [mesesFoto, setMesesFoto] = useState('1');
 
   const ms = membershipLabel(u);
   const act = formatActivity(u.lastActivity);
-  const addOnActivo = u.reconocimientoFotoHasta && daysLeft(u.reconocimientoFotoHasta) !== null && daysLeft(u.reconocimientoFotoHasta) >= 0;
 
   // Misma lógica que membershipLabel, solo que devuelve la clase de
   // borde en vez de la de fondo — así la barra de color a la izquierda
@@ -3198,7 +3196,6 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
               <span className="text-zinc-700">·</span>
               <span className={act.color}>{act.text}</span>
               {u.codigoReferido && (<><span className="text-zinc-700">·</span><span className="text-orange-500">ref: {u.codigoReferido}</span></>)}
-              {addOnActivo && (<><span className="text-zinc-700">·</span><span className="text-orange-500 flex items-center gap-0.5"><Camera size={10} /> IA</span></>)}
             </div>
           </div>
         </div>
@@ -3228,31 +3225,6 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
               <button onClick={() => onAdjustDays(u.username, parseInt(dias || '1', 10), motivo)} className={btnGhost + ' py-1.5 px-2 text-xs'}>+ días</button>
               <button onClick={() => onAdjustDays(u.username, -parseInt(dias || '1', 10), motivo)} className={btnGhost + ' py-1.5 px-2 text-xs'}>− días</button>
             </div>
-          </div>
-
-          <div>
-            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">Reconocimiento Inteligente (IA por foto)</p>
-            {addOnActivo ? (
-              <div className="flex items-center gap-2">
-                <span className="text-orange-500 text-xs jb-body flex items-center gap-1">
-                  <Camera size={12} /> Activo hasta {u.reconocimientoFotoHasta.slice(8, 10)}/{u.reconocimientoFotoHasta.slice(5, 7)}
-                </span>
-                <button onClick={() => { if (window.confirm(`¿Desactivar Reconocimiento Inteligente para @${u.username}?`)) onDesactivarAddOnFoto(u.username); }}
-                  className={btnGhost + ' py-1 px-2 text-xs text-red-400'}>Desactivar</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <select value={mesesFoto} onChange={e => setMesesFoto(e.target.value)}
-                  className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-xs text-zinc-200">
-                  <option value="1">1 mes</option>
-                  <option value="3">3 meses</option>
-                  <option value="6">6 meses</option>
-                </select>
-                <button onClick={() => onActivarAddOnFoto(u.username, parseInt(mesesFoto, 10))} className={btnGhost + ' py-1.5 px-2 text-xs'}>
-                  <Camera size={12} /> Activar
-                </button>
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2 pt-1 border-t border-zinc-900">

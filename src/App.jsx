@@ -1830,11 +1830,11 @@ function Logo({ size = 'md' }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* RETO BEAST 14 DÍAS (jonahbeast.com/reto)                            */
+/* RETO BEAST 15 DÍAS (jonahbeast.com/reto)                            */
 /* ------------------------------------------------------------------ */
 
 /* Página para el live de TikTok: invita a personas que buscan un cambio
-   real a usar la app de Play Store 14 días. Los participantes crean su
+   real a usar la app de Play Store los 15 días de su prueba gratis. Los participantes crean su
    cuenta con el código RETO para reconocerlos en el panel.
    RETO_GRUPO_URL es el Grupo de Google que está como lista de
    verificadores en Play Console (unirse al grupo = poder instalar). */
@@ -1844,7 +1844,7 @@ const URL_VERIFICADOR = 'https://play.google.com/apps/testing/com.jonahbeast.twa
 const URL_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.jonahbeast.twa';
 
 function RetoPage({ onIrALaApp }) {
-  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, quiero entrar al Reto Beast 14 días y tengo una duda.')}`;
+  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, quiero entrar al Reto Beast 15 días y tengo una duda.')}`;
   const pasos = [
     RETO_GRUPO_URL
       ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo' }
@@ -1864,10 +1864,10 @@ function RetoPage({ onIrALaApp }) {
         </div>
 
         <p className="jb-display text-orange-500 text-sm tracking-widest mb-2">RETO BEAST</p>
-        <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">14 DÍAS.<br />UN CAMBIO REAL.</h1>
+        <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">15 DÍAS.<br />UN CAMBIO REAL.</h1>
         <p className="text-zinc-300 mb-6">
           Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.
-          Usa la app de Jonah Beast Fuel <strong className="text-zinc-50">14 días</strong>, registra lo que comes y deja que los resultados hablen.
+          Usa la app de Jonah Beast Fuel <strong className="text-zinc-50">los 15 días</strong>, registra todo lo que comes y deja que los resultados hablen. Mientras más constante seas, más se nota el cambio.
         </p>
 
         <div className="grid gap-3 mb-8">
@@ -1890,7 +1890,7 @@ function RetoPage({ onIrALaApp }) {
           <div>
             <p className="jb-display text-base text-zinc-50 mb-1">FOTOS DESDE EL DÍA 1</p>
             <p className="text-sm text-zinc-300">
-              La mejor transformación se elige comparando tus fotos del <strong className="text-zinc-50">día 1</strong> con las del <strong className="text-zinc-50">día 14</strong>, tomadas dentro de la app.
+              La mejor transformación se elige comparando tus fotos del <strong className="text-zinc-50">día 1</strong> con las del <strong className="text-zinc-50">día 15</strong>, tomadas dentro de la app.
               Si no tienes fotos del primer día, no puedes ganar ese premio.
             </p>
           </div>
@@ -1917,8 +1917,8 @@ function RetoPage({ onIrALaApp }) {
         <h2 className="jb-display text-2xl text-zinc-50 mb-3">REGLAS</h2>
         <ul className="grid gap-2 text-sm text-zinc-300 mb-8">
           <li>📱 Necesitas un celular <strong className="text-zinc-50">Android</strong> con Play Store.</li>
-          <li>🍽️ Registra tus comidas en la app <strong className="text-zinc-50">al menos 10 de los 14 días</strong>.</li>
-          <li>📸 Fotos de progreso el <strong className="text-zinc-50">día 1</strong> y el <strong className="text-zinc-50">día 14</strong>.</li>
+          <li>🍽️ Registra tus comidas en la app <strong className="text-zinc-50">todos los días, los 15 días</strong> del reto.</li>
+          <li>📸 Fotos de progreso el <strong className="text-zinc-50">día 1</strong> y el <strong className="text-zinc-50">día 15</strong>.</li>
           <li>💬 Al final, cuéntanos qué mejorarías de la app.</li>
           <li>🤝 Los premios son por participar y por tus resultados, <strong className="text-zinc-50">no</strong> por la calificación que le pongas a la app en Play Store.</li>
         </ul>

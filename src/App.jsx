@@ -1860,207 +1860,12 @@ const TESTIMONIOS = [
   },
 ];
 
-// Estilos de la sección "Resultados reales": el rayo cae por la unión de las
-// dos fotos, la tarjeta tiembla, la foto de "después" se enciende y aparece
-// el sello con la cifra. Cada golpe se reinicia cambiando la "key".
-const ESTILOS_TESTIMONIOS = `
-@keyframes jbt-draw { from { stroke-dashoffset: 420; } to { stroke-dashoffset: 0; } }
-@keyframes jbt-bolt { 0% { opacity: 1; } 45% { opacity: 1; } 55% { opacity: .3; } 62% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes jbt-flash { 0%, 18% { opacity: 0; } 24% { opacity: .9; } 60%, 100% { opacity: 0; } }
-@keyframes jbt-shake {
-  0%, 20% { transform: translate(0, 0); }
-  24% { transform: translate(-5px, 3px) rotate(-.6deg); }
-  30% { transform: translate(5px, -3px) rotate(.6deg); }
-  36% { transform: translate(-3px, 2px); }
-  42% { transform: translate(2px, -1px); }
-  50%, 100% { transform: translate(0, 0); }
-}
-@keyframes jbt-encender {
-  0%, 22% { filter: grayscale(1) brightness(.3); transform: scale(1.12); }
-  30% { filter: grayscale(0) brightness(1.8); }
-  100% { filter: none; transform: scale(1); }
-}
-@keyframes jbt-sello {
-  0%, 35% { opacity: 0; transform: translateX(-50%) scale(2.4) rotate(-14deg); }
-  48% { opacity: 1; transform: translateX(-50%) scale(.9) rotate(-5deg); }
-  56%, 100% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-5deg); }
-}
-@keyframes jbt-chispa {
-  0%, 20% { opacity: 0; transform: translate(0, 0) scale(1); }
-  24% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.2); }
-}
-@keyframes jbt-costura { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@keyframes jbt-titulo { 0%, 100% { text-shadow: 0 0 10px rgba(232,89,12,.35); } 50% { text-shadow: 0 0 22px rgba(255,112,32,.8); } }
-.jbt-golpe { animation: jbt-shake .9s ease-out both; }
-.jbt-golpe .jbt-rayo { animation: jbt-bolt 1.1s ease-out both; }
-.jbt-golpe .jbt-rayo path { stroke-dasharray: 420; animation: jbt-draw .22s ease-in both; }
-.jbt-golpe .jbt-flash { animation: jbt-flash .9s ease-out both; }
-.jbt-golpe .jbt-despues { animation: jbt-encender 1.2s ease-out both; }
-.jbt-golpe .jbt-sello { animation: jbt-sello 1.4s cubic-bezier(.2,1.4,.4,1) both; }
-.jbt-golpe .jbt-chispa { animation: jbt-chispa .9s ease-out both; }
-.jbt-costura { animation: jbt-costura 1.6s ease-in-out infinite; }
-.jbt-titulo { animation: jbt-titulo 2.4s ease-in-out infinite; }
-.jbt-espera .jbt-despues { filter: grayscale(1) brightness(.3); }
-.jbt-espera .jbt-sello { opacity: 0; }
-@media (prefers-reduced-motion: reduce) {
-  .jbt-golpe, .jbt-golpe *, .jbt-costura, .jbt-titulo { animation: none !important; }
-  .jbt-golpe .jbt-rayo, .jbt-golpe .jbt-flash, .jbt-golpe .jbt-chispa { opacity: 0; }
-}
-`;
-
-const CHISPAS_TESTIMONIO = [
-  [-38, -30], [34, -40], [-44, 10], [42, 16], [-20, 44], [24, 48], [-8, -52], [10, 34],
-];
-
-// Cuenta de 0 hasta la cifra cuando cae el rayo.
-function useCuentaTestimonio(meta, golpe) {
-  const [valor, setValor] = useState(meta);
-  useEffect(() => {
-    if (!golpe) return undefined;
-    const reducido = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reducido) { setValor(meta); return undefined; }
-    let raf;
-    const inicio = performance.now() + 450; // arranca cuando aparece el sello
-    const paso = (t) => {
-      const avance = Math.min(1, Math.max(0, (t - inicio) / 700));
-      setValor(Math.round(meta * (1 - Math.pow(1 - avance, 3))));
-      if (avance < 1) raf = requestAnimationFrame(paso);
-    };
-    setValor(0);
-    raf = requestAnimationFrame(paso);
-    return () => cancelAnimationFrame(raf);
-  }, [meta, golpe]);
-  return valor;
-}
-
-function TarjetaTestimonio({ t, raiz }) {
-  const ref = useRef(null);
-  const [golpe, setGolpe] = useState(0);
-  const cifra = useCuentaTestimonio(t.cifra, golpe);
-
-  // El rayo cae cada vez que la tarjeta entra a la vista.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') { setGolpe(1); return undefined; }
-    let visible = false;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !visible) setGolpe(g => g + 1);
-      visible = e.isIntersecting;
-    }, { root: raiz?.current || null, threshold: 0.7 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [raiz]);
-
-  return (
-    <div ref={ref} className="snap-center shrink-0 w-[82%] sm:w-[70%] text-left">
-      <button type="button" onClick={() => setGolpe(g => g + 1)} aria-label={`Ver otra vez la transformación de ${t.nombre}`}
-        className="block w-full rounded-2xl p-[2px] bg-gradient-to-b from-orange-500 via-orange-500/40 to-zinc-800 shadow-xl shadow-orange-500/20">
-        <div key={golpe} className={`relative rounded-[14px] overflow-hidden bg-zinc-950 ${golpe ? 'jbt-golpe' : 'jbt-espera'}`}>
-          <div className="relative grid grid-cols-2">
-            <div className="relative aspect-[3/4] overflow-hidden">
-              <img src={t.antes} alt={`${t.nombre} antes`} loading="lazy" className="w-full h-full object-cover object-top" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-transparent to-transparent" />
-              <span className="absolute top-2 left-2 jb-display text-[10px] tracking-wider px-2 py-0.5 rounded-full bg-zinc-950/80 text-zinc-300 border border-zinc-700">ANTES</span>
-            </div>
-            <div className="relative aspect-[3/4] overflow-hidden">
-              <img src={t.despues} alt={`${t.nombre} después`} loading="lazy" className="jbt-despues w-full h-full object-cover object-top" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-transparent to-transparent" />
-              <span className="absolute top-2 right-2 jb-display text-[10px] tracking-wider px-2 py-0.5 rounded-full bg-orange-500 text-zinc-950">DESPUÉS</span>
-            </div>
-
-            {/* Costura encendida entre las dos fotos */}
-            <div className="jbt-costura absolute inset-y-0 left-1/2 -translate-x-1/2 w-[3px] bg-orange-400 pointer-events-none"
-              style={{ boxShadow: '0 0 10px 2px rgba(255,112,32,.8), 0 0 24px 6px rgba(232,89,12,.45)' }} />
-
-            {/* Destello del impacto */}
-            <div className="jbt-flash absolute inset-0 bg-orange-50 pointer-events-none opacity-0" />
-
-            {/* El rayo */}
-            <svg className="jbt-rayo absolute inset-y-0 left-1/2 -translate-x-1/2 h-full pointer-events-none opacity-0" width="48" viewBox="0 0 48 200"
-              preserveAspectRatio="none" fill="none" style={{ filter: 'drop-shadow(0 0 4px #fff) drop-shadow(0 0 12px #FF7020) drop-shadow(0 0 26px #E8590C)' }}>
-              <path d="M26 0 L17 40 L31 66 L14 108 L32 134 L19 172 L25 200" stroke="#FF7020" strokeWidth="7" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-              <path d="M26 0 L17 40 L31 66 L14 108 L32 134 L19 172 L25 200" stroke="#fff7ed" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-              <path d="M31 66 L44 82 L40 96" stroke="#fde68a" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-              <path d="M14 108 L3 120 L6 134" stroke="#fde68a" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-            </svg>
-
-            {/* Chispas en el punto de impacto */}
-            <div className="absolute left-1/2 top-[55%] pointer-events-none">
-              {CHISPAS_TESTIMONIO.map(([dx, dy], i) => (
-                <span key={i} className="jbt-chispa absolute w-1.5 h-1.5 rounded-full bg-amber-200 opacity-0"
-                  style={{ '--dx': `${dx}px`, '--dy': `${dy}px`, boxShadow: '0 0 6px #FF7020' }} />
-              ))}
-            </div>
-
-            {/* Sello con la cifra */}
-            <div className="jbt-sello absolute bottom-3 left-1/2 pointer-events-none" style={{ transform: 'translateX(-50%) rotate(-5deg)' }}>
-              <div className="bg-orange-500 text-zinc-950 rounded-lg px-3 py-1.5 text-center border-2 border-zinc-950 shadow-lg shadow-orange-500/40 whitespace-nowrap">
-                <p className="jb-display text-2xl leading-none tabular-nums">{t.prefijo}{cifra} {t.unidad}</p>
-                <p className="jb-body text-[10px] font-semibold leading-tight mt-0.5">{t.detalle}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </button>
-      <div className="px-1 pt-3">
-        <p className="jb-display text-lg text-zinc-100 leading-none">{t.nombre}</p>
-        <p className="jb-body text-sm text-zinc-400 leading-snug border-l-2 border-orange-500/60 pl-2.5">"{t.quote}"</p>
-      </div>
-    </div>
-  );
-}
-
-// Jonah ya está al frente en la primera pantalla: abajo no se repite su
-// foto, así lo que aparece al bajar son otros alumnos.
-const TESTIMONIOS_CARRUSEL = TESTIMONIOS.filter(t => t.nombre !== 'Jonah Beast');
-
-function ResultadosReales() {
-  const carrilRef = useRef(null);
-  const [activo, setActivo] = useState(0);
-
-  const alDeslizar = () => {
-    const el = carrilRef.current;
-    if (!el) return;
-    const tarjetas = Array.from(el.children);
-    const centro = el.scrollLeft + el.clientWidth / 2;
-    let mejor = 0, dist = Infinity;
-    tarjetas.forEach((c, i) => {
-      const d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - centro);
-      if (d < dist) { dist = d; mejor = i; }
-    });
-    setActivo(mejor);
-  };
-
-  const irA = (i) => {
-    const el = carrilRef.current;
-    const c = el?.children[i];
-    if (!c) return;
-    el.scrollTo({ left: c.offsetLeft - (el.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' });
-  };
-
-  return (
-    <div>
-      <style>{ESTILOS_TESTIMONIOS}</style>
-      <h2 className="jbt-titulo jb-display text-4xl text-zinc-50 leading-none mb-4">RESULTADOS <span className="text-orange-500">REALES</span></h2>
-      <div ref={carrilRef} onScroll={alDeslizar}
-        className="flex gap-4 overflow-x-auto pb-3 -mx-6 px-[9%] sm:px-[15%] snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {TESTIMONIOS_CARRUSEL.map(t => <TarjetaTestimonio key={t.nombre} t={t} raiz={carrilRef} />)}
-      </div>
-      <div className="flex justify-center gap-2 mt-1">
-        {TESTIMONIOS_CARRUSEL.map((t, i) => (
-          <button key={t.nombre} type="button" onClick={() => irA(i)} aria-label={`Ver a ${t.nombre}`}
-            className={`h-2 rounded-full transition-all ${i === activo ? 'w-6 bg-orange-500' : 'w-2 bg-zinc-700'}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Antes/después de la primera pantalla: alterna Jonah y Andrea.
+// Antes/después de la primera pantalla: alterna Jonah, Andrea y César.
+// Es la única vez que salen en la portada (antes se repetían abajo).
 const HERO_TRANSFORMACIONES = [
   { ...TESTIMONIOS[0], nombreCorto: 'JONAH', logro: '−37 KG' },
   { ...TESTIMONIOS[1], nombreCorto: 'ANDREA', logro: 'EN 6 MESES' },
+  { ...TESTIMONIOS[2], nombreCorto: 'CÉSAR', logro: 'EN 1 AÑO' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -2183,27 +1988,6 @@ function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
-  // Barra fija: aparece en cuanto el botón principal queda arriba, fuera
-  // de la pantalla. No se esconde al llegar al botón final porque la
-  // landing es corta: cuando el principal sale, el final ya se ve, y la
-  // barra casi nunca llegaría a mostrarse.
-  const heroCtaRef = useRef(null);
-  // La barra fija aparece al pasar el botón de arriba y se esconde cuando
-  // se ve el botón grande de abajo (para no mostrar dos botones iguales).
-  const finalCtaRef = useRef(null);
-  const [pasoHero, setPasoHero] = useState(false);
-  const [veFinal, setVeFinal] = useState(false);
-  const mostrarBarra = pasoHero && !veFinal;
-  useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined' || !heroCtaRef.current) return;
-    const obs = new IntersectionObserver(([e]) => {
-      setPasoHero(!e.isIntersecting && e.boundingClientRect.top < 0);
-    });
-    obs.observe(heroCtaRef.current);
-    const obsFinal = new IntersectionObserver(([e]) => setVeFinal(e.isIntersecting));
-    if (finalCtaRef.current) obsFinal.observe(finalCtaRef.current);
-    return () => { obs.disconnect(); obsFinal.disconnect(); };
-  }, []);
   const hastaFecha = fechaFinPrueba();
 
   // Embudo: una 'vista' al abrir la landing y un 'clic_cta' al tocar
@@ -2225,7 +2009,7 @@ function Landing({ onChoose }) {
     onChoose('trial');
   }
 
-  // Transformación del fondo (Jonah / Andrea) que se muestra ahora.
+  // Transformación del fondo (Jonah / Andrea / César) que se muestra ahora.
   const [heroIdx, setHeroIdx] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_TRANSFORMACIONES.length), 6000);
@@ -2286,9 +2070,9 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y sabes cuánto te toca.
         </p>
 
-        {/* Antes / después al frente, nítido y a color. Alterna Jonah y
-            Andrea cada 6 s para que hombres y mujeres se vean reflejados. */}
-        <div className="relative mx-auto mb-3 h-[230px] sm:h-[300px] rounded-2xl overflow-hidden border border-orange-500/40"
+        {/* Antes / después al frente, nítido y a color. Alterna Jonah,
+            Andrea y César cada 6 s para que hombres y mujeres se vean reflejados. */}
+        <div className="relative mx-auto mb-3 h-[230px] [@media(max-height:700px)]:h-[185px] sm:h-[300px] rounded-2xl overflow-hidden border border-orange-500/40"
           style={{ ...step(200), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
           {HERO_TRANSFORMACIONES.map((t, i) => (
             <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
@@ -2329,7 +2113,7 @@ function Landing({ onChoose }) {
           return (
             <>
               <style>{ESTILOS_ESCANER}</style>
-              <div className="mx-auto mb-4 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
+              <div className="mx-auto mb-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
                 <div className="w-[72px] h-[72px] rounded-xl bg-zinc-950 border border-orange-500/40 relative overflow-hidden shrink-0">
                   <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
                   {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
@@ -2367,67 +2151,32 @@ function Landing({ onChoose }) {
           );
         })()}
 
-        <button ref={heroCtaRef} onClick={registrarClicCTA} style={step(320)}
+        {/* Las formas de anotar, en una línea: el escáner de código existe,
+            pero la estrella sigue siendo la foto del plato peruano. */}
+        <p className="jb-body text-[11px] text-zinc-400 mb-4" style={step(290)}>
+          📸 Foto del plato <span className="text-zinc-600">·</span> ▮▮▮ Código de barras <span className="text-zinc-600">·</span> 🎙️ Voz
+        </p>
+
+        <button onClick={registrarClicCTA} style={step(320)}
           className="w-full inline-flex items-center justify-center gap-2 mb-2 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 px-6 transition-colors shadow-lg shadow-orange-500/20">
           <span className="jb-display text-base text-zinc-950 tracking-wide">EMPIEZA A BAJAR DE PESO</span>
           <ChevronRight className="text-zinc-950" size={18} />
         </button>
-        <p className="jb-body text-zinc-400 text-xs mb-8" style={step(325)}>
+        <p className="jb-body text-zinc-400 text-xs mb-4" style={step(325)}>
           <span className="text-orange-400 font-semibold">15 días gratis</span> · Sin tarjeta · Hasta el {hastaFecha}
         </p>
 
-        {/* Resultados reales — fotos y testimonios de alumnos reales (con su autorización).
-            Logrados con el mismo sistema de control alimentario que ahora automatiza la app. */}
-        <div className="mb-6" style={step(500)}>
-          <ResultadosReales />
-        </div>
-
-        {/* CTA de cierre — repite el mismo botón de más arriba, para quien
-            llegó leyendo todo hasta el final sin haber tocado el de arriba. */}
-        <button ref={finalCtaRef} onClick={registrarClicCTA} style={step(540)}
-          className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3.5 px-4 transition-colors shadow-lg shadow-orange-500/20 flex flex-col items-center justify-center gap-0.5">
-          <span className="jb-display text-sm text-zinc-950">🚀 EMPIEZA A BAJAR DE PESO</span>
-          <span className="jb-body text-[11px] text-zinc-800">15 días gratis · Sin tarjeta</span>
-        </button>
-
-        <div className="mt-3" style={step(600)}>
-          <button onClick={() => onChoose('studentAuth')} className="group w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-xl p-4 text-left transition-colors">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center shrink-0">
-                <User className="text-orange-500" size={16} />
-              </div>
-              <div>
-                <div className="jb-display text-sm text-zinc-50">SOY ALUMNO</div>
-                <p className="jb-body text-[11px] text-zinc-500">Ya tengo cuenta</p>
-              </div>
-            </div>
+        {/* Todo entra en una pantalla: un solo botón grande y, debajo,
+            la entrada de los alumnos que ya tienen cuenta (sin tener que
+            bajar) y la calculadora sin registro como opción secundaria. */}
+        <div className="flex flex-col items-center gap-2 pb-8" style={step(380)}>
+          <button onClick={() => onChoose('studentAuth')}
+            className="jb-body text-sm text-zinc-300 hover:text-zinc-50 border border-zinc-800 hover:border-orange-500 rounded-full px-4 py-2 transition-colors inline-flex items-center gap-1.5">
+            <User className="text-orange-500" size={14} />
+            ¿Ya tienes cuenta? <span className="jb-display tracking-wide text-orange-400">SOY ALUMNO</span>
           </button>
-        </div>
-
-        {/* Medirse sin registro queda como opción secundaria, para no
-            desviar a quien está por empezar la prueba gratis. El admin
-            entra por "Soy alumno" (es el mismo inicio de sesión). */}
-        <button onClick={() => onChoose('free')} style={step(660)}
-          className="jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-5 mb-10">
-          📏 ¿Solo quieres medirte? Hazlo sin registro →
-        </button>
-      </div>
-
-      {/* Barra fija con el CTA: va fuera del contenido animado (que usa
-          transform) para que position:fixed se ancle a la pantalla. */}
-      <div aria-hidden={!mostrarBarra}
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-orange-500/50 bg-zinc-950/90 backdrop-blur-md transition-all duration-300"
-        style={{
-          transform: mostrarBarra ? 'translateY(0)' : 'translateY(110%)',
-          opacity: mostrarBarra ? 1 : 0,
-          pointerEvents: mostrarBarra ? 'auto' : 'none',
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-        }}>
-        <div className="max-w-xl mx-auto px-4 pt-3 flex flex-col gap-2">
-          <button onClick={registrarClicCTA} tabIndex={mostrarBarra ? 0 : -1}
-            className="w-full bg-orange-500 hover:bg-orange-400 rounded-xl py-3 px-4 transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
-            <span className="jb-display text-sm text-zinc-950 tracking-wide">EMPIEZA A BAJAR DE PESO · GRATIS</span>
-            <ChevronRight className="text-zinc-950" size={16} />
+          <button onClick={() => onChoose('free')} className="jb-body text-xs text-zinc-500 hover:text-zinc-300">
+            📏 ¿Solo quieres medirte? Hazlo sin registro →
           </button>
         </div>
       </div>

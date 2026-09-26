@@ -1838,8 +1838,8 @@ const TESTIMONIOS = [
     nombre: 'Jonah Beast',
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
-    dato: '37 kg perdidos en 4 años',
-    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 4 años',
+    dato: '37 kg perdidos en 3 años',
+    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 3 años',
     quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
   },
   {
@@ -1860,12 +1860,11 @@ const TESTIMONIOS = [
   },
 ];
 
-// Antes/después de la primera pantalla: alterna Jonah, Andrea y César.
+// Antes/después de la primera pantalla: alterna Jonah y Andrea.
 // Es la única vez que salen en la portada (antes se repetían abajo).
 const HERO_TRANSFORMACIONES = [
   { ...TESTIMONIOS[0], nombreCorto: 'JONAH', logro: '−37 KG' },
   { ...TESTIMONIOS[1], nombreCorto: 'ANDREA', logro: 'EN 6 MESES' },
-  { ...TESTIMONIOS[2], nombreCorto: 'CÉSAR', logro: 'EN 1 AÑO' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -2009,7 +2008,7 @@ function Landing({ onChoose }) {
     onChoose('trial');
   }
 
-  // Transformación del fondo (Jonah / Andrea / César) que se muestra ahora.
+  // Transformación del fondo (Jonah / Andrea) que se muestra ahora.
   const [heroIdx, setHeroIdx] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_TRANSFORMACIONES.length), 6000);
@@ -2070,8 +2069,8 @@ function Landing({ onChoose }) {
           Toma foto a tu plato y sabes cuánto te toca.
         </p>
 
-        {/* Antes / después al frente, nítido y a color. Alterna Jonah,
-            Andrea y César cada 6 s para que hombres y mujeres se vean reflejados. */}
+        {/* Antes / después al frente, nítido y a color. Alterna Jonah y
+            Andrea cada 6 s para que hombres y mujeres se vean reflejados. */}
         <div className="relative mx-auto mb-3 h-[230px] [@media(max-height:700px)]:h-[185px] sm:h-[300px] rounded-2xl overflow-hidden border border-orange-500/40"
           style={{ ...step(200), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
           {HERO_TRANSFORMACIONES.map((t, i) => (

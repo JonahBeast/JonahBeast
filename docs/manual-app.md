@@ -42,7 +42,7 @@
 ## 2. La portada (jonahbeast.com)
 
 - Arriba: **"JONAH BEAST FUEL"**, "App de nutrición y pérdida de grasa" y el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca."
-- Debajo: el antes/después de Jonah (−37 kg en 4 años), que cambia cada 6 segundos al de Andrea y al de César, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
+- Debajo: el antes/después de Jonah (−37 kg en 3 años), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
 - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
 - Botón principal **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "15 días gratis · Sin tarjeta · Hasta el [fecha]".
 - Justo debajo, el botón **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.

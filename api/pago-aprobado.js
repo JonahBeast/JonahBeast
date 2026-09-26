@@ -12,6 +12,10 @@
 //
 // Solo avisa pagos aprobados en los últimos 30 minutos, así un pedido
 // repetido más tarde no vuelve a mandar el mismo aviso.
+//
+// Cuando el pago se aprobó solo (Mercado Pago, vía el webhook), también
+// avisa a Jonah Beast (admin) en su celular: "💰 Pago recibido: ...".
+// Si lo aprobó él mismo desde el panel, no hace falta avisarle.
 
 import { getSupabase, setupWebPush, enviarPushA } from './_lib/push.js';
 
@@ -23,30 +27,35 @@ function fechaCorta(iso) {
   return `${d}/${m}/${y}`;
 }
 
+const PLAN_POR_MESES = { 1: 'mensual', 3: 'trimestral', 6: 'semestral', 12: 'anual' };
+
+// Devuelve 'webhook' (pago aprobado solo), 'admin' (lo aprobó Jonah desde
+// el panel) o false.
 async function autorizado(req, supabase) {
   const secreto = req.headers['x-webhook-secret'];
-  if (secreto && process.env.NUEVO_ALUMNO_SECRET && secreto === process.env.NUEVO_ALUMNO_SECRET) return true;
+  if (secreto && process.env.NUEVO_ALUMNO_SECRET && secreto === process.env.NUEVO_ALUMNO_SECRET) return 'webhook';
 
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   if (!token) return false;
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return false;
   const { data: perfil } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
-  return perfil?.role === 'admin';
+  return perfil?.role === 'admin' ? 'admin' : false;
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   const supabase = getSupabase();
-  if (!(await autorizado(req, supabase))) return res.status(401).json({ error: 'No autorizado' });
+  const quien = await autorizado(req, supabase);
+  if (!quien) return res.status(401).json({ error: 'No autorizado' });
 
   const { pagoId } = req.body || {};
   if (!pagoId) return res.status(400).json({ error: 'Falta pagoId' });
 
   try {
     const { data: pago } = await supabase.from('pagos')
-      .select('username, estado, metodo, creado_en, revisado_en').eq('id', pagoId).maybeSingle();
+      .select('username, estado, metodo, monto, plan_meses, creado_en, revisado_en').eq('id', pagoId).maybeSingle();
     if (!pago || pago.estado !== 'aprobado') return res.status(200).json({ ok: true, enviado: false, motivo: 'no aprobado' });
 
     const cuando = new Date(pago.revisado_en || pago.creado_en || 0).getTime();
@@ -65,7 +74,24 @@ export default async function handler(req, res) {
 
     setupWebPush();
     const r = await enviarPushA(supabase, [pago.username], { title: 'Jonah 🦍', body });
-    return res.status(200).json({ ok: true, enviados: r.enviados });
+
+    // Aviso a Jonah Beast: solo si el pago se aprobó solo y es dinero real.
+    let avisoAdmin = 0;
+    if (quien === 'webhook' && Number(pago.monto) > 0) {
+      try {
+        const { data: admin } = await supabase.from('profiles').select('username').eq('role', 'admin').limit(1).maybeSingle();
+        if (admin?.username) {
+          const que = esAddon ? 'complemento de fotos' : `plan ${PLAN_POR_MESES[pago.plan_meses] || `de ${pago.plan_meses} meses`}`;
+          const monto = `S/${Number(pago.monto).toFixed(2)}`;
+          const rAdmin = await enviarPushA(supabase, [admin.username], {
+            title: 'Jonah 🦍',
+            body: `💰 Pago recibido: ${(alumno.nombre || pago.username).trim()} · ${que} · ${monto} (${(pago.metodo || 'Mercado Pago').replace(/\s*\(.*\)$/, '')})`,
+          });
+          avisoAdmin = rAdmin.enviados;
+        }
+      } catch (e) { console.error('No se pudo avisar al admin del pago:', e); }
+    }
+    return res.status(200).json({ ok: true, enviados: r.enviados, avisoAdmin });
   } catch (e) {
     console.error('Error enviando aviso de pago aprobado:', e);
     return res.status(500).json({ ok: false, error: 'No se pudo enviar el aviso' });

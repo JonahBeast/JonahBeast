@@ -3550,6 +3550,14 @@ async function datosNegocioJarvis(users) {
   const hoy = todayISO();
   const ayer = addDaysISO(hoy, -1);
   let pagosPendientes = null, pagosAtrasados = null, registraronAyer = null, registraronHoy = null;
+  let cobradoDesdeAyer = null, pagosDesdeAyer = null;
+  try {
+    // Lo que entró desde ayer (00:00, hora de Lima), sin pruebas de 0 soles.
+    const { data } = await supabase.from('pagos').select('monto').eq('estado', 'aprobado')
+      .gte('creado_en', `${ayer}T00:00:00-05:00`).gt('monto', 0).range(0, 999);
+    pagosDesdeAyer = (data || []).length;
+    cobradoDesdeAyer = Math.round((data || []).reduce((a, p) => a + (Number(p.monto) || 0), 0) * 100) / 100;
+  } catch {}
   try {
     const { data } = await supabase.from('pagos').select('creado_en').eq('estado', 'pendiente').range(0, 999);
     pagosPendientes = (data || []).length;
@@ -3582,7 +3590,7 @@ async function datosNegocioJarvis(users) {
     } else aMedias = 0;
   } catch {}
   return {
-    pagosPendientes, pagosAtrasados, registraronAyer, registraronHoy, aMedias,
+    pagosPendientes, pagosAtrasados, registraronAyer, registraronHoy, aMedias, cobradoDesdeAyer, pagosDesdeAyer,
     activos: activosL.length,
     enPrueba: activosL.filter(esPrueba).length,
     pagando: activosL.filter(u => !esPrueba(u)).length,
@@ -3596,6 +3604,7 @@ async function armarInformeJarvis(users) {
   partes.push(d.pagosPendientes
     ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar${d.pagosAtrasados ? `, ${d.pagosAtrasados === 1 ? 'uno espera más de 12 horas: ese alumno sigue sin acceso' : `${d.pagosAtrasados} esperan más de 12 horas: esos alumnos siguen sin acceso`}` : ''}.`
     : 'No hay pagos pendientes.');
+  if (d.pagosDesdeAyer) partes.push(`Desde ayer entraron ${d.pagosDesdeAyer} ${d.pagosDesdeAyer === 1 ? 'pago' : 'pagos'} por S/${d.cobradoDesdeAyer.toFixed(2)}.`);
   if (d.vencen) partes.push(`${d.vencen} ${d.vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
   if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
   if (d.aMedias) partes.push(`${d.aMedias === 1 ? '1 alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias: ${d.aMedias === 1 ? 'puso sus datos' : 'pusieron sus datos'} pero no ${d.aMedias === 1 ? 'registró' : 'registraron'} su primera comida. Están en Rescate para escribirles hoy.`);
@@ -3633,12 +3642,21 @@ function juntarFrases(partes) {
 async function tarjetasInformeJarvis(users) {
   const [d, clima] = await Promise.all([datosNegocioJarvis(users), climaLimaJarvis()]);
   const urgentes = [];
+  // Soles dichos para la voz: "49 soles con 80".
+  const solesEnVoz = n => { const e = Math.floor(n); const c = Math.round((n - e) * 100); return `${e} ${e === 1 ? 'sol' : 'soles'}${c ? ` con ${c}` : ''}`; };
+  const cobrado = d.pagosDesdeAyer
+    ? `Entraron ${d.pagosDesdeAyer === 1 ? 'un pago' : `${enLetras(d.pagosDesdeAyer)} pagos`} por ${solesEnVoz(d.cobradoDesdeAyer)}.`
+    : '';
   if (d.pagosPendientes) urgentes.push(`${enLetras(d.pagosPendientes)} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar`);
   if (d.vencen) urgentes.push(`${d.vencen === 1 ? 'una prueba' : `${enLetras(d.vencen)} pruebas`} por vencer`);
   if (d.aMedias) urgentes.push(`${d.aMedias === 1 ? 'un alumno' : `${enLetras(d.aMedias)} alumnos`} a medias`);
   const pendientes = juntarFrases(urgentes);
-  const frase = `${saludoJarvis()}, Jonah.${clima ? ` ${clima}.` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
+  const frase = `${saludoJarvis()}, Jonah.${clima ? ` ${clima}.` : ''}${cobrado ? ` ${cobrado}` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
   const tarjetas = [];
+  if (d.cobradoDesdeAyer !== null) tarjetas.push({
+    titulo: '💰 Cobrado desde ayer', valor: `S/${d.cobradoDesdeAyer.toFixed(2)}`,
+    detalle: d.pagosDesdeAyer ? `${d.pagosDesdeAyer} ${d.pagosDesdeAyer === 1 ? 'pago' : 'pagos'}` : 'sin pagos nuevos',
+  });
   if (d.pagosPendientes !== null) tarjetas.push({
     titulo: '💳 Pagos por revisar', valor: String(d.pagosPendientes),
     detalle: d.pagosAtrasados ? `${d.pagosAtrasados} esperan más de 12 h` : d.pagosPendientes ? 'revísalos hoy' : 'al día',

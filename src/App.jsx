@@ -4624,12 +4624,14 @@ export default function App() {
     let inicio = null;
     try { inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio'); } catch {}
     if (!inicio) return;
-    try { localStorage.setItem('jb-conocido', '1'); } catch {}
     const nueva = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 15 * 60 * 1000;
-    if (!nueva || perfil.role === 'admin') return;
-    registrarEventoEmbudo('registro', { username: perfil.username, detalle: 'google' });
-    try { if (window.ttq) window.ttq.track('CompleteRegistration'); } catch (e) {}
-    try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
+    if (nueva && perfil.role !== 'admin') {
+      // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
+      registrarEventoEmbudo('registro', { username: perfil.username, detalle: 'google' });
+      try { if (window.ttq) window.ttq.track('CompleteRegistration'); } catch (e) {}
+      try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
+    }
+    try { localStorage.setItem('jb-conocido', '1'); } catch {}
   }
 
   async function restoreSession() {

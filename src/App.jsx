@@ -349,6 +349,7 @@ const RAW_FOODS = [
   ["Verduras","Apio","Crudo",16,0.7,3.0,0.2,1.6],
   ["Carnes y aves","Pollo pierna (sin piel)","Cocida",177,24.2,0.0,8.1,0.0],
   ["Carnes y aves","Pavo pechuga","Cocida",135,29.0,0.0,1.7,0.0],
+  ["Carnes y aves","Pavita muslo (medallón, sin piel)","Cocida",170,28.0,0.0,6.5,0.0],
   ["Carnes y aves","Jamón de pavo","-",104,16.9,2.6,3.0,0.0],
   ["Carnes y aves","Jamón inglés","-",145,18.0,1.5,6.5,0.0],
   ["Carnes y aves","Chorizo parrillero","-",330,17.0,3.0,28.0,0.0],

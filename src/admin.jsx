@@ -3636,6 +3636,79 @@ function juntarFrases(partes) {
   return partes.length <= 1 ? (partes[0] || '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
 }
 
+// Sugerencias de Jarvis al abrir: reglas sobre los datos (no usan la IA,
+// no cuestan nada). Máximo 2, de la más urgente a la menos. Cada una puede
+// traer un botón para actuar en 1 toque (WhatsApp con el mensaje listo).
+// Jarvis solo sugiere: nunca hace nada solo.
+function waDeAlumno(u, texto) {
+  const tel = String(u.telefono || '').replace(/\D/g, '');
+  if (!tel) return null;
+  return `https://wa.me/${tel.length <= 9 ? '51' + tel : tel}?text=${encodeURIComponent(texto)}`;
+}
+async function sugerenciasJarvis(users, d) {
+  const lista = users || [];
+  const primerNombre = u => String(u.nombre || u.username).trim().split(/\s+/)[0];
+  const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
+  const sug = [];
+
+  if (d.pagosAtrasados) sug.push({
+    texto: `${d.pagosAtrasados === 1 ? 'Un pago lleva' : `${d.pagosAtrasados} pagos llevan`} más de 12 horas esperando, y ese alumno sigue sin acceso. Yo empezaría por ahí: está en Pagos, pestaña HOY.`,
+    voz: `Hay ${d.pagosAtrasados === 1 ? 'un pago' : `${enLetras(d.pagosAtrasados)} pagos`} esperando más de 12 horas. Yo empezaría por ahí.`,
+  });
+
+  const porVencer = lista
+    .filter(u => u.enabled && esPrueba(u) && u.telefono)
+    .map(u => ({ u, dl: daysLeft(u.fechaVencimiento) }))
+    .filter(x => x.dl === 0 || x.dl === 1)
+    .sort((a, b) => a.dl - b.dl);
+  if (porVencer.length) {
+    const { u, dl } = porVencer[0];
+    const cuando = dl === 0 ? 'hoy' : 'mañana';
+    const otros = porVencer.length - 1;
+    sug.push({
+      texto: `${primerNombre(u)} termina su prueba ${cuando} y aún no paga${otros ? ` (y ${otros} más vencen pronto)` : ''}. Un mensaje tuyo ahora vale más que diez anuncios.`,
+      voz: `Sugiero escribirle a ${primerNombre(u)}: su prueba termina ${cuando}.`,
+      boton: 'Escribirle por WhatsApp',
+      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍. Tu prueba gratis termina ${cuando}. ¿Cómo te fue? Si quieres seguir, te ayudo a elegir tu plan 💪`),
+    });
+  }
+
+  // Alumnos que pagan y dejaron de registrar hace 3 a 7 días.
+  try {
+    const hoy = todayISO();
+    const pagando = lista.filter(u => u.enabled && !esPrueba(u) && membershipActive(u) && u.telefono);
+    if (pagando.length && sug.length < 2) {
+      const { data } = await supabase.from('historial').select('username, fecha')
+        .in('username', pagando.map(u => u.username)).gte('fecha', addDaysISO(hoy, -10)).gt('comidas_count', 0).range(0, 9999);
+      const ultima = {};
+      (data || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
+      const quietos = pagando
+        .map(u => ({ u, dias: ultima[u.username] ? -daysLeft(ultima[u.username]) : null }))
+        .filter(x => x.dias !== null && x.dias >= 3 && x.dias <= 7)
+        .sort((a, b) => a.dias - b.dias);
+      if (quietos.length) {
+        const { u, dias } = quietos[0];
+        sug.push({
+          texto: `${primerNombre(u)} lleva ${dias} días sin registrar sus comidas${quietos.length > 1 ? ` (${quietos.length - 1} más, igual)` : ''}. Suele ser el primer paso antes de irse; un "¿cómo vas?" a tiempo ayuda.`,
+          voz: `${primerNombre(u)} lleva ${enLetras(dias)} días sin registrar. Un mensaje tuyo ayudaría.`,
+          boton: 'Escribirle por WhatsApp',
+          url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah 🦍. Vi que llevas unos días sin registrar tus comidas. ¿Todo bien? Si te trabas con algo, dime y lo vemos juntos 💪`),
+        });
+      }
+    }
+  } catch {}
+
+  if (d.aMedias) sug.push({
+    texto: `${d.aMedias === 1 ? 'Un alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias, sin su primera comida. Están en Rescate, pestaña HOY: es el mejor momento para escribirles.`,
+    voz: `${d.aMedias === 1 ? 'Un alumno está' : `${enLetras(d.aMedias)} alumnos están`} a medias. Están en Rescate.`,
+  });
+  if (d.nuevos >= 3) sug.push({
+    texto: `${d.nuevos} alumnos nuevos desde ayer. Si esto sigue así, voy a pedir aumento.`,
+    voz: `${enLetras(d.nuevos)} alumnos nuevos desde ayer. Si esto sigue así, voy a pedir aumento.`,
+  });
+  return sug.slice(0, 2);
+}
+
 // Al abrir (la primera vez del día): una sola frase dicha en voz alta
 // (saludo, clima y solo lo urgente) y debajo las tarjetas. Las tarjetas
 // que piden acción hoy salen en naranja.
@@ -3666,7 +3739,8 @@ async function tarjetasInformeJarvis(users) {
   if (d.registraronAyer !== null) tarjetas.push({ titulo: '🍽️ Registraron ayer', valor: `${d.registraronAyer}/${d.activos}`, detalle: 'alumnos activos' });
   if (d.aMedias) tarjetas.push({ titulo: '🆘 A medias', valor: String(d.aMedias), detalle: 'sin primera comida · en Rescate', alerta: true });
   else if (d.nuevos) tarjetas.push({ titulo: '🆕 Nuevos', valor: String(d.nuevos), detalle: 'desde ayer' });
-  return { frase, visual: { tarjetas } };
+  const sugerencias = await sugerenciasJarvis(users, d).catch(() => []);
+  return { frase, visual: { tarjetas }, sugerencias };
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
 
@@ -4140,10 +4214,10 @@ function JarvisPanel({ onClose, users }) {
     try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
     setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
     if (!yaHoy) {
-      tarjetasInformeJarvis(users).then(({ frase, visual }) => {
-        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual } : m)));
+      tarjetasInformeJarvis(users).then(({ frase, visual, sugerencias }) => {
+        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual, sugerencias } : m)));
         sonidoJarvis('respuesta');
-        hablarRef.current(frase);
+        hablarRef.current(sugerencias?.[0] ? `${frase} ${sugerencias[0].voz}` : frase);
       }).catch(() => {});
     }
   }, []);
@@ -4354,6 +4428,19 @@ function JarvisPanel({ onClose, users }) {
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
                 : <div className="pl-3 py-1" style={{ borderLeft: '2px solid #4dd9ff', boxShadow: '-6px 0 12px -8px #4dd9ff' }}><TextoJarvis texto={(m.escribiendo ? sinBloqueTarjetas(m.content) : m.content) + (m.escribiendo ? ' ▍' : '')} /></div>}
               {m.role !== 'user' && m.visual && <TarjetasJarvis visual={m.visual} />}
+              {m.role !== 'user' && (m.sugerencias || []).map((sg, j) => (
+                <div key={`sg${j}`} className="mt-2 rounded px-3 py-2" style={{ background: 'rgba(232,89,12,0.10)', border: '1px solid rgba(232,89,12,0.45)', animation: `jv-aparece .4s ease-out ${0.3 + j * 0.1}s both` }}>
+                  <div className="text-[9px] tracking-[0.2em] uppercase mb-0.5" style={{ fontFamily: 'monospace', color: '#FF7020' }}>SUGERENCIA</div>
+                  <div className="text-[13px] leading-snug" style={{ color: '#dff2ff' }}>{sg.texto}</div>
+                  {sg.url && (
+                    <a href={sg.url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold rounded px-3 py-1.5"
+                      style={{ background: '#E8590C', color: '#0a0d10' }}>
+                      <MessageCircle size={13} /> {sg.boton}
+                    </a>
+                  )}
+                </div>
+              ))}
               {(m.acciones || []).map((a, j) => (
                 <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
                   <div className="text-xs">

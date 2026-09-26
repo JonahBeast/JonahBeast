@@ -103,6 +103,24 @@ ${INDICE_MANUAL}`;
 
 const TOOLS = [
   {
+    name: "recordar",
+    description: "Guarda una nota en tu memoria permanente (tabla jarvis_memoria) para usarla en todas las conversaciones futuras. ÚSALA SOLO cuando el señor te lo pida explícitamente (\"recuerda que...\", \"acuérdate de...\", \"anota que...\"). Nunca guardes nada por tu cuenta. Escribe la nota corta y clara, en tercera persona (ej. \"Los lunes el señor graba contenido: no sugerir escribir a alumnos ese día\").",
+    input_schema: {
+      type: "object",
+      properties: { nota: { type: "string", description: "La nota a recordar, máximo 300 caracteres" } },
+      required: ["nota"],
+    },
+  },
+  {
+    name: "olvidar",
+    description: "Borra una nota de tu memoria permanente. ÚSALA SOLO cuando el señor te pida olvidar algo (\"olvida que...\", \"ya no recuerdes...\"). Usa el número de la nota que aparece en \"Lo que el señor te pidió recordar\". Si no está claro cuál es, pregunta antes.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "integer", description: "Número de la nota a borrar" } },
+      required: ["id"],
+    },
+  },
+  {
     name: "consultar_manual",
     description: "Devuelve el texto completo de secciones del manual de la app (ver el índice del manual). Úsala antes de responder cualquier pregunta sobre cómo funciona la app, qué ve el alumno o qué dice un botón o mensaje.",
     input_schema: {
@@ -417,7 +435,17 @@ Deno.serve(async (req) => {
       .map(([f, v]) => `${f}: ${v.visitantes} visitantes, ${v.clics} clics, ${v.registros} registros, ${v.pagaron} pagaron`)
       .join("; ") || "sin datos aún";
 
-    const contexto = `Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
+    // Memoria permanente: las notas que el señor pidió recordar.
+    const { data: memoria } = await supabase.from("jarvis_memoria").select("id, texto")
+      .order("creado_en", { ascending: true }).limit(50);
+    const memoriaTexto = (memoria || []).length
+      ? (memoria || []).map((m: any) => `- [${m.id}] ${m.texto}`).join("\n")
+      : "(vacía: el señor todavía no te pidió recordar nada)";
+
+    const contexto = `Lo que el señor te pidió recordar (tu memoria permanente; tenla en cuenta en tus respuestas y sugerencias, y úsala con naturalidad, sin recitarla):
+${memoriaTexto}
+
+Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
 - Precios vigentes de los planes: ${preciosTexto}
 - Alumnos totales: ${totalAlumnos}
 - Alumnos con celular capturado: ${conTelefono}
@@ -510,6 +538,23 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
     const acciones: any[] = [];
 
     async function ejecutarHerramienta(bloque: any): Promise<unknown> {
+      if (bloque.name === "recordar") {
+        const nota = String(bloque.input?.nota || "").replace(/\s+/g, " ").trim().slice(0, 300);
+        if (!nota) return { error: "La nota está vacía." };
+        const { count } = await supabase.from("jarvis_memoria").select("id", { count: "exact", head: true });
+        if ((count || 0) >= 50) return { error: "La memoria está llena (50 notas). Pide al señor que borre alguna." };
+        const { data, error } = await supabase.from("jarvis_memoria").insert({ texto: nota }).select("id").single();
+        if (error) return { error: "No se pudo guardar: " + error.message };
+        return { ok: true, id: data.id, guardado: nota };
+      }
+      if (bloque.name === "olvidar") {
+        const id = Math.round(Number(bloque.input?.id));
+        if (!id) return { error: "Falta el número de la nota." };
+        const { data, error } = await supabase.from("jarvis_memoria").delete().eq("id", id).select("texto");
+        if (error) return { error: "No se pudo borrar: " + error.message };
+        if (!data?.length) return { error: "No existe una nota con ese número." };
+        return { ok: true, borrado: data[0].texto };
+      }
       if (bloque.name === "consultar_manual") {
         const pedidas = (Array.isArray(bloque.input?.secciones) ? bloque.input.secciones : []).map(Number).slice(0, 3);
         const encontradas = SECCIONES_MANUAL.filter((s) => pedidas.includes(s.numero));

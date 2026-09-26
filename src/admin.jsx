@@ -2540,6 +2540,46 @@ function ProductosPanel() {
   );
 }
 
+// Memoria de Jarvis: las notas que Jonah le pidió recordar ("recuerda
+// que..."). Jarvis solo guarda cuando se lo piden; aquí se ven y se borran.
+function MemoriaJarvisPanel() {
+  const [notas, setNotas] = useState(null);
+  async function cargar() {
+    const { data } = await supabase.from('jarvis_memoria').select('id, texto, creado_en').order('creado_en', { ascending: true });
+    setNotas(data || []);
+  }
+  useEffect(() => { cargar().catch(() => setNotas([])); }, []);
+  async function borrar(n) {
+    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis?\n\n"${n.texto}"`)) return;
+    const { error } = await supabase.from('jarvis_memoria').delete().eq('id', n.id);
+    if (error) { alert('No se pudo borrar: ' + error.message); return; }
+    cargar();
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS RECUERDA</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis "recuerda que…" para enseñarle algo, u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
+      </div>
+      {notas === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
+        : notas.length === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no recuerda nada.</p>
+        : (
+          <div className="flex flex-col gap-1.5">
+            {notas.map(n => (
+              <div key={n.id} className="flex items-start justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                <div className="min-w-0">
+                  <div className="jb-body text-sm text-zinc-200">{n.texto}</div>
+                  <div className="jb-body text-[10px] text-zinc-600">Nota {n.id} · {String(n.creado_en).slice(0, 10)}</div>
+                </div>
+                <button onClick={() => borrar(n)} className="text-zinc-600 hover:text-red-400 shrink-0 mt-0.5" aria-label="Borrar nota"><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+    </div>
+  );
+}
+
 // Precisión de la IA de fotos: compara lo que calculó la IA con lo que
 // el alumno terminó registrando (tabla reconocimiento_foto_feedback).
 // Si el alumno no corrige nada, cuenta como acierto aunque no haya pesado:
@@ -5212,6 +5252,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'ia' && (
           <>
             <PrecisionIAPanel />
+            <MemoriaJarvisPanel />
             <ReconocimientoFotoPanel />
             <ProductosPanel />
           </>

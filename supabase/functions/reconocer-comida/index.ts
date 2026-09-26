@@ -163,11 +163,20 @@ Identifica TODOS los alimentos distintos visibles en la foto que coincidan con a
 
 Fíjate bien en la FORMA de cada alimento, no solo en el color de la salsa que lo cubre — una salsa roja/marrón puede cubrir fideos, papa o carne por igual, y son formas muy distintas: los fideos/tallarines son alargados y delgados, la papa son trozos irregulares más gruesos, la carne tiene textura fibrosa o en cubos. No asumas que un alimento es "papa" solo porque hay trozos con salsa oscura si la forma es claramente alargada como fideo.
 
+PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la lista como plato preparado, usa ESE plato en vez de separarlo en sus partes. En particular:
+- Fideos/tallarines con una salsa VERDE encima o mezclada (albahaca/espinaca) son "Tallarines verdes", aunque la salsa esté servida aparte sobre los fideos. NO es ocopa.
+- Fideos con salsa ROJA de tomate son "Tallarines rojos" (con pollo o con carne molida, según lo que se vea).
+- La ocopa y la huancaína son salsas que se sirven sobre PAPA sancochada (en rodajas), no sobre fideos; la huancaína es amarilla y la ocopa verde-amarillenta y espesa.
+En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
+
 Si dos o más alimentos de la lista representan la MISMA comida visualmente pero se diferencian por algo que la foto no puede mostrar (ej. "con azúcar" vs "sin azúcar" en una bebida, cuando no se ve el azúcar siendo servida o disuelta), NO elijas uno solo adivinando — en vez de "key", incluye "opciones" con las claves de todas las variantes plausibles (2 o más), y usa confianza "media". Usa "opciones" solo para este caso de ambigüedad real; si no hay duda, usa "key" normal como siempre.
 
 Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclúyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1.
 
 Para cada alimento, calcula también cuántos GRAMOS de ese alimento hay servidos en la foto ("gramos"; en bebidas, los ml del vaso o taza). Usa como referencia el tamaño del plato (un plato llano peruano mide unos 26 cm; uno de postre, unos 20 cm), los cubiertos, el vaso o la mano, y piensa en el volumen: altura y superficie que ocupa. Referencias: una taza de arroz cocido ≈ 160 g y ocupa más o menos un puño; un filete o bistec del tamaño de la palma ≈ 120 g; una presa de pollo mediana ≈ 130 g; un vaso ≈ 250 ml. Si un alimento se cuenta por piezas, da los gramos de todas las piezas juntas. Da un número redondo, sin rangos.
+Cuidado con dos errores comunes que hacen calcular DE MÁS:
+- Carnes planas (bistec, churrasco delgado, milanesa, filete de pollo apanado): en casa peruana suelen ser DELGADAS (0.5–1 cm). Aunque cubran medio plato, un bistec grande y delgado pesa unos 120–150 g. Fíjate en el grosor, no solo en lo que ocupa.
+- Fideos, tallarines y ensaladas sueltas: si están esparcidos en capa delgada por el plato, pesan menos de lo que parece; un plato llano con fideos esparcidos suele tener 100–150 g. Cuenta la altura del montón, no solo la superficie.
 
 Marca "aceite": true si el alimento se ve frito, saltado, apanado o brillante de aceite; si no, false.
 

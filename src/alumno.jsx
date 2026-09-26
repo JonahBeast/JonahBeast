@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff } from 'lucide-react';
+import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import {
   ACTIVITY_DESC,
@@ -40,6 +40,7 @@ import {
   fmtS,
   generateCombos,
   generateQuickOptions,
+  agregarProductoAFoods,
   gramsPerUnit,
   inputCls,
   setFoodsPersonales,
@@ -302,6 +303,7 @@ const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 const GROUP_EMOJI = {
   'Carnes y aves': '🍗', 'Pescados': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
   'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
+  'Productos': '📦',
 };
 
 /* Aprendizaje de patrones: recuerda qué sustituto elige más seguido el
@@ -5566,7 +5568,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
     setEstado('analizando');
     setNoEncontrados([]);
     try {
-      const listaLiviana = todosLosAlimentos.map(a => ({ key: a.key, name: a.name }));
+      // Los productos escaneados no se mandan: la foto reconoce platos, y
+      // los empacados se registran mejor con su código de barras.
+      const listaLiviana = todosLosAlimentos.filter(a => !a.esProducto).map(a => ({ key: a.key, name: a.name }));
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
         body: { username, imagenBase64: base64, mimeType, alimentos: listaLiviana },
       });
@@ -6174,10 +6178,324 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* CÓDIGO DE BARRAS                                                     */
+/* Cámara → código → producto (tabla productos u Open Food Facts, en la */
+/* función reconocer-comida). Si no está, el alumno le toma foto a la   */
+/* tabla nutricional y la IA la lee; se guarda para todos.              */
+/* ------------------------------------------------------------------ */
+
+const FORMATOS_CODIGO = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+
+// Lector: el del navegador si lo tiene (Chrome de Android); si no (iPhone),
+// uno que se descarga solo cuando hace falta.
+async function crearLectorCodigo() {
+  try {
+    if ('BarcodeDetector' in window) {
+      const soportados = await window.BarcodeDetector.getSupportedFormats();
+      if (FORMATOS_CODIGO.some(f => soportados.includes(f))) return new window.BarcodeDetector({ formats: FORMATOS_CODIGO });
+    }
+  } catch {}
+  const [{ BarcodeDetector, prepareZXingModule }, { default: urlWasm }] = await Promise.all([
+    import('barcode-detector/ponyfill'),
+    import('zxing-wasm/reader/zxing_reader.wasm?url'),
+  ]);
+  // El lector se sirve desde nuestra propia app, no desde internet.
+  prepareZXingModule({ overrides: { locateFile: (ruta, prefijo) => (ruta.endsWith('.wasm') ? urlWasm : prefijo + ruta) } });
+  return new BarcodeDetector({ formats: FORMATOS_CODIGO });
+}
+
+async function llamarProductos(body) {
+  const { data, error } = await supabase.functions.invoke('reconocer-comida', { body });
+  if (error) {
+    let motivo = '';
+    try { motivo = (await error.context.json())?.error || ''; } catch {}
+    throw new Error(motivo || 'No se pudo conectar. Intenta de nuevo.');
+  }
+  return data || {};
+}
+
+function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
+  const [estado, setEstado] = useState('camara'); // camara | manual | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
+  const [codigo, setCodigo] = useState('');
+  const [codigoManual, setCodigoManual] = useState('');
+  const [producto, setProducto] = useState(null); // fila de productos (o lo leído de la etiqueta)
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [marcaNueva, setMarcaNueva] = useState('');
+  const [unidad, setUnidad] = useState('porción');
+  const [cantidad, setCantidad] = useState(1);
+  const [mensaje, setMensaje] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  function apagarCamara() {
+    try { streamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+    streamRef.current = null;
+  }
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; apagarCamara(); };
+  }, []);
+
+  // Cámara + lectura continua mientras se está en "camara".
+  useEffect(() => {
+    if (estado !== 'camara') return;
+    let cancelado = false;
+    let timer = null;
+    (async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('sin cámara');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        if (cancelado) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+        const lector = await crearLectorCodigo();
+        let fallos = 0;
+        const mirar = async () => {
+          if (cancelado) return;
+          try {
+            if (video.readyState >= 2) {
+              const hallados = await lector.detect(video);
+              fallos = 0;
+              const valor = hallados?.[0]?.rawValue?.replace(/\D/g, '');
+              if (valor && valor.length >= 6) { vibrar(30); apagarCamara(); buscar(valor); return; }
+            }
+          } catch {
+            // Si el lector no funciona en este celular, se pasa a escribir el código.
+            if (++fallos >= 12) { apagarCamara(); setMensaje('No pudimos leer el código con la cámara. Escribe los números que están debajo.'); setEstado('manual'); return; }
+          }
+          timer = setTimeout(mirar, 250);
+        };
+        mirar();
+      } catch {
+        if (!cancelado) { apagarCamara(); setMensaje('No pudimos abrir la cámara. Escribe los números del código de barras.'); setEstado('manual'); }
+      }
+    })();
+    return () => { cancelado = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estado]);
+
+  function mostrarProducto(p) {
+    setProducto(p);
+    const conPorcion = Number(p.porcion_g) > 0;
+    setUnidad(conPorcion ? 'porción' : 'gramos');
+    setCantidad(conPorcion ? 1 : 100);
+    setEstado('producto');
+  }
+
+  async function buscar(valor) {
+    setCodigo(valor);
+    setEstado('buscando');
+    try {
+      const r = await llamarProductos({ accion: 'buscar_codigo', codigo: valor });
+      if (r.encontrado && r.producto) mostrarProducto(r.producto);
+      else { setMensaje(r.error || ''); setEstado('no_encontrado'); }
+    } catch (e) { setMensaje(e.message); setEstado('error'); }
+  }
+
+  async function fotoEtiqueta(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEstado('leyendo');
+    try {
+      const blob = await comprimirImagen(file, 1600, 0.9);
+      const base64 = await new Promise((ok, mal) => {
+        const reader = new FileReader();
+        reader.onload = () => ok(String(reader.result).split(',')[1] || '');
+        reader.onerror = mal;
+        reader.readAsDataURL(blob);
+      });
+      const r = await llamarProductos({ accion: 'leer_etiqueta', codigo, imagenBase64: base64, mimeType: 'image/jpeg' });
+      if (r.error === 'limite_alcanzado') { setEstado('limite'); return; }
+      if (r.error || !r.producto) { setMensaje(r.error || 'No pudimos leer la etiqueta.'); setEstado('no_encontrado'); return; }
+      setProducto(r.producto);
+      setNombreNuevo(r.producto.nombre || '');
+      setMarcaNueva(r.producto.marca || '');
+      setEstado('confirmar');
+    } catch (err) { setMensaje(err.message); setEstado('no_encontrado'); }
+  }
+
+  async function guardarLeido() {
+    if (!nombreNuevo.trim()) return;
+    setGuardando(true);
+    try {
+      const r = await llamarProductos({ accion: 'guardar_producto', codigo, producto: { ...producto, nombre: nombreNuevo.trim(), marca: marcaNueva.trim() } });
+      if (r.error || !r.producto) throw new Error(r.error || 'No se pudo guardar.');
+      mostrarProducto(r.producto);
+    } catch (err) { setMensaje(err.message); }
+    setGuardando(false);
+  }
+
+  const gramosPorUnidad = unidad === 'porción' ? Number(producto?.porcion_g) || 0 : 1;
+  const gramos = cantidad * gramosPorUnidad;
+  const macros = producto ? {
+    kcal: Number(producto.kcal) * gramos / 100, protein: Number(producto.proteina) * gramos / 100,
+    carbs: Number(producto.carbos) * gramos / 100, fat: Number(producto.grasa) * gramos / 100,
+  } : null;
+  const paso = unidad === 'porción' ? 0.5 : 10;
+
+  function agregar() {
+    const key = agregarProductoAFoods(producto);
+    onAgregar({ id: uid(), foodKey: key, unit: unidad, qty: cantidad });
+    showToast(`${producto.nombre} agregado a ${meal.toLowerCase()}`);
+    onCerrar();
+  }
+
+  const botonFotoEtiqueta = (
+    <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
+      <Camera size={16} /> Tomar foto a la tabla nutricional
+      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoEtiqueta} />
+    </label>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <style>{ESTILOS_ESCANER}</style>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+        </div>
+
+        {estado === 'camara' && (
+          <div>
+            <div className="relative w-full aspect-[4/3] bg-zinc-950 rounded-xl overflow-hidden border border-orange-500/30 mb-3">
+              <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute left-[12%] right-[12%] top-1/2 -translate-y-1/2 h-[38%] border-2 border-orange-500 rounded-lg pointer-events-none"
+                style={{ boxShadow: '0 0 0 999px rgba(9,7,5,.45)' }} />
+              <div className="absolute left-[14%] right-[14%] top-1/2 h-0.5 bg-orange-500/80 pointer-events-none" style={{ animation: 'jbe-punto 1.2s ease-in-out infinite' }} />
+            </div>
+            <p className="jb-body text-sm text-zinc-300 text-center mb-3">Apunta al código de barras del producto. Se lee solo.</p>
+            <button onClick={() => { apagarCamara(); setMensaje(''); setEstado('manual'); }} className={btnGhost + ' w-full py-2.5 text-sm'}>Escribir los números</button>
+          </div>
+        )}
+
+        {estado === 'manual' && (
+          <div>
+            {mensaje && <p className="jb-body text-xs text-amber-400 mb-2">{mensaje}</p>}
+            <p className="jb-body text-sm text-zinc-300 mb-2">Escribe los números que están debajo del código de barras:</p>
+            <input value={codigoManual} onChange={e => setCodigoManual(e.target.value.replace(/\D/g, '').slice(0, 14))}
+              inputMode="numeric" placeholder="Ej. 7751271012345" className={inputCls + ' w-full text-lg tracking-widest tabular-nums mb-3'} />
+            <button onClick={() => buscar(codigoManual)} disabled={codigoManual.length < 8} className={btnPrimary + ' w-full py-3 mb-2'}>Buscar producto</button>
+            <button onClick={() => setEstado('camara')} className={btnGhost + ' w-full py-2.5 text-sm'}>Usar la cámara</button>
+          </div>
+        )}
+
+        {(estado === 'buscando' || estado === 'leyendo') && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <Loader2 className="animate-spin text-orange-500" size={28} />
+            <p className="jb-body text-sm text-zinc-300">{estado === 'buscando' ? 'Buscando el producto…' : 'Leyendo la tabla nutricional…'}</p>
+            {codigo && <p className="jb-body text-[11px] text-zinc-600 tabular-nums">Código {codigo}</p>}
+          </div>
+        )}
+
+        {estado === 'producto' && producto && (
+          <div>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">📦</span>
+              <div className="min-w-0">
+                <p className="jb-display text-lg text-zinc-50 leading-tight">{producto.nombre}</p>
+                <p className="jb-body text-xs text-zinc-500">
+                  {producto.marca ? `${producto.marca} · ` : ''}{Math.round(producto.kcal)} kcal por 100 g
+                  {Number(producto.porcion_g) > 0 ? ` · porción de ${Math.round(producto.porcion_g)} g` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-center gap-5 mb-3">
+              <BotonPaso grande etiqueta="Menos" onClick={() => setCantidad(c => Math.max(paso, Math.round((c - paso) * 10) / 10))}>−</BotonPaso>
+              <div className="text-center min-w-[110px]">
+                <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{cantidad}</p>
+                <p className="jb-body text-sm text-zinc-400 mt-1">{unidad === 'gramos' ? 'gramos' : cantidad === 1 ? 'porción' : 'porciones'}</p>
+              </div>
+              <BotonPaso grande etiqueta="Más" onClick={() => setCantidad(c => Math.round((c + paso) * 10) / 10)}>+</BotonPaso>
+            </div>
+            {Number(producto.porcion_g) > 0 && (
+              <div className="flex justify-center gap-2 mb-4">
+                {['porción', 'gramos'].map(u => (
+                  <button key={u} type="button" onClick={() => { if (u === unidad) return; setUnidad(u); setCantidad(u === 'gramos' ? Math.max(10, Math.round(gramos / 10) * 10) : 1); }}
+                    className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${u === unidad ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="bg-gradient-to-r from-orange-500/15 to-transparent border border-orange-500/40 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3">
+              <p className="jb-body text-xs text-zinc-400 tabular-nums">
+                {Math.round(gramos)} g · P {Math.round(macros.protein)}g · C {Math.round(macros.carbs)}g · G {Math.round(macros.fat)}g
+              </p>
+              <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(macros.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
+            </div>
+            <button onClick={agregar} disabled={!gramos} className={btnPrimary + ' w-full py-3'}>Agregar a {meal.toLowerCase()}</button>
+            <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">Datos de la etiqueta del producto.</p>
+          </div>
+        )}
+
+        {estado === 'no_encontrado' && (
+          <div>
+            <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje || 'Aún no tenemos este producto.'}</p>
+            <p className="jb-body text-sm text-zinc-400 mb-4">
+              Tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y el producto queda guardado: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
+            </p>
+            {botonFotoEtiqueta}
+            <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta usa una de tus fotos de reconocimiento.</p>
+            <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco escribiendo</button>
+          </div>
+        )}
+
+        {estado === 'confirmar' && producto && (
+          <div>
+            <p className="jb-body text-sm text-zinc-200 mb-3">Leímos la etiqueta. Revisa el nombre y guárdalo:</p>
+            <label className="jb-body text-[11px] text-zinc-500">Nombre del producto
+              <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
+            </label>
+            <label className="jb-body text-[11px] text-zinc-500">Marca (opcional)
+              <input value={marcaNueva} onChange={e => setMarcaNueva(e.target.value.slice(0, 40))} placeholder="Ej. Gloria" className={inputCls + ' w-full text-sm mt-0.5 mb-3'} />
+            </label>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4 jb-body text-xs text-zinc-400 tabular-nums">
+              Por 100 g: <span className="text-zinc-100 font-semibold">{Math.round(producto.kcal)} kcal</span> · P {producto.proteina} g · C {producto.carbos} g · G {producto.grasa} g
+              {Number(producto.porcion_g) > 0 && <span className="block text-zinc-500 mt-0.5">Porción de la etiqueta: {Math.round(producto.porcion_g)} g</span>}
+            </div>
+            {mensaje && <p className="jb-body text-xs text-red-400 mb-2">{mensaje}</p>}
+            <button onClick={guardarLeido} disabled={!nombreNuevo.trim() || guardando} className={btnPrimary + ' w-full py-3 mb-2'}>
+              {guardando ? <Loader2 size={16} className="animate-spin" /> : 'Guardar y continuar'}
+            </button>
+            <label className={btnGhost + ' w-full py-2.5 text-sm cursor-pointer'}>
+              Los números no coinciden: otra foto
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoEtiqueta} />
+            </label>
+          </div>
+        )}
+
+        {estado === 'limite' && (
+          <div className="text-center py-2">
+            <p className="jb-body text-sm text-zinc-300 mb-4">Ya usaste tus fotos de reconocimiento de este periodo, y leer la etiqueta usa una. Mientras tanto, puedes buscar el producto escribiendo.</p>
+            <button onClick={onEscribir} className={btnPrimary + ' w-full py-2.5'}>Buscarlo escribiendo</button>
+          </div>
+        )}
+
+        {estado === 'error' && (
+          <div className="text-center py-2">
+            <AlertTriangle className="text-amber-500 mx-auto mb-3" size={28} />
+            <p className="jb-body text-sm text-zinc-400 mb-4">{mensaje || 'No se pudo buscar el producto. Intenta de nuevo.'}</p>
+            <button onClick={() => (codigo ? buscar(codigo) : setEstado('camara'))} className={btnPrimary + ' w-full py-2.5 mb-2'}>Reintentar</button>
+            <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm'}>Buscarlo escribiendo</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Hoja que sube desde abajo al tocar "Registrar": elegir la comida (ya
 // viene la que toca por la hora), y cómo registrar — foto, voz o escribir —
 // más los atajos (repetir ayer, mis comidas, frecuentes).
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onEscribir, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const ahora = comidaDeAhora();
 
@@ -6189,6 +6507,7 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onEscribir, username, 
 
   const opciones = [
     { id: 'foto', icono: <Camera size={22} />, titulo: 'Foto', sub: 'La IA lo reconoce', accion: () => onFoto(meal) },
+    { id: 'codigo', icono: <ScanBarcode size={22} />, titulo: 'Código', sub: 'Productos empacados', accion: () => onCodigo(meal) },
     { id: 'voz', icono: <Mic size={22} />, titulo: 'Voz', sub: 'Dile a Jonah', accion: () => setModo(m => m === 'voz' ? null : 'voz') },
     { id: 'escribir', icono: <span className="jb-display text-lg leading-none">Aa</span>, titulo: 'Escribir', sub: 'Busca el alimento', accion: () => onEscribir(meal) },
   ];
@@ -6216,12 +6535,12 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onEscribir, username, 
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
           {opciones.map(o => {
             const activo = o.id === 'voz' && modo === 'voz';
             return (
               <button key={o.id} onClick={o.accion}
-                className={`rounded-2xl border px-2 py-4 flex flex-col items-center gap-1.5 transition-colors ${activo
+                className={`rounded-2xl border px-1 py-3.5 flex flex-col items-center gap-1.5 transition-colors ${activo
                   ? 'bg-orange-500 border-orange-500 text-zinc-950'
                   : 'bg-zinc-950 border-orange-500/40 text-orange-400 hover:bg-orange-500/10'}`}
                 style={activo ? undefined : { boxShadow: 'inset 0 0 18px rgba(232,89,12,.12)' }}>
@@ -6481,6 +6800,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
   const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
+  const [codigoPara, setCodigoPara] = useState(null); // ídem, para el escáner de código de barras
   // Destello al completar una comida (cuando recibe su primer alimento).
   const [destellos, setDestellos] = useState({});
   const conteosPrevios = useRef(null);
@@ -6598,12 +6918,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         <HojaRegistrar
           meal={hojaMeal} setMeal={setHojaMeal} onCerrar={() => setHojaMeal(null)}
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
+          onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEnfocar(addEntry(m)); }}
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano */}
-      {!hojaMeal && !fotoPara && !crearPara && !editando && (
+      {!hojaMeal && !fotoPara && !codigoPara && !crearPara && !editando && (
         <button onClick={() => { vibrar(10); setHojaMeal(mealAhora); }}
           className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
           aria-label="Registrar comida">
@@ -6630,6 +6951,14 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
             const nuevo = crearPara.texto.trim() + ' (mío)';
             updateEntry(crearPara.meal, crearPara.id, { foodKey: nuevo, unit: 'gramos', qty: 100, grams: undefined });
           }}
+        />
+      )}
+      {codigoPara && (
+        <EscanearCodigoModal
+          meal={codigoPara}
+          onCerrar={() => setCodigoPara(null)}
+          onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEnfocar(addEntry(m)); }}
+          onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [codigoPara]: [...v.meals[codigoPara], entry] } }))}
         />
       )}
       {fotoPara && (

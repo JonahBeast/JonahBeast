@@ -192,7 +192,7 @@ De arriba hacia abajo:
 
 ### 8.2 Cómo registrar (paso común)
 
-Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora) y luego el método: **"Foto"**, **"Voz"** o **"Escribir"**. Abajo están los atajos.
+Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora) y luego el método: **"Foto"**, **"Código"** (código de barras de productos empacados), **"Voz"** o **"Escribir"**. Abajo están los atajos.
 
 **A) Escribir**
 1. Toca **"Escribir"** y escribe el nombre en "Escribe para buscar…".
@@ -213,6 +213,20 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 6. Mira el **"TOTAL APROXIMADO"** y toca **"Agregar N a esta comida"**. Después también puedes cambiar la cantidad exacta de cada uno.
 - La foto da un **cálculo aproximado**: la porción se calcula a ojo desde la foto, y lo que no se ve (aceite, azúcar, salsas escondidas) no se puede medir. Por eso conviene revisar la porción antes de agregar.
 - Límite de fotos: ver sección 9.4.
+
+**B2) Código de barras (productos empacados: yogurt, galletas, leche, atún, barras…)**
+1. Toca **"Código"**. Se abre la cámara con un recuadro: apunta al **código de barras** del empaque y se lee solo.
+   - Si la cámara no abre o no lee el código, toca **"Escribir los números"** y escribe los números que están debajo del código → **"Buscar producto"**.
+2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
+   - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.
+   - Toca **"Agregar a [comida]"**.
+3. Si sale **"Aún no tenemos este producto"**, toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque.
+   - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar y continuar"**.
+   - Si los números no coinciden con la etiqueta, toca **"Los números no coinciden: otra foto"**.
+   - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
+- Escanear el código **no gasta fotos**. **Leer la tabla nutricional sí usa una foto** de tu límite (sección 9.4). Si ya no te quedan fotos, busca el producto escribiendo.
+- Los productos escaneados también aparecen al buscar con "Escribir" (grupo 📦 Productos).
+- Si no aparece o no quieres tomar la foto: **"Mejor lo busco escribiendo"**.
 
 **C) Voz**
 1. Toca **"Voz"** → pestaña **"🎤 Por voz"** → micrófono.
@@ -298,6 +312,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 | Con "Reconocimiento Inteligente" | hasta 200 al mes |
 
 - Si una foto falla por un error del sistema, **no se descuenta**.
+- Leer la **tabla nutricional** de un producto (en "Código") cuenta como una foto. Escanear el código de barras no cuenta.
 
 ### 9.2 Mensajes y qué hacer
 

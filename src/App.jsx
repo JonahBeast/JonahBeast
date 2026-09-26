@@ -398,11 +398,13 @@ let cargaAlimentosExtra = null;
 function cargarAlimentosExtra(forzar = false) {
   if (cargaAlimentosExtra && !forzar) return cargaAlimentosExtra;
   cargaAlimentosExtra = (async () => {
+    let cambio = false;
     try {
-      const { data, error } = await supabase.from('alimentos_extra').select('*').order('id');
-      if (error || !data) return;
-      let cambio = false;
-      for (const a of data) {
+      const [extra, productos] = await Promise.all([
+        supabase.from('alimentos_extra').select('*').order('id'),
+        supabase.from('productos').select('*').order('creado_en').limit(5000),
+      ]);
+      for (const a of extra.data || []) {
         const state = a.estado || '-';
         const key = `${a.nombre} (${state})`;
         if (FOODS.some(f => f.key === key)) continue;
@@ -415,13 +417,46 @@ function cargarAlimentosExtra(forzar = false) {
         }
         cambio = true;
       }
-      if (cambio) {
-        versionAlimentos++;
-        oyentesAlimentos.forEach(avisar => avisar(versionAlimentos));
+      for (const p of productos.data || []) {
+        if (sumarProducto(p)) cambio = true;
       }
     } catch {}
+    if (cambio) avisarAlimentos();
   })();
   return cargaAlimentosExtra;
+}
+
+function avisarAlimentos() {
+  versionAlimentos++;
+  oyentesAlimentos.forEach(avisar => avisar(versionAlimentos));
+}
+
+/* Productos escaneados por código de barras (tabla productos): van al
+   grupo "Productos", con la marca en lugar del estado ("Yogurt bebible
+   fresa · gloria") y su porción de la etiqueta como medida de casa. No se
+   mandan a la IA de la foto (esProducto). Devuelve la clave del alimento
+   (o null si no se pudo sumar). */
+function claveProducto(p) {
+  return `${p.nombre} (${p.marca || 'Producto'})`;
+}
+function sumarProducto(p) {
+  if (!p || !p.nombre) return null;
+  const key = claveProducto(p);
+  if (FOODS.some(f => f.key === key)) return null;
+  FOODS.push({
+    group: 'Productos', name: p.nombre, state: p.marca || 'Producto', key, esProducto: true, codigo: p.codigo,
+    kcal: Number(p.kcal), protein: Number(p.proteina), carbs: Number(p.carbos), fat: Number(p.grasa), fiber: Number(p.fibra) || 0,
+  });
+  if (Number(p.porcion_g) > 0 && !UNITS_BY_NAME[p.nombre]) {
+    UNITS_BY_NAME[p.nombre] = [['porción', Number(p.porcion_g)]];
+  }
+  return key;
+}
+// Para el producto recién escaneado: lo suma al momento y avisa a las pantallas.
+function agregarProductoAFoods(p) {
+  const nuevo = sumarProducto(p);
+  if (nuevo) avisarAlimentos();
+  return claveProducto(p);
 }
 function usarAlimentosExtra() {
   const [version, setVersion] = useState(versionAlimentos);
@@ -5036,6 +5071,7 @@ export {
   FOODS,
   cargarAlimentosExtra,
   usarAlimentosExtra,
+  agregarProductoAFoods,
   Field,
   HOSTS_PRODUCCION,
   Logo,

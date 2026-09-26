@@ -1417,62 +1417,144 @@ function costoPorAlumno(s, conversionPct) {
   return s.fotosAlumnoMes * s.costoFoto + pruebasPerdidas * s.fotosPrueba * s.costoFoto + s.whatsappAlumno;
 }
 
-// Ganancia al mes según cuántos alumnos pagan (una sola línea): cruza de
-// rojo a verde en el punto de equilibrio. Marcas: hoy, equilibrio y sueldo.
+// Ganancia al mes según cuántos alumnos pagan, con estilo HUD: área con
+// degradado (rojo donde pierdes, verde donde ganas), línea con brillo que
+// se dibuja al aparecer, cuadrícula de puntos, esquinas de pantalla y el
+// punto de "Hoy" latiendo. Marcas: hoy, equilibrio y sueldo.
+const ESTILOS_GRAFICO_HUD = `
+@keyframes jbg-dibuja { from { stroke-dashoffset: 1200; } to { stroke-dashoffset: 0; } }
+@keyframes jbg-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jbg-barre { 0% { transform: translateX(-5%); opacity: 0; } 10% { opacity: .5; } 90% { opacity: .5; } 100% { transform: translateX(105%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .jbg-anim { animation: none !important; } }
+`;
 function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) {
   const [hover, setHover] = useState(null);
   const maxN = Math.min(400, Math.max(40, Math.ceil(((paraSueldo || equilibrio || hoy || 20) * 1.25) / 10) * 10));
   const ganancia = n => n * queda - fijos;
-  const W = 600, H = 200, pl = 8, pr = 8, pt = 22, pb = 22;
+  const W = 600, H = 220, pl = 10, pr = 10, pt = 26, pb = 24;
   const yMin = Math.min(-fijos, ganancia(maxN)) * 1.25, yMax = Math.max(sueldo * 1.15, ganancia(maxN), 10);
   const x = n => pl + (n / maxN) * (W - pl - pr);
   const y = v => pt + (1 - (v - yMin) / (yMax - yMin)) * (H - pt - pb);
   const cruce = queda > 0 ? fijos / queda : null;
+  const fin = Math.min(maxN, cruce ?? maxN);
+  const y0 = y(0);
   const marcas = [
-    { n: hoy, texto: 'Hoy', color: '#FF7020' },
-    equilibrio && equilibrio <= maxN ? { n: equilibrio, texto: 'No pierdes', color: '#a1a1aa' } : null,
-    paraSueldo && paraSueldo <= maxN ? { n: paraSueldo, texto: 'Tu sueldo', color: '#a1a1aa' } : null,
+    { n: hoy, texto: 'HOY', color: '#FF7020' },
+    equilibrio && equilibrio <= maxN ? { n: equilibrio, texto: 'NO PIERDES', color: '#a1a1aa' } : null,
+    paraSueldo && paraSueldo <= maxN ? { n: paraSueldo, texto: 'TU SUELDO', color: '#a1a1aa' } : null,
   ].filter(Boolean);
-  const mover = e => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const n = Math.round(((e.clientX - r.left) / r.width * W - pl) / (W - pl - pr) * maxN);
+  const mover = (clientX, el) => {
+    const r = el.getBoundingClientRect();
+    const n = Math.round(((clientX - r.left) / r.width * W - pl) / (W - pl - pr) * maxN);
     setHover(Math.max(0, Math.min(maxN, n)));
   };
   const fmt = v => `${v >= 0 ? '+' : '−'}S/${Math.abs(Math.round(v)).toLocaleString('es-PE')}`;
+  const esquina = (cx, cy, dx, dy) => `M${cx + dx * 14},${cy} L${cx},${cy} L${cx},${cy + dy * 14}`;
   return (
-    <div>
-      <div className="jb-body text-xs text-zinc-400 h-5 mb-1">
-        {hover !== null
-          ? <>Con <span className="text-zinc-50 font-semibold">{hover} alumnos</span>: <span className={ganancia(hover) >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{fmt(ganancia(hover))}</span> al mes</>
-          : <span className="text-zinc-500">Pasa el dedo o el mouse por el gráfico para ver cada punto.</span>}
+    <div className="relative rounded-lg p-3 overflow-hidden" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(232,89,12,0.10), rgba(9,9,11,0.95) 70%)', border: '1px solid rgba(232,89,12,0.25)' }}>
+      <style>{ESTILOS_GRAFICO_HUD}</style>
+      <div className="flex items-center justify-between mb-1 h-5">
+        <span className="font-mono text-[10px] tracking-[0.2em] text-orange-400/80">◉ PROYECCIÓN MENSUAL</span>
+        <span className="font-mono text-xs text-zinc-400">
+          {hover !== null
+            ? <>{hover} alumnos → <span className={ganancia(hover) >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{fmt(ganancia(hover))}</span></>
+            : <span className="text-zinc-600">toca el gráfico</span>}
+        </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none" role="img"
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img"
         aria-label={`Ganancia al mes según alumnos: pierdes ${fmt(-fijos)} con 0 alumnos${cruce ? `, empiezas a ganar con ${Math.ceil(cruce)}` : ''}.`}
-        onMouseMove={mover} onTouchMove={e => mover(e.touches[0] ? { currentTarget: e.currentTarget, clientX: e.touches[0].clientX } : e)}
+        onMouseMove={e => mover(e.clientX, e.currentTarget)}
+        onTouchMove={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
         onMouseLeave={() => setHover(null)}>
-        <line x1={pl} x2={W - pr} y1={y(0)} y2={y(0)} stroke="#3f3f46" strokeWidth="1" />
-        <text x={W - pr} y={y(0) - 4} textAnchor="end" fontSize="10" fill="#71717a">S/0</text>
-        {sueldo > 0 && y(sueldo) > pt && <>
-          <line x1={pl} x2={W - pr} y1={y(sueldo)} y2={y(sueldo)} stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 4" />
-          <text x={W - pr} y={y(sueldo) - 4} textAnchor="end" fontSize="10" fill="#71717a">Sueldo S/{sueldo.toLocaleString('es-PE')}</text>
-        </>}
-        {cruce !== null && cruce < maxN ? <>
-          <line x1={x(0)} y1={y(ganancia(0))} x2={x(cruce)} y2={y(0)} stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
-          <line x1={x(cruce)} y1={y(0)} x2={x(maxN)} y2={y(ganancia(maxN))} stroke="#34d399" strokeWidth="2" strokeLinecap="round" />
-        </> : <line x1={x(0)} y1={y(ganancia(0))} x2={x(maxN)} y2={y(ganancia(maxN))} stroke="#f87171" strokeWidth="2" strokeLinecap="round" />}
-        {marcas.map((m, i) => (
-          <g key={m.texto}>
-            <line x1={x(m.n)} x2={x(m.n)} y1={pt} y2={H - pb} stroke={m.color} strokeWidth="1" strokeDasharray={i === 0 ? '0' : '2 3'} opacity="0.7" />
-            <circle cx={x(m.n)} cy={y(ganancia(m.n))} r="4" fill={m.color} stroke="#18181b" strokeWidth="2" />
-            <text x={x(m.n)} y={i === 1 ? H - 6 : 12} textAnchor={x(m.n) < 40 ? 'start' : x(m.n) > W - 60 ? 'end' : 'middle'} fontSize="10" fill={i === 0 ? '#FF7020' : '#a1a1aa'}>{m.texto} · {m.n}</text>
-          </g>
+        <defs>
+          <pattern id="jbg-puntos" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#3f3f46" opacity="0.6" />
+          </pattern>
+          <linearGradient id="jbg-gana" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="jbg-pierde" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#f87171" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="jbg-barrido" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FF7020" stopOpacity="0" />
+            <stop offset="50%" stopColor="#FF7020" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#FF7020" stopOpacity="0" />
+          </linearGradient>
+          <filter id="jbg-brillo" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        <rect x={pl} y={pt} width={W - pl - pr} height={H - pt - pb} fill="url(#jbg-puntos)" />
+        <rect className="jbg-anim" x={pl} y={pt} width="60" height={H - pt - pb} fill="url(#jbg-barrido)"
+          style={{ animation: 'jbg-barre 4.5s ease-in-out infinite', transformBox: 'fill-box' }} />
+        {[[pl, pt, 1, 1], [W - pr, pt, -1, 1], [pl, H - pb, 1, -1], [W - pr, H - pb, -1, -1]].map(([cx, cy, dx, dy], k) => (
+          <path key={k} d={esquina(cx, cy, dx, dy)} fill="none" stroke="#E8590C" strokeWidth="1.5" opacity="0.7" />
         ))}
-        {hover !== null && <>
-          <line x1={x(hover)} x2={x(hover)} y1={pt} y2={H - pb} stroke="#e4e4e7" strokeWidth="1" opacity="0.4" />
-          <circle cx={x(hover)} cy={y(ganancia(hover))} r="4" fill={ganancia(hover) >= 0 ? '#34d399' : '#f87171'} stroke="#18181b" strokeWidth="2" />
+
+        <line x1={pl} x2={W - pr} y1={y0} y2={y0} stroke="#52525b" strokeWidth="1" />
+        <text x={W - pr - 4} y={y0 - 5} textAnchor="end" fontSize="10" fontFamily="monospace" fill="#71717a">S/0</text>
+        {sueldo > 0 && y(sueldo) > pt && <>
+          <line x1={pl} x2={W - pr} y1={y(sueldo)} y2={y(sueldo)} stroke="#71717a" strokeWidth="1" strokeDasharray="3 5" opacity="0.7" />
+          <text x={W - pr - 4} y={y(sueldo) - 5} textAnchor="end" fontSize="10" fontFamily="monospace" fill="#a1a1aa">SUELDO S/{sueldo.toLocaleString('es-PE')}</text>
         </>}
+
+        {/* Áreas: roja donde pierdes (entre la línea y S/0), verde donde ganas. */}
+        <polygon className="jbg-anim" style={{ animation: 'jbg-aparece 1.2s ease-out both' }}
+          points={`${x(0)},${y0} ${x(0)},${y(ganancia(0))} ${x(fin)},${y(ganancia(fin))} ${x(fin)},${y0}`} fill="url(#jbg-pierde)" />
+        {cruce !== null && cruce < maxN && (
+          <polygon className="jbg-anim" style={{ animation: 'jbg-aparece 1.2s ease-out .3s both' }}
+            points={`${x(cruce)},${y0} ${x(maxN)},${y(ganancia(maxN))} ${x(maxN)},${y0}`} fill="url(#jbg-gana)" />
+        )}
+
+        <g filter="url(#jbg-brillo)">
+          <line className="jbg-anim" x1={x(0)} y1={y(ganancia(0))} x2={x(fin)} y2={y(ganancia(fin))} stroke="#f87171" strokeWidth="2.5" strokeLinecap="round"
+            strokeDasharray="1200" style={{ animation: 'jbg-dibuja 1.2s ease-out both' }} />
+          {cruce !== null && cruce < maxN && (
+            <line className="jbg-anim" x1={x(cruce)} y1={y0} x2={x(maxN)} y2={y(ganancia(maxN))} stroke="#34d399" strokeWidth="2.5" strokeLinecap="round"
+              strokeDasharray="1200" style={{ animation: 'jbg-dibuja 1.6s ease-out .2s both' }} />
+          )}
+        </g>
+
+        {marcas.map((m, i) => {
+          const cx = x(m.n), cy = y(ganancia(m.n));
+          const esHoy = i === 0;
+          return (
+            <g key={m.texto}>
+              <line x1={cx} x2={cx} y1={pt} y2={H - pb} stroke={m.color} strokeWidth="1" strokeDasharray={esHoy ? '0' : '2 4'} opacity={esHoy ? 0.55 : 0.5} />
+              {esHoy && (
+                <circle cx={cx} cy={cy} r="6" fill="none" stroke="#FF7020" strokeWidth="1.5">
+                  <animate attributeName="r" values="5;14;5" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.9;0;0.9" dur="2s" repeatCount="indefinite" />
+                </circle>
+              )}
+              <circle cx={cx} cy={cy} r="4.5" fill={m.color} stroke="#09090b" strokeWidth="2" filter={esHoy ? 'url(#jbg-brillo)' : undefined} />
+              <text x={cx} y={i === 1 ? H - 8 : 16} fontSize="10" fontFamily="monospace" letterSpacing="1"
+                textAnchor={cx < 50 ? 'start' : cx > W - 70 ? 'end' : 'middle'} fill={esHoy ? '#FF7020' : '#a1a1aa'}>
+                {m.texto} · {m.n}
+              </text>
+            </g>
+          );
+        })}
+
+        {hover !== null && (() => {
+          const cx = x(hover), cy = y(ganancia(hover)), c = ganancia(hover) >= 0 ? '#34d399' : '#f87171';
+          return (
+            <g>
+              <line x1={cx} x2={cx} y1={pt} y2={H - pb} stroke="#e4e4e7" strokeWidth="1" opacity="0.35" />
+              <line x1={pl} x2={W - pr} y1={cy} y2={cy} stroke="#e4e4e7" strokeWidth="1" opacity="0.15" />
+              <circle cx={cx} cy={cy} r="5" fill={c} stroke="#09090b" strokeWidth="2" filter="url(#jbg-brillo)" />
+            </g>
+          );
+        })()}
       </svg>
-      <div className="flex justify-between jb-body text-[10px] text-zinc-500 -mt-0.5"><span>0 alumnos</span><span>{maxN} alumnos</span></div>
+      <div className="flex justify-between font-mono text-[10px] text-zinc-600 -mt-1">
+        <span>0 ALUMNOS</span><span>{maxN} ALUMNOS</span>
+      </div>
     </div>
   );
 }
@@ -1825,16 +1907,23 @@ function RentabilidadPanel({ users }) {
           <p className="jb-body text-xs text-zinc-400 mb-1.5">
             Cada alumno te cuesta <span className="text-zinc-50 font-semibold">{fmtS(desglose.reduce((a, d) => a + d.v, 0))}</span> al mes:
           </p>
-          <div className="flex flex-col gap-1">
-            {desglose.map(d => {
+          <div className="flex flex-col gap-1.5">
+            {desglose.map((d, fila) => {
               const total = desglose.reduce((a, x) => a + x.v, 0) || 1;
+              const LEDS = 20;
+              const encendidos = Math.max(d.v > 0 ? 1 : 0, Math.round((d.v / total) * LEDS));
               return (
                 <div key={d.l} className="flex items-center gap-2">
                   <span className="jb-body text-[11px] text-zinc-400 w-44 sm:w-56 shrink-0 truncate">{d.l}</span>
-                  <span className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                    <span className="block h-full bg-orange-500 rounded-full" style={{ width: `${(d.v / total) * 100}%` }} />
+                  <span className="flex-1 flex gap-[2px]" aria-hidden="true">
+                    {Array.from({ length: LEDS }).map((_, k) => (
+                      <span key={k} className="flex-1 h-2.5 rounded-[2px]"
+                        style={k < encendidos
+                          ? { background: '#FF7020', boxShadow: '0 0 6px rgba(255,112,32,0.7)', animation: `jbg-aparece .3s ease-out ${fila * 0.1 + k * 0.03}s both` }
+                          : { background: '#27272a' }} />
+                    ))}
                   </span>
-                  <span className="jb-body text-[11px] text-zinc-200 w-14 text-right shrink-0">{fmtS(d.v)}</span>
+                  <span className="font-mono text-[11px] text-zinc-200 w-14 text-right shrink-0">{fmtS(d.v)}</span>
                 </div>
               );
             })}

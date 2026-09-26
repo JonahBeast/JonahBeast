@@ -4269,7 +4269,7 @@ function JarvisPanel({ onClose, users }) {
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
     const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
-    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor Jonah: no activé nada.'); return; }
+    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no activé nada.'); return; }
     marcar('enviando');
     try {
       const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias } });
@@ -4339,8 +4339,8 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor Jonah?' }]);
-        hablarRef.current('¿Sí, señor Jonah?');
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?' }]);
+        hablarRef.current('¿Sí, señor?');
         return;
       }
       despiertoHastaRef.current = 0;

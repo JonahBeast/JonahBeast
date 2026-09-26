@@ -1850,7 +1850,8 @@ function RetoPage({ onIrALaApp }) {
   const waCuentaUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola Jonah, ya tengo cuenta en Jonah Beast Fuel y entré al Reto Beast. Mi usuario es: ')}`;
   const pasos = [
     RETO_GRUPO_URL
-      ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo' }
+      ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo',
+          aviso: 'Si te sale "No tienes permiso" o te pide "Acceder": toca los 3 puntitos ⋯ arriba → "Abrir en el navegador" (Chrome) y vuelve a tocar "Unirme al grupo".' }
       : { t: 'Pásame tu correo de Gmail', d: 'El mismo de tu Play Store. Te agrego a la lista del reto.', url: waUrl, cta: 'Enviar mi Gmail por WhatsApp' },
     { t: 'Acepta ser verificador', d: 'Toca "Convertirte en verificador". Si ya lo eres, sigue al paso 3.', url: URL_VERIFICADOR, cta: 'Aceptar' },
     { t: 'Instala la app', d: 'Desde Play Store. Ábrela siempre desde el ícono de la app, no desde el navegador.', url: URL_PLAY_STORE, cta: 'Instalar en Play Store' },
@@ -1928,6 +1929,9 @@ function RetoPage({ onIrALaApp }) {
                   <a href={p.url} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' mt-3 py-2.5 text-sm'}>
                     {p.cta}
                   </a>
+                )}
+                {p.aviso && (
+                  <p className="mt-3 text-xs text-zinc-300 bg-orange-500/10 border border-orange-500/40 rounded-lg px-3 py-2">⚠️ {p.aviso}</p>
                 )}
               </div>
             </li>

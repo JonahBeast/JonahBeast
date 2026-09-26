@@ -50,7 +50,10 @@ function membershipLabel(u) {
 
 function formatActivity(lastActivity) {
   if (!lastActivity) return { text: 'Sin actividad', color: 'text-zinc-500', dot: 'bg-zinc-600' };
-  const days = Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24));
+  // Días de calendario en hora de Perú (UTC-5): si guardó anoche a las
+  // 11 p. m., hoy dice "Ayer" aunque no hayan pasado 24 horas.
+  const diaPeru = (ms) => Math.floor((ms - 5 * 3600 * 1000) / (1000 * 60 * 60 * 24));
+  const days = diaPeru(Date.now()) - diaPeru(new Date(lastActivity).getTime());
   if (days < 1) return { text: 'Hoy', color: 'text-emerald-400', dot: 'bg-emerald-500' };
   if (days === 1) return { text: 'Ayer', color: 'text-emerald-400', dot: 'bg-emerald-500' };
   if (days < 7) return { text: `Hace ${days} días`, color: 'text-amber-400', dot: 'bg-amber-500' };

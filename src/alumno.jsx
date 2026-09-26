@@ -6187,6 +6187,17 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
 
 const FORMATOS_CODIGO = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
 
+// Láser del escáner: una línea naranja con brillo que barre el recuadro de
+// arriba abajo, esquinas que laten y un destello al leer el código.
+const ESTILOS_LASER = `
+@keyframes jbl-barrido { 0% { top: 6%; } 50% { top: 90%; } 100% { top: 6%; } }
+@keyframes jbl-esquina { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes jbl-leido { 0% { opacity: 0; transform: scale(.85); } 30% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); } }
+.jbl-laser { animation: jbl-barrido 1.6s ease-in-out infinite; }
+.jbl-esquina { animation: jbl-esquina 1.1s ease-in-out infinite; }
+.jbl-leido { animation: jbl-leido .35s cubic-bezier(.2,.8,.3,1) both; }
+`;
+
 // Lector: el del navegador si lo tiene (Chrome de Android); si no (iPhone),
 // uno que se descarga solo cuando hace falta.
 async function crearLectorCodigo() {
@@ -6219,6 +6230,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   const [estado, setEstado] = useState('camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
   const [tardando, setTardando] = useState(false); // la cámara lleva un rato sin leer: se muestran consejos
+  const [leido, setLeido] = useState(''); // destello "✓ código leído" antes de buscar
   const [producto, setProducto] = useState(null); // fila de productos (o lo leído de la etiqueta)
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [marcaNueva, setMarcaNueva] = useState('');
@@ -6246,6 +6258,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     let cancelado = false;
     let timer = null;
     setTardando(false);
+    setLeido('');
     const aviso = setTimeout(() => { if (!cancelado) setTardando(true); }, 6000);
     (async () => {
       try {
@@ -6277,7 +6290,11 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               // corto que no existe.
               const valores = (hallados || []).map(h => String(h.rawValue || '').replace(/\D/g, '')).filter(v => v.length >= 8);
               const valor = valores.sort((a, b) => b.length - a.length)[0] || '';
-              if (valor && valor === anterior) { vibrar(30); apagarCamara(); buscar(valor); return; }
+              if (valor && valor === anterior) {
+                vibrar(30); setLeido(valor);
+                setTimeout(() => { apagarCamara(); buscar(valor); }, 450);
+                return;
+              }
               anterior = valor;
             }
           } catch {
@@ -6380,6 +6397,15 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
     setGuardando(false);
   }
 
+  // Si el alumno cierra con la etiqueta ya leída y un nombre, el producto se
+  // guarda igual (antes se perdía si no tocaba "Guardar").
+  function cerrar() {
+    if (estado === 'confirmar' && producto && codigo && nombreNuevo.trim()) {
+      llamarProductos({ accion: 'guardar_producto', codigo, producto: { ...producto, nombre: nombreNuevo.trim(), marca: marcaNueva.trim() } }).catch(() => {});
+    }
+    onCerrar();
+  }
+
   const gramosPorUnidad = unidad === 'porción' ? Number(producto?.porcion_g) || 0 : 1;
   const gramos = cantidad * gramosPorUnidad;
   const macros = producto ? {
@@ -6412,21 +6438,39 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={cerrar}>
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <style>{ESTILOS_ESCANER}</style>
+        <style>{ESTILOS_ESCANER + ESTILOS_LASER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
-          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
         {estado === 'camara' && (
           <div>
             <div className="relative w-full aspect-[4/3] bg-zinc-950 rounded-xl overflow-hidden border border-orange-500/30 mb-3">
               <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute left-[12%] right-[12%] top-1/2 -translate-y-1/2 h-[38%] border-2 border-orange-500 rounded-lg pointer-events-none"
-                style={{ boxShadow: '0 0 0 999px rgba(9,7,5,.45)' }} />
-              <div className="absolute left-[14%] right-[14%] top-1/2 h-0.5 bg-orange-500/80 pointer-events-none" style={{ animation: 'jbe-punto 1.2s ease-in-out infinite' }} />
+              {/* Recuadro: fuera de él se oscurece; dentro, el láser barre el código */}
+              <div className="absolute left-[10%] right-[10%] top-1/2 -translate-y-1/2 h-[42%] rounded-lg pointer-events-none overflow-hidden"
+                style={{ boxShadow: '0 0 0 999px rgba(9,7,5,.55)' }}>
+                {!leido && (
+                  <div className="jbl-laser absolute left-0 right-0 h-[3px] rounded-full"
+                    style={{ background: 'linear-gradient(90deg, transparent, #FF7020 12%, #FFB27A 50%, #FF7020 88%, transparent)', boxShadow: '0 0 10px 2px rgba(255,112,32,.85), 0 0 26px 6px rgba(232,89,12,.45)' }} />
+                )}
+              </div>
+              {[['top-[29%] left-[10%]', 'border-t-[3px] border-l-[3px] rounded-tl-lg'], ['top-[29%] right-[10%]', 'border-t-[3px] border-r-[3px] rounded-tr-lg'],
+                ['bottom-[29%] left-[10%]', 'border-b-[3px] border-l-[3px] rounded-bl-lg'], ['bottom-[29%] right-[10%]', 'border-b-[3px] border-r-[3px] rounded-br-lg']].map(([pos, borde]) => (
+                <div key={pos} className={`jbl-esquina absolute ${pos} w-7 h-7 ${borde} ${leido ? 'border-zinc-50' : 'border-orange-500'} pointer-events-none`} />
+              ))}
+              <span className="absolute top-2.5 left-1/2 -translate-x-1/2 jb-display text-[10px] tracking-[0.2em] text-orange-400 bg-zinc-950/80 border border-orange-500/40 rounded-full px-2.5 py-0.5 pointer-events-none">
+                {leido ? 'CÓDIGO LEÍDO' : 'ESCANEANDO'}
+              </span>
+              {leido && (
+                <div className="jbl-leido absolute inset-0 flex flex-col items-center justify-center bg-orange-500/20 pointer-events-none">
+                  <span className="w-14 h-14 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shadow-[0_0_30px_rgba(255,112,32,.7)]"><Check size={30} strokeWidth={3} /></span>
+                  <span className="jb-body text-sm text-zinc-50 font-semibold tabular-nums tracking-wider mt-2 bg-zinc-950/70 rounded-full px-3 py-0.5">{leido}</span>
+                </div>
+              )}
             </div>
             <p className="jb-body text-sm text-zinc-300 text-center mb-3">Apunta al código de barras del producto. Se lee solo.</p>
             {tardando && (
@@ -6501,25 +6545,30 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
 
         {estado === 'no_encontrado' && (
           <div>
-            <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje || 'Aún no tenemos este producto.'}</p>
             {codigo && (
-              <p className="jb-body text-xs text-zinc-500 mb-2">
-                Código leído: <span className="text-zinc-300 tabular-nums tracking-wider">{codigo}</span>. ¿No es el que está debajo de las barras?{' '}
-                <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="text-orange-400 underline">Escanear de nuevo</button>
+              <p className="jb-body text-sm text-orange-400 font-semibold mb-2 flex items-center gap-1.5">
+                <Check size={16} strokeWidth={3} /> Código leído: <span className="tabular-nums tracking-wider">{codigo}</span>
               </p>
             )}
+            {mensaje
+              ? <p className="jb-body text-sm text-amber-400 mb-2">{mensaje}</p>
+              : <p className="jb-body text-sm text-zinc-200 mb-2">Este producto todavía no está registrado.</p>}
             <p className="jb-body text-sm text-zinc-400 mb-4">
-              Tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y el producto queda guardado: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
+              <span className="text-zinc-100 font-semibold">Sé el primero en agregarlo:</span> tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y queda guardado para ti y para todos los alumnos.
             </p>
             {botonFotoEtiqueta}
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta usa una de tus fotos de reconocimiento.</p>
             <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco por su nombre</button>
+            {codigo && (
+              <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Escanear de nuevo</button>
+            )}
           </div>
         )}
 
         {estado === 'confirmar' && producto && (
           <div>
-            <p className="jb-body text-sm text-zinc-200 mb-3">Leímos la etiqueta. Revisa el nombre y guárdalo:</p>
+            <p className="jb-body text-sm text-zinc-200 mb-1 flex items-center gap-1.5"><Check size={16} strokeWidth={3} className="text-orange-400" /> Leímos la etiqueta.</p>
+            <p className="jb-body text-xs text-zinc-500 mb-3">Revisa el nombre y toca <span className="text-orange-400 font-semibold">Guardar producto</span> para que quede registrado.</p>
             <label className="jb-body text-[11px] text-zinc-500">Nombre del producto
               <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
             </label>
@@ -6531,9 +6580,11 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               {Number(producto.porcion_g) > 0 && <span className="block text-zinc-500 mt-0.5">Porción de la etiqueta: {Math.round(producto.porcion_g)} g</span>}
             </div>
             {mensaje && <p className="jb-body text-xs text-red-400 mb-2">{mensaje}</p>}
-            <button onClick={guardarLeido} disabled={!nombreNuevo.trim() || guardando} className={btnPrimary + ' w-full py-3 mb-2'}>
-              {guardando ? <Loader2 size={16} className="animate-spin" /> : 'Guardar y continuar'}
+            <button onClick={guardarLeido} disabled={!nombreNuevo.trim() || guardando}
+              className={btnPrimary + ' w-full py-3.5 mb-2 text-base shadow-[0_0_24px_rgba(232,89,12,.35)]'}>
+              {guardando ? <Loader2 size={16} className="animate-spin" /> : <><Check size={18} strokeWidth={3} /> Guardar producto</>}
             </button>
+            {!nombreNuevo.trim() && <p className="jb-body text-[11px] text-amber-400 text-center mb-2">Escribe el nombre del producto para guardarlo.</p>}
             <label className={btnGhost + ' w-full py-2.5 text-sm cursor-pointer'}>
               Los números no coinciden: otra foto
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoEtiqueta} />

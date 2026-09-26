@@ -414,6 +414,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   }
 
   console.log(JSON.stringify({ evento: "whatsapp_uso", modelo: data.model, stop: data.stop_reason, ...data.usage }));
+  await anotarUsoIA(supabase, { tipo: "whatsapp", username: alumno?.username, modelo: data.model || MODELO, usage: data.usage });
 
   if (data.stop_reason === "refusal") {
     return { pasar: { motivo: "otro", resumen: `El asistente no pudo responder a ${alumno?.nombre || nombreWa || "+" + telefono}.` } };
@@ -470,5 +471,22 @@ async function avisarAJonah(telefono: string, nombre: string | null, resumen: st
     });
   } catch (e) {
     console.error("No se pudo avisar a Jonah:", (e as Error)?.message);
+  }
+}
+
+// Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
+// que el panel de Rentabilidad calcule el costo real. Si falla, no
+// interrumpe nada (solo queda en el log).
+async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
+  try {
+    const u = fila.usage || {};
+    const { error } = await supabase.from("ia_uso").insert({
+      funcion: "whatsapp-webhook", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
+      tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
+      tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
+    });
+    if (error) console.error("No se pudo anotar el uso de IA:", error.message);
+  } catch (e) {
+    console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
   }
 }

@@ -569,9 +569,10 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       return { respuesta, acciones, ...(visual ? { visual } : {}) };
     }
 
-    const registrarUso = (ok: boolean) => console.log(JSON.stringify({
-      evento: "jarvis_uso", ok, streaming: !!stream, ms: Date.now() - inicio, ...uso,
-    }));
+    const registrarUso = async (ok: boolean) => {
+      console.log(JSON.stringify({ evento: "jarvis_uso", ok, streaming: !!stream, ms: Date.now() - inicio, ...uso }));
+      if (uso.llamadas > 0) await anotarUsoIA(supabase, { tipo: "jarvis", modelo: "claude-sonnet-5", usage: uso });
+    };
 
     // Modo streaming: el panel recibe una línea JSON por evento
     // ({tipo:"texto"}, {tipo:"reiniciar"}, y al final {tipo:"fin"} o
@@ -584,11 +585,11 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
           try {
             const r = await conversar(avisar);
             avisar({ tipo: "fin", ...r });
-            registrarUso(true);
+            await registrarUso(true);
           } catch (e) {
             console.error("Jarvis (streaming):", (e as Error)?.message);
             avisar({ tipo: "error", error: "No pude procesar eso ahora mismo." });
-            registrarUso(false);
+            await registrarUso(false);
           }
           ctrl.close();
         },
@@ -600,10 +601,10 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
 
     try {
       const r = await conversar();
-      registrarUso(true);
+      await registrarUso(true);
       return json(r);
     } catch (e) {
-      registrarUso(false);
+      await registrarUso(false);
       throw e;
     }
   } catch (e) {
@@ -640,4 +641,21 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, "content-type": "application/json" },
   });
+}
+
+// Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
+// que el panel de Rentabilidad calcule el costo real. Si falla, no
+// interrumpe nada (solo queda en el log).
+async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
+  try {
+    const u = fila.usage || {};
+    const { error } = await supabase.from("ia_uso").insert({
+      funcion: "jarvis-chat", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
+      tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
+      tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
+    });
+    if (error) console.error("No se pudo anotar el uso de IA:", error.message);
+  } catch (e) {
+    console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
+  }
 }

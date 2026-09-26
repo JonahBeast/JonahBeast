@@ -1371,6 +1371,311 @@ function TableroPanel({ users }) {
   );
 }
 
+// Rentabilidad: cuánto cuesta mantener la app, cuánto deja cada alumno y
+// cuál es el precio mínimo para no perder plata. Mezcla datos reales
+// (alumnos, pagos y fotos del mes) con supuestos que el admin puede editar
+// (se guardan en config → rentabilidad_supuestos).
+const SUPUESTOS_RENTABILIDAD = {
+  supabase: 94, vercel: 75, jarvis: 45, dominio: 8, otrosFijos: 0,
+  costoFoto: 0.07, fotosAlumnoMes: 21, fotosPrueba: 10, whatsappAlumno: 0.3,
+  comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500,
+};
+
+function cuotaNuevoRus(ingresos) {
+  if (ingresos <= 5000) return 20;
+  if (ingresos <= 8000) return 50;
+  return null;
+}
+
+// Costo variable de UN alumno que paga: sus fotos, las fotos de los que
+// probaron gratis y no pagaron (por cada uno que paga), y avisos.
+function costoPorAlumno(s, conversionPct) {
+  const conv = Math.min(Math.max(conversionPct, 1), 100) / 100;
+  const pruebasPerdidas = 1 / conv - 1;
+  return s.fotosAlumnoMes * s.costoFoto + pruebasPerdidas * s.fotosPrueba * s.costoFoto + s.whatsappAlumno;
+}
+
+function RentabilidadPanel({ users }) {
+  const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
+  const [precios, setPrecios] = useState(() => Object.fromEntries(PLANES.map(p => [p.meses, p.precioDefault])));
+  const [mes, setMes] = useState(null);
+  const [editar, setEditar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [sim, setSim] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const inicio = new Date(); inicio.setDate(1);
+      const inicioISO = fechaLocalISO(inicio);
+      const [{ data: cfg }, { data: pagos }, { data: fotos }] = await Promise.all([
+        supabase.from('config').select('key, value')
+          .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
+        supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
+        supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).range(0, 9999),
+      ]);
+      if (cancelado) return;
+      const p = {};
+      (cfg || []).forEach(c => {
+        if (c.key === 'rentabilidad_supuestos') {
+          try { setSup(s => ({ ...s, ...JSON.parse(c.value) })); } catch {}
+        }
+        const plan = PLANES.find(x => x.configKey === c.key);
+        if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
+      });
+      setPrecios(prev => ({ ...prev, ...p }));
+      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0) });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0 }); });
+    return () => { cancelado = true; };
+  }, []);
+
+  async function guardarSupuestos() {
+    setGuardando(true);
+    try {
+      const { error } = await supabase.from('config').upsert({ key: 'rentabilidad_supuestos', value: JSON.stringify(sup) });
+      if (error) throw error;
+      showToast('Supuestos guardados');
+      setEditar(false);
+    } catch (e) { alert('No se pudo guardar: ' + (e?.message || 'Intenta de nuevo.')); }
+    setGuardando(false);
+  }
+
+  const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
+  const vigentes = (users || []).filter(u => u.enabled && membershipActive(u));
+  const pagando = vigentes.filter(u => !esPrueba(u)).length;
+  const hoy = todayISO();
+  const pagaron = (users || []).filter(u => u.plan === 'pago').length;
+  const pruebasSinPagar = (users || []).filter(u => esPrueba(u) && u.fechaVencimiento && u.fechaVencimiento < hoy).length;
+  const conversionReal = pagaron + pruebasSinPagar >= 5 ? Math.round((pagaron / (pagaron + pruebasSinPagar)) * 100) : null;
+
+  const ingresosMes = mes ? mes.pagos.reduce((a, p) => a + (Number(p.monto) || 0), 0) : 0;
+  const comisionesMes = mes ? mes.pagos.reduce((a, p) => {
+    const m = String(p.metodo || '').toLowerCase();
+    const pct = m.includes('mercado') ? sup.comisionMP : m.includes('google') ? sup.comisionGoogle : 0;
+    return a + (Number(p.monto) || 0) * pct / 100;
+  }, 0) : 0;
+  const cuotaRus = cuotaNuevoRus(ingresosMes);
+  const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
+  const fijos = fijosTec + (cuotaRus ?? 50);
+  const costoIAMes = mes ? mes.fotos * sup.costoFoto : 0;
+  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes;
+
+  const precioMensual = precios[1] || 24.9;
+  const cv = costoPorAlumno(sup, sup.conversion);
+  const netoMP = precioMensual * (1 - sup.comisionMP / 100);
+  const quedaPorAlumno = netoMP - cv;
+  const equilibrio = quedaPorAlumno > 0 ? Math.ceil(fijos / quedaPorAlumno) : null;
+  const paraSueldo = quedaPorAlumno > 0 ? Math.ceil((fijos + sup.sueldoMeta) / quedaPorAlumno) : null;
+  const precioMinimo = n => n > 0 ? (fijos / n + cv) / (1 - sup.comisionMP / 100) : null;
+  const piso = cv / (1 - sup.comisionMP / 100);
+  const nRef = Math.max(pagando, 25);
+  const minimoRef = precioMinimo(nRef);
+
+  const canales = [
+    { id: 'yape', label: 'Yape / Plin', pct: 0 },
+    { id: 'mp', label: 'Mercado Pago', pct: sup.comisionMP },
+    { id: 'gp', label: 'Google Play', pct: sup.comisionGoogle },
+  ];
+
+  const alertas = [];
+  PLANES.forEach(p => {
+    const porMes = (precios[p.meses] || p.precioDefault) / p.meses;
+    if (minimoRef && porMes < minimoRef) alertas.push(`El plan ${p.nombre.toLowerCase()} equivale a ${fmtS(porMes)} al mes, por debajo del mínimo de ${fmtS(minimoRef)} con ${nRef} alumnos.`);
+  });
+  const costoAddOn = 200 * sup.costoFoto;
+  const netoAddOn = 11.9 * (1 - sup.comisionMP / 100);
+  if (costoAddOn > netoAddOn) alertas.push(`El complemento de fotos te deja ${fmtS(netoAddOn)}, pero alguien que use las 200 fotos te cuesta ${fmtS(costoAddOn)}.`);
+  const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * sup.costoFoto;
+  if (costoPruebas > cv / 2) alertas.push(`Tu mayor costo es la prueba gratis: ${fmtS(costoPruebas)} de cada ${fmtS(cv)} por alumno. Subir la conversión es la mejor palanca.`);
+  if (cuotaRus === null) alertas.push('Este mes pasaste los S/8,000 de ingresos: ya no calificas para el Nuevo RUS.');
+  else if (ingresosMes > 4000) alertas.push(`Vas por ${fmtS(ingresosMes)} este mes; al pasar S/5,000 la cuota del Nuevo RUS sube a S/50.`);
+
+  const s = sim || { alumnos: Math.max(pagando, 10), conversion: sup.conversion, precio: precioMensual };
+  const simQueda = s.precio * (1 - sup.comisionMP / 100) - costoPorAlumno(sup, s.conversion);
+  const simResultado = s.alumnos * simQueda - fijos;
+  const simEquilibrio = simQueda > 0 ? Math.ceil(fijos / simQueda) : null;
+
+  const avance = equilibrio ? Math.min(pagando / equilibrio, 1) * 100 : 0;
+  const tarjeta = 'bg-zinc-950 border border-zinc-800 rounded-lg p-3';
+  const campos = [
+    ['supabase', 'Supabase (S/ al mes)'], ['vercel', 'Vercel (S/ al mes)'], ['jarvis', 'Jarvis y voz (S/ al mes)'],
+    ['dominio', 'Dominio y Google Play (S/ al mes)'], ['otrosFijos', 'Otros gastos fijos (S/ al mes)'],
+    ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes'],
+    ['fotosPrueba', 'Fotos de una prueba gratis'], ['whatsappAlumno', 'WhatsApp por alumno (S/ al mes)'],
+    ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'],
+    ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'],
+  ];
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-5">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">📈 RENTABILIDAD Y PRECIOS</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cuánto te cuesta la app, cuánto te deja cada alumno y el precio mínimo para no perder.</p>
+      </div>
+
+      <div className={tarjeta}>
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <span className="jb-body text-xs text-zinc-400">Resultado estimado de este mes</span>
+          {!mes ? <Loader2 size={14} className="animate-spin text-orange-500" /> : (
+            <span className={`jb-display text-2xl ${resultadoMes >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {resultadoMes >= 0 ? '+' : '−'}{fmtS(Math.abs(resultadoMes))}
+            </span>
+          )}
+        </div>
+        {mes && (
+          <p className="jb-body text-[11px] text-zinc-500 mt-1">
+            Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos)
+          </p>
+        )}
+        <div className="mt-3">
+          <div className="flex justify-between jb-body text-[11px] text-zinc-400 mb-1">
+            <span>Alumnos pagando: <span className="text-zinc-50 font-semibold">{pagando}</span></span>
+            <span>Para no perder: <span className="text-zinc-50 font-semibold">{equilibrio ?? '—'}</span> · Para tu sueldo: <span className="text-zinc-50 font-semibold">{paraSueldo ?? '—'}</span></span>
+          </div>
+          <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${avance}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { v: fmtS(fijos), l: 'Gastos fijos al mes', sub: `tecnología ${fmtS(fijosTec)} + RUS ${fmtS(cuotaRus ?? 50)}` },
+          { v: fmtS(cv), l: 'Costo por alumno', sub: 'fotos, pruebas gratis y avisos' },
+          { v: fmtS(quedaPorAlumno), l: 'Te deja cada alumno', sub: `plan mensual por Mercado Pago` },
+          { v: `${sup.conversion}%`, l: 'Pruebas que pagan', sub: conversionReal === null ? 'supuesto (aún pocos datos)' : `medido en la app: ${conversionReal}%` },
+        ].map(t => (
+          <div key={t.l} className={tarjeta}>
+            <div className="jb-display text-xl text-orange-400">{t.v}</div>
+            <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+            <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <h3 className="jb-display text-sm text-zinc-300 mb-1">CUÁNTO TE DEJA CADA PLAN AL MES</h3>
+        <p className="jb-body text-[11px] text-zinc-500 mb-2">
+          Ya descontado el costo por alumno. Mínimo para no perder con {nRef} alumnos: <span className="text-zinc-200">{fmtS(minimoRef)}</span> al mes.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full jb-body text-xs">
+            <thead>
+              <tr className="text-zinc-500 text-[11px]">
+                <th className="text-left font-normal py-1.5 pr-2">Plan</th>
+                <th className="text-right font-normal py-1.5 px-2">Al mes</th>
+                {canales.map(c => <th key={c.id} className="text-right font-normal py-1.5 px-2 whitespace-nowrap">{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {PLANES.map(p => {
+                const porMes = (precios[p.meses] || p.precioDefault) / p.meses;
+                return (
+                  <tr key={p.meses} className="border-t border-zinc-800">
+                    <td className="py-2 pr-2 text-zinc-200">{p.nombre}</td>
+                    <td className="py-2 px-2 text-right text-zinc-400">{fmtS(porMes)}</td>
+                    {canales.map(c => {
+                      const deja = porMes * (1 - c.pct / 100) - cv;
+                      const minimoNeto = minimoRef * (1 - sup.comisionMP / 100) - cv;
+                      const color = deja < 0 ? 'text-red-400' : deja < minimoNeto ? 'text-amber-400' : 'text-emerald-400';
+                      return <td key={c.id} className={`py-2 px-2 text-right font-semibold ${color}`}>{fmtS(deja)}</td>;
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="jb-body text-[10px] text-zinc-500 mt-1.5">
+          <span className="text-emerald-400">Verde</span>: cubre su parte de los gastos fijos. <span className="text-amber-400">Amarillo</span>: deja algo, pero no alcanza. <span className="text-red-400">Rojo</span>: pierdes plata.
+        </p>
+      </div>
+
+      <div>
+        <h3 className="jb-display text-sm text-zinc-300 mb-2">PRECIO MÍNIMO SEGÚN TUS ALUMNOS</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {[...new Set([pagando, 10, 25, 50, 100])].filter(n => n > 0).sort((a, b) => a - b).map(n => (
+            <div key={n} className={`${tarjeta} ${n === pagando ? '!border-orange-500/60' : ''}`}>
+              <div className="jb-display text-lg text-zinc-50">{fmtS(precioMinimo(n))}</div>
+              <div className="jb-body text-[10px] text-zinc-500">con {n} alumno{n === 1 ? '' : 's'}{n === pagando ? ' (hoy)' : ''}</div>
+            </div>
+          ))}
+        </div>
+        <p className="jb-body text-[10px] text-zinc-500 mt-1.5">Piso absoluto: {fmtS(piso)}. Por debajo, cada alumno nuevo te hace perder más.</p>
+      </div>
+
+      <div className={`${tarjeta} flex flex-col gap-3`}>
+        <div className="flex items-center justify-between">
+          <h3 className="jb-display text-sm text-zinc-300">¿QUÉ PASA SI...?</h3>
+          {sim && <button onClick={() => setSim(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300">Volver a hoy</button>}
+        </div>
+        {[
+          { k: 'alumnos', l: 'Alumnos pagando', min: 0, max: 200, step: 1, f: v => v },
+          { k: 'conversion', l: 'De cada 100 que prueban, pagan', min: 5, max: 50, step: 1, f: v => `${v}` },
+          { k: 'precio', l: 'Precio del plan mensual', min: 15, max: 50, step: 0.5, f: v => fmtS(v) },
+        ].map(c => (
+          <label key={c.k} className="flex flex-col gap-1">
+            <span className="flex justify-between jb-body text-xs text-zinc-400">{c.l}<span className="text-zinc-50 font-semibold">{c.f(s[c.k])}</span></span>
+            <input type="range" min={c.min} max={c.max} step={c.step} value={s[c.k]}
+              onChange={e => setSim({ ...s, [c.k]: Number(e.target.value) })} className="accent-orange-500" />
+          </label>
+        ))}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <div>
+            <div className={`jb-display text-lg ${simResultado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{simResultado >= 0 ? '+' : '−'}{fmtS(Math.abs(simResultado))}</div>
+            <div className="jb-body text-[10px] text-zinc-500">ganarías al mes</div>
+          </div>
+          <div>
+            <div className="jb-display text-lg text-zinc-50">{fmtS(simQueda)}</div>
+            <div className="jb-body text-[10px] text-zinc-500">te deja cada alumno</div>
+          </div>
+          <div>
+            <div className="jb-display text-lg text-zinc-50">{simEquilibrio ?? '—'}</div>
+            <div className="jb-body text-[10px] text-zinc-500">alumnos para no perder</div>
+          </div>
+        </div>
+      </div>
+
+      {alertas.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="jb-display text-sm text-zinc-300">PARA TOMAR DECISIONES</h3>
+          {alertas.map(a => (
+            <div key={a} className="flex gap-2 items-start bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
+              <AlertTriangle size={13} className="text-orange-400 shrink-0 mt-0.5" />
+              <span className="jb-body text-xs text-zinc-300">{a}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <button onClick={() => setEditar(v => !v)} className="jb-body text-xs text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
+          <ChevronRight size={14} className={`transition-transform ${editar ? 'rotate-90' : ''}`} /> Ajustar supuestos (costos y comisiones)
+        </button>
+        {editar && (
+          <div className="mt-3 flex flex-col gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {campos.map(([k, l]) => (
+                <label key={k} className="flex flex-col gap-1">
+                  <span className="jb-body text-[11px] text-zinc-500 leading-tight">{l}</span>
+                  <input type="number" step="any" min="0" value={sup[k]}
+                    onChange={e => setSup(v => ({ ...v, [k]: Number(e.target.value) || 0 }))}
+                    className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                </label>
+              ))}
+            </div>
+            <p className="jb-body text-[10px] text-zinc-500">La cuota del Nuevo RUS se calcula sola con lo que cobras en el mes. El costo por foto es aproximado: revísalo en tu cuenta de Anthropic.</p>
+            <button onClick={guardarSupuestos} disabled={guardando}
+              className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg py-2 disabled:opacity-50">
+              {guardando ? 'Guardando...' : 'Guardar supuestos'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MetricasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -4506,6 +4811,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'negocio' && (
           <>
             <TableroPanel users={users} />
+            <RentabilidadPanel users={users} />
             <FuncionandoPanel users={users} />
             <ActivacionPanel users={users} />
             <EmbudoResumenPanel />

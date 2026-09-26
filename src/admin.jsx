@@ -2080,6 +2080,19 @@ function ReconocimientoFotoPanel() {
   const totalDescartes = filasOrdenadas.reduce((s, f) => s + f.descartado, 0);
   const tasaGeneral = totalSugerencias ? Math.round((totalDescartes / totalSugerencias) * 100) : 0;
 
+  // Porciones (desde que la IA calcula gramos): cuántas veces el alumno
+  // dejó la porción "Normal" que calculó la IA y cuántas la cambió.
+  const porciones = { total: 0, normal: 0, poco: 0, mucho: 0, piezas: 0, aceite: 0, conAceite: 0 };
+  filas.forEach(f => (f.sugeridos || []).forEach(it => {
+    if (!it?.gramos_final) return;
+    if (it.aceite) { porciones.conAceite++; if (it.aceite !== 'normal') porciones.aceite++; }
+    if (it.piezas_corregidas) { porciones.piezas++; return; }
+    if (!it.gramos_ia) return;
+    porciones.total++;
+    porciones[it.tamano === 'poco' ? 'poco' : it.tamano === 'mucho' ? 'mucho' : 'normal']++;
+  }));
+  const pctPorcion = n => porciones.total ? Math.round((n / porciones.total) * 100) : 0;
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
@@ -2104,6 +2117,24 @@ function ReconocimientoFotoPanel() {
             <>
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-300">
                 {totalSugerencias} sugerencias en total · {totalDescartes} desmarcadas · tasa general de descarte: <span className={tasaGeneral > 20 ? 'text-red-400' : 'text-emerald-400'}>{tasaGeneral}%</span>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 jb-body text-sm text-zinc-300">
+                <p className="text-zinc-200 font-semibold mb-1">⚖️ ¿Acierta con la porción?</p>
+                {porciones.total === 0 ? (
+                  <p className="text-xs text-zinc-500">Aún no hay datos. Se empieza a medir con las fotos nuevas, desde que la IA calcula los gramos.</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-zinc-400">
+                      En {porciones.total} alimentos, el alumno dejó la porción que calculó la IA en{' '}
+                      <span className={pctPorcion(porciones.normal) >= 70 ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>{pctPorcion(porciones.normal)}%</span> de los casos.
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      La bajó a "Poco": {pctPorcion(porciones.poco)}% · la subió a "Mucho": {pctPorcion(porciones.mucho)}%
+                      {porciones.piezas > 0 && ` · corrigió las piezas ${porciones.piezas} ${porciones.piezas === 1 ? 'vez' : 'veces'}`}
+                      {porciones.conAceite > 0 && ` · marcó más aceite en ${porciones.aceite} de ${porciones.conAceite} fritos/saltados`}
+                    </p>
+                  </>
+                )}
               </div>
               <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto">
                 {filasOrdenadas.map(f => {

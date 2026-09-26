@@ -1,5 +1,6 @@
 // Edge Function: reconocer-comida
-// Recibe una foto de comida y devuelve 1-4 platos identificados,
+// Recibe una foto de comida y devuelve 1-4 platos identificados, con los
+// gramos que la IA calcula mirando el plato y si se ve frito o saltado,
 // buscando SOLO dentro de la lista de nombres que le mandamos
 // (tu propia base de datos), para que nunca invente un plato
 // que no exista en Jonah Beast Fuel.
@@ -164,7 +165,11 @@ Fíjate bien en la FORMA de cada alimento, no solo en el color de la salsa que l
 
 Si dos o más alimentos de la lista representan la MISMA comida visualmente pero se diferencian por algo que la foto no puede mostrar (ej. "con azúcar" vs "sin azúcar" en una bebida, cuando no se ve el azúcar siendo servida o disuelta), NO elijas uno solo adivinando — en vez de "key", incluye "opciones" con las claves de todas las variantes plausibles (2 o más), y usa confianza "media". Usa "opciones" solo para este caso de ambigüedad real; si no hay duda, usa "key" normal como siempre.
 
-Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclýyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1. NUNCA estimes gramos, tazas ni ningún otro tipo de porción — solo el conteo de piezas enteras cuando sea obvio a simple vista.
+Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclúyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1.
+
+Para cada alimento, calcula también cuántos GRAMOS de ese alimento hay servidos en la foto ("gramos"; en bebidas, los ml del vaso o taza). Usa como referencia el tamaño del plato (un plato llano peruano mide unos 26 cm; uno de postre, unos 20 cm), los cubiertos, el vaso o la mano, y piensa en el volumen: altura y superficie que ocupa. Referencias: una taza de arroz cocido ≈ 160 g y ocupa más o menos un puño; un filete o bistec del tamaño de la palma ≈ 120 g; una presa de pollo mediana ≈ 130 g; un vaso ≈ 250 ml. Si un alimento se cuenta por piezas, da los gramos de todas las piezas juntas. Da un número redondo, sin rangos.
+
+Marca "aceite": true si el alimento se ve frito, saltado, apanado o brillante de aceite; si no, false.
 
 Si en la foto se ve con claridad un plato o alimento que NO está en la lista (ni nada equivalente), escribe su nombre común en español peruano en "no_encontrados" (ej. "Pollo a la olla"), máximo 3, nombres cortos sin marcas ni cantidades. Si todo lo visible está en la lista, deja "no_encontrados" vacío.
 
@@ -172,7 +177,7 @@ Lista de alimentos válidos:
 ${listaPlatos}
 
 Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exacto:
-{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1}], "no_encontrados": []}
+{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": []}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
     const modelo = "claude-sonnet-5";
@@ -190,7 +195,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
         },
         body: JSON.stringify({
           model: modelo,
-          max_tokens: 500,
+          max_tokens: 800,
           messages: [{
             role: "user",
             content: [
@@ -214,7 +219,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
     const textoRespuesta = (data.content || []).map((c: any) => c.text || "").join("");
     console.log("Respuesta cruda de la IA:", textoRespuesta);
-    let items: { key: string; confianza: string; cantidad?: number; opciones?: string[] }[] = [];
+    let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
     let noEncontrados: string[] = [];
     try {
       const limpio = textoRespuesta.replace(/```json|```/g, "").trim();
@@ -230,10 +235,18 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
       items = [];
     }
 
-    items = items.map((it) => ({
-      ...it,
-      cantidad: Math.max(1, Math.min(12, Math.round(Number(it.cantidad)) || 1)),
-    }));
+    // Gramos: número entre 5 y 1500 (lo demás se descarta y la app usa
+    // la porción normal). La app además lo acota a 0.3–3 veces la porción
+    // normal de cada alimento.
+    items = items.map((it) => {
+      const g = Math.round(Number(it.gramos));
+      return {
+        ...it,
+        cantidad: Math.max(1, Math.min(12, Math.round(Number(it.cantidad)) || 1)),
+        gramos: Number.isFinite(g) && g >= 5 && g <= 1500 ? g : null,
+        aceite: it.aceite === true,
+      };
+    });
 
     const porNombre = new Map<string, number>();
     for (const a of alimentosValidos) porNombre.set(a.name, (porNombre.get(a.name) || 0) + 1);

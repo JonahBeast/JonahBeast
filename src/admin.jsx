@@ -3550,6 +3550,14 @@ async function datosNegocioJarvis(users) {
   const hoy = todayISO();
   const ayer = addDaysISO(hoy, -1);
   let pagosPendientes = null, pagosAtrasados = null, registraronAyer = null, registraronHoy = null;
+  let cobradoDesdeAyer = null, pagosDesdeAyer = null;
+  try {
+    // Lo que entró desde ayer (00:00, hora de Lima), sin pruebas de 0 soles.
+    const { data } = await supabase.from('pagos').select('monto').eq('estado', 'aprobado')
+      .gte('creado_en', `${ayer}T00:00:00-05:00`).gt('monto', 0).range(0, 999);
+    pagosDesdeAyer = (data || []).length;
+    cobradoDesdeAyer = Math.round((data || []).reduce((a, p) => a + (Number(p.monto) || 0), 0) * 100) / 100;
+  } catch {}
   try {
     const { data } = await supabase.from('pagos').select('creado_en').eq('estado', 'pendiente').range(0, 999);
     pagosPendientes = (data || []).length;
@@ -3582,7 +3590,7 @@ async function datosNegocioJarvis(users) {
     } else aMedias = 0;
   } catch {}
   return {
-    pagosPendientes, pagosAtrasados, registraronAyer, registraronHoy, aMedias,
+    pagosPendientes, pagosAtrasados, registraronAyer, registraronHoy, aMedias, cobradoDesdeAyer, pagosDesdeAyer,
     activos: activosL.length,
     enPrueba: activosL.filter(esPrueba).length,
     pagando: activosL.filter(u => !esPrueba(u)).length,
@@ -3596,11 +3604,143 @@ async function armarInformeJarvis(users) {
   partes.push(d.pagosPendientes
     ? `Tienes ${d.pagosPendientes} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar${d.pagosAtrasados ? `, ${d.pagosAtrasados === 1 ? 'uno espera más de 12 horas: ese alumno sigue sin acceso' : `${d.pagosAtrasados} esperan más de 12 horas: esos alumnos siguen sin acceso`}` : ''}.`
     : 'No hay pagos pendientes.');
+  if (d.pagosDesdeAyer) partes.push(`Desde ayer entraron ${d.pagosDesdeAyer} ${d.pagosDesdeAyer === 1 ? 'pago' : 'pagos'} por S/${d.cobradoDesdeAyer.toFixed(2)}.`);
   if (d.vencen) partes.push(`${d.vencen} ${d.vencen === 1 ? 'prueba gratis vence' : 'pruebas gratis vencen'} en los próximos 3 días.`);
   if (d.registraronAyer !== null) partes.push(`Ayer registraron comida ${d.registraronAyer} de tus ${d.activos} alumnos activos.`);
   if (d.aMedias) partes.push(`${d.aMedias === 1 ? '1 alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias: ${d.aMedias === 1 ? 'puso sus datos' : 'pusieron sus datos'} pero no ${d.aMedias === 1 ? 'registró' : 'registraron'} su primera comida. Están en Rescate para escribirles hoy.`);
   if (d.nuevos) partes.push(`Desde ayer se ${d.nuevos === 1 ? 'unió 1 alumno nuevo' : `unieron ${d.nuevos} alumnos nuevos`}.`);
-  return `${saludoJarvis()}, Jonah. ${partes.join(' ')} ¿Qué necesitas?`;
+  return `${saludoJarvis()}, señor Jonah. ${partes.join(' ')} ¿Qué necesita?`;
+}
+// Clima actual de Lima (Open-Meteo: gratis y sin clave). Si no responde
+// en 3 segundos, Jarvis saluda sin el clima.
+const CLIMA_POR_CODIGO = [
+  [[0], 'cielo despejado'], [[1], 'cielo mayormente despejado'], [[2], 'cielo parcialmente nublado'],
+  [[3], 'cielo cubierto'], [[45, 48], 'neblina'], [[51, 53, 55, 56, 57], 'garúa'],
+  [[61, 63, 65, 66, 67, 80, 81, 82], 'lluvia'], [[95, 96, 99], 'tormenta'],
+];
+async function climaLimaJarvis() {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-12.05&longitude=-77.04&current=temperature_2m,weather_code&timezone=America%2FLima', { signal: ctrl.signal });
+    clearTimeout(t);
+    const c = (await r.json())?.current;
+    if (!c || typeof c.temperature_2m !== 'number') return null;
+    const desc = (CLIMA_POR_CODIGO.find(([codigos]) => codigos.includes(c.weather_code)) || [null, 'cielo nublado'])[1];
+    return `${Math.round(c.temperature_2m)} grados y ${desc} en Lima`;
+  } catch { return null; }
+}
+const NUMEROS_JARVIS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
+const enLetras = n => NUMEROS_JARVIS[n] || String(n);
+function juntarFrases(partes) {
+  return partes.length <= 1 ? (partes[0] || '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+}
+
+// Sugerencias de Jarvis al abrir: reglas sobre los datos (no usan la IA,
+// no cuestan nada). Máximo 2, de la más urgente a la menos. Cada una puede
+// traer un botón para actuar en 1 toque (WhatsApp con el mensaje listo).
+// Jarvis solo sugiere: nunca hace nada solo.
+function waDeAlumno(u, texto) {
+  const tel = String(u.telefono || '').replace(/\D/g, '');
+  if (!tel) return null;
+  return `https://wa.me/${tel.length <= 9 ? '51' + tel : tel}?text=${encodeURIComponent(texto)}`;
+}
+async function sugerenciasJarvis(users, d) {
+  const lista = users || [];
+  const primerNombre = u => String(u.nombre || u.username).trim().split(/\s+/)[0];
+  const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
+  const sug = [];
+
+  if (d.pagosAtrasados) sug.push({
+    texto: `${d.pagosAtrasados === 1 ? 'Un pago lleva' : `${d.pagosAtrasados} pagos llevan`} más de 12 horas esperando, y ese alumno sigue sin acceso. Yo empezaría por ahí: está en Pagos, pestaña HOY.`,
+    voz: `Hay ${d.pagosAtrasados === 1 ? 'un pago' : `${enLetras(d.pagosAtrasados)} pagos`} esperando más de 12 horas. Yo empezaría por ahí.`,
+  });
+
+  const porVencer = lista
+    .filter(u => u.enabled && esPrueba(u) && u.telefono)
+    .map(u => ({ u, dl: daysLeft(u.fechaVencimiento) }))
+    .filter(x => x.dl === 0 || x.dl === 1)
+    .sort((a, b) => a.dl - b.dl);
+  if (porVencer.length) {
+    const { u, dl } = porVencer[0];
+    const cuando = dl === 0 ? 'hoy' : 'mañana';
+    const otros = porVencer.length - 1;
+    sug.push({
+      texto: `${primerNombre(u)} termina su prueba ${cuando} y aún no paga${otros ? ` (y ${otros} más vencen pronto)` : ''}. Un mensaje suyo ahora vale más que diez anuncios.`,
+      voz: `Sugiero escribirle a ${primerNombre(u)}: su prueba termina ${cuando}.`,
+      boton: 'Escribirle por WhatsApp',
+      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍. Tu prueba gratis termina ${cuando}. ¿Cómo te fue? Si quieres seguir, te ayudo a elegir tu plan 💪`),
+    });
+  }
+
+  // Alumnos que pagan y dejaron de registrar hace 3 a 7 días.
+  try {
+    const hoy = todayISO();
+    const pagando = lista.filter(u => u.enabled && !esPrueba(u) && membershipActive(u) && u.telefono);
+    if (pagando.length && sug.length < 2) {
+      const { data } = await supabase.from('historial').select('username, fecha')
+        .in('username', pagando.map(u => u.username)).gte('fecha', addDaysISO(hoy, -10)).gt('comidas_count', 0).range(0, 9999);
+      const ultima = {};
+      (data || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
+      const quietos = pagando
+        .map(u => ({ u, dias: ultima[u.username] ? -daysLeft(ultima[u.username]) : null }))
+        .filter(x => x.dias !== null && x.dias >= 3 && x.dias <= 7)
+        .sort((a, b) => a.dias - b.dias);
+      if (quietos.length) {
+        const { u, dias } = quietos[0];
+        sug.push({
+          texto: `${primerNombre(u)} lleva ${dias} días sin registrar sus comidas${quietos.length > 1 ? ` (${quietos.length - 1} más, igual)` : ''}. Suele ser el primer paso antes de irse; un "¿cómo vas?" a tiempo ayuda.`,
+          voz: `${primerNombre(u)} lleva ${enLetras(dias)} días sin registrar. Un mensaje suyo ayudaría.`,
+          boton: 'Escribirle por WhatsApp',
+          url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah 🦍. Vi que llevas unos días sin registrar tus comidas. ¿Todo bien? Si te trabas con algo, dime y lo vemos juntos 💪`),
+        });
+      }
+    }
+  } catch {}
+
+  if (d.aMedias) sug.push({
+    texto: `${d.aMedias === 1 ? 'Un alumno se quedó' : `${d.aMedias} alumnos se quedaron`} a medias, sin su primera comida. Están en Rescate, pestaña HOY: es el mejor momento para escribirles.`,
+    voz: `${d.aMedias === 1 ? 'Un alumno está' : `${enLetras(d.aMedias)} alumnos están`} a medias. Están en Rescate.`,
+  });
+  if (d.nuevos >= 3) sug.push({
+    texto: `${d.nuevos} alumnos nuevos desde ayer. Si esto sigue así, voy a pedir aumento.`,
+    voz: `${enLetras(d.nuevos)} alumnos nuevos desde ayer. Si esto sigue así, voy a pedir aumento.`,
+  });
+  return sug.slice(0, 2);
+}
+
+// Al abrir (la primera vez del día): una sola frase dicha en voz alta
+// (saludo, clima y solo lo urgente) y debajo las tarjetas. Las tarjetas
+// que piden acción hoy salen en naranja.
+async function tarjetasInformeJarvis(users) {
+  const [d, clima] = await Promise.all([datosNegocioJarvis(users), climaLimaJarvis()]);
+  const urgentes = [];
+  // Soles dichos para la voz: "49 soles con 80".
+  const solesEnVoz = n => { const e = Math.floor(n); const c = Math.round((n - e) * 100); return `${e} ${e === 1 ? 'sol' : 'soles'}${c ? ` con ${c}` : ''}`; };
+  const cobrado = d.pagosDesdeAyer
+    ? `Entraron ${d.pagosDesdeAyer === 1 ? 'un pago' : `${enLetras(d.pagosDesdeAyer)} pagos`} por ${solesEnVoz(d.cobradoDesdeAyer)}.`
+    : '';
+  if (d.pagosPendientes) urgentes.push(`${enLetras(d.pagosPendientes)} ${d.pagosPendientes === 1 ? 'pago' : 'pagos'} por revisar`);
+  if (d.vencen) urgentes.push(`${d.vencen === 1 ? 'una prueba' : `${enLetras(d.vencen)} pruebas`} por vencer`);
+  if (d.aMedias) urgentes.push(`${d.aMedias === 1 ? 'un alumno' : `${enLetras(d.aMedias)} alumnos`} a medias`);
+  const pendientes = juntarFrases(urgentes);
+  const frase = `${saludoJarvis()}, señor Jonah.${clima ? ` ${clima}.` : ''}${cobrado ? ` ${cobrado}` : ''} ${pendientes ? pendientes.charAt(0).toUpperCase() + pendientes.slice(1) + '.' : 'Todo en orden por hoy.'}`;
+  const tarjetas = [];
+  if (d.cobradoDesdeAyer !== null) tarjetas.push({
+    titulo: '💰 Cobrado desde ayer', valor: `S/${d.cobradoDesdeAyer.toFixed(2)}`,
+    detalle: d.pagosDesdeAyer ? `${d.pagosDesdeAyer} ${d.pagosDesdeAyer === 1 ? 'pago' : 'pagos'}` : 'sin pagos nuevos',
+  });
+  if (d.pagosPendientes !== null) tarjetas.push({
+    titulo: '💳 Pagos por revisar', valor: String(d.pagosPendientes),
+    detalle: d.pagosAtrasados ? `${d.pagosAtrasados} esperan más de 12 h` : d.pagosPendientes ? 'revísalos hoy' : 'al día',
+    alerta: d.pagosPendientes > 0,
+  });
+  tarjetas.push({ titulo: '⏳ Pruebas por vencer', valor: String(d.vencen || 0), detalle: 'en los próximos 3 días', alerta: d.vencen > 0 });
+  if (d.registraronAyer !== null) tarjetas.push({ titulo: '🍽️ Registraron ayer', valor: `${d.registraronAyer}/${d.activos}`, detalle: 'alumnos activos' });
+  if (d.aMedias) tarjetas.push({ titulo: '🆘 A medias', valor: String(d.aMedias), detalle: 'sin primera comida · en Rescate', alerta: true });
+  else if (d.nuevos) tarjetas.push({ titulo: '🆕 Nuevos', valor: String(d.nuevos), detalle: 'desde ayer' });
+  const sugerencias = await sugerenciasJarvis(users, d).catch(() => []);
+  return { frase, visual: { tarjetas }, sugerencias };
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
 
@@ -3701,7 +3841,7 @@ function TarjetasJarvis({ visual }) {
         <div className={`grid gap-2 ${tarjetas.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
           {tarjetas.map((t, i) => (
             <div key={i} className="relative rounded px-3 py-2 overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, rgba(77,217,255,0.10), rgba(10,22,32,0.6))', border: '1px solid #1c6b85', boxShadow: 'inset 0 0 18px rgba(77,217,255,0.08)', animation: `jv-aparece .4s ease-out ${i * 0.08}s both` }}>
+              style={{ background: t.alerta ? 'linear-gradient(135deg, rgba(232,89,12,0.18), rgba(10,22,32,0.6))' : 'linear-gradient(135deg, rgba(77,217,255,0.10), rgba(10,22,32,0.6))', border: `1px solid ${t.alerta ? '#E8590C' : '#1c6b85'}`, boxShadow: 'inset 0 0 18px rgba(77,217,255,0.08)', animation: `jv-aparece .4s ease-out ${i * 0.08}s both` }}>
               <span className="absolute top-0 left-0 w-2 h-2" style={{ borderTop: '2px solid #4dd9ff', borderLeft: '2px solid #4dd9ff' }} />
               <div className="text-[9px] tracking-[0.2em] uppercase" style={{ fontFamily: 'monospace', color: '#6f92a8' }}>{t.titulo}</div>
               <div className="text-xl font-semibold tabular-nums leading-tight" style={{ color: '#ffffff', textShadow: '0 0 12px rgba(77,217,255,0.7)', fontFamily: 'monospace' }}>{t.valor}</div>
@@ -4053,9 +4193,9 @@ function JarvisPanel({ onClose, users }) {
   const hablarRef = useRef(null);
   hablarRef.current = hablar;
 
-  // Al abrir: la primera vez del día da el informe completo (y lo dice en
-  // voz alta); las demás veces, un saludo corto. El informe se puede pedir
-  // de nuevo con el botón "Informe del día".
+  // Al abrir: la primera vez del día dice una sola frase (saludo, clima y
+  // lo urgente) y muestra las tarjetas; las demás veces, un saludo corto.
+  // El informe completo hablado sigue en el botón "Informe del día".
   async function darInforme() {
     setTurnos(ts => [...ts.filter(m => !(m.escribiendo && !m.content)), { role: 'assistant', content: '', escribiendo: true }]);
     setPensando(true);
@@ -4072,8 +4212,14 @@ function JarvisPanel({ onClose, users }) {
     sonidoJarvis('abrir');
     let yaHoy = false;
     try { yaHoy = localStorage.getItem(CLAVE_INFORME_JARVIS) === todayISO(); localStorage.setItem(CLAVE_INFORME_JARVIS, todayISO()); } catch {}
-    if (!yaHoy) { darInforme(); return; }
-    setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, Jonah. A la orden. ¿Qué necesitas?` }]);
+    setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, señor Jonah. A la orden. ¿Qué necesita?` }]);
+    if (!yaHoy) {
+      tarjetasInformeJarvis(users).then(({ frase, visual, sugerencias }) => {
+        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual, sugerencias } : m)));
+        sonidoJarvis('respuesta');
+        hablarRef.current(sugerencias?.[0] ? `${frase} ${sugerencias[0].voz}` : frase);
+      }).catch(() => {});
+    }
   }, []);
   function cerrar() {
     sonidoJarvis('cerrar');
@@ -4123,7 +4269,7 @@ function JarvisPanel({ onClose, users }) {
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
     const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
-    if (!confirmar) { marcar('cancelada'); decir('Entendido, Jonah Beast: no activé nada.'); return; }
+    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no activé nada.'); return; }
     marcar('enviando');
     try {
       const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias } });
@@ -4193,8 +4339,8 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, Jonah?' }]);
-        hablarRef.current('¿Sí, Jonah?');
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?' }]);
+        hablarRef.current('¿Sí, señor?');
         return;
       }
       despiertoHastaRef.current = 0;
@@ -4282,6 +4428,19 @@ function JarvisPanel({ onClose, users }) {
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
                 : <div className="pl-3 py-1" style={{ borderLeft: '2px solid #4dd9ff', boxShadow: '-6px 0 12px -8px #4dd9ff' }}><TextoJarvis texto={(m.escribiendo ? sinBloqueTarjetas(m.content) : m.content) + (m.escribiendo ? ' ▍' : '')} /></div>}
               {m.role !== 'user' && m.visual && <TarjetasJarvis visual={m.visual} />}
+              {m.role !== 'user' && (m.sugerencias || []).map((sg, j) => (
+                <div key={`sg${j}`} className="mt-2 rounded px-3 py-2" style={{ background: 'rgba(232,89,12,0.10)', border: '1px solid rgba(232,89,12,0.45)', animation: `jv-aparece .4s ease-out ${0.3 + j * 0.1}s both` }}>
+                  <div className="text-[9px] tracking-[0.2em] uppercase mb-0.5" style={{ fontFamily: 'monospace', color: '#FF7020' }}>SUGERENCIA</div>
+                  <div className="text-[13px] leading-snug" style={{ color: '#dff2ff' }}>{sg.texto}</div>
+                  {sg.url && (
+                    <a href={sg.url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold rounded px-3 py-1.5"
+                      style={{ background: '#E8590C', color: '#0a0d10' }}>
+                      <MessageCircle size={13} /> {sg.boton}
+                    </a>
+                  )}
+                </div>
+              ))}
               {(m.acciones || []).map((a, j) => (
                 <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
                   <div className="text-xs">

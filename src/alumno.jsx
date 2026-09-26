@@ -5478,7 +5478,7 @@ function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
    alumno confirme qué agregar — nunca guarda nada automáticamente,
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
-function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHasta, onCerrar, onAgregar, onEscribir }) {
+function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
@@ -5490,17 +5490,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   const [mensajeError, setMensajeError] = useState('');
-  const [extendiendo, setExtendiendo] = useState(false);
   const [progresoIA, setProgresoIA] = useState(0);
-  const [correoMP, setCorreoMP] = useState('');
-  const [mesesMP, setMesesMP] = useState('1');
-  const [tipoMP, setTipoMP] = useState('unico'); // 'unico' | 'recurrente'
-  const [pagandoMP, setPagandoMP] = useState(false);
-  const [errMP, setErrMP] = useState('');
-  const addOnActivo = !!(reconocimientoFotoHasta && daysLeft(reconocimientoFotoHasta) !== null && daysLeft(reconocimientoFotoHasta) >= 0);
-  // Cuántas fotos le quedan (bienvenida: 3 al día los 3 primeros días de
-  // la prueba; luego 5 por semana; con el complemento, 200 al mes). Si el
-  // servidor aún no responde la consulta, simplemente no se muestra.
+  // Cuántas fotos le quedan. Con un plan: captura inteligente incluida,
+  // 5 al día. En la prueba: 3 al día los 3 primeros días y luego 5 por
+  // semana. Si el servidor aún no responde la consulta, no se muestra.
   const [cupo, setCupo] = useState(null);
   useEffect(() => {
     (async () => {
@@ -5528,24 +5521,6 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
     return () => clearInterval(id);
   }, [estado]);
 
-  async function pagarAddOnMP() {
-    setErrMP('');
-    if (!correoMP.trim() || !correoMP.includes('@')) { setErrMP('Escribe un correo válido.'); return; }
-    setPagandoMP(true);
-    try {
-      const funcion = tipoMP === 'recurrente' ? 'crear-suscripcion-addon-foto' : 'crear-pago-addon-foto';
-      const body = tipoMP === 'recurrente'
-        ? { username, correo: correoMP.trim() }
-        : { username, meses: parseInt(mesesMP, 10), correo: correoMP.trim() };
-      const { data, error } = await supabase.functions.invoke(funcion, { body });
-      if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
-      window.location.href = data.init_point;
-    } catch (e) {
-      setErrMP(e.message || 'No se pudo conectar con Mercado Pago.');
-      setPagandoMP(false);
-    }
-  }
-
   async function elegirArchivo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -5570,9 +5545,16 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
     try {
       // Los productos escaneados no se mandan: la foto reconoce platos, y
       // los empacados se registran mejor con su código de barras.
-      const listaLiviana = todosLosAlimentos.filter(a => !a.esProducto).map(a => ({ key: a.key, name: a.name }));
+      // Los propios del alumno van aparte: la lista común es igual para
+      // todos y el servidor la deja en caché (cada foto sale más barata).
+      const liviano = a => ({ key: a.key, name: a.name });
+      const lista = todosLosAlimentos.filter(a => !a.esProducto);
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
-        body: { username, imagenBase64: base64, mimeType, alimentos: listaLiviana },
+        body: {
+          username, imagenBase64: base64, mimeType,
+          alimentos: lista.filter(a => !a.esPersonal).map(liviano),
+          personales: lista.filter(a => a.esPersonal).map(liviano),
+        },
       });
       if (error) {
         // Si el servidor explicó el motivo (sin sesión, membresía vencida,
@@ -5706,62 +5688,18 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
         </div>
-        {addOnActivo && (
-          <div className="-mt-2 mb-4">
-            <p className="jb-body text-xs text-emerald-500">
-              ✓ Reconocimiento Inteligente activo — hasta el {reconocimientoFotoHasta.slice(8, 10)}/{reconocimientoFotoHasta.slice(5, 7)}/{reconocimientoFotoHasta.slice(0, 4)}
-              {!extendiendo && estado !== 'analizando' && (
-                <button onClick={() => { setTipoMP('unico'); setErrMP(''); setExtendiendo(true); }}
-                  className="text-orange-400 underline ml-2">Extender</button>
-              )}
-            </p>
-            {/* Extender antes de que venza: los meses pagados se suman a la
-                fecha actual (lo hace el webhook). En la app de Play Store no
-                se puede cobrar dentro de la app, así que va por WhatsApp. */}
-            {extendiendo && (
-              <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-                <p className="jb-body text-xs text-zinc-400 mb-2">
-                  Suma más tiempo a tu Reconocimiento Inteligente. Se agrega desde tu fecha actual, no pierdes días.
-                </p>
-                {esTWA() ? (
-                  <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero extender mi Reconocimiento Inteligente en Jonah Beast Fuel.')}`}
-                    target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5 mb-2'}>
-                    <MessageCircle size={16} /> Escribir por WhatsApp
-                  </a>
-                ) : (
-                  <>
-                    <select value={mesesMP} onChange={e => setMesesMP(e.target.value)} className={inputCls + ' w-full mb-2'}>
-                      <option value="1">1 mes más — S/11.90</option>
-                      <option value="3">3 meses más — S/35.70</option>
-                      <option value="6">6 meses más — S/71.40</option>
-                    </select>
-                    <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
-                      onChange={e => setCorreoMP(e.target.value)} className={inputCls + ' w-full mb-2'} />
-                    {errMP && <p className="text-red-400 text-xs jb-body mb-2">{errMP}</p>}
-                    <button onClick={pagarAddOnMP} disabled={pagandoMP} className={btnPrimary + ' w-full py-2.5 mb-2'}>
-                      {pagandoMP ? <Loader2 className="animate-spin" size={16} /> : 'Pagar con Mercado Pago'}
-                    </button>
-                  </>
-                )}
-                <button onClick={() => setExtendiendo(false)} className={btnGhost + ' w-full py-2'}>Ahora no</button>
-              </div>
-            )}
-          </div>
-        )}
-
         {estado === 'elegir' && (
           <div className="text-center">
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
-              {!addOnActivo && !cupo && <span className="block text-zinc-600 text-xs mt-1">5 fotos gratis por semana</span>}
             </p>
-            {cupo && cupo.tipo !== 'addon' && (
+            {cupo && (
               <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${cupo.tipo === 'bienvenida'
                 ? 'bg-orange-500/10 border-orange-500/40' : quedan <= 2 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <p className="jb-body text-xs text-zinc-300">
                     {cupo.tipo === 'bienvenida' ? '🎁 Bienvenida: ' : ''}
-                    Te {quedan === 1 ? 'queda' : 'quedan'} <span className="text-orange-400 font-semibold">{quedan} {quedan === 1 ? 'foto' : 'fotos'}</span> {cupo.tipo === 'bienvenida' ? 'hoy' : 'esta semana'}
+                    Te {quedan === 1 ? 'queda' : 'quedan'} <span className="text-orange-400 font-semibold">{quedan} {quedan === 1 ? 'foto' : 'fotos'}</span> {cupo.tipo === 'semanal' ? 'esta semana' : 'hoy'}
                   </p>
                   <div className="flex gap-1 shrink-0" aria-hidden="true">
                     {Array.from({ length: cupo.limite }).map((_, i) => (
@@ -5774,9 +5712,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
                     ? (cupo.diasBienvenidaRestantes > 0
                       ? `Tus primeros 3 días tienes 3 fotos al día. Después, 5 por semana.`
                       : 'Hoy es tu último día de bienvenida. Desde mañana, 5 fotos por semana.')
-                    : quedan <= 2
-                      ? 'Fotos sin límite con Reconocimiento Inteligente: solo S/0.40 al día.'
-                      : 'Se renuevan cada lunes.'}
+                    : cupo.tipo === 'diario'
+                      ? 'Captura inteligente incluida en tu plan: 5 fotos cada día.'
+                      : quedan <= 2
+                        ? 'Con cualquier plan tienes 5 fotos cada día, incluidas.'
+                        : 'Se renuevan cada lunes.'}
                 </p>
               </div>
             )}
@@ -5999,62 +5939,24 @@ function ReconocerFotoModal({ username, todosLosAlimentos, reconocimientoFotoHas
           <div className="text-center py-2">
             <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
             <p className="jb-display text-sm text-orange-500 mb-1">
-              {infoLimite?.tieneAddOn ? 'Llegaste a tu límite del mes'
+              {infoLimite?.tipo === 'diario' ? `Usaste tus ${infoLimite.limite} fotos de hoy`
                 : infoLimite?.tipo === 'bienvenida' ? 'Usaste tus 3 fotos de hoy' : 'Ya usaste tus fotos gratis de esta semana'}
             </p>
             <p className="jb-body text-sm text-zinc-400 mb-4">
-              {infoLimite?.tieneAddOn
-                ? `Usaste tus ${infoLimite.limite} fotos de este mes con Reconocimiento Inteligente.`
+              {infoLimite?.tipo === 'diario'
+                ? 'Mañana tienes 5 fotos más. Mientras tanto, regístralo escribiendo.'
                 : <>
                   {infoLimite?.tipo === 'bienvenida' && (infoLimite.diasBienvenidaRestantes > 0
                     ? 'Mañana tienes 3 fotos más. '
                     : 'Desde mañana tienes 5 fotos por semana. ')}
-                  Con Reconocimiento Inteligente identificas tu plato con solo una foto, sin escribir ni buscar.{' '}
-                  <span className="text-zinc-200 font-semibold">Fotos sin límite por solo S/0.40 al día</span> (S/11.90 al mes).
+                  Con cualquier plan tienes la <span className="text-zinc-200 font-semibold">captura inteligente incluida: 5 fotos cada día</span>, sin pagar nada extra.
                 </>}
             </p>
-            {!infoLimite?.tieneAddOn && (
-              <div className="text-left mb-2">
-                <div className="flex gap-2 mb-2">
-                  <button onClick={() => setTipoMP('unico')}
-                    className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${tipoMP === 'unico'
-                      ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
-                    Pago único
-                  </button>
-                  <button onClick={() => setTipoMP('recurrente')}
-                    className={`jb-body text-xs px-3 py-2 rounded-lg flex-1 transition-colors ${tipoMP === 'recurrente'
-                      ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 text-zinc-400 border border-zinc-800'}`}>
-                    Suscripción automática
-                  </button>
-                </div>
-                <p className="jb-body text-[11px] text-zinc-500 text-center mb-2">
-                  {tipoMP === 'unico'
-                    ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a activar cuando quieras.'
-                    : 'Se te cobrará S/11.90 automáticamente cada mes hasta que canceles desde tu cuenta de Mercado Pago.'}
-                </p>
-                {tipoMP === 'unico' && (
-                  <select value={mesesMP} onChange={e => setMesesMP(e.target.value)}
-                    className={inputCls + ' w-full mb-2'}>
-                    <option value="1">1 mes — S/11.90</option>
-                    <option value="3">3 meses — S/35.70</option>
-                    <option value="6">6 meses — S/71.40</option>
-                  </select>
-                )}
-                <input type="email" placeholder="Tu correo (para el pago)" value={correoMP}
-                  onChange={e => setCorreoMP(e.target.value)} className={inputCls + ' w-full mb-2'} />
-                {errMP && <p className="text-red-400 text-xs jb-body mb-2">{errMP}</p>}
-                <button onClick={pagarAddOnMP} disabled={pagandoMP} className={btnPrimary + ' w-full py-3 mb-2'}>
-                  {pagandoMP ? <Loader2 className="animate-spin" size={16} /> : 'Pagar con Mercado Pago'}
-                </button>
-                <p className="jb-body text-[11px] text-zinc-600 text-center mb-2">— o si prefieres Yape/Plin —</p>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, quiero activar Reconocimiento Inteligente (S/11.90/mes) en mi cuenta de Jonah Beast Fuel.')}`}
-                  target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-2.5 mb-2'}>
-                  Escribir por WhatsApp
-                </a>
-              </div>
+            {infoLimite?.tipo !== 'diario' && onVerPlanes && (
+              <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mb-2'}>Ver planes</button>
             )}
-            <button onClick={infoLimite?.tieneAddOn || !onEscribir ? onCerrar : onEscribir} className={btnGhost + ' w-full py-2.5'}>
-              {infoLimite?.tieneAddOn ? 'Entendido' : 'Registrarlo escribiendo'}
+            <button onClick={onEscribir || onCerrar} className={btnGhost + ' w-full py-2.5'}>
+              {onEscribir ? 'Registrarlo escribiendo' : 'Entendido'}
             </button>
           </div>
         )}
@@ -6557,7 +6459,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               <span className="text-zinc-100 font-semibold">Sé el primero en agregarlo:</span> tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y queda guardado para ti y para todos los alumnos.
             </p>
             {botonFotoEtiqueta}
-            <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta usa una de tus fotos de reconocimiento.</p>
+            <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta no usa tus fotos de comida.</p>
             <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco por su nombre</button>
             {codigo && (
               <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Escanear de nuevo</button>
@@ -6594,7 +6496,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
 
         {estado === 'limite' && (
           <div className="text-center py-2">
-            <p className="jb-body text-sm text-zinc-300 mb-4">Ya usaste tus fotos de reconocimiento de este periodo, y leer la etiqueta usa una. Mientras tanto, puedes buscar el producto escribiendo.</p>
+            <p className="jb-body text-sm text-zinc-300 mb-4">Ya leíste 5 etiquetas hoy. Mañana puedes leer más. Mientras tanto, puedes buscar el producto escribiendo.</p>
             <button onClick={onEscribir} className={btnPrimary + ' w-full py-2.5'}>Buscarlo escribiendo</button>
           </div>
         )}
@@ -6914,7 +6816,7 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimientoFotoHasta, hojaInicial = null }) {
+function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null }) {
   const [personales, setPersonales] = useState([]);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
@@ -7085,7 +6987,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, reconocimient
         <ReconocerFotoModal
           username={username}
           todosLosAlimentos={todosLosAlimentos}
-          reconocimientoFotoHasta={reconocimientoFotoHasta}
+          onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEnfocar(addEntry(m)); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
@@ -7972,7 +7874,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} reconocimientoFotoHasta={userRecord?.reconocimientoFotoHasta} hojaInicial={registrarAl} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} hojaInicial={registrarAl} onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />}
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}

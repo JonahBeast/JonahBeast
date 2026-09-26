@@ -3510,6 +3510,7 @@ function fmtS(n) {
 }
 
 const BENEFICIOS = [
+  'Captura inteligente incluida: 5 fotos de comida al día',
   'Composición corporal completa y actualizada',
   'Plan de alimentación con comida peruana',
   'Recomendaciones diarias de qué comer',

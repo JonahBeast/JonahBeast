@@ -3637,6 +3637,7 @@ function fmtS(n) {
 }
 
 const BENEFICIOS = [
+  'Registra tu comida en segundos: foto con IA (5 al día), código de barras o voz',
   'Composición corporal completa y actualizada',
   'Plan de alimentación con comida peruana',
   'Recomendaciones diarias de qué comer',

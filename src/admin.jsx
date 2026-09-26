@@ -1377,7 +1377,7 @@ function TableroPanel({ users }) {
 // (se guardan en config → rentabilidad_supuestos).
 const SUPUESTOS_RENTABILIDAD = {
   supabase: 94, vercel: 75, jarvis: 45, dominio: 8, otrosFijos: 0,
-  costoFoto: 0.07, fotosAlumnoMes: 21, fotosPrueba: 10, whatsappAlumno: 0.3,
+  costoFoto: 0.07, fotosAlumnoMes: 60, fotosPrueba: 10, whatsappAlumno: 0.3,
   comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500,
   tipoCambio: 3.75,
 };
@@ -1523,9 +1523,9 @@ function RentabilidadPanel({ users }) {
     const porMes = (precios[p.meses] || p.precioDefault) / p.meses;
     if (minimoRef && porMes < minimoRef) alertas.push(`El plan ${p.nombre.toLowerCase()} equivale a ${fmtS(porMes)} al mes, por debajo del mínimo de ${fmtS(minimoRef)} con ${nRef} alumnos.`);
   });
-  const costoAddOn = 200 * costoFoto;
-  const netoAddOn = 11.9 * (1 - sup.comisionMP / 100);
-  if (costoAddOn > netoAddOn) alertas.push(`El complemento de fotos te deja ${fmtS(netoAddOn)}, pero alguien que use las 200 fotos te cuesta ${fmtS(costoAddOn)}.`);
+  // Peor caso: un alumno que usa las 5 fotos de comida todos los días.
+  const costoMaxFotos = 150 * costoFoto;
+  if (netoMP - (cv - sup.fotosAlumnoMes * costoFoto) - costoMaxFotos < 0) alertas.push(`Un alumno que use las 5 fotos diarias te cuesta ${fmtS(costoMaxFotos)} al mes en fotos: con el plan mensual pierdes plata con él.`);
   const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * costoFoto;
   if (costoPruebas > cv / 2) alertas.push(`Tu mayor costo es la prueba gratis: ${fmtS(costoPruebas)} de cada ${fmtS(cv)} por alumno. Subir la conversión es la mejor palanca.`);
   if (cuotaRus === null) alertas.push('Este mes pasaste los S/8,000 de ingresos: ya no calificas para el Nuevo RUS.');
@@ -1541,7 +1541,7 @@ function RentabilidadPanel({ users }) {
   const campos = [
     ['supabase', 'Supabase (S/ al mes)'], ['vercel', 'Vercel (S/ al mes)'], ['jarvis', 'Jarvis y voz (S/ al mes)'],
     ['dominio', 'Dominio y Google Play (S/ al mes)'], ['otrosFijos', 'Otros gastos fijos (S/ al mes)'],
-    ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes'],
+    ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes (máx. 150)'],
     ['fotosPrueba', 'Fotos de una prueba gratis'], ['whatsappAlumno', 'WhatsApp por alumno (S/ al mes)'],
     ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'], ['tipoCambio', 'Tipo de cambio (S/ por dólar)'],
     ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'],

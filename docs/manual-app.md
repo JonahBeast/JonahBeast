@@ -34,8 +34,8 @@
 - App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
 - **Prueba gratis de 15 días, sin tarjeta.** Después, planes pagados de 1, 3, 6 o 12 meses.
-- **Todos los planes incluyen:** composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
-- **Complemento "Reconocimiento Inteligente"** (fotos de comida): se paga aparte (ver sección 9.4).
+- **Todos los planes incluyen** (en Planes, bajo "TODOS LOS PLANES INCLUYEN"): registro de comida en segundos con foto con IA (5 fotos al día), código de barras o voz, composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
+- **La captura inteligente (reconocer la comida con una foto) ya viene incluida en todos los planes.** No hay que pagar nada aparte (ver sección 9).
 
 ---
 
@@ -215,7 +215,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
    - **"Bastante"** agrega 1 cucharada de aceite vegetal y **"Mucho"**, 2.
 6. Mira el **"TOTAL APROXIMADO"** y toca **"Agregar N a esta comida"**. Después también puedes cambiar la cantidad exacta de cada uno.
 - La foto da un **cálculo aproximado**: la porción se calcula a ojo desde la foto, y lo que no se ve (aceite, azúcar, salsas escondidas) no se puede medir. Por eso conviene revisar la porción antes de agregar.
-- Límite de fotos: ver sección 9.4.
+- Límite de fotos: ver sección 9.1 (con plan, 5 por día incluidas).
 
 **B2) Código de barras (productos empacados: yogurt, galletas, leche, atún, barras…)**
 1. Toca **"Código"**. Se abre la cámara con un recuadro y un láser naranja: apunta al **código de barras** del empaque y se lee solo.
@@ -229,7 +229,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
    - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar producto"**. Si cierras la ventana con el nombre puesto, el producto se guarda igual.
    - Si los números no coinciden con la etiqueta, toca **"Los números no coinciden: otra foto"**.
    - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
-- Escanear el código **no gasta fotos**. **Leer la tabla nutricional sí usa una foto** de tu límite (sección 9.4). Si ya no te quedan fotos, busca el producto escribiendo.
+- Escanear el código **no gasta fotos**. **Leer la tabla nutricional tampoco usa las fotos de comida**: tiene su propio límite de 5 etiquetas por día. Si ya leíste 5 hoy, busca el producto escribiendo.
 - Los productos escaneados también aparecen al buscar con "Escribir" (grupo 📦 Productos).
 - Si no aparece o no quieres tomar la foto: **"Mejor lo busco por su nombre"**.
 
@@ -306,37 +306,29 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ---
 
-## 9. Límite de fotos de comida y complemento "Reconocimiento Inteligente"
+## 9. Captura inteligente: fotos de comida
 
 ### 9.1 Cuántas fotos tengo
 
 | Situación | Fotos |
 |---|---|
+| Con cualquier plan pagado | **5 por día**, incluidas en el plan ("Te quedan N fotos hoy") |
 | Primeros 3 días de la prueba (bienvenida) | 3 por día ("🎁 Bienvenida: Te quedan N fotos hoy") |
-| Después, sin complemento | 5 por semana, se renuevan cada lunes |
-| Con "Reconocimiento Inteligente" | hasta 200 al mes |
+| Resto de la prueba gratis | 5 por semana, se renuevan cada lunes |
 
 - Si una foto falla por un error del sistema, **no se descuenta**.
-- Leer la **tabla nutricional** de un producto (en "Código") cuenta como una foto. Escanear el código de barras no cuenta.
+- Leer la **tabla nutricional** de un producto (en "Código") **no usa las fotos de comida**: se pueden leer hasta 5 etiquetas por día. Escanear el código de barras tampoco cuenta.
+- Ya **no existe el complemento "Reconocimiento Inteligente"** que se pagaba aparte: la captura inteligente viene incluida en todos los planes. Quien lo tenía activo recibe lo mismo que un plan: 5 fotos por día.
 
 ### 9.2 Mensajes y qué hacer
 
-- "Usaste tus 3 fotos de hoy" / "Ya usaste tus fotos gratis de esta semana" / "Llegaste a tu límite del mes" → esperar a que se renueve, activar el complemento o tocar "Registrarlo escribiendo".
+- "Usaste tus 5 fotos de hoy" (con plan) → mañana tiene 5 más; mientras tanto, tocar **"Registrarlo escribiendo"**.
+- "Usaste tus 3 fotos de hoy" / "Ya usaste tus fotos gratis de esta semana" (en la prueba) → esperar a que se renueven, tocar **"Ver planes"** (con cualquier plan tiene 5 fotos al día incluidas) o **"Registrarlo escribiendo"**.
+- "Ya leíste 5 etiquetas hoy…" (al leer la tabla nutricional) → mañana puede leer más; mientras tanto, **"Buscarlo escribiendo"**.
 - "No reconocimos nada con confianza en esta foto…" → más luz, más cerca; si es un envase (leche, yogurt, jugo), fotografiar la marca. Luego "Probar otra foto".
 - "La foto es demasiado pesada." → tomar la foto con la cámara en vez de usar una imagen guardada.
 - "No se pudo procesar la foto…" → "Reintentar".
 - "Tu membresía no está activa…" → el plan venció (sección 11).
-
-### 9.3 Qué es el complemento
-
-"Reconocimiento Inteligente" amplía el reconocimiento por foto a **200 fotos al mes**. Es un extra aparte del plan.
-
-### 9.4 Cómo comprarlo
-
-1. Abre **"Foto"** en Comidas; en la ventana "RECONOCER POR FOTO" aparece la opción del complemento.
-2. Elige **"Pago único"** (1, 3 o 6 meses) o **"Suscripción automática"** mensual por Mercado Pago. Para Yape/Plin: **"Escribir por WhatsApp"**.
-3. Con el complemento activo verás "✓ Reconocimiento Inteligente activo — hasta el DD/MM/AAAA" y el enlace **"Extender"**. Lo que pagues se suma a tu fecha actual, no pierdes días.
-- Precio de referencia: S/11.90 al mes (el vigente es el que muestra la app).
 
 ---
 

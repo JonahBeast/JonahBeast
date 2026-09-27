@@ -413,6 +413,7 @@ function RestriccionesCard({ mealPlan, setMealPlan }) {
             alimentos={foodsBuscador()}
             onElegir={key => { const f = buscarFood(key); if (f) agregar(f.name); }}
             onNoEncuentra={() => {}}
+            permitirPedido={false}
           />
           <p className="jb-body text-[10px] text-zinc-600 mt-2">
             Ej. si no comes cerdo, mariscos o algo puntual — no volverá a aparecer en combos ni sustituciones.
@@ -4935,7 +4936,10 @@ function CalorieStatus({ consumed, target }) {
 /* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
 /* ------------------------------------------------------------------ */
 
-function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false }) {
+/* permitirPedido: muestra "Pedirle a Jonah" (no tiene sentido, por ejemplo,
+   en "Nunca me sugieras esto"). pista: línea bajo el buscador vacío que
+   recuerda que se puede pedir un plato que no está. */
+function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
   const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error', nombre, error? }
@@ -4961,7 +4965,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
   );
 
   return (
-    <div className="relative sm:flex-[3] min-w-0">
+    <div className="relative flex-1 sm:flex-[3] min-w-0">
       <input
         autoFocus={autoFocus}
         value={texto}
@@ -4978,17 +4982,20 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
               <p className="jb-body text-xs text-zinc-400 mb-2">
                 No encontramos "{texto}".
               </p>
-              <button type="button" onMouseDown={e => e.preventDefault()}
-                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
-                className={btnPrimary + ' w-full py-2 text-xs'}>
-                + Crear mi alimento
-              </button>
-              {texto.trim().length >= 2 && (
+              {/* Pedírselo a Jonah es lo más fácil (no hay que saber los
+                  macros), así que va primero y en naranja. */}
+              {permitirPedido && texto.trim().length >= 2 && (
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
-                  className={btnGhost + ' w-full py-2 text-xs mt-2'}>
-                  🙋 Pedirle a Jonah que lo agregue
+                  className={btnPrimary + ' w-full py-2 text-xs flex flex-col items-center leading-tight'}>
+                  <span>🙋 Pedirle a Jonah que lo agregue</span>
+                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">Él calcula los macros y te avisamos cuando esté</span>
                 </button>
               )}
+              <button type="button" onMouseDown={e => e.preventDefault()}
+                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
+                className={(permitirPedido && texto.trim().length >= 2 ? btnGhost + ' mt-2' : btnPrimary) + ' w-full py-2 text-xs'}>
+                + Crear mi alimento
+              </button>
             </div>
           ) : (
             <>
@@ -5013,15 +5020,20 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 className="w-full text-left px-3 py-2 text-orange-500 jb-body text-xs hover:bg-zinc-800">
                 + No está en la lista, crearlo
               </button>
-              {texto.trim().length >= 2 && (
+              {permitirPedido && texto.trim().length >= 2 && (
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
-                  className="w-full text-left px-3 py-2 text-zinc-300 jb-body text-xs hover:bg-zinc-800 border-t border-zinc-800">
-                  🙋 Pedirle a Jonah que agregue "{texto.trim().slice(0, 40)}"
+                  className="w-full text-left px-3 py-2 text-orange-400 jb-body text-xs font-semibold hover:bg-zinc-800 border-t border-zinc-800">
+                  🙋 ¿No es ninguno? Pídele a Jonah que agregue "{texto.trim().slice(0, 40)}"
                 </button>
               )}
             </>
           )}
         </div>
+      )}
+      {pista && permitirPedido && !pedido && !texto.trim() && (
+        <p className="jb-body text-[11px] text-zinc-500 mt-1.5 px-1">
+          ¿No encuentras tu plato? Escríbelo y toca <span className="text-orange-400">🙋 Pedirle a Jonah</span>: lo agregamos y te avisamos.
+        </p>
       )}
       {pedido && (
         <p className={`jb-body text-xs mt-1.5 ${pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
@@ -7056,6 +7068,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                         }}
                         onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
                         autoFocus={enfocar === en.id}
+                        pista
                       />
                       <button onClick={() => removeEntry(meal, en.id)} aria-label="Quitar"
                         className="text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={16} /></button>

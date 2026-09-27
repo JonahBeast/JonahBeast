@@ -606,15 +606,22 @@ function FormAlimento({ form, setForm }) {
   );
 }
 
-function ResultadoAvisos({ nombre, avisos }) {
+function ResultadoAvisos({ nombre, avisos, mensaje }) {
   if (!avisos) return null;
   const partes = [];
   if (avisos.whatsapp?.length) partes.push(`${avisos.whatsapp.length} por WhatsApp`);
   if (avisos.app?.length) partes.push(`${avisos.app.length} con notificación en la app`);
-  const texto = `✅ ¡Listo! *${nombre}* ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?`;
+  const texto = mensaje || `✅ ¡Listo! *${nombre}* ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?`;
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       {partes.length > 0 && <p className="jb-body text-xs text-emerald-400">Avisamos: {partes.join(' y ')}.</p>}
+      {/* Sin avisos activos no le llega la notificación: lo verá al abrir
+          la app, pero si quieres que se entere ya, escríbele tú. */}
+      {avisos.sin_avisos?.length > 0 && (
+        <p className="jb-body text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-2.5">
+          ⚠️ No le llegó la notificación a <b>{avisos.sin_avisos.join(', ')}</b>: tiene los avisos apagados. Lo verá la próxima vez que abra la app; si quieres que se entere ya, escríbele.
+        </p>
+      )}
       {avisos.a_mano?.length > 0 && (
         <div className="bg-amber-950/40 border border-amber-900 rounded-lg p-2.5">
           <p className="jb-body text-xs text-amber-300 mb-1.5">Avísale tú (pasaron más de 24 h desde su último mensaje y WhatsApp no deja escribirle solo):</p>
@@ -658,12 +665,24 @@ function PedidoAlimento({ pedido, onResuelto }) {
     setGuardando(false);
   }
 
+  // Al descartar se le deja un mensaje a quien lo pidió (le llega como
+  // notificación o WhatsApp, y lo ve al abrir la app). Se propone uno según
+  // el caso; se puede cambiar o dejar vacío para no avisar.
+  const [descartando, setDescartando] = useState(false);
+  const [respuesta, setRespuesta] = useState('');
+  function abrirDescarte() {
+    setRespuesta(propuesta?.ya_existe
+      ? `Ya estaba en la app como "${propuesta.ya_existe}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`
+      : `No pudimos identificar "${pedido.nombre}". Si nos das más detalles (cómo se prepara o de qué marca es), lo agregamos 🙌`);
+    setDescartando(true);
+  }
   async function descartar() {
-    if (!confirm(`¿Descartar el pedido "${pedido.nombre}"? No se avisa a nadie.`)) return;
-    const { error: err } = await supabase.from('pedidos_alimentos')
-      .update({ estado: 'descartado', resuelto_en: new Date().toISOString(), actualizado_en: new Date().toISOString() }).eq('id', pedido.id);
-    if (err) { setError('No se pudo descartar: ' + err.message); return; }
-    onResuelto(pedido.id, null);
+    setGuardando(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'descartar', id: pedido.id, respuesta });
+      onResuelto(pedido.id, { nombre: pedido.nombre, avisos: r.avisos, descartado: true, respuesta: respuesta.trim() });
+    } catch (e) { setError(e.message); }
+    setGuardando(false);
   }
 
   const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '';
@@ -702,7 +721,22 @@ function PedidoAlimento({ pedido, onResuelto }) {
         </>
       )}
       {error && <p className="jb-body text-xs text-red-400">{error}</p>}
-      <button onClick={descartar} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
+      {descartando ? (
+        <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 flex flex-col gap-2">
+          <label className="jb-body text-[11px] text-zinc-400">Mensaje para quien lo pidió (déjalo vacío para no avisar)
+            <textarea value={respuesta} onChange={e => setRespuesta(e.target.value)} maxLength={300} rows={3}
+              className={inputCls + ' w-full text-sm mt-1'} />
+          </label>
+          <div className="flex gap-2">
+            <button onClick={descartar} disabled={guardando} className={btnGhost + ' flex-1 text-xs py-2'}>
+              {guardando ? <Loader2 size={14} className="animate-spin" /> : respuesta.trim() ? 'Descartar y avisar' : 'Descartar sin avisar'}
+            </button>
+            <button onClick={() => setDescartando(false)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 px-2">Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={abrirDescarte} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
+      )}
     </div>
   );
 }
@@ -804,14 +838,17 @@ function PedidosAlimentosPanel() {
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar, el alimento aparece al momento en la app y avisamos a quien lo pidió.</p>
+            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar o descartar, avisamos a quien lo pidió (y lo ve también al abrir la app).</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
 
           {resueltos.map((r, i) => (
-            <div key={i} className="bg-emerald-950/30 border border-emerald-900 rounded-xl p-3">
-              <p className="jb-body text-sm text-emerald-300 font-semibold">✅ {r.nombre} ya está en la app</p>
-              <ResultadoAvisos nombre={r.nombre} avisos={r.avisos} />
+            <div key={i} className={`rounded-xl p-3 border ${r.descartado ? 'bg-zinc-950 border-zinc-800' : 'bg-emerald-950/30 border-emerald-900'}`}>
+              <p className={`jb-body text-sm font-semibold ${r.descartado ? 'text-zinc-300' : 'text-emerald-300'}`}>
+                {r.descartado ? `🗑️ Descartaste "${r.nombre}"${r.respuesta ? '' : ' (sin avisar)'}` : `✅ ${r.nombre} ya está en la app`}
+              </p>
+              <ResultadoAvisos nombre={r.nombre} avisos={r.avisos}
+                mensaje={r.descartado && r.respuesta ? `Sobre tu pedido *${r.nombre}*: ${r.respuesta}` : undefined} />
             </div>
           ))}
 

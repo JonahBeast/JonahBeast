@@ -9,6 +9,14 @@
 //                app lo muestra al momento) y se avisa a quienes lo pidieron:
 //                por WhatsApp (si escribieron en las últimas 24 h, la regla de
 //                Meta) o con una notificación en la app. Sin id, solo agrega.
+//   "descartar" → {id, respuesta}: el pedido queda descartado con el mensaje
+//                de Jonah (ej. "Ya estaba en la app como …") y se le avisa a
+//                quien lo pidió por las mismas vías.
+//
+// Además de la notificación, la app le muestra al alumno sus pedidos
+// resueltos al abrirla (función mis_pedidos_resueltos), así se entera aunque
+// tenga los avisos apagados. Al panel se le dice a quién NO le llegó la
+// notificación (avisos.sin_avisos).
 //
 // verify_jwt = false porque el candado de admin está en el código (igual
 // que jarvis-chat). Publicación (regla de CLAUDE.md): solo después del
@@ -49,9 +57,10 @@ Deno.serve(async (req) => {
     const { data: perfil } = await supabase.from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
     if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
 
-    const { accion, id, nombre, alimento } = await req.json();
+    const { accion, id, nombre, alimento, respuesta } = await req.json();
     if (accion === "calcular") return json(await calcular(String(nombre || "").trim().slice(0, 80), id));
     if (accion === "aprobar") return json(await aprobar(alimento, id));
+    if (accion === "descartar") return json(await descartar(Number(id), respuesta));
     return json({ error: "Acción desconocida." }, 400);
   } catch (e) {
     const mensaje = (e as Error)?.message || "Error inesperado.";
@@ -206,7 +215,10 @@ async function aprobar(entrada: any, id?: number) {
   if (!id) return { ok: true, alimento_id: nuevo.id, avisos: null };
 
   const { data: pedido } = await supabase.from("pedidos_alimentos").select("*").eq("id", id).maybeSingle();
-  const avisos = pedido ? await avisarSolicitantes(pedido.solicitantes || [], alimento.nombre) : null;
+  const avisos = pedido ? await avisarSolicitantes(pedido.solicitantes || [], {
+    push: `✅ ¡Listo! ${alimento.nombre} ya está en la app. Búscalo en "REGISTRAR" → "Escribir" 🙌`,
+    whatsapp: `✅ ¡Listo! *${alimento.nombre}* ya está en la app 🙌\nCierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir".\n¿Me avisas si todo está conforme?`,
+  }) : null;
   await supabase.from("pedidos_alimentos").update({
     estado: "agregado", alimento_id: nuevo.id, avisos,
     resuelto_en: new Date().toISOString(), actualizado_en: new Date().toISOString(),
@@ -214,17 +226,37 @@ async function aprobar(entrada: any, id?: number) {
   return { ok: true, alimento_id: nuevo.id, avisos };
 }
 
-// A cada persona que pidió el plato se le avisa una sola vez.
-async function avisarSolicitantes(solicitantes: any[], nombre: string) {
+async function descartar(id: number, respuesta: unknown) {
+  if (!id) throw new ErrorDeDatos("Falta el pedido.");
+  const texto = String(respuesta || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  const { data: pedido } = await supabase.from("pedidos_alimentos").select("*").eq("id", id).maybeSingle();
+  if (!pedido) throw new ErrorDeDatos("Ese pedido ya no existe.");
+  if (pedido.estado !== "pendiente") throw new ErrorDeDatos("Ese pedido ya estaba resuelto.");
+  const avisos = texto ? await avisarSolicitantes(pedido.solicitantes || [], {
+    push: `Sobre tu pedido "${pedido.nombre}": ${texto}`,
+    whatsapp: `Sobre tu pedido *${pedido.nombre}*: ${texto}`,
+  }) : null;
+  const ahora = new Date().toISOString();
+  const { error } = await supabase.from("pedidos_alimentos").update({
+    estado: "descartado", respuesta: texto || null, avisos, resuelto_en: ahora, actualizado_en: ahora,
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  return { ok: true, avisos };
+}
+
+// A cada persona que pidió el plato se le avisa una sola vez. En la app,
+// solo cuenta como avisado quien tiene los avisos activos y le llegó el
+// envío; al resto se le lista en sin_avisos (igual lo verá al abrir la app).
+async function avisarSolicitantes(solicitantes: any[], mensajes: { push: string; whatsapp: string }) {
   const telefonos = [...new Set(solicitantes.filter((s) => s?.origen === "whatsapp" && s.telefono).map((s) => String(s.telefono)))];
   const usernames = [...new Set(solicitantes.filter((s) => s?.origen !== "whatsapp" && s.username).map((s) => String(s.username)))];
-  const avisos = { whatsapp: [] as string[], app: usernames, a_mano: [] as { telefono: string; nombre: string | null }[] };
+  const avisos = { whatsapp: [] as string[], app: [] as string[], sin_avisos: [] as string[], a_mano: [] as { telefono: string; nombre: string | null }[] };
 
   if (telefonos.length) {
     const { data: cuenta } = await supabase.from("whatsapp_cuenta").select("phone_number_id, token").eq("id", 1).maybeSingle();
     for (const telefono of telefonos) {
       const nombreCliente = solicitantes.find((s) => String(s.telefono) === telefono)?.nombre || null;
-      const enviado = cuenta?.token ? await avisarPorWhatsApp(cuenta, telefono, nombre).catch((e) => {
+      const enviado = cuenta?.token ? await avisarPorWhatsApp(cuenta, telefono, mensajes.whatsapp).catch((e) => {
         console.error("No se pudo avisar por WhatsApp:", (e as Error)?.message);
         return false;
       }) : false;
@@ -233,18 +265,22 @@ async function avisarSolicitantes(solicitantes: any[], nombre: string) {
   }
 
   if (usernames.length) {
-    await enviarPush({ usernames, body: `✅ ¡Listo! ${nombre} ya está en la app. Búscalo en "REGISTRAR" → "Escribir" 🙌` });
+    const { data: subs } = await supabase.from("push_subs").select("username").eq("activa", true).in("username", usernames);
+    const conAvisos: string[] = [...new Set<string>((subs || []).map((s: any) => String(s.username)))];
+    avisos.sin_avisos = usernames.filter((u) => !conAvisos.includes(u));
+    const enviados = conAvisos.length ? await enviarPush({ usernames: conAvisos, body: mensajes.push }) : 0;
+    if (enviados > 0) avisos.app = conAvisos;
+    else avisos.sin_avisos = usernames;
   }
   return avisos;
 }
 
-async function avisarPorWhatsApp(cuenta: any, telefono: string, nombre: string) {
+async function avisarPorWhatsApp(cuenta: any, telefono: string, texto: string) {
   // Meta solo deja escribir sin plantilla dentro de las 24 h desde el último mensaje del cliente.
   const { data: ultimo } = await supabase.from("whatsapp_mensajes").select("creado_en")
     .eq("telefono", telefono).eq("direccion", "entrante").order("creado_en", { ascending: false }).limit(1).maybeSingle();
   if (!ultimo || Date.now() - new Date(ultimo.creado_en).getTime() > VENTANA_WHATSAPP_MS - 5 * 60000) return false;
 
-  const texto = `✅ ¡Listo! *${nombre}* ya está en la app 🙌\nCierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir".\n¿Me avisas si todo está conforme?`;
   const r = await fetch(`${GRAPH}/${cuenta.phone_number_id}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${cuenta.token}`, "Content-Type": "application/json" },
@@ -258,16 +294,20 @@ async function avisarPorWhatsApp(cuenta: any, telefono: string, nombre: string) 
   return true;
 }
 
-async function enviarPush(datos: { usernames?: string[]; admin?: boolean; body: string }) {
-  if (!AVISO_SECRETO) return;
+// Devuelve cuántas notificaciones salieron (0 si no se pudo).
+async function enviarPush(datos: { usernames?: string[]; admin?: boolean; body: string }): Promise<number> {
+  if (!AVISO_SECRETO) return 0;
   try {
-    await fetch("https://jonahbeast.com/api/aviso-push", {
+    const r = await fetch("https://jonahbeast.com/api/aviso-push", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-webhook-secret": AVISO_SECRETO },
       body: JSON.stringify(datos),
     });
+    const data = await r.json().catch(() => ({}));
+    return Number(data?.enviados) || 0;
   } catch (e) {
     console.error("No se pudo mandar el aviso push:", (e as Error)?.message);
+    return 0;
   }
 }
 

@@ -285,6 +285,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - O **pídelo por WhatsApp** al **+51 963 760 819** (ej. "¿Pueden agregar plátano bellaco?"). Te responden "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪".
 - Si la foto detecta un plato que no está en la app, avisa "Ya le avisamos a Jonah para agregarlo 🙌": el pedido le llega a Jonah igual que por WhatsApp.
 - Jonah revisa los macros y lo agrega. **Cuando está listo te avisan**: por WhatsApp ("✅ ¡Listo! [plato] ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?") o, si lo pediste desde la app o la foto, con una notificación ("✅ ¡Listo! [plato] ya está en la app…"; si tienes los avisos activados, sección 14).
+- Si Jonah **no lo agrega** (por ejemplo, porque ya estaba en la app con otro nombre o no se pudo identificar), te llega su mensaje por la misma vía: "Sobre tu pedido "[plato]": [mensaje de Jonah]".
+- **Aunque tengas los avisos apagados, te enteras igual:** al abrir la app aparece arriba la tarjeta **"🍽️ NOVEDADES DE TUS PEDIDOS"** con "✅ [plato] ya está en la app." por cada alimento agregado y "💬 [plato]: [mensaje de Jonah]" por los que no se agregaron. Toca **"Entendido"** para cerrarla. Muestra lo resuelto en los últimos 7 días que todavía no viste en ese celular.
 - Los alimentos nuevos aparecen al **cerrar y volver a abrir la app** (no hace falta actualizarla desde Play Store). Se buscan y se reconocen en fotos igual que los demás.
 
 ### 8.6 "NUNCA ME SUGIERAS ESTO"

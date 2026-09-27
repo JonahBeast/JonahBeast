@@ -152,9 +152,11 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 ### 6.2 "¡TU PLAN ESTÁ LISTO!" (primera comida en 1 toque)
 
 - Aparece a quien **nunca registró una comida**, apenas tiene sus datos del cuerpo y su objetivo (o sea, su meta ya está calculada).
-- Muestra **"Te tocan X kcal al día"** y la pregunta según la hora (**"¿QUÉ DESAYUNASTE HOY?"**, **"¿QUÉ ALMORZASTE HOY?"**, **"¿QUÉ CENASTE HOY?"**…), con 6 platos comunes de esa comida, cada uno con su porción y calorías.
+- Muestra **"Te tocan X kcal al día"** y la pregunta según la hora (**"¿QUÉ DESAYUNASTE HOY?"**, **"¿QUÉ ALMORZASTE HOY?"**, **"¿QUÉ CENASTE HOY?"**…).
+- Lo primero es el botón naranja **"📷 Tómale foto a lo que vas a comer"** ("La IA reconoce tu plato y te dice sus calorías"): abre la cámara directo para la comida de la hora (sección 9).
+- Debajo, "O toca uno de estos…" con 6 platos comunes de esa comida, cada uno con su porción y calorías.
 - **Un toque en un plato** lo registra en la comida de la hora, lleva a "Comidas" y sale "✅ [plato] registrado en [comida]". La cantidad se ajusta después con − / +.
-- **"Foto o buscar otro plato"** abre la hoja "REGISTRAR" de esa comida.
+- **"Buscar otro plato"** abre la hoja "REGISTRAR" de esa comida.
 - **"Ahora no"** la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
 
 ---
@@ -164,7 +166,7 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 De arriba hacia abajo:
 
 - **Un aviso a la vez** (el más importante): renovación → prueba gratis → notificaciones → instalar la app.
-- **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora".
+- **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora". Mientras falte la primera comida, el botón dice **"📷 Tómale foto a lo que vas a comer"** y abre la cámara directo (lo mismo al tocar el paso 1).
 - **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": tocando un ícono vas directo a esa comida.
   - Si aparece **"Meta estimada. Ajústala a tu cuerpo en 30 segundos"**, faltan tus datos o tu objetivo (ver sección 10).
 - **"¿COMISTE PARECIDO A AYER?"** (solo si hoy no registraste nada y ayer sí): **"Repetir ayer"** copia todas las comidas de ayer.
@@ -206,7 +208,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 **B) Foto (la inteligencia artificial reconoce el plato)**
 1. Toca **"Foto"** → **"Tomar foto"**.
 2. Espera el escaneo. Verás "⚡ N ALIMENTOS DETECTADOS".
-3. Desmarca lo que no corresponda. Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
+3. Desmarca lo que no corresponda. **Si la IA se equivocó**, debajo de lo que desmarcaste toca **"¿Qué era en realidad?"**, búscalo y elígelo: se registra ese alimento con la porción que calculó la IA y sale "✏️ Corregido: la IA dijo [lo que dijo]" (con **"Deshacer"**). En las preguntas "¿cuál es?" está también **"Era otro…"** para lo mismo. La IA recuerda tus correcciones: en tus próximas fotos, si ve algo parecido, ya sabe lo que es en realidad. Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
    - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
    - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?").
@@ -547,7 +549,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 | 9:00 am | Registrar desayuno (si falta) · aviso de vencimiento de prueba o plan (2 días antes y el día que vence) |
 | 10:00 am | Control quincenal: medirse con cinta y fotos de progreso (cada 15 días desde las últimas medidas o fotos) |
 | 11:00 am | Registrar media mañana (si falta) |
-| 12:30 pm | Ayuda para alumnos nuevos (primeros 5 días) |
+| 12:30 pm | Ayuda para alumnos nuevos (primeros 5 días): quien no registró nada, una invitación a tomarle foto a su comida (días 1, 2, 3 y 5); quien registra pero nunca usó la foto, una invitación a probar la captura inteligente (días 2 y 4). Al tocarlas se abre la cámara directo |
 | 1:00 pm | Registrar almuerzo (si falta) |
 | 3:00 pm | Hidratación |
 | 5:00 pm | Registrar media tarde (si falta) |

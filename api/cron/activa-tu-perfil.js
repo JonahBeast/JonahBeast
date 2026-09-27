@@ -10,6 +10,10 @@
 //   - Quien ya registra comidas pero no tiene sus datos u objetivo
 //     recibe UN solo aviso amable (día 3) para ajustar su meta; al
 //     tocarlo se abre su pantalla de datos u objetivo.
+//   - Quien ya registra comidas pero NUNCA probó la foto (captura
+//     inteligente) recibe una invitación en sus días 2 y 4. Al tocarla
+//     se abre la cámara directo (&foto=1).
+// Los avisos que invitan a tomar foto abren la cámara directo.
 //
 // Cron en vercel.json: "30 17 * * *" (17:30 UTC = 12:30 Perú)
 
@@ -29,6 +33,18 @@ function tieneDatosBasicos(f) {
   return !(peso === 70 && estatura === 170 && Number(f?.cintura) === 85);
 }
 
+// Invitación a probar la foto, para quien registra comidas sin usarla.
+// En la prueba: 3 fotos al día los 3 primeros días y luego 5 por semana;
+// con un plan, 5 al día.
+const PRUEBA_LA_FOTO = {
+  2: (a) => a.plan === 'trial' || a.plan === 'prueba'
+    ? 'Hoy tienes 3 fotos gratis 📸 Tómale foto a tu próxima comida y te digo calorías y proteína en segundos.'
+    : 'Tienes 5 fotos al día 📸 Tómale foto a tu próxima comida y te digo calorías y proteína en segundos.',
+  4: (a) => a.plan === 'trial' || a.plan === 'prueba'
+    ? '¿Ya probaste la captura inteligente? Esta semana tienes 5 fotos gratis. Pruébala con tu almuerzo 🍽️📸'
+    : '¿Ya probaste la captura inteligente? Foto a tu plato y la IA lo registra por ti 🍽️📸',
+};
+
 const AJUSTA_META = { dia: 3, body: 'Vas bien registrando 💪 Ahora ajusta tu meta a tu cuerpo: edad, estatura y peso, 30 segundos.' };
 
 export default async function handler(req, res) {
@@ -40,7 +56,7 @@ export default async function handler(req, res) {
 
   try {
     const { data: alumnos, error } = await supabase
-      .from('alumnos').select('username, fecha_inicio')
+      .from('alumnos').select('username, fecha_inicio, plan')
       .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
 
@@ -48,11 +64,14 @@ export default async function handler(req, res) {
     if (!candidatos.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'nadie en sus primeros 5 días' });
 
     const usernames = candidatos.map(a => a.username);
-    const [{ data: comidas }, { data: datos }] = await Promise.all([
+    const [{ data: comidas }, { data: datos }, { data: fotos }] = await Promise.all([
       supabase.from('historial').select('username').in('username', usernames).gt('comidas_count', 0),
       supabase.from('datos_alumnos').select('username, form').in('username', usernames),
+      // Fotos de comida (no cuenta leer etiquetas de productos).
+      supabase.from('fotos_reconocimiento_uso').select('username, periodo').in('username', usernames).gt('usadas', 0),
     ]);
     const registro = new Set((comidas || []).map(r => r.username));
+    const usoFoto = new Set((fotos || []).filter(r => !String(r.periodo || '').startsWith('etiqueta-')).map(r => r.username));
     const metaLista = {};
     (datos || []).forEach(d => {
       const f = d.form || {};
@@ -63,9 +82,11 @@ export default async function handler(req, res) {
     for (const a of candidatos) {
       const dia = diasDesde(a.fecha_inicio, hoyISO);
       if (!registro.has(a.username)) {
-        if (PRIMERA_COMIDA[dia]) envios.push({ username: a.username, body: PRIMERA_COMIDA[dia], url: '/?registrar=ahora', tipo: 'primera_comida' });
+        if (PRIMERA_COMIDA[dia]) envios.push({ username: a.username, body: PRIMERA_COMIDA[dia], url: '/?registrar=ahora&foto=1', tipo: 'primera_comida' });
       } else if (!metaLista[a.username] && dia === AJUSTA_META.dia) {
         envios.push({ username: a.username, body: AJUSTA_META.body, url: '/?ir=meta', tipo: 'ajusta_meta' });
+      } else if (!usoFoto.has(a.username) && PRUEBA_LA_FOTO[dia]) {
+        envios.push({ username: a.username, body: PRUEBA_LA_FOTO[dia](a), url: '/?registrar=ahora&foto=1', tipo: 'prueba_la_foto' });
       }
     }
 
@@ -79,6 +100,7 @@ export default async function handler(req, res) {
       ok: true, enviados, fallidos,
       primera_comida: envios.filter(e => e.tipo === 'primera_comida').length,
       ajusta_meta: envios.filter(e => e.tipo === 'ajusta_meta').length,
+      prueba_la_foto: envios.filter(e => e.tipo === 'prueba_la_foto').length,
     });
   } catch (e) {
     console.error(e);

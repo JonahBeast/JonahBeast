@@ -2867,6 +2867,29 @@ const textoInvitacion = codigo => codigo
   ? `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi código ${codigo} tienes 10% de descuento en tu primer plan: ${linkInvitacion(codigo)}`
   : 'Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis: https://jonahbeast.com';
 
+/* Copia el link de invitación para pegarlo en el sticker "Enlace" de
+   Instagram (las historias no conservan el texto que acompaña la imagen).
+   Se llama apenas se toca el botón, antes de cualquier espera, porque
+   algunos celulares solo dejan copiar en ese instante. */
+function copiarLinkInvitacion() {
+  const link = codigoInvitacion().then(c => (c ? linkInvitacion(c) : Promise.reject(new Error('sin código'))));
+  try {
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      return navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(t => new Blob([t], { type: 'text/plain' })) })])
+        .then(() => true, () => link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false));
+    }
+  } catch {}
+  return link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false);
+}
+
+function AvisoLinkCopiado() {
+  return (
+    <p className="jb-body text-xs text-orange-300 bg-orange-500/10 border border-orange-500/30 rounded-xl px-3 py-2 mt-2 text-center">
+      🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker <b>"Enlace"</b> y pégalo, así tus amigos pueden tocarlo.
+    </p>
+  );
+}
+
 async function imagenSemana({ nombre, r, codigo = null }) {
   try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
   const W = 1080, H = 1920;
@@ -2996,6 +3019,7 @@ function TuSemanaCard({ username, nombre }) {
   const [cerrada, setCerrada] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
   const [r, setR] = useState(null);
   const [compartiendo, setCompartiendo] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
   const toca = diaSemana <= 2 && !cerrada;
 
   useEffect(() => {
@@ -3015,6 +3039,7 @@ function TuSemanaCard({ username, nombre }) {
   }
   async function compartir() {
     setCompartiendo(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
       const codigo = await codigoInvitacion();
       const blob = await imagenSemana({ nombre, r, codigo });
@@ -3061,6 +3086,7 @@ function TuSemanaCard({ username, nombre }) {
       <button onClick={compartir} disabled={compartiendo} className={btnPrimary + ' w-full py-2.5 mt-3'}>
         {compartiendo ? <Loader2 className="animate-spin" size={16} /> : '📲 Compartir en historias'}
       </button>
+      {linkCopiado && <AvisoLinkCopiado />}
     </div>
   );
 }
@@ -3724,11 +3750,13 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
 function BotonCompartir({ username, nombre, rows, stats }) {
   const [generando, setGenerando] = useState(false);
   const [err, setErr] = useState('');
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   const hayDatos = rows && rows.length >= 2;
 
   async function compartir() {
     setErr(''); setGenerando(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
       const codigo = await codigoInvitacion();
       // Datos a mostrar
@@ -3838,6 +3866,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
         {generando ? <Loader2 className="animate-spin" size={18} /> : <>📤 Compartir mi progreso</>}
       </button>
       {err && <p className="text-amber-400 text-xs jb-body mt-2 text-center">{err}</p>}
+      {linkCopiado && <AvisoLinkCopiado />}
       <p className="jb-body text-[11px] text-zinc-600 mt-2 text-center">
         Genera una imagen con tus resultados para compartir donde quieras.
       </p>

@@ -196,7 +196,11 @@ Deno.serve(async (req) => {
     // IA a desempatar entre alimentos que se ven iguales en foto (ej. pollo
     // y pavita). Va en el mensaje, no en las instrucciones, para no romper
     // la caché que comparten todas las fotos.
-    const frecuentes = await alimentosFrecuentes(supabase, username, new Set(alimentosValidos.map((a: any) => a.key)));
+    const clavesOk = new Set(alimentosValidos.map((a: any) => a.key));
+    const [frecuentes, corregidos] = await Promise.all([
+      alimentosFrecuentes(supabase, username, clavesOk),
+      correccionesDelAlumno(supabase, username, clavesOk),
+    ]);
 
     const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
@@ -209,6 +213,8 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 - Fideos con salsa ROJA de tomate son "Tallarines rojos" (con pollo o con carne molida, según lo que se vea).
 - La ocopa y la huancaína son salsas que se sirven sobre PAPA sancochada (en rodajas), no sobre fideos; la huancaína es amarilla y la ocopa verde-amarillenta y espesa.
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
+
+Si te paso "Correcciones que este alumno ya hizo", son fotos anteriores donde la IA se equivocó y el alumno eligió el alimento correcto (ej. la IA dijo pollo y era pavita). Si algo de esta foto se parece a lo que la IA dijo antes, lo más probable es que sea lo que el alumno corrigió: úsalo como "key", o en "opciones" en primer lugar si no estás seguro.
 
 Si te paso "Lo que este alumno suele comer" (lo que más registró en las últimas 2 semanas), úsalo SOLO para desempatar cuando algo de la foto se parece a dos o más alimentos de la lista: prefiere el que el alumno suele comer. Nunca agregues un alimento solo porque está en esa lista: tiene que verse en la foto.
 
@@ -264,6 +270,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
               { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
               { type: "text", text: [
                 listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
+                corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
                 frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
                 "Identifica los alimentos de esta foto.",
               ].filter(Boolean).join("\n\n") },
@@ -568,6 +575,39 @@ async function alimentosFrecuentes(supabase: any, username: string, validas: Set
     return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k]) => k);
   } catch (e) {
     console.error("No se pudieron leer los alimentos frecuentes:", (e as Error)?.message);
+    return [];
+  }
+}
+
+// Hasta 8 correcciones del alumno en los últimos 60 días: en las fotos
+// anteriores la IA sugirió X y el alumno eligió "¿Qué era en realidad?" → Y
+// (reconocimiento_foto_feedback.sugeridos[].corregido_a). Solo las que
+// siguen existiendo en la lista. Si algo falla, se sigue sin esta ayuda.
+async function correccionesDelAlumno(supabase: any, username: string, validas: Set<string>): Promise<string[]> {
+  try {
+    const desde = new Date(Date.now() - 60 * 86_400_000).toISOString();
+    const { data, error } = await supabase.from("reconocimiento_foto_feedback").select("sugeridos")
+      .eq("username", username).gte("created_at", desde).order("created_at", { ascending: false }).limit(100);
+    if (error) throw error;
+    // Cada foto cuenta una vez por par (en un grupo de opciones, todas
+    // las alternativas llevan la misma corrección).
+    const pares = new Map<string, { de: Set<string>; a: string; veces: number }>();
+    for (const fila of data || []) {
+      const vistos = new Set<string>();
+      for (const s of Array.isArray(fila?.sugeridos) ? fila.sugeridos : []) {
+        const de = typeof s?.key === "string" ? s.key : "";
+        const a = typeof s?.corregido_a === "string" ? s.corregido_a : "";
+        if (!de || !a || de === a || !validas.has(a)) continue;
+        const p = pares.get(a) || { de: new Set<string>(), a, veces: 0 };
+        p.de.add(de);
+        if (!vistos.has(a)) { p.veces++; vistos.add(a); }
+        pares.set(a, p);
+      }
+    }
+    return [...pares.values()].sort((x, y) => y.veces - x.veces).slice(0, 8)
+      .map((p) => `${[...p.de].slice(0, 3).join(" o ")} → ${p.a} (${p.veces} ${p.veces === 1 ? "vez" : "veces"})`);
+  } catch (e) {
+    console.error("No se pudieron leer las correcciones:", (e as Error)?.message);
     return [];
   }
 }

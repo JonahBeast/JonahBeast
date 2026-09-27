@@ -2973,6 +2973,24 @@ function ReconocimientoFotoPanel() {
   }));
   const pctPorcion = n => porciones.total ? Math.round((n / porciones.total) * 100) : 0;
 
+  // "¿Qué era en realidad?": lo que la IA dijo y lo que el alumno eligió.
+  // Muestra qué confunde más la IA (ej. pollo → pavita), contando cada
+  // foto una vez por corrección.
+  const confusiones = {};
+  filas.forEach(f => {
+    const porFoto = {};
+    (f.sugeridos || []).forEach(it => {
+      if (!it?.key || !it?.corregido_a || it.key === it.corregido_a) return;
+      (porFoto[it.corregido_a] = porFoto[it.corregido_a] || new Set()).add(it.key);
+    });
+    Object.entries(porFoto).forEach(([a, des]) => {
+      const clave = [...des].sort().join(' | ') + ' → ' + a;
+      confusiones[clave] = confusiones[clave] || { de: [...des], a, veces: 0 };
+      confusiones[clave].veces++;
+    });
+  });
+  const listaConfusiones = Object.values(confusiones).sort((x, y) => y.veces - x.veces).slice(0, 10);
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
@@ -3014,6 +3032,22 @@ function ReconocimientoFotoPanel() {
                       {porciones.conAceite > 0 && ` · marcó más aceite en ${porciones.aceite} de ${porciones.conAceite} fritos/saltados`}
                     </p>
                   </>
+                )}
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 jb-body text-sm text-zinc-300">
+                <p className="text-zinc-200 font-semibold mb-1">✏️ Qué confunde la IA (correcciones de los alumnos)</p>
+                {listaConfusiones.length === 0 ? (
+                  <p className="text-xs text-zinc-500">Aún no hay correcciones. Aparecen cuando un alumno toca "¿Qué era en realidad?" en una foto.</p>
+                ) : (
+                  <div className="flex flex-col gap-1 mt-1">
+                    {listaConfusiones.map((c, i) => (
+                      <p key={i} className="text-xs text-zinc-400">
+                        La IA dijo <span className="text-zinc-200">{c.de.map(k => buscarFood(k)?.name || k).join(' o ')}</span> → era{' '}
+                        <span className="text-orange-400 font-semibold">{buscarFood(c.a)?.name || c.a}</span>{' '}
+                        <span className="text-zinc-500">({c.veces} {c.veces === 1 ? 'vez' : 'veces'})</span>
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto">

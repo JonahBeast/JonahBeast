@@ -34,5 +34,7 @@
 ## Manual de la app y Jarvis
 
 - `docs/manual-app.md` es el manual de la app (pantallas, botones y mensajes). Lo usan Jarvis y el asistente de WhatsApp.
-- **Cada cambio que el alumno vea en la app se anota en el manual en el mismo PR**, y después se corre `npm run manual-jarvis` para copiarlo a Jarvis (`supabase/functions/jarvis-chat/manual.ts`). Si se olvida, `npm run build` falla y avisa.
-- Si el cambio toca el manual, después del merge se publica también `jarvis-chat` (con `manual.ts`), para que Jarvis quede al día.
+- **Cada cambio que el alumno vea en la app se anota en el manual en el mismo PR.**
+- Jarvis y el asistente de WhatsApp leen el manual de la tabla `manual_app` de la base (una sola fila), no de su código. Por eso, **si el cambio toca el manual, después del merge se actualiza esa fila con el texto de `docs/manual-app.md` que quedó en `main`** (y el commit en `commit_main`). Se comprueba que quedó idéntico comparando el `md5` de la base con el del archivo. Luego se me dice de qué commit quedó.
+- Un cambio que solo toca el manual ya **no** obliga a volver a publicar `jarvis-chat` ni `whatsapp-webhook`.
+- `npm run manual-jarvis` sigue copiando la lista de alimentos de `src/App.jsx` a `whatsapp-webhook` y `alimentos-pedidos` (`alimentos.ts`). Si se olvida, `npm run build` falla y avisa.

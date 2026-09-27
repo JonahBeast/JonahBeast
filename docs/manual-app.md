@@ -278,7 +278,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.5 Si no encuentras un plato
 
 - Prueba con otra palabra, elige algo parecido o créalo (8.4).
-- **Pídelo desde la app:** en el buscador, si no aparece, toca **"🙋 Pedirle a Jonah que lo agregue"** (también sale al final de la lista como **"🙋 Pedirle a Jonah que agregue "[lo que escribiste]""**). Sale "🍽️ ¡Buen pedido! Jonah va a calcular los macros de [plato]. Te avisamos apenas esté en la app 💪". Máximo 10 pedidos al día.
+- **Pídelo desde la app:** al tocar **"Escribir"**, debajo del buscador vacío sale "¿No encuentras tu plato? Escríbelo y toca 🙋 Pedirle a Jonah: lo agregamos y te avisamos."
+  - Si lo que escribiste no aparece, el primer botón (naranja) es **"🙋 Pedirle a Jonah que lo agregue"** ("Él calcula los macros y te avisamos cuando esté"). Debajo está **"+ Crear mi alimento"** por si prefieres poner tú los números (8.4).
+  - Si aparecen resultados pero ninguno es, al final de la lista sale en naranja **"🙋 ¿No es ninguno? Pídele a Jonah que agregue "[lo que escribiste]""**.
+  - Al pedirlo sale "🍽️ ¡Buen pedido! Jonah va a calcular los macros de [plato]. Te avisamos apenas esté en la app 💪". Máximo 10 pedidos al día.
 - O **pídelo por WhatsApp** al **+51 963 760 819** (ej. "¿Pueden agregar plátano bellaco?"). Te responden "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]… Te aviso apenas esté en la app 💪".
 - Si la foto detecta un plato que no está en la app, avisa "Ya le avisamos a Jonah para agregarlo 🙌": el pedido le llega a Jonah igual que por WhatsApp.
 - Jonah revisa los macros y lo agrega. **Cuando está listo te avisan**: por WhatsApp ("✅ ¡Listo! [plato] ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?") o, si lo pediste desde la app o la foto, con una notificación ("✅ ¡Listo! [plato] ya está en la app…"; si tienes los avisos activados, sección 14).

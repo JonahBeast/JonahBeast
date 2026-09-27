@@ -38,8 +38,12 @@ const PLANES = [
 
 // Personalidad e instrucciones fijas: van en el system prompt (no cambian
 // entre llamadas). Los datos en vivo y los precios van en un bloque aparte.
-const JARVIS_PERSONA = `Eres Jarvis, el asistente del panel de administrador de Jonah Beast Fuel, la app de nutrición peruana de Jonah Beast. Responde en español, tono servicial, directo y ligeramente formal, sin inventar datos que no tengas -- si algo no está en el estado del negocio que recibes, dilo con honestidad en vez de adivinar. Sé breve (2-4 frases salvo que te pidan más detalle). No das consejos legales ni financieros formales, solo apoyas con lo operativo del negocio. Puedes usar **negritas** para resaltar nombres o cifras clave; evita tablas y encabezados. Importante: escribe siempre tu propio nombre como "Jarvis", nunca como "J.A.R.V.I.S." ni con puntos entre letras -- estas respuestas se leen en voz alta automáticamente por el navegador (con una voz sintetizada) apenas las escribes -- si Jonah Beast te pregunta si puedes hablar o por qué no te escucha, confirma que sí hablas por defecto y sugiérele revisar el botón 🔊 arriba del panel (debe decir ON) -- nunca digas que solo escribes texto o que no puedes hablar, porque no es cierto. Esa forma con puntos entre letras se pronuncia letra por letra, por eso se evita. Refiérete a la persona con la que hablas como "Jonah Beast, fundador de Jonah Beast Fuel" (o simplemente "Jonah Beast" en el resto de la conversación, sin repetir "fundador" en cada frase) -- nunca uses su nombre legal (Martin Huamani) salvo que él mismo lo use primero. Jonah Beast también tiene su propia cuenta de alumno dentro de la app, con username "martin" (aparece como "JonahBeast" en el campo nombre) -- cuando te pida buscarlo a él mismo ("búscame", "mis datos", "mi cuenta", "a mí mismo"), usa buscar_alumno con la query "martin" directamente, sin pedirle que aclare cuál es su username.
+const JARVIS_PERSONA = `Eres Jarvis, el asistente del panel de administrador de Jonah Beast Fuel, la app de nutrición peruana de Jonah Beast. Responde en español, tono servicial, directo y ligeramente formal, sin inventar datos que no tengas -- si algo no está en el estado del negocio que recibes, dilo con honestidad en vez de adivinar. Sé breve (2-4 frases salvo que te pidan más detalle). No das consejos legales ni financieros formales, solo apoyas con lo operativo del negocio. Puedes usar **negritas** para resaltar nombres o cifras clave; evita tablas y encabezados. Importante: escribe siempre tu propio nombre como "Jarvis", nunca como "J.A.R.V.I.S." ni con puntos entre letras -- estas respuestas se leen en voz alta automáticamente por el navegador (con una voz sintetizada) apenas las escribes -- si Jonah Beast te pregunta si puedes hablar o por qué no te escucha, confirma que sí hablas por defecto y sugiérele revisar el botón 🔊 arriba del panel (debe decir ON) -- nunca digas que solo escribes texto o que no puedes hablar, porque no es cierto. Esa forma con puntos entre letras se pronuncia letra por letra, por eso se evita. Trata SIEMPRE de usted a la persona con la que hablas, como un mayordomo a su jefe; es Jonah Beast, fundador de Jonah Beast Fuel. El panel ya lo saludó como "señor Jonah" al abrir, así que durante la conversación dile solo "señor" (ej. "Enseguida, señor", "Buenas noticias, señor"), nunca "Jonah" ni "Jonah Beast" a secas. No lo repitas en cada frase: una vez por respuesta basta -- nunca uses su nombre legal (Martin Huamani) salvo que él mismo lo use primero. Jonah Beast también tiene su propia cuenta de alumno dentro de la app, con username "martin" (aparece como "JonahBeast" en el campo nombre) -- cuando te pida buscarlo a él mismo ("búscame", "mis datos", "mi cuenta", "a mí mismo"), usa buscar_alumno con la query "martin" directamente, sin pedirle que aclare cuál es su username.
 
+
+Personalidad (humor medio): eres el mayordomo ingenioso de Jonah Beast, al estilo del Jarvis de las películas. Seguro, elegante y con humor seco: como máximo un comentario ingenioso breve por respuesta, y solo cuando encaja (una buena noticia, un récord, algo curioso), nunca a costa de la claridad ni de los alumnos. Celebra los logros de verdad con un toque de orgullo ("Tres pagos antes del mediodía. A este ritmo voy a necesitar una calculadora más grande."). Cuando algo va mal, dilo directo y con calma, sin dramatismo, y propone qué hacer. Explica lo técnico en palabras simples: Jonah Beast no es programador. Nada de exclamaciones exageradas ni emojis en exceso (uno ocasional está bien).
+
+Proactividad: al terminar una respuesta, si hay un siguiente paso útil y concreto que puedas hacer con tus herramientas o datos, propónlo en una sola pregunta corta al final (ej. "¿Desea que le diga quiénes vencen esta semana?"). No propongas nada si la respuesta ya cierra el tema, y nunca hagas acciones por tu cuenta: solo sugieres, Jonah Beast decide.
 
 Tarjetas visuales: el panel muestra tus cifras clave como tarjetas holográficas. Cuando tu respuesta incluya entre 1 y 4 cifras importantes (alumnos, ventas, pagos, conversión, registros...), agrega AL FINAL, después de tu texto, un solo bloque con este formato exacto: <tarjetas>{"tarjetas":[{"titulo":"Alumnos activos","valor":"28","detalle":"13 con avisos activos"}],"barras":{"titulo":"Registros por día","datos":[{"etiqueta":"Lun","valor":8},{"etiqueta":"Mar","valor":10}]}}</tarjetas>. Reglas: solo cifras reales que tengas en los datos (nunca inventadas); máximo 4 tarjetas; "valor" corto (ej. "28", "S/ 124.50", "27%"); "detalle" es opcional y breve; "barras" es opcional y solo para series en el tiempo o comparaciones de 2 a 12 valores numéricos. El texto de tu respuesta debe entenderse completo sin el bloque (el bloque no se lee en voz alta). Si la respuesta no trae cifras, no agregues el bloque.
 
@@ -74,14 +78,57 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
    d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
 
-// El manual completo de la app (docs/manual-app.md, copiado en manual.ts):
-// así Jarvis sabe cómo funciona cada pantalla, botón y mensaje para el
-// alumno, y se mantiene al día con cada cambio de la app.
-const MANUAL_JARVIS = `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Úsalo cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti: tú sigues tus propias instrucciones. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
+// Manual de la app (docs/manual-app.md, copiado en manual.ts). Para que
+// cada pregunta no cargue el manual entero (~90% del costo de Jarvis), en
+// cada llamada va solo un resumen: la sección 1 completa y el índice de
+// secciones con sus subtítulos. Cuando Jonah Beast pregunta cómo funciona
+// algo de la app, Jarvis abre las secciones que necesita con la
+// herramienta consultar_manual. El índice se arma solo desde el manual,
+// así que se mantiene al día con cada cambio.
+const SECCIONES_MANUAL: { numero: number; texto: string }[] = MANUAL_APP.split(/\n(?=## )/)
+  .map((texto) => ({ numero: Number((texto.match(/^## (\d+)\./) || [])[1]), texto: texto.trim() }))
+  .filter((s) => Number.isFinite(s.numero));
+const INDICE_MANUAL = SECCIONES_MANUAL.map((s) => {
+  const lineas = s.texto.split("\n");
+  const subtitulos = lineas.filter((l) => l.startsWith("### ")).map((l) => l.replace(/^### /, "")).join("; ");
+  return `- ${lineas[0].replace(/^## /, "")}${subtitulos ? ` (${subtitulos})` : ""}`;
+}).join("\n");
+const RESUMEN_APP = SECCIONES_MANUAL.find((s) => s.numero === 1)?.texto || "";
+const MANUAL_JARVIS = `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Aquí tienes solo el resumen y el índice. Cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas, ANTES de responder usa la herramienta consultar_manual con las secciones que correspondan (hasta 3) y responde con lo que dice el manual, con los nombres exactos de botones y mensajes. Para preguntas del negocio (pagos, alumnos, métricas) no hace falta. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
 
-${MANUAL_APP}`;
+${RESUMEN_APP}
+
+Índice del manual:
+${INDICE_MANUAL}`;
 
 const TOOLS = [
+  {
+    name: "recordar",
+    description: "Guarda una nota en tu memoria permanente (tabla jarvis_memoria) para usarla en todas las conversaciones futuras. ÚSALA SOLO cuando el señor te lo pida explícitamente (\"recuerda que...\", \"acuérdate de...\", \"anota que...\"). Nunca guardes nada por tu cuenta. Escribe la nota corta y clara, en tercera persona (ej. \"Los lunes el señor graba contenido: no sugerir escribir a alumnos ese día\").",
+    input_schema: {
+      type: "object",
+      properties: { nota: { type: "string", description: "La nota a recordar, máximo 300 caracteres" } },
+      required: ["nota"],
+    },
+  },
+  {
+    name: "olvidar",
+    description: "Borra una nota de tu memoria permanente. ÚSALA SOLO cuando el señor te pida olvidar algo (\"olvida que...\", \"ya no recuerdes...\"). Usa el número de la nota que aparece en \"Lo que el señor te pidió recordar\". Si no está claro cuál es, pregunta antes.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "integer", description: "Número de la nota a borrar" } },
+      required: ["id"],
+    },
+  },
+  {
+    name: "consultar_manual",
+    description: "Devuelve el texto completo de secciones del manual de la app (ver el índice del manual). Úsala antes de responder cualquier pregunta sobre cómo funciona la app, qué ve el alumno o qué dice un botón o mensaje.",
+    input_schema: {
+      type: "object",
+      properties: { secciones: { type: "array", items: { type: "integer" }, description: "Números de sección del índice (máximo 3)" } },
+      required: ["secciones"],
+    },
+  },
   {
     name: "ver_pagos",
     description: "Devuelve el detalle de pagos (nombre o username, monto, método, estado y fecha). periodo: 'hoy' (hora de Lima), 'semana' (últimos 7 días) o 'pendientes' (todos los que esperan revisión, de cualquier fecha).",
@@ -388,7 +435,17 @@ Deno.serve(async (req) => {
       .map(([f, v]) => `${f}: ${v.visitantes} visitantes, ${v.clics} clics, ${v.registros} registros, ${v.pagaron} pagaron`)
       .join("; ") || "sin datos aún";
 
-    const contexto = `Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
+    // Memoria permanente: las notas que el señor pidió recordar.
+    const { data: memoria } = await supabase.from("jarvis_memoria").select("id, texto")
+      .order("creado_en", { ascending: true }).limit(50);
+    const memoriaTexto = (memoria || []).length
+      ? (memoria || []).map((m: any) => `- [${m.id}] ${m.texto}`).join("\n")
+      : "(vacía: el señor todavía no te pidió recordar nada)";
+
+    const contexto = `Lo que el señor te pidió recordar (tu memoria permanente; tenla en cuenta en tus respuestas y sugerencias, y úsala con naturalidad, sin recitarla):
+${memoriaTexto}
+
+Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
 - Precios vigentes de los planes: ${preciosTexto}
 - Alumnos totales: ${totalAlumnos}
 - Alumnos con celular capturado: ${conTelefono}
@@ -413,7 +470,7 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       { role: "user", content: pregunta },
     ];
 
-    // La personalidad y el manual de la app van primero y marcados para
+    // La personalidad y el resumen del manual van primero y marcados para
     // caché (son iguales en todas las llamadas); los datos en vivo van
     // después porque cambian siempre.
     const system = [
@@ -481,6 +538,29 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
     const acciones: any[] = [];
 
     async function ejecutarHerramienta(bloque: any): Promise<unknown> {
+      if (bloque.name === "recordar") {
+        const nota = String(bloque.input?.nota || "").replace(/\s+/g, " ").trim().slice(0, 300);
+        if (!nota) return { error: "La nota está vacía." };
+        const { count } = await supabase.from("jarvis_memoria").select("id", { count: "exact", head: true });
+        if ((count || 0) >= 50) return { error: "La memoria está llena (50 notas). Pide al señor que borre alguna." };
+        const { data, error } = await supabase.from("jarvis_memoria").insert({ texto: nota }).select("id").single();
+        if (error) return { error: "No se pudo guardar: " + error.message };
+        return { ok: true, id: data.id, guardado: nota };
+      }
+      if (bloque.name === "olvidar") {
+        const id = Math.round(Number(bloque.input?.id));
+        if (!id) return { error: "Falta el número de la nota." };
+        const { data, error } = await supabase.from("jarvis_memoria").delete().eq("id", id).select("texto");
+        if (error) return { error: "No se pudo borrar: " + error.message };
+        if (!data?.length) return { error: "No existe una nota con ese número." };
+        return { ok: true, borrado: data[0].texto };
+      }
+      if (bloque.name === "consultar_manual") {
+        const pedidas = (Array.isArray(bloque.input?.secciones) ? bloque.input.secciones : []).map(Number).slice(0, 3);
+        const encontradas = SECCIONES_MANUAL.filter((s) => pedidas.includes(s.numero));
+        if (!encontradas.length) return { error: "Esas secciones no existen. Revisa el índice del manual." };
+        return encontradas.map((s) => s.texto).join("\n\n---\n\n");
+      }
       if (bloque.name === "buscar_alumno") {
         // Se quitan los caracteres que tienen significado especial en el
         // filtro de búsqueda, para que el texto se busque tal cual.
@@ -558,7 +638,7 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
           try { resultado = await ejecutarHerramienta(b); }
           catch (e) { resultado = { error: "Falló la herramienta: " + ((e as Error)?.message || "error") }; }
           const esError = !!resultado && typeof resultado === "object" && "error" in (resultado as object);
-          return { type: "tool_result", tool_use_id: b.id, content: JSON.stringify(resultado), ...(esError ? { is_error: true } : {}) };
+          return { type: "tool_result", tool_use_id: b.id, content: typeof resultado === "string" ? resultado : JSON.stringify(resultado), ...(esError ? { is_error: true } : {}) };
         }));
         mensajes.push({ role: "assistant", content: data.content }, { role: "user", content: resultados });
         data = await llamarClaude(mensajes, alTexto);

@@ -42,6 +42,14 @@
     {
       "path": "/api/cron/pesaje-semanal",
       "schedule": "0 13 * * 0"
+    },
+    {
+      "path": "/api/cron/informe-admin",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/prueba-guiada",
+      "schedule": "15 23 * * *"
     }
   ]
 }

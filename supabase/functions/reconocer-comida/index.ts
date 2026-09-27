@@ -192,6 +192,12 @@ Deno.serve(async (req) => {
     const clavesComunes = new Set(alimentosComunes.map((a: any) => a.key));
     const listaPersonales = [...new Set(alimentosPersonales.map((a: any) => a.key))].filter((k) => !clavesComunes.has(k)).join("\n");
 
+    // Lo que este alumno registró más en las últimas 2 semanas: ayuda a la
+    // IA a desempatar entre alimentos que se ven iguales en foto (ej. pollo
+    // y pavita). Va en el mensaje, no en las instrucciones, para no romper
+    // la caché que comparten todas las fotos.
+    const frecuentes = await alimentosFrecuentes(supabase, username, new Set(alimentosValidos.map((a: any) => a.key)));
+
     const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
 Identifica TODOS los alimentos distintos visibles en la foto que coincidan con algo de esta lista. Si hay varios (ej. café + pan + jugo), devuélvelos todos por separado. Si no reconoces nada de la lista con confianza razonable, devuelve una lista vacía — NUNCA inventes una clave que no esté en la lista.
@@ -204,6 +210,8 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 - La ocopa y la huancaína son salsas que se sirven sobre PAPA sancochada (en rodajas), no sobre fideos; la huancaína es amarilla y la ocopa verde-amarillenta y espesa.
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
 
+Si te paso "Lo que este alumno suele comer" (lo que más registró en las últimas 2 semanas), úsalo SOLO para desempatar cuando algo de la foto se parece a dos o más alimentos de la lista: prefiere el que el alumno suele comer. Nunca agregues un alimento solo porque está en esa lista: tiene que verse en la foto.
+
 Si dos o más alimentos de la lista representan la MISMA comida visualmente pero se diferencian por algo que la foto no puede mostrar (ej. "con azúcar" vs "sin azúcar" en una bebida, cuando no se ve el azúcar siendo servida o disuelta), NO elijas uno solo adivinando — en vez de "key", incluye "opciones" con las claves de todas las variantes plausibles (2 o más), y usa confianza "media". Usa "opciones" solo para este caso de ambigüedad real; si no hay duda, usa "key" normal como siempre.
 
 Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclúyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1.
@@ -213,6 +221,7 @@ Cuidado con estos errores comunes que hacen calcular DE MÁS:
 - Arroz: es el alimento que más se calcula de más. Una porción casera servida con cucharón o en molde pesa 120–150 g aunque ocupe un tercio del plato; el arroz cocido es liviano y esponjoso. Da más de 180 g solo si el arroz ocupa claramente la mitad del plato o más, o se ve un montón alto. Si dudas entre dos cantidades, elige la menor.
 - Carnes planas (bistec, milanesa, filete de pollo apanado): en casa peruana suelen ser DELGADAS (0.5–1 cm). Un bistec casero delgado pesa 100–150 g AUNQUE cubra medio plato: una lámina delgada de carne se extiende mucho y pesa poco. Da más de 150 g solo si la carne se ve claramente gruesa (1.5 cm o más) o si hay dos piezas o más.
 - Pavita vs. res: el medallón de pavita (corte del muslo del pavo) es carne oscura en ruedas gruesas y redondas, y se confunde con res. Si la carne tiene forma de medallón redondo y compacto, considera "Pavita muslo (medallón, sin piel)"; si dudas entre pavita y res, usa "opciones" con ambas.
+- Pollo vs. pavita vs. res: cocidos (a la olla, al jugo, guisados, con salsa o sin piel a la vista), una pierna o muslo de pollo, un trozo de pavita y un trozo de res se parecen mucho en foto. Si no puedes asegurar cuál es, NO adivines: usa "opciones" con las 2 o 3 claves plausibles (ej. "Pollo pierna (con piel) (Cocida)" y "Pavita muslo (medallón, sin piel) (Cocida)"), con confianza "media". Si una de ellas está en "Lo que este alumno suele comer", ponla PRIMERA en "opciones".
 - Pavita a la olla / pavita al jugo / pavita guisada: es carne de pavita (muslo) cocinada en su salsa. Registra la carne como "Pavita muslo (medallón, sin piel)" y el arroz u otros acompañamientos aparte; los gramos de la carne son solo la carne, sin contar la salsa.
 - Bistec vs. churrasco: si la carne de res es una lámina delgada, es "bistec", no "churrasco". El churrasco es un corte GRUESO (1.5–2 cm) con borde de grasa visible; úsalo solo si se ve ese grosor.
 - Fideos, tallarines y ensaladas sueltas: si están esparcidos en capa delgada por el plato, pesan menos de lo que parece; un plato llano con fideos esparcidos suele tener 100–150 g. Cuenta la altura del montón, no solo la superficie.
@@ -253,9 +262,11 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
-              { type: "text", text: listaPersonales
-                ? `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}\n\nIdentifica los alimentos de esta foto.`
-                : "Identifica los alimentos de esta foto." },
+              { type: "text", text: [
+                listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
+                frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
+                "Identifica los alimentos de esta foto.",
+              ].filter(Boolean).join("\n\n") },
             ],
           }],
         }),
@@ -529,6 +540,38 @@ async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string, anota
 // Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
 // que el panel de Rentabilidad calcule el costo real. Si falla, no
 // interrumpe nada (solo queda en el log).
+// Hasta 12 alimentos que el alumno registró más en los últimos 14 días
+// (historial.meal_plan.meals), solo los que siguen existiendo en la lista.
+// Lo de los últimos 3 días vale el triple, para que un alimento que el
+// alumno empezó a comer hace poco (ej. pavita) entre rápido a la lista.
+// Si algo falla, se sigue sin esta ayuda.
+async function alimentosFrecuentes(supabase: any, username: string, validas: Set<string>): Promise<string[]> {
+  try {
+    const desde = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+    const reciente = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    const { data, error } = await supabase.from("historial").select("fecha, meal_plan")
+      .eq("username", username).gte("fecha", desde).limit(20);
+    if (error) throw error;
+    const cuenta = new Map<string, number>();
+    for (const fila of data || []) {
+      const peso = typeof fila?.fecha === "string" && fila.fecha >= reciente ? 3 : 1;
+      const comidas = fila?.meal_plan?.meals;
+      if (!comidas || typeof comidas !== "object") continue;
+      for (const lista of Object.values(comidas)) {
+        if (!Array.isArray(lista)) continue;
+        for (const e of lista as any[]) {
+          const k = typeof e?.foodKey === "string" ? e.foodKey : "";
+          if (k && validas.has(k)) cuenta.set(k, (cuenta.get(k) || 0) + peso);
+        }
+      }
+    }
+    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k]) => k);
+  } catch (e) {
+    console.error("No se pudieron leer los alimentos frecuentes:", (e as Error)?.message);
+    return [];
+  }
+}
+
 async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
   try {
     const u = fila.usage || {};

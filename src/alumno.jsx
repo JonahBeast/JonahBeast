@@ -2850,7 +2850,47 @@ function resumenSemana(filas, lunes) {
   return { dias: conComida.length, enMeta, deltaPeso, racha, lunes, domingo };
 }
 
-async function imagenSemana({ nombre, r }) {
+/* Código personal de "Invita a un amigo" (se crea la primera vez). Va en
+   las imágenes que el alumno comparte: quien ve su historia entra con 10%
+   de descuento y el alumno gana 15 días cuando su amigo paga. */
+let codigoInvitacionPromesa = null;
+function codigoInvitacion() {
+  if (!codigoInvitacionPromesa) {
+    codigoInvitacionPromesa = supabase.rpc('mi_codigo_invitacion')
+      .then(({ data, error }) => (!error && data?.codigo ? data.codigo : null), () => null);
+    codigoInvitacionPromesa.then(c => { if (!c) codigoInvitacionPromesa = null; });
+  }
+  return codigoInvitacionPromesa;
+}
+const linkInvitacion = codigo => `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion`;
+const textoInvitacion = codigo => codigo
+  ? `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi código ${codigo} tienes 10% de descuento en tu primer plan: ${linkInvitacion(codigo)}`
+  : 'Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis: https://jonahbeast.com';
+
+/* Copia el link de invitación para pegarlo en el sticker "Enlace" de
+   Instagram (las historias no conservan el texto que acompaña la imagen).
+   Se llama apenas se toca el botón, antes de cualquier espera, porque
+   algunos celulares solo dejan copiar en ese instante. */
+function copiarLinkInvitacion() {
+  const link = codigoInvitacion().then(c => (c ? linkInvitacion(c) : Promise.reject(new Error('sin código'))));
+  try {
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      return navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(t => new Blob([t], { type: 'text/plain' })) })])
+        .then(() => true, () => link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false));
+    }
+  } catch {}
+  return link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false);
+}
+
+function AvisoLinkCopiado() {
+  return (
+    <p className="jb-body text-xs text-orange-300 bg-orange-500/10 border border-orange-500/30 rounded-xl px-3 py-2 mt-2 text-center">
+      🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker <b>"Enlace"</b> y pégalo, así tus amigos pueden tocarlo.
+    </p>
+  );
+}
+
+async function imagenSemana({ nombre, r, codigo = null }) {
   try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
   const W = 1080, H = 1920;
   const canvas = document.createElement('canvas');
@@ -2898,7 +2938,18 @@ async function imagenSemana({ nombre, r }) {
   });
   ctx.font = titulo(92); ctx.fillStyle = CREMA; ctx.fillText('NO ES QUÉ COMES.', W / 2, 1560);
   ctx.fillStyle = NARANJA; ctx.fillText('ES CUÁNTO.', W / 2, 1670);
-  ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
+  if (codigo) {
+    // Pastilla con el código: quien ve la historia sabe cómo entrar con descuento.
+    const txt = `Mi código: ${codigo} · 10% dcto`;
+    ctx.font = cuerpo(42, 700);
+    const pw = ctx.measureText(txt).width + 80, ph = 86, px = (W - pw) / 2, py = 1730;
+    ctx.fillStyle = NARANJA;
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 43); ctx.fill(); } else ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = CARBON; ctx.fillText(txt, W / 2, py + 58);
+    ctx.font = cuerpo(40, 600); ctx.fillStyle = NARANJA2; ctx.fillText('15 días gratis en jonahbeast.com', W / 2, 1870);
+  } else {
+    ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
+  }
   return new Promise((resolve, reject) => {
     try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('sin imagen')), 'image/png'); } catch (e) { reject(e); }
   });
@@ -2968,6 +3019,7 @@ function TuSemanaCard({ username, nombre }) {
   const [cerrada, setCerrada] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
   const [r, setR] = useState(null);
   const [compartiendo, setCompartiendo] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
   const toca = diaSemana <= 2 && !cerrada;
 
   useEffect(() => {
@@ -2987,11 +3039,13 @@ function TuSemanaCard({ username, nombre }) {
   }
   async function compartir() {
     setCompartiendo(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
-      const blob = await imagenSemana({ nombre, r });
+      const codigo = await codigoInvitacion();
+      const blob = await imagenSemana({ nombre, r, codigo });
       const archivo = new File([blob], 'mi-semana-jonah-beast.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
-        await navigator.share({ files: [archivo], title: 'Mi semana en Jonah Beast Fuel' });
+        await navigator.share({ files: [archivo], title: 'Mi semana en Jonah Beast Fuel', text: textoInvitacion(codigo) });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -3032,6 +3086,7 @@ function TuSemanaCard({ username, nombre }) {
       <button onClick={compartir} disabled={compartiendo} className={btnPrimary + ' w-full py-2.5 mt-3'}>
         {compartiendo ? <Loader2 className="animate-spin" size={16} /> : '📲 Compartir en historias'}
       </button>
+      {linkCopiado && <AvisoLinkCopiado />}
     </div>
   );
 }
@@ -3600,7 +3655,7 @@ function dibujarRecortada(ctx, img, x, y, w, h) {
   ctx.restore();
 }
 
-async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
+async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = null }) {
   const W = 1080, H = 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -3680,10 +3735,10 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
     ctx.textAlign = 'left';
   });
 
-  // Pie
+  // Pie (con el código de invitación, si lo hay)
   ctx.fillStyle = '#F97316';
   ctx.font = 'bold 36px Arial';
-  ctx.fillText('jonahbeast.com', 70, H - 70);
+  ctx.fillText(codigo ? `jonahbeast.com · Mi código: ${codigo} (10% dcto)` : 'jonahbeast.com', 70, H - 70);
 
   return new Promise((resolve, reject) => {
     try {
@@ -3695,12 +3750,15 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
 function BotonCompartir({ username, nombre, rows, stats }) {
   const [generando, setGenerando] = useState(false);
   const [err, setErr] = useState('');
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   const hayDatos = rows && rows.length >= 2;
 
   async function compartir() {
     setErr(''); setGenerando(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
+      const codigo = await codigoInvitacion();
       // Datos a mostrar
       const conPeso = rows.filter(r => Number(r.peso) > 0);
       const conGrasa = rows.filter(r => Number(r.grasa_pct) > 0);
@@ -3772,10 +3830,10 @@ function BotonCompartir({ username, nombre, rows, stats }) {
 
       let blob;
       try {
-        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues });
+        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo });
       } catch {
         // Si las fotos bloquean la exportación, se genera sin ellas
-        blob = await generarTarjeta({ nombre, datos });
+        blob = await generarTarjeta({ nombre, datos, codigo });
       }
 
       const archivo = new File([blob], 'mi-progreso-jonah-beast.png', { type: 'image/png' });
@@ -3784,6 +3842,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
         await navigator.share({
           files: [archivo],
           title: 'Mi progreso en Jonah Beast Fuel',
+          text: textoInvitacion(codigo),
         });
       } else {
         const url = URL.createObjectURL(blob);
@@ -3807,6 +3866,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
         {generando ? <Loader2 className="animate-spin" size={18} /> : <>📤 Compartir mi progreso</>}
       </button>
       {err && <p className="text-amber-400 text-xs jb-body mt-2 text-center">{err}</p>}
+      {linkCopiado && <AvisoLinkCopiado />}
       <p className="jb-body text-[11px] text-zinc-600 mt-2 text-center">
         Genera una imagen con tus resultados para compartir donde quieras.
       </p>

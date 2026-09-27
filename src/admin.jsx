@@ -5359,7 +5359,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RescatePanel users={users} />
-            <VencimientosPanel users={users} onRenew={onRenew} />
+            <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
             <EmbudoPanel />
             <CumpleanosPanel users={users} />
@@ -5997,7 +5997,8 @@ function textoUltimaComida(fecha) {
   return `hace ${dias} días`;
 }
 
-function VencimientosPanel({ users, onRenew }) {
+function VencimientosPanel({ users, onRenew, onAdjustDays }) {
+  const { motivoDe } = useMotivosSalida();
   const [open, setOpen] = useState(true);
   const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   const [verVencidos, setVerVencidos] = useState(false);
@@ -6057,6 +6058,13 @@ function VencimientosPanel({ users, onRenew }) {
   function mensajePrueba(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
     const cuando = cuandoTerminaPrueba(u.dl);
+    // Prueba ya terminada (esta semana): se le ofrece volver con 7 días más.
+    if (u.dl < 0) {
+      const hace = Math.abs(u.dl);
+      return u.diasActivos > 0
+        ? `Hola ${nombre}, soy Jonah 🦍 Vi que tu prueba terminó hace ${hace} ${hace === 1 ? 'día' : 'días'} y alcanzaste a registrar ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'} 💪 ¿Te activo 7 días más sin costo para que termines de probarla?`
+        : `Hola ${nombre}, soy Jonah 🦍 Vi que tu prueba terminó hace ${hace} ${hace === 1 ? 'día' : 'días'} y no llegamos a empezar. Ahora tomarle foto a tu plato y ver sus calorías es un toque 📸 ¿Te activo 7 días más sin costo?`;
+    }
     if (u.grupo === 'activo') {
       return `Hola ${nombre}, soy Jonah 🦍 Vi que llevas ${u.diasActivos} días registrando tus comidas, ¡vas muy bien! Tu prueba gratis ${cuando}. ¿Te ayudo a elegir tu plan para no perder tu avance?`;
     }
@@ -6099,12 +6107,21 @@ function VencimientosPanel({ users, onRenew }) {
             {textoVence(u)}{u.esPrueba ? ' · prueba gratis' : ''}
           </div>
           {detalle}
+          <LineaMotivo m={motivoDe[u.username]} />
         </div>
         <div className="flex items-center gap-2">
           <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> Escribir
           </a>
+          {u.esPrueba && u.dl < 0 && onAdjustDays && (
+            <button onClick={() => {
+              if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
+              onAdjustDays(u.username, 7, 'Recuperar prueba vencida: 7 días más', true);
+            }} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+              +7 días
+            </button>
+          )}
           <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
             +1 mes
           </button>
@@ -6219,6 +6236,63 @@ const GRUPOS_VOLVER = [
   { key: 'nunca', emoji: '⚫', label: 'NUNCA EMPEZARON', detalle: 'Se registraron pero no registraron comidas', necesita: 'Cuéntales que ahora empezar es un toque.', color: 'text-zinc-300', borde: 'border-zinc-600' },
 ];
 
+const TEXTO_MOTIVO = {
+  precio: '💸 El precio', tiempo: '⏰ No tuvo tiempo', no_entendi: '🤔 No la entendió bien',
+  foto: '📸 La foto no le funcionó bien', comidas: '🍽️ No encontró sus comidas', otro: '✍️ Otro',
+};
+
+// "¿Qué te faltó para quedarte?" (encuesta al terminar la prueba): todas
+// las respuestas y la última de cada alumno.
+function useMotivosSalida() {
+  const [motivos, setMotivos] = useState([]);
+  useEffect(() => {
+    supabase.from('motivos_salida').select('username, motivo, detalle, creado_en')
+      .order('creado_en', { ascending: false }).limit(500)
+      .then(({ data }) => setMotivos(data || []), () => {});
+  }, []);
+  const motivoDe = {};
+  motivos.forEach(m => { if (!motivoDe[m.username]) motivoDe[m.username] = m; });
+  return { motivos, motivoDe };
+}
+
+function LineaMotivo({ m }) {
+  if (!m) return null;
+  return (
+    <div className="text-[11px] jb-body text-amber-300 mt-0.5">
+      Le faltó: {TEXTO_MOTIVO[m.motivo] || m.motivo}{m.detalle ? ` — "${m.detalle}"` : ''}
+    </div>
+  );
+}
+
+// "¿Por qué no pagaron?": resumen de la encuesta al terminar la prueba.
+function ResumenMotivos({ motivos }) {
+  const ultimo = {};
+  motivos.forEach(m => { if (!ultimo[m.username]) ultimo[m.username] = m; });
+  const lista = Object.values(ultimo);
+  if (!lista.length) {
+    return <p className="jb-body text-[11px] text-zinc-500 mb-3">📝 "¿Qué te faltó para quedarte?": todavía nadie respondió. Se pregunta al terminar la prueba.</p>;
+  }
+  const conteo = {};
+  lista.forEach(m => { conteo[m.motivo] = (conteo[m.motivo] || 0) + 1; });
+  const orden = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+  const otros = lista.filter(m => m.detalle).slice(0, 5);
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 mb-3 jb-body">
+      <p className="text-sm text-zinc-200 font-semibold mb-1">📝 ¿Qué les faltó para quedarse? · {lista.length} {lista.length === 1 ? 'respuesta' : 'respuestas'}</p>
+      <div className="flex flex-col gap-0.5">
+        {orden.map(([k, n]) => (
+          <p key={k} className="text-xs text-zinc-400">{TEXTO_MOTIVO[k] || k}: <span className="text-orange-400 font-semibold">{n}</span> ({Math.round((n / lista.length) * 100)}%)</p>
+        ))}
+      </div>
+      {otros.length > 0 && (
+        <div className="mt-1.5 flex flex-col gap-0.5">
+          {otros.map((m, i) => <p key={i} className="text-[11px] text-zinc-500">"{m.detalle}" — {m.username}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VolverInvitarPanel({ users, onAdjustDays }) {
   const [open, setOpen] = useState(false);
   const [grupoVisible, setGrupoVisible] = useState(null);
@@ -6226,6 +6300,7 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
   const [invitados, setInvitados] = useState(leerInvitados);
   // username -> días en que registró comidas
   const [actividad, setActividad] = useState(null);
+  const { motivos, motivoDe } = useMotivosSalida();
 
   const salieron = useMemo(() => (users || [])
     .filter(u => u.fechaVencimiento)
@@ -6309,11 +6384,12 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
         <div className="min-w-0">
           <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
           <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
-            {u.esPrueba ? 'Su prueba terminó' : 'Su plan venció'} hace {semanas >= 2 ? `${semanas} semanas` : `${Math.abs(u.dl)} días`}
+            {u.esPrueba ? 'Su prueba terminó' : 'Su plan venció'} hace {semanas >= 2 ? `${semanas} semanas` : `${Math.abs(u.dl)} ${Math.abs(u.dl) === 1 ? 'día' : 'días'}`}
             {u.diasActivos > 0 ? ` · registró ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'}` : ''}
             {!u.enabled && ' · cuenta apagada'}
             {!u.telefono && ' · sin celular'}
           </div>
+          <LineaMotivo m={motivoDe[u.username]} />
           {u.yaInvitado && (
             <div className="text-[11px] jb-body text-emerald-400 mt-0.5">
               ✓ Invitado {u.invitadoHace === 0 ? 'hoy' : u.invitadoHace === 1 ? 'ayer' : `hace ${u.invitadoHace} días`}
@@ -6355,8 +6431,9 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
             <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
           ) : (
             <>
+              <ResumenMotivos motivos={motivos} />
               <p className="jb-body text-xs text-zinc-500 mb-3">
-                Personas cuya prueba o plan terminó hace más de 7 días y no volvieron. Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
+                Personas cuya prueba o plan terminó hace más de 7 días y no volvieron (los de esta semana están en "Por vencer" → "Ya vencieron"). Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
                 {' '}<span className="text-zinc-400">"+7 días" les vuelve a abrir la app una semana desde hoy.</span>
               </p>
               {pendientes.length === 0 ? (

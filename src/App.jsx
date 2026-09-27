@@ -2916,6 +2916,63 @@ function ResetPassword({ onDone }) {
   );
 }
 
+/* "¿Qué te faltó para quedarte?": una pregunta de un toque cuando se
+   termina la prueba gratis. La respuesta llega al panel de Jonah
+   ("Volver a invitar"). Se responde una vez; en este celular se recuerda. */
+const MOTIVOS_SALIDA = [
+  { key: 'precio', label: '💸 El precio' },
+  { key: 'tiempo', label: '⏰ No tuve tiempo' },
+  { key: 'no_entendi', label: '🤔 No la entendí bien' },
+  { key: 'foto', label: '📸 La foto no me funcionó bien' },
+  { key: 'comidas', label: '🍽️ No encontré mis comidas' },
+  { key: 'otro', label: '✍️ Otro' },
+];
+
+function EncuestaSalida({ username }) {
+  const clave = 'jb-motivo-salida:' + username;
+  const [enviado, setEnviado] = useState(() => { try { return !!localStorage.getItem(clave); } catch { return false; } });
+  const [otro, setOtro] = useState(false);
+  const [detalle, setDetalle] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  async function enviar(motivo, texto = '') {
+    setEnviando(true);
+    try { await supabase.rpc('registrar_motivo_salida', { p_motivo: motivo, p_detalle: texto }); } catch {}
+    try { localStorage.setItem(clave, motivo); } catch {}
+    setEnviando(false);
+    setEnviado(true);
+  }
+  if (enviado) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+        <p className="jb-body text-sm text-zinc-300">🙌 ¡Gracias! Con tu respuesta mejoramos la app.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-4">
+      <p className="jb-display text-sm text-zinc-50">¿QUÉ TE FALTÓ PARA QUEDARTE?</p>
+      <p className="jb-body text-xs text-zinc-400 mb-3">Un toque y nos ayudas a mejorar. Lo lee Jonah.</p>
+      <div className="flex flex-wrap gap-2">
+        {MOTIVOS_SALIDA.map(m => (
+          <button key={m.key} type="button" disabled={enviando}
+            onClick={() => (m.key === 'otro' ? setOtro(true) : enviar(m.key))}
+            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${m.key === 'otro' && otro ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-200 hover:border-orange-500'}`}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {otro && (
+        <div className="mt-3 flex gap-2">
+          <input value={detalle} onChange={e => setDetalle(e.target.value)} maxLength={300} autoFocus
+            placeholder="Cuéntanos en pocas palabras" className={inputCls + ' flex-1 text-sm'} />
+          <button type="button" disabled={enviando || !detalle.trim()} onClick={() => enviar('otro', detalle)}
+            className={btnPrimary + ' px-4 text-sm'}>Enviar</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -3005,6 +3062,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
             </div>
           )}
+          {expiredInfo.esPrueba !== false && <EncuestaSalida username={expiredInfo.username} />}
           <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false}
             onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
 

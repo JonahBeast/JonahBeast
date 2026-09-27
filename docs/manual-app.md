@@ -505,6 +505,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 - **Faltando 7 días o menos:** aviso "TU PLAN VENCE EN N DÍAS" con "Renovar mi plan" y "Consultar".
 - **Al vencer:** al entrar se ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ", con un resumen de lo logrado. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
+- **Si fue la prueba gratis**, sale también la pregunta **"¿QUÉ TE FALTÓ PARA QUEDARTE?"** ("Un toque y nos ayudas a mejorar. Lo lee Jonah."), con las opciones "💸 El precio", "⏰ No tuve tiempo", "🤔 No la entendí bien", "📸 La foto no me funcionó bien", "🍽️ No encontré mis comidas" y "✍️ Otro" (con un espacio para escribir y **"Enviar"**). Al responder sale "🙌 ¡Gracias! Con tu respuesta mejoramos la app.". Es opcional y se responde una sola vez.
   - **Nada se borra:** el historial y las fotos te esperan.
   - Botones "QUIERO CONTINUAR" (baja a los planes) y "Prefiero consultar por WhatsApp".
 - Si el alumno pagó y está esperando en esa pantalla, la app revisa sola cada 20 segundos y **entra automáticamente** cuando se aprueba.

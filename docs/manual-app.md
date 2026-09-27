@@ -106,7 +106,7 @@ Errores del registro y qué hacer:
 | "No encontramos tu perfil. Escríbenos por WhatsApp." | Pasar a Jonah (la cuenta pudo ser eliminada). |
 | "Tu acceso fue deshabilitado. Escríbenos para más información." | Pasar a Jonah. |
 
-**Salir de la cuenta:** botón **"Salir"** arriba a la derecha (en celular es el ícono de la puerta).
+**Salir de la cuenta:** botón **"Salir"** arriba a la derecha (en celular es el ícono de la puerta). En tablet o computadora, al lado se ve tu nombre (el que pusiste al registrarte).
 
 ---
 

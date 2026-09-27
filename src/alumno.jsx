@@ -5760,7 +5760,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
             </p>
-            {cupo && (
+            {cupo?.tipo === 'ilimitado' && (
+              <div className="rounded-xl px-3 py-2.5 mb-4 text-left border bg-zinc-950 border-orange-500/40">
+                <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Fotos ilimitadas</span> en esta cuenta · hoy llevas {Number(cupo.usadas) || 0}</p>
+              </div>
+            )}
+            {cupo && cupo.tipo !== 'ilimitado' && (
               <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${cupo.tipo === 'bienvenida'
                 ? 'bg-orange-500/10 border-orange-500/40' : quedan <= 2 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
                 <div className="flex items-center justify-between gap-3">
@@ -7939,7 +7944,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <CreditCard size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
-          <span className="text-zinc-500 text-sm hidden sm:inline">{username}</span>
+          <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
           <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>

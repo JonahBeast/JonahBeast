@@ -4936,6 +4936,45 @@ function CalorieStatus({ consumed, target }) {
 /* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
 /* ------------------------------------------------------------------ */
 
+/* Novedades de los alimentos que el alumno pidió ("🙋 Pedirle a Jonah" o
+   por la foto): al abrir la app ve cuáles ya se agregaron y cuáles no, con
+   el mensaje de Jonah. No depende de las notificaciones, así se entera
+   aunque las tenga apagadas. Lo ya visto se recuerda en este celular. */
+function PedidosResueltosCard({ username }) {
+  const clave = 'jb-pedidos-vistos:' + username;
+  const [pedidos, setPedidos] = useState([]);
+  useEffect(() => {
+    let desde = null;
+    try { desde = localStorage.getItem(clave); } catch {}
+    supabase.rpc('mis_pedidos_resueltos', { p_desde: desde || new Date(Date.now() - 7 * 86400000).toISOString() })
+      .then(({ data }) => setPedidos(Array.isArray(data) ? data : []), () => {});
+  }, [clave]);
+  if (!pedidos.length) return null;
+  function listo() {
+    try { localStorage.setItem(clave, pedidos[0].resuelto_en || new Date().toISOString()); } catch {}
+    setPedidos([]);
+  }
+  const agregados = pedidos.filter(p => p.estado === 'agregado');
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-3">
+      <p className="jb-display text-sm text-zinc-50 mb-2">🍽️ NOVEDADES DE TUS PEDIDOS</p>
+      <ul className="flex flex-col gap-1.5 mb-3">
+        {pedidos.map(p => (
+          <li key={p.id} className="jb-body text-xs text-zinc-300 leading-snug">
+            {p.estado === 'agregado'
+              ? <>✅ <b className="text-orange-400">{p.alimento || p.nombre}</b> ya está en la app.</>
+              : <>💬 <b className="text-zinc-100">{p.nombre}</b>: {p.respuesta || 'no lo pudimos agregar.'}</>}
+          </li>
+        ))}
+      </ul>
+      {agregados.length > 0 && (
+        <p className="jb-body text-[11px] text-zinc-500 mb-3">Búscalos en "REGISTRAR" → "Escribir".</p>
+      )}
+      <button onClick={listo} className={btnPrimary + ' w-full py-2 text-xs'}>Entendido</button>
+    </div>
+  );
+}
+
 /* permitirPedido: muestra "Pedirle a Jonah" (no tiene sentido, por ejemplo,
    en "Nunca me sugieras esto"). pista: línea bajo el buscador vacío que
    recuerda que se puede pedir un plato que no está. */
@@ -7866,6 +7905,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           )
         )}
+        <PedidosResueltosCard username={username} />
         {tab === 'dash' && <PesajeCard form={form} setForm={setForm} />}
         {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
       </div>

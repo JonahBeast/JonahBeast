@@ -14,7 +14,6 @@
 // jarvis-chat-prueba es la única que se puede publicar desde un PR.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { MANUAL_APP } from "./manual.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -78,28 +77,62 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
    d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
    No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
 
-// Manual de la app (docs/manual-app.md, copiado en manual.ts). Para que
-// cada pregunta no cargue el manual entero (~90% del costo de Jarvis), en
-// cada llamada va solo un resumen: la sección 1 completa y el índice de
-// secciones con sus subtítulos. Cuando Jonah Beast pregunta cómo funciona
-// algo de la app, Jarvis abre las secciones que necesita con la
-// herramienta consultar_manual. El índice se arma solo desde el manual,
-// así que se mantiene al día con cada cambio.
-const SECCIONES_MANUAL: { numero: number; texto: string }[] = MANUAL_APP.split(/\n(?=## )/)
-  .map((texto) => ({ numero: Number((texto.match(/^## (\d+)\./) || [])[1]), texto: texto.trim() }))
-  .filter((s) => Number.isFinite(s.numero));
-const INDICE_MANUAL = SECCIONES_MANUAL.map((s) => {
-  const lineas = s.texto.split("\n");
-  const subtitulos = lineas.filter((l) => l.startsWith("### ")).map((l) => l.replace(/^### /, "")).join("; ");
-  return `- ${lineas[0].replace(/^## /, "")}${subtitulos ? ` (${subtitulos})` : ""}`;
-}).join("\n");
-const RESUMEN_APP = SECCIONES_MANUAL.find((s) => s.numero === 1)?.texto || "";
-const MANUAL_JARVIS = `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Aquí tienes solo el resumen y el índice. Cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas, ANTES de responder usa la herramienta consultar_manual con las secciones que correspondan (hasta 3) y responde con lo que dice el manual, con los nombres exactos de botones y mensajes. Para preguntas del negocio (pagos, alumnos, métricas) no hace falta. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
+// Manual de la app (docs/manual-app.md). Se lee de la tabla manual_app,
+// que se actualiza después de cada merge con el texto de main; así cambiar
+// el manual no obliga a volver a publicar a Jarvis. Para que cada pregunta
+// no cargue el manual entero (~90% del costo de Jarvis), en cada llamada va
+// solo un resumen: la sección 1 completa y el índice de secciones con sus
+// subtítulos. Cuando Jonah Beast pregunta cómo funciona algo de la app,
+// Jarvis abre las secciones que necesita con la herramienta
+// consultar_manual. El índice se arma solo desde el manual.
+type Seccion = { numero: number; texto: string };
+type Manual = { secciones: Seccion[]; paraJarvis: string };
 
-${RESUMEN_APP}
+function armarManual(texto: string): Manual {
+  const secciones: Seccion[] = texto.split(/\n(?=## )/)
+    .map((t) => ({ numero: Number((t.match(/^## (\d+)\./) || [])[1]), texto: t.trim() }))
+    .filter((s) => Number.isFinite(s.numero));
+  if (!secciones.length) {
+    return {
+      secciones,
+      paraJarvis: "El manual de la app no está disponible en este momento. Si el señor pregunta cómo funciona algo de la app, dile con honestidad que ahora no puedes consultar el manual.",
+    };
+  }
+  const indice = secciones.map((s) => {
+    const lineas = s.texto.split("\n");
+    const subtitulos = lineas.filter((l) => l.startsWith("### ")).map((l) => l.replace(/^### /, "")).join("; ");
+    return `- ${lineas[0].replace(/^## /, "")}${subtitulos ? ` (${subtitulos})` : ""}`;
+  }).join("\n");
+  const resumen = secciones.find((s) => s.numero === 1)?.texto || "";
+  return {
+    secciones,
+    paraJarvis: `Manual de la app Jonah Beast Fuel (cómo la ve y la usa el alumno, pantalla por pantalla). Aquí tienes solo el resumen y el índice. Cuando Jonah Beast pregunte cómo funciona algo de la app, qué ve un alumno o qué responderle a un alumno con dudas, ANTES de responder usa la herramienta consultar_manual con las secciones que correspondan (hasta 3) y responde con lo que dice el manual, con los nombres exactos de botones y mensajes. Para preguntas del negocio (pagos, alumnos, métricas) no hace falta. Las "Reglas para el asistente" de la sección 0 son para el asistente de WhatsApp de los alumnos, no para ti. Si el manual y el estado del negocio no coinciden en un dato (por ejemplo precios), manda el estado del negocio.
+
+${resumen}
 
 Índice del manual:
-${INDICE_MANUAL}`;
+${indice}`,
+  };
+}
+
+// Se guarda unos minutos en memoria para no leer la tabla en cada
+// pregunta. Si la tabla no responde, se sigue usando el último que se leyó.
+const MANUAL_MINUTOS = 5;
+let manualCache: { manual: Manual; leido: number } | null = null;
+async function cargarManual(supabase: any): Promise<Manual> {
+  if (manualCache && Date.now() - manualCache.leido < MANUAL_MINUTOS * 60_000) return manualCache.manual;
+  try {
+    const { data, error } = await supabase.from("manual_app").select("texto").eq("id", 1).maybeSingle();
+    if (error) throw error;
+    if (data?.texto) {
+      manualCache = { manual: armarManual(data.texto), leido: Date.now() };
+      return manualCache.manual;
+    }
+  } catch (e) {
+    console.error("No se pudo leer el manual:", (e as Error)?.message);
+  }
+  return manualCache?.manual || armarManual("");
+}
 
 const TOOLS = [
   {
@@ -339,6 +372,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const manual = await cargarManual(supabase);
 
     // Candado: solo el admin (profiles.role = 'admin') con sesión iniciada
     // puede usar a Jarvis. Sin esto, cualquiera con la URL podía leer datos
@@ -475,7 +509,7 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
     // después porque cambian siempre.
     const system = [
       { type: "text", text: JARVIS_PERSONA },
-      { type: "text", text: MANUAL_JARVIS, cache_control: { type: "ephemeral" } },
+      { type: "text", text: manual.paraJarvis, cache_control: { type: "ephemeral" } },
       { type: "text", text: contexto },
     ];
 
@@ -557,7 +591,7 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       }
       if (bloque.name === "consultar_manual") {
         const pedidas = (Array.isArray(bloque.input?.secciones) ? bloque.input.secciones : []).map(Number).slice(0, 3);
-        const encontradas = SECCIONES_MANUAL.filter((s) => pedidas.includes(s.numero));
+        const encontradas = manual.secciones.filter((s) => pedidas.includes(s.numero));
         if (!encontradas.length) return { error: "Esas secciones no existen. Revisa el índice del manual." };
         return encontradas.map((s) => s.texto).join("\n\n---\n\n");
       }

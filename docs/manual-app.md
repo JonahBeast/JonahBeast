@@ -206,7 +206,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 **B) Foto (la inteligencia artificial reconoce el plato)**
 1. Toca **"Foto"** → **"Tomar foto"**.
 2. Espera el escaneo. Verás "⚡ N ALIMENTOS DETECTADOS".
-3. Desmarca lo que no corresponda. Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light…), pregunta "¿cuál es?" y tú eliges.
+3. Desmarca lo que no corresponda. Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
    - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
    - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?").

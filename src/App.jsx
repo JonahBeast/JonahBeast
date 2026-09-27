@@ -1906,6 +1906,9 @@ function RetoPage({ onIrALaApp }) {
               La mejor transformación se elige comparando tus fotos del <strong className="text-zinc-50">día 1</strong> con las del <strong className="text-zinc-50">día 15</strong>, tomadas dentro de la app.
               Si no tienes fotos del primer día, no puedes ganar ese premio.
             </p>
+            <p className="text-sm text-zinc-300 mt-2">
+              <strong className="text-zinc-50">¿Ya usabas la app?</strong> Igual tómate fotos nuevas el lunes 28. Las fotos anteriores no cuentan: solo vale el cambio del <strong className="text-zinc-50">28 de septiembre al 12 de octubre</strong>. La app pone la fecha sola a cada foto.
+            </p>
           </div>
         </div>
 

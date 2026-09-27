@@ -27,6 +27,10 @@ const DIAS_BIENVENIDA = 3;
 // Leer la tabla nutricional de un producto NO usa las fotos de comida:
 // tiene su propio tope diario. El producto queda guardado para todos.
 const LIMITE_ETIQUETAS_DIARIO = 5;
+// Cuentas sin tope de fotos (ni de etiquetas), para las pruebas de Jonah.
+// Las fotos se siguen contando y el costo queda en ia_uso como siempre.
+const FOTOS_SIN_LIMITE = new Set(["martin"]);
+const LIMITE_SIN_TOPE = 100000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -103,9 +107,10 @@ Deno.serve(async (req) => {
     const conPlan = !esPrueba || tieneAddOn;
     const diaPrueba = esPrueba && alumno.fecha_inicio ? diasEntre(alumno.fecha_inicio, hoyLima) + 1 : null;
     const enBienvenida = !conPlan && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
-    const tipo = conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
-    const periodo = conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
-    const limite = conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
+    const sinLimite = FOTOS_SIN_LIMITE.has(username);
+    const tipo = sinLimite ? "ilimitado" : conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
+    const periodo = sinLimite || conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
+    const limite = sinLimite ? LIMITE_SIN_TOPE : conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
     // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
     const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
     const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
@@ -130,7 +135,7 @@ Deno.serve(async (req) => {
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
       const periodoEtiqueta = `etiqueta-${hoyLima}`;
       const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
-        p_username: username, p_periodo: periodoEtiqueta, p_limite: LIMITE_ETIQUETAS_DIARIO,
+        p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
       });
       if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
       if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);

@@ -546,6 +546,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 | 1:00 pm | Registrar almuerzo (si falta) |
 | 3:00 pm | Hidratación |
 | 5:00 pm | Registrar media tarde (si falta) |
+| 6:15 pm | Prueba gratis guiada (solo quien ya registró alguna comida): día 4, lo que lleva registrado; día 7, su primera semana; día 10, las 5 fotos al día que incluye cualquier plan; día 12, la historia de Jonah y la invitación a seguir |
 | 7:00 pm | Ánimo con las comidas que faltan |
 | 8:00 pm | Racha en riesgo, "te extrañé" o felicitación por racha |
 | 9:00 pm | Registrar cena (si falta) |

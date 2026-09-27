@@ -173,7 +173,7 @@ De arriba hacia abajo:
 - **"📊 TU SEMANA EN NÚMEROS"** (solo los domingos): kcal promedio, días registrados y comparación con la semana pasada.
 - **"¿CUÁNTO PESAS HOY? ⚖️"** (domingo, y lunes si no se pesó el domingo): "Pesaje de la semana" con su último peso ya escrito, botones − / + de 0.1 kg (o escribirlo) y **"Guardar mi peso"** → "✅ Peso guardado: 69.4 kg (−0.6 kg)". Recomendación: en ayunas, después del baño. **"Ahora no"** la esconde ese día. El peso guardado aquí es el mismo de "Mi cuerpo" → "Mis datos".
 - **"TU SEMANA · [lunes] – [domingo]"** (lunes, martes y miércoles, si la semana pasada registró al menos 1 día): resumen de la semana que terminó: días registrados (X/7), días en su meta (entre 85% y 115% de sus calorías), cambio de peso o racha. Títulos: "¡SEMANA DE BESTIA! 🔥" (5 días o más), "BUENA SEMANA 💪" (3–4) o "ARRANCASTE: ESTA SEMANA VAMOS POR MÁS" (1–2).
-  - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO." y jonahbeast.com) y abre el menú de compartir del celular (Instagram, WhatsApp…). Si el celular no permite compartir, se descarga la imagen.
+  - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO.", una pastilla naranja **"Mi código: [su código] · 10% dcto"** y "15 días gratis en jonahbeast.com") y abre el menú de compartir del celular (Instagram, WhatsApp…). En WhatsApp va también un mensaje con su link de invitación. Quien entra con ese código tiene 10% de descuento, y el alumno gana 15 días cuando su amigo paga (sección 12). Si el celular no permite compartir, se descarga la imagen.
   - La **X** la cierra hasta la próxima semana.
 - **Racha "🔥 N días seguidos":** días seguidos con al menos una comida registrada. La racha de hoy no se rompe hasta que termina el día.
   - Insignias: 3 días Cebiche Starter 🐟 · 7 días Ají de Gallina Warrior 🌶️ · 14 días Lomo Saltado Master 🥩 · 30 días Pollo a la Brasa Legend 🍗 · 60 días Chicha Morada Beast 🟣 · 90 días Jonah Beast Elite 👑.
@@ -382,7 +382,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 - **"TU PESO":** gráfico (necesita al menos 2 pesos en días distintos).
 - **"TU CONSTANCIA · 4 SEMANAS":** calendario con ✓ en los días registrados.
 - **Coach automático:** analiza tu avance y te dice "Qué hacer ahora". Si dice "ESTAMOS CONOCIENDO TU CUERPO", necesita unos 10 días de registros y al menos 4 pesos.
-- **"📤 Compartir mi progreso":** arma una imagen con tu avance (y un antes/después si tienes 2 fotos del mismo ángulo). Necesita al menos 2 días de historial.
+- **"📤 Compartir mi progreso":** arma una imagen con tu avance (y un antes/después si tienes 2 fotos del mismo ángulo). Abajo lleva "jonahbeast.com · Mi código: [tu código] (10% dcto)", y en WhatsApp va también tu link de invitación (sección 12). Necesita al menos 2 días de historial.
 - **"MI OBJETIVO DE PESO":** escribe "Peso inicial (kg)" y "Peso objetivo (kg)"; se guarda solo.
 
 ### 11.2 Fotos de progreso

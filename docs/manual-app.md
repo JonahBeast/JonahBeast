@@ -418,7 +418,7 @@ Página del reto que Jonah anuncia en TikTok. Fechas: **del lunes 28 de septiemb
 
 **Premios:**
 - **Completar el reto:** 1 mes gratis de plan al terminar.
-- **Mejor transformación:** 3 meses gratis + creatina de 300 g. Se elige comparando las **fotos de progreso del día 1 y del día 15** tomadas en la app (Progreso → Fotos). Sin fotos del día 1 no se puede ganar este premio.
+- **Mejor transformación:** 3 meses gratis + creatina de 300 g. Se elige comparando las **fotos de progreso del día 1 y del día 15** tomadas en la app (Progreso → Fotos). Sin fotos del día 1 no se puede ganar este premio. Solo cuentan las fotos del **28 de septiembre** (inicio) y del **12 de octubre** (final); la app pone la fecha sola a cada foto y no se puede cambiar.
 - Los premios son por participar y por los resultados, **no** por la calificación que pongan a la app en Play Store.
 
 **Cómo entrar (5 pasos de la página):**
@@ -430,8 +430,10 @@ Página del reto que Jonah anuncia en TikTok. Fechas: **del lunes 28 de septiemb
 
 Problemas:
 - "Tengo iPhone" → puede usar la app desde el navegador con el código RETO, pero el reto es para quienes usan la app de Play Store.
+- "Al tocar 'Unirme al grupo' me sale 'No tienes permiso' o me pide 'Acceder'" → pasa al abrir el link desde TikTok o Instagram, que usan su propio navegador sin la cuenta de Google. Tocar los 3 puntitos ⋯ arriba → "Abrir en el navegador" (Chrome) y volver a tocar "Unirme al grupo".
 - "No puedo instalar la app / Play Store dice que no está disponible" → revisar que se unió al grupo (paso 1) y aceptó ser verificador (paso 2) con la **misma** cuenta de Google de su Play Store.
 - "Estoy en prueba y se me acaba antes del reto" o "ya pago mi plan" → Jonah ajusta su prueba o le suma el premio a su plan: pasar a Jonah.
+- "Ya usaba la app y tengo fotos de antes, ¿cuentan?" → No. Igual debe tomarse fotos nuevas el lunes 28 de septiembre: para el premio solo cuenta el cambio del 28 de septiembre al 12 de octubre, así todos compiten igual.
 - Entrega de premios y creatina → los coordina Jonah por WhatsApp al terminar el reto.
 
 ---

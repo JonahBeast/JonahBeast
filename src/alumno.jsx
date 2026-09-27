@@ -7944,7 +7944,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <CreditCard size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
-          <span className="text-zinc-500 text-sm hidden sm:inline">{username}</span>
+          <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
           <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>

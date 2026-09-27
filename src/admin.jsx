@@ -1418,7 +1418,7 @@ function TableroPanel({ users }) {
 const SUPUESTOS_RENTABILIDAD = {
   supabase: 94, vercel: 75, jarvis: 45, dominio: 8, otrosFijos: 0,
   costoFoto: 0.07, fotosAlumnoMes: 60, fotosPrueba: 10, whatsappAlumno: 0.3,
-  comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500,
+  comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500, mesesPromedio: 3,
   tipoCambio: 3.75,
 };
 
@@ -1609,13 +1609,18 @@ function RentabilidadPanel({ users }) {
     (async () => {
       const inicio = new Date(); inicio.setDate(1);
       const inicioISO = fechaLocalISO(inicio);
-      const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }] = await Promise.all([
+      const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).range(0, 9999),
         supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
           .gte('creado_en', inicioISO).range(0, 19999),
+        supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
+          .eq('tipo', 'gasto').range(0, 4999),
+        // Todos los pagos con dinero real: sirve para saber quién pagó por
+        // primera vez este mes (alumnos nuevos conseguidos).
+        supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 9999),
       ]);
       if (cancelado) return;
       const p = {};
@@ -1627,8 +1632,8 @@ function RentabilidadPanel({ users }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [] });
-    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [] }); });
+      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: historialPagos || [] });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], gastos: [], historialPagos: [] }); });
     return () => { cancelado = true; };
   }, []);
 
@@ -1677,11 +1682,40 @@ function RentabilidadPanel({ users }) {
   const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
   const supR = { ...sup, costoFoto };
 
-  const cuotaRus = cuotaNuevoRus(ingresosMes);
+  // Gastos anotados en Finanzas (solo de la app). Los equipos se reparten
+  // en sus meses (una laptop de 24 meses cuenta 1/24 cada mes); el resto
+  // cuenta completo en el mes en que se pagó.
+  const mesActual = todayISO().slice(0, 7);
+  const numMes = ym => { const [y, m] = ym.split('-').map(Number); return y * 12 + m; };
+  const gastosCat = { publicidad: 0, marketing: 0, equipo: 0, herramientas: 0, otro: 0 };
+  let comprasMes = 0;
+  (mes?.gastos || []).forEach(g => {
+    const monto = Number(g.monto) || 0;
+    const ym = String(g.fecha || '').slice(0, 7);
+    if (ym === mesActual) comprasMes += monto; // el Nuevo RUS mira las compras completas del mes
+    if (g.negocio !== 'app') return;
+    const cat = gastosCat[g.categoria] !== undefined ? g.categoria : 'otro';
+    const meses = Number(g.meses_a_repartir) || 0;
+    if (cat === 'equipo' && meses > 1) {
+      const dif = numMes(mesActual) - numMes(ym);
+      if (dif >= 0 && dif < meses) gastosCat.equipo += monto / meses;
+    } else if (ym === mesActual) gastosCat[cat] += monto;
+  });
+  const gastosMes = Object.values(gastosCat).reduce((a, v) => a + v, 0);
+  // Alumnos nuevos del mes: su primer pago con dinero real fue este mes.
+  const primerPago = {};
+  (mes?.historialPagos || []).forEach(pg => {
+    const f = String(pg.creado_en).slice(0, 7);
+    if (!primerPago[pg.username] || f < primerPago[pg.username]) primerPago[pg.username] = f;
+  });
+  const nuevosPagantes = Object.values(primerPago).filter(f => f === mesActual).length;
+  const inversionCaptar = gastosCat.publicidad + gastosCat.marketing;
+
+  const cuotaRus = cuotaNuevoRus(Math.max(ingresosMes, comprasMes));
   const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
   const fijos = fijosTec + (cuotaRus ?? 50);
   const costoIAMes = mes ? mes.fotos * costoFoto : 0;
-  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes;
+  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes - gastosMes;
 
   const precioMensual = precios[1] || 24.9;
   const cv = costoPorAlumno(supR, sup.conversion);
@@ -1693,6 +1727,9 @@ function RentabilidadPanel({ users }) {
   const piso = cv / (1 - sup.comisionMP / 100);
   const nRef = Math.max(pagando, 25);
   const minimoRef = precioMinimo(nRef);
+  // Cuánto cuesta conseguir un alumno vs. cuánto deja en el tiempo que se queda.
+  const costoCaptar = nuevosPagantes > 0 ? inversionCaptar / nuevosPagantes : null;
+  const valorAlumno = quedaPorAlumno * sup.mesesPromedio;
 
   const canales = [
     { id: 'yape', label: 'Yape / Plin', pct: 0 },
@@ -1710,8 +1747,10 @@ function RentabilidadPanel({ users }) {
   if (netoMP - (cv - sup.fotosAlumnoMes * costoFoto) - costoMaxFotos < 0) alertas.push(`Un alumno que use las 5 fotos diarias te cuesta ${fmtS(costoMaxFotos)} al mes en fotos: con el plan mensual pierdes plata con él.`);
   const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * costoFoto;
   if (costoPruebas > cv / 2) alertas.push(`Tu mayor costo es la prueba gratis: ${fmtS(costoPruebas)} de cada ${fmtS(cv)} por alumno. Subir la conversión es la mejor palanca.`);
-  if (cuotaRus === null) alertas.push('Este mes pasaste los S/8,000 de ingresos: ya no calificas para el Nuevo RUS.');
+  if (cuotaRus === null) alertas.push(`Este mes pasaste los S/8,000 en ${comprasMes > ingresosMes ? 'compras' : 'ingresos'}: ya no calificas para el Nuevo RUS.`);
+  else if (comprasMes > 5000) alertas.push(`Este mes tus compras suman ${fmtS(comprasMes)}: en el Nuevo RUS las compras también cuentan, y tu cuota sube a S/50.`);
   else if (ingresosMes > 4000) alertas.push(`Vas por ${fmtS(ingresosMes)} este mes; al pasar S/5,000 la cuota del Nuevo RUS sube a S/50.`);
+  else if (comprasMes > 4000) alertas.push(`Tus compras del mes van en ${fmtS(comprasMes)}: si pasan de S/5,000, la cuota del Nuevo RUS sube a S/50.`);
 
   // El simulador arranca con los números de hoy.
   const fotosDiaHoy = Math.round((sup.fotosAlumnoMes / 30) * 2) / 2;
@@ -1738,7 +1777,7 @@ function RentabilidadPanel({ users }) {
     ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes (máx. 150)'],
     ['fotosPrueba', 'Fotos de una prueba gratis'], ['whatsappAlumno', 'WhatsApp por alumno (S/ al mes)'],
     ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'], ['tipoCambio', 'Tipo de cambio (S/ por dólar)'],
-    ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'],
+    ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'], ['mesesPromedio', 'Meses que se queda un alumno (promedio)'],
   ];
 
   return (
@@ -1760,6 +1799,9 @@ function RentabilidadPanel({ users }) {
         {mes && (
           <p className="jb-body text-[11px] text-zinc-500 mt-1">
             Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos a {fmtS(costoFoto)}{costoFotoReal !== null ? ', costo medido' : ', costo estimado'})
+            {CATEGORIAS_GASTO.filter(c => gastosCat[c.id] > 0).map(c => (
+              <span key={c.id}> − <span className="text-zinc-300">{c.emoji} {c.id === 'equipo' ? 'equipos (repartido)' : c.label.toLowerCase()} {fmtS(gastosCat[c.id])}</span></span>
+            ))}
           </p>
         )}
         <div className="mt-3">
@@ -1787,6 +1829,27 @@ function RentabilidadPanel({ users }) {
           </div>
         ))}
       </div>
+
+      {mes && (inversionCaptar > 0 || nuevosPagantes > 0) && (() => {
+        const rinde = costoCaptar !== null && costoCaptar <= valorAlumno;
+        const sinNuevos = costoCaptar === null;
+        return (
+          <div className={`rounded-lg p-3 border ${sinNuevos ? 'bg-zinc-950 border-zinc-800' : rinde ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-red-500/10 border-red-500/40'}`}>
+            <div className="jb-body text-xs text-zinc-400">📣 Publicidad y marketing de este mes: <span className="text-zinc-100 font-semibold">{fmtS(inversionCaptar)}</span> · alumnos nuevos que pagaron: <span className="text-zinc-100 font-semibold">{nuevosPagantes}</span></div>
+            {sinNuevos ? (
+              <p className="jb-body text-sm text-zinc-300 mt-1">Todavía no llega ningún alumno nuevo este mes, así que aún no se puede medir cuánto te cuesta conseguir cada uno.</p>
+            ) : (
+              <>
+                <p className={`jb-display text-lg mt-1 ${rinde ? 'text-emerald-400' : 'text-red-400'}`}>Cada alumno nuevo te costó {fmtS(costoCaptar)}</p>
+                <p className="jb-body text-xs text-zinc-300">
+                  y te deja unos {fmtS(valorAlumno)} en el tiempo que se queda ({sup.mesesPromedio} {sup.mesesPromedio === 1 ? 'mes' : 'meses'} en promedio × {fmtS(quedaPorAlumno)}).{' '}
+                  <span className="font-semibold">{rinde ? 'La publicidad te devuelve más de lo que cuesta. ✓' : 'Hoy la publicidad te cuesta más de lo que te devuelve.'}</span>
+                </p>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       <div className={`${tarjeta} flex flex-col gap-3`}>
         <div>
@@ -2144,6 +2207,14 @@ function MetricasPanel() {
   );
 }
 
+const CATEGORIAS_GASTO = [
+  { id: 'publicidad', emoji: '📣', label: 'Publicidad' },
+  { id: 'marketing', emoji: '🤝', label: 'Marketing' },
+  { id: 'equipo', emoji: '💻', label: 'Equipo' },
+  { id: 'herramientas', emoji: '🛠️', label: 'Herramientas' },
+  { id: 'otro', emoji: '📦', label: 'Otro' },
+];
+
 function FinanzasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -2151,7 +2222,7 @@ function FinanzasPanel() {
   const [negocioFiltro, setNegocioFiltro] = useState('todos');
   const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7));
   const [form, setForm] = useState({
-    fecha: todayISO(), negocio: 'app', tipo: 'ingreso', concepto: '',
+    fecha: todayISO(), negocio: 'app', tipo: 'ingreso', concepto: '', categoria: 'publicidad', anios: 2,
     monto: '', tieneComprobante: false, igv: '', notas: '',
   });
   const [guardando, setGuardando] = useState(false);
@@ -2231,6 +2302,8 @@ function FinanzasPanel() {
         concepto: form.concepto.trim(), monto,
         tiene_comprobante: form.tieneComprobante,
         igv: form.igv ? parseFloat(form.igv) : null,
+        categoria: form.tipo === 'gasto' ? form.categoria : 'otro',
+        meses_a_repartir: form.tipo === 'gasto' && form.categoria === 'equipo' ? form.anios * 12 : null,
         notas: form.notas.trim() || null,
       });
       if (error) throw error;
@@ -2240,6 +2313,15 @@ function FinanzasPanel() {
       setFormErr('No se pudo guardar: ' + err.message);
     }
     setGuardando(false);
+  }
+
+  async function cambiarCategoria(m, categoria) {
+    try {
+      const { error } = await supabase.from('movimientos_financieros')
+        .update({ categoria, meses_a_repartir: categoria === 'equipo' ? (m.meses_a_repartir || 24) : null }).eq('id', m.id);
+      if (error) throw error;
+      load();
+    } catch (e) { alert('No se pudo cambiar: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function eliminar(id) {
@@ -2550,6 +2632,35 @@ function FinanzasPanel() {
                     onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
                     className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
                 </div>
+                {form.tipo === 'gasto' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[11px] text-zinc-500">¿Qué fue?</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {CATEGORIAS_GASTO.map(c => (
+                        <button key={c.id} type="button" onClick={() => setForm(f => ({ ...f, categoria: c.id }))}
+                          className={`text-xs rounded-lg px-2.5 py-1.5 border ${form.categoria === c.id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`}>
+                          {c.emoji} {c.label}
+                        </button>
+                      ))}
+                    </div>
+                    {form.categoria === 'equipo' && (
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        <span className="text-[11px] text-zinc-500">¿Cuántos años crees que te va a servir?</span>
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3].map(a => (
+                            <button key={a} type="button" onClick={() => setForm(f => ({ ...f, anios: a }))}
+                              className={`text-xs rounded-lg px-3 py-1.5 border ${form.anios === a ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`}>
+                              {a} {a === 1 ? 'año' : 'años'}
+                            </button>
+                          ))}
+                        </div>
+                        {parseFloat(form.monto) > 0 && (
+                          <span className="text-[11px] text-zinc-400">Se contará como S/ {(parseFloat(form.monto) / (form.anios * 12)).toFixed(2)} al mes durante {form.anios} {form.anios === 1 ? 'año' : 'años'}.</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <input placeholder="Concepto (ej. Suscripciones de agosto)" value={form.concepto}
                   onChange={e => setForm(f => ({ ...f, concepto: e.target.value }))}
                   className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
@@ -2581,7 +2692,16 @@ function FinanzasPanel() {
                     <div key={m.id} className={`relative bg-zinc-950 border rounded-lg pl-4 pr-3 py-2 overflow-hidden flex justify-between items-center gap-2 ${m.tipo === 'ingreso' ? 'border-emerald-900/50' : 'border-red-900/50'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.tipo === 'ingreso' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <div className="min-w-0">
-                        <div className="text-zinc-200 text-xs truncate">{m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        <div className="text-zinc-200 text-xs truncate">{m.tipo === 'gasto' && (CATEGORIAS_GASTO.find(c => c.id === m.categoria)?.emoji || '📦')} {m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        {m.tipo === 'gasto' && (
+                          <select value={m.categoria || 'otro'} onChange={e => cambiarCategoria(m, e.target.value)}
+                            className="mt-0.5 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-400">
+                            {CATEGORIAS_GASTO.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+                          </select>
+                        )}
+                        {m.tipo === 'gasto' && m.meses_a_repartir && (
+                          <span className="text-[10px] text-zinc-500 ml-1.5">repartido en {m.meses_a_repartir} meses</span>
+                        )}
                         <div className="text-zinc-600 text-[11px]">{m.fecha} {m.tiene_comprobante ? '· con comprobante' : ''}</div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

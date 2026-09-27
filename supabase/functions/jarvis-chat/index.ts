@@ -187,7 +187,7 @@ const TOOLS = [
   },
   {
     name: "buscar_alumno",
-    description: "Busca uno o más alumnos de Jonah Beast Fuel por nombre o username. Devuelve sus datos básicos (nombre, username, teléfono, plan, fecha de vencimiento, si tiene el add-on de reconocimiento por foto activo).",
+    description: "Busca uno o más alumnos de Jonah Beast Fuel por nombre o username. Devuelve sus datos básicos (nombre, username, teléfono, plan, fecha de vencimiento) y en captura_inteligente cuántas fotos tiene hoy, ya calculado: úsalo tal cual y no lo deduzcas de otros datos.",
     input_schema: {
       type: "object",
       properties: { query: { type: "string", description: "Nombre o username (o parte de él) a buscar" } },
@@ -209,6 +209,25 @@ const TOOLS = [
 ];
 
 // Fecha YYYY-MM-DD en hora de Lima.
+// Cuántas fotos de captura inteligente tiene hoy un alumno, en palabras.
+// Reglas (ver "Captura inteligente" en el estado del negocio): incluida en
+// todo plan pagado con 5 fotos por día; en la prueba gratis, 3 por día los
+// primeros 3 días y luego 5 por semana; un regalo de fotos (add-on) le da a
+// quien está en prueba las 5 diarias hasta la fecha del regalo.
+function capturaInteligenteHoy(a: any, regaloActivo: boolean, regaloHasta: string | null, hoy: string): string {
+  if (!a.enabled) return "Sin captura inteligente: la cuenta está desactivada.";
+  if (a.fecha_vencimiento && a.fecha_vencimiento < hoy) return `Sin captura inteligente: su ${a.plan === "trial" ? "prueba gratis" : "plan"} venció el ${a.fecha_vencimiento}.`;
+  const regaloVigente = regaloActivo && regaloHasta && regaloHasta >= hoy;
+  if (a.plan !== "trial") return "Incluida en su plan pagado: 5 fotos por día.";
+  if (regaloVigente) return `En prueba gratis, con fotos regaladas: 5 fotos por día hasta el ${regaloHasta}.`;
+  const regaloVencido = regaloActivo && regaloHasta ? ` (tuvo fotos regaladas hasta el ${regaloHasta}; ya vencieron)` : "";
+  const dias = a.fecha_inicio ? Math.floor((Date.parse(hoy) - Date.parse(a.fecha_inicio)) / 86_400_000) : null;
+  const cupo = dias === null ? "3 fotos por día los primeros 3 días y luego 5 por semana"
+    : dias < 3 ? `3 fotos por día (bienvenida, días 1 a 3; hoy es su día ${dias + 1})`
+    : "5 fotos por semana (ya pasaron sus 3 días de bienvenida)";
+  return `Solo la de la prueba gratis: ${cupo}${regaloVencido}.`;
+}
+
 function fechaLima(d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(d);
 }
@@ -606,7 +625,15 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
           .or(`nombre.ilike.%${q}%,username.ilike.%${q}%`)
           .limit(5);
         if (error) return { error: "No se pudo buscar: " + error.message };
-        return resultados || [];
+        // En vez de las columnas crudas del add-on (reconocimiento_foto_activo
+        // queda en true aunque la fecha ya pasó), Jarvis recibe en palabras
+        // cuántas fotos tiene hoy cada alumno. Antes leía "activo: true" de
+        // un regalo vencido y decía que tenía la captura activa.
+        const hoy = fechaLima();
+        return (resultados || []).map(({ reconocimiento_foto_activo, reconocimiento_foto_hasta, ...a }: any) => ({
+          ...a,
+          captura_inteligente: capturaInteligenteHoy(a, reconocimiento_foto_activo, reconocimiento_foto_hasta, hoy),
+        }));
       }
       if (bloque.name === "activar_reconocimiento_foto") {
         // No se activa aquí: se valida y se deja pendiente del botón.

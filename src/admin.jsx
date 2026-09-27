@@ -3919,6 +3919,20 @@ async function sugerenciasJarvis(users, d) {
     });
   }
 
+  // Bienvenida personal: quien empezó su prueba ayer o hoy. Un saludo del
+  // coach el primer día es lo que más empuja a que pague al final.
+  const recienLlegados = lista.filter(u => u.enabled && esPrueba(u) && u.telefono
+    && (u.fechaInicio === todayISO() || u.fechaInicio === addDaysISO(todayISO(), -1)));
+  if (recienLlegados.length && sug.length < 2) {
+    const u = recienLlegados[0];
+    sug.push({
+      texto: `${primerNombre(u)} empezó su prueba gratis${recienLlegados.length > 1 ? ` (y ${recienLlegados.length - 1} más)` : ''}. Un saludo suyo el primer día vale oro: es lo que más empuja a que pague al final.`,
+      voz: `${primerNombre(u)} empezó su prueba. Un saludo suyo hoy vale oro.`,
+      boton: 'Darle la bienvenida',
+      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 15 días estoy contigo: registra tu primera comida con una foto y cualquier duda me escribes por aquí 💪`),
+    });
+  }
+
   // Alumnos que pagan y dejaron de registrar hace 3 a 7 días.
   try {
     const hoy = todayISO();

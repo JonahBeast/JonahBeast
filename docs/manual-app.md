@@ -87,6 +87,7 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 - Al registrarte **no** se pide nombre ni celular; eso se pide después dentro de la app.
 - La cuenta es gratis para siempre. Los primeros **7 días son Premium** (el día del registro cuenta como día 1) y no se pide tarjeta. Después pasa a la versión gratis (13.6).
 - Quienes se registraron antes con la prueba de 15 días la mantienen hasta su fecha.
+- Quien se registra con el código **RETO** (Reto Beast, 12.1) tiene 15 días de Premium.
 
 Errores del registro y qué hacer:
 
@@ -449,7 +450,7 @@ Página del reto que Jonah anuncia en TikTok. Fechas: **del jueves 1 al jueves 1
 1. Unirse al grupo del reto (Grupo de Google "Reto Beast Fuel", groups.google.com/g/reto-beast-fuel) con la misma cuenta de Google de su Play Store.
 2. Aceptar ser verificador en Play Store ("Convertirte en verificador"; a algunos Google les dice "probador", es lo mismo). Listo cuando la página dice "Eres verificador" o "Eres un probador". No tocar "Abandonar el programa" ni "Instala la versión pública" (son los pasos para salir del reto); para instalar se usa "descárgala en Google Play".
 3. Instalar la app desde Play Store y abrirla siempre desde el ícono.
-4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días gratis). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
+4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días de Premium gratis, en vez de los 7 de siempre). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
 
 Problemas:
 - "Tengo iPhone" → puede usar la app desde el navegador con el código RETO, pero el reto es para quienes usan la app de Play Store.

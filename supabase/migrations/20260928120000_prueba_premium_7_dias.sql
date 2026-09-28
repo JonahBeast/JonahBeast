@@ -3,8 +3,10 @@
 -- Cada cuenta nueva tiene 7 días de Premium: el día del registro es el día
 -- 1 y el día 7 es el último (fecha_vencimiento = hoy + 6, igual que
 -- TRIAL_DAYS = 7 en src/App.jsx). Al vencer ya no se bloquea: pasa a la
--- versión gratis. Solo cambia el "+ 15" por "+ 6"; el resto de la función
--- queda igual. No toca a quienes ya se registraron.
+-- versión gratis. Excepción: quien se registra con el código RETO (Reto
+-- Beast, 1 al 15 de octubre de 2026) mantiene los 15 días de antes, como
+-- promete la página del reto. El resto de la función queda igual. No toca
+-- a quienes ya se registraron.
 
 create or replace function public.handle_new_user()
  returns trigger
@@ -58,7 +60,8 @@ begin
   insert into alumnos (username, user_id, nombre, telefono, enabled, plan,
                        fecha_inicio, fecha_vencimiento, codigo_referido, fecha_nacimiento)
   values (v_username, new.id, v_nombre, v_telefono, true, 'trial',
-          current_date, current_date + 6, v_ref, v_fecha_nacimiento)
+          current_date, current_date + (case when v_ref = 'RETO' then 15 else 6 end),
+          v_ref, v_fecha_nacimiento)
   on conflict (username) do nothing;
 
   return new;

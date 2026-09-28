@@ -78,6 +78,23 @@ export const GUSTOS_POR_DEFECTO = {
   platos: true,
 };
 
+/* Alimentos que Jonah agrega desde el panel pueden entrar al menú si les
+   marca un uso (columna menu_uso de alimentos_extra; en la app llegan como
+   food.menuUso). Estas son las opciones del panel. */
+export function opcionesUsoMenu() {
+  return [
+    ...OPCIONES_PROTEINA.map(o => ({ valor: `proteina:${o.id}`, texto: `Proteína (almuerzo/cena) · ${o.label}` })),
+    ...OPCIONES_ACOMPANAMIENTO.map(o => ({ valor: `acompanamiento:${o.id}`, texto: `Acompañamiento · ${o.label}` })),
+    ...['pollo', 'res', 'cerdo', 'pescado', 'menestras'].map(id => ({ valor: `almuerzo:${id}`, texto: `Plato de almuerzo · con ${id === 'res' ? 'carne de res' : id}` })),
+    { valor: 'desayuno', texto: 'Desayuno completo' },
+    { valor: 'snack', texto: 'Media mañana / media tarde' },
+  ];
+}
+
+function textoExtra(food) {
+  return food.state && food.state !== '-' ? `${food.name} (${String(food.state).toLowerCase()})` : food.name;
+}
+
 // Qué comidas lleva el menú según cuántas hace al día, y qué parte de las
 // calorías del día va a cada una.
 export const REPARTO = {
@@ -241,9 +258,13 @@ function sinRestringidos(lista, restricciones, buscar) {
   });
 }
 
-function alimentosDe(opciones, ids, restricciones, buscar) {
-  return opciones.filter(o => ids.includes(o.id))
+function alimentosDe(opciones, ids, restricciones, buscar, extras = [], tipo = null) {
+  const base = opciones.filter(o => ids.includes(o.id))
     .flatMap(o => sinRestringidos(o.alimentos, restricciones, buscar).map(a => ({ ...a, gusto: o.id })));
+  const agregados = tipo ? extras
+    .filter(f => ids.some(id => f.menuUso === `${tipo}:${id}`) && !restricciones.includes(f.name))
+    .map(f => ({ key: f.key, texto: textoExtra(f), gusto: f.menuUso.split(':')[1] })) : [];
+  return [...base, ...agregados];
 }
 
 function ensaladaItems(buscar, r) {
@@ -261,11 +282,11 @@ function gramosUnidad(buscar, gramsPerUnit, def) {
 
 function platoPrincipal(ctx, meta, r, evitarProteina) {
   const { buscar, gramsPerUnit, gustos, restricciones } = ctx;
-  let proteinas = alimentosDe(OPCIONES_PROTEINA, gustos.proteinas.filter(p => p !== 'huevo' || gustos.proteinas.length === 1), restricciones, buscar);
+  let proteinas = alimentosDe(OPCIONES_PROTEINA, gustos.proteinas.filter(p => p !== 'huevo' || gustos.proteinas.length === 1), restricciones, buscar, ctx.extras, 'proteina');
   if (!proteinas.length) proteinas = alimentosDe(OPCIONES_PROTEINA, ['pollo'], restricciones, buscar);
   const distintas = proteinas.filter(p => p.gusto !== evitarProteina);
   const prot = elegir(r, distintas.length ? distintas : proteinas);
-  let acomp = alimentosDe(OPCIONES_ACOMPANAMIENTO, gustos.acompanamientos, restricciones, buscar);
+  let acomp = alimentosDe(OPCIONES_ACOMPANAMIENTO, gustos.acompanamientos, restricciones, buscar, ctx.extras, 'acompanamiento');
   if (!acomp.length) acomp = alimentosDe(OPCIONES_ACOMPANAMIENTO, ['arroz'], restricciones, buscar);
   const carb = elegir(r, acomp);
   const porHuevo = prot.key.startsWith('Huevo') ? gramosUnidad(buscar, gramsPerUnit, { key: prot.key, unidad: 'unidad' }) : null;
@@ -281,7 +302,11 @@ function platoPrincipal(ctx, meta, r, evitarProteina) {
 
 function platoPeruano(ctx, meta, r) {
   const { buscar, gustos, restricciones } = ctx;
-  const opciones = PLATOS.filter(p => p.menestra ? gustos.acompanamientos.includes('menestras') : gustos.proteinas.includes(p.proteina))
+  const platosExtra = ctx.extras.filter(f => f.menuUso?.startsWith('almuerzo:')).map(f => {
+    const id = f.menuUso.split(':')[1];
+    return id === 'menestras' ? { key: f.key, menestra: true } : { key: f.key, proteina: id };
+  });
+  const opciones = [...PLATOS, ...platosExtra].filter(p => p.menestra ? gustos.acompanamientos.includes('menestras') : gustos.proteinas.includes(p.proteina))
     .filter(p => { const f = buscar(p.key); return f && !restricciones.includes(f.name); });
   if (!opciones.length) return null;
   const plato = elegir(r, opciones);
@@ -305,7 +330,8 @@ function platoPeruano(ctx, meta, r) {
 
 function desayuno(ctx, meta, r) {
   const { buscar, gramsPerUnit, gustos, restricciones } = ctx;
-  const estilos = gustos.desayunos.length ? gustos.desayunos : ['pan'];
+  const desayunosExtra = ctx.extras.filter(f => f.menuUso === 'desayuno' && !restricciones.includes(f.name));
+  const estilos = [...(gustos.desayunos.length ? gustos.desayunos : ['pan']), ...(desayunosExtra.length ? ['extra'] : [])];
   const estilo = elegir(r, estilos);
   const huevoOk = gustos.proteinas.includes('huevo') && !restricciones.includes('Huevo de gallina');
   const conUnidad = (def, rol, maxUnidades) => {
@@ -313,7 +339,10 @@ function desayuno(ctx, meta, r) {
     return item(buscar, def, rol, pu ? { min: pu, max: pu * maxUnidades, porUnidad: pu } : { min: 30, max: 200, paso: 10 });
   };
   let items;
-  if (estilo === 'avena') {
+  if (estilo === 'extra') {
+    const f = elegir(r, desayunosExtra);
+    items = [{ key: f.key, food: f, texto: textoExtra(f), rol: 'k', g: 0, min: 100, max: 500, paso: 25 }];
+  } else if (estilo === 'avena') {
     items = [
       item(buscar, { key: 'Avena en hojuelas (Cruda)', texto: 'Avena en hojuelas (cruda, para preparar)' }, 'c', { min: 30, max: 160, paso: 10 }),
       item(buscar, LECHE, 'fijo', { g: 250 }),
@@ -360,8 +389,11 @@ function snack(ctx, meta, r) {
   }
   const restante = meta.kcal - sumar(items).kcal;
   if (restante > 60) {
-    const opciones = sinRestringidos(COMPLEMENTO_SNACK, restricciones, buscar)
-      .filter(x => !x.gusto || gustos.proteinas.includes(x.gusto));
+    const opciones = [
+      ...sinRestringidos(COMPLEMENTO_SNACK, restricciones, buscar).filter(x => !x.gusto || gustos.proteinas.includes(x.gusto)),
+      ...ctx.extras.filter(f => f.menuUso === 'snack' && !restricciones.includes(f.name))
+        .map(f => ({ key: f.key, texto: textoExtra(f), min: 50, max: 300, paso: 10 })),
+    ];
     const comp = elegir(r, opciones.length ? opciones : [COMPLEMENTO_SNACK[0]]);
     const pu = gramosUnidad(buscar, gramsPerUnit, comp);
     // Mínimo 0: si el día ya está completo, el ajuste final puede quitarlo.
@@ -388,9 +420,10 @@ export function comidasDelMenu(gustos) {
 
 /* Arma el menú. variantes: { base, [comida]: n } — "Otro menú" sube base
    y "Cambiar" sube la de esa comida. */
-export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], mealPlan, semilla, variantes = {} }) {
+export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], mealPlan, semilla, variantes = {}, extras = [] }) {
   const g = { ...GUSTOS_POR_DEFECTO, ...(gustos || {}) };
-  const ctx = { buscar, gramsPerUnit, gustos: g, restricciones };
+  // extras: alimentos agregados por Jonah con un uso en el menú (menuUso).
+  const ctx = { buscar, gramsPerUnit, gustos: g, restricciones, extras: (extras || []).filter(f => f && f.menuUso && f.kcal > 0) };
   const meta = metaDelDia(mealPlan);
   const reparto = REPARTO[g.comidas] || REPARTO[5];
   const base = variantes.base || 0;

@@ -14,16 +14,14 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 
-// Captura inteligente incluida en todos los planes pagados: 5 fotos por
-// día (desayuno, almuerzo, cena y 2 snacks). Quien aún tenga el antiguo
-// complemento "Reconocimiento Inteligente" recibe lo mismo.
+// Premium (un plan pagado vigente, o la prueba de Premium mientras dura):
+// foto inteligente en todas las comidas, 5 por día (desayuno, almuerzo,
+// cena y 2 snacks). La app no le muestra un contador: el tope solo existe
+// para cuidar costos.
 const LIMITE_PLAN_DIARIO = 5;
-// Prueba gratis: los primeros 3 días, 3 fotos por día (bienvenida), para
-// que el alumno viva la función completa justo cuando decide si se queda.
-// Desde el día 4, 5 por semana; con un plan pasa a 5 por día.
-const LIMITE_GRATIS_SEMANAL = 5;
-const LIMITE_BIENVENIDA_DIARIO = 3;
-const DIAS_BIENVENIDA = 3;
+// Versión gratis (la prueba o el plan ya vencieron, pero la cuenta sigue
+// habilitada): 3 fotos por semana, se renuevan cada lunes.
+const LIMITE_GRATIS_SEMANAL = 3;
 // Leer la tabla nutricional de un producto NO usa las fotos de comida:
 // tiene su propio tope diario. El producto queda guardado para todos.
 const LIMITE_ETIQUETAS_DIARIO = 5;
@@ -62,11 +60,6 @@ function numeroDeSemanaISO(d = new Date()) {
 // Fecha YYYY-MM-DD en hora de Lima.
 function fechaLima(d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(d);
-}
-
-// Días entre dos fechas YYYY-MM-DD (b - a).
-function diasEntre(a: string, b: string) {
-  return Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86400000);
 }
 
 // El alumno sale de la sesión iniciada, nunca de lo que mande el navegador:
@@ -110,31 +103,27 @@ Deno.serve(async (req) => {
 // Foto de un alumno con sesión: su cupo, sus alimentos, sus correcciones.
 async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto }: any) {
   try {
-    // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
-    // sin fecha de vencimiento), igual que en la app.
+    // Cuenta habilitada: con el plan (o la prueba) vigente es Premium; si ya
+    // venció, sigue en la versión gratis. Solo una cuenta deshabilitada por
+    // el admin queda fuera.
     const { data: alumno } = await supabase
       .from("alumnos")
-      .select("enabled, plan, fecha_inicio, fecha_vencimiento, reconocimiento_foto_desde, reconocimiento_foto_hasta")
+      .select("enabled, plan, fecha_vencimiento, reconocimiento_foto_hasta")
       .eq("username", username)
       .maybeSingle();
-    if (!alumno || !alumno.enabled || (alumno.fecha_vencimiento && alumno.fecha_vencimiento < fechaLima())) {
-      return json({ error: "Tu membresía no está activa. Renueva tu plan para usar el reconocimiento por foto." }, 403);
+    if (!alumno || !alumno.enabled) {
+      return json({ error: "Tu cuenta no está activa. Escríbenos para más información." }, 403);
     }
 
     const hoy = new Date();
     const hoyLima = fechaLima(hoy);
     const tieneAddOn = !!(alumno.reconocimiento_foto_hasta && new Date(alumno.reconocimiento_foto_hasta + "T23:59:59Z") > hoy);
-    const esPrueba = alumno.plan === "trial" || alumno.plan === "prueba";
-    const conPlan = !esPrueba || tieneAddOn;
-    const diaPrueba = esPrueba && alumno.fecha_inicio ? diasEntre(alumno.fecha_inicio, hoyLima) + 1 : null;
-    const enBienvenida = !conPlan && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
+    const premium = !alumno.fecha_vencimiento || alumno.fecha_vencimiento >= hoyLima || tieneAddOn;
     const sinLimite = FOTOS_SIN_LIMITE.has(username);
-    const tipo = sinLimite ? "ilimitado" : conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
-    const periodo = sinLimite || conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
-    const limite = sinLimite ? LIMITE_SIN_TOPE : conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
-    // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
-    const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
-    const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
+    const tipo = sinLimite ? "ilimitado" : premium ? "diario" : "gratis";
+    const periodo = sinLimite || premium ? `dia-${hoyLima}` : numeroDeSemanaISO(hoy);
+    const limite = sinLimite ? LIMITE_SIN_TOPE : premium ? LIMITE_PLAN_DIARIO : LIMITE_GRATIS_SEMANAL;
+    const cupo = { tipo, limite, tieneAddOn, hasta: alumno.reconocimiento_foto_hasta || null };
 
     // Código de barras (ver "PRODUCTOS" al final del archivo):
     // - buscar_codigo: tabla productos → Open Food Facts. No gasta fotos.

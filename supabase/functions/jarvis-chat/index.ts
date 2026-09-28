@@ -216,16 +216,13 @@ const TOOLS = [
 // quien está en prueba las 5 diarias hasta la fecha del regalo.
 function capturaInteligenteHoy(a: any, regaloActivo: boolean, regaloHasta: string | null, hoy: string): string {
   if (!a.enabled) return "Sin captura inteligente: la cuenta está desactivada.";
-  if (a.fecha_vencimiento && a.fecha_vencimiento < hoy) return `Sin captura inteligente: su ${a.plan === "trial" ? "prueba gratis" : "plan"} venció el ${a.fecha_vencimiento}.`;
   const regaloVigente = regaloActivo && regaloHasta && regaloHasta >= hoy;
-  if (a.plan !== "trial") return "Incluida en su plan pagado: 5 fotos por día.";
-  if (regaloVigente) return `En prueba gratis, con fotos regaladas: 5 fotos por día hasta el ${regaloHasta}.`;
-  const regaloVencido = regaloActivo && regaloHasta ? ` (tuvo fotos regaladas hasta el ${regaloHasta}; ya vencieron)` : "";
-  const dias = a.fecha_inicio ? Math.floor((Date.parse(hoy) - Date.parse(a.fecha_inicio)) / 86_400_000) : null;
-  const cupo = dias === null ? "3 fotos por día los primeros 3 días y luego 5 por semana"
-    : dias < 3 ? `3 fotos por día (bienvenida, días 1 a 3; hoy es su día ${dias + 1})`
-    : "5 fotos por semana (ya pasaron sus 3 días de bienvenida)";
-  return `Solo la de la prueba gratis: ${cupo}${regaloVencido}.`;
+  if (a.fecha_vencimiento && a.fecha_vencimiento < hoy && !regaloVigente) {
+    return `Versión gratis: 3 fotos por semana (se renuevan cada lunes). Su ${a.plan === "trial" ? "prueba de Premium" : "plan"} venció el ${a.fecha_vencimiento}.`;
+  }
+  if (a.plan !== "trial") return "Premium (plan pagado): foto inteligente en todas sus comidas, hasta 5 por día.";
+  if (regaloVigente && a.fecha_vencimiento && a.fecha_vencimiento < hoy) return `Fotos regaladas: 5 por día hasta el ${regaloHasta}.`;
+  return `Prueba de Premium (hasta el ${a.fecha_vencimiento}): foto inteligente en todas sus comidas, hasta 5 por día.`;
 }
 
 function fechaLima(d = new Date()) {

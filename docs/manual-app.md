@@ -175,7 +175,8 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 
 De arriba hacia abajo:
 
-- **Un aviso a la vez** (el más importante): renovación → prueba gratis → notificaciones → instalar la app.
+- **Un aviso a la vez** (el más importante): versión gratis → renovación → prueba gratis → notificaciones → instalar la app.
+  - **"ESTÁS EN LA VERSIÓN GRATIS"** ("Con Premium tienes foto inteligente en todas tus comidas.") sale cuando venció su prueba o su plan. El botón **"VER PREMIUM"** lleva a los planes.
 - **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora". Mientras falte la primera comida, el botón dice **"📷 Tómale foto a lo que vas a comer"** y abre la cámara directo (lo mismo al tocar el paso 1).
 - **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": tocando un ícono vas directo a esa comida.
   - Si aparece **"Meta estimada. Ajústala a tu cuerpo en 30 segundos"**, faltan tus datos o tu objetivo (ver sección 10).
@@ -329,9 +330,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 | Situación | Fotos |
 |---|---|
-| Con cualquier plan pagado | **5 por día**, incluidas en el plan ("Te quedan N fotos hoy") |
-| Primeros 3 días de la prueba (bienvenida) | 3 por día ("🎁 Bienvenida: Te quedan N fotos hoy") |
-| Resto de la prueba gratis | 5 por semana, se renuevan cada lunes |
+| **Premium**: con cualquier plan pagado o durante la prueba gratis | **Foto inteligente en todas sus comidas.** No se muestra ningún contador. Por dentro hay un tope de 5 por día (una por cada comida). |
+| **Versión gratis** (cuando venció la prueba o el plan) | **3 fotos por semana**, se renuevan cada lunes ("Te quedan N de 3 fotos gratis esta semana") |
 
 - Si una foto falla por un error del sistema, **no se descuenta**.
 - Leer la **tabla nutricional** de un producto (en "Código") **no usa las fotos de comida**: se pueden leer hasta 5 etiquetas por día. Escanear el código de barras tampoco cuenta.
@@ -339,13 +339,13 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ### 9.2 Mensajes y qué hacer
 
-- "Usaste tus 5 fotos de hoy" (con plan) → mañana tiene 5 más; mientras tanto, tocar **"Registrarlo escribiendo"**.
-- "Usaste tus 3 fotos de hoy" / "Ya usaste tus fotos gratis de esta semana" (en la prueba) → esperar a que se renueven, tocar **"Ver planes"** (con cualquier plan tiene 5 fotos al día incluidas) o **"Registrarlo escribiendo"**.
+- "Llegaste a 5 fotos hoy" ("Una por cada comida. Si necesitas más, escríbenos por WhatsApp.") (Premium) → mañana puede seguir con fotos. Mientras tanto, tocar **"Registrarlo escribiendo"**. Si de verdad necesita más, tocar **"Escribir por WhatsApp"** y pasar a Jonah.
+- "Ya usaste tus 3 fotos gratis de esta semana" ("Registrar con foto todas tus comidas es Premium.") (versión gratis) → el lunes tiene 3 fotos nuevas. Si quiere foto en todas sus comidas, tocar **"Ver Premium"**. Si no, **"Registrarlo escribiendo"**.
 - "Ya leíste 5 etiquetas hoy…" (al leer la tabla nutricional) → mañana puede leer más; mientras tanto, **"Buscarlo escribiendo"**.
 - "No reconocimos nada con confianza en esta foto…" → más luz, más cerca; si es un envase (leche, yogurt, jugo), fotografiar la marca. Luego "Probar otra foto".
 - "La foto es demasiado pesada." → tomar la foto con la cámara en vez de usar una imagen guardada.
 - "No se pudo procesar la foto…" → "Reintentar".
-- "Tu membresía no está activa…" → el plan venció (sección 11).
+- "Tu cuenta no está activa…" → la cuenta fue desactivada por Jonah: pasar a Jonah.
 
 ---
 
@@ -511,7 +511,8 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 ### 13.6 Cuando vence la prueba o el plan
 
 - **Faltando 7 días o menos:** aviso "TU PLAN VENCE EN N DÍAS" con "Renovar mi plan" y "Consultar".
-- **Al vencer:** al entrar se ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ", con un resumen de lo logrado. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
+- **Al vencer, la cuenta no se bloquea: pasa a la versión gratis.** Puede seguir usando la app gratis: registrar sus comidas escribiendo, su meta de calorías, su peso y **3 fotos inteligentes por semana**.
+- **La primera vez que entra después de vencer** ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ". Esa pantalla trae el texto de la versión gratis, dos botones (**"QUIERO PREMIUM"**, que baja a los planes, y **"Seguir con la versión gratis"**, que entra a la app) y un resumen de lo logrado. Después de tocar "Seguir con la versión gratis" entra directo a la app. Los planes siguen en "Inicio" ("VER PREMIUM") y en la pestaña de planes. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
 - **Si fue la prueba gratis**, sale también la pregunta **"¿QUÉ TE FALTÓ PARA QUEDARTE?"** ("Un toque y nos ayudas a mejorar. Lo lee Jonah."), con las opciones "💸 El precio", "⏰ No tuve tiempo", "🤔 No la entendí bien", "📸 La foto no me funcionó bien", "🍽️ No encontré mis comidas" y "✍️ Otro" (con un espacio para escribir y **"Enviar"**). Al responder sale "🙌 ¡Gracias! Con tu respuesta mejoramos la app.". Es opcional y se responde una sola vez.
   - **Nada se borra:** el historial y las fotos te esperan.
   - Botones "QUIERO CONTINUAR" (baja a los planes) y "Prefiero consultar por WhatsApp".

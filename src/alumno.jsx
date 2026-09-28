@@ -1455,6 +1455,9 @@ function RepetirAyerCard({ username, mealPlan, setMealPlan }) {
 
 function trialDayOf(u) {
   if (!u || u.plan !== 'trial' || !u.fechaInicio) return null;
+  // Prueba vencida: ya está en la versión gratis, no en su prueba.
+  const dlPrueba = daysLeft(u.fechaVencimiento);
+  if (dlPrueba !== null && dlPrueba < 0) return null;
   const [y, m, d] = u.fechaInicio.split('-').map(Number);
   const inicio = new Date(y, m - 1, d);
   const hoy = new Date();
@@ -1871,6 +1874,32 @@ function CalculatorTab({ form, setForm, results, onSiguiente }) {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+/* Cuenta habilitada con la prueba o el plan vencido: sigue en la app con
+   la versión gratis (3 fotos inteligentes por semana, entre otras cosas). */
+function esVersionGratis(u) {
+  if (!u || !u.enabled) return false;
+  const dl = daysLeft(u.fechaVencimiento);
+  return dl !== null && dl < 0;
+}
+
+function GratisBanner({ onVerPremium }) {
+  return (
+    <div className="relative rounded-2xl p-4 pl-5 mb-6 border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <p className="jb-display text-sm text-orange-400 mb-0.5">ESTÁS EN LA VERSIÓN GRATIS</p>
+          <p className="jb-body text-xs text-zinc-400">Con Premium tienes foto inteligente en todas tus comidas.</p>
+        </div>
+        <button onClick={onVerPremium}
+          className="jb-display shrink-0 rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 px-4 py-2 text-sm tracking-wide">
+          VER PREMIUM
+        </button>
+      </div>
     </div>
   );
 }
@@ -5608,9 +5637,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   const [mensajeError, setMensajeError] = useState('');
   const [progresoIA, setProgresoIA] = useState(0);
-  // Cuántas fotos le quedan. Con un plan: captura inteligente incluida,
-  // 5 al día. En la prueba: 3 al día los 3 primeros días y luego 5 por
-  // semana. Si el servidor aún no responde la consulta, no se muestra.
+  // Cuántas fotos le quedan. Premium (prueba o plan): hasta 5 al día, sin
+  // contador a la vista. Versión gratis: 3 por semana, con contador. Si el
+  // servidor aún no responde la consulta, no se muestra.
   const [cupo, setCupo] = useState(null);
   useEffect(() => {
     (async () => {
@@ -5825,13 +5854,13 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                 <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Fotos ilimitadas</span> en esta cuenta · hoy llevas {Number(cupo.usadas) || 0}</p>
               </div>
             )}
-            {cupo && cupo.tipo !== 'ilimitado' && (
-              <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${cupo.tipo === 'bienvenida'
-                ? 'bg-orange-500/10 border-orange-500/40' : quedan <= 2 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
+            {/* Premium (prueba o plan): sin contador, se siente sin límite.
+                Versión gratis: 3 fotos por semana. */}
+            {cupo && cupo.tipo !== 'ilimitado' && cupo.tipo !== 'diario' && (
+              <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${quedan <= 1 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <p className="jb-body text-xs text-zinc-300">
-                    {cupo.tipo === 'bienvenida' ? '🎁 Bienvenida: ' : ''}
-                    Te {quedan === 1 ? 'queda' : 'quedan'} <span className="text-orange-400 font-semibold">{quedan} {quedan === 1 ? 'foto' : 'fotos'}</span> {cupo.tipo === 'semanal' ? 'esta semana' : 'hoy'}
+                    Te {quedan === 1 ? 'queda' : 'quedan'} <span className="text-orange-400 font-semibold">{quedan} de {cupo.limite} {cupo.limite === 1 ? 'foto gratis' : 'fotos gratis'}</span> esta semana
                   </p>
                   <div className="flex gap-1 shrink-0" aria-hidden="true">
                     {Array.from({ length: cupo.limite }).map((_, i) => (
@@ -5840,15 +5869,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                   </div>
                 </div>
                 <p className="jb-body text-[11px] text-zinc-500 mt-1">
-                  {cupo.tipo === 'bienvenida'
-                    ? (cupo.diasBienvenidaRestantes > 0
-                      ? `Tus primeros 3 días tienes 3 fotos al día. Después, 5 por semana.`
-                      : 'Hoy es tu último día de bienvenida. Desde mañana, 5 fotos por semana.')
-                    : cupo.tipo === 'diario'
-                      ? 'Captura inteligente incluida en tu plan: 5 fotos cada día.'
-                      : quedan <= 2
-                        ? 'Con cualquier plan tienes 5 fotos cada día, incluidas.'
-                        : 'Se renuevan cada lunes.'}
+                  Se renuevan cada lunes. Con Premium, foto inteligente en todas tus comidas.
                 </p>
               </div>
             )}
@@ -6112,21 +6133,20 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
           <div className="text-center py-2">
             <div className="w-12 h-12 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
             <p className="jb-display text-sm text-orange-500 mb-1">
-              {infoLimite?.tipo === 'diario' ? `Usaste tus ${infoLimite.limite} fotos de hoy`
-                : infoLimite?.tipo === 'bienvenida' ? 'Usaste tus 3 fotos de hoy' : 'Ya usaste tus fotos gratis de esta semana'}
+              {infoLimite?.tipo === 'diario' ? `Llegaste a ${infoLimite.limite} fotos hoy` : 'Ya usaste tus 3 fotos gratis de esta semana'}
             </p>
             <p className="jb-body text-sm text-zinc-400 mb-4">
               {infoLimite?.tipo === 'diario'
-                ? 'Mañana tienes 5 fotos más. Mientras tanto, regístralo escribiendo.'
-                : <>
-                  {infoLimite?.tipo === 'bienvenida' && (infoLimite.diasBienvenidaRestantes > 0
-                    ? 'Mañana tienes 3 fotos más. '
-                    : 'Desde mañana tienes 5 fotos por semana. ')}
-                  Con cualquier plan tienes la <span className="text-zinc-200 font-semibold">captura inteligente incluida: 5 fotos cada día</span>, sin pagar nada extra.
-                </>}
+                ? `Una por cada comida. Si necesitas más, escríbenos por WhatsApp. Mientras tanto, regístralo escribiendo.`
+                : <>Registrar con foto <span className="text-zinc-200 font-semibold">todas tus comidas es Premium</span>. Se renuevan el lunes; mientras tanto, regístralo escribiendo.</>}
             </p>
-            {infoLimite?.tipo !== 'diario' && onVerPlanes && (
-              <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mb-2'}>Ver planes</button>
+            {infoLimite?.tipo === 'diario' ? (
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, ya usé mis 5 fotos de hoy en Jonah Beast Fuel y necesito registrar más.')}`}
+                target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 mb-2'}>
+                Escribir por WhatsApp
+              </a>
+            ) : onVerPlanes && (
+              <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mb-2'}>Ver Premium</button>
             )}
             <button onClick={onEscribir || onCerrar} className={btnGhost + ' w-full py-2.5'}>
               {onEscribir ? 'Registrarlo escribiendo' : 'Entendido'}
@@ -7883,7 +7903,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
   // Prioridad de banners: solo se muestra el más relevante a la vez,
   // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
-  const renewalElegible = !!(userRecord && userRecord.plan !== 'trial'
+  const versionGratis = esVersionGratis(userRecord);
+  const renewalElegible = !!(userRecord && userRecord.plan !== 'trial' && !versionGratis
     && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
   const trialElegible = !!trialDayOf(userRecord);
   // Punto de aviso en "Inicio": solo para lo que realmente le importa al
@@ -8029,7 +8050,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             onCerrar={() => setAjustarMeta(false)} />
         )}
         {tab === 'dash' && (
-          renewalElegible ? (
+          versionGratis ? (
+            <>
+              <GratisBanner onVerPremium={() => setTab('planes')} />
+              <RecordatorioBanner username={username} soloSiFalta />
+            </>
+          ) : renewalElegible ? (
             <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
           ) : trialElegible ? (
             <>

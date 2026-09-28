@@ -4509,6 +4509,59 @@ async function audioPremiumJarvis(texto, voz) {
   return bytes;
 }
 
+/* Divide lo que Jarvis va a decir en frases para la voz realista: la
+   primera va sola y corta (se genera en ~1 s y empieza a hablar enseguida);
+   las demás se juntan hasta ~350 letras y se preparan mientras suena la
+   anterior. */
+function trozosParaVoz(texto) {
+  const frases = String(texto || '').replace(/\s+/g, ' ').trim()
+    .split(/(?<=[.!?…:;])\s+(?=\S)/).filter(Boolean);
+  const trozos = [];
+  for (const f of frases) {
+    const ultimo = trozos[trozos.length - 1];
+    const limite = trozos.length <= 1 ? 160 : 350;
+    if (ultimo !== undefined && trozos.length > 1 && (ultimo + ' ' + f).length <= limite) trozos[trozos.length - 1] = ultimo + ' ' + f;
+    else if (ultimo !== undefined && trozos.length === 1 && ultimo.length < 40 && (ultimo + ' ' + f).length <= limite) trozos[0] = ultimo + ' ' + f;
+    else trozos.push(f);
+  }
+  return trozos.length ? trozos : [String(texto || '')];
+}
+
+/* Efecto "sistema" de la voz estilo Jarvis: un poco más de presencia y
+   cuerpo, una sala corta y metálica muy sutil y un compresor suave, para que
+   suene como una IA en los parlantes de un laboratorio y no como una
+   persona en una llamada. Se arma una vez por contexto de audio. */
+let cadenaVozJarvis = null;
+function cadenaEfectoJarvis(ctx) {
+  if (cadenaVozJarvis && cadenaVozJarvis.ctx === ctx) return cadenaVozJarvis;
+  const entrada = ctx.createGain();
+  const graves = ctx.createBiquadFilter(); graves.type = 'lowshelf'; graves.frequency.value = 180; graves.gain.value = 3;
+  const corte = ctx.createBiquadFilter(); corte.type = 'highpass'; corte.frequency.value = 70;
+  const presencia = ctx.createBiquadFilter(); presencia.type = 'peaking'; presencia.frequency.value = 3200; presencia.Q.value = 0.9; presencia.gain.value = 3;
+  const brillo = ctx.createBiquadFilter(); brillo.type = 'highshelf'; brillo.frequency.value = 7500; brillo.gain.value = 1.5;
+  // Sala corta: ruido que se apaga en ~0.4 s, con un leve "timbre" metálico.
+  const sala = ctx.createConvolver();
+  const largo = Math.floor(ctx.sampleRate * 0.4);
+  const ir = ctx.createBuffer(2, largo, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < largo; i++) {
+      const t = i / ctx.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / largo, 3) * (0.7 + 0.3 * Math.sin(2 * Math.PI * 1900 * t));
+    }
+  }
+  sala.buffer = ir;
+  const seco = ctx.createGain(); seco.gain.value = 0.9;
+  const humedo = ctx.createGain(); humedo.gain.value = 0.16;
+  const compresor = ctx.createDynamicsCompressor();
+  compresor.threshold.value = -20; compresor.ratio.value = 3; compresor.attack.value = 0.005; compresor.release.value = 0.2;
+  entrada.connect(corte).connect(graves).connect(presencia).connect(brillo);
+  brillo.connect(seco).connect(compresor);
+  brillo.connect(sala).connect(humedo).connect(compresor);
+  cadenaVozJarvis = { ctx, entrada, salida: compresor };
+  return cadenaVozJarvis;
+}
+
 /* Mientras Jarvis escribe, el bloque de tarjetas (que llega al final del
    texto) no se muestra: se corta desde donde empieza. */
 function sinBloqueTarjetas(texto) {
@@ -4786,19 +4839,27 @@ function JarvisPanel({ onClose, users }) {
     fuenteVozRef.current = null;
   }
   useEffect(() => () => callarVozPremium(), []);
+  // Habla por frases: pide el audio de todas a la vez, pero empieza apenas
+  // llega la primera (antes esperaba el audio de toda la respuesta). Si la
+  // primera falla, se usa la voz del celular; si falla una posterior, se
+  // corta ahí sin repetir lo ya dicho.
   async function hablarPremium(texto, voz, alTerminar) {
     const mio = ++turnoVozRef.current;
     const ctx = contextoAudioJarvis();
     if (!ctx) throw new Error('sin audio');
-    const bytes = await audioPremiumJarvis(texto, voz);
-    const buffer = await ctx.decodeAudioData(bytes.slice(0));
+    const trozos = trozosParaVoz(texto);
+    const audios = trozos.map((t, i) => {
+      const p = audioPremiumJarvis(t, voz);
+      if (i > 0) p.catch(() => {}); // se maneja al llegar su turno
+      return p;
+    });
+    const primero = await ctx.decodeAudioData((await audios[0]).slice(0));
     if (mio !== turnoVozRef.current) return; // llegó otra respuesta mientras tanto
-    const fuente = ctx.createBufferSource();
-    fuente.buffer = buffer;
     const analizador = ctx.createAnalyser();
     analizador.fftSize = 512;
-    fuente.connect(analizador).connect(ctx.destination);
-    fuenteVozRef.current = fuente;
+    const destino = voz === 'jarvis' ? cadenaEfectoJarvis(ctx) : null;
+    if (destino) { destino.salida.disconnect(); destino.salida.connect(analizador); }
+    analizador.connect(ctx.destination);
     const muestras = new Uint8Array(analizador.fftSize);
     let ultimoGolpe = 0, anterior = 0, activo = true;
     const medir = () => {
@@ -4812,10 +4873,38 @@ function JarvisPanel({ onClose, users }) {
       anterior = nivel;
       requestAnimationFrame(medir);
     };
-    fuente.onended = () => { activo = false; if (fuenteVozRef.current === fuente) fuenteVozRef.current = null; alTerminar(); };
+    let fuenteActual = null;
+    const terminar = () => {
+      activo = false;
+      if (fuenteVozRef.current === fuenteActual) fuenteVozRef.current = null;
+      try { analizador.disconnect(); } catch {}
+      alTerminar();
+    };
+    const sonar = (buffer) => new Promise(resolve => {
+      const fuente = ctx.createBufferSource();
+      fuente.buffer = buffer;
+      fuente.connect(destino ? destino.entrada : analizador);
+      fuenteVozRef.current = fuente;
+      fuenteActual = fuente;
+      fuente.onended = resolve;
+      fuente.start();
+    });
     setHablando(true);
-    fuente.start();
     requestAnimationFrame(medir);
+    (async () => {
+      // Si se calla o llega otra respuesta, se corta igual que antes (al
+      // detener el audio también se avisaba que terminó).
+      let buffer = primero;
+      for (let i = 0; i < trozos.length; i++) {
+        if (mio !== turnoVozRef.current) break;
+        if (i > 0) {
+          try { buffer = await ctx.decodeAudioData((await audios[i]).slice(0)); } catch { break; }
+          if (mio !== turnoVozRef.current) break;
+        }
+        await sonar(buffer);
+      }
+      terminar();
+    })();
   }
 
   function cambiarVoz(voiceURI) {

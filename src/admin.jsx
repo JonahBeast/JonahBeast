@@ -4363,6 +4363,9 @@ function waDeAlumno(u, texto) {
 async function sugerenciasJarvis(users, d) {
   const lista = users || [];
   const primerNombre = u => String(u.nombre || u.username).trim().split(/\s+/)[0];
+  // Nombre completo y username: va solo a la memoria de Jarvis (no se ve),
+  // para que después sepa de quién le hablan.
+  const quien = u => `${String(u.nombre || u.username).trim()} (username ${u.username})`;
   const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
   const sug = [];
 
@@ -4383,6 +4386,7 @@ async function sugerenciasJarvis(users, d) {
     sug.push({
       texto: `${primerNombre(u)} termina su prueba ${cuando} y aún no paga${otros ? ` (y ${otros} más vencen pronto)` : ''}. Un mensaje suyo ahora vale más que diez anuncios.`,
       voz: `Sugiero escribirle a ${primerNombre(u)}: su prueba termina ${cuando}.`,
+      contexto: `Pruebas que vencen hoy o mañana: ${porVencer.map(x => `${quien(x.u)}, ${x.dl === 0 ? 'hoy' : 'mañana'}`).join('; ')}.`,
       boton: 'Escribirle por WhatsApp',
       url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍. Tu prueba gratis termina ${cuando}. ¿Cómo te fue? Si quieres seguir, te ayudo a elegir tu plan 💪`),
     });
@@ -4397,6 +4401,7 @@ async function sugerenciasJarvis(users, d) {
     sug.push({
       texto: `${primerNombre(u)} empezó su prueba gratis${recienLlegados.length > 1 ? ` (y ${recienLlegados.length - 1} más)` : ''}. Un saludo suyo el primer día vale oro: es lo que más empuja a que pague al final.`,
       voz: `${primerNombre(u)} empezó su prueba. Un saludo suyo hoy vale oro.`,
+      contexto: `Empezaron su prueba ayer u hoy: ${recienLlegados.map(quien).join('; ')}.`,
       boton: 'Darle la bienvenida',
       url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 7 días de Premium estoy contigo: registra tu primera comida con una foto y cualquier duda me escribes por aquí 💪`),
     });
@@ -4420,6 +4425,7 @@ async function sugerenciasJarvis(users, d) {
         sug.push({
           texto: `${primerNombre(u)} lleva ${dias} días sin registrar sus comidas${quietos.length > 1 ? ` (${quietos.length - 1} más, igual)` : ''}. Suele ser el primer paso antes de irse; un "¿cómo vas?" a tiempo ayuda.`,
           voz: `${primerNombre(u)} lleva ${enLetras(dias)} días sin registrar. Un mensaje suyo ayudaría.`,
+          contexto: `Pagan y dejaron de registrar hace 3 a 7 días: ${quietos.map(x => `${quien(x.u)}, ${x.dias} días`).join('; ')}.`,
           boton: 'Escribirle por WhatsApp',
           url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah 🦍. Vi que llevas unos días sin registrar tus comidas. ¿Todo bien? Si te trabas con algo, dime y lo vemos juntos 💪`),
         });
@@ -4472,6 +4478,13 @@ async function tarjetasInformeJarvis(users) {
   return { frase, visual: { tarjetas }, sugerencias };
 }
 const CLAVE_INFORME_JARVIS = 'jb-jarvis-informe';
+// Texto completo del informe de al abrir, para la memoria de Jarvis: la
+// frase, las tarjetas y las sugerencias con los nombres de los alumnos.
+function memoriaInformeJarvis(frase, visual, sugerencias) {
+  const tarjetas = (visual?.tarjetas || []).map(t => `${t.titulo}: ${t.valor} (${t.detalle})`).join('; ');
+  const sug = (sugerencias || []).map(s => `${s.texto}${s.contexto ? ` [${s.contexto}]` : ''}`).join(' ');
+  return [frase, tarjetas && `Tarjetas: ${tarjetas}.`, sug && `Sugerencias que le di: ${sug}`].filter(Boolean).join('\n');
+}
 
 /* Voz realista (función jarvis-voz, OpenAI). En el selector se guardan como
    "premium:<voz>"; "" (automática) también usa la voz realista. Si la
@@ -5033,7 +5046,7 @@ function JarvisPanel({ onClose, users }) {
     setTurnos([{ role: 'assistant', content: `${saludoJarvis()}, señor Jonah. A la orden. ¿Qué necesita?` }]);
     if (!yaHoy) {
       tarjetasInformeJarvis(users).then(({ frase, visual, sugerencias }) => {
-        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual, sugerencias } : m)));
+        setTurnos(ts => ts.map((m, i) => (i === 0 ? { ...m, content: frase, visual, sugerencias, contexto: memoriaInformeJarvis(frase, visual, sugerencias) } : m)));
         sonidoJarvis('respuesta');
         hablarRef.current(sugerencias?.[0] ? `${frase} ${sugerencias[0].voz}` : frase);
       }).catch(() => {});
@@ -5053,8 +5066,10 @@ function JarvisPanel({ onClose, users }) {
     setTurnos(nuevosTurnos);
     setPensando(true);
     if (modoContinuoRef.current) pausarMic();
-    // Al historial solo van los textos (no los botones de confirmar).
-    const historial = nuevosTurnos.slice(-6).map(m => ({ role: m.role, content: m.content }));
+    // Al historial solo van los textos (no los botones de confirmar). El
+    // informe de al abrir va con todo lo que mostró y sugirió (nombres
+    // incluidos), para que Jarvis recuerde de quién habló.
+    const historial = nuevosTurnos.slice(-8).map(m => ({ role: m.role, content: m.contexto || m.content }));
     let enCurso = '';
     try {
       // La respuesta aparece mientras se escribe; la voz espera al final

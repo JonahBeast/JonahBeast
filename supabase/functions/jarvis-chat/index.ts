@@ -62,7 +62,7 @@ Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jo
 
 Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemplo buscar a dos alumnos). En el estado del negocio solo recibes totales: cuando Jonah Beast pregunte por nombres, montos o celulares concretos, consulta la herramienta de lectura que corresponda en vez de decir que no tienes el detalle.
 
-1) buscar_alumno (solo lectura) -- busca alumnos por nombre o username. Úsala SIEMPRE que Jonah Beast mencione cualquier nombre de persona, por corto o incompleto que parezca (ej. "Yara", "Bru", "el chico nuevo") -- la búsqueda es parcial y encuentra coincidencias aunque solo escriba una parte del nombre, así que nunca asumas que no vas a encontrar a alguien solo porque el nombre es corto. Si la búsqueda no devuelve resultados, ahí sí dilo con honestidad -- pero intenta primero, no lo des por hecho.
+1) buscar_alumno (solo lectura) -- busca alumnos por nombre o username. Úsala SIEMPRE que Jonah Beast mencione cualquier nombre de persona, por corto o incompleto que parezca (ej. "Yara", "Bru", "el chico nuevo") -- la búsqueda es parcial y encuentra coincidencias aunque solo escriba una parte del nombre, así que nunca asumas que no vas a encontrar a alguien solo porque el nombre es corto. Si la búsqueda no devuelve resultados, ahí sí dilo con honestidad -- pero intenta primero, no lo des por hecho. Jonah Beast suele hablarte por micrófono y el dictado cambia letras de los nombres (Giannina se dicta Yanina o Janina, Brenda/Brenna): si menciona a alguien que tú mismo nombraste antes en esta conversación (por ejemplo en el informe de al abrir), es esa persona aunque el nombre no se escriba igual -- úsala con el username que ya tienes, sin decirle que no la conoces. Si la búsqueda trae un resultado marcado como parecido, confírmalo con él en vez de decir que no existe.
 
 2) ver_pagos (solo lectura) -- detalle de pagos: los de hoy, los de los últimos 7 días o los pendientes de revisar.
 
@@ -369,6 +369,37 @@ async function leerStream(r: Response, alTexto: (t: string) => void) {
   return { content: bloques.filter(Boolean), stop_reason, usage };
 }
 
+// Forma "sonora" de un nombre: sin tildes y con las letras que el dictado
+// suele confundir unificadas (Gia/Ya, y/j/ll/i, v/b, z/c/s, h muda, letras dobles).
+function sonido(t: string) {
+  return t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "")
+    .replace(/[^a-zñ ]/g, " ").replace(/\bgi(?=[aeou])/g, "y").replace(/ll/g, "y").replace(/[jy]/g, "i").replace(/v/g, "b")
+    .replace(/[zc]/g, "s").replace(/qu/g, "k").replace(/h/g, "").replace(/(.)\1+/g, "$1").trim();
+}
+function distancia(a: string, b: string) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// Alumnos cuyo nombre o username se parece a lo buscado, del más parecido
+// al menos. Cada palabra buscada tiene que parecerse a alguna del nombre.
+function nombresParecidos(q: string, alumnos: any[]) {
+  const buscadas = sonido(q).split(/\s+/).filter((w) => w.length >= 3);
+  if (!buscadas.length) return [];
+  return alumnos.map((a) => {
+    const palabras = sonido(`${a.nombre || ""} ${a.username || ""}`).split(/\s+/).filter(Boolean);
+    let total = 0;
+    for (const w of buscadas) {
+      const mejor = Math.min(...palabras.map((p) => distancia(w, p)), 99);
+      if (mejor > (w.length <= 4 ? 1 : 2)) return null;
+      total += mejor;
+    }
+    return { a, total };
+  }).filter(Boolean).sort((x: any, y: any) => x.total - y.total).map((x: any) => x.a);
+}
+
 // El panel manda los últimos turnos. Solo se aceptan textos de usuario y
 // de Jarvis, se quita la pregunta actual si viene repetida al final, y la
 // conversación siempre empieza con un mensaje del usuario (lo exige la API).
@@ -376,10 +407,14 @@ function limpiarHistorial(historial: unknown, pregunta: string) {
   const turnos = (Array.isArray(historial) ? historial : [])
     .filter((t: any) => (t?.role === "user" || t?.role === "assistant") && typeof t.content === "string" && t.content.trim())
     .map((t: any) => ({ role: t.role as "user" | "assistant", content: t.content as string }))
-    .slice(-6);
+    .map((t) => ({ ...t, content: t.content.slice(0, 4000) }))
+    .slice(-8);
   const ultimo = turnos[turnos.length - 1];
   if (ultimo && ultimo.role === "user" && ultimo.content.trim() === pregunta.trim()) turnos.pop();
-  while (turnos.length && turnos[0].role !== "user") turnos.shift();
+  // Si la conversación empieza con Jarvis (el informe de al abrir), antes
+  // se descartaba y Jarvis olvidaba a quién había sugerido. Ahora se le
+  // antepone un turno del usuario para conservarlo.
+  if (turnos.length && turnos[0].role !== "user") turnos.unshift({ role: "user", content: "(Abrí el panel de Jarvis)" });
   return turnos;
 }
 
@@ -622,13 +657,26 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
           .or(`nombre.ilike.%${q}%,username.ilike.%${q}%`)
           .limit(5);
         if (error) return { error: "No se pudo buscar: " + error.message };
+        // Sin coincidencia exacta: se buscan nombres que "suenan" igual,
+        // porque el dictado por voz cambia letras (Yanina / Janina / Yannina).
+        let lista: any[] = resultados || [];
+        let parecido = false;
+        if (!lista.length) {
+          const { data: todos } = await supabase
+            .from("alumnos")
+            .select("nombre, username, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, reconocimiento_foto_activo, reconocimiento_foto_hasta")
+            .range(0, 4999);
+          lista = nombresParecidos(q, todos || []).slice(0, 5);
+          parecido = lista.length > 0;
+        }
         // En vez de las columnas crudas del add-on (reconocimiento_foto_activo
         // queda en true aunque la fecha ya pasó), Jarvis recibe en palabras
         // cuántas fotos tiene hoy cada alumno. Antes leía "activo: true" de
         // un regalo vencido y decía que tenía la captura activa.
         const hoy = fechaLima();
-        return (resultados || []).map(({ reconocimiento_foto_activo, reconocimiento_foto_hasta, ...a }: any) => ({
+        return lista.map(({ reconocimiento_foto_activo, reconocimiento_foto_hasta, ...a }: any) => ({
           ...a,
+          ...(parecido ? { coincidencia: "parecida (no exacta): confírmala con Jonah Beast" } : {}),
           captura_inteligente: capturaInteligenteHoy(a, reconocimiento_foto_activo, reconocimiento_foto_hasta, hoy),
         }));
       }

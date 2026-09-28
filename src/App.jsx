@@ -2079,6 +2079,7 @@ function fechaFinPrueba() {
    guardado en ese celular (7 días) y se canjea al entrar por primera vez a
    la cuenta nueva (canjear_codigo_live en la base: una vez por cuenta). */
 const CLAVE_CODIGO_LIVE = 'jb-codigo-live';
+const CLAVE_GRASA_WHATSAPP = 'jb-grasa-whatsapp';
 function leerCodigoLive() {
   try {
     const c = JSON.parse(localStorage.getItem(CLAVE_CODIGO_LIVE) || 'null');
@@ -2501,7 +2502,11 @@ function FreeCalculator({ onBack, onEmpezar }) {
   const [step, setStep] = useState('form');
   const [codigo, setCodigo] = useState('');
   const [verCodigo, setVerCodigo] = useState(false);
-  const [grasaVisible, setGrasaVisible] = useState(false);
+  // Por WhatsApp solo la primera vez: en ese celular ya lo pidió (Jonah
+  // ya tiene su número), así que las siguientes veces lo ve directo y se le
+  // invita a crear su cuenta para guardar su historial.
+  const [yaLoPidio] = useState(() => { try { return localStorage.getItem(CLAVE_GRASA_WHATSAPP) === '1'; } catch { return false; } });
+  const [grasaVisible, setGrasaVisible] = useState(yaLoPidio);
   const [premio, setPremio] = useState(() => leerCodigoLive());
   const [error, setError] = useState('');
   const [revisando, setRevisando] = useState(false);
@@ -2629,11 +2634,22 @@ function FreeCalculator({ onBack, onEmpezar }) {
                     <p className="jb-display text-lg text-zinc-50">TU % DE GRASA ESTÁ LISTO</p>
                     <p className="jb-body text-xs text-zinc-300 max-w-xs">Míralo ahora y recíbelo en tu WhatsApp, junto con la ayuda de Jonah para empezar.</p>
                     <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensajeGrasa)}`} target="_blank" rel="noopener noreferrer"
-                      onClick={() => { setGrasaVisible(true); registrarEventoEmbudo('calculadora_whatsapp'); }}
+                      onClick={() => {
+                        setGrasaVisible(true); registrarEventoEmbudo('calculadora_whatsapp');
+                        try { localStorage.setItem(CLAVE_GRASA_WHATSAPP, '1'); } catch {}
+                      }}
                       className={btnPrimary + ' w-full max-w-xs py-3 text-sm'}>
                       📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP
                     </a>
                     <button onClick={onEmpezar} className="jb-body text-xs text-zinc-300 underline">o crea tu cuenta gratis y guárdalo ahí</button>
+                  </div>
+                )}
+                {yaLoPidio && (
+                  <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <p className="jb-body text-xs text-zinc-300 flex-1">
+                      📈 ¿Quieres ver cómo baja tu % de grasa semana a semana? Crea tu cuenta gratis y guarda tu historial.
+                    </p>
+                    <button onClick={onEmpezar} className={btnPrimary + ' py-2 px-4 text-xs shrink-0'}>Guardar mi historial</button>
                   </div>
                 )}
               </div>

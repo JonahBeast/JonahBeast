@@ -44,11 +44,20 @@
 - Arriba: **"JONAH BEAST FUEL"**, "App de nutrición y pérdida de grasa" y el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca."
 - Debajo: el antes/después de Jonah (−37 kg en 3 años y 8 meses), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
 - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
-- Botón principal **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "15 días gratis · Sin tarjeta · Hasta el [fecha]".
+- Botón principal **"📸 PRUÉBALA YA CON TU PLATO"**: prueba sin registrarse (ver abajo).
+- Debajo, el botón **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "15 días gratis · Sin tarjeta · Hasta el [fecha]".
 - Justo debajo, el botón **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
 - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
 - La portada entra en una sola pantalla: no hay que bajar para ver nada.
-- La animación del escaneo de la portada es solo una demostración, no se puede usar ahí.
+- La animación del escaneo de la portada es solo una demostración; para probar de verdad está el botón "📸 PRUÉBALA YA CON TU PLATO".
+
+**Probar la foto sin registrarse ("📸 PRUÉBALA YA CON TU PLATO"):**
+1. Se abre "📸 PRUÉBALA CON TU PLATO". Toca **"📷 TOMAR O ELEGIR FOTO"** y tómale foto a tu comida (o elige una de la galería).
+2. La línea naranja escanea la foto ("Detectando alimentos…", "Comparando con platos peruanos…", "Calculando calorías…").
+3. Sale "⚡ DETECTADO" con cada alimento, sus gramos y calorías, el **TOTAL** en kcal y la proteína, carbos y grasa. Son aproximados.
+4. Debajo: **"¿Y CUÁNTO TE TOCA A TI?"** y el botón **"CREAR MI CUENTA · 15 DÍAS GRATIS"**, que lleva al registro.
+- Es **1 foto de prueba al día** por persona. Si ya la usó sale "Ya usaste tu foto de prueba de hoy" con el botón para crear la cuenta. Si la foto no tenía comida reconocible, no cuenta: sale "No reconocí comida en esta foto" y puede probar con otra.
+- Lo que sale en la prueba no se guarda: para registrar comidas hay que crear la cuenta.
 
 ### 2.1 Calculadora gratis ("MIDE TU COMPOSICIÓN CORPORAL")
 
@@ -69,6 +78,7 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 
 1. Toca **"PRUEBA GRATIS 15 DÍAS"** en la portada.
    - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
+   - Si abriste la página desde **Instagram, Facebook, Messenger o TikTok** (por ejemplo, tocando un anuncio), en lugar del botón de Google sale: "Estás dentro de [app]: ahí Google no deja entrar." Esas apps no permiten el ingreso con Google. Regístrate con tu correo, o toca **⋯** arriba y elige **"Abrir en el navegador"** para usar Google. Lo mismo pasa en "Entrar con Google" al ingresar.
 2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"** y una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla).
 3. (Opcional) Si alguien te invitó: toca **"¿Tienes un código?"** y escríbelo en "Código de referido (opcional)". Si es válido verás "✓ Código válido · te recomendó [nombre]". Si llegaste por el link de un amigo, el código ya viene puesto.
 4. Toca **"EMPEZAR MIS 15 DÍAS GRATIS"**.

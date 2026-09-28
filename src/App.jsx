@@ -2093,6 +2093,156 @@ function PruebaSocialMini({ size = 26 }) {
   );
 }
 
+/* "Pruébala sin registrarte": el visitante le toma foto a su plato y ve
+   sus calorías antes de crear una cuenta. La IA es la misma de la app
+   (función reconocer-comida en modo demo: 1 foto al día por visitante).
+   Debajo del resultado, la invitación a registrarse. */
+function visitanteDemo() {
+  const id = visitanteEmbudo();
+  if (id) return id;
+  window.__jbVisitante = window.__jbVisitante || Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return window.__jbVisitante;
+}
+
+function DemoFotoPlato({ onCerrar, onRegistrar }) {
+  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultado | vacio | limite | error
+  const [preview, setPreview] = useState(null);
+  const [items, setItems] = useState([]);
+  const [progreso, setProgreso] = useState(0);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (estado !== 'analizando') return;
+    setProgreso(0);
+    const id = setInterval(() => setProgreso(p => (p >= 95 ? 95 : p + Math.max(1, Math.round((95 - p) * 0.12)))), 150);
+    return () => clearInterval(id);
+  }, [estado]);
+
+  async function elegir(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    registrarEventoEmbudo('demo_foto');
+    try {
+      const blob = await comprimirImagen(file, 1200, 0.85);
+      const dataUrl = await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = mal; r.readAsDataURL(blob); });
+      setPreview(dataUrl);
+      setEstado('analizando');
+      const { data, error } = await supabase.functions.invoke('reconocer-comida', {
+        body: {
+          demo: true, visitante: visitanteDemo(), mimeType: 'image/jpeg',
+          imagenBase64: dataUrl.split(',')[1] || '',
+          alimentos: FOODS.map(f => ({ key: f.key, name: f.name })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error === 'limite_demo') { setEstado('limite'); registrarEventoEmbudo('demo_limite'); return; }
+      if (data?.error) throw new Error(data.error);
+      const lista = (data?.items || []).map(it => {
+        const clave = Array.isArray(it.opciones) ? it.opciones[0] : it.key;
+        const food = buscarFood(clave);
+        if (!food) return null;
+        const gramos = Number(it.gramos) > 0 ? Number(it.gramos) : 150;
+        return { food, gramos, kcal: Math.round(food.kcal * gramos / 100), protein: food.protein * gramos / 100, carbs: food.carbs * gramos / 100, fat: food.fat * gramos / 100 };
+      }).filter(Boolean);
+      if (!lista.length) { setEstado('vacio'); return; }
+      setItems(lista);
+      setEstado('resultado');
+      registrarEventoEmbudo('demo_resultado', { detalle: String(lista.length) });
+    } catch {
+      setEstado('error');
+    }
+  }
+
+  const total = items.reduce((t, i) => ({ kcal: t.kcal + i.kcal, p: t.p + i.protein, c: t.c + i.carbs, g: t.g + i.fat }), { kcal: 0, p: 0, c: 0, g: 0 });
+  const elegirFoto = () => inputRef.current?.click();
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-sm overflow-y-auto">
+      <div className="max-w-md mx-auto px-4 py-5 min-h-full flex flex-col">
+        <div className="flex items-center justify-between mb-3">
+          <p className="jb-display text-lg text-zinc-50">📸 PRUÉBALA CON TU PLATO</p>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2" aria-label="Cerrar"><X size={20} /></button>
+        </div>
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={elegir} />
+
+        {preview && (
+          <div className="relative rounded-2xl overflow-hidden border border-orange-500/50 mb-4 bg-zinc-900">
+            <img src={preview} alt="Tu plato" className="w-full max-h-72 object-cover" />
+            {estado === 'analizando' && (
+              <div className="absolute left-[6%] right-[6%] h-0.5 bg-orange-500 transition-all duration-150"
+                style={{ top: `${8 + (progreso / 100) * 84}%`, boxShadow: '0 0 12px 4px rgba(232,89,12,0.85)' }} />
+            )}
+          </div>
+        )}
+
+        {estado === 'elegir' && (
+          <div className="flex-1 flex flex-col justify-center text-center gap-4">
+            <p className="jb-body text-zinc-300">Tómale foto a lo que vas a comer (o elige una de tu galería) y mira cuántas calorías tiene. <span className="text-zinc-50 font-semibold">Sin registrarte.</span></p>
+            <button onClick={elegirFoto} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">📷 TOMAR O ELEGIR FOTO</button>
+            <p className="jb-body text-xs text-zinc-500">Funciona con comida peruana: lomo saltado, ceviche, pollo a la brasa, menú del día…</p>
+          </div>
+        )}
+
+        {estado === 'analizando' && (
+          <div className="text-center">
+            <p className="jb-body text-orange-300 inline-flex items-center gap-2"><Loader2 className="animate-spin" size={16} />
+              {progreso < 35 ? 'Detectando alimentos…' : progreso < 70 ? 'Comparando con platos peruanos…' : 'Calculando calorías…'}</p>
+          </div>
+        )}
+
+        {estado === 'resultado' && (
+          <div className="flex flex-col gap-3">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <p className="jb-display text-[11px] tracking-[0.18em] text-orange-300 mb-2">⚡ DETECTADO</p>
+              <div className="flex flex-col gap-2">
+                {items.map((it, i) => (
+                  <div key={i} className="flex items-baseline justify-between gap-3 bg-zinc-950 rounded-xl px-3 py-2">
+                    <span className="jb-body text-sm text-zinc-100">{it.food.name} <span className="text-zinc-500">· {it.gramos} g</span></span>
+                    <span className="jb-display text-lg text-orange-400 tabular-nums shrink-0">{it.kcal}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-baseline justify-between mt-3 px-1">
+                <span className="jb-display text-base text-zinc-50">TOTAL</span>
+                <span className="jb-display text-4xl text-orange-400 tabular-nums">{total.kcal.toLocaleString('es-PE')} <span className="text-base text-zinc-50">KCAL</span></span>
+              </div>
+              <p className="jb-body text-xs text-zinc-400 px-1 mt-1 tabular-nums">Proteína {Math.round(total.p)} g · Carbos {Math.round(total.c)} g · Grasa {Math.round(total.g)} g</p>
+            </div>
+            <div className="bg-orange-500/10 border border-orange-500/40 rounded-2xl p-4 text-center">
+              <p className="jb-display text-xl text-zinc-50 leading-tight">¿Y CUÁNTO TE TOCA A TI?</p>
+              <p className="jb-body text-sm text-zinc-300 mt-1">Crea tu cuenta y la app calcula tu meta de calorías, te dice qué porción servirte y lleva la cuenta de tu día.</p>
+              <button onClick={onRegistrar} className="w-full mt-3 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950 tracking-wide">CREAR MI CUENTA · 15 DÍAS GRATIS</button>
+              <p className="jb-body text-[11px] text-zinc-500 mt-2">Sin tarjeta. Los números son aproximados: la app te deja ajustar la porción.</p>
+            </div>
+          </div>
+        )}
+
+        {estado === 'vacio' && (
+          <div className="text-center flex flex-col gap-3">
+            <p className="jb-body text-zinc-300">No reconocí comida en esta foto. Prueba con otra donde se vea bien el plato, desde arriba y con luz.</p>
+            <button onClick={elegirFoto} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950">📷 PROBAR OTRA FOTO</button>
+          </div>
+        )}
+
+        {estado === 'limite' && (
+          <div className="text-center flex flex-col gap-3">
+            <p className="jb-body text-zinc-300">Ya usaste tu foto de prueba de hoy. Crea tu cuenta y tienes <span className="text-zinc-50 font-semibold">3 fotos al día</span> en tus primeros días, más todo lo demás, 15 días gratis.</p>
+            <button onClick={onRegistrar} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950">CREAR MI CUENTA · 15 DÍAS GRATIS</button>
+          </div>
+        )}
+
+        {estado === 'error' && (
+          <div className="text-center flex flex-col gap-3">
+            <p className="jb-body text-zinc-300">No pude analizar la foto. Revisa tu conexión e inténtalo de nuevo.</p>
+            <button onClick={elegirFoto} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950">📷 INTENTAR DE NUEVO</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
@@ -2109,6 +2259,12 @@ function Landing({ onChoose }) {
       .then(({ data }) => { if (!data?.session) registrarEventoEmbudo('vista'); })
       .catch(() => registrarEventoEmbudo('vista'));
   }, []);
+  const [demoAbierta, setDemoAbierta] = useState(false);
+  function abrirDemo() {
+    registrarEventoEmbudo('demo_abrir');
+    try { if (window.fbq) window.fbq('track', 'ViewContent'); } catch (e) {}
+    setDemoAbierta(true);
+  }
   function registrarClicCTA() {
     registrarEventoEmbudo('clic_cta');
     // Avisa a Meta que alguien mostró interés (tocó "prueba gratis").
@@ -2266,10 +2422,16 @@ function Landing({ onChoose }) {
           📸 Foto del plato <span className="text-zinc-600">·</span> ▮▮▮ Código de barras <span className="text-zinc-600">·</span> 🎙️ Voz
         </p>
 
-        <button onClick={registrarClicCTA} style={step(320)}
+        {/* Primero la prueba sin registro (vivir la foto del plato) y, al
+            lado, crear la cuenta para quien ya está decidido. */}
+        <button onClick={abrirDemo} style={step(320)}
           className="w-full inline-flex items-center justify-center gap-2 mb-2 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 px-6 transition-colors shadow-lg shadow-orange-500/20">
-          <span className="jb-display text-base text-zinc-950 tracking-wide">EMPIEZA A BAJAR DE PESO</span>
-          <ChevronRight className="text-zinc-950" size={18} />
+          <span className="jb-display text-base text-zinc-950 tracking-wide">📸 PRUÉBALA YA CON TU PLATO</span>
+        </button>
+        <button onClick={registrarClicCTA} style={step(322)}
+          className="w-full inline-flex items-center justify-center gap-2 mb-2 border border-orange-500/60 hover:border-orange-400 rounded-full py-3 px-6 transition-colors">
+          <span className="jb-display text-sm text-orange-400 tracking-wide">EMPIEZA A BAJAR DE PESO</span>
+          <ChevronRight className="text-orange-400" size={16} />
         </button>
         <p className="jb-body text-zinc-400 text-xs mb-4" style={step(325)}>
           <span className="text-orange-400 font-semibold">15 días gratis</span> · Sin tarjeta · Hasta el {hastaFecha}
@@ -2289,6 +2451,7 @@ function Landing({ onChoose }) {
           </button>
         </div>
       </div>
+      {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
     </div>
   );
 }
@@ -2519,7 +2682,30 @@ async function entrarConGoogle(setErr) {
   }
 }
 
+/* Navegador dentro de Instagram, Facebook, Messenger o TikTok (donde se
+   abre la página al tocar un anuncio). Ahí Google bloquea su ingreso
+   ("disallowed_useragent"), así que en vez del botón se explica cómo
+   entrar: con el correo, o abriendo la página en el navegador. */
+function navegadorDentroDeApp() {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua)) return 'Facebook';
+    if (/Instagram/i.test(ua)) return 'Instagram';
+    if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return 'TikTok';
+    return null;
+  } catch { return null; }
+}
+
 function BotonGoogle({ onClick, texto = 'Continuar con Google' }) {
+  const app = navegadorDentroDeApp();
+  if (app) {
+    return (
+      <div className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-left">
+        <p className="jb-body text-sm text-zinc-200">Estás dentro de {app}: ahí Google no deja entrar.</p>
+        <p className="jb-body text-xs text-zinc-400 mt-0.5">Usa tu correo aquí abajo, o toca <span className="text-zinc-200">⋯</span> arriba y elige <span className="text-zinc-200">"Abrir en el navegador"</span> para entrar con Google.</p>
+      </div>
+    );
+  }
   return (
     <button type="button" onClick={onClick}
       className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-zinc-50 hover:bg-white text-zinc-900 jb-body font-semibold text-base py-3 transition-colors">

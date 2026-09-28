@@ -240,6 +240,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
    - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
    - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?").
+   - La **pollada / pollo frito** sale en **"cuarto de pollo"** (≈ 220 g de carne) u **"octavo de pollo"** (≈ 110 g), según lo que calcula la IA. Es **solo el pollo**: las papas, la ensalada o la yuca van aparte como otros alimentos (el chicharrón de pollo sale en "porción" ≈ 200 g y el filete de pollo frito en "filete" ≈ 150 g).
 5. Si hay algo **frito o saltado**, aparece **"🍳 ¿Cuánto aceite tenía?"**.
    - **"Normal"** no suma nada, porque esos platos ya incluyen el aceite normal.
    - **"Bastante"** agrega 1 cucharada de aceite vegetal y **"Mucho"**, 2.

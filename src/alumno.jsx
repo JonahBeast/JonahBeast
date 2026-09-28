@@ -5684,6 +5684,15 @@ function esPorPiezas(food) {
 }
 
 function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
+  // Pollada / pollo frito: 1/4 u 1/8 de pollo según los gramos de la IA,
+  // en unidades enteras (nadie come "½ cuarto de pollo").
+  const cuarto = gramsPerUnit(food, 'cuarto de pollo'), octavo = gramsPerUnit(food, 'octavo de pollo');
+  if (unitsFor(food).some(u => u[0] === 'cuarto de pollo') && cuarto > 0 && octavo > 0) {
+    const factor = (TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1;
+    const g = (Number(gramosIA) > 0 ? Number(gramosIA) : cuarto) * factor;
+    if (g < (cuarto + octavo) / 2) return { unit: 'octavo de pollo', qty: Math.max(1, Math.round(g / octavo)) };
+    return { unit: 'cuarto de pollo', qty: Math.max(1, Math.round(g / cuarto)) };
+  }
   const d = unidadPorDefecto(food);
   if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);

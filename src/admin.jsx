@@ -1357,6 +1357,33 @@ function ActivacionPanel({ users }) {
   const terminaronPrueba = todos.filter(u => (u.plan === 'trial' || u.plan === 'prueba') && u.fechaVencimiento
     && u.fechaVencimiento >= desdePago && u.fechaVencimiento <= hoyISO).length;
 
+  // ¿Siguen usando la app? Por semana de registro (lunes a domingo): de los
+  // que se registraron esa semana, cuántos registraron comida en su segunda
+  // semana (días 7 a 13, justo cuando se acaba el Premium de prueba) y en su
+  // tercera (días 14 a 20). El día del registro es el día 1.
+  const lunesDe = iso => { const d = new Date(iso + 'T12:00:00'); return addDaysISO(iso, -((d.getDay() + 6) % 7)); };
+  const semanas = [];
+  for (let i = 7; i >= 0; i--) semanas.push(addDaysISO(lunesDe(hoyISO), -7 * i));
+  const usoEntre = (u, inicio, a, b) => {
+    const fechas = datos.dias[u.username];
+    if (!fechas) return false;
+    const desdeU = addDaysISO(inicio, a), hastaU = addDaysISO(inicio, b);
+    for (const f of fechas) if (f >= desdeU && f <= hastaU) return true;
+    return false;
+  };
+  const retencion = semanas.map(lunes => {
+    const domingo = addDaysISO(lunes, 6);
+    const grupo = todos.map(u => ({ u, inicio: String(u.createdAt || u.fechaInicio || '').slice(0, 10) }))
+      .filter(x => x.inicio >= lunes && x.inicio <= domingo);
+    // Una semana se puede medir cuando a todos ya les pasó ese tramo.
+    const listo7 = addDaysISO(domingo, 12) < hoyISO, listo14 = addDaysISO(domingo, 19) < hoyISO;
+    return {
+      lunes, n: grupo.length,
+      d7: listo7 ? grupo.filter(x => usoEntre(x.u, x.inicio, 6, 12)).length : null,
+      d14: listo14 ? grupo.filter(x => usoEntre(x.u, x.inicio, 13, 19)).length : null,
+    };
+  }).filter(s => s.n > 0);
+
   return (
     <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
@@ -1403,6 +1430,47 @@ function ActivacionPanel({ users }) {
           })}
         </div>
       )}
+
+      <div className="border-t border-zinc-800 mt-5 pt-4">
+        <h3 className="jb-display text-sm text-zinc-200 mb-1">🔁 ¿SIGUEN USANDO LA APP?</h3>
+        <p className="jb-body text-xs text-zinc-500 mb-3">
+          Por semana de registro: cuántos registraron comida en su <span className="text-zinc-300">2.ª semana</span> (días 7 a 13, cuando se acaba el Premium de prueba) y en su <span className="text-zinc-300">3.ª semana</span> (días 14 a 20). Meta: 3 de cada 10 o más.
+        </p>
+        {!retencion.length ? (
+          <p className="jb-body text-sm text-zinc-500">Nadie se registró en las últimas 8 semanas.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full jb-body text-xs tabular-nums">
+              <thead>
+                <tr className="text-zinc-500 text-left">
+                  <th className="font-normal py-1 pr-2">Semana del</th>
+                  <th className="font-normal py-1 px-2 text-right">Registros</th>
+                  <th className="font-normal py-1 px-2 text-right">2.ª semana</th>
+                  <th className="font-normal py-1 pl-2 text-right">3.ª semana</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retencion.map(s => {
+                  const celda = v => {
+                    if (v === null) return <span className="text-zinc-600">aún midiendo</span>;
+                    const pct = Math.round((v / s.n) * 100);
+                    return <span className={pct >= 30 ? 'text-emerald-400' : pct >= 15 ? 'text-amber-300' : 'text-zinc-400'}><span className="text-zinc-50 font-semibold">{v}</span> · {pct}%</span>;
+                  };
+                  return (
+                    <tr key={s.lunes} className="border-t border-zinc-800">
+                      <td className="py-1.5 pr-2 text-zinc-300">{new Date(s.lunes + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}</td>
+                      <td className="py-1.5 px-2 text-right text-zinc-50 font-semibold">{s.n}</td>
+                      <td className="py-1.5 px-2 text-right">{celda(s.d7)}</td>
+                      <td className="py-1.5 pl-2 text-right">{celda(s.d14)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="jb-body text-[11px] text-zinc-600 mt-2">Cuenta solo a quien registró al menos una comida ese tramo; abrir la app sin registrar no cuenta.</p>
+      </div>
 
       <div className="border-t border-zinc-800 mt-5 pt-4">
         <h3 className="jb-display text-sm text-zinc-200 mb-1">💳 CAMINO AL PAGO</h3>

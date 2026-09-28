@@ -319,6 +319,12 @@ async function buscarAlumno(telefono: string) {
   return exactos.length === 1 ? exactos[0] : null;
 }
 
+// Cuenta habilitada con la prueba o el plan vencido: versión gratis (el
+// asistente de WhatsApp y pedir alimentos son Premium).
+function esVersionGratis(alumno: any, hoy: string) {
+  return !!alumno && !!alumno.enabled && !!alumno.fecha_vencimiento && alumno.fecha_vencimiento < hoy;
+}
+
 function fechaLima(d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(d);
 }
@@ -347,7 +353,8 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
     .select("plan_meses, monto, metodo, estado, creado_en").eq("username", alumno.username)
     .order("creado_en", { ascending: false }).limit(1).maybeSingle();
   t += `\n- Es alumno (el número coincide con su cuenta): ${alumno.nombre || alumno.username}.
-- Plan: ${tipoPlan}, ${vigente ? "vigente" : "vencido o deshabilitado"}${alumno.fecha_vencimiento ? `, vence el ${alumno.fecha_vencimiento}` : ""}.
+- Plan: ${tipoPlan}, ${vigente ? "vigente (Premium)" : alumno.enabled ? "vencido: está en la versión gratis" : "deshabilitado"}${alumno.fecha_vencimiento ? `, vence el ${alumno.fecha_vencimiento}` : ""}.${esVersionGratis(alumno, hoy) ? `
+- IMPORTANTE: está en la versión gratis y el asistente de WhatsApp es Premium. Sí ayúdale con planes y precios, cómo pagar, su cuenta, problemas técnicos de la app y cómo usar lo que tiene gratis. Pero si pide consejos de alimentación, qué comer, cuántas calorías tiene algo, revisar sus comidas o agregar un alimento a la app, dile con amabilidad que eso es Premium, que en la versión gratis puede buscarlo o crear su propio alimento en la app, y ofrécele los planes. No uses pedir_alimento con él.` : ""}
 - Complemento antiguo de fotos (ya no se vende; con plan tiene 5 fotos al día igual): ${alumno.reconocimiento_foto_hasta && alumno.reconocimiento_foto_hasta >= hoy ? `activo hasta el ${alumno.reconocimiento_foto_hasta}` : "no activo"}.
 - Último pago: ${pago ? `S/${Number(pago.monto).toFixed(2)} por ${pago.plan_meses} mes(es), ${pago.metodo || "método no indicado"}, estado "${pago.estado}", enviado el ${String(pago.creado_en).slice(0, 10)}` : "no tiene pagos registrados"}.`;
   return t;
@@ -447,6 +454,9 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   }
   const pedido = bloques.find((b: any) => b.type === "tool_use" && b.name === "pedir_alimento");
   const alimento = String(pedido?.input?.alimento || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (alimento && esVersionGratis(alumno, fechaLima())) {
+    return { texto: `Pedir que agreguemos alimentos a la app es parte de Premium 👑. En la versión gratis puedes crearlo tú en la app: "REGISTRAR" → "Escribir" → "+ Crear mi alimento". Si quieres, te cuento los planes.` };
+  }
   if (alimento) return { pedido: alimento };
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
   return { texto };

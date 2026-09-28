@@ -22,6 +22,7 @@ const LIMITE_PLAN_DIARIO = 5;
 // Versión gratis (la prueba o el plan ya vencieron, pero la cuenta sigue
 // habilitada): 3 fotos por semana, se renuevan cada lunes.
 const LIMITE_GRATIS_SEMANAL = 3;
+const LIMITE_SUGERENCIAS_GRATIS = 3; // "¿Qué puedo comer?" en la versión gratis, por semana
 // Leer la tabla nutricional de un producto NO usa las fotos de comida:
 // tiene su propio tope diario. El producto queda guardado para todos.
 const LIMITE_ETIQUETAS_DIARIO = 5;
@@ -141,6 +142,8 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
     if (accion === "leer_etiqueta") {
+      // Leer la tabla nutricional con IA es Premium.
+      if (!premium && !sinLimite) return json({ error: "premium", funcion: "etiqueta" }, 200);
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
       const periodoEtiqueta = `etiqueta-${hoyLima}`;
@@ -156,6 +159,28 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
         return json({ error: leida.error }, leida.fallo ? 502 : 200);
       }
       return json({ producto: leida.producto });
+    }
+
+    // "¿Qué puedo comer?": no usa IA, pero en la versión gratis se puede
+    // abrir 3 veces por semana. Se cuenta en la misma tabla de cupos, con
+    // su propio periodo. "consultar" solo dice cuántas le quedan; "usar"
+    // descuenta una (si ya no quedan, responde limite_alcanzado).
+    if (accion === "sugerencia_consultar" || accion === "sugerencia_usar") {
+      if (premium || sinLimite) return json({ premium: true });
+      const periodoSug = `sugerencia-${numeroDeSemanaISO(hoy)}`;
+      if (accion === "sugerencia_consultar") {
+        const { data: fila } = await supabase.from("fotos_reconocimiento_uso")
+          .select("usadas").eq("username", username).eq("periodo", periodoSug).maybeSingle();
+        return json({ premium: false, limite: LIMITE_SUGERENCIAS_GRATIS, usadas: Number(fila?.usadas) || 0 });
+      }
+      const { data: usadasSug, error: errSug } = await supabase.rpc("reservar_foto_reconocimiento", {
+        p_username: username, p_periodo: periodoSug, p_limite: LIMITE_SUGERENCIAS_GRATIS,
+      });
+      if (errSug) return json({ error: "No se pudo revisar. Intenta de nuevo." }, 500);
+      if (usadasSug === null || usadasSug === undefined) {
+        return json({ premium: false, error: "limite_alcanzado", limite: LIMITE_SUGERENCIAS_GRATIS, usadas: LIMITE_SUGERENCIAS_GRATIS });
+      }
+      return json({ premium: false, limite: LIMITE_SUGERENCIAS_GRATIS, usadas: Number(usadasSug) });
     }
 
     // Consulta: solo dice cuántas fotos le quedan, sin usar la IA.

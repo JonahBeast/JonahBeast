@@ -292,7 +292,7 @@ function platoPrincipal(ctx, meta, r, evitarProteina) {
   const porHuevo = prot.key.startsWith('Huevo') ? gramosUnidad(buscar, gramsPerUnit, { key: prot.key, unidad: 'unidad' }) : null;
   const items = [
     item(buscar, { ...prot, unidad: porHuevo ? 'unidad' : null }, 'p', porHuevo ? { min: porHuevo, max: porHuevo * 4, porUnidad: porHuevo } : { min: 50, max: 300, paso: 10 }),
-    item(buscar, carb, 'c', { min: 30, max: 500, paso: 10 }),
+    Object.assign(item(buscar, carb, 'c', { min: 0, max: 500, paso: 10 }) || {}, { minSiHay: 60 }),
     ...ensaladaItems(buscar, r),
     item(buscar, ACEITE, 'f', { min: 0, max: 15, paso: 5 }),
   ].filter(Boolean);
@@ -397,7 +397,7 @@ function snack(ctx, meta, r) {
     const comp = elegir(r, opciones.length ? opciones : [COMPLEMENTO_SNACK[0]]);
     const pu = gramosUnidad(buscar, gramsPerUnit, comp);
     // Mínimo 0: si el día ya está completo, el ajuste final puede quitarlo.
-    const it = item(buscar, comp, 'k', pu ? { min: 0, max: pu * 3, porUnidad: pu } : { min: 0 });
+    const it = item(buscar, comp, 'k', pu ? { min: 0, max: pu * 2, porUnidad: pu } : { min: 0 });
     if (it && !pu) it.minSiHay = comp.min;
     if (it) items.push(it);
   }
@@ -419,8 +419,13 @@ export function comidasDelMenu(gustos) {
 }
 
 /* Arma el menú. variantes: { base, [comida]: n } — "Otro menú" sube base
-   y "Cambiar" sube la de esa comida. */
-export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], mealPlan, semilla, variantes = {}, extras = [] }) {
+   y "Cambiar" sube la de esa comida.
+   consumido: { [comida]: {kcal, p, c, f} } con lo que ya registró hoy en
+   cada comida (aunque no sea lo del menú, y aunque sea una comida que el
+   menú no tiene). Esas comidas quedan como "registradas" con lo real, y
+   las que faltan se recalculan con lo que le queda del día: si almorzó
+   más, la cena sale más ligera. */
+export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], mealPlan, semilla, variantes = {}, extras = [], consumido = {} }) {
   const g = { ...GUSTOS_POR_DEFECTO, ...(gustos || {}) };
   // extras: alimentos agregados por Jonah con un uso en el menú (menuUso).
   const ctx = { buscar, gramsPerUnit, gustos: g, restricciones, extras: (extras || []).filter(f => f && f.menuUso && f.kcal > 0) };
@@ -430,11 +435,35 @@ export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], me
   const rDia = azar(`${semilla}|dia|${base}`);
   const conPlato = g.platos && rDia() < 0.6; // ~4 de cada 7 días, un plato peruano en el almuerzo
 
+  const yaComido = Object.values(consumido || {}).reduce((t, m) => ({
+    kcal: t.kcal + (m.kcal || 0), p: t.p + (m.p || 0), c: t.c + (m.c || 0), f: t.f + (m.f || 0),
+  }), { kcal: 0, p: 0, c: 0, f: 0 });
+  // Las comidas sin registrar que quedaron antes de la última registrada
+  // ya pasaron (se las saltó): no se les reparte nada.
+  const orden = Object.keys(reparto);
+  const ultima = orden.reduce((u, n, i) => (consumido?.[n] ? i : u), -1);
+  const saltadas = orden.filter((n, i) => !consumido?.[n] && i < ultima);
+  const pendientes = orden.filter((n, i) => !consumido?.[n] && i > ultima);
+  const partePendiente = pendientes.reduce((a, n) => a + reparto[n], 0) || 1;
+  // Lo que le queda del día para las comidas que faltan (nunca negativo).
+  const resto = {
+    kcal: Math.max(0, meta.kcal - yaComido.kcal), p: Math.max(0, meta.p - yaComido.p),
+    c: Math.max(0, meta.c - yaComido.c), f: Math.max(0, meta.f - yaComido.f),
+  };
+
   const comidas = [];
   let proteinaAlmuerzo = null;
   for (const [nombre, parte] of Object.entries(reparto)) {
+    if (consumido?.[nombre]) {
+      comidas.push({ nombre, registrado: true, items: [], totalesReg: consumido[nombre] });
+      continue;
+    }
+    if (saltadas.includes(nombre)) { comidas.push({ nombre, saltada: true, items: [] }); continue; }
+    const share = parte / partePendiente;
+    const metaComida = { kcal: resto.kcal * share, p: resto.p * share, c: resto.c * share, f: resto.f * share };
+    // Si ya casi no le queda nada para esta comida, no se propone comida.
+    if (metaComida.kcal < 80) { comidas.push({ nombre, vacia: true, items: [], meta: metaComida }); continue; }
     const r = azar(`${semilla}|${nombre}|${base}|${variantes[nombre] || 0}`);
-    const metaComida = { kcal: meta.kcal * parte, p: meta.p * parte, c: meta.c * parte, f: meta.f * parte };
     let armado;
     if (nombre === 'Desayuno') armado = desayuno(ctx, metaComida, r);
     else if (nombre === 'Almuerzo') {
@@ -445,9 +474,16 @@ export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], me
     comidas.push({ nombre, items: armado.items, plato: !!armado.plato, meta: metaComida });
   }
 
-  comidas.forEach(c => c.items.forEach(redondear));
-  corregirDia(comidas, meta);
-  return presentar(comidas, meta, buscar, gramsPerUnit);
+  const porArmar = comidas.filter(c => !c.registrado && !c.vacia && !c.saltada);
+  porArmar.forEach(c => c.items.forEach(redondear));
+  if (porArmar.length) {
+    corregirDia(porArmar, resto, meta);
+  }
+  const menu = presentar(comidas, meta, yaComido, buscar, gramsPerUnit);
+  menu.adaptado = Object.keys(consumido || {}).length > 0 && pendientes.length > 0;
+  menu.restante = redondeo(resto);
+  menu.pendientes = pendientes;
+  return menu;
 }
 
 // Ajusta el día completo para quedar cerca de la meta. Prueba subir o
@@ -455,19 +491,22 @@ export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], me
 // ajustable y se queda con el cambio que más acerca el día a la meta;
 // repite hasta que ningún cambio mejore. Las calorías pesan más que las
 // macros, y la proteína más que los carbos y la grasa.
-function corregirDia(comidas, meta) {
+// meta: lo que deben sumar estas comidas. escala: la meta del día completo,
+// para medir los errores (si queda poca grasa por comer, no se castiga de
+// más cada gramo de grasa).
+function corregirDia(comidas, meta, escala = meta) {
   const items = comidas.flatMap(c => c.items).filter(it => it.rol !== 'fijo');
   const todos = comidas.flatMap(c => c.items);
   // Además de la meta del día, cada comida debe quedar cerca de su parte
   // (que el almuerzo no quede chico y el desayuno gigante).
   const errorComidas = () => comidas.reduce((a, c) => {
     const t = sumar(c.items);
-    return a + ((t.kcal - c.meta.kcal) / meta.kcal) ** 2 + 0.7 * ((t.p - c.meta.p) / meta.p) ** 2;
+    return a + ((t.kcal - c.meta.kcal) / escala.kcal) ** 2 + 0.7 * ((t.p - c.meta.p) / escala.p) ** 2;
   }, 0);
-  const error = t => 4 * ((t.kcal - meta.kcal) / meta.kcal) ** 2
-    + 3 * ((t.p - meta.p) / meta.p) ** 2
-    + ((t.c - meta.c) / meta.c) ** 2
-    + ((t.f - meta.f) / meta.f) ** 2
+  const error = t => 4 * ((t.kcal - meta.kcal) / escala.kcal) ** 2
+    + 3 * ((t.p - meta.p) / escala.p) ** 2
+    + ((t.c - meta.c) / escala.c) ** 2
+    + ((t.f - meta.f) / escala.f) ** 2
     + 3 * errorComidas();
   let actual = error(sumar(todos));
   for (let vuelta = 0; vuelta < 80; vuelta++) {
@@ -552,8 +591,11 @@ function entradaDe(it, gramsPerUnit) {
   return { foodKey: it.key, qty: Math.round(it.g), unit: 'gramos' };
 }
 
-function presentar(comidas, meta, buscar, gramsPerUnit) {
+function presentar(comidas, meta, yaComido, buscar, gramsPerUnit) {
   const lista = comidas.map(c => {
+    if (c.registrado) return { nombre: c.nombre, registrado: true, lineas: [], entradas: [], totales: redondeo(c.totalesReg) };
+    if (c.saltada) return { nombre: c.nombre, saltada: true, lineas: [], entradas: [], totales: redondeo({ kcal: 0, p: 0, c: 0, f: 0 }) };
+    if (c.vacia) return { nombre: c.nombre, vacia: true, lineas: [], entradas: [], totales: redondeo({ kcal: 0, p: 0, c: 0, f: 0 }) };
     const items = c.items.filter(it => it.g > 0);
     const tot = sumar(items);
     // Las ensaladas de 2 verduras se muestran en una sola línea.
@@ -575,7 +617,9 @@ function presentar(comidas, meta, buscar, gramsPerUnit) {
       totales: redondeo(tot),
     };
   });
-  const total = redondeo(sumar(comidas.flatMap(c => c.items)));
+  // Total del día: lo que ya registró + lo que falta según el menú.
+  const plan = sumar(comidas.filter(c => !c.registrado).flatMap(c => c.items));
+  const total = redondeo({ kcal: plan.kcal + yaComido.kcal, p: plan.p + yaComido.p, c: plan.c + yaComido.c, f: plan.f + yaComido.f });
   const ok = Math.abs(total.kcal - meta.kcal) <= meta.kcal * 0.05;
   return { comidas: lista, total, meta: redondeo(meta), ok };
 }

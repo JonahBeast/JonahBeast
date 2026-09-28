@@ -23,7 +23,7 @@ const PRIMERA_COMIDA = {
   1: '¿Qué vas a almorzar hoy? Tómale una foto y te digo cuántas calorías y proteína tiene 📸',
   2: 'Tu primer registro toma 10 segundos: foto al plato y listo. Hoy empezamos 🦍',
   3: 'Aquí sigo. Registra solo tu almuerzo de hoy y mira lo que la app hace con él 🔥',
-  5: 'Tu prueba gratis sigue activa. Una foto a tu plato y arrancamos juntos cuando quieras 💪',
+  5: 'Tu Premium de prueba sigue activo. Una foto a tu plato y arrancamos juntos cuando quieras 💪',
 };
 // Misma regla que la app (src/App.jsx → tieneDatosBasicos): los valores
 // de ejemplo (70 kg, 170 cm, cintura 85) no cuentan como datos reales.
@@ -34,15 +34,12 @@ function tieneDatosBasicos(f) {
 }
 
 // Invitación a probar la foto, para quien registra comidas sin usarla.
-// En la prueba: 3 fotos al día los 3 primeros días y luego 5 por semana;
-// con un plan, 5 al día.
+// En Premium (prueba o plan) tiene foto en todas sus comidas.
 const PRUEBA_LA_FOTO = {
   2: (a) => a.plan === 'trial' || a.plan === 'prueba'
-    ? 'Hoy tienes 3 fotos gratis 📸 Tómale foto a tu próxima comida y te digo calorías y proteína en segundos.'
-    : 'Tienes 5 fotos al día 📸 Tómale foto a tu próxima comida y te digo calorías y proteína en segundos.',
-  4: (a) => a.plan === 'trial' || a.plan === 'prueba'
-    ? '¿Ya probaste la captura inteligente? Esta semana tienes 5 fotos gratis. Pruébala con tu almuerzo 🍽️📸'
-    : '¿Ya probaste la captura inteligente? Foto a tu plato y la IA lo registra por ti 🍽️📸',
+    ? 'Con tu Premium de prueba tienes foto en todas tus comidas 📸 Tómale foto a la próxima y te digo calorías y proteína en segundos.'
+    : 'Tienes foto en todas tus comidas 📸 Tómale foto a la próxima y te digo calorías y proteína en segundos.',
+  4: () => '¿Ya probaste la captura inteligente? Foto a tu plato y la IA lo registra por ti 🍽️📸',
 };
 
 const AJUSTA_META = { dia: 3, body: 'Vas bien registrando 💪 Ahora ajusta tu meta a tu cuerpo: edad, estatura y peso, 30 segundos.' };

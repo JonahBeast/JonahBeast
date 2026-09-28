@@ -64,14 +64,14 @@ export default async function handler(req, res) {
       let body = null;
       if (a.fecha_vencimiento === en2Dias) {
         body = esPrueba(a)
-          ? 'Te quedan 2 días de prueba gratis. Suscríbete antes de que termine y te regalamos 7 días extra 🎁'
+          ? 'Te quedan 2 días de Premium. Suscríbete antes de que termine y te regalamos 7 días extra 🎁'
           : 'Tu plan vence en 2 días. Renueva ahora y sigue sin interrupciones: tu historial y fotos se mantienen intactos.';
       } else if (a.fecha_vencimiento === hoyISO) {
         body = esPrueba(a)
-          ? `Hoy termina tu prueba${nombre ? ', ' + nombre : ''}. Suscríbete hoy y te regalamos 7 días extra 🎁 Desde ${precioDia} al día.`
+          ? `Hoy termina tu Premium de prueba${nombre ? ', ' + nombre : ''}. Mañana sigues gratis. Suscríbete hoy y te regalamos 7 días extra 🎁 Desde ${precioDia} al día.`
           : `Hoy vence tu plan${nombre ? ', ' + nombre : ''}. Renueva desde ${precioDia} al día y sigue sin interrupciones 🦍`;
       } else if (a.fecha_vencimiento === ayer && esPrueba(a)) {
-        body = `Última oportunidad${nombre ? ', ' + nombre : ''}: si te suscribes hoy, igual te regalamos 7 días extra 🎁 Tu historial te espera 🦍`;
+        body = `Ya estás en la versión gratis${nombre ? ', ' + nombre : ''}. Última oportunidad: si te suscribes a Premium hoy, igual te regalamos 7 días extra 🎁`;
       }
       if (body) envios.push({ username: a.username, body });
     }

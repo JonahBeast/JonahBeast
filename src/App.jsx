@@ -1855,7 +1855,7 @@ function RetoPage({ onIrALaApp }) {
       : { t: 'Pásame tu correo de Gmail', d: 'El mismo de tu Play Store. Te agrego a la lista del reto.', url: waUrl, cta: 'Enviar mi Gmail por WhatsApp' },
     { t: 'Acepta ser verificador (probador)', d: 'Toca "Convertirte en verificador" (a algunos les sale "Convertirte en probador"; es lo mismo). Si ya dice "Eres verificador" o "Eres un probador", ya está: sigue al paso 3. Ojo: no toques "Abandonar el programa" ni "Instala la versión pública" (son para salir del reto).', url: URL_VERIFICADOR, cta: 'Aceptar' },
     { t: 'Instala la app', d: 'Desde Play Store. Ábrela siempre desde el ícono de la app, no desde el navegador.', url: URL_PLAY_STORE, cta: 'Instalar en Play Store' },
-    { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.`,
+    { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días de Premium gratis.`,
       extra: '¿Ya tienes cuenta? No crees otra: entra con tu cuenta de siempre y avísame por WhatsApp que estás en el reto.',
       extraUrl: waCuentaUrl, extraCta: 'Ya tengo cuenta: avisar por WhatsApp' },
   ];
@@ -2156,6 +2156,10 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
 
   const total = items.reduce((t, i) => ({ kcal: t.kcal + i.kcal, p: t.p + i.protein, c: t.c + i.carbs, g: t.g + i.fat }), { kcal: 0, p: 0, c: 0, g: 0 });
   const elegirFoto = () => inputRef.current?.click();
+  // Dos entradas claras: la cámara directa y la galería (antes era un solo
+  // botón y en algunos celulares no quedaba claro que se podía tomar foto).
+  const camaraRef = useRef(null);
+  const tomarFoto = () => camaraRef.current?.click();
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-sm overflow-y-auto">
@@ -2165,6 +2169,7 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2" aria-label="Cerrar"><X size={20} /></button>
         </div>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={elegir} />
+        <input ref={camaraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={elegir} />
 
         {preview && (
           <div className="relative rounded-2xl overflow-hidden border border-orange-500/50 mb-4 bg-zinc-900">
@@ -2178,8 +2183,9 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
 
         {estado === 'elegir' && (
           <div className="flex-1 flex flex-col justify-center text-center gap-4">
-            <p className="jb-body text-zinc-300">Tómale foto a lo que vas a comer (o elige una de tu galería) y mira cuántas calorías tiene. <span className="text-zinc-50 font-semibold">Sin registrarte.</span></p>
-            <button onClick={elegirFoto} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">📷 TOMAR O ELEGIR FOTO</button>
+            <p className="jb-body text-zinc-300">Tómale foto a lo que vas a comer y mira cuántas calorías tiene. <span className="text-zinc-50 font-semibold">Sin registrarte.</span></p>
+            <button onClick={tomarFoto} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">📷 TOMAR FOTO AHORA</button>
+            <button onClick={elegirFoto} className="w-full border border-orange-500/60 hover:border-orange-400 rounded-full py-3.5 jb-display text-base text-orange-400 tracking-wide">🖼️ SUBIR UNA FOTO DE MI GALERÍA</button>
             <p className="jb-body text-xs text-zinc-500">Funciona con comida peruana: lomo saltado, ceviche, pollo a la brasa, menú del día…</p>
           </div>
         )}
@@ -2212,8 +2218,8 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
             <div className="bg-orange-500/10 border border-orange-500/40 rounded-2xl p-4 text-center">
               <p className="jb-display text-xl text-zinc-50 leading-tight">¿Y CUÁNTO TE TOCA A TI?</p>
               <p className="jb-body text-sm text-zinc-300 mt-1">Crea tu cuenta y la app calcula tu meta de calorías, te dice qué porción servirte y lleva la cuenta de tu día.</p>
-              <button onClick={onRegistrar} className="w-full mt-3 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950 tracking-wide">CREAR MI CUENTA · 15 DÍAS GRATIS</button>
-              <p className="jb-body text-[11px] text-zinc-500 mt-2">Sin tarjeta. Los números son aproximados: la app te deja ajustar la porción.</p>
+              <button onClick={onRegistrar} className="w-full mt-3 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950 tracking-wide">CREAR MI CUENTA GRATIS</button>
+              <p className="jb-body text-[11px] text-zinc-500 mt-2">Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta. Los números son aproximados: la app te deja ajustar la porción.</p>
             </div>
           </div>
         )}
@@ -2227,8 +2233,8 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
 
         {estado === 'limite' && (
           <div className="text-center flex flex-col gap-3">
-            <p className="jb-body text-zinc-300">Ya usaste tu foto de prueba de hoy. Crea tu cuenta y tienes <span className="text-zinc-50 font-semibold">3 fotos al día</span> en tus primeros días, más todo lo demás, 15 días gratis.</p>
-            <button onClick={onRegistrar} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950">CREAR MI CUENTA · 15 DÍAS GRATIS</button>
+            <p className="jb-body text-zinc-300">Ya usaste tu foto de prueba de hoy. Crea tu cuenta gratis: tus primeros <span className="text-zinc-50 font-semibold">7 días de Premium</span> tienes foto en todas tus comidas, y después sigues gratis.</p>
+            <button onClick={onRegistrar} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 jb-display text-base text-zinc-950">CREAR MI CUENTA GRATIS</button>
           </div>
         )}
 
@@ -2247,7 +2253,6 @@ function Landing({ onChoose }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
-  const hastaFecha = fechaFinPrueba();
 
   // Embudo: una 'vista' al abrir la landing y un 'clic_cta' al tocar
   // cualquiera de los botones de prueba gratis. Las reglas de qué se
@@ -2434,7 +2439,7 @@ function Landing({ onChoose }) {
           <ChevronRight className="text-orange-400" size={16} />
         </button>
         <p className="jb-body text-zinc-400 text-xs mb-4" style={step(325)}>
-          <span className="text-orange-400 font-semibold">15 días gratis</span> · Sin tarjeta · Hasta el {hastaFecha}
+          <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
         </p>
 
         {/* Todo entra en una pantalla: un solo botón grande y, debajo,
@@ -2622,7 +2627,7 @@ function FreeCalculator({ onBack }) {
             <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
               <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">
-                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Pruébala 15 días gratis.
+                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Es gratis para siempre, con 7 días de Premium incluidos.
               </p>
               <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 text-base'}>
                 <MessageCircle size={18} /> QUIERO PROBARLA GRATIS
@@ -2798,7 +2803,7 @@ function TrialSignup({ onBack, onCreated }) {
       return tropiezo('error_sistema: ' + String(error.message || '').slice(0, 80), 'No se pudo crear tu cuenta: ' + error.message);
     }
 
-    // El registro de alumno y su prueba de 15 días se crean
+    // El registro de alumno y su prueba de Premium de 7 días se crean
     // automáticamente en la base de datos al confirmarse la cuenta.
     // El celular y la fecha de nacimiento se piden más adelante, en la
     // pantalla de planes, si es que aún faltan (ver PlanesTab).
@@ -2832,9 +2837,9 @@ function TrialSignup({ onBack, onCreated }) {
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
           <div className="mb-5">
-            <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">EMPIEZA TU<br />PRUEBA GRATIS</h1>
+            <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">CREA TU<br />CUENTA GRATIS</h1>
             <p className="jb-body text-sm text-zinc-400">
-              <span className="text-orange-400 font-semibold">Gratis hasta el {fechaFinPrueba()}</span> · sin tarjeta. Registro en 30 segundos.
+              <span className="text-orange-400 font-semibold">Gratis para siempre</span>, con Premium hasta el {fechaFinPrueba()} · sin tarjeta. Registro en 30 segundos.
             </p>
           </div>
 
@@ -2893,7 +2898,7 @@ function TrialSignup({ onBack, onCreated }) {
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
-                {busy ? <Loader2 className="animate-spin" size={18} /> : 'EMPEZAR MIS 15 DÍAS GRATIS'}
+                {busy ? <Loader2 className="animate-spin" size={18} /> : 'CREAR MI CUENTA GRATIS'}
               </button>
               <p className="jb-body text-[11px] text-zinc-600 text-center -mt-0.5">
                 Al crear tu cuenta, aceptas nuestra{' '}
@@ -3555,10 +3560,10 @@ async function verifyPassword(password, hashHex, saltHex) {
 }
 
 /* ------------------------------------------------------------------ */
-/* PRUEBA GRATIS DE 15 DÍAS                                            */
+/* PRUEBA DE PREMIUM DE 7 DÍAS (después, versión gratis)               */
 /* ------------------------------------------------------------------ */
 
-const TRIAL_DAYS = 15;
+const TRIAL_DAYS = 7;
 
 
 
@@ -3684,7 +3689,7 @@ function ganaBonoSuscripcion(u, primerPlan, enviadoEn) {
 function ventanaBono(u, ahora = Date.now()) {
   if (!u || !(u.plan === 'trial' || u.plan === 'prueba') || !u.fechaVencimiento) return null;
   const fin = finPruebaMs(u.fechaVencimiento);
-  const inicio = fin - 3 * 86400000 + 1000; // 00:00 del antepenúltimo día (día 13 de 15)
+  const inicio = fin - 3 * 86400000 + 1000; // 00:00 del antepenúltimo día de la prueba
   const limite = fin + BONO_GRACIA_HORAS * 3600000;
   if (ahora < inicio || ahora > limite) return null;
   return ahora <= fin ? { fase: 'prueba', hasta: fin } : { fase: 'gracia', hasta: limite };
@@ -3918,14 +3923,15 @@ function fmtS(n) {
   return 'S/' + Number(n).toFixed(2);
 }
 
+// Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
-  'Registra tu comida en segundos: foto con IA (5 al día), código de barras o voz',
-  'Composición corporal completa y actualizada',
-  'Plan de alimentación con comida peruana',
-  'Recomendaciones diarias de qué comer',
-  'Historial y gráficos de tu progreso',
+  'Foto inteligente en todas tus comidas',
+  'Registro por voz y lectura de etiquetas con foto',
+  '"¿Qué puedo comer?" todos los días, con comida peruana',
+  'Tu % de grasa y masa muscular, con historial',
+  'Tendencias hasta 1 año, constancia y coach',
   'Fotos de progreso con comparación',
-  'Soporte directo por WhatsApp',
+  'Jonah y su asistente por WhatsApp',
 ];
 
 
@@ -4149,7 +4155,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
           <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
           <p className="jb-body text-sm text-zinc-400">
-            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de prueba gratis. ` : 'Tu prueba gratis terminó. ') : ''}
+            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de Premium de prueba. ` : 'Tu prueba de Premium terminó. ') : ''}
             Paga seguro con tu cuenta de Google Play.
           </p>
         </div>
@@ -4215,7 +4221,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
           <p className="jb-display text-base text-zinc-100 mb-1">
-            {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu prueba gratis` : 'Tu prueba gratis terminó') : 'Tu plan'}
+            {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu Premium de prueba` : 'Tu prueba de Premium terminó') : 'Tu plan'}
           </p>
           <p className="jb-body text-sm text-zinc-400">Estos son nuestros planes disponibles:</p>
         </div>
@@ -4260,10 +4266,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             {esTrial ? '🎁' : dl <= 3 ? '⏰' : '✅'}
           </div>
           <div>
-            <p className="jb-display text-xs text-zinc-400 mb-0.5">{esTrial ? 'PRUEBA GRATIS' : 'TU PLAN'}</p>
+            <p className="jb-display text-xs text-zinc-400 mb-0.5">{esTrial ? 'PREMIUM DE PRUEBA' : 'TU PLAN'}</p>
             <p className="jb-body text-sm text-zinc-200">
               {esTrial
-                ? dl >= 0 ? `${dl} día(s) restantes` : 'Tu prueba gratis terminó'
+                ? dl >= 0 ? `${dl} día(s) restantes` : 'Tu prueba de Premium terminó'
                 : dl >= 0 ? `Activo · ${dl} día(s) restantes` : `Venció hace ${Math.abs(dl)} día(s)`}
             </p>
           </div>
@@ -4345,7 +4351,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <h3 className="jb-display text-sm text-zinc-300 mb-3">TODOS LOS PLANES INCLUYEN</h3>
+            <h3 className="jb-display text-sm text-zinc-300 mb-3">👑 PREMIUM INCLUYE</h3>
             <div className="grid sm:grid-cols-2 gap-y-1.5">
               {BENEFICIOS.map(b => (
                 <div key={b} className="flex items-start gap-2 jb-body text-sm text-zinc-400">

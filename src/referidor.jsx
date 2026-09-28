@@ -144,11 +144,11 @@ function PanelReferidor({ token, onSalir }) {
           <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓMO COMPARTIR TU CÓDIGO</h3>
           <p className="jb-body text-sm text-zinc-400 mb-3">
             Diles que entren a <span className="text-orange-500">jonahbeast.com</span>, toquen
-            "Prueba gratis 15 días", luego "¿Tienes un código?" y escriban{' '}
+            "Crear mi cuenta gratis", luego "¿Tienes un código?" y escriban{' '}
             <span className="text-orange-500">{datos.codigo}</span>.
           </p>
           <a href={`https://wa.me/?text=${encodeURIComponent(
-            `Entra a jonahbeast.com y prueba 15 días gratis. Usa mi código ${datos.codigo} al registrarte` +
+            `Entra a jonahbeast.com y crea tu cuenta gratis (con 7 días de Premium). Usa mi código ${datos.codigo} al registrarte` +
             (Number(datos.descuento_pct) > 0 ? ` y obtén ${datos.descuento_pct}% de descuento.` : '.'))}`}
             target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-2.5'}>
             <MessageCircle size={16} /> Compartir por WhatsApp

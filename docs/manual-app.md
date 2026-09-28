@@ -33,7 +33,7 @@
 
 - App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
-- **Prueba gratis de 15 días, sin tarjeta.** Después, planes pagados de 1, 3, 6 o 12 meses.
+- **Gratis para siempre, con 7 días de Premium incluidos, sin tarjeta.** Al terminar los 7 días la cuenta no se bloquea: sigue en la versión gratis. Premium se paga con planes de 1, 3, 6 o 12 meses (qué incluye cada versión: 13.8).
 - **Todos los planes incluyen** (en Planes, bajo "TODOS LOS PLANES INCLUYEN"): registro de comida en segundos con foto con IA (5 fotos al día), código de barras o voz, composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
 - **La captura inteligente (reconocer la comida con una foto) ya viene incluida en todos los planes.** No hay que pagar nada aparte (ver sección 9).
 
@@ -45,17 +45,17 @@
 - Debajo: el antes/después de Jonah (−37 kg en 3 años y 8 meses), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
 - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
 - Botón principal **"📸 PRUÉBALA YA CON TU PLATO"**: prueba sin registrarse (ver abajo).
-- Debajo, el botón **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "15 días gratis · Sin tarjeta · Hasta el [fecha]".
+- Debajo, el botón **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
 - Justo debajo, el botón **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
 - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
 - La portada entra en una sola pantalla: no hay que bajar para ver nada.
 - La animación del escaneo de la portada es solo una demostración; para probar de verdad está el botón "📸 PRUÉBALA YA CON TU PLATO".
 
 **Probar la foto sin registrarse ("📸 PRUÉBALA YA CON TU PLATO"):**
-1. Se abre "📸 PRUÉBALA CON TU PLATO". Toca **"📷 TOMAR O ELEGIR FOTO"** y tómale foto a tu comida (o elige una de la galería).
+1. Se abre "📸 PRUÉBALA CON TU PLATO". Toca **"📷 TOMAR FOTO AHORA"** (abre la cámara) o **"🖼️ SUBIR UNA FOTO DE MI GALERÍA"** (elige una foto guardada).
 2. La línea naranja escanea la foto ("Detectando alimentos…", "Comparando con platos peruanos…", "Calculando calorías…").
 3. Sale "⚡ DETECTADO" con cada alimento, sus gramos y calorías, el **TOTAL** en kcal y la proteína, carbos y grasa. Son aproximados.
-4. Debajo: **"¿Y CUÁNTO TE TOCA A TI?"** y el botón **"CREAR MI CUENTA · 15 DÍAS GRATIS"**, que lleva al registro.
+4. Debajo: **"¿Y CUÁNTO TE TOCA A TI?"** y el botón **"CREAR MI CUENTA GRATIS"** ("Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta."), que lleva al registro.
 - Es **1 foto de prueba al día** por persona. Si ya la usó sale "Ya usaste tu foto de prueba de hoy" con el botón para crear la cuenta. Si la foto no tenía comida reconocible, no cuenta: sale "No reconocí comida en esta foto" y puede probar con otra.
 - Lo que sale en la prueba no se guarda: para registrar comidas hay que crear la cuenta.
 
@@ -74,18 +74,20 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 
 ---
 
-## 3. Crear cuenta (prueba gratis de 15 días)
+## 3. Crear cuenta (gratis, con 7 días de Premium)
 
-1. Toca **"PRUEBA GRATIS 15 DÍAS"** en la portada.
+1. Toca **"EMPIEZA A BAJAR DE PESO"** en la portada (o "CREAR MI CUENTA GRATIS" después de probar la foto). La pantalla dice "CREA TU CUENTA GRATIS" y "Gratis para siempre, con Premium hasta el [fecha]".
    - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
    - Si abriste la página desde **Instagram, Facebook, Messenger o TikTok** (por ejemplo, tocando un anuncio), en lugar del botón de Google sale: "Estás dentro de [app]: ahí Google no deja entrar." Esas apps no permiten el ingreso con Google. Regístrate con tu correo, o toca **⋯** arriba y elige **"Abrir en el navegador"** para usar Google. Lo mismo pasa en "Entrar con Google" al ingresar.
 2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"** y una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla).
 3. (Opcional) Si alguien te invitó: toca **"¿Tienes un código?"** y escríbelo en "Código de referido (opcional)". Si es válido verás "✓ Código válido · te recomendó [nombre]". Si llegaste por el link de un amigo, el código ya viene puesto.
-4. Toca **"EMPEZAR MIS 15 DÍAS GRATIS"**.
+4. Toca **"CREAR MI CUENTA GRATIS"**.
 5. Puede que entres directo o que veas "Revisa tu correo y confirma tu cuenta para entrar. Si no lo ves, mira en spam."
 
 - Al registrarte **no** se pide nombre ni celular; eso se pide después dentro de la app.
-- La prueba dura **15 días** (el día del registro cuenta como día 1) y no pide tarjeta.
+- La cuenta es gratis para siempre. Los primeros **7 días son Premium** (el día del registro cuenta como día 1) y no se pide tarjeta. Después pasa a la versión gratis (13.6).
+- Quienes se registraron antes con la prueba de 15 días la mantienen hasta su fecha.
+- Quien se registra con el código **RETO** (Reto Beast, 12.1) tiene 15 días de Premium.
 
 Errores del registro y qué hacer:
 
@@ -175,7 +177,7 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 
 De arriba hacia abajo:
 
-- **Un aviso a la vez** (el más importante): versión gratis → renovación → prueba gratis → notificaciones → instalar la app.
+- **Un aviso a la vez** (el más importante): versión gratis → renovación → Premium de prueba → notificaciones → instalar la app.
   - **"ESTÁS EN LA VERSIÓN GRATIS"** ("Con Premium tienes foto inteligente en todas tus comidas.") sale cuando venció su prueba o su plan. El botón **"VER PREMIUM"** lleva a los planes.
 - **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora". Mientras falte la primera comida, el botón dice **"📷 Tómale foto a lo que vas a comer"** y abre la cámara directo (lo mismo al tocar el paso 1).
 - **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": tocando un ícono vas directo a esa comida.
@@ -184,7 +186,7 @@ De arriba hacia abajo:
 - **"📊 TU SEMANA EN NÚMEROS"** (solo los domingos): kcal promedio, días registrados y comparación con la semana pasada.
 - **"¿CUÁNTO PESAS HOY? ⚖️"** (domingo, y lunes si no se pesó el domingo): "Pesaje de la semana" con su último peso ya escrito, botones − / + de 0.1 kg (o escribirlo) y **"Guardar mi peso"** → "✅ Peso guardado: 69.4 kg (−0.6 kg)". Recomendación: en ayunas, después del baño. **"Ahora no"** la esconde ese día. El peso guardado aquí es el mismo de "Mi cuerpo" → "Mis datos".
 - **"TU SEMANA · [lunes] – [domingo]"** (lunes, martes y miércoles, si la semana pasada registró al menos 1 día): resumen de la semana que terminó: días registrados (X/7), días en su meta (entre 85% y 115% de sus calorías), cambio de peso o racha. Títulos: "¡SEMANA DE BESTIA! 🔥" (5 días o más), "BUENA SEMANA 💪" (3–4) o "ARRANCASTE: ESTA SEMANA VAMOS POR MÁS" (1–2).
-  - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO.", una pastilla naranja **"Mi código: [su código] · 10% dcto"** y "15 días gratis en jonahbeast.com") y abre el menú de compartir del celular (Instagram, WhatsApp…). En WhatsApp va también un mensaje con su link de invitación. Quien entra con ese código tiene 10% de descuento, y el alumno gana 15 días cuando su amigo paga (sección 12). Al tocarlo, la app también **copia su link de invitación** y muestra: "🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker 'Enlace' y pégalo…". Las historias de Instagram y los estados de WhatsApp no llevan el mensaje, así que para que el link se pueda tocar hay que ponerlo con ese sticker. Si el celular no permite compartir, se descarga la imagen.
+  - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO.", una pastilla naranja **"Mi código: [su código] · 10% dcto"** y "Gratis en jonahbeast.com") y abre el menú de compartir del celular (Instagram, WhatsApp…). En WhatsApp va también un mensaje con su link de invitación. Quien entra con ese código tiene 10% de descuento, y el alumno gana 15 días de Premium cuando su amigo paga (sección 12). Al tocarlo, la app también **copia su link de invitación** y muestra: "🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker 'Enlace' y pégalo…". Las historias de Instagram y los estados de WhatsApp no llevan el mensaje, así que para que el link se pueda tocar hay que ponerlo con ese sticker. Si el celular no permite compartir, se descarga la imagen.
   - La **X** la cierra hasta la próxima semana.
 - **Racha "🔥 N días seguidos":** días seguidos con al menos una comida registrada. La racha de hoy no se rompe hasta que termina el día.
   - Insignias: 3 días Cebiche Starter 🐟 · 7 días Ají de Gallina Warrior 🌶️ · 14 días Lomo Saltado Master 🥩 · 30 días Pollo a la Brasa Legend 🍗 · 60 días Chicha Morada Beast 🟣 · 90 días Jonah Beast Elite 👑.
@@ -419,8 +421,8 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 ## 12. Invitar amigos
 
 **Qué gana cada uno:**
-- **Tu amigo:** 15 días de prueba gratis y **10% de descuento en su primer plan** (las renovaciones van a precio normal).
-- **Tú:** **15 días gratis** cuando tu amigo **pague** su plan (no basta con que se registre). Se suman solos a tu fecha de vencimiento. Una vez por amigo.
+- **Tu amigo:** la app gratis con 7 días de Premium y **10% de descuento en su primer plan** (las renovaciones van a precio normal).
+- **Tú:** **15 días de Premium** cuando tu amigo **pague** su plan (no basta con que se registre). Se suman solos a tu fecha de vencimiento (si estás en la versión gratis, se cuentan desde hoy). Una vez por amigo.
 
 **Cómo invitar:**
 1. En "Inicio", tarjeta **"🎁 INVITA A UN AMIGO"**.
@@ -429,7 +431,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 
 **Qué hace el amigo:** entra por tu link (el código ya viene puesto) o escribe tu código en "¿Tienes un código?" al registrarse. En Planes verá los precios ya rebajados y el aviso "Tienes 10% de descuento en tu primer plan".
 
-**Aviso del premio:** "🎁 [Nombre] se unió a Jonah Beast Fuel gracias a ti. ¡Te regalo 15 días más!"
+**Aviso del premio:** "🎁 [Nombre] se unió a Jonah Beast Fuel gracias a ti. ¡Te regalo 15 días más de Premium!"
 
 Problemas:
 - "Mi amigo se registró y no recibí mis días" → llegan cuando tu amigo **pague**, y solo si usó tu código.
@@ -448,7 +450,7 @@ Página del reto que Jonah anuncia en TikTok. Fechas: **del jueves 1 al jueves 1
 1. Unirse al grupo del reto (Grupo de Google "Reto Beast Fuel", groups.google.com/g/reto-beast-fuel) con la misma cuenta de Google de su Play Store.
 2. Aceptar ser verificador en Play Store ("Convertirte en verificador"; a algunos Google les dice "probador", es lo mismo). Listo cuando la página dice "Eres verificador" o "Eres un probador". No tocar "Abandonar el programa" ni "Instala la versión pública" (son los pasos para salir del reto); para instalar se usa "descárgala en Google Play".
 3. Instalar la app desde Play Store y abrirla siempre desde el ícono.
-4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días gratis). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
+4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días de Premium gratis, en vez de los 7 de siempre). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
 
 Problemas:
 - "Tengo iPhone" → puede usar la app desde el navegador con el código RETO, pero el reto es para quienes usan la app de Play Store.
@@ -512,32 +514,36 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 - El plan se activa solo cuando Google confirma el pago.
 - Si sale "Conectando con Google Play…" por mucho rato o la app no logra conectar con Google, se ven los precios con el botón **"Escribir por WhatsApp para activar"** y el pago se coordina por WhatsApp.
 
-### 13.5 La prueba gratis dentro de la app
+### 13.5 Los 7 días de Premium de prueba dentro de la app
 
-- **Días 1 a 12: "Prueba gratis · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
-- **Días 13 a 15:** cuenta regresiva ("TE QUEDAN N DÍAS" / "HOY TERMINA TU PRUEBA") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
+- **Días 1 a 5: "Premium de prueba · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
+- **Días 6 y 7:** cuenta regresiva ("TE QUEDA 1 DÍA DE PREMIUM" / "HOY TERMINA TU PREMIUM", con "Después sigues gratis…") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
+- En "Planes" y en el ícono de tarjeta dice "PREMIUM DE PRUEBA · N día(s) restantes".
+- Quienes se registraron antes de este cambio tienen su prueba de 15 días hasta su fecha, con la cuenta regresiva en sus 2 últimos días.
 
 ### 13.6 Cuando vence la prueba o el plan
 
 - **Faltando 7 días o menos:** aviso "TU PLAN VENCE EN N DÍAS" con "Renovar mi plan" y "Consultar".
 - **Al vencer, la cuenta no se bloquea: pasa a la versión gratis.** Puede seguir usando la app gratis: registrar sus comidas escribiendo, su meta de calorías, su peso y **3 fotos inteligentes por semana**.
 - **La primera vez que entra después de vencer** ve "TU PRUEBA DE PREMIUM TERMINÓ" o "TU PREMIUM VENCIÓ". Esa pantalla trae el texto de la versión gratis, un cuadro "GRATIS" vs. "👑 PREMIUM" (13.8), dos botones (**"QUIERO PREMIUM"**, que baja a los planes, y **"Seguir con la versión gratis"**, que entra a la app) y un resumen de lo logrado. Después de tocar "Seguir con la versión gratis" entra directo a la app. Los planes siguen en "Inicio" ("VER PREMIUM") y en la pestaña de planes. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
-- **Si fue la prueba gratis**, sale también la pregunta **"¿QUÉ TE FALTÓ PARA QUEDARTE?"** ("Un toque y nos ayudas a mejorar. Lo lee Jonah."), con las opciones "💸 El precio", "⏰ No tuve tiempo", "🤔 No la entendí bien", "📸 La foto no me funcionó bien", "🍽️ No encontré mis comidas" y "✍️ Otro" (con un espacio para escribir y **"Enviar"**). Al responder sale "🙌 ¡Gracias! Con tu respuesta mejoramos la app.". Es opcional y se responde una sola vez.
+- **Si fue la prueba de Premium**, sale también la pregunta **"¿QUÉ TE FALTÓ PARA QUEDARTE?"** ("Un toque y nos ayudas a mejorar. Lo lee Jonah."), con las opciones "💸 El precio", "⏰ No tuve tiempo", "🤔 No la entendí bien", "📸 La foto no me funcionó bien", "🍽️ No encontré mis comidas" y "✍️ Otro" (con un espacio para escribir y **"Enviar"**). Al responder sale "🙌 ¡Gracias! Con tu respuesta mejoramos la app.". Es opcional y se responde una sola vez.
   - **Nada se borra:** el historial y las fotos te esperan.
   - Botones "QUIERO CONTINUAR" (baja a los planes) y "Prefiero consultar por WhatsApp".
 - Si el alumno pagó y está esperando en esa pantalla, la app revisa sola cada 20 segundos y **entra automáticamente** cuando se aprueba.
 
 ### 13.7 Bono: +7 días gratis por suscribirse a tiempo
 
-- **Quién:** alumnos en prueba gratis, en su **primer plan pagado** (cualquier plan: 1, 3, 6 o 12 meses).
+- **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3, 6 o 12 meses).
 - **Hasta cuándo:** si envían el pago **antes de que termine su prueba o hasta 48 horas después**. Con Yape, Plin o transferencia cuenta **cuándo enviaron el comprobante**, aunque Jonah lo apruebe después.
 - **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
-- **Dónde se ve:** desde el día 13, un reloj en vivo en "Inicio" y arriba de "Planes": **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.
-- **Avisos al celular:** a 2 días de terminar, el último día ("Hoy termina tu prueba… te regalamos 7 días extra 🎁") y al día siguiente ("Última oportunidad…").
+- **Dónde se ve:** un reloj en vivo arriba de "Planes" en los 3 últimos días de la prueba (desde el día 5) y en "Inicio" en los 2 últimos: **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.
+- **Avisos al celular:** a 2 días de terminar ("Te quedan 2 días de Premium…"), el último día ("Hoy termina tu Premium de prueba… Mañana sigues gratis… te regalamos 7 días extra 🎁") y al día siguiente ("Ya estás en la versión gratis… Última oportunidad…").
 - Las **renovaciones** de los meses siguientes no vuelven a sumar los 7 días. En la app de Play Store el precio es el mismo de Google; los 7 días se suman igual.
 - En Google Play el aviso de activación dice "¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁".
 
 ### 13.8 Versión gratis y Premium
+
+En "Planes", la lista **"👑 PREMIUM INCLUYE"**: foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
 
 Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
 
@@ -565,7 +571,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 ### 14.1 Activar
 
 - En la guía de bienvenida, en la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos"), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos"), o en el pie → **"Activar notificaciones"**.
-- La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante la prueba gratis**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 7 días; después vuelve a salir una vez por semana.
+- La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante el Premium de prueba**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 7 días; después vuelve a salir una vez por semana.
 - **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio, la guía de bienvenida y "Activar notificaciones" tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
 - **En Android** (Xiaomi, Huawei, Oppo, Samsung): Ajustes → Batería → Chrome → **"Sin restricciones"**, si no se apagan los avisos.
 
@@ -592,7 +598,7 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 | 1:00 pm | Registrar almuerzo (si falta) |
 | 3:00 pm | Hidratación |
 | 5:00 pm | Registrar media tarde (si falta) |
-| 6:15 pm | Prueba gratis guiada (solo quien ya registró alguna comida): día 4, lo que lleva registrado; día 7, su primera semana; día 10, las 5 fotos al día que incluye cualquier plan; día 12, la historia de Jonah y la invitación a seguir |
+| 6:15 pm | Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah, que después sigue gratis y lo que conserva con Premium |
 | 7:00 pm | Ánimo con las comidas que faltan |
 | 8:00 pm | Racha en riesgo, "te extrañé" o felicitación por racha |
 | 9:00 pm | Registrar cena (si falta) |
@@ -651,7 +657,8 @@ Tocar un aviso de comida abre la app directo en esa comida.
 
 | Pregunta | Respuesta corta |
 |---|---|
-| ¿La prueba pide tarjeta? | No. 15 días gratis, sin tarjeta. |
+| ¿La prueba pide tarjeta? | No. La app es gratis para siempre y trae 7 días de Premium, sin tarjeta. |
+| ¿Qué pasa cuando terminan mis 7 días? | Sigues gratis, no se bloquea nada de lo gratis (13.8). Premium se activa con un plan. |
 | ¿Pierdo mis datos si no renuevo? | No, el historial y las fotos se guardan. |
 | ¿Cuánto tarda la aprobación de Yape/Plin? | Menos de 24 horas; el acceso se activa solo. |
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |

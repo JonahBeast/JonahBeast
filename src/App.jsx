@@ -1875,7 +1875,7 @@ function RetoPage({ onIrALaApp }) {
         <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">15 DÍAS.<br />UN CAMBIO REAL.</h1>
         <div className="inline-flex items-center gap-2 bg-zinc-900 border border-orange-500/60 rounded-xl px-3 py-2 mb-4">
           <span className="text-lg">📅</span>
-          <p className="text-sm text-zinc-200">Empieza el <strong className="text-zinc-50">lunes 28 de septiembre</strong> · termina el <strong className="text-zinc-50">lunes 12 de octubre</strong></p>
+          <p className="text-sm text-zinc-200">Empieza el <strong className="text-zinc-50">jueves 1 de octubre</strong> · termina el <strong className="text-zinc-50">jueves 15 de octubre</strong></p>
         </div>
         <p className="text-zinc-300 mb-6">
           Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.

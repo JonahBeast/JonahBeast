@@ -271,7 +271,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Elige la comida en "¿Para qué comida?".
 3. Mira las combinaciones sugeridas. **"🎲 SORPRESA DEL DÍA"** te da otra idea. **🔄** cambia un ingrediente por uno equivalente.
 4. Toca **"Agregar a mi día"**.
-- **Versión gratis: 3 veces por semana** (se renuevan cada lunes; abrirlo varias veces el mismo día cuenta una sola vez). Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.
+- **Versión gratis: 3 veces por semana** (se renuevan cada lunes). Cada vez que lo abre cuenta 1; solo si lo cierra y lo vuelve a abrir en menos de 10 minutos no cuenta de nuevo. Armar el día completo con sugerencias es Premium. Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.
 
 **G) Restaurantes aliados**
 1. Toca **"RESTAURANTES ALIADOS"** (hoy: **PECAFIT**).

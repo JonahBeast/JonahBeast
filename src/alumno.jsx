@@ -5644,7 +5644,7 @@ function ampliarFamiliasFoto(items) {
     const id = typeof fam.id === 'function' ? fam.id(foodFam) : fam.id;
     let g = grupos.get(id);
     if (!g) {
-      g = { grupo: { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1, _gramosIA: it._gramosIA || null, _aceiteIA: !!it._aceiteIA }, original: it, familia: fam, food: foodFam };
+      g = { grupo: { esOpciones: true, _familia: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1, _gramosIA: it._gramosIA || null, _aceiteIA: !!it._aceiteIA }, original: it, familia: fam, food: foodFam };
       grupos.set(id, g);
       resultado.push(g.grupo);
     }
@@ -5764,7 +5764,43 @@ function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
    alumno confirme qué agregar — nunca guarda nada automáticamente,
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
-function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
+/* Aprendizaje de la foto fuera del botón "No es esto" (se guarda en
+   reconocimiento_foto_feedback igual que las correcciones):
+   - "¿Era otro alimento?" sobre algo que vino de una foto (entrada con
+     fotoIA): la IA dijo fotoIA y era el nuevo.
+   - Desmarcó algo de la foto y en los 15 minutos siguientes agrega a mano,
+     en la misma comida, un alimento parecido (comparten una palabra del
+     nombre o el grupo): se toma como su corrección ("inferida"). */
+const CLAVE_DESCARTE_FOTO = 'jb-foto-descartes';
+function anotarCorreccionFoto(username, de, a, extra = {}) {
+  if (!username || !de || !a || de === a) return;
+  try {
+    supabase.from('reconocimiento_foto_feedback')
+      .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
+  } catch {}
+}
+function revisarDescarteFoto(username, meal, nuevaKey) {
+  try {
+    const d = JSON.parse(localStorage.getItem(CLAVE_DESCARTE_FOTO) || 'null');
+    if (!d || d.username !== username || d.meal !== meal || Date.now() - d.ts > 15 * 60000) return;
+    const nuevo = buscarFood(nuevaKey);
+    if (!nuevo) return;
+    const VACIAS = new Set(['con', 'del', 'sin', 'cocido', 'cocida', 'crudo', 'cruda']);
+    const palabras = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-zñ]+/).filter(w => w.length >= 4 && !VACIAS.has(w));
+    const suyas = new Set(palabras(nuevo.name));
+    const de = d.keys.find(k => {
+      const f = buscarFood(k);
+      return f && k !== nuevaKey && (palabras(f.name).some(w => suyas.has(w)) || f.group === nuevo.group);
+    });
+    if (!de) return;
+    anotarCorreccionFoto(username, de, nuevaKey, { inferida: true });
+    const resto = d.keys.filter(k => k !== de);
+    if (resto.length) localStorage.setItem(CLAVE_DESCARTE_FOTO, JSON.stringify({ ...d, keys: resto }));
+    else localStorage.removeItem(CLAVE_DESCARTE_FOTO);
+  } catch {}
+}
+
+function ReconocerFotoModal({ username, comidaFoto, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -5959,9 +5995,18 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
 
   function confirmar() {
     const elegidos = elegidosConPorcion();
-    elegidos.forEach(({ food, porcion }) => {
-      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
+    elegidos.forEach(({ food, porcion, corregido }) => {
+      // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
+      // "¿Era otro alimento?", eso también le enseña a la IA.
+      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(corregido ? {} : { fotoIA: food.key }) });
     });
+    // Lo que desmarcó sin decir qué era: si enseguida agrega a mano algo
+    // parecido en esta comida, se toma como la corrección (ver
+    // revisarDescarteFoto).
+    try {
+      const sueltos = items.filter(f => !f.esOpciones && !seleccionados[f.key] && !correcciones[f.key]).map(f => f.key);
+      if (sueltos.length) localStorage.setItem(CLAVE_DESCARTE_FOTO, JSON.stringify({ username, meal: comidaFoto, keys: sueltos, ts: Date.now() }));
+    } catch {}
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
       onAgregar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
@@ -6006,7 +6051,13 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
           const elegido = corr ? null : elecciones[f.id];
           f.alternativas.forEach(alt => {
             const base = { key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 };
-            sugeridos.push(conCorreccion(base) || conPorcion(alt.key, f, base));
+            // Al responder "¿cuál es?" el alumno también le enseña a la IA:
+            // las otras opciones quedan como "la IA dudó y era [elegido]".
+            // No en las familias de variantes (con/sin azúcar...), que son
+            // gusto de cada uno y no un error de la foto.
+            const porEleccion = elegido && alt.key !== elegido && !f._familia
+              ? { ...base, corregido_a: elegido, por_eleccion: true } : null;
+            sugeridos.push(conCorreccion(base) || porEleccion || conPorcion(alt.key, f, base));
             if (alt.key !== elegido) descartados.push(alt.key);
           });
         } else {
@@ -7139,7 +7190,8 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             onElegir={key => {
               const f = buscarFood(key);
               const d = unidadPorDefecto(f);
-              updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+              if (en.fotoIA && key !== en.fotoIA) anotarCorreccionFoto(username, en.fotoIA, key, { despues: true });
+              updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined, fotoIA: undefined });
             }}
             onNoEncuentra={texto => { onCrear(texto); onCerrar(); }} />
         </div>
@@ -7416,6 +7468,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       {fotoPara && (
         <ReconocerFotoModal
           username={username}
+          comidaFoto={fotoPara}
           todosLosAlimentos={todosLosAlimentos}
           onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}
@@ -7483,6 +7536,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                           const f = buscarFood(key);
                           const d = unidadPorDefecto(f);
                           updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+                          revisarDescarteFoto(username, meal, key);
                         }}
                         onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
                         autoFocus={enfocar === en.id}

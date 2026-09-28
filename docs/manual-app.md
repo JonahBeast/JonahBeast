@@ -78,7 +78,9 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 
 ## 3. Crear cuenta (gratis, con 7 días de Premium)
 
-0. **Recorrido antes del registro:** al tocar **"TU CAMBIO EMPIEZA AQUÍ"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y la flecha para volver:
+**Volver atrás antes de entrar:** el recorrido, "Crear cuenta", "Entrar a mi cuenta" tienen el botón **"← Atrás"** arriba a la izquierda (la calculadora, "← Volver" arriba a la derecha). El botón o gesto **"atrás" del celular** también regresa a la pantalla anterior (o al paso anterior del recorrido) en vez de cerrar la app.
+
+0. **Recorrido antes del registro:** al tocar **"TU CAMBIO EMPIEZA AQUÍ"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y el botón **"← Atrás"** arriba a la izquierda (vuelve al paso anterior; en el primero, a la portada):
    1. **"¿QUÉ QUIERES LOGRAR?"**: 🔥 Bajar grasa · 💪 Ganar músculo · ⚖️ Mantenerme y comer mejor.
    2. **"CUÉNTANOS DE TI"**: Hombre o Mujer y su edad.
    3. **"TU ESTATURA Y TU PESO"** (en centímetros y kilos, con − / + o escribiendo).

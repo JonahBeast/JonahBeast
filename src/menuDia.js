@@ -614,6 +614,8 @@ function presentar(comidas, meta, yaComido, buscar, gramsPerUnit) {
       plato: c.plato,
       lineas,
       entradas: items.map(it => entradaDe(it, gramsPerUnit)),
+      // Para la lista de compras: gramos de cada alimento (ya cocido).
+      compras: items.map(it => ({ key: it.key, g: it.g, plato: it.rol === 'k' && it.food.group === 'Platos preparados' })),
       totales: redondeo(tot),
     };
   });
@@ -626,4 +628,98 @@ function presentar(comidas, meta, yaComido, buscar, gramsPerUnit) {
 
 function redondeo(t) {
   return { kcal: Math.round(t.kcal), p: Math.round(t.p), c: Math.round(t.c), f: Math.round(t.f) };
+}
+
+/* ------------------------- lista de compras ------------------------- */
+/* Suma lo que piden los menús de varios días y lo pasa a cantidades para
+   comprar: el menú dice arroz COCIDO, pero se compra crudo (~⅓ del peso);
+   la carne pierde agua al cocinarse (se compra ~⅓ más), etc. Los platos
+   preparados van aparte, como "platos a preparar". */
+
+// Factor cocido → crudo y cómo se compra cada alimento del menú.
+const COMPRA_POR_CLAVE = {
+  'Arroz blanco (Cocido)': { factor: 0.36, texto: 'Arroz', cat: 'Abarrotes' },
+  'Quinua (Cocida)': { factor: 0.35, texto: 'Quinua', cat: 'Abarrotes' },
+  'Fideos / pasta (Cocidos)': { factor: 0.4, texto: 'Fideos', cat: 'Abarrotes' },
+  'Lenteja (Cocida)': { factor: 0.4, texto: 'Lentejas', cat: 'Abarrotes' },
+  'Frejol canario (Cocido)': { factor: 0.4, texto: 'Frejol canario', cat: 'Abarrotes' },
+  'Garbanzo (Cocido)': { factor: 0.4, texto: 'Garbanzos', cat: 'Abarrotes' },
+  'Avena en hojuelas (Cruda)': { factor: 1, texto: 'Avena en hojuelas', cat: 'Abarrotes' },
+  'Aceite de oliva (-)': { factor: 1, texto: 'Aceite de oliva', cat: 'Abarrotes', como: 'ml' },
+  'Maní (Crudo)': { factor: 1, texto: 'Maní', cat: 'Abarrotes' },
+  'Atún en lata en agua (escurrido) (-)': { texto: 'Atún en agua', cat: 'Carnes, pescados y huevos', como: 'lata', porUnidad: 120 },
+  'Huevo de gallina (Cocido)': { texto: 'Huevos', cat: 'Carnes, pescados y huevos', como: 'unidad', porUnidad: 50 },
+  'Leche descremada (-)': { texto: 'Leche descremada', cat: 'Lácteos', como: 'litro' },
+  'Yogur natural (-)': { texto: 'Yogur natural', cat: 'Lácteos', como: 'litro' },
+  'Queso fresco (-)': { factor: 1, texto: 'Queso fresco', cat: 'Lácteos' },
+  'Jamón de pavo (-)': { factor: 1, texto: 'Jamón de pavo', cat: 'Lácteos' },
+  'Pan francés (-)': { texto: 'Pan francés', cat: 'Panadería', como: 'unidad', porUnidad: 55 },
+  'Pan integral (-)': { texto: 'Pan integral (rebanadas)', cat: 'Panadería', como: 'unidad', porUnidad: 30 },
+  'Palta (Cruda)': { texto: 'Palta', cat: 'Frutas', como: 'unidad', porUnidad: 200 },
+  'Manzana (Cruda)': { texto: 'Manzanas', cat: 'Frutas', como: 'unidad', porUnidad: 180 },
+  'Plátano de seda (Cruda)': { texto: 'Plátanos de seda', cat: 'Frutas', como: 'unidad', porUnidad: 120 },
+};
+const COMPRA_POR_GRUPO = {
+  'Carnes y aves': { factor: 1.33, cat: 'Carnes, pescados y huevos' },
+  'Pescados': { factor: 1.25, cat: 'Carnes, pescados y huevos' },
+  'Pescados y mariscos': { factor: 1.25, cat: 'Carnes, pescados y huevos' },
+  'Tubérculos': { factor: 1.05, cat: 'Verduras y tubérculos' },
+  'Verduras': { factor: 1.1, cat: 'Verduras y tubérculos' },
+  'Frutas': { factor: 1.1, cat: 'Frutas' },
+  'Cereales': { factor: 1, cat: 'Abarrotes' },
+  'Menestras': { factor: 0.4, cat: 'Abarrotes' },
+  'Lácteos': { factor: 1, cat: 'Lácteos' },
+  'Grasas': { factor: 1, cat: 'Abarrotes' },
+};
+export const CATEGORIAS_COMPRA = ['Carnes, pescados y huevos', 'Verduras y tubérculos', 'Frutas', 'Abarrotes', 'Lácteos', 'Panadería', 'Otros'];
+
+function cantidadCompra(regla, g) {
+  if (regla.como === 'unidad' || regla.como === 'lata') {
+    const n = Math.ceil(g / regla.porUnidad - 0.15);
+    const nom = regla.como === 'lata' ? (n === 1 ? 'lata' : 'latas') : (n === 1 ? 'unidad' : 'unidades');
+    return `${Math.max(1, n)} ${nom}`;
+  }
+  if (regla.como === 'litro') {
+    const l = Math.ceil(g / 250) * 0.25;
+    return l < 1 ? `${Math.round(l * 1000)} ml` : `${String(l).replace('.', ',')} L`;
+  }
+  const crudo = g * (regla.factor ?? 1);
+  if (regla.como === 'ml') return `${Math.max(50, Math.ceil(crudo / 50) * 50)} ml`;
+  if (crudo >= 1000) return `${String(Math.ceil(crudo / 250) * 0.25).replace('.', ',')} kg`;
+  return `${Math.max(50, Math.ceil(crudo / 50) * 50)} g`;
+}
+
+/* menus: [{ fecha, etiqueta, menu }] (menu = resultado de armarMenu).
+   Devuelve { categorias: [{ nombre, items: [{ id, texto, cantidad }] }],
+   platos: [{ texto, veces, dias }] }. */
+export function armarCompras(menus, buscar) {
+  const suma = new Map();
+  const platos = new Map();
+  for (const { etiqueta, menu } of menus) {
+    for (const c of menu.comidas) {
+      for (const it of c.compras || []) {
+        if (!it.g) continue;
+        const food = buscar(it.key);
+        if (!food) continue;
+        if (it.plato) {
+          const p = platos.get(it.key) || { texto: food.name, veces: 0, dias: [] };
+          p.veces += 1; p.dias.push(etiqueta);
+          platos.set(it.key, p);
+          continue;
+        }
+        suma.set(it.key, (suma.get(it.key) || 0) + it.g);
+      }
+    }
+  }
+  const porCat = new Map(CATEGORIAS_COMPRA.map(n => [n, []]));
+  for (const [key, g] of suma) {
+    const food = buscar(key);
+    const regla = COMPRA_POR_CLAVE[key] || { ...(COMPRA_POR_GRUPO[food.group] || { factor: 1, cat: 'Otros' }), texto: food.name };
+    porCat.get(regla.cat || 'Otros').push({ id: key, texto: regla.texto || food.name, cantidad: cantidadCompra(regla, g) });
+  }
+  return {
+    categorias: [...porCat].filter(([, items]) => items.length)
+      .map(([nombre, items]) => ({ nombre, items: items.sort((a, b) => a.texto.localeCompare(b.texto, 'es')) })),
+    platos: [...platos.values()],
+  };
 }

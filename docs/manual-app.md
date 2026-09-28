@@ -280,7 +280,11 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - **Se adapta a lo que comió de verdad.** Si en una comida registró otra cosa (con foto, escribiendo, etc.), esa comida sale como **"LO QUE REGISTRASTE"** con lo que anotó, y las comidas que faltan se recalculan para cerrar el día en su meta: arriba sale **"🔄 Ajustado a lo que ya registraste. Te quedan X kcal y Y g de proteína para lo que falta del día."** Si almorzó de más, la cena sale más ligera; si almorzó poco, sale más completa. Las comidas que quedaron antes de la última registrada y no se anotaron dicen "No la registraste". Si ya llegó a su meta sale **"🎉 Ya llegaste a tu meta de hoy…"** y las comidas que faltan dicen "Ya no la necesitas hoy".
 - El menú cambia cada día y es el mismo en todos sus celulares. Se arma con los alimentos de la app (sin inventar platos) y cuadra con la meta de "Comidas".
 - Los alimentos nuevos que Jonah agrega (por ejemplo, cuando alguien los pide) sirven para registrar; solo salen en el menú si Jonah los marca para el menú (como proteína, acompañamiento, plato de almuerzo, desayuno o media mañana/tarde). La comida rápida, los postres y lo que el alumno crea para sí mismo no salen en el menú.
-- **Es Premium.** En la versión gratis ve solo su **desayuno**; las demás comidas salen borrosas con **"Tu menú completo del día es Premium"** y "VER PREMIUM".
+- Al abrir la tarjeta hay tres pestañas: **"Hoy"**, **"Semana"** y **"🛒 Compras"**.
+  - **"Semana":** botones con los días (Hoy, Mañana, "Mié 30"…, 8 días). Muestra el menú de ese día con su total contra la meta; en cada comida **"🔄 Cambiar"** y abajo **"🎲 Otro menú para [día]"**. "Lo comí" solo sale en el de hoy.
+  - **"🛒 Compras":** la lista de compras de los menús **desde mañana**, eligiendo **"Próximos 3 días"** o **"Próximos 7 días"**. Va por secciones (Carnes, pescados y huevos · Verduras y tubérculos · Frutas · Abarrotes · Lácteos · Panadería) y en **cantidades para comprar**: el arroz, los fideos, la quinua y las menestras van en crudo (≈ ⅓ del peso cocido), la carne y el pescado con su peso antes de cocinarlos, y los huevos, panes, paltas, manzanas y plátanos en unidades. Tocar una línea la marca como comprada (se tacha; queda guardado en ese celular). Los platos peruanos van aparte en **"🇵🇪 PLATOS A PREPARAR"** (con los días), porque sus ingredientes dependen de la receta. **"Compartir por WhatsApp"** manda la lista como mensaje.
+  - Si cambia una comida o el menú de un día, la lista de compras se actualiza sola.
+- **Es Premium.** En la versión gratis ve solo su **desayuno** de hoy; las demás comidas salen borrosas con **"Tu menú completo del día es Premium"** y "VER PREMIUM", y las pestañas "Semana" y "Compras" muestran "Tu menú de la semana es Premium" / "Tu lista de compras es Premium".
 
 **G) Restaurantes aliados**
 1. Toca **"RESTAURANTES ALIADOS"** (hoy: **PECAFIT**).
@@ -552,7 +556,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 ### 13.8 Versión gratis y Premium
 
-En "Planes", la lista **"👑 PREMIUM INCLUYE"**: tu menú completo del día · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
+En "Planes", la lista **"👑 PREMIUM INCLUYE"**: tu menú del día y de la semana, con tu lista de compras · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
 
 Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
 
@@ -567,6 +571,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | Registro por voz | — | ✓ |
 | "¿Qué puedo comer?" | 3 veces por semana | Siempre |
 | Menú completo del día ("Tu menú de hoy") | Solo el desayuno | Todas sus comidas |
+| Menú de la semana y lista de compras | — | ✓ |
 | Pedirle alimentos a Jonah (app, foto, WhatsApp) | — | ✓ |
 | Peso, pesaje semanal, racha, insignias, "Tu semana", invitar | ✓ | ✓ |
 | Tendencias | 7 días | 30 días a 1 año, constancia y coach |

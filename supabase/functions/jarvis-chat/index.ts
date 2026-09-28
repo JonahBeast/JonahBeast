@@ -372,7 +372,7 @@ async function leerStream(r: Response, alTexto: (t: string) => void) {
 // Forma "sonora" de un nombre: sin tildes y con las letras que el dictado
 // suele confundir unificadas (Gia/Ya, y/j/ll/i, v/b, z/c/s, h muda, letras dobles).
 function sonido(t: string) {
-  return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  return t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "")
     .replace(/[^a-zñ ]/g, " ").replace(/\bgi(?=[aeou])/g, "y").replace(/ll/g, "y").replace(/[jy]/g, "i").replace(/v/g, "b")
     .replace(/[zc]/g, "s").replace(/qu/g, "k").replace(/h/g, "").replace(/(.)\1+/g, "$1").trim();
 }

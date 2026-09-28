@@ -231,17 +231,18 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     // y pavita). Va en el mensaje, no en las instrucciones, para no romper
     // la caché que comparten todas las fotos.
     const clavesOk = new Set(alimentosValidos.map((a: any) => a.key));
-    const [frecuentes, corregidos] = await Promise.all([
+    const [frecuentes, corregidos, deTodos] = await Promise.all([
       alimentosFrecuentes(supabase, username, clavesOk),
       correccionesDelAlumno(supabase, username, clavesOk),
+      correccionesDeTodos(supabase, clavesOk),
     ]);
 
-    const r = await reconocerPlato(supabase, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, usuarioUso: username });
+    const r = await reconocerPlato(supabase, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, usuarioUso: username });
     if (!r) {
       await devolverFoto();
       return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
     }
-    const { items, noEncontrados } = r;
+    const { items, noEncontrados, alternativas } = r;
 
     // Platos que la IA vio pero no tenemos: quedan anotados para que el
     // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
@@ -252,7 +253,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     }
 
     // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, noEncontrados, ...cupo, usadas });
+    return json({ items, noEncontrados, alternativas, ...cupo, usadas });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);
@@ -261,9 +262,10 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
 
 // Reconoce los alimentos de la foto con la IA, solo dentro de la lista que
 // se le manda. Devuelve null si la IA falló (quien llama devuelve la foto).
-async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, usuarioUso }: {
-  imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[]; usuarioUso: string;
-}): Promise<{ items: any[]; noEncontrados: string[] } | null> {
+async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, usuarioUso }: {
+  imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[];
+  deTodos: CorreccionesDeTodos; usuarioUso: string;
+}): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]> } | null> {
   const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
   // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
   // la lista pesa casi la mitad que mandando "clave :: nombre".
@@ -285,6 +287,8 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
 
 Si te paso "Correcciones que este alumno ya hizo", son fotos anteriores donde la IA se equivocó y el alumno eligió el alimento correcto (ej. la IA dijo pollo y era pavita). Si algo de esta foto se parece a lo que la IA dijo antes, lo más probable es que sea lo que el alumno corrigió: úsalo como "key", o en "opciones" en primer lugar si no estás seguro.
+
+Si te paso "Correcciones frecuentes de todos los alumnos", son confusiones que la IA tuvo con fotos de varios alumnos distintos (la IA dijo X → en realidad era Y). Si algo de esta foto se parece a X, no respondas solo X: usa "opciones" con Y en primer lugar y X después, con confianza "media" — salvo que en la foto se vea con claridad cuál de los dos es. Las correcciones de este mismo alumno pesan más que las de todos.
 
 Si te paso "Lo que este alumno suele comer" (lo que más registró en las últimas 2 semanas), úsalo SOLO para desempatar cuando algo de la foto se parece a dos o más alimentos de la lista: prefiere el que el alumno suele comer. Nunca agregues un alimento solo porque está en esa lista: tiene que verse en la foto.
 
@@ -341,6 +345,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
             { type: "text", text: [
               listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
               corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
+              deTodos.reglas.length && `Correcciones frecuentes de todos los alumnos (la IA dijo → en realidad era):\n${deTodos.reglas.join("\n")}`,
               frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
               "Identifica los alimentos de esta foto.",
             ].filter(Boolean).join("\n\n") },
@@ -407,7 +412,17 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     })
     .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
 
-  return { items, noEncontrados };
+  // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
+  // cuando la IA dijo cada uno de estos alimentos (solo los de esta foto).
+  const alternativas: Record<string, string[]> = {};
+  for (const it of items) {
+    for (const k of (it.key ? [it.key] : it.opciones || [])) {
+      const alts = (deTodos.alternativas[k] || []).filter((a) => a !== k && clavesValidas.has(a));
+      if (alts.length) alternativas[k] = alts;
+    }
+  }
+
+  return { items, noEncontrados, alternativas };
 }
 
 // Foto de prueba desde la portada, sin cuenta (ver DEMO_* arriba). Se
@@ -456,7 +471,8 @@ async function fotoDePrueba(supabase: any, req: Request, cuerpo: any) {
   }
 
   const r = await reconocerPlato(supabase, {
-    imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales: [], frecuentes: [], corregidos: [], usuarioUso: "demo-portada",
+    imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales: [], frecuentes: [], corregidos: [],
+    deTodos: await correccionesDeTodos(supabase, new Set(alimentosComunes.map((a: any) => a.key))), usuarioUso: "demo-portada",
   });
   if (!r) {
     await devolver();
@@ -725,6 +741,59 @@ async function correccionesDelAlumno(supabase: any, username: string, validas: S
   } catch (e) {
     console.error("No se pudieron leer las correcciones:", (e as Error)?.message);
     return [];
+  }
+}
+
+// Lo que corrigieron todos los alumnos en los últimos 180 días (la IA dijo X
+// y el alumno eligió "¿Qué era en realidad?" / "No es esto" → Y).
+// - reglas: pares que corrigieron 3 alumnos distintos o más; van a la IA
+//   para todas las fotos. Jonah puede apagar un par desde su panel (config
+//   "correcciones_ia_off": lista JSON de "X→Y").
+// - alternativas: para cada X, hasta 3 Y (de más a menos alumnos), para las
+//   opciones rápidas de "No es esto". Aquí basta 1 alumno: solo sugieren.
+// Si algo falla, se sigue sin esta ayuda.
+const MIN_ALUMNOS_CORRECCION = 3;
+type CorreccionesDeTodos = { reglas: string[]; alternativas: Record<string, string[]> };
+async function correccionesDeTodos(supabase: any, validas: Set<string>): Promise<CorreccionesDeTodos> {
+  try {
+    const desde = new Date(Date.now() - 180 * 86_400_000).toISOString();
+    const [{ data, error }, { data: cfg }] = await Promise.all([
+      supabase.from("reconocimiento_foto_feedback").select("username, sugeridos")
+        .gte("created_at", desde).order("created_at", { ascending: false }).limit(3000),
+      supabase.from("config").select("value").eq("key", "correcciones_ia_off").maybeSingle(),
+    ]);
+    if (error) throw error;
+    let apagadas = new Set<string>();
+    try {
+      const lista = JSON.parse(cfg?.value || "[]");
+      if (Array.isArray(lista)) apagadas = new Set(lista.filter((x: unknown) => typeof x === "string"));
+    } catch { /* sin lista */ }
+    const pares = new Map<string, { de: string; a: string; alumnos: Set<string> }>();
+    for (const fila of data || []) {
+      const quien = typeof fila?.username === "string" ? fila.username : "";
+      for (const s of Array.isArray(fila?.sugeridos) ? fila.sugeridos : []) {
+        const de = typeof s?.key === "string" ? s.key : "";
+        const a = typeof s?.corregido_a === "string" ? s.corregido_a : "";
+        if (!quien || !de || !a || de === a || !validas.has(de) || !validas.has(a)) continue;
+        const id = `${de}→${a}`;
+        if (apagadas.has(id)) continue;
+        const p = pares.get(id) || { de, a, alumnos: new Set<string>() };
+        p.alumnos.add(quien);
+        pares.set(id, p);
+      }
+    }
+    const lista = [...pares.values()].sort((x, y) => y.alumnos.size - x.alumnos.size);
+    const reglas = lista.filter((p) => p.alumnos.size >= MIN_ALUMNOS_CORRECCION).slice(0, 25)
+      .map((p) => `${p.de} → ${p.a} (${p.alumnos.size} alumnos)`);
+    const alternativas: Record<string, string[]> = {};
+    for (const p of lista) {
+      const l = alternativas[p.de] || (alternativas[p.de] = []);
+      if (l.length < 3) l.push(p.a);
+    }
+    return { reglas, alternativas };
+  } catch (e) {
+    console.error("No se pudieron leer las correcciones de todos:", (e as Error)?.message);
+    return { reglas: [], alternativas: {} };
   }
 }
 

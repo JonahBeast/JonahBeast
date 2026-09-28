@@ -3246,10 +3246,17 @@ function PrecisionIAPanel() {
   );
 }
 
+// Una corrección ("la IA dijo X → era Y") se aplica a las fotos de TODOS
+// cuando la hicieron 3 alumnos distintos (igual que en reconocer-comida).
+// Jonah puede apagar una: queda en config "correcciones_ia_off" ("X→Y").
+const MIN_ALUMNOS_CORRECCION = 3;
+
 function ReconocimientoFotoPanel() {
   const [filas, setFilas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [apagadas, setApagadas] = useState([]);
+  const [guardandoRegla, setGuardandoRegla] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -3257,12 +3264,26 @@ function ReconocimientoFotoPanel() {
     setLoading(true);
     try {
       const { data } = await supabase.from('reconocimiento_foto_feedback')
-        .select('sugeridos, descartados, created_at')
+        .select('username, sugeridos, descartados, created_at')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(3000);
       setFilas(data || []);
     } catch { setFilas([]); }
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', 'correcciones_ia_off').maybeSingle();
+      const lista = JSON.parse(data?.value || '[]');
+      setApagadas(Array.isArray(lista) ? lista : []);
+    } catch { setApagadas([]); }
     setLoading(false);
+  }
+
+  async function alternarRegla(id) {
+    const nueva = apagadas.includes(id) ? apagadas.filter(x => x !== id) : [...apagadas, id];
+    setGuardandoRegla(id);
+    const { error } = await supabase.from('config').upsert({ key: 'correcciones_ia_off', value: JSON.stringify(nueva) });
+    setGuardandoRegla('');
+    if (error) return alert('No se pudo guardar: ' + (error.message || 'Intenta de nuevo.'));
+    setApagadas(nueva);
   }
 
   // Agrupa por alimento: cuántas veces lo sugirió la IA vs. cuántas
@@ -3298,23 +3319,22 @@ function ReconocimientoFotoPanel() {
   }));
   const pctPorcion = n => porciones.total ? Math.round((n / porciones.total) * 100) : 0;
 
-  // "¿Qué era en realidad?": lo que la IA dijo y lo que el alumno eligió.
-  // Muestra qué confunde más la IA (ej. pollo → pavita), contando cada
-  // foto una vez por corrección.
+  // "No es esto": lo que la IA dijo (X) y lo que el alumno eligió (Y), con
+  // cuántos alumnos distintos lo corrigieron. Con 3 o más, la IA lo usa en
+  // las fotos de todos (salvo que Jonah lo apague aquí). Últimos 180 días.
+  const desde180 = new Date(Date.now() - 180 * 86400000).toISOString();
   const confusiones = {};
-  filas.forEach(f => {
-    const porFoto = {};
+  filas.filter(f => String(f.created_at) >= desde180).forEach(f => {
     (f.sugeridos || []).forEach(it => {
       if (!it?.key || !it?.corregido_a || it.key === it.corregido_a) return;
-      (porFoto[it.corregido_a] = porFoto[it.corregido_a] || new Set()).add(it.key);
-    });
-    Object.entries(porFoto).forEach(([a, des]) => {
-      const clave = [...des].sort().join(' | ') + ' → ' + a;
-      confusiones[clave] = confusiones[clave] || { de: [...des], a, veces: 0 };
-      confusiones[clave].veces++;
+      const id = `${it.key}→${it.corregido_a}`;
+      const c = confusiones[id] || (confusiones[id] = { id, de: it.key, a: it.corregido_a, alumnos: new Set(), veces: 0 });
+      c.veces++;
+      if (f.username) c.alumnos.add(f.username);
     });
   });
-  const listaConfusiones = Object.values(confusiones).sort((x, y) => y.veces - x.veces).slice(0, 10);
+  const listaConfusiones = Object.values(confusiones)
+    .sort((x, y) => y.alumnos.size - x.alumnos.size || y.veces - x.veces).slice(0, 20);
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -3360,18 +3380,35 @@ function ReconocimientoFotoPanel() {
                 )}
               </div>
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 jb-body text-sm text-zinc-300">
-                <p className="text-zinc-200 font-semibold mb-1">✏️ Qué confunde la IA (correcciones de los alumnos)</p>
+                <p className="text-zinc-200 font-semibold mb-1">✏️ Correcciones frecuentes (la IA aprende de los alumnos)</p>
+                <p className="text-[11px] text-zinc-500 mb-2">
+                  Cuando {MIN_ALUMNOS_CORRECCION} alumnos distintos o más hacen la misma corrección, la IA la tiene en cuenta en las fotos de todos. Si una no te parece correcta, apágala.
+                </p>
                 {listaConfusiones.length === 0 ? (
-                  <p className="text-xs text-zinc-500">Aún no hay correcciones. Aparecen cuando un alumno toca "¿Qué era en realidad?" en una foto.</p>
+                  <p className="text-xs text-zinc-500">Aún no hay correcciones. Aparecen cuando un alumno toca "✏️ No es esto" en una foto.</p>
                 ) : (
-                  <div className="flex flex-col gap-1 mt-1">
-                    {listaConfusiones.map((c, i) => (
-                      <p key={i} className="text-xs text-zinc-400">
-                        La IA dijo <span className="text-zinc-200">{c.de.map(k => buscarFood(k)?.name || k).join(' o ')}</span> → era{' '}
-                        <span className="text-orange-400 font-semibold">{buscarFood(c.a)?.name || c.a}</span>{' '}
-                        <span className="text-zinc-500">({c.veces} {c.veces === 1 ? 'vez' : 'veces'})</span>
-                      </p>
-                    ))}
+                  <div className="flex flex-col gap-1.5">
+                    {listaConfusiones.map(c => {
+                      const apagada = apagadas.includes(c.id);
+                      const n = c.alumnos.size;
+                      const paraTodos = !apagada && n >= MIN_ALUMNOS_CORRECCION;
+                      return (
+                        <div key={c.id} className="flex items-center gap-2 border border-zinc-800 rounded-lg px-2.5 py-1.5">
+                          <p className="flex-1 min-w-0 text-xs text-zinc-400">
+                            La IA dijo <span className="text-zinc-200">{buscarFood(c.de)?.name || c.de}</span> → era{' '}
+                            <span className="text-orange-400 font-semibold">{buscarFood(c.a)?.name || c.a}</span>{' '}
+                            <span className="text-zinc-500">· {n} {n === 1 ? 'alumno' : 'alumnos'}</span>
+                            <span className={`block text-[10px] mt-0.5 ${apagada ? 'text-zinc-500' : paraTodos ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                              {apagada ? '⏸ Apagada por ti' : paraTodos ? '✅ La IA la usa para todos' : `Solo para quien la corrigió (${n} de ${MIN_ALUMNOS_CORRECCION} para todos)`}
+                            </span>
+                          </p>
+                          <button type="button" disabled={guardandoRegla === c.id} onClick={() => alternarRegla(c.id)}
+                            className="shrink-0 text-[11px] px-2.5 py-1 rounded-lg border border-zinc-700 text-zinc-300 hover:border-orange-500 disabled:opacity-50">
+                            {apagada ? 'Activar' : 'Apagar'}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -2877,14 +2877,37 @@ function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, plac
   );
 }
 
+/* Botón "← Atrás" arriba a la izquierda, visible, en las pantallas antes
+   de entrar (recorrido, crear cuenta, ingresar). */
+const VISTAS_CON_ATRAS = ['free', 'recorrido', 'trial', 'studentAuth', 'adminAuth'];
+
+function BotonAtras({ onClick, className = '' }) {
+  return (
+    <button type="button" onClick={onClick} aria-label="Atrás"
+      className={'jb-body text-sm font-semibold text-zinc-200 bg-zinc-900/80 border border-zinc-700 rounded-full px-3.5 py-1.5 hover:border-orange-500 hover:text-zinc-50 transition-colors ' + className}>
+      ← Atrás
+    </button>
+  );
+}
+
 function Recorrido({ onBack, onListo }) {
   const guardado = leerRecorrido();
   const [r, setR] = useState(guardado || { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' });
-  const [paso, setPaso] = useState(0);
+  // Cada paso queda en el historial del navegador: el botón "atrás" del
+  // celular vuelve al paso anterior (y del primero, a la portada).
+  const [paso, setPaso] = useState(() => {
+    const e = window.history.state;
+    return e?.jb === 'recorrido' && e.paso > 0 ? e.paso : 0;
+  });
+  useEffect(() => {
+    const onPop = e => { if (e.state?.jb === 'recorrido') setPaso(e.state.paso || 0); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const fijar = (campo, valor) => setR(v => ({ ...v, [campo]: valor }));
   const conMeta = r.objetivo !== 'Mantener peso';
   const pasos = conMeta ? ['objetivo', 'persona', 'cuerpo', 'actividad', 'meta', 'plan'] : ['objetivo', 'persona', 'cuerpo', 'actividad', 'plan'];
-  const actual = pasos[paso];
+  const actual = pasos[Math.min(paso, pasos.length - 1)];
 
   useEffect(() => {
     registrarEventoEmbudo(actual === 'plan' ? 'recorrido_plan' : 'recorrido', actual === 'plan' ? {} : { detalle: String(paso + 1) });
@@ -2912,7 +2935,15 @@ function Recorrido({ onBack, onListo }) {
     if (actual === 'actividad' && conMeta && !r.pesoObjetivo) {
       fijar('pesoObjetivo', String(r.objetivo === 'Perder grasa' ? Math.round(peso - 5) : Math.round(peso + 3)));
     }
-    setPaso(p => Math.min(pasos.length - 1, p + 1));
+    const nuevo = Math.min(pasos.length - 1, paso + 1);
+    try { window.history.pushState({ jb: 'recorrido', paso: nuevo }, ''); } catch {}
+    setPaso(nuevo);
+  }
+  function atras() {
+    const e = window.history.state;
+    if (paso > 0 && e?.jb === 'recorrido' && e.paso === paso) window.history.back();
+    else if (paso > 0) setPaso(p => p - 1);
+    else onBack();
   }
   function guardarRecorridoLocal() {
     try { localStorage.setItem(CLAVE_RECORRIDO, JSON.stringify({ ...r, ts: Date.now() })); } catch {}
@@ -2937,9 +2968,7 @@ function Recorrido({ onBack, onListo }) {
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
       <div className="max-w-md mx-auto relative flex flex-col min-h-[calc(100vh-3rem)]">
         <div className="flex items-center gap-3 mb-5">
-          <button type="button" onClick={() => (paso === 0 ? onBack() : setPaso(p => p - 1))} className="text-zinc-400 p-1" aria-label="Atrás">
-            <ChevronRight size={22} className="rotate-180" />
-          </button>
+          <BotonAtras onClick={atras} className="shrink-0" />
           <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
             <div className="h-full bg-orange-500 rounded-full transition-all duration-300" style={{ width: `${((paso + 1) / pasos.length) * 100}%` }} />
           </div>
@@ -3273,9 +3302,10 @@ function TrialSignup({ onBack, onCreated }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-10 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
@@ -3424,7 +3454,8 @@ function AdminAuth({ onBack, onLogin, busy }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative">
+      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
@@ -3746,9 +3777,10 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
       <div className="max-w-sm w-full relative">
         <div className="mb-4"><Logo size="lg" /></div>
         {modo === 'login' && (
@@ -5184,6 +5216,25 @@ export default function App() {
       return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing';
     } catch { return 'landing'; }
   });
+  // Pantallas antes de entrar: se abren con irA (quedan en el historial del
+  // navegador) para que el botón "atrás" del celular regrese a la anterior
+  // en vez de cerrar la app; "← Atrás" hace lo mismo (volver).
+  function irA(v) {
+    try { window.history.pushState({ jb: v }, ''); } catch {}
+    setView(v);
+  }
+  function volver() {
+    if (VISTAS_CON_ATRAS.includes(window.history.state?.jb)) window.history.back();
+    else setView('landing');
+  }
+  useEffect(() => {
+    const onPop = e => {
+      const destino = VISTAS_CON_ATRAS.includes(e.state?.jb) ? e.state.jb : 'landing';
+      setView(v => (VISTAS_CON_ATRAS.includes(v) || v === 'landing' ? destino : v));
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [loading, setLoading] = useState(true);
   // La landing recién se muestra cuando ya se sabe si hay una sesión
   // guardada: así un alumno que abre la app no la ve un instante (ni
@@ -5741,12 +5792,12 @@ export default function App() {
       {!tokenRef && view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
       {!tokenRef && view === 'landing' && (sesionRevisada
         ? (instalada
-          ? <Bienvenida onEntrar={() => setView('studentAuth')} onEmpezar={() => {
+          ? <Bienvenida onEntrar={() => irA('studentAuth')} onEmpezar={() => {
               registrarEventoEmbudo('clic_cta', { detalle: 'app' });
               try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
-              setView(leerRecorrido() ? 'trial' : 'recorrido');
+              irA(leerRecorrido() ? 'trial' : 'recorrido');
             }} />
-          : <Landing onChoose={setView} />)
+          : <Landing onChoose={irA} />)
         : instalada ? <SplashMarca /> : (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
           <Loader2 className="animate-spin text-orange-500" size={28} />
@@ -5754,18 +5805,18 @@ export default function App() {
       ))}
       {!tokenRef && view === 'reto' && <RetoPage onIrALaApp={() => { window.location.href = '/'; }} />}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
-      {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} onEmpezar={() => {
+      {!tokenRef && view === 'free' && <FreeCalculator onBack={volver} onEmpezar={() => {
         registrarEventoEmbudo('clic_cta', { detalle: 'calculadora' });
         try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
-        setView(leerRecorrido() ? 'trial' : 'recorrido');
+        irA(leerRecorrido() ? 'trial' : 'recorrido');
       }} />}
-      {!tokenRef && view === 'recorrido' && <Recorrido onBack={() => setView('landing')} onListo={() => setView('trial')} />}
-      {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
+      {!tokenRef && view === 'recorrido' && <Recorrido onBack={volver} onListo={() => irA('trial')} />}
+      {!tokenRef && view === 'trial' && <TrialSignup onBack={volver} onCreated={handleTrialCreated} />}
       {!tokenRef && view === 'adminAuth' && (
-        <AdminAuth onBack={() => setView('landing')} busy={busy} onLogin={handleAdminLogin} />
+        <AdminAuth onBack={volver} busy={busy} onLogin={handleAdminLogin} />
       )}
       {!tokenRef && view === 'studentAuth' && (
-        <StudentAuth onBack={() => setView('landing')} busy={busy} onLogin={handleStudentLogin}
+        <StudentAuth onBack={volver} busy={busy} onLogin={handleStudentLogin}
           expiredInfo={expiredInfo}
           onClearExpired={async () => {
             // Cierra la sesión del alumno vencido para poder entrar con otra cuenta.

@@ -2,8 +2,8 @@
 // Asistente de WhatsApp de Jonah Beast Fuel. Meta avisa aquí cada mensaje
 // que llega al número de Jonah (y cada mensaje que Jonah manda desde su
 // celular, gracias a la coexistencia). El asistente responde con Claude,
-// usando el manual de la app (manual.ts, copiado de docs/manual-app.md con
-// "npm run manual-jarvis") y los datos del alumno si ya es alumno.
+// usando el manual de la app (docs/manual-app.md, que se lee de la tabla
+// manual_app) y los datos del alumno si ya es alumno.
 // Si piden un alimento que no está en la app, lo deja en la lista de
 // "Pedidos de alimentos" del panel (tabla pedidos_alimentos) y le avisa a
 // Jonah; cuando Jonah lo aprueba, la función alimentos-pedidos le escribe al
@@ -26,7 +26,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
-import { MANUAL_APP } from "./manual.ts";
 import { ALIMENTOS_APP } from "./alimentos.ts";
 
 const GRAPH = "https://graph.facebook.com/v23.0";
@@ -96,6 +95,28 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!,
 );
+
+// Manual de la app: se lee de la tabla manual_app (se actualiza después de
+// cada merge con el texto de main), así cambiar el manual no obliga a volver
+// a publicar esta función. Se guarda unos minutos en memoria; si la tabla no
+// responde, se usa el último que se leyó. Si nunca se pudo leer, el
+// asistente no inventa: pasa a Jonah las dudas sobre cómo usar la app.
+const MANUAL_NO_DISPONIBLE = "(El manual no está disponible en este momento. Si preguntan cómo usar la app, cómo funciona algo o qué dice un botón, no inventes: usa pasar_a_jonah.)";
+let manualCache: { texto: string; leido: number } | null = null;
+async function cargarManual(): Promise<string> {
+  if (manualCache && Date.now() - manualCache.leido < 5 * 60_000) return manualCache.texto;
+  try {
+    const { data, error } = await supabase.from("manual_app").select("texto").eq("id", 1).maybeSingle();
+    if (error) throw error;
+    if (data?.texto) {
+      manualCache = { texto: data.texto, leido: Date.now() };
+      return data.texto;
+    }
+  } catch (e) {
+    console.error("No se pudo leer el manual:", (e as Error)?.message);
+  }
+  return manualCache?.texto || MANUAL_NO_DISPONIBLE;
+}
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -382,7 +403,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
     // El manual es igual en todas las llamadas: va primero y queda en caché.
     // Los datos de la conversación cambian siempre: van después.
     system: [
-      { type: "text", text: `${PERSONA}\n\n# Manual de la app\n\n${MANUAL_APP}\n\n# Alimentos que ya están en la app (nombre y cómo se come)\n\n${ALIMENTOS_APP.join("\n")}`, cache_control: { type: "ephemeral" } },
+      { type: "text", text: `${PERSONA}\n\n# Manual de la app\n\n${await cargarManual()}\n\n# Alimentos que ya están en la app (nombre y cómo se come)\n\n${ALIMENTOS_APP.join("\n")}`, cache_control: { type: "ephemeral" } },
       { type: "text", text: await contexto(alumno, nombreWa, telefono) },
     ],
     tools: HERRAMIENTAS,

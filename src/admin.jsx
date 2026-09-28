@@ -606,15 +606,22 @@ function FormAlimento({ form, setForm }) {
   );
 }
 
-function ResultadoAvisos({ nombre, avisos }) {
+function ResultadoAvisos({ nombre, avisos, mensaje }) {
   if (!avisos) return null;
   const partes = [];
   if (avisos.whatsapp?.length) partes.push(`${avisos.whatsapp.length} por WhatsApp`);
   if (avisos.app?.length) partes.push(`${avisos.app.length} con notificación en la app`);
-  const texto = `✅ ¡Listo! *${nombre}* ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?`;
+  const texto = mensaje || `✅ ¡Listo! *${nombre}* ya está en la app 🙌 Cierra y vuelve a abrir la app, y búscalo en "REGISTRAR" → "Escribir". ¿Me avisas si todo está conforme?`;
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       {partes.length > 0 && <p className="jb-body text-xs text-emerald-400">Avisamos: {partes.join(' y ')}.</p>}
+      {/* Sin avisos activos no le llega la notificación: lo verá al abrir
+          la app, pero si quieres que se entere ya, escríbele tú. */}
+      {avisos.sin_avisos?.length > 0 && (
+        <p className="jb-body text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-2.5">
+          ⚠️ No le llegó la notificación a <b>{avisos.sin_avisos.join(', ')}</b>: tiene los avisos apagados. Lo verá la próxima vez que abra la app; si quieres que se entere ya, escríbele.
+        </p>
+      )}
       {avisos.a_mano?.length > 0 && (
         <div className="bg-amber-950/40 border border-amber-900 rounded-lg p-2.5">
           <p className="jb-body text-xs text-amber-300 mb-1.5">Avísale tú (pasaron más de 24 h desde su último mensaje y WhatsApp no deja escribirle solo):</p>
@@ -658,12 +665,24 @@ function PedidoAlimento({ pedido, onResuelto }) {
     setGuardando(false);
   }
 
+  // Al descartar se le deja un mensaje a quien lo pidió (le llega como
+  // notificación o WhatsApp, y lo ve al abrir la app). Se propone uno según
+  // el caso; se puede cambiar o dejar vacío para no avisar.
+  const [descartando, setDescartando] = useState(false);
+  const [respuesta, setRespuesta] = useState('');
+  function abrirDescarte() {
+    setRespuesta(propuesta?.ya_existe
+      ? `Ya estaba en la app como "${propuesta.ya_existe}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`
+      : `No pudimos identificar "${pedido.nombre}". Si nos das más detalles (cómo se prepara o de qué marca es), lo agregamos 🙌`);
+    setDescartando(true);
+  }
   async function descartar() {
-    if (!confirm(`¿Descartar el pedido "${pedido.nombre}"? No se avisa a nadie.`)) return;
-    const { error: err } = await supabase.from('pedidos_alimentos')
-      .update({ estado: 'descartado', resuelto_en: new Date().toISOString(), actualizado_en: new Date().toISOString() }).eq('id', pedido.id);
-    if (err) { setError('No se pudo descartar: ' + err.message); return; }
-    onResuelto(pedido.id, null);
+    setGuardando(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'descartar', id: pedido.id, respuesta });
+      onResuelto(pedido.id, { nombre: pedido.nombre, avisos: r.avisos, descartado: true, respuesta: respuesta.trim() });
+    } catch (e) { setError(e.message); }
+    setGuardando(false);
   }
 
   const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '';
@@ -702,7 +721,22 @@ function PedidoAlimento({ pedido, onResuelto }) {
         </>
       )}
       {error && <p className="jb-body text-xs text-red-400">{error}</p>}
-      <button onClick={descartar} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
+      {descartando ? (
+        <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 flex flex-col gap-2">
+          <label className="jb-body text-[11px] text-zinc-400">Mensaje para quien lo pidió (déjalo vacío para no avisar)
+            <textarea value={respuesta} onChange={e => setRespuesta(e.target.value)} maxLength={300} rows={3}
+              className={inputCls + ' w-full text-sm mt-1'} />
+          </label>
+          <div className="flex gap-2">
+            <button onClick={descartar} disabled={guardando} className={btnGhost + ' flex-1 text-xs py-2'}>
+              {guardando ? <Loader2 size={14} className="animate-spin" /> : respuesta.trim() ? 'Descartar y avisar' : 'Descartar sin avisar'}
+            </button>
+            <button onClick={() => setDescartando(false)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 px-2">Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={abrirDescarte} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
+      )}
     </div>
   );
 }
@@ -804,14 +838,17 @@ function PedidosAlimentosPanel() {
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar, el alimento aparece al momento en la app y avisamos a quien lo pidió.</p>
+            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar o descartar, avisamos a quien lo pidió (y lo ve también al abrir la app).</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
 
           {resueltos.map((r, i) => (
-            <div key={i} className="bg-emerald-950/30 border border-emerald-900 rounded-xl p-3">
-              <p className="jb-body text-sm text-emerald-300 font-semibold">✅ {r.nombre} ya está en la app</p>
-              <ResultadoAvisos nombre={r.nombre} avisos={r.avisos} />
+            <div key={i} className={`rounded-xl p-3 border ${r.descartado ? 'bg-zinc-950 border-zinc-800' : 'bg-emerald-950/30 border-emerald-900'}`}>
+              <p className={`jb-body text-sm font-semibold ${r.descartado ? 'text-zinc-300' : 'text-emerald-300'}`}>
+                {r.descartado ? `🗑️ Descartaste "${r.nombre}"${r.respuesta ? '' : ' (sin avisar)'}` : `✅ ${r.nombre} ya está en la app`}
+              </p>
+              <ResultadoAvisos nombre={r.nombre} avisos={r.avisos}
+                mensaje={r.descartado && r.respuesta ? `Sobre tu pedido *${r.nombre}*: ${r.respuesta}` : undefined} />
             </div>
           ))}
 
@@ -1381,7 +1418,7 @@ function TableroPanel({ users }) {
 const SUPUESTOS_RENTABILIDAD = {
   supabase: 94, vercel: 75, jarvis: 45, dominio: 8, otrosFijos: 0,
   costoFoto: 0.07, fotosAlumnoMes: 60, fotosPrueba: 10, whatsappAlumno: 0.3,
-  comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500,
+  comisionMP: 8.9, comisionGoogle: 15, conversion: 10, sueldoMeta: 1500, mesesPromedio: 3,
   tipoCambio: 3.75,
 };
 
@@ -1572,13 +1609,18 @@ function RentabilidadPanel({ users }) {
     (async () => {
       const inicio = new Date(); inicio.setDate(1);
       const inicioISO = fechaLocalISO(inicio);
-      const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }] = await Promise.all([
+      const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).range(0, 9999),
         supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
           .gte('creado_en', inicioISO).range(0, 19999),
+        supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
+          .eq('tipo', 'gasto').range(0, 4999),
+        // Todos los pagos con dinero real: sirve para saber quién pagó por
+        // primera vez este mes (alumnos nuevos conseguidos).
+        supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 9999),
       ]);
       if (cancelado) return;
       const p = {};
@@ -1590,8 +1632,8 @@ function RentabilidadPanel({ users }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [] });
-    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [] }); });
+      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: historialPagos || [] });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], gastos: [], historialPagos: [] }); });
     return () => { cancelado = true; };
   }, []);
 
@@ -1640,11 +1682,40 @@ function RentabilidadPanel({ users }) {
   const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
   const supR = { ...sup, costoFoto };
 
-  const cuotaRus = cuotaNuevoRus(ingresosMes);
+  // Gastos anotados en Finanzas (solo de la app). Los equipos se reparten
+  // en sus meses (una laptop de 24 meses cuenta 1/24 cada mes); el resto
+  // cuenta completo en el mes en que se pagó.
+  const mesActual = todayISO().slice(0, 7);
+  const numMes = ym => { const [y, m] = ym.split('-').map(Number); return y * 12 + m; };
+  const gastosCat = { publicidad: 0, marketing: 0, equipo: 0, herramientas: 0, otro: 0 };
+  let comprasMes = 0;
+  (mes?.gastos || []).forEach(g => {
+    const monto = Number(g.monto) || 0;
+    const ym = String(g.fecha || '').slice(0, 7);
+    if (ym === mesActual) comprasMes += monto; // el Nuevo RUS mira las compras completas del mes
+    if (g.negocio !== 'app') return;
+    const cat = gastosCat[g.categoria] !== undefined ? g.categoria : 'otro';
+    const meses = Number(g.meses_a_repartir) || 0;
+    if (cat === 'equipo' && meses > 1) {
+      const dif = numMes(mesActual) - numMes(ym);
+      if (dif >= 0 && dif < meses) gastosCat.equipo += monto / meses;
+    } else if (ym === mesActual) gastosCat[cat] += monto;
+  });
+  const gastosMes = Object.values(gastosCat).reduce((a, v) => a + v, 0);
+  // Alumnos nuevos del mes: su primer pago con dinero real fue este mes.
+  const primerPago = {};
+  (mes?.historialPagos || []).forEach(pg => {
+    const f = String(pg.creado_en).slice(0, 7);
+    if (!primerPago[pg.username] || f < primerPago[pg.username]) primerPago[pg.username] = f;
+  });
+  const nuevosPagantes = Object.values(primerPago).filter(f => f === mesActual).length;
+  const inversionCaptar = gastosCat.publicidad + gastosCat.marketing;
+
+  const cuotaRus = cuotaNuevoRus(Math.max(ingresosMes, comprasMes));
   const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
   const fijos = fijosTec + (cuotaRus ?? 50);
   const costoIAMes = mes ? mes.fotos * costoFoto : 0;
-  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes;
+  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes - gastosMes;
 
   const precioMensual = precios[1] || 24.9;
   const cv = costoPorAlumno(supR, sup.conversion);
@@ -1656,6 +1727,9 @@ function RentabilidadPanel({ users }) {
   const piso = cv / (1 - sup.comisionMP / 100);
   const nRef = Math.max(pagando, 25);
   const minimoRef = precioMinimo(nRef);
+  // Cuánto cuesta conseguir un alumno vs. cuánto deja en el tiempo que se queda.
+  const costoCaptar = nuevosPagantes > 0 ? inversionCaptar / nuevosPagantes : null;
+  const valorAlumno = quedaPorAlumno * sup.mesesPromedio;
 
   const canales = [
     { id: 'yape', label: 'Yape / Plin', pct: 0 },
@@ -1673,8 +1747,10 @@ function RentabilidadPanel({ users }) {
   if (netoMP - (cv - sup.fotosAlumnoMes * costoFoto) - costoMaxFotos < 0) alertas.push(`Un alumno que use las 5 fotos diarias te cuesta ${fmtS(costoMaxFotos)} al mes en fotos: con el plan mensual pierdes plata con él.`);
   const costoPruebas = (1 / (Math.max(sup.conversion, 1) / 100) - 1) * sup.fotosPrueba * costoFoto;
   if (costoPruebas > cv / 2) alertas.push(`Tu mayor costo es la prueba gratis: ${fmtS(costoPruebas)} de cada ${fmtS(cv)} por alumno. Subir la conversión es la mejor palanca.`);
-  if (cuotaRus === null) alertas.push('Este mes pasaste los S/8,000 de ingresos: ya no calificas para el Nuevo RUS.');
+  if (cuotaRus === null) alertas.push(`Este mes pasaste los S/8,000 en ${comprasMes > ingresosMes ? 'compras' : 'ingresos'}: ya no calificas para el Nuevo RUS.`);
+  else if (comprasMes > 5000) alertas.push(`Este mes tus compras suman ${fmtS(comprasMes)}: en el Nuevo RUS las compras también cuentan, y tu cuota sube a S/50.`);
   else if (ingresosMes > 4000) alertas.push(`Vas por ${fmtS(ingresosMes)} este mes; al pasar S/5,000 la cuota del Nuevo RUS sube a S/50.`);
+  else if (comprasMes > 4000) alertas.push(`Tus compras del mes van en ${fmtS(comprasMes)}: si pasan de S/5,000, la cuota del Nuevo RUS sube a S/50.`);
 
   // El simulador arranca con los números de hoy.
   const fotosDiaHoy = Math.round((sup.fotosAlumnoMes / 30) * 2) / 2;
@@ -1701,7 +1777,7 @@ function RentabilidadPanel({ users }) {
     ['costoFoto', 'Costo de una foto con IA (S/)'], ['fotosAlumnoMes', 'Fotos de un alumno al mes (máx. 150)'],
     ['fotosPrueba', 'Fotos de una prueba gratis'], ['whatsappAlumno', 'WhatsApp por alumno (S/ al mes)'],
     ['comisionMP', 'Comisión Mercado Pago (%)'], ['comisionGoogle', 'Comisión Google Play (%)'], ['tipoCambio', 'Tipo de cambio (S/ por dólar)'],
-    ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'],
+    ['conversion', 'De cada 100 que prueban, pagan'], ['sueldoMeta', 'Tu sueldo meta (S/ al mes)'], ['mesesPromedio', 'Meses que se queda un alumno (promedio)'],
   ];
 
   return (
@@ -1723,6 +1799,9 @@ function RentabilidadPanel({ users }) {
         {mes && (
           <p className="jb-body text-[11px] text-zinc-500 mt-1">
             Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos a {fmtS(costoFoto)}{costoFotoReal !== null ? ', costo medido' : ', costo estimado'})
+            {CATEGORIAS_GASTO.filter(c => gastosCat[c.id] > 0).map(c => (
+              <span key={c.id}> − <span className="text-zinc-300">{c.emoji} {c.id === 'equipo' ? 'equipos (repartido)' : c.label.toLowerCase()} {fmtS(gastosCat[c.id])}</span></span>
+            ))}
           </p>
         )}
         <div className="mt-3">
@@ -1750,6 +1829,27 @@ function RentabilidadPanel({ users }) {
           </div>
         ))}
       </div>
+
+      {mes && (inversionCaptar > 0 || nuevosPagantes > 0) && (() => {
+        const rinde = costoCaptar !== null && costoCaptar <= valorAlumno;
+        const sinNuevos = costoCaptar === null;
+        return (
+          <div className={`rounded-lg p-3 border ${sinNuevos ? 'bg-zinc-950 border-zinc-800' : rinde ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-red-500/10 border-red-500/40'}`}>
+            <div className="jb-body text-xs text-zinc-400">📣 Publicidad y marketing de este mes: <span className="text-zinc-100 font-semibold">{fmtS(inversionCaptar)}</span> · alumnos nuevos que pagaron: <span className="text-zinc-100 font-semibold">{nuevosPagantes}</span></div>
+            {sinNuevos ? (
+              <p className="jb-body text-sm text-zinc-300 mt-1">Todavía no llega ningún alumno nuevo este mes, así que aún no se puede medir cuánto te cuesta conseguir cada uno.</p>
+            ) : (
+              <>
+                <p className={`jb-display text-lg mt-1 ${rinde ? 'text-emerald-400' : 'text-red-400'}`}>Cada alumno nuevo te costó {fmtS(costoCaptar)}</p>
+                <p className="jb-body text-xs text-zinc-300">
+                  y te deja unos {fmtS(valorAlumno)} en el tiempo que se queda ({sup.mesesPromedio} {sup.mesesPromedio === 1 ? 'mes' : 'meses'} en promedio × {fmtS(quedaPorAlumno)}).{' '}
+                  <span className="font-semibold">{rinde ? 'La publicidad te devuelve más de lo que cuesta. ✓' : 'Hoy la publicidad te cuesta más de lo que te devuelve.'}</span>
+                </p>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       <div className={`${tarjeta} flex flex-col gap-3`}>
         <div>
@@ -2107,6 +2207,14 @@ function MetricasPanel() {
   );
 }
 
+const CATEGORIAS_GASTO = [
+  { id: 'publicidad', emoji: '📣', label: 'Publicidad' },
+  { id: 'marketing', emoji: '🤝', label: 'Marketing' },
+  { id: 'equipo', emoji: '💻', label: 'Equipo' },
+  { id: 'herramientas', emoji: '🛠️', label: 'Herramientas' },
+  { id: 'otro', emoji: '📦', label: 'Otro' },
+];
+
 function FinanzasPanel() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -2114,7 +2222,7 @@ function FinanzasPanel() {
   const [negocioFiltro, setNegocioFiltro] = useState('todos');
   const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7));
   const [form, setForm] = useState({
-    fecha: todayISO(), negocio: 'app', tipo: 'ingreso', concepto: '',
+    fecha: todayISO(), negocio: 'app', tipo: 'ingreso', concepto: '', categoria: 'publicidad', anios: 2,
     monto: '', tieneComprobante: false, igv: '', notas: '',
   });
   const [guardando, setGuardando] = useState(false);
@@ -2194,6 +2302,8 @@ function FinanzasPanel() {
         concepto: form.concepto.trim(), monto,
         tiene_comprobante: form.tieneComprobante,
         igv: form.igv ? parseFloat(form.igv) : null,
+        categoria: form.tipo === 'gasto' ? form.categoria : 'otro',
+        meses_a_repartir: form.tipo === 'gasto' && form.categoria === 'equipo' ? form.anios * 12 : null,
         notas: form.notas.trim() || null,
       });
       if (error) throw error;
@@ -2203,6 +2313,15 @@ function FinanzasPanel() {
       setFormErr('No se pudo guardar: ' + err.message);
     }
     setGuardando(false);
+  }
+
+  async function cambiarCategoria(m, categoria) {
+    try {
+      const { error } = await supabase.from('movimientos_financieros')
+        .update({ categoria, meses_a_repartir: categoria === 'equipo' ? (m.meses_a_repartir || 24) : null }).eq('id', m.id);
+      if (error) throw error;
+      load();
+    } catch (e) { alert('No se pudo cambiar: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function eliminar(id) {
@@ -2513,6 +2632,35 @@ function FinanzasPanel() {
                     onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
                     className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
                 </div>
+                {form.tipo === 'gasto' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[11px] text-zinc-500">¿Qué fue?</span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {CATEGORIAS_GASTO.map(c => (
+                        <button key={c.id} type="button" onClick={() => setForm(f => ({ ...f, categoria: c.id }))}
+                          className={`text-xs rounded-lg px-2.5 py-1.5 border ${form.categoria === c.id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`}>
+                          {c.emoji} {c.label}
+                        </button>
+                      ))}
+                    </div>
+                    {form.categoria === 'equipo' && (
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        <span className="text-[11px] text-zinc-500">¿Cuántos años crees que te va a servir?</span>
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3].map(a => (
+                            <button key={a} type="button" onClick={() => setForm(f => ({ ...f, anios: a }))}
+                              className={`text-xs rounded-lg px-3 py-1.5 border ${form.anios === a ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`}>
+                              {a} {a === 1 ? 'año' : 'años'}
+                            </button>
+                          ))}
+                        </div>
+                        {parseFloat(form.monto) > 0 && (
+                          <span className="text-[11px] text-zinc-400">Se contará como S/ {(parseFloat(form.monto) / (form.anios * 12)).toFixed(2)} al mes durante {form.anios} {form.anios === 1 ? 'año' : 'años'}.</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <input placeholder="Concepto (ej. Suscripciones de agosto)" value={form.concepto}
                   onChange={e => setForm(f => ({ ...f, concepto: e.target.value }))}
                   className="bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
@@ -2544,7 +2692,16 @@ function FinanzasPanel() {
                     <div key={m.id} className={`relative bg-zinc-950 border rounded-lg pl-4 pr-3 py-2 overflow-hidden flex justify-between items-center gap-2 ${m.tipo === 'ingreso' ? 'border-emerald-900/50' : 'border-red-900/50'}`}>
                       <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.tipo === 'ingreso' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <div className="min-w-0">
-                        <div className="text-zinc-200 text-xs truncate">{m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        <div className="text-zinc-200 text-xs truncate">{m.tipo === 'gasto' && (CATEGORIAS_GASTO.find(c => c.id === m.categoria)?.emoji || '📦')} {m.concepto} <span className="text-zinc-600">· {m.negocio}</span></div>
+                        {m.tipo === 'gasto' && (
+                          <select value={m.categoria || 'otro'} onChange={e => cambiarCategoria(m, e.target.value)}
+                            className="mt-0.5 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-400">
+                            {CATEGORIAS_GASTO.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+                          </select>
+                        )}
+                        {m.tipo === 'gasto' && m.meses_a_repartir && (
+                          <span className="text-[10px] text-zinc-500 ml-1.5">repartido en {m.meses_a_repartir} meses</span>
+                        )}
                         <div className="text-zinc-600 text-[11px]">{m.fecha} {m.tiene_comprobante ? '· con comprobante' : ''}</div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -2936,6 +3093,24 @@ function ReconocimientoFotoPanel() {
   }));
   const pctPorcion = n => porciones.total ? Math.round((n / porciones.total) * 100) : 0;
 
+  // "¿Qué era en realidad?": lo que la IA dijo y lo que el alumno eligió.
+  // Muestra qué confunde más la IA (ej. pollo → pavita), contando cada
+  // foto una vez por corrección.
+  const confusiones = {};
+  filas.forEach(f => {
+    const porFoto = {};
+    (f.sugeridos || []).forEach(it => {
+      if (!it?.key || !it?.corregido_a || it.key === it.corregido_a) return;
+      (porFoto[it.corregido_a] = porFoto[it.corregido_a] || new Set()).add(it.key);
+    });
+    Object.entries(porFoto).forEach(([a, des]) => {
+      const clave = [...des].sort().join(' | ') + ' → ' + a;
+      confusiones[clave] = confusiones[clave] || { de: [...des], a, veces: 0 };
+      confusiones[clave].veces++;
+    });
+  });
+  const listaConfusiones = Object.values(confusiones).sort((x, y) => y.veces - x.veces).slice(0, 10);
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
@@ -2977,6 +3152,22 @@ function ReconocimientoFotoPanel() {
                       {porciones.conAceite > 0 && ` · marcó más aceite en ${porciones.aceite} de ${porciones.conAceite} fritos/saltados`}
                     </p>
                   </>
+                )}
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 jb-body text-sm text-zinc-300">
+                <p className="text-zinc-200 font-semibold mb-1">✏️ Qué confunde la IA (correcciones de los alumnos)</p>
+                {listaConfusiones.length === 0 ? (
+                  <p className="text-xs text-zinc-500">Aún no hay correcciones. Aparecen cuando un alumno toca "¿Qué era en realidad?" en una foto.</p>
+                ) : (
+                  <div className="flex flex-col gap-1 mt-1">
+                    {listaConfusiones.map((c, i) => (
+                      <p key={i} className="text-xs text-zinc-400">
+                        La IA dijo <span className="text-zinc-200">{c.de.map(k => buscarFood(k)?.name || k).join(' o ')}</span> → era{' '}
+                        <span className="text-orange-400 font-semibold">{buscarFood(c.a)?.name || c.a}</span>{' '}
+                        <span className="text-zinc-500">({c.veces} {c.veces === 1 ? 'vez' : 'veces'})</span>
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto">
@@ -5288,7 +5479,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RescatePanel users={users} />
-            <VencimientosPanel users={users} onRenew={onRenew} />
+            <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
             <EmbudoPanel />
             <CumpleanosPanel users={users} />
@@ -5926,7 +6117,8 @@ function textoUltimaComida(fecha) {
   return `hace ${dias} días`;
 }
 
-function VencimientosPanel({ users, onRenew }) {
+function VencimientosPanel({ users, onRenew, onAdjustDays }) {
+  const { motivoDe } = useMotivosSalida();
   const [open, setOpen] = useState(true);
   const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   const [verVencidos, setVerVencidos] = useState(false);
@@ -5986,6 +6178,13 @@ function VencimientosPanel({ users, onRenew }) {
   function mensajePrueba(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
     const cuando = cuandoTerminaPrueba(u.dl);
+    // Prueba ya terminada (esta semana): se le ofrece volver con 7 días más.
+    if (u.dl < 0) {
+      const hace = Math.abs(u.dl);
+      return u.diasActivos > 0
+        ? `Hola ${nombre}, soy Jonah 🦍 Vi que tu prueba terminó hace ${hace} ${hace === 1 ? 'día' : 'días'} y alcanzaste a registrar ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'} 💪 ¿Te activo 7 días más sin costo para que termines de probarla?`
+        : `Hola ${nombre}, soy Jonah 🦍 Vi que tu prueba terminó hace ${hace} ${hace === 1 ? 'día' : 'días'} y no llegamos a empezar. Ahora tomarle foto a tu plato y ver sus calorías es un toque 📸 ¿Te activo 7 días más sin costo?`;
+    }
     if (u.grupo === 'activo') {
       return `Hola ${nombre}, soy Jonah 🦍 Vi que llevas ${u.diasActivos} días registrando tus comidas, ¡vas muy bien! Tu prueba gratis ${cuando}. ¿Te ayudo a elegir tu plan para no perder tu avance?`;
     }
@@ -6028,12 +6227,21 @@ function VencimientosPanel({ users, onRenew }) {
             {textoVence(u)}{u.esPrueba ? ' · prueba gratis' : ''}
           </div>
           {detalle}
+          <LineaMotivo m={motivoDe[u.username]} />
         </div>
         <div className="flex items-center gap-2">
           <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> Escribir
           </a>
+          {u.esPrueba && u.dl < 0 && onAdjustDays && (
+            <button onClick={() => {
+              if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
+              onAdjustDays(u.username, 7, 'Recuperar prueba vencida: 7 días más', true);
+            }} className={btnGhost + ' py-1.5 px-3 text-xs'}>
+              +7 días
+            </button>
+          )}
           <button onClick={() => onRenew(u.username, 1)} className={btnGhost + ' py-1.5 px-3 text-xs'}>
             +1 mes
           </button>
@@ -6148,6 +6356,63 @@ const GRUPOS_VOLVER = [
   { key: 'nunca', emoji: '⚫', label: 'NUNCA EMPEZARON', detalle: 'Se registraron pero no registraron comidas', necesita: 'Cuéntales que ahora empezar es un toque.', color: 'text-zinc-300', borde: 'border-zinc-600' },
 ];
 
+const TEXTO_MOTIVO = {
+  precio: '💸 El precio', tiempo: '⏰ No tuvo tiempo', no_entendi: '🤔 No la entendió bien',
+  foto: '📸 La foto no le funcionó bien', comidas: '🍽️ No encontró sus comidas', otro: '✍️ Otro',
+};
+
+// "¿Qué te faltó para quedarte?" (encuesta al terminar la prueba): todas
+// las respuestas y la última de cada alumno.
+function useMotivosSalida() {
+  const [motivos, setMotivos] = useState([]);
+  useEffect(() => {
+    supabase.from('motivos_salida').select('username, motivo, detalle, creado_en')
+      .order('creado_en', { ascending: false }).limit(500)
+      .then(({ data }) => setMotivos(data || []), () => {});
+  }, []);
+  const motivoDe = {};
+  motivos.forEach(m => { if (!motivoDe[m.username]) motivoDe[m.username] = m; });
+  return { motivos, motivoDe };
+}
+
+function LineaMotivo({ m }) {
+  if (!m) return null;
+  return (
+    <div className="text-[11px] jb-body text-amber-300 mt-0.5">
+      Le faltó: {TEXTO_MOTIVO[m.motivo] || m.motivo}{m.detalle ? ` — "${m.detalle}"` : ''}
+    </div>
+  );
+}
+
+// "¿Por qué no pagaron?": resumen de la encuesta al terminar la prueba.
+function ResumenMotivos({ motivos }) {
+  const ultimo = {};
+  motivos.forEach(m => { if (!ultimo[m.username]) ultimo[m.username] = m; });
+  const lista = Object.values(ultimo);
+  if (!lista.length) {
+    return <p className="jb-body text-[11px] text-zinc-500 mb-3">📝 "¿Qué te faltó para quedarte?": todavía nadie respondió. Se pregunta al terminar la prueba.</p>;
+  }
+  const conteo = {};
+  lista.forEach(m => { conteo[m.motivo] = (conteo[m.motivo] || 0) + 1; });
+  const orden = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+  const otros = lista.filter(m => m.detalle).slice(0, 5);
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 mb-3 jb-body">
+      <p className="text-sm text-zinc-200 font-semibold mb-1">📝 ¿Qué les faltó para quedarse? · {lista.length} {lista.length === 1 ? 'respuesta' : 'respuestas'}</p>
+      <div className="flex flex-col gap-0.5">
+        {orden.map(([k, n]) => (
+          <p key={k} className="text-xs text-zinc-400">{TEXTO_MOTIVO[k] || k}: <span className="text-orange-400 font-semibold">{n}</span> ({Math.round((n / lista.length) * 100)}%)</p>
+        ))}
+      </div>
+      {otros.length > 0 && (
+        <div className="mt-1.5 flex flex-col gap-0.5">
+          {otros.map((m, i) => <p key={i} className="text-[11px] text-zinc-500">"{m.detalle}" — {m.username}</p>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VolverInvitarPanel({ users, onAdjustDays }) {
   const [open, setOpen] = useState(false);
   const [grupoVisible, setGrupoVisible] = useState(null);
@@ -6155,6 +6420,7 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
   const [invitados, setInvitados] = useState(leerInvitados);
   // username -> días en que registró comidas
   const [actividad, setActividad] = useState(null);
+  const { motivos, motivoDe } = useMotivosSalida();
 
   const salieron = useMemo(() => (users || [])
     .filter(u => u.fechaVencimiento)
@@ -6238,11 +6504,12 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
         <div className="min-w-0">
           <div className="text-zinc-100 text-sm font-medium jb-body">{u.nombre ? `${u.nombre} · ${u.username}` : u.username}</div>
           <div className="text-[11px] jb-body text-zinc-400 mt-0.5">
-            {u.esPrueba ? 'Su prueba terminó' : 'Su plan venció'} hace {semanas >= 2 ? `${semanas} semanas` : `${Math.abs(u.dl)} días`}
+            {u.esPrueba ? 'Su prueba terminó' : 'Su plan venció'} hace {semanas >= 2 ? `${semanas} semanas` : `${Math.abs(u.dl)} ${Math.abs(u.dl) === 1 ? 'día' : 'días'}`}
             {u.diasActivos > 0 ? ` · registró ${u.diasActivos} ${u.diasActivos === 1 ? 'día' : 'días'}` : ''}
             {!u.enabled && ' · cuenta apagada'}
             {!u.telefono && ' · sin celular'}
           </div>
+          <LineaMotivo m={motivoDe[u.username]} />
           {u.yaInvitado && (
             <div className="text-[11px] jb-body text-emerald-400 mt-0.5">
               ✓ Invitado {u.invitadoHace === 0 ? 'hoy' : u.invitadoHace === 1 ? 'ayer' : `hace ${u.invitadoHace} días`}
@@ -6284,8 +6551,9 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
             <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Revisando su actividad…</div>
           ) : (
             <>
+              <ResumenMotivos motivos={motivos} />
               <p className="jb-body text-xs text-zinc-500 mb-3">
-                Personas cuya prueba o plan terminó hace más de 7 días y no volvieron. Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
+                Personas cuya prueba o plan terminó hace más de 7 días y no volvieron (los de esta semana están en "Por vencer" → "Ya vencieron"). Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
                 {' '}<span className="text-zinc-400">"+7 días" les vuelve a abrir la app una semana desde hoy.</span>
               </p>
               {pendientes.length === 0 ? (

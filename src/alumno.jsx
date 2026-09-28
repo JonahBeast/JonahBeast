@@ -413,6 +413,7 @@ function RestriccionesCard({ mealPlan, setMealPlan }) {
             alimentos={foodsBuscador()}
             onElegir={key => { const f = buscarFood(key); if (f) agregar(f.name); }}
             onNoEncuentra={() => {}}
+            permitirPedido={false}
           />
           <p className="jb-body text-[10px] text-zinc-600 mt-2">
             Ej. si no comes cerdo, mariscos o algo puntual — no volverá a aparecer en combos ni sustituciones.
@@ -2849,7 +2850,47 @@ function resumenSemana(filas, lunes) {
   return { dias: conComida.length, enMeta, deltaPeso, racha, lunes, domingo };
 }
 
-async function imagenSemana({ nombre, r }) {
+/* Código personal de "Invita a un amigo" (se crea la primera vez). Va en
+   las imágenes que el alumno comparte: quien ve su historia entra con 10%
+   de descuento y el alumno gana 15 días cuando su amigo paga. */
+let codigoInvitacionPromesa = null;
+function codigoInvitacion() {
+  if (!codigoInvitacionPromesa) {
+    codigoInvitacionPromesa = supabase.rpc('mi_codigo_invitacion')
+      .then(({ data, error }) => (!error && data?.codigo ? data.codigo : null), () => null);
+    codigoInvitacionPromesa.then(c => { if (!c) codigoInvitacionPromesa = null; });
+  }
+  return codigoInvitacionPromesa;
+}
+const linkInvitacion = codigo => `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion`;
+const textoInvitacion = codigo => codigo
+  ? `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi código ${codigo} tienes 10% de descuento en tu primer plan: ${linkInvitacion(codigo)}`
+  : 'Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis: https://jonahbeast.com';
+
+/* Copia el link de invitación para pegarlo en el sticker "Enlace" de
+   Instagram (las historias no conservan el texto que acompaña la imagen).
+   Se llama apenas se toca el botón, antes de cualquier espera, porque
+   algunos celulares solo dejan copiar en ese instante. */
+function copiarLinkInvitacion() {
+  const link = codigoInvitacion().then(c => (c ? linkInvitacion(c) : Promise.reject(new Error('sin código'))));
+  try {
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      return navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(t => new Blob([t], { type: 'text/plain' })) })])
+        .then(() => true, () => link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false));
+    }
+  } catch {}
+  return link.then(t => navigator.clipboard.writeText(t)).then(() => true, () => false);
+}
+
+function AvisoLinkCopiado() {
+  return (
+    <p className="jb-body text-xs text-orange-300 bg-orange-500/10 border border-orange-500/30 rounded-xl px-3 py-2 mt-2 text-center">
+      🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker <b>"Enlace"</b> y pégalo, así tus amigos pueden tocarlo.
+    </p>
+  );
+}
+
+async function imagenSemana({ nombre, r, codigo = null }) {
   try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
   const W = 1080, H = 1920;
   const canvas = document.createElement('canvas');
@@ -2897,7 +2938,18 @@ async function imagenSemana({ nombre, r }) {
   });
   ctx.font = titulo(92); ctx.fillStyle = CREMA; ctx.fillText('NO ES QUÉ COMES.', W / 2, 1560);
   ctx.fillStyle = NARANJA; ctx.fillText('ES CUÁNTO.', W / 2, 1670);
-  ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
+  if (codigo) {
+    // Pastilla con el código: quien ve la historia sabe cómo entrar con descuento.
+    const txt = `Mi código: ${codigo} · 10% dcto`;
+    ctx.font = cuerpo(42, 700);
+    const pw = ctx.measureText(txt).width + 80, ph = 86, px = (W - pw) / 2, py = 1730;
+    ctx.fillStyle = NARANJA;
+    if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 43); ctx.fill(); } else ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = CARBON; ctx.fillText(txt, W / 2, py + 58);
+    ctx.font = cuerpo(40, 600); ctx.fillStyle = NARANJA2; ctx.fillText('15 días gratis en jonahbeast.com', W / 2, 1870);
+  } else {
+    ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
+  }
   return new Promise((resolve, reject) => {
     try { canvas.toBlob(b => b ? resolve(b) : reject(new Error('sin imagen')), 'image/png'); } catch (e) { reject(e); }
   });
@@ -2967,6 +3019,7 @@ function TuSemanaCard({ username, nombre }) {
   const [cerrada, setCerrada] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
   const [r, setR] = useState(null);
   const [compartiendo, setCompartiendo] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
   const toca = diaSemana <= 2 && !cerrada;
 
   useEffect(() => {
@@ -2986,11 +3039,13 @@ function TuSemanaCard({ username, nombre }) {
   }
   async function compartir() {
     setCompartiendo(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
-      const blob = await imagenSemana({ nombre, r });
+      const codigo = await codigoInvitacion();
+      const blob = await imagenSemana({ nombre, r, codigo });
       const archivo = new File([blob], 'mi-semana-jonah-beast.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
-        await navigator.share({ files: [archivo], title: 'Mi semana en Jonah Beast Fuel' });
+        await navigator.share({ files: [archivo], title: 'Mi semana en Jonah Beast Fuel', text: textoInvitacion(codigo) });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -3031,6 +3086,7 @@ function TuSemanaCard({ username, nombre }) {
       <button onClick={compartir} disabled={compartiendo} className={btnPrimary + ' w-full py-2.5 mt-3'}>
         {compartiendo ? <Loader2 className="animate-spin" size={16} /> : '📲 Compartir en historias'}
       </button>
+      {linkCopiado && <AvisoLinkCopiado />}
     </div>
   );
 }
@@ -3599,7 +3655,7 @@ function dibujarRecortada(ctx, img, x, y, w, h) {
   ctx.restore();
 }
 
-async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
+async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = null }) {
   const W = 1080, H = 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -3679,10 +3735,10 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
     ctx.textAlign = 'left';
   });
 
-  // Pie
+  // Pie (con el código de invitación, si lo hay)
   ctx.fillStyle = '#F97316';
   ctx.font = 'bold 36px Arial';
-  ctx.fillText('jonahbeast.com', 70, H - 70);
+  ctx.fillText(codigo ? `jonahbeast.com · Mi código: ${codigo} (10% dcto)` : 'jonahbeast.com', 70, H - 70);
 
   return new Promise((resolve, reject) => {
     try {
@@ -3694,12 +3750,15 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues }) {
 function BotonCompartir({ username, nombre, rows, stats }) {
   const [generando, setGenerando] = useState(false);
   const [err, setErr] = useState('');
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   const hayDatos = rows && rows.length >= 2;
 
   async function compartir() {
     setErr(''); setGenerando(true);
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
+      const codigo = await codigoInvitacion();
       // Datos a mostrar
       const conPeso = rows.filter(r => Number(r.peso) > 0);
       const conGrasa = rows.filter(r => Number(r.grasa_pct) > 0);
@@ -3771,10 +3830,10 @@ function BotonCompartir({ username, nombre, rows, stats }) {
 
       let blob;
       try {
-        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues });
+        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo });
       } catch {
         // Si las fotos bloquean la exportación, se genera sin ellas
-        blob = await generarTarjeta({ nombre, datos });
+        blob = await generarTarjeta({ nombre, datos, codigo });
       }
 
       const archivo = new File([blob], 'mi-progreso-jonah-beast.png', { type: 'image/png' });
@@ -3783,6 +3842,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
         await navigator.share({
           files: [archivo],
           title: 'Mi progreso en Jonah Beast Fuel',
+          text: textoInvitacion(codigo),
         });
       } else {
         const url = URL.createObjectURL(blob);
@@ -3806,6 +3866,7 @@ function BotonCompartir({ username, nombre, rows, stats }) {
         {generando ? <Loader2 className="animate-spin" size={18} /> : <>📤 Compartir mi progreso</>}
       </button>
       {err && <p className="text-amber-400 text-xs jb-body mt-2 text-center">{err}</p>}
+      {linkCopiado && <AvisoLinkCopiado />}
       <p className="jb-body text-[11px] text-zinc-600 mt-2 text-center">
         Genera una imagen con tus resultados para compartir donde quieras.
       </p>
@@ -4498,7 +4559,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
   // Primero la comida: es lo más fácil y donde se ve la magia de la app.
   // Los datos y el objetivo vienen después, para ajustar la meta.
   const pasos = [
-    { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Tómale foto a tu plato — la IA la reconoce al toque', tab: 'registrar' },
+    { id: 'meal', hecho: registroComida, titulo: 'Registra tu primera comida', texto: 'Tómale foto a tu plato — la IA la reconoce al toque', tab: 'foto' },
     { id: 'calc', hecho: midio, titulo: 'Ajusta tu meta a tu cuerpo', texto: 'Edad, estatura y peso · 30 segundos, sin cinta métrica', tab: 'calc' },
     { id: 'goal', hecho: eligioObjetivo, titulo: 'Elige tu objetivo', texto: 'Perder grasa, ganar músculo o mantener', tab: 'goal' },
     { id: 'photo', hecho: tieneFotos, titulo: 'Toma tus fotos de inicio', texto: 'Tu punto de partida para comparar después', tab: 'photos' },
@@ -4559,7 +4620,7 @@ function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
       <div className="flex gap-2">
         {siguiente && (
           <button onClick={() => onIr(siguiente.tab)} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>
-            Continuar: {siguiente.titulo}
+            {siguiente.id === 'meal' ? <><Camera size={16} /> Tómale foto a lo que vas a comer</> : <>Continuar: {siguiente.titulo}</>}
           </button>
         )}
         <button onClick={onVerGuia} className={btnGhost + ' py-2.5 px-4 text-sm'}>Ver guía</button>
@@ -4935,7 +4996,49 @@ function CalorieStatus({ consumed, target }) {
 /* ATAJOS PARA REGISTRAR MÁS RÁPIDO                                    */
 /* ------------------------------------------------------------------ */
 
-function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false }) {
+/* Novedades de los alimentos que el alumno pidió ("🙋 Pedirle a Jonah" o
+   por la foto): al abrir la app ve cuáles ya se agregaron y cuáles no, con
+   el mensaje de Jonah. No depende de las notificaciones, así se entera
+   aunque las tenga apagadas. Lo ya visto se recuerda en este celular. */
+function PedidosResueltosCard({ username }) {
+  const clave = 'jb-pedidos-vistos:' + username;
+  const [pedidos, setPedidos] = useState([]);
+  useEffect(() => {
+    let desde = null;
+    try { desde = localStorage.getItem(clave); } catch {}
+    supabase.rpc('mis_pedidos_resueltos', { p_desde: desde || new Date(Date.now() - 7 * 86400000).toISOString() })
+      .then(({ data }) => setPedidos(Array.isArray(data) ? data : []), () => {});
+  }, [clave]);
+  if (!pedidos.length) return null;
+  function listo() {
+    try { localStorage.setItem(clave, pedidos[0].resuelto_en || new Date().toISOString()); } catch {}
+    setPedidos([]);
+  }
+  const agregados = pedidos.filter(p => p.estado === 'agregado');
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-3">
+      <p className="jb-display text-sm text-zinc-50 mb-2">🍽️ NOVEDADES DE TUS PEDIDOS</p>
+      <ul className="flex flex-col gap-1.5 mb-3">
+        {pedidos.map(p => (
+          <li key={p.id} className="jb-body text-xs text-zinc-300 leading-snug">
+            {p.estado === 'agregado'
+              ? <>✅ <b className="text-orange-400">{p.alimento || p.nombre}</b> ya está en la app.</>
+              : <>💬 <b className="text-zinc-100">{p.nombre}</b>: {p.respuesta || 'no lo pudimos agregar.'}</>}
+          </li>
+        ))}
+      </ul>
+      {agregados.length > 0 && (
+        <p className="jb-body text-[11px] text-zinc-500 mb-3">Búscalos en "REGISTRAR" → "Escribir".</p>
+      )}
+      <button onClick={listo} className={btnPrimary + ' w-full py-2 text-xs'}>Entendido</button>
+    </div>
+  );
+}
+
+/* permitirPedido: muestra "Pedirle a Jonah" (no tiene sentido, por ejemplo,
+   en "Nunca me sugieras esto"). pista: línea bajo el buscador vacío que
+   recuerda que se puede pedir un plato que no está. */
+function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
   const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error', nombre, error? }
@@ -4961,7 +5064,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
   );
 
   return (
-    <div className="relative sm:flex-[3] min-w-0">
+    <div className="relative flex-1 sm:flex-[3] min-w-0">
       <input
         autoFocus={autoFocus}
         value={texto}
@@ -4978,17 +5081,20 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
               <p className="jb-body text-xs text-zinc-400 mb-2">
                 No encontramos "{texto}".
               </p>
-              <button type="button" onMouseDown={e => e.preventDefault()}
-                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
-                className={btnPrimary + ' w-full py-2 text-xs'}>
-                + Crear mi alimento
-              </button>
-              {texto.trim().length >= 2 && (
+              {/* Pedírselo a Jonah es lo más fácil (no hay que saber los
+                  macros), así que va primero y en naranja. */}
+              {permitirPedido && texto.trim().length >= 2 && (
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
-                  className={btnGhost + ' w-full py-2 text-xs mt-2'}>
-                  🙋 Pedirle a Jonah que lo agregue
+                  className={btnPrimary + ' w-full py-2 text-xs flex flex-col items-center leading-tight'}>
+                  <span>🙋 Pedirle a Jonah que lo agregue</span>
+                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">Él calcula los macros y te avisamos cuando esté</span>
                 </button>
               )}
+              <button type="button" onMouseDown={e => e.preventDefault()}
+                onClick={() => { setAbierto(false); onNoEncuentra(texto); }}
+                className={(permitirPedido && texto.trim().length >= 2 ? btnGhost + ' mt-2' : btnPrimary) + ' w-full py-2 text-xs'}>
+                + Crear mi alimento
+              </button>
             </div>
           ) : (
             <>
@@ -5013,15 +5119,20 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 className="w-full text-left px-3 py-2 text-orange-500 jb-body text-xs hover:bg-zinc-800">
                 + No está en la lista, crearlo
               </button>
-              {texto.trim().length >= 2 && (
+              {permitirPedido && texto.trim().length >= 2 && (
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
-                  className="w-full text-left px-3 py-2 text-zinc-300 jb-body text-xs hover:bg-zinc-800 border-t border-zinc-800">
-                  🙋 Pedirle a Jonah que agregue "{texto.trim().slice(0, 40)}"
+                  className="w-full text-left px-3 py-2 text-orange-400 jb-body text-xs font-semibold hover:bg-zinc-800 border-t border-zinc-800">
+                  🙋 ¿No es ninguno? Pídele a Jonah que agregue "{texto.trim().slice(0, 40)}"
                 </button>
               )}
             </>
           )}
         </div>
+      )}
+      {pista && permitirPedido && !pedido && !texto.trim() && (
+        <p className="jb-body text-[11px] text-zinc-500 mt-1.5 px-1">
+          ¿No encuentras tu plato? Escríbelo y toca <span className="text-orange-400">🙋 Pedirle a Jonah</span>: lo agregamos y te avisamos.
+        </p>
       )}
       {pedido && (
         <p className={`jb-body text-xs mt-1.5 ${pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
@@ -5486,6 +5597,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [tamanos, setTamanos] = useState({}); // { [key o id]: 'poco' | 'normal' | 'mucho' }
   const [conteos, setConteos] = useState({}); // piezas corregidas por el alumno: { [key o id]: n }
+  // "¿Qué era en realidad?": cuando la IA se equivocó, el alumno elige el
+  // alimento correcto. { [key o id del grupo]: foodKey correcto }. Se
+  // registra ese alimento con la porción que calculó la IA, y la
+  // corrección se guarda para que la próxima foto de este alumno la sepa.
+  const [correcciones, setCorrecciones] = useState({});
+  const [corrigiendo, setCorrigiendo] = useState(null); // key o id que se está corrigiendo
   const [aceite, setAceite] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
@@ -5597,6 +5714,8 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
       // de opciones ambiguas nunca vienen con nada pre-elegido.
       setSeleccionados(Object.fromEntries(encontrados.filter(f => !f.esOpciones).map(f => [f.key, f._confianzaIA === 'alta'])));
       setElecciones({});
+      setCorrecciones({});
+      setCorrigiendo(null);
       setTamanos({});
       setConteos({});
       setAceite('normal');
@@ -5613,10 +5732,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
     const lista = [];
     items.forEach(f => {
       const id = f.esOpciones ? f.id : f.key;
-      const food = f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : (seleccionados[f.key] ? f : null);
+      const corregido = correcciones[id] ? buscarFood(correcciones[id]) : null;
+      const food = corregido || (f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : (seleccionados[f.key] ? f : null));
       if (!food) return;
       const porcion = porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
-      lista.push({ item: f, id, food, porcion });
+      lista.push({ item: f, id, food, porcion, corregido: !!corregido });
     });
     return lista;
   }
@@ -5665,15 +5785,22 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
         };
       };
       items.forEach(f => {
+        const id = f.esOpciones ? f.id : f.key;
+        // Si el alumno dijo qué era en realidad, lo sugerido se cuenta como
+        // descartado y se anota "corregido_a" (con la porción final).
+        const corr = correcciones[id] && buscarFood(correcciones[id]) ? correcciones[id] : null;
+        const conCorreccion = (base) => (corr ? { ...conPorcion(corr, f, base), key: base.key, corregido_a: corr } : null);
         if (f.esOpciones) {
-          const elegido = elecciones[f.id];
+          const elegido = corr ? null : elecciones[f.id];
           f.alternativas.forEach(alt => {
-            sugeridos.push(conPorcion(alt.key, f, { key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 }));
+            const base = { key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 };
+            sugeridos.push(conCorreccion(base) || conPorcion(alt.key, f, base));
             if (alt.key !== elegido) descartados.push(alt.key);
           });
         } else {
-          sugeridos.push(conPorcion(f.key, f, { key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 }));
-          if (!seleccionados[f.key]) descartados.push(f.key);
+          const base = { key: f.key, confianza: f._confianzaIA || null, cantidad: f._cantidadIA || 1 };
+          sugeridos.push(conCorreccion(base) || conPorcion(f.key, f, base));
+          if (corr || !seleccionados[f.key]) descartados.push(f.key);
         }
       });
       supabase.from('reconocimiento_foto_feedback').insert({ username, sugeridos, descartados }).then(() => {});
@@ -5693,7 +5820,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
             <p className="jb-body text-sm text-zinc-400 mb-4">
               Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
             </p>
-            {cupo && (
+            {cupo?.tipo === 'ilimitado' && (
+              <div className="rounded-xl px-3 py-2.5 mb-4 text-left border bg-zinc-950 border-orange-500/40">
+                <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Fotos ilimitadas</span> en esta cuenta · hoy llevas {Number(cupo.usadas) || 0}</p>
+              </div>
+            )}
+            {cupo && cupo.tipo !== 'ilimitado' && (
               <div className={`rounded-xl px-3 py-2.5 mb-4 text-left border ${cupo.tipo === 'bienvenida'
                 ? 'bg-orange-500/10 border-orange-500/40' : quedan <= 2 ? 'bg-zinc-950 border-orange-500/40' : 'bg-zinc-950 border-zinc-800'}`}>
                 <div className="flex items-center justify-between gap-3">
@@ -5778,8 +5910,26 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               {items.map((f, i) => {
                 const retraso = { animationDelay: `${i * 90}ms` };
                 const id = f.esOpciones ? f.id : f.key;
-                const food = f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : f;
-                const marcado = f.esOpciones ? !!food : !!seleccionados[f.key];
+                const corregido = correcciones[id] ? buscarFood(correcciones[id]) : null;
+                const food = corregido || (f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : f);
+                const marcado = corregido ? true : f.esOpciones ? !!food : !!seleccionados[f.key];
+                // "¿Qué era en realidad?": buscador para corregir a la IA.
+                const corregir = corrigiendo === id ? (
+                  <div className="mt-2">
+                    <p className="jb-body text-[11px] text-zinc-400 mb-1">Búscalo y la próxima foto ya lo sabrá:</p>
+                    <BuscadorAlimento valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
+                      onElegir={key => { setCorrecciones(v => ({ ...v, [id]: key })); setCorrigiendo(null); }}
+                      onNoEncuentra={() => setCorrigiendo(null)} />
+                    <button type="button" onClick={() => setCorrigiendo(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
+                  </div>
+                ) : null;
+                const avisoCorregido = corregido && (
+                  <p className="jb-body text-[11px] text-emerald-400 mt-1">
+                    ✏️ Corregido: la IA dijo {f.esOpciones ? f.alternativas.map(nombreAlimento).join(' o ') : f.name}.{' '}
+                    <button type="button" onClick={() => setCorrecciones(v => { const n = { ...v }; delete n[id]; return n; })}
+                      className="text-zinc-500 hover:text-zinc-300 underline">Deshacer</button>
+                  </p>
+                );
                 const porcion = food && porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
@@ -5812,15 +5962,27 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                   return (
                     <div key={f.id} style={retraso} className={`jbe-entrar bg-zinc-950 border rounded-lg px-3 py-2.5 ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
                       <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es?</p>
-                      <div className="flex flex-wrap gap-2">
-                        {f.alternativas.map(alt => (
-                          <button key={alt.key} type="button"
-                            onClick={() => setElecciones(v => ({ ...v, [f.id]: v[f.id] === alt.key ? undefined : alt.key }))}
-                            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elecciones[f.id] === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
-                            {nombreAlimento(alt)}
-                          </button>
-                        ))}
-                      </div>
+                      {corregido ? (
+                        <p className="jb-body text-sm text-zinc-100">{corregido.name}</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {f.alternativas.map(alt => (
+                            <button key={alt.key} type="button"
+                              onClick={() => setElecciones(v => ({ ...v, [f.id]: v[f.id] === alt.key ? undefined : alt.key }))}
+                              className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${elecciones[f.id] === alt.key ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'border-zinc-700 text-zinc-300'}`}>
+                              {nombreAlimento(alt)}
+                            </button>
+                          ))}
+                          {corrigiendo !== id && (
+                            <button type="button" onClick={() => { setElecciones(v => ({ ...v, [f.id]: undefined })); setCorrigiendo(id); }}
+                              className="jb-body text-xs px-3 py-1.5 rounded-full border border-dashed border-zinc-600 text-zinc-400 hover:text-zinc-200">
+                              Era otro…
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {avisoCorregido}
+                      {corregir}
                       {food && (
                         <p className="jb-body text-xs text-zinc-400 mt-2">
                           {textoPorcionFoto(food, porcion)} · <span className="text-orange-400 font-semibold">{kcal} kcal</span>
@@ -5835,14 +5997,25 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                     className={`jbe-entrar bg-zinc-950 border rounded-lg px-3 py-2.5 transition-colors ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input type="checkbox" checked={marcado}
-                        onChange={() => setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }))}
+                        onChange={() => {
+                          if (corregido) { setCorrecciones(v => { const n = { ...v }; delete n[id]; return n; }); setSeleccionados(v => ({ ...v, [f.key]: false })); return; }
+                          setSeleccionados(v => ({ ...v, [f.key]: !v[f.key] }));
+                        }}
                         className="w-4 h-4 accent-orange-500 shrink-0" />
                       <span className="flex-1 min-w-0">
-                        <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{f.name}</span>
-                        <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(f, porcion)}</span>
+                        <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{food.name}</span>
+                        <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                       </span>
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
                     </label>
+                    {avisoCorregido && <div className="pl-7">{avisoCorregido}</div>}
+                    {!marcado && !corregido && corrigiendo !== id && (
+                      <button type="button" onClick={() => setCorrigiendo(id)}
+                        className="pl-7 mt-1 jb-body text-xs text-orange-400 hover:text-orange-300 underline">
+                        ¿Qué era en realidad?
+                      </button>
+                    )}
+                    {corregir && <div className="pl-7">{corregir}</div>}
                     {ajuste && <div className="pl-7">{ajuste}</div>}
                   </div>
                 );
@@ -5892,9 +6065,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                 </div>
               );
             })()}
-            <button onClick={confirmar} disabled={!Object.values(seleccionados).some(Boolean) && !Object.values(elecciones).some(Boolean)}
+            <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {(Object.values(seleccionados).filter(Boolean).length + Object.values(elecciones).filter(Boolean).length) || ''} a esta comida
+              Agregar {elegidosConPorcion().length || ''} a esta comida
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
@@ -5979,6 +6152,12 @@ function comidaDeAhora(d = new Date()) {
 
 // "?registrar=Almuerzo" (o "ahora") en el link de un aviso: a qué comida
 // llevar al alumno. Devuelve null si el link no pide registrar nada.
+// "&foto=1" (avisos que invitan a tomarle foto al plato): abre la cámara
+// directo en vez de la hoja con las 4 formas de registrar.
+function pideFotoEnUrl(url) {
+  try { return new URL(url, window.location.origin).searchParams.get('foto') === '1'; } catch { return false; }
+}
+
 function leerRegistrarDeUrl(url) {
   try {
     const valor = new URL(url, window.location.origin).searchParams.get('registrar');
@@ -6838,9 +7017,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     }
     conteosPrevios.current = conteos;
   }, [mealPlan]);
-  const [hojaMeal, setHojaMeal] = useState(hojaInicial?.meal || null); // comida elegida en la hoja "Registrar" (null = cerrada)
+  const [hojaMeal, setHojaMeal] = useState(hojaInicial?.foto ? null : hojaInicial?.meal || null); // comida elegida en la hoja "Registrar" (null = cerrada)
   // Pedido de registrar que llega estando ya en Comidas (ej. desde un aviso).
-  useEffect(() => { if (hojaInicial?.meal) setHojaMeal(hojaInicial.meal); }, [hojaInicial?.id]);
+  useEffect(() => {
+    if (!hojaInicial?.meal) return;
+    if (hojaInicial.foto) { setHojaMeal(null); setFotoPara(hojaInicial.meal); }
+    else setHojaMeal(hojaInicial.meal);
+  }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const mealAhora = comidaDeAhora();
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
@@ -7056,6 +7239,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                         }}
                         onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
                         autoFocus={enfocar === en.id}
+                        pista
                       />
                       <button onClick={() => removeEntry(meal, en.id)} aria-label="Quitar"
                         className="text-zinc-600 hover:text-red-400 p-2 shrink-0"><Trash2 size={16} /></button>
@@ -7439,7 +7623,7 @@ const PLATOS_PRIMERA_COMIDA = {
   ],
 };
 
-function PrimeraComidaModal({ kcalMeta, onElegir, onOtro, onCerrar }) {
+function PrimeraComidaModal({ kcalMeta, onElegir, onFoto, onOtro, onCerrar }) {
   const meal = comidaDeAhora();
   const platos = (PLATOS_PRIMERA_COMIDA[meal] || []).map(([key, emoji]) => {
     const food = buscarFood(key);
@@ -7465,7 +7649,12 @@ function PrimeraComidaModal({ kcalMeta, onElegir, onOtro, onCerrar }) {
           )}
         </div>
         <p className="jb-display text-base text-zinc-50 mb-1">{titulo.toUpperCase()}</p>
-        <p className="jb-body text-xs text-zinc-400 mb-3">Toca uno y queda registrado. La cantidad la ajustas después.</p>
+        {/* Lo primero es la foto: es donde se ve la magia de la app. */}
+        <button onClick={() => onFoto(meal)} className={btnPrimary + ' w-full py-3.5 mt-2 mb-1 flex flex-col items-center leading-tight'}>
+          <span className="flex items-center gap-2"><Camera size={18} /> Tómale foto a lo que vas a comer</span>
+          <span className="jb-body text-[11px] font-normal opacity-80 mt-0.5">La IA reconoce tu plato y te dice sus calorías</span>
+        </button>
+        <p className="jb-body text-xs text-zinc-400 mt-3 mb-2">O toca uno de estos y queda registrado. La cantidad la ajustas después.</p>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {platos.map(p => (
             <button key={p.key} onClick={() => onElegir(meal, p)}
@@ -7476,8 +7665,8 @@ function PrimeraComidaModal({ kcalMeta, onElegir, onOtro, onCerrar }) {
             </button>
           ))}
         </div>
-        <button onClick={() => onOtro(meal)} className={btnPrimary + ' w-full py-3 mb-2'}>
-          <Camera size={18} /> Foto o buscar otro plato
+        <button onClick={() => onOtro(meal)} className={btnGhost + ' w-full py-3 mb-2'}>
+          Buscar otro plato
         </button>
         <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Ahora no</button>
       </div>
@@ -7561,11 +7750,11 @@ function AvisoGuardado({ estado, onVolverAEntrar }) {
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, estadoGuardado, userRecord }) {
   usarAlimentosExtra(); // se vuelve a dibujar cuando llegan los alimentos que Jonah agregó desde el panel
   const [tab, setTab] = useState('dash');
-  const [registrarAl, setRegistrarAl] = useState(null); // { meal, id }: comida a registrar al llegar a Comidas
+  const [registrarAl, setRegistrarAl] = useState(null); // { meal, id, foto }: comida a registrar al llegar a Comidas (foto: abrir la cámara directo)
   const formRef = useRef(form);
   formRef.current = form;
-  function irARegistrar(meal) {
-    setRegistrarAl({ meal, id: Date.now() });
+  function irARegistrar(meal, { foto = false } = {}) {
+    setRegistrarAl({ meal, id: Date.now(), foto });
     setTab('meal');
     window.scrollTo({ top: 0 });
   }
@@ -7591,12 +7780,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }
   useEffect(() => {
     const deUrl = leerRegistrarDeUrl(window.location.href);
-    if (deUrl) irARegistrar(deUrl);
+    if (deUrl) irARegistrar(deUrl, { foto: pideFotoEnUrl(window.location.href) });
     else irAPlanesSiPide(window.location.href);
     try {
       const u = new URL(window.location.href);
       if (u.searchParams.has('registrar') || u.searchParams.has('ir')) {
-        u.searchParams.delete('registrar'); u.searchParams.delete('ir');
+        u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch {}
@@ -7604,7 +7793,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const alMensaje = (e) => {
       if (e.data?.tipo !== 'abrir-url') return;
       const meal = leerRegistrarDeUrl(e.data.url || '/');
-      if (meal) irARegistrar(meal);
+      if (meal) irARegistrar(meal, { foto: pideFotoEnUrl(e.data.url || '/') });
       else irAPlanesSiPide(e.data.url || '/');
     };
     navigator.serviceWorker.addEventListener('message', alMensaje);
@@ -7815,7 +8004,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <CreditCard size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
-          <span className="text-zinc-500 text-sm hidden sm:inline">{username}</span>
+          <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
           <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
@@ -7827,6 +8016,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
+            onFoto={(meal) => { setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
             onOtro={(meal) => { setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
@@ -7853,6 +8043,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           )
         )}
+        <PedidosResueltosCard username={username} />
         {tab === 'dash' && <PesajeCard form={form} setForm={setForm} />}
         {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
       </div>
@@ -7861,7 +8052,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'dash' && (
           <>
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
-              onIr={t => (t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
+              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
             <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
               onRegistrar={irARegistrar} metaEstimada={metaEstimada}
               onAjustarMeta={() => { setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }} />

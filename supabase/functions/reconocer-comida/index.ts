@@ -27,6 +27,10 @@ const DIAS_BIENVENIDA = 3;
 // Leer la tabla nutricional de un producto NO usa las fotos de comida:
 // tiene su propio tope diario. El producto queda guardado para todos.
 const LIMITE_ETIQUETAS_DIARIO = 5;
+// Cuentas sin tope de fotos (ni de etiquetas), para las pruebas de Jonah.
+// Las fotos se siguen contando y el costo queda en ia_uso como siempre.
+const FOTOS_SIN_LIMITE = new Set(["martin"]);
+const LIMITE_SIN_TOPE = 100000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -103,9 +107,10 @@ Deno.serve(async (req) => {
     const conPlan = !esPrueba || tieneAddOn;
     const diaPrueba = esPrueba && alumno.fecha_inicio ? diasEntre(alumno.fecha_inicio, hoyLima) + 1 : null;
     const enBienvenida = !conPlan && diaPrueba !== null && diaPrueba >= 1 && diaPrueba <= DIAS_BIENVENIDA;
-    const tipo = conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
-    const periodo = conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
-    const limite = conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
+    const sinLimite = FOTOS_SIN_LIMITE.has(username);
+    const tipo = sinLimite ? "ilimitado" : conPlan ? "diario" : enBienvenida ? "bienvenida" : "semanal";
+    const periodo = sinLimite || conPlan ? `dia-${hoyLima}` : enBienvenida ? `bienvenida-${hoyLima}` : numeroDeSemanaISO(hoy);
+    const limite = sinLimite ? LIMITE_SIN_TOPE : conPlan ? LIMITE_PLAN_DIARIO : enBienvenida ? LIMITE_BIENVENIDA_DIARIO : LIMITE_GRATIS_SEMANAL;
     // Días de bienvenida que quedan DESPUÉS de hoy (0 = hoy es el último).
     const diasBienvenidaRestantes = enBienvenida ? DIAS_BIENVENIDA - (diaPrueba as number) : 0;
     const cupo = { tipo, limite, tieneAddOn, diasBienvenidaRestantes, hasta: alumno.reconocimiento_foto_hasta || null };
@@ -130,7 +135,7 @@ Deno.serve(async (req) => {
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
       const periodoEtiqueta = `etiqueta-${hoyLima}`;
       const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
-        p_username: username, p_periodo: periodoEtiqueta, p_limite: LIMITE_ETIQUETAS_DIARIO,
+        p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
       });
       if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
       if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);
@@ -192,6 +197,16 @@ Deno.serve(async (req) => {
     const clavesComunes = new Set(alimentosComunes.map((a: any) => a.key));
     const listaPersonales = [...new Set(alimentosPersonales.map((a: any) => a.key))].filter((k) => !clavesComunes.has(k)).join("\n");
 
+    // Lo que este alumno registró más en las últimas 2 semanas: ayuda a la
+    // IA a desempatar entre alimentos que se ven iguales en foto (ej. pollo
+    // y pavita). Va en el mensaje, no en las instrucciones, para no romper
+    // la caché que comparten todas las fotos.
+    const clavesOk = new Set(alimentosValidos.map((a: any) => a.key));
+    const [frecuentes, corregidos] = await Promise.all([
+      alimentosFrecuentes(supabase, username, clavesOk),
+      correccionesDelAlumno(supabase, username, clavesOk),
+    ]);
+
     const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
 Identifica TODOS los alimentos distintos visibles en la foto que coincidan con algo de esta lista. Si hay varios (ej. café + pan + jugo), devuélvelos todos por separado. Si no reconoces nada de la lista con confianza razonable, devuelve una lista vacía — NUNCA inventes una clave que no esté en la lista.
@@ -204,6 +219,10 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 - La ocopa y la huancaína son salsas que se sirven sobre PAPA sancochada (en rodajas), no sobre fideos; la huancaína es amarilla y la ocopa verde-amarillenta y espesa.
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
 
+Si te paso "Correcciones que este alumno ya hizo", son fotos anteriores donde la IA se equivocó y el alumno eligió el alimento correcto (ej. la IA dijo pollo y era pavita). Si algo de esta foto se parece a lo que la IA dijo antes, lo más probable es que sea lo que el alumno corrigió: úsalo como "key", o en "opciones" en primer lugar si no estás seguro.
+
+Si te paso "Lo que este alumno suele comer" (lo que más registró en las últimas 2 semanas), úsalo SOLO para desempatar cuando algo de la foto se parece a dos o más alimentos de la lista: prefiere el que el alumno suele comer. Nunca agregues un alimento solo porque está en esa lista: tiene que verse en la foto.
+
 Si dos o más alimentos de la lista representan la MISMA comida visualmente pero se diferencian por algo que la foto no puede mostrar (ej. "con azúcar" vs "sin azúcar" en una bebida, cuando no se ve el azúcar siendo servida o disuelta), NO elijas uno solo adivinando — en vez de "key", incluye "opciones" con las claves de todas las variantes plausibles (2 o más), y usa confianza "media". Usa "opciones" solo para este caso de ambigüedad real; si no hay duda, usa "key" normal como siempre.
 
 Para cada alimento, si es de un tipo que se cuenta por pieza entera y visible (ej. huevos, panes, frutas enteras), cuenta cuántas unidades ves e inclúyelo en "cantidad". Cuenta SOLO piezas que veas completas o casi completas — si una pieza está parcialmente tapada por otro alimento, cortada por el borde del plato o de la foto, o solo se le ve un pedazo, sigue siendo UNA pieza, no la cuentes dos veces ni la confundas con otra unidad separada. Si no aplica o no estás seguro del conteo, usa "cantidad": 1.
@@ -213,6 +232,7 @@ Cuidado con estos errores comunes que hacen calcular DE MÁS:
 - Arroz: es el alimento que más se calcula de más. Una porción casera servida con cucharón o en molde pesa 120–150 g aunque ocupe un tercio del plato; el arroz cocido es liviano y esponjoso. Da más de 180 g solo si el arroz ocupa claramente la mitad del plato o más, o se ve un montón alto. Si dudas entre dos cantidades, elige la menor.
 - Carnes planas (bistec, milanesa, filete de pollo apanado): en casa peruana suelen ser DELGADAS (0.5–1 cm). Un bistec casero delgado pesa 100–150 g AUNQUE cubra medio plato: una lámina delgada de carne se extiende mucho y pesa poco. Da más de 150 g solo si la carne se ve claramente gruesa (1.5 cm o más) o si hay dos piezas o más.
 - Pavita vs. res: el medallón de pavita (corte del muslo del pavo) es carne oscura en ruedas gruesas y redondas, y se confunde con res. Si la carne tiene forma de medallón redondo y compacto, considera "Pavita muslo (medallón, sin piel)"; si dudas entre pavita y res, usa "opciones" con ambas.
+- Pollo vs. pavita vs. res: cocidos (a la olla, al jugo, guisados, con salsa o sin piel a la vista), una pierna o muslo de pollo, un trozo de pavita y un trozo de res se parecen mucho en foto. Si no puedes asegurar cuál es, NO adivines: usa "opciones" con las 2 o 3 claves plausibles (ej. "Pollo pierna (con piel) (Cocida)" y "Pavita muslo (medallón, sin piel) (Cocida)"), con confianza "media". Si una de ellas está en "Lo que este alumno suele comer", ponla PRIMERA en "opciones".
 - Pavita a la olla / pavita al jugo / pavita guisada: es carne de pavita (muslo) cocinada en su salsa. Registra la carne como "Pavita muslo (medallón, sin piel)" y el arroz u otros acompañamientos aparte; los gramos de la carne son solo la carne, sin contar la salsa.
 - Bistec vs. churrasco: si la carne de res es una lámina delgada, es "bistec", no "churrasco". El churrasco es un corte GRUESO (1.5–2 cm) con borde de grasa visible; úsalo solo si se ve ese grosor.
 - Fideos, tallarines y ensaladas sueltas: si están esparcidos en capa delgada por el plato, pesan menos de lo que parece; un plato llano con fideos esparcidos suele tener 100–150 g. Cuenta la altura del montón, no solo la superficie.
@@ -253,9 +273,12 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
-              { type: "text", text: listaPersonales
-                ? `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}\n\nIdentifica los alimentos de esta foto.`
-                : "Identifica los alimentos de esta foto." },
+              { type: "text", text: [
+                listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
+                corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
+                frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
+                "Identifica los alimentos de esta foto.",
+              ].filter(Boolean).join("\n\n") },
             ],
           }],
         }),
@@ -529,6 +552,71 @@ async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string, anota
 // Anota en la tabla ia_uso cuántos tokens usó la IA en esta llamada, para
 // que el panel de Rentabilidad calcule el costo real. Si falla, no
 // interrumpe nada (solo queda en el log).
+// Hasta 12 alimentos que el alumno registró más en los últimos 14 días
+// (historial.meal_plan.meals), solo los que siguen existiendo en la lista.
+// Lo de los últimos 3 días vale el triple, para que un alimento que el
+// alumno empezó a comer hace poco (ej. pavita) entre rápido a la lista.
+// Si algo falla, se sigue sin esta ayuda.
+async function alimentosFrecuentes(supabase: any, username: string, validas: Set<string>): Promise<string[]> {
+  try {
+    const desde = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+    const reciente = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    const { data, error } = await supabase.from("historial").select("fecha, meal_plan")
+      .eq("username", username).gte("fecha", desde).limit(20);
+    if (error) throw error;
+    const cuenta = new Map<string, number>();
+    for (const fila of data || []) {
+      const peso = typeof fila?.fecha === "string" && fila.fecha >= reciente ? 3 : 1;
+      const comidas = fila?.meal_plan?.meals;
+      if (!comidas || typeof comidas !== "object") continue;
+      for (const lista of Object.values(comidas)) {
+        if (!Array.isArray(lista)) continue;
+        for (const e of lista as any[]) {
+          const k = typeof e?.foodKey === "string" ? e.foodKey : "";
+          if (k && validas.has(k)) cuenta.set(k, (cuenta.get(k) || 0) + peso);
+        }
+      }
+    }
+    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k]) => k);
+  } catch (e) {
+    console.error("No se pudieron leer los alimentos frecuentes:", (e as Error)?.message);
+    return [];
+  }
+}
+
+// Hasta 8 correcciones del alumno en los últimos 60 días: en las fotos
+// anteriores la IA sugirió X y el alumno eligió "¿Qué era en realidad?" → Y
+// (reconocimiento_foto_feedback.sugeridos[].corregido_a). Solo las que
+// siguen existiendo en la lista. Si algo falla, se sigue sin esta ayuda.
+async function correccionesDelAlumno(supabase: any, username: string, validas: Set<string>): Promise<string[]> {
+  try {
+    const desde = new Date(Date.now() - 60 * 86_400_000).toISOString();
+    const { data, error } = await supabase.from("reconocimiento_foto_feedback").select("sugeridos")
+      .eq("username", username).gte("created_at", desde).order("created_at", { ascending: false }).limit(100);
+    if (error) throw error;
+    // Cada foto cuenta una vez por par (en un grupo de opciones, todas
+    // las alternativas llevan la misma corrección).
+    const pares = new Map<string, { de: Set<string>; a: string; veces: number }>();
+    for (const fila of data || []) {
+      const vistos = new Set<string>();
+      for (const s of Array.isArray(fila?.sugeridos) ? fila.sugeridos : []) {
+        const de = typeof s?.key === "string" ? s.key : "";
+        const a = typeof s?.corregido_a === "string" ? s.corregido_a : "";
+        if (!de || !a || de === a || !validas.has(a)) continue;
+        const p = pares.get(a) || { de: new Set<string>(), a, veces: 0 };
+        p.de.add(de);
+        if (!vistos.has(a)) { p.veces++; vistos.add(a); }
+        pares.set(a, p);
+      }
+    }
+    return [...pares.values()].sort((x, y) => y.veces - x.veces).slice(0, 8)
+      .map((p) => `${[...p.de].slice(0, 3).join(" o ")} → ${p.a} (${p.veces} ${p.veces === 1 ? "vez" : "veces"})`);
+  } catch (e) {
+    console.error("No se pudieron leer las correcciones:", (e as Error)?.message);
+    return [];
+  }
+}
+
 async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
   try {
     const u = fila.usage || {};

@@ -1,16 +1,15 @@
 // api/cron/prueba-guiada.js
 //
-// Corre una vez al día, a las 6:15pm hora Perú. Acompaña la prueba gratis
-// de 15 días de quien SÍ está usando la app (registró al menos una comida)
-// con 4 avisos en los días que antes no tenían ninguno, para que sienta su
-// avance y conozca lo que gana con un plan:
-//   - Día 4:  lo que lleva registrado.
-//   - Día 7:  su primera semana.
-//   - Día 10: las 5 fotos al día que incluye cualquier plan.
-//   - Día 12: la historia de Jonah y la invitación a seguir.
+// Corre una vez al día, a las 6:15pm hora Perú. Acompaña los 7 días de
+// Premium de prueba de quien SÍ está usando la app (registró al menos una
+// comida) con 2 avisos, para que sienta su avance y sepa qué conserva con
+// Premium:
+//   - Quedan 4 días (día 3): lo que lleva registrado.
+//   - Quedan 3 días (día 4): la historia de Jonah y qué pasa al terminar.
 // Quien todavía no registró nada ya recibe los avisos de arranque
-// (activa-tu-perfil.js). Los días 13, 15 y 16 los cubre plan-por-vencer.js.
-// Se cuentan por los días que le quedan a la prueba (fecha_vencimiento).
+// (activa-tu-perfil.js). 2 días antes, el último día y el día después los
+// cubre plan-por-vencer.js. Se cuentan por los días que le quedan a la
+// prueba (fecha_vencimiento).
 //
 // Cron en vercel.json: "15 23 * * *" (23:15 UTC = 18:15 Perú)
 
@@ -22,20 +21,12 @@ const esPrueba = (a) => a.plan === 'trial' || a.plan === 'prueba';
 
 // Días que le quedan a la prueba → aviso.
 const AVISOS = {
-  11: (a, dias) => ({
+  4: (a, dias) => ({
     body: `${a.nombre ? `${primerNombre(a.nombre)}, llevas` : 'Llevas'} ${dias} ${dias === 1 ? 'día' : 'días'} registrando 💪 Sin prohibir nada, solo midiendo: así empieza el cambio.`,
     url: '/',
   }),
-  8: (a, dias) => ({
-    body: `Tu primera semana: registraste ${Math.min(dias, 7)} de 7 días. ${dias >= 5 ? 'Eso es constancia de verdad 🔥' : 'Cada día que registras cuenta 🦍'} Mira tu avance en Progreso.`,
-    url: '/',
-  }),
-  5: () => ({
-    body: 'Dato: con cualquier plan tienes 5 fotos de comida al día incluidas (en la prueba son 5 por semana) 📸 Te quedan 5 días de prueba.',
-    url: URL_PLANES,
-  }),
   3: (a) => ({
-    body: `Jonah bajó 37 kg midiendo lo que comía, sin dietas raras. Te quedan 3 días de prueba${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}: ¿seguimos juntos? 🦍`,
+    body: `Jonah bajó 37 kg midiendo lo que comía, sin dietas raras. Te quedan 3 días de Premium${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}. Después sigues gratis; con Premium mantienes la foto en todas tus comidas 🦍`,
     url: URL_PLANES,
   }),
 };

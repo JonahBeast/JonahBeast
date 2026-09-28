@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     const nombreAmigo = (perfilAmigo?.nombre || '').trim().split(/\s+/)[0] || 'Tu amigo';
     const r = await enviarPushA(supabase, [username], {
       title: 'Jonah 🦍',
-      body: `🎁 ${nombreAmigo} se unió a Jonah Beast Fuel gracias a ti. ¡Te regalo 15 días más!`,
+      body: `🎁 ${nombreAmigo} se unió a Jonah Beast Fuel gracias a ti. ¡Te regalo 15 días más de Premium!`,
     });
     return res.status(200).json({ ok: true, enviados: r.enviados });
   } catch (e) {

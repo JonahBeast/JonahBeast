@@ -494,7 +494,7 @@ function ReferidosPanel({ users, onCambio }) {
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
             <h3 className="jb-display text-sm text-zinc-300 mb-1">🎁 INVITACIONES DE ALUMNOS</h3>
             <p className="jb-body text-[11px] text-zinc-500 mb-3">
-              Cada alumno puede invitar con su link. El amigo tiene 10% de descuento y, cuando paga su primer plan, quien invitó gana 15 días gratis (se aplican solos).
+              Cada alumno puede invitar con su link. El amigo tiene 10% de descuento y, cuando paga su primer plan, quien invitó gana 15 días de Premium (se aplican solos).
             </p>
             {invitaciones.length === 0 ? (
               <p className="text-zinc-500 text-xs jb-body">Ningún alumno ha abierto su link de invitación todavía.</p>
@@ -4127,7 +4127,7 @@ async function sugerenciasJarvis(users, d) {
       texto: `${primerNombre(u)} empezó su prueba gratis${recienLlegados.length > 1 ? ` (y ${recienLlegados.length - 1} más)` : ''}. Un saludo suyo el primer día vale oro: es lo que más empuja a que pague al final.`,
       voz: `${primerNombre(u)} empezó su prueba. Un saludo suyo hoy vale oro.`,
       boton: 'Darle la bienvenida',
-      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 15 días estoy contigo: registra tu primera comida con una foto y cualquier duda me escribes por aquí 💪`),
+      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 7 días de Premium estoy contigo: registra tu primera comida con una foto y cualquier duda me escribes por aquí 💪`),
     });
   }
 

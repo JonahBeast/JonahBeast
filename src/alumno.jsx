@@ -1516,7 +1516,7 @@ function trialDayOf(u) {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const dia = Math.floor((hoy - inicio) / 86400000) + 1;
-  return Math.max(1, Math.min(dia, TRIAL_DAYS));
+  return Math.max(1, dia);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2558,7 +2558,9 @@ function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
     })();
   }, []);
 
-  const restantes = Math.max(0, TRIAL_DAYS - dia);
+  // Días que le quedan según su fecha real (las pruebas antiguas eran de
+  // 15 días; las nuevas, de 7).
+  const restantes = Math.max(0, daysLeft(user?.fechaVencimiento) ?? 0);
   const ultimo = restantes === 0;
   const primerNombre = (user?.nombre || '').trim().split(/\s+/)[0];
   const logros = stats ? [
@@ -2587,14 +2589,14 @@ function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
           )}
         </div>
         <div className="min-w-0">
-          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Prueba gratis</p>
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Premium de prueba</p>
           <p className="jb-display text-lg text-zinc-50 leading-tight">
-            {ultimo ? 'HOY TERMINA TU PRUEBA' : `TE ${restantes === 1 ? 'QUEDA 1 DÍA' : `QUEDAN ${restantes} DÍAS`}`}
+            {ultimo ? 'HOY TERMINA TU PREMIUM' : `TE ${restantes === 1 ? 'QUEDA 1 DÍA' : `QUEDAN ${restantes} DÍAS`} DE PREMIUM`}
           </p>
           <p className="jb-body text-xs text-zinc-400 mt-0.5">
             {ultimo
-              ? `${primerNombre ? primerNombre + ', si' : 'Si'} continúas, conservas todo tu historial y tu progreso.`
-              : 'Todo lo que construiste se queda contigo si continúas.'}
+              ? `${primerNombre ? primerNombre + ', mañana' : 'Mañana'} sigues con la versión gratis. Con Premium mantienes la foto en todas tus comidas.`
+              : 'Después sigues gratis. Con Premium mantienes la foto en todas tus comidas y todo lo demás.'}
           </p>
         </div>
       </div>
@@ -2734,7 +2736,7 @@ function RetoPrueba({ user, mealPlan }) {
 
       <div className="relative flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
-          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Prueba gratis · Tu reto</p>
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Premium de prueba · Tu reto</p>
           <h2 className="jb-display text-xl text-zinc-50 leading-tight">
             {completo ? '¡RETO CUMPLIDO! 🏆' : `DÍA ${cumplidos + (hoyCuenta ? 0 : 1)} DE ${RETO_DIAS}`}
           </h2>
@@ -2880,7 +2882,7 @@ function InvitaMomento({ user, mealPlan }) {
 
   if (!momento) return null;
   const link = codigo ? `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion` : null;
-  const mensaje = link && `${momento.logro} con Jonah Beast Fuel 🦍 Te dice cuánto y qué comer, con comida peruana. Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
+  const mensaje = link && `${momento.logro} con Jonah Beast Fuel 🦍 Te dice cuánto y qué comer, con comida peruana. Es gratis, con 7 días de Premium, y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setMomento(null)}>
@@ -2899,11 +2901,11 @@ function InvitaMomento({ user, mealPlan }) {
         <div className="relative grid grid-cols-2 gap-2 mb-5 text-left">
           <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3">
             <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Tu amigo</p>
-            <p className="jb-body text-xs text-zinc-200 mt-0.5">15 días gratis y <span className="text-orange-400 font-semibold">10% de descuento</span></p>
+            <p className="jb-body text-xs text-zinc-200 mt-0.5">7 días de Premium y <span className="text-orange-400 font-semibold">10% de descuento</span></p>
           </div>
           <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3">
             <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wider">Tú</p>
-            <p className="jb-body text-xs text-zinc-200 mt-0.5"><span className="text-orange-400 font-semibold">15 días gratis</span> cuando pague su plan</p>
+            <p className="jb-body text-xs text-zinc-200 mt-0.5"><span className="text-orange-400 font-semibold">15 días de Premium</span> cuando pague su plan</p>
           </div>
         </div>
         {mensaje ? (
@@ -2926,13 +2928,17 @@ function InvitaMomento({ user, mealPlan }) {
 function TrialBanner({ user, onVerPlanes, mealPlan }) {
   const dia = trialDayOf(user);
   const [stats, setStats] = useState(null);
+  // Los 2 últimos días de la prueba (según su fecha de vencimiento):
+  // cuenta regresiva. Antes, el reto.
+  const quedan = daysLeft(user?.fechaVencimiento);
+  const finalPrueba = !!dia && quedan !== null && quedan <= 1;
 
   useEffect(() => {
-    if (dia && dia >= TRIAL_DAYS - 2 && user) fetchTrialStats(user.username).then(setStats);
-  }, [dia, user?.username]);
+    if (finalPrueba && user) fetchTrialStats(user.username).then(setStats);
+  }, [finalPrueba, user?.username]);
 
   if (!dia) return null;
-  if (dia >= TRIAL_DAYS - 2) {
+  if (finalPrueba) {
     return (
       <>
         {ventanaBono(user) && <div className="mb-4"><RelojBono user={user} onVerPlanes={onVerPlanes} /></div>}
@@ -2985,8 +2991,8 @@ function codigoInvitacion() {
 }
 const linkInvitacion = codigo => `https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=invitacion`;
 const textoInvitacion = codigo => codigo
-  ? `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi código ${codigo} tienes 10% de descuento en tu primer plan: ${linkInvitacion(codigo)}`
-  : 'Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis: https://jonahbeast.com';
+  ? `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Es gratis, con 7 días de Premium, y con mi código ${codigo} tienes 10% de descuento en tu primer plan: ${linkInvitacion(codigo)}`
+  : 'Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Es gratis, con 7 días de Premium: https://jonahbeast.com';
 
 /* Copia el link de invitación para pegarlo en el sticker "Enlace" de
    Instagram (las historias no conservan el texto que acompaña la imagen).
@@ -3067,7 +3073,7 @@ async function imagenSemana({ nombre, r, codigo = null }) {
     ctx.fillStyle = NARANJA;
     if (typeof ctx.roundRect === 'function') { ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 43); ctx.fill(); } else ctx.fillRect(px, py, pw, ph);
     ctx.fillStyle = CARBON; ctx.fillText(txt, W / 2, py + 58);
-    ctx.font = cuerpo(40, 600); ctx.fillStyle = NARANJA2; ctx.fillText('15 días gratis en jonahbeast.com', W / 2, 1870);
+    ctx.font = cuerpo(40, 600); ctx.fillStyle = NARANJA2; ctx.fillText('Gratis en jonahbeast.com', W / 2, 1870);
   } else {
     ctx.font = cuerpo(44, 600); ctx.fillStyle = NARANJA2; ctx.fillText('jonahbeast.com', W / 2, 1810);
   }
@@ -4013,7 +4019,7 @@ function InvitaAmigoCard({ username }) {
 
   if (!datos) return null;
   const link = `https://jonahbeast.com/?ref=${encodeURIComponent(datos.codigo)}&fuente=invitacion`;
-  const mensaje = `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Pruébala 15 días gratis y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
+  const mensaje = `Estoy usando Jonah Beast Fuel para saber cuánto y qué comer, con comida peruana 🦍 Es gratis, con 7 días de Premium, y con mi link tienes 10% de descuento en tu primer plan: ${link}`;
 
   async function copiar() {
     try { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch {}
@@ -4026,7 +4032,7 @@ function InvitaAmigoCard({ username }) {
         <div className="min-w-0">
           <h2 className="jb-display text-base text-zinc-50">INVITA A UN AMIGO</h2>
           <p className="jb-body text-xs text-zinc-400 mt-0.5">
-            Tu amigo prueba 15 días gratis y tiene <span className="text-orange-400 font-semibold">10% de descuento</span> en su primer plan. Cuando lo pague, <span className="text-orange-400 font-semibold">tú ganas 15 días gratis</span>.
+            Tu amigo usa la app gratis, con 7 días de Premium y <span className="text-orange-400 font-semibold">10% de descuento</span> en su primer plan. Cuando lo pague, <span className="text-orange-400 font-semibold">tú ganas 15 días de Premium</span>.
           </p>
         </div>
       </div>
@@ -4536,7 +4542,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     }]),
     ...(telefonoActual ? [] : [{
       emoji: '📱', titulo: '¿QUIERES QUE TE ACOMPAÑE DE CERCA?',
-      texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu prueba está por vencer. Nada de spam, solo lo importante.',
+      texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu Premium está por vencer. Nada de spam, solo lo importante.',
       esTelefono: true,
     }]),
     ...(incluirPasoNotif ? [{
@@ -8065,8 +8071,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // Punto de aviso en "Inicio": solo para lo que realmente le importa al
   // alumno (su acceso/dinero) — nunca para pedirle instalar la app o
   // activar notificaciones, para que el punto siga significando algo.
-  const trialDiaActual = trialDayOf(userRecord);
-  const avisoInicio = renewalElegible || (trialElegible && trialDiaActual >= TRIAL_DAYS - 1);
+  const quedanPrueba = daysLeft(userRecord?.fechaVencimiento);
+  const avisoInicio = renewalElegible || (trialElegible && quedanPrueba !== null && quedanPrueba <= 1);
   const [guiaVista, setGuiaVista] = useState(true);
   const [pull, setPull] = useState({ y: 0, refrescando: false });
   const pullStartY = useRef(null);

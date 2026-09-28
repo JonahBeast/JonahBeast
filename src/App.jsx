@@ -1853,7 +1853,7 @@ function RetoPage({ onIrALaApp }) {
       ? { t: 'Únete al grupo del reto', d: 'Con tu cuenta de Google (la misma de tu Play Store).', url: RETO_GRUPO_URL, cta: 'Unirme al grupo',
           aviso: 'Si te sale "No tienes permiso" o te pide "Acceder": toca los 3 puntitos ⋯ arriba → "Abrir en el navegador" (Chrome) y vuelve a tocar "Unirme al grupo".' }
       : { t: 'Pásame tu correo de Gmail', d: 'El mismo de tu Play Store. Te agrego a la lista del reto.', url: waUrl, cta: 'Enviar mi Gmail por WhatsApp' },
-    { t: 'Acepta ser verificador', d: 'Toca "Convertirte en verificador". Si ya lo eres, sigue al paso 3.', url: URL_VERIFICADOR, cta: 'Aceptar' },
+    { t: 'Acepta ser verificador (probador)', d: 'Toca "Convertirte en verificador" (a algunos les sale "Convertirte en probador"; es lo mismo). Si ya dice "Eres verificador" o "Eres un probador", ya está: sigue al paso 3. Ojo: no toques "Abandonar el programa" ni "Instala la versión pública" (son para salir del reto).', url: URL_VERIFICADOR, cta: 'Aceptar' },
     { t: 'Instala la app', d: 'Desde Play Store. Ábrela siempre desde el ícono de la app, no desde el navegador.', url: URL_PLAY_STORE, cta: 'Instalar en Play Store' },
     { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.`,
       extra: '¿Ya tienes cuenta? No crees otra: entra con tu cuenta de siempre y avísame por WhatsApp que estás en el reto.',

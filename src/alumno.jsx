@@ -5939,9 +5939,16 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
       const palabras = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-zñ]+/).filter(w => w.length >= 4 && !VACIAS.has(w));
       const base = new Set(dijo.flatMap(d => palabras(d.name)));
       const grupos = new Set(dijo.map(d => d.group));
+      // Puntaje: palabras en común, y cuánto del nombre coincide (lo simple
+      // primero: "Papa" antes que "Papa rellena"); lo cocido suma y lo crudo
+      // no se ofrece (en un plato casi nunca hay algo crudo).
       todosLosAlimentos
-        .filter(a => !a.esProducto && !fuera.has(a.key))
-        .map(a => ({ a, n: palabras(a.name).filter(w => base.has(w)).length + (grupos.has(a.group) ? 0.5 : 0) }))
+        .filter(a => !a.esProducto && !fuera.has(a.key) && !/^crud/i.test(a.state || ''))
+        .map(a => {
+          const suyas = palabras(a.name);
+          const comunes = suyas.filter(w => base.has(w)).length;
+          return { a, n: comunes + (suyas.length ? comunes / suyas.length : 0) + (grupos.has(a.group) ? 0.5 : 0) + (/cocid|sancoch/i.test(a.state || '') ? 0.25 : 0) };
+        })
         .filter(x => x.n >= 1)
         .sort((x, y) => y.n - x.n)
         .slice(0, 6)

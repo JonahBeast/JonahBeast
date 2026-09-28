@@ -7604,6 +7604,7 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
         buscar: buscarFood, gramsPerUnit, gustos,
         restricciones: mealPlan.restricciones || [],
         mealPlan, semilla: `${username}|${hoy}`, variantes: menuDia.variantes || {},
+        extras: FOODS.filter(f => f.esExtra && f.menuUso),
       });
     } catch (e) { console.error('No se pudo armar el menú:', e); return null; }
   }, [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, menuDia.variantes, alimentosListos]);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { opcionesUsoMenu } from './menuDia.js';
 import {
   ANGULOS,
   CATEGORIAS_TIENDA,
@@ -540,14 +541,32 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '' };
+const USOS_MENU = opcionesUsoMenu();
+
+/* Menú del día: si Jonah le marca un uso al alimento, puede salir en el
+   menú de todos (ver src/menuDia.js). Vacío = solo para registrar. */
+async function guardarUsoMenu(alimentoId, menuUso) {
+  if (!alimentoId) return;
+  const { error } = await supabase.from('alimentos_extra').update({ menu_uso: menuUso || null }).eq('id', alimentoId);
+  if (error) throw new Error('El alimento se agregó, pero no se pudo guardar su uso en el menú: ' + error.message);
+}
+
+function SelectUsoMenu({ valor, onCambiar, className = '' }) {
+  return (
+    <select value={valor || ''} onChange={e => onCambiar(e.target.value)} className={inputCls + ' w-full text-sm ' + className}>
+      <option value="">No usar en el menú (solo para registrar)</option>
+      {USOS_MENU.map(o => <option key={o.valor} value={o.valor}>{o.texto}</option>)}
+    </select>
+  );
+}
 
 function formDesdePropuesta(p, nombre) {
   if (!p) return { ...ALIMENTO_VACIO, nombre };
   return {
     nombre: p.nombre || nombre, grupo: GRUPOS_ALIMENTOS.includes(p.grupo) ? p.grupo : 'Platos preparados', estado: p.estado || '-',
     kcal: p.kcal ?? '', proteina: p.proteina ?? '', carbos: p.carbos ?? '', grasa: p.grasa ?? '', fibra: p.fibra ?? '',
-    unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '',
+    unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '', menu_uso: '',
   };
 }
 
@@ -602,6 +621,10 @@ function FormAlimento({ form, setForm }) {
           <input type="number" inputMode="decimal" min="0" value={form.gramos_unidad} onChange={campo('gramos_unidad')} disabled={!form.unidad.trim()} className={inputCls + ' w-full text-sm mt-0.5 tabular-nums disabled:opacity-40'} />
         </label>
       </div>
+      <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
+        <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
+        <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
+      </label>
     </div>
   );
 }
@@ -659,6 +682,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     setGuardando(true); setError('');
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', id: pedido.id, alimento: form });
+      if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
       await cargarAlimentosExtraDeNuevo();
       onResuelto(pedido.id, { nombre: form.nombre.trim(), avisos: r.avisos });
     } catch (e) { setError(e.message); }
@@ -764,7 +788,8 @@ function AgregarAlimentoSuelto({ onListo }) {
   async function agregar() {
     setGuardando(true); setError('');
     try {
-      await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
+      const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
+      if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
       await cargarAlimentosExtraDeNuevo();
       onListo(form.nombre.trim());
       setNombre(''); setForm(null); setNota('');
@@ -861,6 +886,60 @@ function PedidosAlimentosPanel() {
           )}
 
           <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ nombre, avisos: null }, ...rs])} />
+          <AlimentosEnMenu />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Los alimentos que ya agregó Jonah, para marcar cuáles salen en el menú del día.
+function AlimentosEnMenu() {
+  const [abierto, setAbierto] = useState(false);
+  const [lista, setLista] = useState(null);
+  const [filtro, setFiltro] = useState('');
+  const [guardando, setGuardando] = useState(null);
+  const [error, setError] = useState('');
+
+  async function cargar() {
+    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso').order('nombre');
+    if (e) { setError('No se pudo cargar la lista: ' + e.message); setLista([]); return; }
+    setLista(data || []);
+  }
+  useEffect(() => { if (abierto && lista === null) cargar(); }, [abierto]);
+
+  async function cambiar(a, valor) {
+    setGuardando(a.id); setError('');
+    try {
+      await guardarUsoMenu(a.id, valor);
+      setLista(l => l.map(x => x.id === a.id ? { ...x, menu_uso: valor || null } : x));
+      await cargarAlimentosExtraDeNuevo();
+    } catch (e) { setError(e.message); }
+    setGuardando(null);
+  }
+
+  const visibles = (lista || []).filter(a => !filtro.trim() || a.nombre.toLowerCase().includes(filtro.trim().toLowerCase()));
+  const enMenu = (lista || []).filter(a => a.menu_uso).length;
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
+        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados en el menú del día{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
+        <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-3.5 pb-3.5 flex flex-col gap-2">
+          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar.</p>
+          <input value={filtro} onChange={e => setFiltro(e.target.value)} className={inputCls + ' text-sm'} placeholder="Buscar…" />
+          {lista === null ? <Loader2 className="animate-spin text-orange-500" size={18} /> : visibles.length === 0 ? (
+            <p className="jb-body text-xs text-zinc-500">No hay alimentos agregados{filtro ? ' con ese nombre' : ''}.</p>
+          ) : visibles.map(a => (
+            <div key={a.id} className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+              <p className="jb-body text-sm text-zinc-200">{a.nombre}{a.estado && a.estado !== '-' ? ` (${a.estado.toLowerCase()})` : ''} <span className="text-[11px] text-zinc-500">· {a.grupo}</span>
+                {guardando === a.id && <Loader2 size={12} className="inline animate-spin text-orange-500 ml-1" />}</p>
+              <SelectUsoMenu valor={a.menu_uso} onCambiar={v => cambiar(a, v)} />
+            </div>
+          ))}
+          {error && <p className="jb-body text-xs text-red-400">{error}</p>}
         </div>
       )}
     </div>

@@ -948,8 +948,11 @@ function AlimentosEnMenu() {
 
 function LeadsPanel() {
   const [leads, setLeads] = useState([]);
-  const [code, setCode] = useState('');
-  const [savedCode, setSavedCode] = useState('');
+  // Código del live: el código, su premio (días de Premium extra al crear
+  // la cuenta) y hasta qué día vale. Se guardan en config.
+  const [code, setCode] = useState({ codigo: '', dias: '0', hasta: '' });
+  const [savedCode, setSavedCode] = useState({ codigo: '', dias: '0', hasta: '' });
+  const [canjes, setCanjes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
@@ -961,17 +964,29 @@ function LeadsPanel() {
       setLeads(data || []);
     } catch { setLeads([]); }
     try {
-      const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
-      const c = data ? data.value : '';
+      const { data } = await supabase.from('config').select('key, value').in('key', ['access_code', 'access_code_dias', 'access_code_hasta']);
+      const v = k => (data || []).find(r => r.key === k)?.value || '';
+      const c = { codigo: v('access_code'), dias: v('access_code_dias') || '0', hasta: v('access_code_hasta') };
       setCode(c); setSavedCode(c);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    try {
+      const { data } = await supabase.from('embudo_landing_eventos').select('id, username, detalle, creado_en')
+        .eq('evento', 'codigo_live_canje').order('creado_en', { ascending: false }).limit(200);
+      setCanjes(data || []);
+    } catch { setCanjes([]); }
     setLoading(false);
   }
 
+  const codigoCambio = code.codigo.trim().toUpperCase() !== savedCode.codigo || code.dias !== savedCode.dias || code.hasta !== savedCode.hasta;
   async function saveCode() {
-    const c = code.trim().toUpperCase();
-    if (!c) return;
-    try { await supabase.from('config').upsert({ key: 'access_code', value: c }); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    const c = { ...code, codigo: code.codigo.trim().toUpperCase() };
+    if (!c.codigo) return;
+    const { error } = await supabase.from('config').upsert([
+      { key: 'access_code', value: c.codigo },
+      { key: 'access_code_dias', value: c.dias },
+      { key: 'access_code_hasta', value: c.hasta },
+    ]);
+    if (error) return alert('No se pudo completar la acción: ' + (error.message || 'Intenta de nuevo.'));
     setCode(c); setSavedCode(c);
   }
 
@@ -985,15 +1000,58 @@ function LeadsPanel() {
       {open && (
         <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
           <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓDIGO DE ACCESO</h3>
-            <p className="jb-body text-xs text-zinc-500 mb-3">Compártelo solo en tus lives o stories. Cámbialo cuando quieras.</p>
-            <div className="flex gap-2 items-end flex-wrap">
-              <input value={code} onChange={e => setCode(e.target.value)}
-                className={inputCls + ' uppercase w-40'} placeholder="Ej. BEAST" />
-              <button onClick={saveCode} disabled={code.trim().toUpperCase() === savedCode} className={btnPrimary + ' text-sm'}>
-                {code.trim().toUpperCase() === savedCode ? 'Guardado' : 'Guardar código'}
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">CÓDIGO DEL LIVE</h3>
+            <p className="jb-body text-xs text-zinc-500 mb-3">
+              Compártelo en tus lives o stories. Se escribe en la calculadora (es opcional) y, si le pones premio, quien cree su cuenta nueva con él recibe esos días de Premium además de su prueba gratis. Una vez por cuenta. El % de grasa se ve igual pidiéndolo por WhatsApp.
+            </p>
+            <div className="flex gap-3 items-end flex-wrap">
+              <label className="flex flex-col gap-1">
+                <span className="jb-body text-[11px] text-zinc-500">Código</span>
+                <input value={code.codigo} onChange={e => setCode(v => ({ ...v, codigo: e.target.value }))}
+                  className={inputCls + ' uppercase w-36'} placeholder="Ej. BEAST" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="jb-body text-[11px] text-zinc-500">Premio</span>
+                <select value={code.dias} onChange={e => setCode(v => ({ ...v, dias: e.target.value }))} className={inputCls + ' w-40'}>
+                  <option value="0">Sin premio</option>
+                  <option value="7">+7 días de Premium</option>
+                  <option value="15">+15 días de Premium</option>
+                  <option value="30">+1 mes de Premium</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="jb-body text-[11px] text-zinc-500">Vale hasta (incluido)</span>
+                <input type="date" value={code.hasta} onChange={e => setCode(v => ({ ...v, hasta: e.target.value }))}
+                  className={inputCls + ' w-40'} />
+              </label>
+              <button onClick={saveCode} disabled={!codigoCambio || !code.codigo.trim()} className={btnPrimary + ' text-sm'}>
+                {codigoCambio ? 'Guardar' : 'Guardado'}
               </button>
             </div>
+            <p className="jb-body text-[11px] text-zinc-500 mt-2">
+              {!savedCode.codigo ? 'Aún no hay código.'
+                : savedCode.hasta && savedCode.hasta < todayISO() ? `⏰ ${savedCode.codigo} ya venció (valía hasta el ${savedCode.hasta}).`
+                : `Activo: ${savedCode.codigo} · ${savedCode.dias === '0' ? 'sin premio' : `+${savedCode.dias} días de Premium`} · ${savedCode.hasta ? `hasta el ${savedCode.hasta}` : 'sin fecha límite'}.`}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="jb-display text-sm text-zinc-300 mb-2">CUENTAS QUE USARON UN CÓDIGO · {canjes.length}</h3>
+            {canjes.length === 0 ? (
+              <p className="text-zinc-500 text-sm">Aún nadie creó su cuenta con un código con premio.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+                {canjes.map(c => {
+                  const [cod, dias] = String(c.detalle || '').split(':');
+                  return (
+                    <div key={c.id} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2 jb-body text-xs">
+                      <span className="text-zinc-100 font-medium truncate">{c.username}</span>
+                      <span className="text-zinc-400 shrink-0">{cod} · +{dias} días · {new Date(c.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
@@ -3309,7 +3367,7 @@ const MOTIVOS_TROPIEZO = {
 };
 
 function resumirEmbudo(filas) {
-  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set(), recorrido: {}, recorridoPlan: new Set(), recorridoCuenta: new Set(), recorridoWhatsapp: new Set() });
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set(), recorrido: {}, recorridoPlan: new Set(), recorridoCuenta: new Set(), recorridoWhatsapp: new Set(), calc: new Set(), calcWhatsapp: new Set() });
   const total = pasos();
   const porFuente = {};
   // Tropiezos del registro (evento 'error_registro'): motivo -> personas.
@@ -3336,12 +3394,14 @@ function resumirEmbudo(filas) {
       else if (r.evento === 'recorrido_plan') g.recorridoPlan.add(quien);
       else if (r.evento === 'recorrido_cuenta') g.recorridoCuenta.add(quien);
       else if (r.evento === 'recorrido_whatsapp') g.recorridoWhatsapp.add(quien);
+      else if (r.evento === 'calculadora_resultados') g.calc.add(quien);
+      else if (r.evento === 'calculadora_whatsapp') g.calcWhatsapp.add(quien);
       else if (r.evento === 'registro') { g.registros.add(quien); if (r.username) g.usuarios.add(r.username); }
     });
   });
   const numeros = g => ({
     vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios], demos: g.demos.size, demosResultado: g.demosResultado.size,
-    recorrido: Object.fromEntries(Object.entries(g.recorrido).map(([k, v]) => [k, v.size])), recorridoPlan: g.recorridoPlan.size, recorridoCuenta: g.recorridoCuenta.size, recorridoWhatsapp: g.recorridoWhatsapp.size,
+    recorrido: Object.fromEntries(Object.entries(g.recorrido).map(([k, v]) => [k, v.size])), recorridoPlan: g.recorridoPlan.size, recorridoCuenta: g.recorridoCuenta.size, recorridoWhatsapp: g.recorridoWhatsapp.size, calc: g.calc.size, calcWhatsapp: g.calcWhatsapp.size,
   });
   return {
     ...numeros(total),
@@ -3457,6 +3517,12 @@ function EmbudoResumenPanel() {
             📸 Probaron la foto sin cuenta: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demos}</span>
             {' · '}vieron el resultado de su plato: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demosResultado}</span>
           </p>
+          {datos.calc > 0 && (
+            <p className="jb-body text-xs text-zinc-400">
+              📏 Calculadora sin registro: vieron sus resultados <span className="text-zinc-100 font-semibold tabular-nums">{datos.calc}</span>
+              {' · '}pidieron su % de grasa por WhatsApp <span className="text-zinc-100 font-semibold tabular-nums">{datos.calcWhatsapp}</span>
+            </p>
+          )}
           {/* "Tu cambio empieza aquí": objetivo, datos y su plan antes de crear la cuenta. */}
           {Object.keys(datos.recorrido || {}).length > 0 && (
             <p className="jb-body text-xs text-zinc-400">

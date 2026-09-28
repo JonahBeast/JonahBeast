@@ -421,19 +421,15 @@ Problemas:
 
 ### 12.1 Reto Beast 15 días (jonahbeast.com/reto)
 
-Página del reto que Jonah anuncia en TikTok. Fechas: **del lunes 28 de septiembre al lunes 12 de octubre de 2026** (15 días) usando la **app de Play Store** (Android), registrando las comidas **todos los días**. Solo **30 cupos**.
+Página del reto que Jonah anuncia en TikTok. Fechas: **del jueves 1 al jueves 15 de octubre de 2026** (15 días) usando la **app de Play Store** (Android), registrando las comidas **todos los días**. Solo **30 cupos**.
 
-**Premios:**
-- **Completar el reto:** 1 mes gratis de plan al terminar.
-- **Mejor transformación:** 3 meses gratis + creatina de 300 g. Se elige comparando las **fotos de progreso del día 1 y del día 15** tomadas en la app (Progreso → Fotos). Sin fotos del día 1 no se puede ganar este premio. Solo cuentan las fotos del **28 de septiembre** (inicio) y del **12 de octubre** (final); la app pone la fecha sola a cada foto y no se puede cambiar.
-- Los premios son por participar y por los resultados, **no** por la calificación que pongan a la app en Play Store.
+**Premio:** quien **completa el reto** (registra sus comidas los 15 días) recibe **1 mes gratis** de plan al terminar. Es el único premio: no hay premio a la mejor transformación ni creatina. El premio es por completar el reto, **no** por la calificación que pongan a la app en Play Store.
 
-**Cómo entrar (5 pasos de la página):**
+**Cómo entrar (4 pasos de la página):**
 1. Unirse al grupo del reto (Grupo de Google "Reto Beast Fuel", groups.google.com/g/reto-beast-fuel) con la misma cuenta de Google de su Play Store.
 2. Aceptar ser verificador en Play Store ("Convertirte en verificador"; a algunos Google les dice "probador", es lo mismo). Listo cuando la página dice "Eres verificador" o "Eres un probador". No tocar "Abandonar el programa" ni "Instala la versión pública" (son los pasos para salir del reto); para instalar se usa "descárgala en Google Play".
 3. Instalar la app desde Play Store y abrirla siempre desde el ícono.
 4. Crear la cuenta con el código **RETO** en "Código de invitación" (15 días gratis). **Si ya tiene cuenta, no crea otra:** entra con la suya y avisa a Jonah por WhatsApp (botón "Ya tengo cuenta: avisar por WhatsApp").
-5. Tomarse las fotos el día 1 (frente, perfil y espalda).
 
 Problemas:
 - "Tengo iPhone" → puede usar la app desde el navegador con el código RETO, pero el reto es para quienes usan la app de Play Store.
@@ -441,8 +437,8 @@ Problemas:
 - "Me sale 'Eres un probador', ¿está bien?" → Sí: probador y verificador son lo mismo. Ya está dentro; solo falta instalar la app desde Play Store.
 - "No puedo instalar la app / Play Store dice que no está disponible" → revisar que se unió al grupo (paso 1) y aceptó ser verificador (paso 2) con la **misma** cuenta de Google de su Play Store.
 - "Estoy en prueba y se me acaba antes del reto" o "ya pago mi plan" → Jonah ajusta su prueba o le suma el premio a su plan: pasar a Jonah.
-- "Ya usaba la app y tengo fotos de antes, ¿cuentan?" → No. Igual debe tomarse fotos nuevas el lunes 28 de septiembre: para el premio solo cuenta el cambio del 28 de septiembre al 12 de octubre, así todos compiten igual.
-- Entrega de premios y creatina → los coordina Jonah por WhatsApp al terminar el reto.
+- "¿Hay premio a la mejor transformación o creatina?" → No, el único premio es 1 mes gratis por completar el reto.
+- Entrega del mes gratis → la coordina Jonah al terminar el reto.
 
 ---
 

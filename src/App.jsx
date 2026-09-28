@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
+import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 
 // Partes que se descargan solo cuando hacen falta: quien entra a la
@@ -1858,7 +1858,6 @@ function RetoPage({ onIrALaApp }) {
     { t: `Crea tu cuenta con el código ${RETO_CODIGO}`, d: `Al registrarte en la app, en "Código de invitación" escribe ${RETO_CODIGO}. Tienes 15 días gratis.`,
       extra: '¿Ya tienes cuenta? No crees otra: entra con tu cuenta de siempre y avísame por WhatsApp que estás en el reto.',
       extraUrl: waCuentaUrl, extraCta: 'Ya tengo cuenta: avisar por WhatsApp' },
-    { t: 'Tómate tus fotos el día 1', d: 'El lunes 28 de septiembre, en la app: Progreso → Fotos. Frente, perfil y espalda. Sin fotos del día 1 no puedes ganar el premio a la mejor transformación.' },
   ];
 
   return (
@@ -1876,40 +1875,17 @@ function RetoPage({ onIrALaApp }) {
         <h1 className="jb-display text-5xl leading-none text-zinc-50 mb-4">15 DÍAS.<br />UN CAMBIO REAL.</h1>
         <div className="inline-flex items-center gap-2 bg-zinc-900 border border-orange-500/60 rounded-xl px-3 py-2 mb-4">
           <span className="text-lg">📅</span>
-          <p className="text-sm text-zinc-200">Empieza el <strong className="text-zinc-50">lunes 28 de septiembre</strong> · termina el <strong className="text-zinc-50">lunes 12 de octubre</strong></p>
+          <p className="text-sm text-zinc-200">Empieza el <strong className="text-zinc-50">jueves 1 de octubre</strong> · termina el <strong className="text-zinc-50">jueves 15 de octubre</strong></p>
         </div>
         <p className="text-zinc-300 mb-6">
           Busco personas que de verdad quieran bajar grasa o ganar músculo comiendo peruano.
           Usa la app de Jonah Beast Fuel <strong className="text-zinc-50">los 15 días</strong>, registra todo lo que comes y deja que los resultados hablen. Mientras más constante seas, más se nota el cambio.
         </p>
 
-        <div className="grid gap-3 mb-8">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-            <p className="text-2xl mb-1">🏅</p>
-            <p className="jb-display text-lg text-zinc-50">COMPLETA EL RETO</p>
-            <p className="text-sm text-zinc-300"><strong className="text-orange-400">1 mes gratis</strong> de tu plan al terminar.</p>
-          </div>
-          <div className="bg-zinc-900 border border-orange-500/60 rounded-2xl p-4">
-            <p className="text-2xl mb-1">🏆</p>
-            <p className="jb-display text-lg text-zinc-50">MEJOR TRANSFORMACIÓN</p>
-            <p className="text-sm text-zinc-300">
-              <strong className="text-orange-400">3 meses gratis</strong> + <strong className="text-orange-400">creatina de 300 g</strong> de regalo.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-orange-500/10 border border-orange-500/50 rounded-2xl p-4 mb-8 flex gap-3">
-          <Camera className="text-orange-400 shrink-0 mt-0.5" size={22} />
-          <div>
-            <p className="jb-display text-base text-zinc-50 mb-1">FOTOS DESDE EL DÍA 1</p>
-            <p className="text-sm text-zinc-300">
-              La mejor transformación se elige comparando tus fotos del <strong className="text-zinc-50">día 1</strong> con las del <strong className="text-zinc-50">día 15</strong>, tomadas dentro de la app.
-              Si no tienes fotos del primer día, no puedes ganar ese premio.
-            </p>
-            <p className="text-sm text-zinc-300 mt-2">
-              <strong className="text-zinc-50">¿Ya usabas la app?</strong> Igual tómate fotos nuevas el lunes 28. Las fotos anteriores no cuentan: solo vale el cambio del <strong className="text-zinc-50">28 de septiembre al 12 de octubre</strong>. La app pone la fecha sola a cada foto.
-            </p>
-          </div>
+        <div className="bg-zinc-900 border border-orange-500/60 rounded-2xl p-4 mb-8">
+          <p className="text-2xl mb-1">🏅</p>
+          <p className="jb-display text-lg text-zinc-50">COMPLETA EL RETO</p>
+          <p className="text-sm text-zinc-300">Registra tus comidas los 15 días y llévate <strong className="text-orange-400">1 mes gratis</strong> de tu plan al terminar.</p>
         </div>
 
         <h2 className="jb-display text-2xl text-zinc-50 mb-3">CÓMO ENTRAR</h2>
@@ -1946,14 +1922,13 @@ function RetoPage({ onIrALaApp }) {
           <li>🎟️ Solo <strong className="text-zinc-50">{RETO_CUPOS} cupos</strong>: entran los primeros en completar los pasos.</li>
           <li>📱 Necesitas un celular <strong className="text-zinc-50">Android</strong> con Play Store.</li>
           <li>🍽️ Registra tus comidas en la app <strong className="text-zinc-50">todos los días, los 15 días</strong> del reto.</li>
-          <li>📸 Fotos de progreso el <strong className="text-zinc-50">día 1</strong> y el <strong className="text-zinc-50">día 15</strong>.</li>
           <li>💬 Al final, cuéntanos qué mejorarías de la app.</li>
-          <li>🤝 Los premios son por participar y por tus resultados, <strong className="text-zinc-50">no</strong> por la calificación que le pongas a la app en Play Store.</li>
+          <li>🤝 El premio es por completar el reto, <strong className="text-zinc-50">no</strong> por la calificación que le pongas a la app en Play Store.</li>
         </ul>
 
         <p className="text-xs text-zinc-500 mb-6">
           ¿Tienes iPhone? Puedes usar la app desde el navegador en jonahbeast.com con el código {RETO_CODIGO}, pero el reto es para quienes usan la app de Play Store.
-          Los premios se entregan al terminar el reto; la creatina se coordina por WhatsApp.
+          El mes gratis se suma a tu plan al terminar el reto.
         </p>
 
         <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnGhost + ' w-full py-3'}>

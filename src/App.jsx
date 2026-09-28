@@ -2794,6 +2794,15 @@ function planDelRecorrido(r) {
   return { kcal: Math.round(kcal / 10) * 10, proteina: Math.round(proteina), semanas };
 }
 
+// Mensaje que manda al tocar "Recibir mi plan por WhatsApp". El asistente
+// de WhatsApp reconoce el inicio ("Este es mi plan de Jonah Beast Fuel").
+function mensajePlanWhatsApp(r, plan) {
+  const objetivo = { 'Perder grasa': 'bajar grasa', 'Ganar músculo': 'ganar músculo', 'Mantener peso': 'mantenerme y comer mejor' }[r.objetivo] || r.objetivo;
+  const meta = r.objetivo !== 'Mantener peso' && r.pesoObjetivo
+    ? `, meta ${r.pesoObjetivo} kg${plan.semanas ? ` en unas ${plan.semanas} semanas` : ''}` : '';
+  return `Hola Jonah 👋 Este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}). ¿Me ayudas a empezar?`;
+}
+
 function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder }) {
   const n = Number(valor);
   const ajustar = d => {
@@ -2852,8 +2861,11 @@ function Recorrido({ onBack, onListo }) {
     }
     setPaso(p => Math.min(pasos.length - 1, p + 1));
   }
-  function guardarPlan() {
+  function guardarRecorridoLocal() {
     try { localStorage.setItem(CLAVE_RECORRIDO, JSON.stringify({ ...r, ts: Date.now() })); } catch {}
+  }
+  function guardarPlan() {
+    guardarRecorridoLocal();
     registrarEventoEmbudo('recorrido_cuenta');
     onListo();
   }
@@ -2965,6 +2977,14 @@ function Recorrido({ onBack, onListo }) {
               <button onClick={guardarPlan} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">
                 CREAR MI CUENTA Y GUARDAR MI PLAN
               </button>
+              {/* Él le escribe a Jonah con su plan: así tenemos su número sin
+                  pedírselo, y el asistente puede responderle al toque. */}
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensajePlanWhatsApp(r, plan))}`}
+                target="_blank" rel="noopener noreferrer"
+                onClick={() => { guardarRecorridoLocal(); registrarEventoEmbudo('recorrido_whatsapp'); }}
+                className="mt-2 w-full border border-orange-500/60 hover:border-orange-400 rounded-full py-3 jb-display text-base text-orange-400 tracking-wide flex items-center justify-center gap-2">
+                📲 RECIBIR MI PLAN POR WHATSAPP
+              </a>
               <p className="jb-body text-xs text-zinc-400 text-center mt-2"><span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta</p>
             </>
           ) : (
@@ -2973,6 +2993,131 @@ function Recorrido({ onBack, onListo }) {
               {actual === 'actividad' && !conMeta ? 'VER MI PLAN' : actual === 'meta' ? 'VER MI PLAN' : 'SIGUIENTE'}
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* BIENVENIDA DE LA APP INSTALADA                                       */
+/* ------------------------------------------------------------------ */
+/* Solo en la app instalada (Play Store o agregada a la pantalla de inicio)
+   y sin sesión: el logo animado y luego, a pantalla completa, Jonah y
+   Andrea alternando, con "TU CAMBIO EMPIEZA AQUÍ" fijo. La web de los
+   anuncios sigue con la portada de siempre (sin animación que demore).
+   Para verla en el navegador: ?bienvenida=1. */
+function appInstalada() {
+  try { if (new URLSearchParams(window.location.search).get('bienvenida') === '1') return true; } catch {}
+  try {
+    return esTWA() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  } catch { return false; }
+}
+
+const ESTILOS_BIENVENIDA = `
+@keyframes jbb-logo { 0% { opacity: 0; transform: scale(.3); } 60% { opacity: 1; transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes jbb-marca { from { opacity: 0; letter-spacing: .4em; } to { opacity: 1; letter-spacing: .06em; } }
+@keyframes jbb-linea { from { width: 0; } to { width: 62%; } }
+@keyframes jbb-sube { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes jbb-baja { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+@keyframes jbb-pop { 0% { opacity: 0; transform: scale(.4); } 70% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes jbb-zoom { from { transform: scale(1.14); } to { transform: scale(1.03); } }
+@keyframes jbb-late { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+.jbb-a { opacity: 0; animation-fill-mode: forwards; }
+`;
+
+// El logo animado (también se usa mientras la app revisa la sesión).
+function SplashMarca() {
+  return (
+    <div className="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center gap-5 overflow-hidden">
+      <style>{ESTILOS_BIENVENIDA}</style>
+      <div className="absolute w-[140vw] h-[140vw] max-w-[900px] max-h-[900px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(232,89,12,.32), rgba(232,89,12,0) 55%)' }} />
+      <img src="/logo-marca.webp" alt="" className="jbb-a relative w-[34vw] max-w-[180px]" style={{ animation: 'jbb-logo .6s ease-out .15s forwards' }} />
+      <p className="jbb-a relative jb-display text-[8.5vw] sm:text-4xl text-zinc-50 whitespace-nowrap" style={{ animation: 'jbb-marca .5s ease-out .5s forwards' }}>
+        JONAH BEAST <span className="text-orange-400">FUEL</span>
+      </p>
+      <div className="relative h-1 rounded-full bg-orange-500 w-0" style={{ animation: 'jbb-linea .45s ease-out .8s forwards', boxShadow: '0 0 18px 4px rgba(232,89,12,.7)' }} />
+      <p className="jbb-a relative jb-body text-[3.4vw] sm:text-sm tracking-[.2em] text-zinc-300" style={{ animation: 'jbb-sube .4s ease-out 1s forwards' }}>
+        NO ES QUÉ COMES. ES CUÁNTO.
+      </p>
+    </div>
+  );
+}
+
+const BIENVENIDA_FOTOS = [
+  { src: '/testimonios/martin-despues.jpg', logro: '−37 KG', nombre: 'Jonah · en 3 años y 8 meses', ms: 3400 },
+  { src: '/testimonios/andrea-despues.jpg', logro: '6 MESES', nombre: 'Andrea · de cambio visible', ms: 3000 },
+];
+
+function Bienvenida({ onEmpezar, onEntrar }) {
+  // Si la app ya mostró el logo mientras revisaba la sesión, no se repite.
+  const [fase, setFase] = useState(() => (typeof performance !== 'undefined' && performance.now() > 1700 ? 'foto' : 'splash'));
+  const [idx, setIdx] = useState(0);
+  const [ciclo, setCiclo] = useState(0);
+  useEffect(() => { registrarEventoEmbudo('vista', { detalle: 'app' }); }, []);
+  useEffect(() => {
+    if (fase !== 'splash') return;
+    const t = setTimeout(() => setFase('foto'), 1700);
+    return () => clearTimeout(t);
+  }, [fase]);
+  // Carrusel: Jonah primero (más tiempo), luego Andrea, y vuelve.
+  useEffect(() => {
+    if (fase !== 'foto') return;
+    const t = setTimeout(() => { setIdx(i => (i + 1) % BIENVENIDA_FOTOS.length); setCiclo(c => c + 1); }, BIENVENIDA_FOTOS[idx].ms);
+    return () => clearTimeout(t);
+  }, [fase, idx]);
+
+  if (fase === 'splash') return <SplashMarca />;
+  const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
+  return (
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
+      <style>{ESTILOS_BIENVENIDA}</style>
+      <div className="absolute inset-0 max-w-md mx-auto">
+        {BIENVENIDA_FOTOS.map((f, i) => (
+          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0 }}>
+            <img key={i === idx ? `on-${ciclo}` : 'off'} src={f.src} alt="" className="w-full h-full object-cover"
+              style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
+          </div>
+        ))}
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 34%, rgba(22,17,13,.9) 62%, #16110D 100%)' }} />
+
+        <div className="jbb-a absolute left-5 right-5 flex items-center justify-between" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
+          <div className="flex items-center gap-2">
+            <img src="/logo-marca.webp" alt="" className="w-8" />
+            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+          </div>
+          <div className="flex gap-1.5" aria-hidden="true">
+            {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === idx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
+          </div>
+        </div>
+
+        <div className="absolute left-5 right-5 flex flex-col gap-3" style={{ bottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="jbb-a" key={`logro-${idx}`} style={anim('jbb-pop', ciclo === 0 ? .35 : .1)}>
+            <span className="jb-display inline-block bg-orange-500 text-zinc-950 rounded-xl px-3 py-1 text-3xl">{BIENVENIDA_FOTOS[idx].logro}</span>
+            <p className="jb-body text-sm text-zinc-50 mt-1" style={{ textShadow: '0 2px 10px #000' }}>{BIENVENIDA_FOTOS[idx].nombre}</p>
+          </div>
+          <h1 className="jb-display leading-[0.92] text-[15vw] sm:text-7xl mt-2">
+            <span className="jbb-a block text-zinc-50" style={anim('jbb-sube', .55)}>TU CAMBIO</span>
+            <span className="jbb-a block text-orange-400" style={anim('jbb-sube', .7)}>EMPIEZA AQUÍ</span>
+          </h1>
+          <p className="jbb-a jb-body text-base text-zinc-300" style={anim('jbb-sube', .85)}>Tu plan con comida peruana, justo para tu meta.</p>
+          <div className="jbb-a flex items-center gap-3" style={anim('jbb-sube', 1)}>
+            <div className="flex">
+              {['martin', 'andrea', 'cesar'].map((n, i) => (
+                <img key={n} src={`/testimonios/${n}-despues.jpg`} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-zinc-950"
+                  style={{ objectPosition: '50% 15%', marginLeft: i ? -10 : 0 }} />
+              ))}
+            </div>
+            <p className="jb-body text-xs text-zinc-300 leading-snug">Hombres y mujeres reales<br />ya empezaron su cambio</p>
+          </div>
+          <button onClick={onEmpezar} className="jbb-a w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mt-1"
+            style={{ ...anim('jbb-pop', 1.15), boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
+            <span className="inline-block" style={{ animation: 'jbb-late 1.6s ease-in-out 2s infinite' }}>EMPEZAR AHORA</span>
+          </button>
+          <button onClick={onEntrar} className="jbb-a jb-body text-sm text-zinc-400 py-1" style={anim('jbb-sube', 1.3)}>
+            ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
+          </button>
         </div>
       </div>
     </div>
@@ -4994,6 +5139,8 @@ export default function App() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [viewingStudent, setViewingStudent] = useState(null);
   const [expiredInfo, setExpiredInfo] = useState(null);
+  // App instalada (Play Store o pantalla de inicio): bienvenida con animación en vez de la portada web.
+  const [instalada] = useState(() => appInstalada());
   const [viewingStudentData, setViewingStudentData] = useState(null);
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -5532,7 +5679,15 @@ export default function App() {
         setTokenRef(null);
       }} />}
       {!tokenRef && view === 'resetPassword' && <ResetPassword onDone={() => { window.location.hash = ''; setView('studentAuth'); }} />}
-      {!tokenRef && view === 'landing' && (sesionRevisada ? <Landing onChoose={setView} /> : (
+      {!tokenRef && view === 'landing' && (sesionRevisada
+        ? (instalada
+          ? <Bienvenida onEntrar={() => setView('studentAuth')} onEmpezar={() => {
+              registrarEventoEmbudo('clic_cta', { detalle: 'app' });
+              try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+              setView(leerRecorrido() ? 'trial' : 'recorrido');
+            }} />
+          : <Landing onChoose={setView} />)
+        : instalada ? <SplashMarca /> : (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
           <Loader2 className="animate-spin text-orange-500" size={28} />
         </div>

@@ -74,6 +74,8 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 
 ---
 
+**App instalada (Play Store o agregada a la pantalla de inicio), sin sesión iniciada:** en lugar de la portada web sale la bienvenida: el logo animado sobre fondo carbón ("JONAH BEAST FUEL" y "NO ES QUÉ COMES. ES CUÁNTO.") y luego, a pantalla completa, la foto de Jonah ("−37 KG · Jonah · en 3 años y 8 meses") que se alterna con la de Andrea ("6 MESES · Andrea · de cambio visible"), con **"TU CAMBIO EMPIEZA AQUÍ"**, "Tu plan con comida peruana, justo para tu meta.", tres fotos pequeñas con "Hombres y mujeres reales ya empezaron su cambio", el botón **"EMPEZAR AHORA"** (lleva al recorrido de la sección 3) y **"¿Ya tienes cuenta? ENTRAR"**. Mientras la app instalada revisa la sesión también se ve el logo animado.
+
 ## 3. Crear cuenta (gratis, con 7 días de Premium)
 
 0. **Recorrido antes del registro:** al tocar **"TU CAMBIO EMPIEZA AQUÍ"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y la flecha para volver:
@@ -83,6 +85,7 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
    4. **"¿QUÉ TAN ACTIVO ERES?"** (Sedentario, Ligero, Moderado, Intenso, Muy intenso).
    5. **"¿A QUÉ PESO QUIERES LLEGAR?"** (solo si quiere bajar o subir; viene sugerido y se puede cambiar).
    6. **"ESTO ES LO QUE TE TOCA"**: sus calorías y su proteína al día y, si puso peso meta, "A este ritmo llegarías a [X] kg en unas [N] semanas" (estimación). Botón **"CREAR MI CUENTA Y GUARDAR MI PLAN"**.
+      - Debajo, **"📲 RECIBIR MI PLAN POR WHATSAPP"**: abre WhatsApp con un mensaje ya escrito para Jonah ("Hola Jonah 👋 Este es mi plan de Jonah Beast Fuel: objetivo…, [kcal] y [g] de proteína al día (peso actual…, meta…). ¿Me ayudas a empezar?"). Solo tiene que tocar "Enviar"; el asistente le responde con su plan y la invitación a crear su cuenta.
    - Si no pasa los datos: "Pon una edad entre 14 y 90 años.", "La estatura va en centímetros (ej. 165).", "Revisa tu peso en kilos (ej. 72).", "Tu peso meta debe ser menor/mayor a tu peso actual.".
    - Sus respuestas quedan guardadas en ese celular: si vuelve a tocar el botón, va directo a crear la cuenta. Al entrar por primera vez, **su objetivo, sus datos y su peso meta ya están cargados** (no tiene que volver a escribirlos) y su meta de calorías ya está calculada.
 1. La pantalla de registro dice **"GUARDA TU PLAN"** con "Tu meta: [kcal] y [g] de proteína al día" (si hizo el recorrido) o "CREA TU CUENTA GRATIS", y "Gratis para siempre, con Premium hasta el [fecha]".

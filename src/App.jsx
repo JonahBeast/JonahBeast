@@ -2559,7 +2559,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
         <Logo />
         <button onClick={onBack} className={btnGhost + ' py-1.5 px-3 text-sm'}>← Volver</button>
       </header>
@@ -2881,9 +2881,9 @@ function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, plac
    de entrar (recorrido, crear cuenta, ingresar). */
 const VISTAS_CON_ATRAS = ['free', 'recorrido', 'trial', 'studentAuth', 'adminAuth'];
 
-function BotonAtras({ onClick, className = '' }) {
+function BotonAtras({ onClick, className = '', style }) {
   return (
-    <button type="button" onClick={onClick} aria-label="Atrás"
+    <button type="button" onClick={onClick} aria-label="Atrás" style={style}
       className={'jb-body text-sm font-semibold text-zinc-200 bg-zinc-900/80 border border-zinc-700 rounded-full px-3.5 py-1.5 hover:border-orange-500 hover:text-zinc-50 transition-colors ' + className}>
       ← Atrás
     </button>
@@ -2963,10 +2963,10 @@ function Recorrido({ onBack, onListo }) {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 px-5 py-6 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 px-5 py-6 relative overflow-hidden" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)' }}>
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
-      <div className="max-w-md mx-auto relative flex flex-col min-h-[calc(100vh-3rem)]">
+      <div className="max-w-md mx-auto relative flex flex-col min-h-[calc(100vh-3rem-env(safe-area-inset-top))]">
         <div className="flex items-center gap-3 mb-5">
           <BotonAtras onClick={atras} className="shrink-0" />
           <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
@@ -3302,10 +3302,10 @@ function TrialSignup({ onBack, onCreated }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4.5rem)' }}>
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
-      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
+      <BotonAtras onClick={onBack} className="absolute left-4 z-10" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }} />
       <div className="max-w-md w-full relative">
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
@@ -3454,8 +3454,8 @@ function AdminAuth({ onBack, onLogin, busy }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative">
-      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4.5rem)' }}>
+      <BotonAtras onClick={onBack} className="absolute left-4 z-10" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }} />
       <div className="max-w-sm w-full">
         <div className="mb-8"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
@@ -3777,10 +3777,10 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6 py-16 relative overflow-hidden" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4.5rem)' }}>
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
-      <BotonAtras onClick={onBack} className="absolute top-4 left-4 z-10" />
+      <BotonAtras onClick={onBack} className="absolute left-4 z-10" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }} />
       <div className="max-w-sm w-full relative">
         <div className="mb-4"><Logo size="lg" /></div>
         {modo === 'login' && (

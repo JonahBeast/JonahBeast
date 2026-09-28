@@ -3241,7 +3241,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                     <ul className="jb-body text-[11px] text-zinc-300 space-y-1 leading-snug">
                       <li>✓ Foto en todas tus comidas</li>
                       <li>✓ Registro por voz</li>
-                      <li>✓ Tu menú del día</li>
+                      <li>✓ Menú de la semana y lista de compras</li>
                       <li>✓ Tu % de grasa y músculo</li>
                       <li>✓ Fotos de progreso y coach</li>
                       <li>✓ Jonah por WhatsApp</li>
@@ -3925,7 +3925,8 @@ function fmtS(n) {
 
 // Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
-  'Tu menú completo del día, armado con lo que te gusta y justo para tu meta',
+  'Tu menú del día y de la semana, armado con lo que te gusta y justo para tu meta',
+  'Tu lista de compras de la semana, lista para compartir',
   'Foto inteligente en todas tus comidas',
   'Registro por voz y lectura de etiquetas con foto',
   '"¿Qué puedo comer?" todos los días, con comida peruana',

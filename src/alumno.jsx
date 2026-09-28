@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
-import { armarMenu, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
+import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
 import {
   ACTIVITY_DESC,
   ACTIVITY_FACTORS,
@@ -7588,14 +7588,84 @@ function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
   );
 }
 
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+function etiquetaDia(iso, hoy) {
+  if (iso === hoy) return 'Hoy';
+  if (iso === addDaysISO(hoy, 1)) return 'Mañana';
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${DIAS_CORTOS[new Date(y, m - 1, d).getDay()]} ${d}`;
+}
+
+// Las comidas de un menú (hoy o cualquier día de la semana).
+function ComidasDelMenu({ menu, esHoy, premium, meals, onLoComi, onCambiar }) {
+  return menu.comidas.map((c, i) => {
+    const hecha = !!c.registrado;
+    const bloqueada = !premium && i > 0 && !hecha;
+    const registradas = hecha ? (meals?.[c.nombre] || []).filter(e => e.foodKey) : [];
+    if (c.saltada || c.vacia) {
+      return (
+        <div key={c.nombre} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 flex items-baseline justify-between gap-2">
+          <p className="jb-display text-xs text-zinc-500">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}</p>
+          <p className="jb-body text-[11px] text-zinc-500">{c.saltada ? 'No la registraste' : 'Ya no la necesitas hoy'}</p>
+        </div>
+      );
+    }
+    return (
+      <div key={c.nombre} className={`rounded-xl border p-3 ${hecha ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950'}`}>
+        <div className="flex items-baseline justify-between gap-2 mb-1.5">
+          <p className="jb-display text-xs text-zinc-200">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}{c.plato ? ' · 🇵🇪' : ''}</p>
+          <p className="jb-body text-[11px] text-orange-400 tabular-nums">{c.totales.kcal} kcal · P {c.totales.p} g</p>
+        </div>
+        {hecha && <p className="jb-body text-[10px] text-emerald-400 uppercase tracking-wider mb-1">Lo que registraste</p>}
+        <ul className={`flex flex-col gap-1 ${bloqueada ? 'blur-[5px] select-none pointer-events-none' : ''}`} aria-hidden={bloqueada}>
+          {(hecha ? registradas.map(e => ({ texto: nombreAlimento(buscarFood(e.foodKey)) || e.foodKey, cantidad: textoPorcion(porcionDeEntrada(e)) })) : c.lineas).map((l, j) => (
+            <li key={j} className="jb-body text-sm text-zinc-300 flex justify-between gap-3">
+              <span className="min-w-0">{l.texto}</span>
+              <span className="text-zinc-400 shrink-0 text-right tabular-nums">{l.cantidad}</span>
+            </li>
+          ))}
+        </ul>
+        {!bloqueada && (
+          <div className="flex gap-2 mt-2.5">
+            {hecha ? (
+              <span className="flex-1 jb-body text-xs text-emerald-400 font-semibold py-2 text-center">✓ Registrado</span>
+            ) : (
+              <>
+                {esHoy && <button onClick={() => onLoComi(c)} className={btnPrimary + ' flex-1 py-2 text-xs'}>✅ Lo comí</button>}
+                <button onClick={() => onCambiar(c.nombre)} className={btnGhost + ' flex-1 py-2 text-xs'}>🔄 Cambiar</button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  });
+}
+
 function MenuDelDia({ mealPlan, setMealPlan, username }) {
   const { premium } = usePremium();
   const hoy = todayISO();
   const gustos = mealPlan.menuGustos || null;
-  const menuDia = mealPlan.menuDia?.fecha === hoy ? mealPlan.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
   const [abierto, setAbierto] = useState(false);
+  const [vista, setVista] = useState('hoy'); // 'hoy' | 'semana' | 'compras'
+  const [diaSemana, setDiaSemana] = useState(1); // 0 = hoy
+  const [diasCompra, setDiasCompra] = useState(7);
   const [editarGustos, setEditarGustos] = useState(false);
   const alimentosListos = usarAlimentosExtra();
+
+  // "Cambiar" y "Otro menú" guardan una variante por fecha. (Antes solo
+  // existía la de hoy, en menuDia: se sigue leyendo.)
+  const variantesDe = f => mealPlan.menuVariantes?.[f]
+    || (f === hoy && mealPlan.menuDia?.fecha === hoy ? mealPlan.menuDia.variantes : null) || {};
+  function guardarVariantes(f, cambio) {
+    setMealPlan(v => {
+      const todas = { ...(v.menuVariantes || {}) };
+      for (const k of Object.keys(todas)) if (k < hoy) delete todas[k];
+      const actual = todas[f] || (f === hoy && v.menuDia?.fecha === hoy ? v.menuDia.variantes : null) || {};
+      todas[f] = cambio(actual);
+      return { ...v, menuVariantes: todas };
+    });
+  }
 
   // Lo que ya registró hoy en cada comida (sea o no lo del menú): el menú lo
   // toma como hecho y recalcula lo que falta para cerrar el día en la meta.
@@ -7613,32 +7683,60 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
     return r;
   }, [mealPlan.meals, alimentosListos]);
 
-  const menu = useMemo(() => {
-    if (!gustos) return null;
+  const extras = useMemo(() => FOODS.filter(f => f.esExtra && f.menuUso), [alimentosListos]);
+  function armarPara(fecha) {
     try {
       return armarMenu({
         buscar: buscarFood, gramsPerUnit, gustos,
         restricciones: mealPlan.restricciones || [],
-        mealPlan, semilla: `${username}|${hoy}`, variantes: menuDia.variantes || {},
-        extras: FOODS.filter(f => f.esExtra && f.menuUso),
-        consumido,
+        mealPlan, semilla: `${username}|${fecha}`, variantes: variantesDe(fecha),
+        extras, consumido: fecha === hoy ? consumido : {},
       });
     } catch (e) { console.error('No se pudo armar el menú:', e); return null; }
-  }, [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, menuDia.variantes, alimentosListos, consumido]);
+  }
 
-  function guardarMenuDia(cambio) {
-    setMealPlan(v => {
-      const actual = v.menuDia?.fecha === hoy ? v.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
-      return { ...v, menuDia: cambio(actual) };
+  const dependencias = [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, mealPlan.menuVariantes, mealPlan.menuDia, extras];
+  const menu = useMemo(() => (gustos ? armarPara(hoy) : null), [...dependencias, consumido]);
+  const semana = useMemo(() => {
+    if (!gustos || !abierto || vista === 'hoy') return [];
+    return Array.from({ length: 8 }, (_, i) => addDaysISO(hoy, i))
+      .map(fecha => ({ fecha, etiqueta: etiquetaDia(fecha, hoy), menu: armarPara(fecha) }))
+      .filter(d => d.menu);
+  }, [...dependencias, abierto, vista]);
+
+  // Lista de compras desde mañana (hoy ya está en marcha).
+  const compras = useMemo(() => (vista === 'compras' ? armarCompras(semana.slice(1, 1 + diasCompra), buscarFood) : null), [semana, diasCompra, vista]);
+  const claveCompras = `jb-compras-${username}-${addDaysISO(hoy, 1)}-${diasCompra}`;
+  const [comprado, setComprado] = useState({});
+  useEffect(() => {
+    try { setComprado(JSON.parse(localStorage.getItem(claveCompras) || '{}')); } catch { setComprado({}); }
+  }, [claveCompras]);
+  function marcarComprado(id) {
+    setComprado(c => {
+      const n = { ...c, [id]: !c[id] };
+      try { localStorage.setItem(claveCompras, JSON.stringify(n)); } catch {}
+      return n;
     });
   }
-  function cambiarComida(nombre) {
-    vibrar(10);
-    guardarMenuDia(m => ({ ...m, variantes: { ...m.variantes, [nombre]: (m.variantes?.[nombre] || 0) + 1 } }));
+  function textoCompras() {
+    if (!compras) return '';
+    const partes = [`🛒 Mi lista de compras · ${diasCompra === 1 ? 'mañana' : `próximos ${diasCompra} días`} (Jonah Beast Fuel)`];
+    for (const cat of compras.categorias) {
+      partes.push('', `*${cat.nombre}*`, ...cat.items.map(i => `• ${i.texto}: ${i.cantidad}`));
+    }
+    if (compras.platos.length) {
+      partes.push('', '*Platos a preparar*', ...compras.platos.map(p => `• ${p.texto}${p.veces > 1 ? ` (${p.veces} veces)` : ''}`));
+    }
+    return partes.join('\n');
   }
-  function otroMenu() {
+
+  function cambiarComida(nombre, fecha = hoy) {
+    vibrar(10);
+    guardarVariantes(fecha, v => ({ ...v, [nombre]: (v[nombre] || 0) + 1 }));
+  }
+  function otroMenu(fecha = hoy) {
     vibrar(15);
-    guardarMenuDia(m => ({ ...m, variantes: { base: (m.variantes?.base || 0) + 1 }, hechos: m.hechos || {} }));
+    guardarVariantes(fecha, v => ({ base: (v.base || 0) + 1 }));
   }
   function loComi(comida) {
     vibrar(20);
@@ -7668,7 +7766,7 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
             <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">🍽️</div>
             <div className="flex-1 min-w-0">
               <p className="jb-display text-sm text-zinc-50">ARMA TU MENÚ DEL DÍA</p>
-              <p className="jb-body text-[11px] text-zinc-400">Jonah te arma el día con lo que te gusta, justo para tu meta.{!premium && ' 👑 Premium'}</p>
+              <p className="jb-body text-[11px] text-zinc-400">Jonah te arma el día y la semana con lo que te gusta, justo para tu meta, y tu lista de compras.{!premium && ' 👑 Premium'}</p>
             </div>
             <button onClick={() => setEditarGustos(true)} className={btnPrimary + ' text-xs py-2 px-3 shrink-0'}>Empezar</button>
           </div>
@@ -7679,6 +7777,8 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
   if (!menu) return null;
 
   const { total, meta, ok } = menu;
+  const pestañas = [['hoy', 'Hoy'], ['semana', 'Semana'], ['compras', '🛒 Compras']];
+  const dia = semana[diaSemana];
   return (
     <>
       {modal}
@@ -7696,68 +7796,118 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 
         {abierto && (
           <div className="mt-4 flex flex-col gap-3">
-            <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
-              Carbos {total.c}/{meta.c} g · Grasas {total.f}/{meta.f} g. Las cantidades son de la comida ya cocida (salvo la avena).
-            </p>
-            {menu.adaptado && (
-              <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
-                <p className="jb-body text-xs text-zinc-200">
-                  {menu.restante.kcal >= 80
-                    ? <>🔄 <b>Ajustado a lo que ya registraste.</b> Te quedan <span className="text-orange-400 font-semibold tabular-nums">{menu.restante.kcal} kcal</span> y {menu.restante.p} g de proteína para lo que falta del día.</>
-                    : <>🎉 <b>Ya llegaste a tu meta de hoy.</b> No necesitas comer más; si te da hambre, algo ligero como fruta o ensalada.</>}
-                </p>
-              </div>
-            )}
-            {menu.comidas.map((c, i) => {
-              const hecha = !!c.registrado;
-              const bloqueada = !premium && i > 0 && !hecha;
-              const registradas = hecha ? (mealPlan.meals?.[c.nombre] || []).filter(e => e.foodKey) : [];
-              if (c.saltada || c.vacia) {
-                return (
-                  <div key={c.nombre} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 flex items-baseline justify-between gap-2">
-                    <p className="jb-display text-xs text-zinc-500">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}</p>
-                    <p className="jb-body text-[11px] text-zinc-500">{c.saltada ? 'No la registraste' : 'Ya no la necesitas hoy'}</p>
-                  </div>
-                );
-              }
-              return (
-                <div key={c.nombre} className={`rounded-xl border p-3 ${hecha ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950'}`}>
-                  <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                    <p className="jb-display text-xs text-zinc-200">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}{c.plato ? ' · 🇵🇪' : ''}</p>
-                    <p className="jb-body text-[11px] text-orange-400 tabular-nums">{c.totales.kcal} kcal · P {c.totales.p} g</p>
-                  </div>
-                  {hecha && <p className="jb-body text-[10px] text-emerald-400 uppercase tracking-wider mb-1">Lo que registraste</p>}
-                  <ul className={`flex flex-col gap-1 ${bloqueada ? 'blur-[5px] select-none pointer-events-none' : ''}`} aria-hidden={bloqueada}>
-                    {(hecha ? registradas.map(e => ({ texto: nombreAlimento(buscarFood(e.foodKey)) || e.foodKey, cantidad: textoPorcion(porcionDeEntrada(e)) })) : c.lineas).map((l, j) => (
-                      <li key={j} className="jb-body text-sm text-zinc-300 flex justify-between gap-3">
-                        <span className="min-w-0">{l.texto}</span>
-                        <span className="text-zinc-400 shrink-0 text-right tabular-nums">{l.cantidad}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {!bloqueada && (
-                    <div className="flex gap-2 mt-2.5">
-                      {hecha ? (
-                        <span className="flex-1 jb-body text-xs text-emerald-400 font-semibold py-2 text-center">✓ Registrado</span>
-                      ) : (
-                        <button onClick={() => loComi(c)} className={btnPrimary + ' flex-1 py-2 text-xs'}>✅ Lo comí</button>
-                      )}
-                      {!hecha && (
-                        <button onClick={() => cambiarComida(c.nombre)} className={btnGhost + ' flex-1 py-2 text-xs'}>🔄 Cambiar</button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {!premium && (
-              <BloqueoPremium compacto titulo="Tu menú completo del día es Premium"
-                texto="En la versión gratis ves tu desayuno. Con Premium, Jonah te arma todas tus comidas cada día, justo para tu meta." />
-            )}
-            <div className="flex gap-2">
-              {premium && <button onClick={otroMenu} className={btnGhost + ' flex-1 py-2 text-xs'}>🎲 Otro menú</button>}
-              <button onClick={() => setEditarGustos(true)} className={btnGhost + ' flex-1 py-2 text-xs'}>⚙️ Mis gustos</button>
+            <div className="grid grid-cols-3 gap-1 bg-zinc-950 border border-zinc-800 rounded-xl p-1">
+              {pestañas.map(([id, texto]) => (
+                <button key={id} onClick={() => setVista(id)}
+                  className={`jb-body text-xs py-2 rounded-lg ${vista === id ? 'bg-orange-500 text-zinc-950 font-semibold' : 'text-zinc-400'}`}>
+                  {texto}{!premium && id !== 'hoy' ? ' 👑' : ''}
+                </button>
+              ))}
             </div>
+
+            {vista === 'hoy' && (
+              <>
+                <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                  Carbos {total.c}/{meta.c} g · Grasas {total.f}/{meta.f} g. Las cantidades son de la comida ya cocida (salvo la avena).
+                </p>
+                {menu.adaptado && (
+                  <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
+                    <p className="jb-body text-xs text-zinc-200">
+                      {menu.restante.kcal >= 80
+                        ? <>🔄 <b>Ajustado a lo que ya registraste.</b> Te quedan <span className="text-orange-400 font-semibold tabular-nums">{menu.restante.kcal} kcal</span> y {menu.restante.p} g de proteína para lo que falta del día.</>
+                        : <>🎉 <b>Ya llegaste a tu meta de hoy.</b> No necesitas comer más; si te da hambre, algo ligero como fruta o ensalada.</>}
+                    </p>
+                  </div>
+                )}
+                <ComidasDelMenu menu={menu} esHoy premium={premium} meals={mealPlan.meals} onLoComi={loComi} onCambiar={n => cambiarComida(n, hoy)} />
+                {!premium && (
+                  <BloqueoPremium compacto titulo="Tu menú completo del día es Premium"
+                    texto="En la versión gratis ves tu desayuno. Con Premium, Jonah te arma todas tus comidas cada día, justo para tu meta." />
+                )}
+                <div className="flex gap-2">
+                  {premium && <button onClick={() => otroMenu(hoy)} className={btnGhost + ' flex-1 py-2 text-xs'}>🎲 Otro menú</button>}
+                  <button onClick={() => setEditarGustos(true)} className={btnGhost + ' flex-1 py-2 text-xs'}>⚙️ Mis gustos</button>
+                </div>
+              </>
+            )}
+
+            {vista !== 'hoy' && !premium && (
+              <BloqueoPremium titulo={vista === 'semana' ? 'Tu menú de la semana es Premium' : 'Tu lista de compras es Premium'}
+                texto="Con Premium ves tus menús de los próximos días y Jonah te arma la lista de compras de la semana, en las cantidades que necesitas." />
+            )}
+
+            {vista === 'semana' && premium && (
+              <>
+                <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {semana.map((d, i) => (
+                    <button key={d.fecha} onClick={() => setDiaSemana(i)}
+                      className={`jb-body text-xs px-3 py-1.5 rounded-full shrink-0 border ${diaSemana === i ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                      {d.etiqueta}
+                    </button>
+                  ))}
+                </div>
+                {dia && (
+                  <>
+                    <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                      {dia.etiqueta}: {dia.menu.total.kcal.toLocaleString('es-PE')} de {dia.menu.meta.kcal.toLocaleString('es-PE')} kcal · P {dia.menu.total.p}/{dia.menu.meta.p} g {dia.menu.ok ? '✅' : ''}
+                    </p>
+                    <ComidasDelMenu menu={dia.menu} esHoy={dia.fecha === hoy} premium={premium} meals={mealPlan.meals}
+                      onLoComi={loComi} onCambiar={n => cambiarComida(n, dia.fecha)} />
+                    <div className="flex gap-2">
+                      <button onClick={() => otroMenu(dia.fecha)} className={btnGhost + ' flex-1 py-2 text-xs'}>🎲 Otro menú para {dia.etiqueta.toLowerCase()}</button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {vista === 'compras' && premium && compras && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {[[3, 'Próximos 3 días'], [7, 'Próximos 7 días']].map(([n, t]) => (
+                    <button key={n} onClick={() => setDiasCompra(n)}
+                      className={`jb-body text-xs py-2 rounded-xl border ${diasCompra === n ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <p className="jb-body text-[11px] text-zinc-500">Desde mañana, según tus menús. En cantidades para comprar: el arroz, los fideos y las menestras van crudos, y la carne con su peso antes de cocinarla. Toca cada cosa para marcarla.</p>
+                {compras.categorias.map(cat => (
+                  <div key={cat.nombre}>
+                    <p className="jb-display text-xs text-zinc-300 mb-1.5">{cat.nombre.toUpperCase()}</p>
+                    <div className="flex flex-col gap-1">
+                      {cat.items.map(it => (
+                        <button key={it.id} onClick={() => marcarComprado(it.id)}
+                          className="flex items-center gap-2.5 text-left bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                          <span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${comprado[it.id] ? 'bg-orange-500 border-orange-500' : 'border-zinc-600'}`}>
+                            {comprado[it.id] && <Check size={13} strokeWidth={3} className="text-zinc-950" />}
+                          </span>
+                          <span className={`jb-body text-sm flex-1 min-w-0 ${comprado[it.id] ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>{it.texto}</span>
+                          <span className="jb-body text-xs text-zinc-400 tabular-nums shrink-0">{it.cantidad}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {compras.platos.length > 0 && (
+                  <div>
+                    <p className="jb-display text-xs text-zinc-300 mb-1.5">🇵🇪 PLATOS A PREPARAR</p>
+                    <div className="flex flex-col gap-1">
+                      {compras.platos.map(p => (
+                        <p key={p.texto} className="jb-body text-sm text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                          {p.texto}{p.veces > 1 ? ` · ${p.veces} veces` : ''} <span className="text-[11px] text-zinc-500">({p.dias.join(', ')})</span>
+                        </p>
+                      ))}
+                    </div>
+                    <p className="jb-body text-[11px] text-zinc-500 mt-1">Sus ingredientes dependen de tu receta; no van en la lista de arriba.</p>
+                  </div>
+                )}
+                <a href={`https://wa.me/?text=${encodeURIComponent(textoCompras())}`} target="_blank" rel="noopener noreferrer"
+                  className={btnPrimary + ' w-full py-2.5 text-sm'}>
+                  <MessageCircle size={16} /> Compartir por WhatsApp
+                </a>
+              </>
+            )}
           </div>
         )}
       </div>

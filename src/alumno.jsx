@@ -5644,7 +5644,7 @@ function ampliarFamiliasFoto(items) {
     const id = typeof fam.id === 'function' ? fam.id(foodFam) : fam.id;
     let g = grupos.get(id);
     if (!g) {
-      g = { grupo: { esOpciones: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1, _gramosIA: it._gramosIA || null, _aceiteIA: !!it._aceiteIA }, original: it, familia: fam, food: foodFam };
+      g = { grupo: { esOpciones: true, _familia: true, id: uid(), alternativas: [], _cantidadIA: it._cantidadIA || 1, _gramosIA: it._gramosIA || null, _aceiteIA: !!it._aceiteIA }, original: it, familia: fam, food: foodFam };
       grupos.set(id, g);
       resultado.push(g.grupo);
     }
@@ -5764,6 +5764,18 @@ function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
    alumno confirme qué agregar — nunca guarda nada automáticamente,
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
+/* "¿Era otro alimento?" sobre algo que vino de una foto (entrada con
+   fotoIA): la IA dijo fotoIA y era el nuevo. Se guarda en
+   reconocimiento_foto_feedback igual que las correcciones de la foto. No
+   se adivina nada de lo que el alumno agrega a mano: podría no tener
+   relación con lo que desmarcó. */
+function anotarCorreccionFoto(username, de, a, extra = {}) {
+  if (!username || !de || !a || de === a) return;
+  try {
+    supabase.from('reconocimiento_foto_feedback')
+      .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
+  } catch {}
+}
 function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
@@ -5959,8 +5971,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
 
   function confirmar() {
     const elegidos = elegidosConPorcion();
-    elegidos.forEach(({ food, porcion }) => {
-      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
+    elegidos.forEach(({ food, porcion, corregido }) => {
+      // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
+      // "¿Era otro alimento?", eso también le enseña a la IA.
+      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(corregido ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -6006,7 +6020,13 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
           const elegido = corr ? null : elecciones[f.id];
           f.alternativas.forEach(alt => {
             const base = { key: alt.key, confianza: 'media', cantidad: f._cantidadIA || 1 };
-            sugeridos.push(conCorreccion(base) || conPorcion(alt.key, f, base));
+            // Al responder "¿cuál es?" el alumno también le enseña a la IA:
+            // las otras opciones quedan como "la IA dudó y era [elegido]".
+            // No en las familias de variantes (con/sin azúcar...), que son
+            // gusto de cada uno y no un error de la foto.
+            const porEleccion = elegido && alt.key !== elegido && !f._familia
+              ? { ...base, corregido_a: elegido, por_eleccion: true } : null;
+            sugeridos.push(conCorreccion(base) || porEleccion || conPorcion(alt.key, f, base));
             if (alt.key !== elegido) descartados.push(alt.key);
           });
         } else {
@@ -7139,7 +7159,8 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             onElegir={key => {
               const f = buscarFood(key);
               const d = unidadPorDefecto(f);
-              updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+              if (en.fotoIA && key !== en.fotoIA) anotarCorreccionFoto(username, en.fotoIA, key, { despues: true });
+              updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined, fotoIA: undefined });
             }}
             onNoEncuentra={texto => { onCrear(texto); onCerrar(); }} />
         </div>

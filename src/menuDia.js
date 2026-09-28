@@ -95,16 +95,27 @@ const ENSALADAS = [
   { texto: 'Zapallito italiano salteado', partes: [['Zapallito italiano (Cocido)', 120]] },
 ];
 
-// Platos peruanos para el almuerzo (máximo uno al día), según la proteína.
+// Platos peruanos para el almuerzo (máximo uno al día). Entra si le gusta
+// su proteína (o, en las menestras, si eligió menestras). Algunos llevan un
+// acompañamiento aparte (el ceviche, con camote).
 const PLATOS = [
   { key: 'Lomo saltado (-)', proteina: 'res' },
   { key: 'Seco de res con frejoles (-)', proteina: 'res' },
+  { key: 'Tallarines rojos con carne molida (-)', proteina: 'res' },
+  { key: 'Olluquito con charqui (-)', proteina: 'res' },
   { key: 'Ají de gallina (-)', proteina: 'pollo' },
   { key: 'Arroz con pollo (-)', proteina: 'pollo' },
   { key: 'Tallarines rojos con pollo (-)', proteina: 'pollo' },
   { key: 'Escabeche de pollo (-)', proteina: 'pollo' },
-  { key: 'Sudado de pescado (-)', proteina: 'pescado' },
-  { key: 'Adobo de cerdo (-)', proteina: 'cerdo' },
+  { key: 'Pollo al sillao (-)', proteina: 'pollo' },
+  { key: 'Pollo a la olla con arroz (-)', proteina: 'pollo' },
+  { key: 'Arroz chaufa (-)', proteina: 'pollo' },
+  { key: 'Sudado de pescado (-)', proteina: 'pescado', acomp: { key: 'Arroz blanco (Cocido)', texto: 'Arroz blanco' } },
+  { key: 'Ceviche de pescado (-)', proteina: 'pescado', acomp: { key: 'Camote (Cocido)', texto: 'Camote sancochado' } },
+  { key: 'Adobo de cerdo (-)', proteina: 'cerdo', acomp: { key: 'Arroz blanco (Cocido)', texto: 'Arroz blanco' } },
+  { key: 'Carapulcra (-)', proteina: 'cerdo' },
+  { key: 'Menestra de lentejas con arroz (-)', menestra: true },
+  { key: 'Frejolada (frejol con arroz) (-)', menestra: true },
 ];
 
 const FRUTAS = [
@@ -212,6 +223,7 @@ function resolver(items, meta) {
 
 function redondear(it) {
   if (it.rol === 'fijo') return;
+  if (it.minSiHay && it.g > 0 && it.g < it.minSiHay) it.g = it.g >= it.minSiHay / 2 ? it.minSiHay : 0;
   if (it.porUnidad) {
     const n = Math.max(Math.round(it.min / it.porUnidad) || 1, Math.round(it.g / it.porUnidad));
     it.g = Math.min(it.max, n * it.porUnidad);
@@ -269,19 +281,23 @@ function platoPrincipal(ctx, meta, r, evitarProteina) {
 
 function platoPeruano(ctx, meta, r) {
   const { buscar, gustos, restricciones } = ctx;
-  const opciones = PLATOS.filter(p => gustos.proteinas.includes(p.proteina))
+  const opciones = PLATOS.filter(p => p.menestra ? gustos.acompanamientos.includes('menestras') : gustos.proteinas.includes(p.proteina))
     .filter(p => { const f = buscar(p.key); return f && !restricciones.includes(f.name); });
   if (!opciones.length) return null;
   const plato = elegir(r, opciones);
   const food = buscar(plato.key);
   // Si su meta pide más proteína de la que trae el plato, el ajuste final
   // puede sumar una porción extra de la misma proteína (empieza en 0).
-  const extra = OPCIONES_PROTEINA.find(o => o.id === plato.proteina)?.alimentos
+  // En las menestras, la proteína extra es la primera que le guste.
+  const idExtra = plato.proteina || gustos.proteinas.find(p => p !== 'huevo') || gustos.proteinas[0];
+  const extra = OPCIONES_PROTEINA.find(o => o.id === idExtra)?.alimentos
     .find(a => { const f = buscar(a.key); return f && !restricciones.includes(f.name); });
+  const acomp = plato.acomp && buscar(plato.acomp.key) && !restricciones.includes(buscar(plato.acomp.key).name) ? plato.acomp : null;
   const items = [
     { key: plato.key, food, texto: food.name, rol: 'k', g: 0, min: 200, max: 650, paso: 25 },
     ...ensaladaItems(buscar, r),
     ...(extra ? [{ key: extra.key, food: buscar(extra.key), texto: `Extra: ${extra.texto.charAt(0).toLowerCase()}${extra.texto.slice(1)}`, rol: 'p', g: 0, min: 0, max: 150, paso: 10, minSiHay: 60 }] : []),
+    ...(acomp ? [{ key: acomp.key, food: buscar(acomp.key), texto: acomp.texto, rol: 'c', g: 120, min: 0, max: 250, paso: 10, minSiHay: 80 }] : []),
   ];
   resolver(items, meta);
   return { items, proteina: plato.proteina, plato: true };

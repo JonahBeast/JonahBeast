@@ -273,6 +273,13 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 4. Toca **"Agregar a mi día"**.
 - **Versión gratis: 3 veces por semana** (se renuevan cada lunes). Cada vez que lo abre cuenta 1; solo si lo cierra y lo vuelve a abrir en menos de 10 minutos no cuenta de nuevo. Armar el día completo con sugerencias es Premium. Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.
 
+**H) "🍽️ TU MENÚ DE HOY" (arriba en "Comidas")**
+- La primera vez sale **"ARMA TU MENÚ DEL DÍA"** → **"Empezar"**: elige **"¿Qué proteínas te gustan?"** (pollo, carne de res, cerdo, pescado, atún, pavita, huevo), **"¿Con qué acompañas?"** (arroz, papa, camote, yuca, fideos, quinua, choclo, menestras), **"¿Cómo desayunas?"** (pan con algo, avena, huevos), **"¿Cuántas comidas haces al día?"** (3, 4 o 5) e **"Incluir platos peruanos"** (máximo 1 al día, en el almuerzo). Toca **"ARMAR MI MENÚ"**. Lo que no come se saca con "🚫 Nunca me sugieras esto".
+- La tarjeta muestra el total del menú contra su meta (ej. "2,102 de 2,130 kcal · P 130/138 g ✅"; el ✅ sale si queda dentro de ±5% de sus calorías). Al tocarla se ven sus comidas con cada alimento y su cantidad (de la comida ya cocida, salvo la avena), por ejemplo "Papa sancochada · 370 g (≈ 2 ½ papas medianas)" o "Lomo saltado · ¾ de plato (300 g)". Si su meta pide más proteína que la que trae un plato peruano, puede salir "Extra: [proteína]".
+- En cada comida: **"✅ Lo comí"** la registra en su día con un toque ("✓ Registrado"), y **"🔄 Cambiar"** propone otra opción. Abajo: **"🎲 Otro menú"** (arma otro día completo; lo ya registrado no cambia) y **"⚙️ Mis gustos"**.
+- El menú cambia cada día y es el mismo en todos sus celulares. Se arma con los alimentos de la app (sin inventar platos) y cuadra con la meta de "Comidas".
+- **Es Premium.** En la versión gratis ve solo su **desayuno**; las demás comidas salen borrosas con **"Tu menú completo del día es Premium"** y "VER PREMIUM".
+
 **G) Restaurantes aliados**
 1. Toca **"RESTAURANTES ALIADOS"** (hoy: **PECAFIT**).
 2. Elige la comida y toca el plato → "✅ [plato] agregado a [comida]".
@@ -543,7 +550,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 ### 13.8 Versión gratis y Premium
 
-En "Planes", la lista **"👑 PREMIUM INCLUYE"**: foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
+En "Planes", la lista **"👑 PREMIUM INCLUYE"**: tu menú completo del día · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
 
 Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
 
@@ -557,6 +564,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | Leer la tabla nutricional con foto | — | ✓ |
 | Registro por voz | — | ✓ |
 | "¿Qué puedo comer?" | 3 veces por semana | Siempre |
+| Menú completo del día ("Tu menú de hoy") | Solo el desayuno | Todas sus comidas |
 | Pedirle alimentos a Jonah (app, foto, WhatsApp) | — | ✓ |
 | Peso, pesaje semanal, racha, insignias, "Tu semana", invitar | ✓ | ✓ |
 | Tendencias | 7 días | 30 días a 1 año, constancia y coach |

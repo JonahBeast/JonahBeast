@@ -3160,9 +3160,9 @@ function PrecisionIAPanel() {
     supabase.from('reconocimiento_foto_feedback')
       .select('sugeridos, descartados, created_at')
       .order('created_at', { ascending: false }).limit(1000)
-      // Las correcciones hechas después (en la lista o agregando a mano) no
-      // son fotos nuevas: no cuentan para la precisión.
-      .then(({ data }) => { if (!cancelado) setFilas((data || []).filter(f => !(f.sugeridos || []).every(s => s?.despues || s?.inferida))); }, () => { if (!cancelado) setFilas([]); });
+      // Las correcciones hechas después en la lista no son fotos nuevas:
+      // no cuentan para la precisión.
+      .then(({ data }) => { if (!cancelado) setFilas((data || []).filter(f => !(f.sugeridos || []).every(s => s?.despues))); }, () => { if (!cancelado) setFilas([]); });
     return () => { cancelado = true; };
   }, []);
 

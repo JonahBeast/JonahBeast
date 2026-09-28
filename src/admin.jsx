@@ -4251,6 +4251,10 @@ function quitarPalabraJarvis(texto) {
   const m = String(texto || '').match(PALABRA_JARVIS);
   return m ? texto.slice(m[0].length).trim() : null;
 }
+// Frases con las que se cierra la conversación por voz ("no, gracias, no es
+// necesario", "eso es todo"): Jarvis responde y apaga el micrófono.
+const DESPEDIDA_JARVIS = /\b(eso (es|seria|sería) todo|es todo|nada mas|nada más|no es necesario|no hace falta|no necesito nada|no gracias|no, gracias|ok gracias|listo gracias|hasta luego|adios|adiós|chau|chao)\b/i;
+const esDespedidaJarvis = t => DESPEDIDA_JARVIS.test(String(t || ''));
 // Después de llamarlo (o de que responda), durante estos segundos se le
 // puede seguir hablando sin repetir "Jarvis", como en una conversación.
 const SEGUNDOS_CONVERSACION_JARVIS = 10;
@@ -4791,6 +4795,7 @@ function JarvisPanel({ onClose, users }) {
   const modoContinuoRef = useRef(false);
   const pausadoParaHablarRef = useRef(false);
   const micActivoRef = useRef(false);
+  const cerrarMicTrasHablarRef = useRef(false);
   const vozOnRef = useRef(true);
 
   useEffect(() => { modoContinuoRef.current = modoContinuo; }, [modoContinuo]);
@@ -5130,6 +5135,19 @@ function JarvisPanel({ onClose, users }) {
 
   function reanudarMicSiCorresponde() {
     pausadoParaHablarRef.current = false;
+    // Se despidió por voz: tras la respuesta se apaga el micrófono.
+    if (cerrarMicTrasHablarRef.current) {
+      cerrarMicTrasHablarRef.current = false;
+      if (modoContinuoRef.current) {
+        modoContinuoRef.current = false;
+        setModoContinuo(false);
+        setEscuchando(false);
+        try { recogRef.current && recogRef.current.stop(); } catch (e) {}
+        sonidoJarvis('cerrar');
+        setAvisoMic('Micrófono apagado. Tócalo cuando me necesite.');
+      }
+      return;
+    }
     // Tras responder, se le puede seguir hablando sin decir "Jarvis".
     if (modoContinuoRef.current) despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
     // Un respiro para que el parlante termine antes de volver a escuchar.
@@ -5172,6 +5190,7 @@ function JarvisPanel({ onClose, users }) {
       }
       despiertoHastaRef.current = 0;
       sonidoJarvis('despierto');
+      cerrarMicTrasHablarRef.current = esDespedidaJarvis(texto);
       enviarRef.current(texto);
     };
     recog.onerror = (e) => {
@@ -5206,7 +5225,7 @@ function JarvisPanel({ onClose, users }) {
     modoContinuoRef.current = nuevo;
     // Este toque también habilita la voz de Jarvis para las respuestas
     // que lleguen por micrófono (el navegador exige un toque primero).
-    if (nuevo) { pausadoParaHablarRef.current = false; desbloquearVoz(); sonidoJarvis('escuchar'); setAvisoMic(''); arrancarReconocimiento(); }
+    if (nuevo) { pausadoParaHablarRef.current = false; cerrarMicTrasHablarRef.current = false; desbloquearVoz(); sonidoJarvis('escuchar'); setAvisoMic(''); arrancarReconocimiento(); }
     else { pausarMic(); setEscuchando(false); }
   }
 

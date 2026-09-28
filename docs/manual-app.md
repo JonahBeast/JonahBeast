@@ -45,7 +45,7 @@
 - Debajo: el antes/después de Jonah (−37 kg en 3 años y 8 meses), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
 - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
 - Botón principal **"📸 PRUÉBALA YA CON TU PLATO"**: prueba sin registrarse (ver abajo).
-- Debajo, el botón **"EMPIEZA A BAJAR DE PESO"** → registro. Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
+- Debajo, el botón **"TU CAMBIO EMPIEZA AQUÍ"** → recorrido de 6 pasos antes del registro (ver 3). Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
 - Justo debajo, el botón **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
 - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
 - La portada entra en una sola pantalla: no hay que bajar para ver nada.
@@ -76,7 +76,16 @@ Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." �
 
 ## 3. Crear cuenta (gratis, con 7 días de Premium)
 
-1. Toca **"EMPIEZA A BAJAR DE PESO"** en la portada (o "CREAR MI CUENTA GRATIS" después de probar la foto). La pantalla dice "CREA TU CUENTA GRATIS" y "Gratis para siempre, con Premium hasta el [fecha]".
+0. **Recorrido antes del registro:** al tocar **"TU CAMBIO EMPIEZA AQUÍ"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y la flecha para volver:
+   1. **"¿QUÉ QUIERES LOGRAR?"**: 🔥 Bajar grasa · 💪 Ganar músculo · ⚖️ Mantenerme y comer mejor.
+   2. **"CUÉNTANOS DE TI"**: Hombre o Mujer y su edad.
+   3. **"TU ESTATURA Y TU PESO"** (en centímetros y kilos, con − / + o escribiendo).
+   4. **"¿QUÉ TAN ACTIVO ERES?"** (Sedentario, Ligero, Moderado, Intenso, Muy intenso).
+   5. **"¿A QUÉ PESO QUIERES LLEGAR?"** (solo si quiere bajar o subir; viene sugerido y se puede cambiar).
+   6. **"ESTO ES LO QUE TE TOCA"**: sus calorías y su proteína al día y, si puso peso meta, "A este ritmo llegarías a [X] kg en unas [N] semanas" (estimación). Botón **"CREAR MI CUENTA Y GUARDAR MI PLAN"**.
+   - Si no pasa los datos: "Pon una edad entre 14 y 90 años.", "La estatura va en centímetros (ej. 165).", "Revisa tu peso en kilos (ej. 72).", "Tu peso meta debe ser menor/mayor a tu peso actual.".
+   - Sus respuestas quedan guardadas en ese celular: si vuelve a tocar el botón, va directo a crear la cuenta. Al entrar por primera vez, **su objetivo, sus datos y su peso meta ya están cargados** (no tiene que volver a escribirlos) y su meta de calorías ya está calculada.
+1. La pantalla de registro dice **"GUARDA TU PLAN"** con "Tu meta: [kcal] y [g] de proteína al día" (si hizo el recorrido) o "CREA TU CUENTA GRATIS", y "Gratis para siempre, con Premium hasta el [fecha]".
    - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
    - Si abriste la página desde **Instagram, Facebook, Messenger o TikTok** (por ejemplo, tocando un anuncio), en lugar del botón de Google sale: "Estás dentro de [app]: ahí Google no deja entrar." Esas apps no permiten el ingreso con Google. Regístrate con tu correo, o toca **⋯** arriba y elige **"Abrir en el navegador"** para usar Google. Lo mismo pasa en "Entrar con Google" al ingresar.
 2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"** y una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla).

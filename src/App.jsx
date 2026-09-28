@@ -2070,8 +2070,35 @@ function registrarEventoEmbudo(evento, extra = {}) {
    siente más real que "15 días". */
 function fechaFinPrueba() {
   const fin = new Date();
-  fin.setDate(fin.getDate() + TRIAL_DAYS - 1);
+  fin.setDate(fin.getDate() + TRIAL_DAYS - 1 + diasCodigoLive());
   return fin.toLocaleDateString('es-PE', { day: 'numeric', month: 'long' });
+}
+
+/* Código del live: se escribe en la calculadora (opcional) y, si Jonah le
+   puso premio en el panel, suma días de Premium a la prueba. Queda
+   guardado en ese celular (7 días) y se canjea al entrar por primera vez a
+   la cuenta nueva (canjear_codigo_live en la base: una vez por cuenta). */
+const CLAVE_CODIGO_LIVE = 'jb-codigo-live';
+function leerCodigoLive() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CLAVE_CODIGO_LIVE) || 'null');
+    if (!c || !c.codigo || Date.now() - c.ts > 7 * 86400000) return null;
+    return c;
+  } catch { return null; }
+}
+function diasCodigoLive() { return leerCodigoLive()?.dias || 0; }
+function avisarCodigoLive(dias) {
+  if (dias > 0) setTimeout(() => showToast(`🎁 Tu código del live te dio +${dias} días de Premium`), 800);
+}
+async function canjearCodigoLive() {
+  const c = leerCodigoLive();
+  if (!c) return 0;
+  try {
+    const { data, error } = await supabase.rpc('canjear_codigo_live', { p_codigo: c.codigo });
+    if (error || !data || data.estado === 'sin_sesion' || data.estado === 'sin_cuenta') return 0;
+    try { localStorage.removeItem(CLAVE_CODIGO_LIVE); } catch {}
+    return data.estado === 'ok' ? data.dias : 0;
+  } catch { return 0; }
 }
 
 /* Prueba social real junto al botón: las fotos "después" de los mismos
@@ -2475,6 +2502,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
   const [codigo, setCodigo] = useState('');
   const [verCodigo, setVerCodigo] = useState(false);
   const [grasaVisible, setGrasaVisible] = useState(false);
+  const [premio, setPremio] = useState(() => leerCodigoLive());
   const [error, setError] = useState('');
   const [revisando, setRevisando] = useState(false);
 
@@ -2488,7 +2516,8 @@ function FreeCalculator({ onBack, onEmpezar }) {
 
   /* Primera parte (calorías, IMC, peso saludable): libre. El % de grasa,
      masa magra y muscular (lo más valioso): se ve al pedirlo por WhatsApp
-     (él le escribe a Jonah con sus números) o con el código de un live. */
+     (él le escribe a Jonah con sus números), con o sin código. El código
+     del live solo da el premio de Premium que Jonah elige en el panel. */
   async function verResultados() {
     setError('');
     if (!(num('edad') >= 14 && num('edad') <= 90)) return setError('Pon tu edad (entre 14 y 90 años).');
@@ -2496,17 +2525,19 @@ function FreeCalculator({ onBack, onEmpezar }) {
     if (!(num('peso') >= 30 && num('peso') <= 300)) return setError('Pon tu peso en kilos (ej. 72).');
     if (codigo.trim()) {
       setRevisando(true);
-      let valido = '';
+      let r = null;
       try {
-        const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
-        valido = data ? data.value : '';
+        const { data } = await supabase.rpc('validar_codigo_live', { p_codigo: codigo.trim() });
+        r = data;
       } catch {}
       setRevisando(false);
-      if (!valido || codigo.trim().toUpperCase() !== valido.trim().toUpperCase()) {
-        return setError('Ese código no es válido. Puedes dejarlo vacío y ver tus resultados igual.');
+      if (!r?.valido) {
+        return setError('Ese código no es válido o ya venció. Puedes dejarlo vacío y ver tus resultados igual.');
       }
-      setGrasaVisible(true);
-      registrarEventoEmbudo('calculadora_codigo');
+      const c = { codigo: codigo.trim().toUpperCase(), dias: r.dias || 0, ts: Date.now() };
+      try { localStorage.setItem(CLAVE_CODIGO_LIVE, JSON.stringify(c)); } catch {}
+      setPremio(c);
+      registrarEventoEmbudo('calculadora_codigo', { detalle: c.codigo });
     }
     registrarEventoEmbudo('calculadora_resultados', { detalle: conCinta ? 'con_cinta' : 'sin_cinta' });
     setStep('results');
@@ -2614,6 +2645,19 @@ function FreeCalculator({ onBack, onEmpezar }) {
               </div>
             )}
 
+            {premio && (
+              <div className="rounded-2xl border border-orange-500/60 bg-orange-500/10 p-4 text-center">
+                <p className="jb-display text-base text-zinc-50">
+                  {premio.dias > 0 ? `🎁 CÓDIGO ${premio.codigo} ACTIVADO: +${premio.dias} DÍAS DE PREMIUM` : `✅ CÓDIGO ${premio.codigo} ACTIVADO`}
+                </p>
+                {premio.dias > 0 && (
+                  <p className="jb-body text-xs text-zinc-300 mt-1">
+                    Se suman a tus {TRIAL_DAYS} días de prueba al crear tu cuenta: {TRIAL_DAYS + premio.dias} días de Premium gratis en total.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
               <AlertTriangle className="text-amber-500 shrink-0" size={16} />
               <p className="text-amber-200 text-xs jb-body">El IMC no distingue grasa de músculo. Estos valores son estimaciones de referencia, no un diagnóstico médico.</p>
@@ -2622,7 +2666,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
             <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
               <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">
-                Arma tu plan con comida peruana, justo para tu meta: cuánto comer, qué comer y tu avance día a día. Gratis para siempre, con 7 días de Premium incluidos.
+                Arma tu plan con comida peruana, justo para tu meta: cuánto comer, qué comer y tu avance día a día. Gratis para siempre, con {TRIAL_DAYS + (premio?.dias || 0)} días de Premium incluidos.
               </p>
               <button onClick={onEmpezar} className={btnPrimary + ' w-full py-3 text-base'}>
                 TU CAMBIO EMPIEZA AQUÍ
@@ -3237,6 +3281,9 @@ function TrialSignup({ onBack, onCreated }) {
                   <span className="text-orange-400 font-semibold">Gratis para siempre</span>, con Premium hasta el {fechaFinPrueba()} · sin tarjeta. Registro en 30 segundos.
                 </p>
               </>
+            )}
+            {diasCodigoLive() > 0 && (
+              <p className="jb-body text-xs text-orange-300 mt-2">🎁 Incluye +{diasCodigoLive()} días de Premium por tu código del live.</p>
             )}
           </div>
 
@@ -5319,6 +5366,7 @@ export default function App() {
     // entrar: si inició sesión recién, la lista cargada al abrir la página
     // todavía no la tenía (sin sesión no se puede leer) y la app no sabía
     // ni su nombre hasta recargar.
+    const diasLive = await canjearCodigoLive();
     await init();
     let data = null;
     try {
@@ -5404,9 +5452,11 @@ export default function App() {
     skipNextSave.current = !hayPendienteHoy && formGuardado === antesRecorrido;
     setEstadoGuardado(leerPendiente(username) ? 'guardando' : 'ok');
     setView('student');
+    avisarCodigoLive(diasLive);
   }
 
   async function handleTrialCreated(username) {
+    const diasLive = await canjearCodigoLive();
     await init();
     setCurrentUser(username);
     const form = formConRecorrido(EMPTY_FORM);
@@ -5414,6 +5464,7 @@ export default function App() {
     setMealPlan(EMPTY_MEALPLAN());
     skipNextSave.current = form === EMPTY_FORM;
     setView('student');
+    avisarCodigoLive(diasLive);
   }
 
   async function handleStudentLogin(email, password, setErr) {

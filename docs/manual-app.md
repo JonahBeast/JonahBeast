@@ -17,7 +17,7 @@
 - **Nunca compartas información sensible:**
   - Datos de otras personas (otros alumnos, embajadores, comisiones, cifras del negocio).
   - Datos de pago (números de Yape/Plin, cuentas bancarias): indica que están en la app, en el ícono de tarjeta **"Mi plan"**, al elegir un plan.
-  - El código de acceso de la calculadora (se da solo en los lives de Instagram o TikTok; es opcional: sin él igual ve sus resultados).
+  - El código del live de la calculadora (se da solo en los lives de Instagram o TikTok; es opcional: sin él igual ve sus resultados, y lo que da son días extra de Premium al crear la cuenta).
   - Contraseñas, códigos de verificación o enlaces para cambiar la contraseña: indica el paso de "¿Olvidaste tu contraseña?".
   - Datos del propio alumno solo si el mensaje viene de **su número registrado**; si no coincide, no des datos de la cuenta y pasa el chat a Jonah.
 - **Pasa el chat a Jonah** (y quédate en silencio hasta que te lo devuelva) cuando: haya pagos por aprobar o rechazados, pidan descuentos, haya temas médicos, reclamos o reembolsos, no sepas la respuesta, o el cliente pida hablar con una persona.
@@ -65,12 +65,12 @@ Sirve para medirse sin crear cuenta y **sin código**. Para el % de grasa hace f
 
 1. Llena "Sexo", "Edad (años)", "Estatura (cm)", "Peso (kg)" y "Actividad física". Los campos vienen vacíos, con un ejemplo en gris.
 2. (Opcional) En **"📏 PARA TU % DE GRASA · CON CINTA MÉTRICA"**: "Cuello (cm)", "Cintura (cm)" y "Cadera (cm)". "¿Cómo medir?" muestra una imagen guía. Sin cinta igual ve sus calorías y su peso saludable.
-3. (Opcional) **"¿Tienes el código de un live?"** → "Código del live (opcional)". Si es válido, ve su % de grasa directo. **El código se comparte en los lives de Instagram o TikTok de Jonah** (no importan mayúsculas).
+3. (Opcional) **"¿Tienes el código de un live?"** → "Código del live (opcional)". **El código se comparte en los lives de Instagram o TikTok de Jonah** (no importan mayúsculas) y puede tener fecha de vencimiento. **No reemplaza a WhatsApp** para ver el % de grasa: lo que da es un premio que Jonah elige en cada live (por ejemplo **+7 días, +15 días o +1 mes de Premium**) que se suma a la prueba gratis al crear su cuenta nueva. En los resultados sale **"🎁 CÓDIGO [código] ACTIVADO: +[N] DÍAS DE PREMIUM"** y "Se suman a tus 7 días de prueba al crear tu cuenta: [7+N] días de Premium gratis en total" (si el código no tiene premio, solo "✅ CÓDIGO [código] ACTIVADO"). El código queda guardado en ese celular 7 días: la pantalla de registro dice "🎁 Incluye +[N] días de Premium por tu código del live" y la fecha de Premium ya los incluye. Al entrar por primera vez a la cuenta sale "🎁 Tu código del live te dio +[N] días de Premium". Vale una sola vez por cuenta y solo para cuentas nuevas (creadas hace 3 días o menos, en prueba); a quien ya tenía cuenta no le suma días.
 4. Toca **"VER MIS RESULTADOS"**. Sale **libre**: "⚡ Gasto de mantenimiento" (kcal/día), "🔥 Metabolismo basal", "IMC" y "Peso saludable" para su estatura.
 5. Si puso sus medidas, **"📏 TU COMPOSICIÓN CORPORAL"** (% de grasa, masa grasa, masa magra y masa muscular) sale borrosa con **"TU % DE GRASA ESTÁ LISTO"** y el botón **"📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP"**: al tocarlo se muestran sus resultados y se abre WhatsApp con un mensaje para Jonah con sus números ("Hola Jonah 👋 Medí mi composición corporal en la web: …% de grasa…"); el asistente le responde. También puede tocar "o crea tu cuenta gratis y guárdalo ahí". Si no puso medidas sale "¿Y TU % DE GRASA?" con "📏 Agregar mis medidas".
 6. Abajo, **"TU CAMBIO EMPIEZA AQUÍ"** lleva al recorrido para armar su plan (sección 3). Son estimaciones, no un diagnóstico médico.
 
-Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetros (ej. 165)." · "Pon tu peso en kilos (ej. 72)." · "Ese código no es válido. Puedes dejarlo vacío y ver tus resultados igual."
+Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetros (ej. 165)." · "Pon tu peso en kilos (ej. 72)." · "Ese código no es válido o ya venció. Puedes dejarlo vacío y ver tus resultados igual."
 
 ---
 
@@ -100,6 +100,7 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 - La cuenta es gratis para siempre. Los primeros **7 días son Premium** (el día del registro cuenta como día 1) y no se pide tarjeta. Después pasa a la versión gratis (13.6).
 - Quienes se registraron antes con la prueba de 15 días la mantienen hasta su fecha.
 - Quien se registra con el código **RETO** (Reto Beast, 12.1) tiene 15 días de Premium.
+- Quien escribió en la calculadora un código de live con premio (2.1) suma esos días a su prueba al entrar por primera vez.
 
 Errores del registro y qué hacer:
 

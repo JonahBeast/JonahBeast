@@ -31,6 +31,15 @@ const LIMITE_ETIQUETAS_DIARIO = 5;
 // Las fotos se siguen contando y el costo queda en ia_uso como siempre.
 const FOTOS_SIN_LIMITE = new Set(["martin"]);
 const LIMITE_SIN_TOPE = 100000;
+// Prueba sin cuenta (la portada): quien llega de un anuncio le toma foto a
+// su plato y ve sus calorías antes de registrarse. Topes para que no se
+// abuse: 1 foto al día por visitante, 3 por conexión (una casa u oficina
+// comparte la misma) y 100 al día en total (unos US$3 como máximo).
+// Solo reconoce el plato: nada del alumno (frecuentes, correcciones,
+// alimentos propios), nada de códigos ni etiquetas.
+const DEMO_POR_VISITANTE = 1;
+const DEMO_POR_CONEXION = 3;
+const DEMO_TOTAL_DIARIO = 100;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -84,11 +93,23 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const username = await usuarioDeLaSesion(supabase, req);
-    if (!username) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
+    const cuerpo = await req.json();
+    const { imagenBase64, mimeType, alimentos, consulta, accion, codigo, producto } = cuerpo;
+    const sesion = await usuarioDeLaSesion(supabase, req);
+    if (!sesion && cuerpo?.demo !== true) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
+    if (!sesion) return await fotoDePrueba(supabase, req, cuerpo);
+    const username = sesion;
+    const personales = cuerpo.personales;
+    return await fotoDeAlumno(supabase, username, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto });
+  } catch (e) {
+    console.error("reconocer-comida:", (e as Error)?.message);
+    return json({ error: "Error inesperado." }, 500);
+  }
+});
 
-    const { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto } = await req.json();
-
+// Foto de un alumno con sesión: su cupo, sus alimentos, sus correcciones.
+async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto }: any) {
+  try {
     // Solo alumnos con la membresía vigente (habilitados y sin vencer, o
     // sin fecha de vencimiento), igual que en la app.
     const { data: alumno } = await supabase
@@ -191,12 +212,6 @@ Deno.serve(async (req) => {
     }
     const devolverFoto = () => supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
 
-    // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
-    // la lista pesa casi la mitad que mandando "clave :: nombre".
-    const listaPlatos = [...new Set(alimentosComunes.map((a: any) => a.key))].join("\n");
-    const clavesComunes = new Set(alimentosComunes.map((a: any) => a.key));
-    const listaPersonales = [...new Set(alimentosPersonales.map((a: any) => a.key))].filter((k) => !clavesComunes.has(k)).join("\n");
-
     // Lo que este alumno registró más en las últimas 2 semanas: ayuda a la
     // IA a desempatar entre alimentos que se ven iguales en foto (ej. pollo
     // y pavita). Va en el mensaje, no en las instrucciones, para no romper
@@ -207,7 +222,43 @@ Deno.serve(async (req) => {
       correccionesDelAlumno(supabase, username, clavesOk),
     ]);
 
-    const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
+    const r = await reconocerPlato(supabase, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, usuarioUso: username });
+    if (!r) {
+      await devolverFoto();
+      return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
+    }
+    const { items, noEncontrados } = r;
+
+    // Platos que la IA vio pero no tenemos: quedan anotados para que el
+    // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
+    if (noEncontrados.length) {
+      const { error: errNo } = await supabase.from("platos_no_encontrados")
+        .insert(noEncontrados.map((nombre) => ({ username, nombre })));
+      if (errNo) console.error("No se pudo anotar platos no encontrados:", errNo.message);
+    }
+
+    // La foto ya quedó contada al reservarla, antes de llamar a la IA.
+    return json({ items, noEncontrados, ...cupo, usadas });
+  } catch (e) {
+    console.error("reconocer-comida:", (e as Error)?.message);
+    return json({ error: "Error inesperado." }, 500);
+  }
+}
+
+// Reconoce los alimentos de la foto con la IA, solo dentro de la lista que
+// se le manda. Devuelve null si la IA falló (quien llama devuelve la foto).
+async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, usuarioUso }: {
+  imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[]; usuarioUso: string;
+}): Promise<{ items: any[]; noEncontrados: string[] } | null> {
+  const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
+  // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
+  // la lista pesa casi la mitad que mandando "clave :: nombre".
+  const listaPlatos = [...new Set(alimentosComunes.map((a: any) => a.key))].join("\n");
+  const clavesComunes = new Set(alimentosComunes.map((a: any) => a.key));
+  const listaPersonales = [...new Set(alimentosPersonales.map((a: any) => a.key))].filter((k) => !clavesComunes.has(k)).join("\n");
+
+
+  const prompt = `Eres un identificador de platos de comida peruana. Te doy una foto de una mesa/plato de comida y una lista de alimentos válidos (una clave por línea).
 
 Identifica TODOS los alimentos distintos visibles en la foto que coincidan con algo de esta lista. Si hay varios (ej. café + pan + jugo), devuélvelos todos por separado. Si no reconoces nada de la lista con confianza razonable, devuelve una lista vacía — NUNCA inventes una clave que no esté en la lista.
 
@@ -248,117 +299,163 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exac
 {"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": []}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
-    const modelo = "claude-sonnet-5";
+  const modelo = "claude-sonnet-5";
 
-    // Si la IA falla (o no se puede conectar), se devuelve la foto reservada
-    // para que el alumno no la pierda.
-    let data: any;
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: modelo,
-          max_tokens: 800,
-          // Las instrucciones y la lista común son iguales en todas las
-          // fotos: van primero y quedan en caché unos minutos, así la
-          // siguiente foto (de cualquier alumno) paga ~10% por esa parte.
-          // Lo que cambia (la foto y los alimentos propios) va después.
-          system: [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }],
-          messages: [{
-            role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
-              { type: "text", text: [
-                listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
-                corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
-                frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
-                "Identifica los alimentos de esta foto.",
-              ].filter(Boolean).join("\n\n") },
-            ],
-          }],
-        }),
-      });
-      if (!resp.ok) {
-        console.error("Error de Anthropic:", resp.status, await resp.text());
-        await devolverFoto();
-        return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
-      }
-      data = await resp.json();
-      await anotarUsoIA(supabase, { tipo: "plato", username, modelo, usage: data.usage });
-    } catch (e) {
-      console.error("Sin conexión con Anthropic:", (e as Error)?.message);
-      await devolverFoto();
-      return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
-    }
-
-    const textoRespuesta = (data.content || []).map((c: any) => c.text || "").join("");
-    console.log("Respuesta cruda de la IA:", textoRespuesta);
-    let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
-    let noEncontrados: string[] = [];
-    try {
-      const limpio = textoRespuesta.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(limpio);
-      items = Array.isArray(parsed.items) ? parsed.items : [];
-      const vistos = new Set<string>();
-      noEncontrados = (Array.isArray(parsed.no_encontrados) ? parsed.no_encontrados : [])
-        .filter((n: unknown) => typeof n === "string")
-        .map((n: string) => n.replace(/\s+/g, " ").trim().slice(0, 80))
-        .filter((n: string) => n.length > 0 && !vistos.has(n.toLowerCase()) && vistos.add(n.toLowerCase()))
-        .slice(0, 3);
-    } catch {
-      items = [];
-    }
-
-    // Gramos: número entre 5 y 1500 (lo demás se descarta y la app usa
-    // la porción normal). La app además lo acota a 0.3–3 veces la porción
-    // normal de cada alimento.
-    items = items.map((it) => {
-      const g = Math.round(Number(it.gramos));
-      return {
-        ...it,
-        cantidad: Math.max(1, Math.min(12, Math.round(Number(it.cantidad)) || 1)),
-        gramos: Number.isFinite(g) && g >= 5 && g <= 1500 ? g : null,
-        aceite: it.aceite === true,
-      };
+  // Si la IA falla (o no se puede conectar) devuelve null, y quien llamó
+  // devuelve la foto reservada para que no se pierda.
+  let data: any;
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: modelo,
+        max_tokens: 800,
+        // Las instrucciones y la lista común son iguales en todas las
+        // fotos: van primero y quedan en caché unos minutos, así la
+        // siguiente foto (de cualquier alumno) paga ~10% por esa parte.
+        // Lo que cambia (la foto y los alimentos propios) va después.
+        system: [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }],
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
+            { type: "text", text: [
+              listaPersonales && `Alimentos propios de este alumno (también son válidos, úsalos igual que los de la lista):\n${listaPersonales}`,
+              corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
+              frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
+              "Identifica los alimentos de esta foto.",
+            ].filter(Boolean).join("\n\n") },
+          ],
+        }],
+      }),
     });
-
-    const porNombre = new Map<string, number>();
-    for (const a of alimentosValidos) porNombre.set(a.name, (porNombre.get(a.name) || 0) + 1);
-    const clavesValidas = new Map<string, string>();
-    for (const a of alimentosValidos) {
-      clavesValidas.set(a.key, a.key);
-      if (porNombre.get(a.name) === 1 && !clavesValidas.has(a.name)) clavesValidas.set(a.name, a.key);
+    if (!resp.ok) {
+      console.error("Error de Anthropic:", resp.status, await resp.text());
+      return null;
     }
-    items = items
-      .map((it) => {
-        if (Array.isArray((it as any).opciones)) {
-          const validas = [...new Set((it as any).opciones.map((k: string) => clavesValidas.get(k)).filter(Boolean))];
-          return validas.length >= 2 ? { ...it, key: "", opciones: validas } : null;
-        }
-        return { ...it, key: clavesValidas.get(it.key) || "" };
-      })
-      .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
-
-    // Platos que la IA vio pero no tenemos: quedan anotados para que el
-    // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
-    if (noEncontrados.length) {
-      const { error: errNo } = await supabase.from("platos_no_encontrados")
-        .insert(noEncontrados.map((nombre) => ({ username, nombre })));
-      if (errNo) console.error("No se pudo anotar platos no encontrados:", errNo.message);
-    }
-
-    // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, noEncontrados, ...cupo, usadas });
+    data = await resp.json();
+    await anotarUsoIA(supabase, { tipo: "plato", username: usuarioUso, modelo, usage: data.usage });
   } catch (e) {
-    console.error("reconocer-comida:", (e as Error)?.message);
-    return json({ error: "Error inesperado." }, 500);
+    console.error("Sin conexión con Anthropic:", (e as Error)?.message);
+    return null;
   }
-});
+
+  const textoRespuesta = (data.content || []).map((c: any) => c.text || "").join("");
+  console.log("Respuesta cruda de la IA:", textoRespuesta);
+  let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
+  let noEncontrados: string[] = [];
+  try {
+    const limpio = textoRespuesta.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(limpio);
+    items = Array.isArray(parsed.items) ? parsed.items : [];
+    const vistos = new Set<string>();
+    noEncontrados = (Array.isArray(parsed.no_encontrados) ? parsed.no_encontrados : [])
+      .filter((n: unknown) => typeof n === "string")
+      .map((n: string) => n.replace(/\s+/g, " ").trim().slice(0, 80))
+      .filter((n: string) => n.length > 0 && !vistos.has(n.toLowerCase()) && vistos.add(n.toLowerCase()))
+      .slice(0, 3);
+  } catch {
+    items = [];
+  }
+
+  // Gramos: número entre 5 y 1500 (lo demás se descarta y la app usa
+  // la porción normal). La app además lo acota a 0.3–3 veces la porción
+  // normal de cada alimento.
+  items = items.map((it) => {
+    const g = Math.round(Number(it.gramos));
+    return {
+      ...it,
+      cantidad: Math.max(1, Math.min(12, Math.round(Number(it.cantidad)) || 1)),
+      gramos: Number.isFinite(g) && g >= 5 && g <= 1500 ? g : null,
+      aceite: it.aceite === true,
+    };
+  });
+
+  const porNombre = new Map<string, number>();
+  for (const a of alimentosValidos) porNombre.set(a.name, (porNombre.get(a.name) || 0) + 1);
+  const clavesValidas = new Map<string, string>();
+  for (const a of alimentosValidos) {
+    clavesValidas.set(a.key, a.key);
+    if (porNombre.get(a.name) === 1 && !clavesValidas.has(a.name)) clavesValidas.set(a.name, a.key);
+  }
+  items = items
+    .map((it) => {
+      if (Array.isArray((it as any).opciones)) {
+        const validas = [...new Set((it as any).opciones.map((k: string) => clavesValidas.get(k)).filter(Boolean))];
+        return validas.length >= 2 ? { ...it, key: "", opciones: validas } : null;
+      }
+      return { ...it, key: clavesValidas.get(it.key) || "" };
+    })
+    .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
+
+  return { items, noEncontrados };
+}
+
+// Foto de prueba desde la portada, sin cuenta (ver DEMO_* arriba). Se
+// reservan los tres cupos antes de llamar a la IA; si alguno está lleno o
+// la IA falla, se devuelven los que ya se reservaron.
+async function fotoDePrueba(supabase: any, req: Request, cuerpo: any) {
+  const { imagenBase64, mimeType, alimentos } = cuerpo || {};
+  const visitante = typeof cuerpo?.visitante === "string" ? cuerpo.visitante.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64) : "";
+  if (visitante.length < 8) return json({ error: "Faltan datos." }, 400);
+  if (typeof imagenBase64 !== "string" || !imagenBase64 || !Array.isArray(alimentos) || !alimentos.length) {
+    return json({ error: "Faltan datos (imagenBase64 o alimentos)." }, 400);
+  }
+  if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
+  if (alimentos.length > MAX_ALIMENTOS) return json({ error: "La lista de alimentos es demasiado larga." }, 400);
+  const alimentosComunes = alimentos
+    .filter((a: any) => a && typeof a.key === "string" && typeof a.name === "string" && a.key && a.name)
+    .map((a: any) => ({ key: a.key.slice(0, MAX_TEXTO_ALIMENTO), name: a.name.slice(0, MAX_TEXTO_ALIMENTO) }));
+  if (!alimentosComunes.length) return json({ error: "Faltan datos (alimentos)." }, 400);
+  const tipoImagen = TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg";
+
+  // La conexión se guarda resumida (huella), nunca la dirección tal cual.
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "sin-ip";
+  const huella = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip))))
+    .slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const periodo = `demo-${fechaLima()}`;
+  const cupos = [
+    { username: `demo:v:${visitante}`, limite: DEMO_POR_VISITANTE },
+    { username: `demo:ip:${huella}`, limite: DEMO_POR_CONEXION },
+    { username: "demo:total", limite: DEMO_TOTAL_DIARIO },
+  ];
+  const reservados: string[] = [];
+  const devolver = () => Promise.all(reservados.map((u) =>
+    supabase.rpc("devolver_foto_reconocimiento", { p_username: u, p_periodo: periodo })));
+  for (const c of cupos) {
+    const { data, error } = await supabase.rpc("reservar_foto_reconocimiento", { p_username: c.username, p_periodo: periodo, p_limite: c.limite });
+    if (error) {
+      console.error("No se pudo reservar la foto de prueba:", error.message);
+      await devolver();
+      return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
+    }
+    if (data === null || data === undefined) {
+      await devolver();
+      return json({ error: "limite_demo" }, 200);
+    }
+    reservados.push(c.username);
+  }
+
+  const r = await reconocerPlato(supabase, {
+    imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales: [], frecuentes: [], corregidos: [], usuarioUso: "demo-portada",
+  });
+  if (!r) {
+    await devolver();
+    return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
+  }
+  // Si no reconoció comida, al visitante se le devuelve su foto para que
+  // pruebe con otra (la conexión y el total sí la cuentan: así nadie puede
+  // mandar fotos vacías sin fin).
+  if (!r.items.length) {
+    await supabase.rpc("devolver_foto_reconocimiento", { p_username: cupos[0].username, p_periodo: periodo });
+  }
+  return json({ items: r.items, noEncontrados: r.noEncontrados });
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

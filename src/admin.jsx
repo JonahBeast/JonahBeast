@@ -1613,7 +1613,7 @@ function RentabilidadPanel({ users }) {
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
-        supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).range(0, 9999),
+        supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').range(0, 9999),
         supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
           .gte('creado_en', inicioISO).range(0, 19999),
         supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
@@ -3230,7 +3230,7 @@ const MOTIVOS_TROPIEZO = {
 };
 
 function resumirEmbudo(filas) {
-  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set() });
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set() });
   const total = pasos();
   const porFuente = {};
   // Tropiezos del registro (evento 'error_registro'): motivo -> personas.
@@ -3250,10 +3250,12 @@ function resumirEmbudo(filas) {
     [total, f].forEach(g => {
       if (r.evento === 'vista') { g.vistas++; g.visitantes.add(quien); }
       else if (r.evento === 'clic_cta') g.clics.add(quien);
+      else if (r.evento === 'demo_abrir') g.demos.add(quien);
+      else if (r.evento === 'demo_resultado') g.demosResultado.add(quien);
       else if (r.evento === 'registro') { g.registros.add(quien); if (r.username) g.usuarios.add(r.username); }
     });
   });
-  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios] });
+  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios], demos: g.demos.size, demosResultado: g.demosResultado.size });
   return {
     ...numeros(total),
     conGoogle,
@@ -3363,6 +3365,11 @@ function EmbudoResumenPanel() {
         <p className="jb-body text-xs text-zinc-500">No se pudo cargar el embudo. Toca otro periodo para reintentar.</p>
       ) : (
         <div className="flex flex-col gap-3">
+          {/* Prueba sin cuenta desde la portada ("Pruébala ya con tu plato"). */}
+          <p className="jb-body text-xs text-zinc-400">
+            📸 Probaron la foto sin cuenta: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demos}</span>
+            {' · '}vieron el resultado de su plato: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demosResultado}</span>
+          </p>
           <div className="flex flex-col gap-1.5">
             {PASOS.map(p => (
               <div key={p.label} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">

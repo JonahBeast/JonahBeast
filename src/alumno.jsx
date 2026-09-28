@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { armarMenu, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
 import {
   ACTIVITY_DESC,
   ACTIVITY_FACTORS,
@@ -7304,6 +7305,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />
       {hojaMeal && (
         <HojaRegistrar
           meal={hojaMeal} setMeal={setHojaMeal} onCerrar={() => setHojaMeal(null)}
@@ -7510,6 +7512,225 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
 
       <RestaurantesAliadosCard mealPlan={mealPlan} setMealPlan={setMealPlan} />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* MENÚ DEL DÍA (Premium) — ver src/menuDia.js                          */
+/* ------------------------------------------------------------------ */
+
+function ChipsGusto({ opciones, elegidos, onCambiar }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {opciones.map(o => {
+        const activo = elegidos.includes(o.id);
+        return (
+          <button key={o.id} type="button"
+            onClick={() => onCambiar(activo ? elegidos.filter(x => x !== o.id) : [...elegidos, o.id])}
+            className={`jb-body text-xs px-3 py-2 rounded-full border flex items-center gap-1.5 transition-colors ${activo
+              ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
+              : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`}>
+            <span>{o.emoji}</span>{o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Sus gustos para armar el menú: una sola vez, se pueden cambiar cuando quiera.
+function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
+  const [g, setG] = useState({ ...GUSTOS_POR_DEFECTO, ...(inicial || {}) });
+  const fijar = campo => valor => setG(v => ({ ...v, [campo]: valor }));
+  const listo = g.proteinas.length && g.acompanamientos.length && g.desayunos.length;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="jb-display text-lg text-zinc-50">🍽️ TUS GUSTOS</h3>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+        </div>
+        <p className="jb-body text-xs text-zinc-400 mb-4">Con esto Jonah te arma el menú del día, justo para tu meta.</p>
+
+        <p className="jb-display text-xs text-zinc-300 mb-2">¿QUÉ PROTEÍNAS TE GUSTAN?</p>
+        <ChipsGusto opciones={OPCIONES_PROTEINA} elegidos={g.proteinas} onCambiar={fijar('proteinas')} />
+        <p className="jb-display text-xs text-zinc-300 mt-4 mb-2">¿CON QUÉ ACOMPAÑAS?</p>
+        <ChipsGusto opciones={OPCIONES_ACOMPANAMIENTO} elegidos={g.acompanamientos} onCambiar={fijar('acompanamientos')} />
+        <p className="jb-display text-xs text-zinc-300 mt-4 mb-2">¿CÓMO DESAYUNAS?</p>
+        <ChipsGusto opciones={OPCIONES_DESAYUNO} elegidos={g.desayunos} onCambiar={fijar('desayunos')} />
+
+        <p className="jb-display text-xs text-zinc-300 mt-4 mb-2">¿CUÁNTAS COMIDAS HACES AL DÍA?</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[3, 4, 5].map(n => (
+            <button key={n} type="button" onClick={() => fijar('comidas')(n)}
+              className={`jb-display text-sm py-2 rounded-xl border ${g.comidas === n ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`}>
+              {n}
+            </button>
+          ))}
+        </div>
+
+        <button type="button" onClick={() => fijar('platos')(!g.platos)}
+          className="w-full mt-4 flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-left">
+          <span className="jb-body text-sm text-zinc-200">🇵🇪 Incluir platos peruanos<span className="block text-[11px] text-zinc-500">Lomo saltado, ají de gallina, seco… máximo 1 al día, en el almuerzo</span></span>
+          <span className={`w-10 h-6 rounded-full shrink-0 relative transition-colors ${g.platos ? 'bg-orange-500' : 'bg-zinc-700'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-50 transition-all ${g.platos ? 'left-[18px]' : 'left-0.5'}`} />
+          </span>
+        </button>
+
+        <p className="jb-body text-[11px] text-zinc-500 mt-3">¿Algo que no comes? Agrégalo en "🚫 Nunca me sugieras esto" y no saldrá en tu menú.</p>
+
+        <button disabled={!listo} onClick={() => onGuardar(g)} className={btnPrimary + ' w-full py-3 mt-4'}>
+          {listo ? 'ARMAR MI MENÚ' : 'Elige al menos una opción de cada grupo'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MenuDelDia({ mealPlan, setMealPlan, username }) {
+  const { premium } = usePremium();
+  const hoy = todayISO();
+  const gustos = mealPlan.menuGustos || null;
+  const menuDia = mealPlan.menuDia?.fecha === hoy ? mealPlan.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
+  const [abierto, setAbierto] = useState(false);
+  const [editarGustos, setEditarGustos] = useState(false);
+  const alimentosListos = usarAlimentosExtra();
+
+  const menu = useMemo(() => {
+    if (!gustos) return null;
+    try {
+      return armarMenu({
+        buscar: buscarFood, gramsPerUnit, gustos,
+        restricciones: mealPlan.restricciones || [],
+        mealPlan, semilla: `${username}|${hoy}`, variantes: menuDia.variantes || {},
+      });
+    } catch (e) { console.error('No se pudo armar el menú:', e); return null; }
+  }, [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, menuDia.variantes, alimentosListos]);
+
+  function guardarMenuDia(cambio) {
+    setMealPlan(v => {
+      const actual = v.menuDia?.fecha === hoy ? v.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
+      return { ...v, menuDia: cambio(actual) };
+    });
+  }
+  function cambiarComida(nombre) {
+    vibrar(10);
+    guardarMenuDia(m => ({ ...m, variantes: { ...m.variantes, [nombre]: (m.variantes?.[nombre] || 0) + 1 } }));
+  }
+  function otroMenu() {
+    vibrar(15);
+    guardarMenuDia(m => ({ ...m, variantes: { base: (m.variantes?.base || 0) + 1 }, hechos: m.hechos || {} }));
+  }
+  function loComi(comida) {
+    vibrar(20);
+    setMealPlan(v => {
+      const actual = v.menuDia?.fecha === hoy ? v.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
+      return {
+        ...v,
+        meals: { ...v.meals, [comida.nombre]: [...(v.meals[comida.nombre] || []), ...comida.entradas.map(e => ({ id: uid(), ...e }))] },
+        // Se guarda lo que comió tal cual, para que "Otro menú" no lo cambie.
+        menuDia: { ...actual, hechos: { ...(actual.hechos || {}), [comida.nombre]: { lineas: comida.lineas, totales: comida.totales } } },
+      };
+    });
+    showToast(`✅ Tu ${comida.nombre.toLowerCase()} del menú quedó registrado`);
+  }
+  function guardarGustos(g) {
+    setMealPlan(v => ({ ...v, menuGustos: g }));
+    setEditarGustos(false);
+    setAbierto(true);
+  }
+
+  const modal = editarGustos && (
+    <GustosMenuModal inicial={gustos} onGuardar={guardarGustos} onCerrar={() => setEditarGustos(false)} />
+  );
+
+  if (!gustos) {
+    return (
+      <>
+        {modal}
+        <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">🍽️</div>
+            <div className="flex-1 min-w-0">
+              <p className="jb-display text-sm text-zinc-50">ARMA TU MENÚ DEL DÍA</p>
+              <p className="jb-body text-[11px] text-zinc-400">Jonah te arma el día con lo que te gusta, justo para tu meta.{!premium && ' 👑 Premium'}</p>
+            </div>
+            <button onClick={() => setEditarGustos(true)} className={btnPrimary + ' text-xs py-2 px-3 shrink-0'}>Empezar</button>
+          </div>
+        </div>
+      </>
+    );
+  }
+  if (!menu) return null;
+
+  const { total, meta, ok } = menu;
+  return (
+    <>
+      {modal}
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4">
+        <button onClick={() => setAbierto(v => !v)} className="w-full flex items-center gap-3 text-left">
+          <div className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-lg shrink-0">🍽️</div>
+          <div className="flex-1 min-w-0">
+            <p className="jb-display text-sm text-zinc-50">TU MENÚ DE HOY {!premium && <span className="text-orange-400">· 👑</span>}</p>
+            <p className="jb-body text-[11px] text-zinc-400 tabular-nums truncate">
+              {total.kcal.toLocaleString('es-PE')} de {meta.kcal.toLocaleString('es-PE')} kcal · P {total.p}/{meta.p} g {ok ? '✅' : ''}
+            </p>
+          </div>
+          <ChevronRight size={18} className={`text-zinc-500 shrink-0 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+        </button>
+
+        {abierto && (
+          <div className="mt-4 flex flex-col gap-3">
+            <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+              Carbos {total.c}/{meta.c} g · Grasas {total.f}/{meta.f} g. Las cantidades son de la comida ya cocida (salvo la avena).
+            </p>
+            {menu.comidas.map((armada, i) => {
+              const bloqueada = !premium && i > 0;
+              const hecha = !!menuDia.hechos?.[armada.nombre];
+              const guardada = menuDia.hechos?.[armada.nombre];
+              const c = hecha && guardada?.lineas ? { ...armada, lineas: guardada.lineas, totales: guardada.totales } : armada;
+              return (
+                <div key={c.nombre} className={`rounded-xl border p-3 ${hecha ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950'}`}>
+                  <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                    <p className="jb-display text-xs text-zinc-200">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}{c.plato ? ' · 🇵🇪' : ''}</p>
+                    <p className="jb-body text-[11px] text-orange-400 tabular-nums">{c.totales.kcal} kcal · P {c.totales.p} g</p>
+                  </div>
+                  <ul className={`flex flex-col gap-1 ${bloqueada ? 'blur-[5px] select-none pointer-events-none' : ''}`} aria-hidden={bloqueada}>
+                    {c.lineas.map((l, j) => (
+                      <li key={j} className="jb-body text-sm text-zinc-300 flex justify-between gap-3">
+                        <span className="min-w-0">{l.texto}</span>
+                        <span className="text-zinc-400 shrink-0 text-right tabular-nums">{l.cantidad}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {!bloqueada && (
+                    <div className="flex gap-2 mt-2.5">
+                      {hecha ? (
+                        <span className="flex-1 jb-body text-xs text-emerald-400 font-semibold py-2 text-center">✓ Registrado</span>
+                      ) : (
+                        <button onClick={() => loComi(c)} className={btnPrimary + ' flex-1 py-2 text-xs'}>✅ Lo comí</button>
+                      )}
+                      {!hecha && (
+                        <button onClick={() => cambiarComida(c.nombre)} className={btnGhost + ' flex-1 py-2 text-xs'}>🔄 Cambiar</button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {!premium && (
+              <BloqueoPremium compacto titulo="Tu menú completo del día es Premium"
+                texto="En la versión gratis ves tu desayuno. Con Premium, Jonah te arma todas tus comidas cada día, justo para tu meta." />
+            )}
+            <div className="flex gap-2">
+              {premium && <button onClick={otroMenu} className={btnGhost + ' flex-1 py-2 text-xs'}>🎲 Otro menú</button>}
+              <button onClick={() => setEditarGustos(true)} className={btnGhost + ' flex-1 py-2 text-xs'}>⚙️ Mis gustos</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

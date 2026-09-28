@@ -4540,10 +4540,10 @@ function trozosParaVoz(texto) {
   return trozos.length ? trozos : [String(texto || '')];
 }
 
-/* Efecto "sistema" de la voz estilo Jarvis: un poco más de presencia y
-   cuerpo, una sala corta y metálica muy sutil y un compresor suave, para que
-   suene como una IA en los parlantes de un laboratorio y no como una
-   persona en una llamada. Se arma una vez por contexto de audio. */
+/* Efecto de la voz estilo Jarvis: un poco más de presencia y cuerpo y un
+   compresor suave. Se quitó la sala metálica: en parlantes de celular y
+   tablet sonaba como si la voz se trabara. Se arma una vez por contexto de
+   audio. */
 let cadenaVozJarvis = null;
 function cadenaEfectoJarvis(ctx) {
   if (cadenaVozJarvis && cadenaVozJarvis.ctx === ctx) return cadenaVozJarvis;
@@ -4552,25 +4552,9 @@ function cadenaEfectoJarvis(ctx) {
   const corte = ctx.createBiquadFilter(); corte.type = 'highpass'; corte.frequency.value = 70;
   const presencia = ctx.createBiquadFilter(); presencia.type = 'peaking'; presencia.frequency.value = 3200; presencia.Q.value = 0.9; presencia.gain.value = 3;
   const brillo = ctx.createBiquadFilter(); brillo.type = 'highshelf'; brillo.frequency.value = 7500; brillo.gain.value = 1.5;
-  // Sala corta: ruido que se apaga en ~0.4 s, con un leve "timbre" metálico.
-  const sala = ctx.createConvolver();
-  const largo = Math.floor(ctx.sampleRate * 0.4);
-  const ir = ctx.createBuffer(2, largo, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) {
-    const d = ir.getChannelData(c);
-    for (let i = 0; i < largo; i++) {
-      const t = i / ctx.sampleRate;
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / largo, 3) * (0.7 + 0.3 * Math.sin(2 * Math.PI * 1900 * t));
-    }
-  }
-  sala.buffer = ir;
-  const seco = ctx.createGain(); seco.gain.value = 0.9;
-  const humedo = ctx.createGain(); humedo.gain.value = 0.16;
   const compresor = ctx.createDynamicsCompressor();
   compresor.threshold.value = -20; compresor.ratio.value = 3; compresor.attack.value = 0.005; compresor.release.value = 0.2;
-  entrada.connect(corte).connect(graves).connect(presencia).connect(brillo);
-  brillo.connect(seco).connect(compresor);
-  brillo.connect(sala).connect(humedo).connect(compresor);
+  entrada.connect(corte).connect(graves).connect(presencia).connect(brillo).connect(compresor);
   cadenaVozJarvis = { ctx, entrada, salida: compresor };
   return cadenaVozJarvis;
 }
@@ -4806,6 +4790,7 @@ function JarvisPanel({ onClose, users }) {
   const recogRef = useRef(null);
   const modoContinuoRef = useRef(false);
   const pausadoParaHablarRef = useRef(false);
+  const micActivoRef = useRef(false);
   const vozOnRef = useRef(true);
 
   useEffect(() => { modoContinuoRef.current = modoContinuo; }, [modoContinuo]);
@@ -4891,7 +4876,10 @@ function JarvisPanel({ onClose, users }) {
       activo = false;
       if (fuenteVozRef.current === fuenteActual) fuenteVozRef.current = null;
       try { analizador.disconnect(); } catch {}
-      alTerminar();
+      // Si otra respuesta la interrumpió, esa otra reanuda el micro al
+      // terminar. Antes esta también lo reanudaba y el micro se prendía
+      // mientras Jarvis seguía hablando: se escuchaba a sí mismo y se trababa.
+      if (mio === turnoVozRef.current) alTerminar();
     };
     const sonar = (buffer) => new Promise(resolve => {
       const fuente = ctx.createBufferSource();
@@ -5144,11 +5132,14 @@ function JarvisPanel({ onClose, users }) {
     pausadoParaHablarRef.current = false;
     // Tras responder, se le puede seguir hablando sin decir "Jarvis".
     if (modoContinuoRef.current) despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
-    if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 300);
+    // Un respiro para que el parlante termine antes de volver a escuchar.
+    if (modoContinuoRef.current) setTimeout(() => arrancarReconocimiento(), 700);
   }
 
   function arrancarReconocimiento() {
-    if (!modoContinuoRef.current) return;
+    // Nunca dos micrófonos a la vez (antes el micro podía reiniciarse por
+    // dos lados, chocaban y entraba en un ciclo de errores y reintentos).
+    if (!modoContinuoRef.current || pausadoParaHablarRef.current || micActivoRef.current) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const recog = new SR();
@@ -5158,6 +5149,9 @@ function JarvisPanel({ onClose, users }) {
       // Se usa siempre la versión más reciente de enviar() (con la
       // conversación al día), no la del momento en que se prendió el micro.
       if (!ultimo.isFinal) return;
+      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
+      // ignora: puede ser su propia voz.
+      if (pausadoParaHablarRef.current) return;
       const dicho = ultimo[0].transcript.trim();
       const pedido = quitarPalabraJarvis(dicho);
       const enConversacion = Date.now() < despiertoHastaRef.current;
@@ -5181,6 +5175,7 @@ function JarvisPanel({ onClose, users }) {
       enviarRef.current(texto);
     };
     recog.onerror = (e) => {
+      micActivoRef.current = false;
       setEscuchando(false);
       // Errores que no se arreglan reintentando (sin permiso, sin micrófono
       // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
@@ -5189,8 +5184,8 @@ function JarvisPanel({ onClose, users }) {
       if (aviso) { apagarMicConAviso(aviso); return; }
       if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
     };
-    recog.onend = () => { setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
-    try { recog.start(); recogRef.current = recog; setEscuchando(true); } catch (e) {}
+    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    try { recog.start(); micActivoRef.current = true; recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
   function apagarMicConAviso(aviso) {
@@ -5211,7 +5206,7 @@ function JarvisPanel({ onClose, users }) {
     modoContinuoRef.current = nuevo;
     // Este toque también habilita la voz de Jarvis para las respuestas
     // que lleguen por micrófono (el navegador exige un toque primero).
-    if (nuevo) { desbloquearVoz(); sonidoJarvis('escuchar'); setAvisoMic(''); arrancarReconocimiento(); }
+    if (nuevo) { pausadoParaHablarRef.current = false; desbloquearVoz(); sonidoJarvis('escuchar'); setAvisoMic(''); arrancarReconocimiento(); }
     else { pausarMic(); setEscuchando(false); }
   }
 
@@ -5328,7 +5323,7 @@ function JarvisPanel({ onClose, users }) {
   );
   const botonesCabecera = (
     <>
-      <button onClick={() => { if (vozOn) { callarVozPremium(); try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} setHablando(false); } setVozOn(v => !v); }} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
+      <button onClick={() => { if (vozOn) { callarVozPremium(); try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {} setHablando(false); reanudarMicSiCorresponde(); } setVozOn(v => !v); }} className="text-xs px-2 py-1 rounded-full" style={{ border: '1px solid ' + (vozOn ? '#4dd9ff' : '#163244'), color: vozOn ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
         🔊 {vozOn ? 'ON' : 'OFF'}
       </button>
       <button onClick={cambiarHud} aria-label={hud ? 'Salir de pantalla completa' : 'Pantalla completa'} className="text-xs px-2 py-1 rounded-full"

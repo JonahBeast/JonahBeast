@@ -30,10 +30,14 @@ const INSTRUCCIONES =
   "Habla en español latinoamericano neutro, como una asistente de inteligencia artificial futurista " +
   "y elegante: tono calmado, seguro y cercano, ritmo ágil, pronunciación clara de nombres y cifras. " +
   "Suena natural, nunca robótica.";
+// Estilo inspirado en las IA mayordomo del cine, sin imitar a ningún actor.
 const INSTRUCCIONES_JARVIS =
-  "Habla en español latinoamericano neutro como un mayordomo de inteligencia artificial muy sofisticado: " +
-  "voz masculina grave, serena y elegante, formal pero cercana, con total seguridad y un toque sutil de ironía fina. " +
-  "Ritmo pausado y preciso, pronunciación impecable de nombres y cifras. Nunca suenes robótico ni exagerado.";
+  "Eres la voz de un asistente de inteligencia artificial de laboratorio, refinado y leal, al estilo de un mayordomo " +
+  "británico muy culto que habla español latinoamericano neutro. Voz masculina de registro medio-grave, cálida y aterciopelada, " +
+  "dicción impecable y articulada, cada consonante nítida. Calma absoluta: nunca te apuras ni te exaltas. " +
+  "Tono de seguridad total, cortés y un poco formal, con humor seco y una ironía finísima apenas insinuada, como si sonrieras sin mostrarlo. " +
+  "Ritmo mesurado con pausas breves y naturales entre ideas; baja ligeramente el tono al final de las frases. " +
+  "Pronuncia nombres y cifras con claridad. Nunca suenes robótico, teatral ni exagerado: sofisticado y humano.";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });

@@ -726,7 +726,7 @@ const WHATSAPP_NUMBER = '51963760819';
 // Un alumno nuevo empieza con los campos vacíos: antes venían llenos con
 // valores de ejemplo (70 kg, 170 cm...) que parecían datos reales.
 const EMPTY_FORM = { sexo: 'M', edad: '', estatura: '', peso: '', cuello: '', cintura: '', cadera: '', actividad: 'Moderado', objetivo: '', ajustePct: null, pesoInicial: null, pesoObjetivo: null };
-// La calculadora gratis de la landing sí arranca con un ejemplo lleno.
+// Valores de ejemplo de las cuentas antiguas (se detectan y se muestran vacíos al cargar).
 const FORM_EJEMPLO = { ...EMPTY_FORM, edad: 30, estatura: 170, peso: 70, cuello: 38, cintura: 85, cadera: 95 };
 
 // Datos básicos (sin cinta métrica): con esto ya se calculan las calorías.
@@ -2467,50 +2467,59 @@ function Landing({ onChoose }) {
 /* AUTH SCREENS                                                        */
 /* ------------------------------------------------------------------ */
 
-function FreeCalculator({ onBack }) {
-  const [form, setForm] = useState(FORM_EJEMPLO);
+function FreeCalculator({ onBack, onEmpezar }) {
+  // Vacío (con ejemplos en gris): antes venía lleno y mucha gente veía
+  // resultados que no eran suyos.
+  const [form, setForm] = useState({ ...EMPTY_FORM, actividad: 'Moderado' });
   const [step, setStep] = useState('form');
-  const [gate, setGate] = useState({ telefono: '', red: 'Instagram', codigo: '', nombre: '' });
-  const [gateErr, setGateErr] = useState('');
-  const [checking, setChecking] = useState(false);
+  const [codigo, setCodigo] = useState('');
+  const [verCodigo, setVerCodigo] = useState(false);
+  const [grasaVisible, setGrasaVisible] = useState(false);
+  const [error, setError] = useState('');
+  const [revisando, setRevisando] = useState(false);
 
+  const num = k => Number(form[k]) || 0;
+  const conCinta = num('cuello') >= 15 && num('cintura') > num('cuello') && (form.sexo === 'M' || num('cadera') >= 40);
   const results = useMemo(() => calcAll({
     ...form,
-    edad: Number(form.edad) || 0, estatura: Number(form.estatura) || 1, peso: Number(form.peso) || 0,
-    cuello: Number(form.cuello) || 1, cintura: Number(form.cintura) || 1, cadera: Number(form.cadera) || 1,
+    edad: num('edad'), estatura: num('estatura') || 1, peso: num('peso'),
+    cuello: num('cuello') || 1, cintura: num('cintura') || 1, cadera: num('cadera') || 1,
   }), [form]);
 
-  const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hola, acabo de medir mi composición corporal en la web y quiero saber más sobre Jonah Beast Fuel.')}`;
-
-  async function unlock() {
-    setGateErr('');
-    const tel = gate.telefono.replace(/\D/g, '');
-    if (!gate.nombre.trim()) return setGateErr('Escribe tu nombre.');
-    if (tel.length < 9) return setGateErr('Escribe tu número de celular (9 dígitos).');
-    if (!gate.codigo.trim()) return setGateErr('Ingresa el código que se compartió en el live.');
-    setChecking(true);
-    let valid = '';
-    try {
-      const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
-      valid = data ? data.value : '';
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    if (!valid || gate.codigo.trim().toUpperCase() !== valid.trim().toUpperCase()) {
-      setChecking(false);
-      return setGateErr('El código no es válido. Sígueme en Instagram o TikTok para obtenerlo.');
+  /* Primera parte (calorías, IMC, peso saludable): libre. El % de grasa,
+     masa magra y muscular (lo más valioso): se ve al pedirlo por WhatsApp
+     (él le escribe a Jonah con sus números) o con el código de un live. */
+  async function verResultados() {
+    setError('');
+    if (!(num('edad') >= 14 && num('edad') <= 90)) return setError('Pon tu edad (entre 14 y 90 años).');
+    if (!(num('estatura') >= 120 && num('estatura') <= 230)) return setError('Pon tu estatura en centímetros (ej. 165).');
+    if (!(num('peso') >= 30 && num('peso') <= 300)) return setError('Pon tu peso en kilos (ej. 72).');
+    if (codigo.trim()) {
+      setRevisando(true);
+      let valido = '';
+      try {
+        const { data } = await supabase.from('config').select('value').eq('key', 'access_code').maybeSingle();
+        valido = data ? data.value : '';
+      } catch {}
+      setRevisando(false);
+      if (!valido || codigo.trim().toUpperCase() !== valido.trim().toUpperCase()) {
+        return setError('Ese código no es válido. Puedes dejarlo vacío y ver tus resultados igual.');
+      }
+      setGrasaVisible(true);
+      registrarEventoEmbudo('calculadora_codigo');
     }
-    try {
-      await supabase.from('leads').insert({
-        nombre: gate.nombre.trim(), telefono: tel, red: gate.red,
-        codigo: gate.codigo.trim().toUpperCase(),
-        sexo: form.sexo, edad: Number(form.edad) || null, peso: Number(form.peso) || null,
-        estatura: Number(form.estatura) || null,
-        grasa_pct: Number(results.bf.toFixed(1)), imc: Number(results.bmi.toFixed(1)),
-        tmb: Math.round(results.tmb), tdee: Math.round(results.tdee),
-      });
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    setChecking(false);
+    registrarEventoEmbudo('calculadora_resultados', { detalle: conCinta ? 'con_cinta' : 'sin_cinta' });
     setStep('results');
+    window.scrollTo({ top: 0 });
   }
+
+  const mensajeGrasa = `Hola Jonah 👋 Medí mi composición corporal en la web: ${results.bf.toFixed(1)}% de grasa (${results.bfCat.toLowerCase()}), masa muscular ${results.muscleKg.toFixed(1)} kg, IMC ${results.bmi.toFixed(1)} y gasto de mantenimiento ${Math.round(results.tdee)} kcal al día (peso ${num('peso')} kg). ¿Me ayudas a empezar mi plan?`;
+  const campo = (k, label, extra = {}) => (
+    <Field label={label} helpHref={extra.ayuda}>
+      <input type="number" inputMode="decimal" className={inputCls + ' w-full placeholder:text-zinc-600'} value={form[k]} placeholder={extra.ph}
+        onChange={e => setForm(v => ({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) }))} />
+    </Field>
+  );
 
   return (
     <div className="min-h-screen bg-zinc-950 jb-body">
@@ -2522,104 +2531,88 @@ function FreeCalculator({ onBack }) {
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
         <div className="text-center">
           <h1 className="jb-display text-3xl sm:text-4xl text-zinc-50 mb-2">MIDE TU COMPOSICIÓN CORPORAL</h1>
-          <p className="jb-body text-sm text-zinc-400">Gratis, sin registro. Solo necesitas una cinta métrica y una balanza.</p>
+          <p className="jb-body text-sm text-zinc-400">Gratis, sin registro. Para tu % de grasa necesitas una cinta métrica.</p>
         </div>
 
         {step === 'form' ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Sexo">
-                <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls}>
+                <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls + ' w-full min-w-0'}>
                   <option value="M">Hombre</option>
                   <option value="F">Mujer</option>
                 </select>
               </Field>
-              <Field label="Edad (años)">
-                <input type="number" inputMode="numeric" className={inputCls} value={form.edad}
-                  onChange={e => setForm(v => ({ ...v, edad: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
-              <Field label="Estatura (cm)">
-                <input type="number" inputMode="decimal" className={inputCls} value={form.estatura}
-                  onChange={e => setForm(v => ({ ...v, estatura: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
-              <Field label="Peso (kg)">
-                <input type="number" inputMode="decimal" className={inputCls} value={form.peso}
-                  onChange={e => setForm(v => ({ ...v, peso: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
-              <Field label="Cuello (cm)" helpHref="/guia-cuello.jpg">
-                <input type="number" inputMode="decimal" className={inputCls} value={form.cuello}
-                  onChange={e => setForm(v => ({ ...v, cuello: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
-              <Field label="Cintura (cm)" helpHref="/guia-cintura.jpg">
-                <input type="number" inputMode="decimal" className={inputCls} value={form.cintura}
-                  onChange={e => setForm(v => ({ ...v, cintura: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
-              <Field label="Cadera (cm)" helpHref="/guia-cadera.jpg">
-                <input type="number" inputMode="decimal" className={inputCls} value={form.cadera}
-                  onChange={e => setForm(v => ({ ...v, cadera: e.target.value === '' ? '' : Number(e.target.value) }))} />
-              </Field>
+              {campo('edad', 'Edad (años)', { ph: '30' })}
+              {campo('estatura', 'Estatura (cm)', { ph: '165' })}
+              {campo('peso', 'Peso (kg)', { ph: '72' })}
               <Field label="Actividad física">
-                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls}>
+                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls + ' w-full min-w-0'}>
                   {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
                 </select>
               </Field>
             </div>
-            <button onClick={() => setStep('gate')} className={btnPrimary + ' w-full mt-5 py-3 text-base'}>
-              VER MIS RESULTADOS
-            </button>
-          </div>
-        ) : step === 'gate' ? (
-          <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full mx-auto">
-            <h2 className="jb-display text-xl text-zinc-50 mb-2">🔓 ÚLTIMO PASO</h2>
-            <p className="jb-body text-sm text-zinc-400 mb-5">
-              Ingresa el código que compartimos en los lives y tu celular para desbloquear tus resultados.
-            </p>
-            <div className="flex flex-col gap-4">
-              <Field label="Tu nombre">
-                <input value={gate.nombre} onChange={e => setGate(v => ({ ...v, nombre: e.target.value }))}
-                  className={inputCls} placeholder="Ej. María" />
-              </Field>
-              <Field label="¿Dónde nos sigues?">
-                <select value={gate.red} onChange={e => setGate(v => ({ ...v, red: e.target.value }))} className={inputCls}>
-                  <option value="Instagram">Instagram</option>
-                  <option value="TikTok">TikTok</option>
-                  <option value="Ambos">Ambos</option>
-                </select>
-              </Field>
-              <Field label="Tu celular (WhatsApp)">
-                <input type="tel" inputMode="tel" value={gate.telefono}
-                  onChange={e => setGate(v => ({ ...v, telefono: e.target.value }))}
-                  className={inputCls} placeholder="999 888 777" />
-              </Field>
-              <Field label="Código de acceso">
-                <input value={gate.codigo} onChange={e => setGate(v => ({ ...v, codigo: e.target.value }))}
-                  className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
-              </Field>
-              <p className="jb-body text-[11px] text-zinc-600">
-                Al continuar aceptas que Jonah Beast Fuel guarde estos datos para contactarte. Puedes pedir que los eliminemos cuando quieras.
-              </p>
-              {gateErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{gateErr}</p>}
-              <button onClick={unlock} disabled={checking} className={btnPrimary + ' py-3 text-base'}>
-                {checking ? <Loader2 className="animate-spin" size={18} /> : 'DESBLOQUEAR MIS RESULTADOS'}
-              </button>
-              <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300">
-                ← Volver a mis datos
-              </button>
+            <p className="jb-display text-sm text-zinc-200 mt-5 mb-1">📏 PARA TU % DE GRASA <span className="text-zinc-500 text-xs">· CON CINTA MÉTRICA</span></p>
+            <p className="jb-body text-xs text-zinc-500 mb-3">Opcional. Si no tienes cinta, igual ves tus calorías y tu peso saludable.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {campo('cuello', 'Cuello (cm)', { ph: '38', ayuda: '/guia-cuello.jpg' })}
+              {campo('cintura', 'Cintura (cm)', { ph: '85', ayuda: '/guia-cintura.jpg' })}
+              {campo('cadera', 'Cadera (cm)', { ph: '95', ayuda: '/guia-cadera.jpg' })}
             </div>
+            {verCodigo ? (
+              <div className="mt-4">
+                <Field label="Código del live (opcional)">
+                  <input value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
+                </Field>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setVerCodigo(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline mt-4">
+                ¿Tienes el código de un live?
+              </button>
+            )}
+            {error && <p className="text-amber-400 text-sm jb-body flex items-center gap-1.5 mt-3"><AlertTriangle size={14} />{error}</p>}
+            <button onClick={verResultados} disabled={revisando} className={btnPrimary + ' w-full mt-5 py-3 text-base'}>
+              {revisando ? <Loader2 className="animate-spin" size={18} /> : 'VER MIS RESULTADOS'}
+            </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <StatCard label="% Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
-              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
-              <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
-              <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
-              <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
-              <StatCard label="Agua corporal est." value={results.water.toFixed(1) + ' L'} />
-              <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard label="⚡ Gasto de mantenimiento" value={Math.round(results.tdee)} sub="kcal/día" accent="text-amber-400" />
-              <StatCard label="Peso ideal" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="rango saludable" />
+              <StatCard label="🔥 Metabolismo basal" value={Math.round(results.tmb)} sub="kcal/día en reposo" />
+              <StatCard label="IMC" value={results.bmi.toFixed(1)} sub={results.bmiCat} />
+              <StatCard label="Peso saludable" value={`${results.idealMin.toFixed(0)}-${results.idealMax.toFixed(0)} kg`} sub="para tu estatura" />
             </div>
+
+            {conCinta ? (
+              <div className="relative bg-zinc-900 border border-orange-500/40 rounded-2xl p-5 overflow-hidden">
+                <p className="jb-display text-base text-zinc-50 mb-3">📏 TU COMPOSICIÓN CORPORAL</p>
+                <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 ${grasaVisible ? '' : 'blur-md select-none pointer-events-none'}`} aria-hidden={!grasaVisible}>
+                  <StatCard label="% Grasa corporal" value={results.bf.toFixed(1) + '%'} sub={results.bfCat} />
+                  <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
+                  <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
+                  <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+                </div>
+                {!grasaVisible && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-5 bg-zinc-950/60 text-center">
+                    <p className="jb-display text-lg text-zinc-50">TU % DE GRASA ESTÁ LISTO</p>
+                    <p className="jb-body text-xs text-zinc-300 max-w-xs">Míralo ahora y recíbelo en tu WhatsApp, junto con la ayuda de Jonah para empezar.</p>
+                    <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensajeGrasa)}`} target="_blank" rel="noopener noreferrer"
+                      onClick={() => { setGrasaVisible(true); registrarEventoEmbudo('calculadora_whatsapp'); }}
+                      className={btnPrimary + ' w-full max-w-xs py-3 text-sm'}>
+                      📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP
+                    </a>
+                    <button onClick={onEmpezar} className="jb-body text-xs text-zinc-300 underline">o crea tu cuenta gratis y guárdalo ahí</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+                <p className="jb-display text-base text-zinc-50 mb-1">¿Y TU % DE GRASA?</p>
+                <p className="jb-body text-sm text-zinc-400 mb-3">Con una cinta métrica mides tu cuello, cintura y cadera y te decimos tu % de grasa y tu masa muscular.</p>
+                <button onClick={() => setStep('form')} className={btnGhost + ' py-2 px-4 text-sm'}>📏 Agregar mis medidas</button>
+              </div>
+            )}
 
             <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex gap-2">
               <AlertTriangle className="text-amber-500 shrink-0" size={16} />
@@ -2629,11 +2622,11 @@ function FreeCalculator({ onBack }) {
             <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 text-center">
               <h2 className="jb-display text-xl text-zinc-50 mb-2">¿Y AHORA QUÉ HAGO CON ESTOS NÚMEROS?</h2>
               <p className="jb-body text-sm text-zinc-400 mb-5">
-                Con Jonah Beast Fuel armas tu plan de alimentación con comida peruana, sabes qué comer según lo que te queda del día y sigues tu progreso. Es gratis para siempre, con 7 días de Premium incluidos.
+                Arma tu plan con comida peruana, justo para tu meta: cuánto comer, qué comer y tu avance día a día. Gratis para siempre, con 7 días de Premium incluidos.
               </p>
-              <a href={waUrl} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 text-base'}>
-                <MessageCircle size={18} /> QUIERO PROBARLA GRATIS
-              </a>
+              <button onClick={onEmpezar} className={btnPrimary + ' w-full py-3 text-base'}>
+                TU CAMBIO EMPIEZA AQUÍ
+              </button>
               <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4">
                 ← Cambiar mis datos
               </button>
@@ -5694,7 +5687,11 @@ export default function App() {
       ))}
       {!tokenRef && view === 'reto' && <RetoPage onIrALaApp={() => { window.location.href = '/'; }} />}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
-      {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
+      {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} onEmpezar={() => {
+        registrarEventoEmbudo('clic_cta', { detalle: 'calculadora' });
+        try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+        setView(leerRecorrido() ? 'trial' : 'recorrido');
+      }} />}
       {!tokenRef && view === 'recorrido' && <Recorrido onBack={() => setView('landing')} onListo={() => setView('trial')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
       {!tokenRef && view === 'adminAuth' && (

@@ -3309,7 +3309,7 @@ const MOTIVOS_TROPIEZO = {
 };
 
 function resumirEmbudo(filas) {
-  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set(), recorrido: {}, recorridoPlan: new Set(), recorridoCuenta: new Set(), recorridoWhatsapp: new Set() });
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set(), recorrido: {}, recorridoPlan: new Set(), recorridoCuenta: new Set(), recorridoWhatsapp: new Set(), calc: new Set(), calcWhatsapp: new Set() });
   const total = pasos();
   const porFuente = {};
   // Tropiezos del registro (evento 'error_registro'): motivo -> personas.
@@ -3336,12 +3336,14 @@ function resumirEmbudo(filas) {
       else if (r.evento === 'recorrido_plan') g.recorridoPlan.add(quien);
       else if (r.evento === 'recorrido_cuenta') g.recorridoCuenta.add(quien);
       else if (r.evento === 'recorrido_whatsapp') g.recorridoWhatsapp.add(quien);
+      else if (r.evento === 'calculadora_resultados') g.calc.add(quien);
+      else if (r.evento === 'calculadora_whatsapp') g.calcWhatsapp.add(quien);
       else if (r.evento === 'registro') { g.registros.add(quien); if (r.username) g.usuarios.add(r.username); }
     });
   });
   const numeros = g => ({
     vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios], demos: g.demos.size, demosResultado: g.demosResultado.size,
-    recorrido: Object.fromEntries(Object.entries(g.recorrido).map(([k, v]) => [k, v.size])), recorridoPlan: g.recorridoPlan.size, recorridoCuenta: g.recorridoCuenta.size, recorridoWhatsapp: g.recorridoWhatsapp.size,
+    recorrido: Object.fromEntries(Object.entries(g.recorrido).map(([k, v]) => [k, v.size])), recorridoPlan: g.recorridoPlan.size, recorridoCuenta: g.recorridoCuenta.size, recorridoWhatsapp: g.recorridoWhatsapp.size, calc: g.calc.size, calcWhatsapp: g.calcWhatsapp.size,
   });
   return {
     ...numeros(total),
@@ -3457,6 +3459,12 @@ function EmbudoResumenPanel() {
             📸 Probaron la foto sin cuenta: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demos}</span>
             {' · '}vieron el resultado de su plato: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demosResultado}</span>
           </p>
+          {datos.calc > 0 && (
+            <p className="jb-body text-xs text-zinc-400">
+              📏 Calculadora sin registro: vieron sus resultados <span className="text-zinc-100 font-semibold tabular-nums">{datos.calc}</span>
+              {' · '}pidieron su % de grasa por WhatsApp <span className="text-zinc-100 font-semibold tabular-nums">{datos.calcWhatsapp}</span>
+            </p>
+          )}
           {/* "Tu cambio empieza aquí": objetivo, datos y su plan antes de crear la cuenta. */}
           {Object.keys(datos.recorrido || {}).length > 0 && (
             <p className="jb-body text-xs text-zinc-400">

@@ -17,7 +17,7 @@
 - **Nunca compartas información sensible:**
   - Datos de otras personas (otros alumnos, embajadores, comisiones, cifras del negocio).
   - Datos de pago (números de Yape/Plin, cuentas bancarias): indica que están en la app, en el ícono de tarjeta **"Mi plan"**, al elegir un plan.
-  - El código de acceso de la calculadora (se da solo en los lives de Instagram o TikTok).
+  - El código de acceso de la calculadora (se da solo en los lives de Instagram o TikTok; es opcional: sin él igual ve sus resultados).
   - Contraseñas, códigos de verificación o enlaces para cambiar la contraseña: indica el paso de "¿Olvidaste tu contraseña?".
   - Datos del propio alumno solo si el mensaje viene de **su número registrado**; si no coincide, no des datos de la cuenta y pasa el chat a Jonah.
 - **Pasa el chat a Jonah** (y quédate en silencio hasta que te lo devuelva) cuando: haya pagos por aprobar o rechazados, pidan descuentos, haya temas médicos, reclamos o reembolsos, no sepas la respuesta, o el cliente pida hablar con una persona.
@@ -61,16 +61,16 @@
 
 ### 2.1 Calculadora gratis ("MIDE TU COMPOSICIÓN CORPORAL")
 
-Sirve para medirse sin crear cuenta. Necesitas cinta métrica y balanza.
+Sirve para medirse sin crear cuenta y **sin código**. Para el % de grasa hace falta una cinta métrica.
 
-1. Llena "Sexo", "Edad (años)", "Estatura (cm)", "Peso (kg)", "Cuello (cm)", "Cintura (cm)", "Cadera (cm)" y "Actividad física". Los campos traen un ejemplo: **cámbialo por tus datos**. "¿Cómo medir?" muestra una imagen guía.
-2. Toca **"VER MIS RESULTADOS"**.
-3. En **"🔓 ÚLTIMO PASO"** escribe "Tu nombre", "¿Dónde nos sigues?", "Tu celular (WhatsApp)" y el **"Código de acceso"**. Toca **"DESBLOQUEAR MIS RESULTADOS"**.
-   - **El código de acceso se comparte en los lives de Instagram o TikTok de Jonah.** No importa si lo escribes en mayúsculas o minúsculas.
-4. Verás % de grasa, IMC, masa grasa, masa magra, masa muscular, agua corporal, metabolismo basal, gasto de mantenimiento y peso ideal. Son estimaciones, no un diagnóstico médico.
-5. **"QUIERO PROBARLA GRATIS"** abre WhatsApp con un mensaje listo.
+1. Llena "Sexo", "Edad (años)", "Estatura (cm)", "Peso (kg)" y "Actividad física". Los campos vienen vacíos, con un ejemplo en gris.
+2. (Opcional) En **"📏 PARA TU % DE GRASA · CON CINTA MÉTRICA"**: "Cuello (cm)", "Cintura (cm)" y "Cadera (cm)". "¿Cómo medir?" muestra una imagen guía. Sin cinta igual ve sus calorías y su peso saludable.
+3. (Opcional) **"¿Tienes el código de un live?"** → "Código del live (opcional)". Si es válido, ve su % de grasa directo. **El código se comparte en los lives de Instagram o TikTok de Jonah** (no importan mayúsculas).
+4. Toca **"VER MIS RESULTADOS"**. Sale **libre**: "⚡ Gasto de mantenimiento" (kcal/día), "🔥 Metabolismo basal", "IMC" y "Peso saludable" para su estatura.
+5. Si puso sus medidas, **"📏 TU COMPOSICIÓN CORPORAL"** (% de grasa, masa grasa, masa magra y masa muscular) sale borrosa con **"TU % DE GRASA ESTÁ LISTO"** y el botón **"📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP"**: al tocarlo se muestran sus resultados y se abre WhatsApp con un mensaje para Jonah con sus números ("Hola Jonah 👋 Medí mi composición corporal en la web: …% de grasa…"); el asistente le responde. También puede tocar "o crea tu cuenta gratis y guárdalo ahí". Si no puso medidas sale "¿Y TU % DE GRASA?" con "📏 Agregar mis medidas".
+6. Abajo, **"TU CAMBIO EMPIEZA AQUÍ"** lleva al recorrido para armar su plan (sección 3). Son estimaciones, no un diagnóstico médico.
 
-Errores: "Escribe tu nombre." · "Escribe tu número de celular (9 dígitos)." · "Ingresa el código que se compartió en el live." · "El código no es válido. Sígueme en Instagram o TikTok para obtenerlo."
+Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetros (ej. 165)." · "Pon tu peso en kilos (ej. 72)." · "Ese código no es válido. Puedes dejarlo vacío y ver tus resultados igual."
 
 ---
 

@@ -1,6 +1,6 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import {
@@ -589,7 +589,19 @@ function interpretarVarios(textoCompleto) {
   }).filter(Boolean);
 }
 
-function ModoVoz({ onElegirVarios }) {
+// Registrar por voz es Premium: en la versión gratis sale el aviso.
+function ModoVoz(props) {
+  const { premium } = usePremium();
+  if (!premium) {
+    return (
+      <BloqueoPremium compacto titulo="Registrar por voz es Premium"
+        texto="Dile a Jonah lo que comiste y se anota solo. En la versión gratis puedes escribirlo, usar el código de barras o tus favoritos." />
+    );
+  }
+  return <ModoVozActivo {...props} />;
+}
+
+function ModoVozActivo({ onElegirVarios }) {
   const [escuchando, setEscuchando] = useState(false);
   const [texto, setTexto] = useState('');
   const [items, setItems] = useState([]); // { textoOriginal, cantidad, food, activo }
@@ -792,7 +804,8 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 // su selector de comida, porque la comida ya se eligió en la hoja).
 function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
   const [open, setOpen] = useState(embebido);
-  const [modo, setModo] = useState('voz');
+  const { premium } = usePremium();
+  const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
   const [mealDestinoPropio, setMealDestino] = useState(MEAL_NAMES[0]);
   const mealDestino = embebido && mealFijo ? mealFijo : mealDestinoPropio;
   const favoritos = useComidasFrecuentes(username);
@@ -904,8 +917,37 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
   );
 }
 
+/* "¿Qué puedo comer?" en la versión gratis: 3 veces por semana (el
+   servidor lleva la cuenta). Abrirlo varias veces el mismo día cuenta una
+   sola vez. Si no hay internet o el servidor falla, se deja usar. */
+async function usarSugerenciaGratis(username) {
+  const clave = `jb-sugerencia-${username}-${todayISO()}`;
+  try { if (localStorage.getItem(clave)) return { ok: true, yaContada: true }; } catch {}
+  try {
+    const { data, error } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'sugerencia_usar' } });
+    if (error || !data) return { ok: true };
+    if (data.premium) return { ok: true, premium: true };
+    if (data.error === 'limite_alcanzado') return { ok: false, limite: data.limite };
+    try { localStorage.setItem(clave, '1'); } catch {}
+    return { ok: true, quedan: Math.max(0, (data.limite || 3) - (Number(data.usadas) || 0)), limite: data.limite };
+  } catch { return { ok: true }; }
+}
+
 function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   const [open, setOpen] = useState(false);
+  const { premium } = usePremium();
+  const [cupoSug, setCupoSug] = useState(null); // { ok, quedan?, limite? } en la versión gratis
+  const [revisando, setRevisando] = useState(false);
+
+  async function alternar() {
+    if (open) { setOpen(false); return; }
+    if (premium) { setOpen(true); return; }
+    setRevisando(true);
+    const r = await usarSugerenciaGratis(username);
+    setRevisando(false);
+    setCupoSug(r);
+    setOpen(r.ok);
+  }
   const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
   const [added, setAdded] = useState(null);
   const [itemOverrides, setItemOverrides] = useState({}); // `${optId}::${idx}` -> { food, grams }
@@ -996,9 +1038,20 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
 
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
-      <button onClick={() => setOpen(v => !v)} className={btnPrimary + ' w-full text-base py-3'}>
-        🦍 Pregúntale a Jonah qué puedes comer
+      <button onClick={alternar} disabled={revisando} className={btnPrimary + ' w-full text-base py-3'}>
+        {revisando ? <Loader2 size={16} className="animate-spin" /> : '🦍 Pregúntale a Jonah qué puedes comer'}
       </button>
+      {!premium && cupoSug && !cupoSug.ok && (
+        <div className="mt-4">
+          <BloqueoPremium compacto titulo="Ya usaste tus 3 sugerencias gratis de esta semana"
+            texto="Que Jonah te diga qué comer todos los días es Premium. El lunes tienes 3 más." />
+        </div>
+      )}
+      {open && !premium && cupoSug && typeof cupoSug.quedan === 'number' && (
+        <p className="jb-body text-[11px] text-zinc-500 text-center mt-2">
+          Versión gratis: te {cupoSug.quedan === 1 ? 'queda' : 'quedan'} {cupoSug.quedan} de {cupoSug.limite || 3} esta semana (se renuevan cada lunes).
+        </p>
+      )}
       {open && (
         <div className="mt-4 flex flex-col gap-4">
           {remaining.kcal <= 0 ? (
@@ -1747,6 +1800,11 @@ function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, ini
 
 function CalculatorTab({ form, setForm, results, onSiguiente }) {
   const [cintaAbierta, setCintaAbierta] = useState(!!results.cinta);
+  const { premium } = usePremium();
+  // Versión gratis: el % de grasa se mide una vez. Si ya tenía sus medidas
+  // guardadas al abrir la pantalla, volver a medirse es Premium.
+  const [yaMedido] = useState(!!results.cinta);
+  const medidasBloqueadas = !premium && yaMedido;
   const fijar = (k) => (v) => setForm(f => ({ ...f, [k]: v }));
   const faltan = [['edad', 'edad'], ['estatura', 'estatura'], ['peso', 'peso']]
     .filter(([k]) => !(Number(form[k]) > 0)).map(([, n]) => n);
@@ -1841,7 +1899,16 @@ function CalculatorTab({ form, setForm, results, onSiguiente }) {
           </div>
           <ChevronRight size={18} className={`text-zinc-500 shrink-0 transition-transform ${cintaAbierta ? 'rotate-90' : ''}`} />
         </button>
-        {cintaAbierta && (
+        {cintaAbierta && medidasBloqueadas && (
+          <div className="mt-4">
+            <p className="jb-body text-xs text-zinc-400 mb-3 tabular-nums">
+              Tus medidas: cuello {form.cuello} cm · cintura {form.cintura} cm · cadera {form.cadera} cm.
+            </p>
+            <BloqueoPremium compacto titulo="Volver a medirte es Premium"
+              texto="En la versión gratis mides tu % de grasa una vez. Con Premium lo actualizas cuando quieras y ves tu historial y tu masa muscular." />
+          </div>
+        )}
+        {cintaAbierta && !medidasBloqueadas && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
             <CampoNumero label="Cuello" valor={form.cuello} onCambio={fijar('cuello')} paso={0.5} min={20} max={70} inicial={esMujer ? 33 : 38} unidad="centímetros" placeholder={esMujer ? '33' : '38'} ayuda="/guia-cuello.jpg" />
             <CampoNumero label="Cintura" valor={form.cintura} onCambio={fijar('cintura')} paso={0.5} min={40} max={200} inicial={esMujer ? 78 : 88} unidad="centímetros" placeholder={esMujer ? '78' : '88'} ayuda="/guia-cintura.jpg" />
@@ -1858,7 +1925,7 @@ function CalculatorTab({ form, setForm, results, onSiguiente }) {
               <>
                 <StatCard label="Masa grasa" value={results.fatKg.toFixed(1) + ' kg'} />
                 <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
-                <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
+                <StatCard label="Masa muscular est." value={premium ? results.muscleKg.toFixed(1) + ' kg' : '👑 Premium'} />
                 {Number(form.cadera) >= 40 && (
                   <StatCard label="Relación cintura-cadera" value={results.iccVal.toFixed(2)} sub={results.iccCat} />
                 )}
@@ -1884,6 +1951,31 @@ function esVersionGratis(u) {
   if (!u || !u.enabled) return false;
   const dl = daysLeft(u.fechaVencimiento);
   return dl !== null && dl < 0;
+}
+
+/* Premium o gratis, para cualquier pantalla de la app del alumno sin tener
+   que pasar la ficha de pantalla en pantalla. Sin proveedor (por ejemplo,
+   el panel del admin que muestra la vista de un alumno) todo queda abierto. */
+const PremiumCtx = createContext({ premium: true, onVerPremium: null });
+function usePremium() { return useContext(PremiumCtx); }
+
+/* Tarjeta "Esto es Premium" que reemplaza una función bloqueada. */
+function BloqueoPremium({ titulo, texto, compacto = false, children }) {
+  const { onVerPremium } = usePremium();
+  return (
+    <div className={`rounded-2xl border border-orange-500/40 bg-zinc-900 text-center ${compacto ? 'p-4' : 'p-5'}`}>
+      <div className="jb-display text-[11px] tracking-wider text-orange-400 mb-1">👑 PREMIUM</div>
+      <p className="jb-display text-base text-zinc-50 mb-1">{titulo}</p>
+      {texto && <p className="jb-body text-sm text-zinc-400 mb-3">{texto}</p>}
+      {onVerPremium && (
+        <button onClick={onVerPremium}
+          className="jb-display w-full rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 py-2.5 text-sm tracking-wide">
+          VER PREMIUM
+        </button>
+      )}
+      {children}
+    </div>
+  );
 }
 
 function GratisBanner({ onVerPremium }) {
@@ -4072,7 +4164,10 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
   const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [rango, setRango] = useState(30);
+  const { premium } = usePremium();
+  // Gratis: tendencias de 7 días. De 30 días a 1 año es Premium.
+  const [rango, setRango] = useState(premium ? 30 : 7);
+  const [pidioRango, setPidioRango] = useState(null);
 
   useEffect(() => { load(); }, [username]);
 
@@ -4156,7 +4251,10 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
     return (
       <div className="flex flex-col gap-6 min-w-0">
         {subNav}
-        <PhotosTab username={username} pesoActual={form?.peso} />
+        {premium ? <PhotosTab username={username} pesoActual={form?.peso} /> : (
+          <BloqueoPremium titulo="Tus fotos de progreso son Premium"
+            texto="Guarda tus fotos de frente, perfil y espalda cada 2 semanas y compáralas lado a lado para ver el cambio real." />
+        )}
       </div>
     );
   }
@@ -4258,12 +4356,17 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
 
       <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {[7, 30, 90, 180, 365].map(d => (
-          <button key={d} onClick={() => setRango(d)}
+          <button key={d} onClick={() => { if (!premium && d !== 7) { setPidioRango(d); return; } setPidioRango(null); setRango(d); }}
             className={`jb-body text-xs px-3 py-1.5 rounded-full shrink-0 transition-colors ${rango === d ? 'bg-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>
             {d === 7 ? '7 días' : d === 30 ? '30 días' : d === 90 ? '3 meses' : d === 180 ? '6 meses' : '1 año'}
+            {!premium && d !== 7 && ' 👑'}
           </button>
         ))}
       </div>
+      {pidioRango && (
+        <BloqueoPremium compacto titulo="Tus tendencias de 30 días a 1 año son Premium"
+          texto="En la versión gratis ves tus últimos 7 días. Con Premium ves cómo cambió tu peso y tus calorías mes a mes." />
+      )}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2">
@@ -4273,9 +4376,15 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
         <GraficoPeso puntos={puntosPeso} meta={pesoObjetivo} />
       </div>
 
-      <CalendarioConstancia rows={rows} />
-
-      {analisis && <CoachCard analisis={analisis} />}
+      {premium ? (
+        <>
+          <CalendarioConstancia rows={rows} />
+          {analisis && <CoachCard analisis={analisis} />}
+        </>
+      ) : (
+        <BloqueoPremium compacto titulo="Tu constancia del mes y tu coach son Premium"
+          texto="Mira qué días cumpliste en el mes y recibe el análisis de tu avance con consejos para tu semana." />
+      )}
 
       <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
 
@@ -4286,10 +4395,14 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
           ['kcal_consumidas', 'CALORÍAS DIARIAS', ''],
         ].map(([campo, titulo, sufijo]) => {
           const pts = serie(campo);
+          // El historial de % de grasa y la masa muscular son Premium.
+          const bloqueado = !premium && campo !== 'kcal_consumidas';
           return (
             <div key={campo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <h3 className="jb-display text-xs text-zinc-400 mb-2">{titulo}</h3>
-              {pts.length < 2 ? (
+              {bloqueado ? (
+                <p className="jb-body text-xs text-zinc-500 py-6 text-center">👑 Tu historial de {campo === 'grasa_pct' ? '% de grasa' : 'masa muscular'} es <span className="text-orange-400 font-semibold">Premium</span>.</p>
+              ) : pts.length < 2 ? (
                 <p className="jb-body text-xs text-zinc-600 py-6 text-center">Necesitas al menos 2 días de registro.</p>
               ) : (
                 <MiniChart points={pts} color="#E8590C" suffix={sufijo} />
@@ -5070,7 +5183,8 @@ function PedidosResueltosCard({ username }) {
 function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
-  const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error', nombre, error? }
+  const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error' | 'premium', nombre, error? }
+  const { premium, onVerPremium } = usePremium();
 
   /* "Pedirle a Jonah que lo agregue": el pedido llega a "Pedidos de
      alimentos" del panel y, cuando Jonah lo aprueba, le avisamos al alumno. */
@@ -5078,6 +5192,9 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
     const nombre = texto.trim().slice(0, 80);
     if (nombre.length < 2) return;
     setAbierto(false);
+    // Pedirle alimentos a Jonah es Premium: el gratis ve el aviso y puede
+    // crear su propio alimento.
+    if (!premium) { setPedido({ estado: 'premium', nombre }); return; }
     setPedido({ estado: 'enviando', nombre });
     const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
     setPedido(error
@@ -5116,7 +5233,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
                   className={btnPrimary + ' w-full py-2 text-xs flex flex-col items-center leading-tight'}>
                   <span>🙋 Pedirle a Jonah que lo agregue</span>
-                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">Él calcula los macros y te avisamos cuando esté</span>
+                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">{premium ? 'Él calcula los macros y te avisamos cuando esté' : '👑 Solo Premium'}</span>
                 </button>
               )}
               <button type="button" onMouseDown={e => e.preventDefault()}
@@ -5151,7 +5268,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
               {permitirPedido && texto.trim().length >= 2 && (
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
                   className="w-full text-left px-3 py-2 text-orange-400 jb-body text-xs font-semibold hover:bg-zinc-800 border-t border-zinc-800">
-                  🙋 ¿No es ninguno? Pídele a Jonah que agregue "{texto.trim().slice(0, 40)}"
+                  🙋 ¿No es ninguno? Pídele a Jonah que agregue "{texto.trim().slice(0, 40)}"{premium ? '' : ' · 👑 Premium'}
                 </button>
               )}
             </>
@@ -5168,6 +5285,11 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
           {pedido.estado === 'enviando' && 'Enviando tu pedido…'}
           {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Jonah va a calcular los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
           {pedido.estado === 'error' && pedido.error}
+          {pedido.estado === 'premium' && <>
+            👑 Pedirle alimentos a Jonah es <b className="text-orange-400">Premium</b>. En la versión gratis puedes crear tu propio alimento con sus calorías.
+            {onVerPremium && <button type="button" onClick={onVerPremium} className="block mt-1.5 text-orange-400 font-semibold underline">Ver Premium</button>}
+            <button type="button" onClick={() => { setPedido(null); onNoEncuentra(pedido.nombre); }} className="block mt-1 text-zinc-300 underline">+ Crear mi alimento</button>
+          </>}
         </p>
       )}
     </div>
@@ -5619,6 +5741,7 @@ function MarcoEscaner({ src, children, alto = 'max-h-56' }) {
    porque la estimación de porción sigue siendo suya, con medidas de
    casa, igual que el resto de la app. */
 function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
+  const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
   const [previewUrl, setPreviewUrl] = useState(null);
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
@@ -6096,7 +6219,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
             {noEncontrados.length > 0 && (
               <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5">
                 <p className="jb-body text-xs text-zinc-300">
-                  También vimos <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, que aún no está en la app. Ya le avisamos a Jonah para agregarlo 🙌
+                  También vimos <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, que aún no está en la app.{premium ? ' Ya le avisamos a Jonah para agregarlo 🙌' : ' Puedes crearlo tú con sus calorías.'}
                 </p>
               </div>
             )}
@@ -6111,7 +6234,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                 <p className="jb-body text-sm text-zinc-300 mb-1">
                   Parece <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, y aún no está en la app.
                 </p>
-                <p className="jb-body text-sm text-zinc-400 mb-4">Ya le avisamos a Jonah para agregarlo 🙌 Mientras tanto, búscalo escribiendo o elige algo parecido.</p>
+                <p className="jb-body text-sm text-zinc-400 mb-4">{premium ? 'Ya le avisamos a Jonah para agregarlo 🙌 Mientras tanto, búscalo escribiendo o elige algo parecido.' : 'Búscalo escribiendo, elige algo parecido o créalo tú con sus calorías.'}</p>
                 <button onClick={onCerrar} className={btnPrimary + ' w-full py-2.5 mb-2'}>Buscarlo escribiendo</button>
               </>
             ) : (
@@ -6328,6 +6451,7 @@ async function llamarProductos(body) {
 }
 
 function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
+  const { premium } = usePremium();
   const [estado, setEstado] = useState('camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
   const [tardando, setTardando] = useState(false); // la cámara lleva un rato sin leer: se muestran consejos
@@ -6479,6 +6603,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
       });
       const r = await llamarProductos({ accion: 'leer_etiqueta', codigo, imagenBase64: base64, mimeType: 'image/jpeg' });
       if (r.error === 'limite_alcanzado') { setEstado('limite'); return; }
+      if (r.error === 'premium') { setMensaje('Leer la tabla nutricional con foto es Premium.'); setEstado('no_encontrado'); return; }
       if (r.error || !r.producto) { setMensaje(r.error || 'No pudimos leer la etiqueta.'); setEstado('no_encontrado'); return; }
       setProducto(r.producto);
       setNombreNuevo(r.producto.nombre || '');
@@ -6654,11 +6779,18 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             {mensaje
               ? <p className="jb-body text-sm text-amber-400 mb-2">{mensaje}</p>
               : <p className="jb-body text-sm text-zinc-200 mb-2">Este producto todavía no está registrado.</p>}
-            <p className="jb-body text-sm text-zinc-400 mb-4">
-              <span className="text-zinc-100 font-semibold">Sé el primero en agregarlo:</span> tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y queda guardado para ti y para todos los alumnos.
-            </p>
-            {botonFotoEtiqueta}
-            <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta no usa tus fotos de comida.</p>
+            {premium ? (
+              <>
+                <p className="jb-body text-sm text-zinc-400 mb-4">
+                  <span className="text-zinc-100 font-semibold">Sé el primero en agregarlo:</span> tómale una foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span> del empaque (de cerca y con buena luz). La leemos y queda guardado para ti y para todos los alumnos.
+                </p>
+                {botonFotoEtiqueta}
+                <p className="jb-body text-[11px] text-zinc-600 text-center mt-2">Leer la etiqueta no usa tus fotos de comida.</p>
+              </>
+            ) : (
+              <BloqueoPremium compacto titulo="Leer la etiqueta con foto es Premium"
+                texto="Con Premium le tomas foto a la tabla nutricional y el producto queda guardado. Gratis puedes buscarlo por su nombre o crearlo tú." />
+            )}
             <button onClick={onEscribir} className={btnGhost + ' w-full py-2.5 text-sm mt-3'}>Mejor lo busco por su nombre</button>
             {codigo && (
               <button type="button" onClick={() => { setMensaje(''); setEstado('camara'); }} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Escanear de nuevo</button>
@@ -6718,6 +6850,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
 // más los atajos (repetir ayer, mis comidas, frecuentes).
 function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
+  const { premium } = usePremium();
   const ahora = comidaDeAhora();
 
   useEffect(() => {
@@ -6729,7 +6862,7 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
   const opciones = [
     { id: 'foto', icono: <Camera size={22} />, titulo: 'Foto', sub: 'La IA lo reconoce', accion: () => onFoto(meal) },
     { id: 'codigo', icono: <ScanBarcode size={22} />, titulo: 'Código', sub: 'Productos empacados', accion: () => onCodigo(meal) },
-    { id: 'voz', icono: <Mic size={22} />, titulo: 'Voz', sub: 'Dile a Jonah', accion: () => setModo(m => m === 'voz' ? null : 'voz') },
+    { id: 'voz', icono: <Mic size={22} />, titulo: 'Voz', sub: premium ? 'Dile a Jonah' : '👑 Premium', accion: () => setModo(m => m === 'voz' ? null : 'voz') },
     { id: 'escribir', icono: <span className="jb-display text-lg leading-none">Aa</span>, titulo: 'Escribir', sub: 'Busca el alimento', accion: () => onEscribir(meal) },
   ];
 
@@ -6773,7 +6906,10 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
           })}
         </div>
 
-        {modo === 'voz' && (
+        {modo === 'voz' && !premium && (
+          <div className="mb-4"><ModoVoz /></div>
+        )}
+        {modo === 'voz' && premium && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
               restricciones={mealPlan.restricciones || []} embebido meal={meal} />
@@ -6949,6 +7085,9 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
 // "Mi cuerpo → Objetivo"; en Comidas solo queda el aviso si no coincide.
 function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
   const [abierto, setAbierto] = useState(false);
+  // Escribir las calorías y macros a mano es Premium. La meta calculada
+  // según su objetivo es gratis.
+  const { premium } = usePremium();
   const macroSum = mealPlan.macros.p + mealPlan.macros.c + mealPlan.macros.f;
   const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
 
@@ -6971,7 +7110,19 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
         </div>
         <ChevronRight className={`text-zinc-500 shrink-0 transition-transform ${abierto ? 'rotate-90' : ''}`} size={18} />
       </button>
-      {abierto && (
+      {abierto && !premium && (
+        <div className="mt-4">
+          <BloqueoPremium compacto titulo="Ajustar tu meta a mano es Premium"
+            texto="Tu meta ya está calculada según tu cuerpo y tu objetivo. Con Premium puedes escribir tus propias calorías y macros.">
+            {goalMismatch && (
+              <button onClick={applyGoal} className="jb-body w-full mt-2 rounded-xl border border-zinc-700 text-zinc-200 py-2 text-sm">
+                Usar mi objetivo ({Math.round(targets.kcal)} kcal)
+              </button>
+            )}
+          </BloqueoPremium>
+        </div>
+      )}
+      {abierto && premium && (
         <div className="mt-4">
           {goalMismatch && (
             <div className="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3 flex items-center gap-2 mb-4">
@@ -7904,6 +8055,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // Prioridad de banners: solo se muestra el más relevante a la vez,
   // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
   const versionGratis = esVersionGratis(userRecord);
+  const premiumCtx = useMemo(() => ({
+    premium: !versionGratis,
+    onVerPremium: () => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); },
+  }), [versionGratis]);
   const renewalElegible = !!(userRecord && userRecord.plan !== 'trial' && !versionGratis
     && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
   const trialElegible = !!trialDayOf(userRecord);
@@ -7997,6 +8152,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }, [firmaObjetivo]);
 
   return (
+    <PremiumCtx.Provider value={premiumCtx}>
     <div className="min-h-screen bg-zinc-950 jb-body overflow-x-hidden supports-[overflow:clip]:overflow-x-clip"
       onTouchStart={onPullStart} onTouchMove={onPullMove} onTouchEnd={onPullEnd}>
       <style>{`
@@ -8147,6 +8303,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         ))}
       </nav>
     </div>
+    </PremiumCtx.Provider>
   );
 }
 

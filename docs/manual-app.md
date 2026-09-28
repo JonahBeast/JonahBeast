@@ -242,7 +242,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
    - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar producto"**. Si cierras la ventana con el nombre puesto, el producto se guarda igual.
    - Si los números no coinciden con la etiqueta, toca **"Los números no coinciden: otra foto"**.
    - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
-- Escanear el código **no gasta fotos**. **Leer la tabla nutricional tampoco usa las fotos de comida**: tiene su propio límite de 5 etiquetas por día. Si ya leíste 5 hoy, busca el producto escribiendo.
+- Escanear el código **no gasta fotos** y es gratis. **Leer la tabla nutricional tampoco usa las fotos de comida**: tiene su propio límite de 5 etiquetas por día. Si ya leíste 5 hoy, busca el producto escribiendo.
+- **Leer la tabla nutricional con foto es Premium.** En la versión gratis, cuando el producto no está registrado, sale **"Leer la etiqueta con foto es Premium"**: puede buscarlo por su nombre ("Mejor lo busco por su nombre") o crearlo él mismo (8.4).
 - Los productos escaneados también aparecen al buscar con "Escribir" (grupo 📦 Productos).
 - Si no aparece o no quieres tomar la foto: **"Mejor lo busco por su nombre"**.
 
@@ -252,6 +253,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 3. Revisa la lista (✅ se agrega, ⬜ no). Si algo no quedó claro, elige la opción correcta.
 4. Toca **"Agregar N alimento(s)"**.
 - Funciona mejor en **Chrome de Android**. Si sale "Tu navegador no soporta el registro por voz todavía…", usar "Escribir" o "Foto".
+- **Es Premium.** En la versión gratis, el botón "Voz" dice "👑 Premium" y al tocarlo sale **"Registrar por voz es Premium"** con **"VER PREMIUM"**. Los atajos de abajo (repetir ayer, mis comidas, frecuentes) sí son gratis.
 
 **D) Favoritos:** dentro de "Voz", pestaña **"⭐ Favoritos"**: tus 9 alimentos más registrados; un toque y se agregan.
 
@@ -267,6 +269,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Elige la comida en "¿Para qué comida?".
 3. Mira las combinaciones sugeridas. **"🎲 SORPRESA DEL DÍA"** te da otra idea. **🔄** cambia un ingrediente por uno equivalente.
 4. Toca **"Agregar a mi día"**.
+- **Versión gratis: 3 veces por semana** (se renuevan cada lunes; abrirlo varias veces el mismo día cuenta una sola vez). Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.
 
 **G) Restaurantes aliados**
 1. Toca **"RESTAURANTES ALIADOS"** (hoy: **PECAFIT**).
@@ -291,6 +294,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.5 Si no encuentras un plato
 
 - Prueba con otra palabra, elige algo parecido o créalo (8.4).
+- **Pedirle alimentos a Jonah es Premium** (desde la app, desde la foto o por WhatsApp). En la versión gratis el botón dice "👑 Solo Premium" y al tocarlo sale "👑 Pedirle alimentos a Jonah es Premium. En la versión gratis puedes crear tu propio alimento con sus calorías.", con "Ver Premium" y "+ Crear mi alimento". Si la foto ve un plato que no está, en la versión gratis dice "Puedes crearlo tú con sus calorías." en vez de "Ya le avisamos a Jonah".
 - **Pídelo desde la app:** al tocar **"Escribir"**, debajo del buscador vacío sale "¿No encuentras tu plato? Escríbelo y toca 🙋 Pedirle a Jonah: lo agregamos y te avisamos."
   - Si lo que escribiste no aparece, el primer botón (naranja) es **"🙋 Pedirle a Jonah que lo agregue"** ("Él calcula los macros y te avisamos cuando esté"). Debajo está **"+ Crear mi alimento"** por si prefieres poner tú los números (8.4).
   - Si aparecen resultados pero ninguno es, al final de la lista sale en naranja **"🙋 ¿No es ninguno? Pídele a Jonah que agregue "[lo que escribiste]""**.
@@ -360,6 +364,7 @@ Arriba hay dos botones: **"Mis datos"** y **"Objetivo"**.
 3. Elige "Actividad física": Sedentario (poco o nada) · Ligero (1–2 días/semana) · Moderado (3–5) · Intenso (6–7) · Muy intenso (7 días + trabajo activo).
 4. Toca **"Guardar y elegir mi objetivo"** (o "Listo · Registrar mis comidas").
 - (Opcional) **"📏 TU % DE GRASA · OPCIONAL"**: cuello, cintura y cadera en cm para calcular % de grasa, masa magra y muscular.
+  - **Versión gratis:** se mide **una vez**. Si ya tiene sus medidas guardadas, ve "Tus medidas: …" y "Volver a medirte es Premium". La masa muscular muestra "👑 Premium".
 - **Para actualizar tu peso** se usa este mismo campo "Peso"; el historial se guarda solo.
 
 Errores: "Completa tu edad, estatura y peso para seguir." · "Revisa que tu estatura esté en centímetros (ej. 165)."
@@ -377,6 +382,7 @@ Errores: "Completa tu edad, estatura y peso para seguir." · "Revisa que tu esta
 
 - Al elegir o cambiar el objetivo, o al actualizar tus datos (peso, edad…), la meta de calorías y macros de "Comidas" **se actualiza sola**.
 - **Ajuste manual:** en "Mi cuerpo" → "Objetivo" → **"AJUSTE FINO DE CALORÍAS Y MACROS"** se pueden escribir calorías y porcentajes a mano (deben sumar 100%). Si lo haces, la app respeta tus valores hasta que cambies de objetivo.
+  - **Es Premium.** En la versión gratis sale "Ajustar tu meta a mano es Premium" (la meta calculada según su objetivo sí es gratis). Si tenía una meta a mano de antes, puede tocar "Usar mi objetivo" para volver a la calculada.
 - Si aparece el aviso amarillo "Tu meta de comidas (X kcal) no coincide con tu objetivo (Y kcal)." (pasa si la ajustaste a mano), toca **"Usar mi objetivo"** para volver a la meta calculada.
 
 ---
@@ -389,6 +395,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 
 - "Tu peso hoy", cambio en el periodo, meta y cuánto falta.
 - Periodo: "7 días", "30 días", "3 meses", "6 meses", "1 año".
+- **Versión gratis:** ve sus tendencias de **7 días**. Los demás periodos tienen 👑 y al tocarlos sale "Tus tendencias de 30 días a 1 año son Premium". También son Premium la constancia, el coach y los gráficos de % de grasa y masa muscular (sale "Tu constancia del mes y tu coach son Premium" y "Tu historial de … es Premium"). El gráfico de calorías diarias y compartir su progreso siguen gratis.
 - **"TU PESO":** gráfico (necesita al menos 2 pesos en días distintos).
 - **"TU CONSTANCIA · 4 SEMANAS":** calendario con ✓ en los días registrados.
 - **Coach automático:** analiza tu avance y te dice "Qué hacer ahora". Si dice "ESTAMOS CONOCIENDO TU CUERPO", necesita unos 10 días de registros y al menos 4 pesos.
@@ -396,6 +403,8 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 - **"MI OBJETIVO DE PESO":** escribe "Peso inicial (kg)" y "Peso objetivo (kg)"; se guarda solo.
 
 ### 11.2 Fotos de progreso
+
+- **Son Premium.** En la versión gratis, "Fotos" muestra "Tus fotos de progreso son Premium" con "VER PREMIUM".
 
 1. "Progreso" → **"Fotos"**.
 2. En "📸 FOTOS DE HOY" toca "De frente", "De perfil", "De espalda" y "Libre".
@@ -512,7 +521,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 
 - **Faltando 7 días o menos:** aviso "TU PLAN VENCE EN N DÍAS" con "Renovar mi plan" y "Consultar".
 - **Al vencer, la cuenta no se bloquea: pasa a la versión gratis.** Puede seguir usando la app gratis: registrar sus comidas escribiendo, su meta de calorías, su peso y **3 fotos inteligentes por semana**.
-- **La primera vez que entra después de vencer** ve "TU PRUEBA GRATIS TERMINÓ" o "TU PLAN VENCIÓ". Esa pantalla trae el texto de la versión gratis, dos botones (**"QUIERO PREMIUM"**, que baja a los planes, y **"Seguir con la versión gratis"**, que entra a la app) y un resumen de lo logrado. Después de tocar "Seguir con la versión gratis" entra directo a la app. Los planes siguen en "Inicio" ("VER PREMIUM") y en la pestaña de planes. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
+- **La primera vez que entra después de vencer** ve "TU PRUEBA DE PREMIUM TERMINÓ" o "TU PREMIUM VENCIÓ". Esa pantalla trae el texto de la versión gratis, un cuadro "GRATIS" vs. "👑 PREMIUM" (13.8), dos botones (**"QUIERO PREMIUM"**, que baja a los planes, y **"Seguir con la versión gratis"**, que entra a la app) y un resumen de lo logrado. Después de tocar "Seguir con la versión gratis" entra directo a la app. Los planes siguen en "Inicio" ("VER PREMIUM") y en la pestaña de planes. Si es una prueba que venció hace menos de 48 horas, arriba de los planes sale el reloj "⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS" (13.7).
 - **Si fue la prueba gratis**, sale también la pregunta **"¿QUÉ TE FALTÓ PARA QUEDARTE?"** ("Un toque y nos ayudas a mejorar. Lo lee Jonah."), con las opciones "💸 El precio", "⏰ No tuve tiempo", "🤔 No la entendí bien", "📸 La foto no me funcionó bien", "🍽️ No encontré mis comidas" y "✍️ Otro" (con un espacio para escribir y **"Enviar"**). Al responder sale "🙌 ¡Gracias! Con tu respuesta mejoramos la app.". Es opcional y se responde una sola vez.
   - **Nada se borra:** el historial y las fotos te esperan.
   - Botones "QUIERO CONTINUAR" (baja a los planes) y "Prefiero consultar por WhatsApp".
@@ -527,6 +536,27 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 - **Avisos al celular:** a 2 días de terminar, el último día ("Hoy termina tu prueba… te regalamos 7 días extra 🎁") y al día siguiente ("Última oportunidad…").
 - Las **renovaciones** de los meses siguientes no vuelven a sumar los 7 días. En la app de Play Store el precio es el mismo de Google; los 7 días se suman igual.
 - En Google Play el aviso de activación dice "¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁".
+
+### 13.8 Versión gratis y Premium
+
+Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
+
+| Función | Gratis | Premium |
+|---|---|---|
+| Registrar comidas escribiendo, alimentos propios, repetir ayer, atajos | ✓ | ✓ |
+| Meta de calorías y macros calculada | ✓ | ✓ |
+| Escribir la meta a mano ("Ajuste fino") | — | ✓ |
+| Foto del plato | 3 por semana | En todas sus comidas |
+| Código de barras | ✓ | ✓ |
+| Leer la tabla nutricional con foto | — | ✓ |
+| Registro por voz | — | ✓ |
+| "¿Qué puedo comer?" | 3 veces por semana | Siempre |
+| Pedirle alimentos a Jonah (app, foto, WhatsApp) | — | ✓ |
+| Peso, pesaje semanal, racha, insignias, "Tu semana", invitar | ✓ | ✓ |
+| Tendencias | 7 días | 30 días a 1 año, constancia y coach |
+| % de grasa | Se mide 1 vez | Cuando quiera, con historial y masa muscular |
+| Fotos de progreso | — | ✓ |
+| Asistente de WhatsApp para nutrición | — | ✓ (a todos se les responde sobre planes, pagos, cuenta y problemas de la app) |
 
 ---
 

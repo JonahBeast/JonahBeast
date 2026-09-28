@@ -3207,7 +3207,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
           <div className="mb-6"><Logo size="lg" /></div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-4">
             <h2 className="jb-display text-xl text-zinc-50 mb-2">
-              {expiredInfo.esPrueba === false ? 'TU PLAN VENCIÓ' : 'TU PRUEBA GRATIS TERMINÓ'}
+              {expiredInfo.esPrueba === false ? 'TU PREMIUM VENCIÓ' : 'TU PRUEBA DE PREMIUM TERMINÓ'}
             </h2>
             <p className="jb-body text-sm text-zinc-400">
               {expiredInfo.esPrueba === false
@@ -3217,8 +3217,32 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
             {expiredInfo.userRecord?.enabled && onSeguirGratis && (
               <>
                 <p className="jb-body text-sm text-zinc-300 mt-3">
-                  Puedes seguir usando la app <span className="text-orange-400 font-semibold">gratis</span>: registrar tus comidas, tu meta de calorías, tu peso y <span className="text-zinc-50 font-semibold">3 fotos inteligentes por semana</span>.
+                  Puedes seguir usando la app <span className="text-orange-400 font-semibold">gratis</span>.
                 </p>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-3">
+                    <p className="jb-display text-xs text-zinc-300 mb-1.5">GRATIS</p>
+                    <ul className="jb-body text-[11px] text-zinc-400 space-y-1 leading-snug">
+                      <li>✓ Registrar tus comidas</li>
+                      <li>✓ Tu meta de calorías</li>
+                      <li>✓ Código de barras</li>
+                      <li>✓ Tu peso y tu racha</li>
+                      <li>✓ 3 fotos por semana</li>
+                      <li>✓ Tendencias de 7 días</li>
+                    </ul>
+                  </div>
+                  <div className="rounded-xl bg-zinc-950 border border-orange-500/50 p-3">
+                    <p className="jb-display text-xs text-orange-400 mb-1.5">👑 PREMIUM</p>
+                    <ul className="jb-body text-[11px] text-zinc-300 space-y-1 leading-snug">
+                      <li>✓ Foto en todas tus comidas</li>
+                      <li>✓ Registro por voz</li>
+                      <li>✓ Qué comer, todos los días</li>
+                      <li>✓ Tu % de grasa y músculo</li>
+                      <li>✓ Fotos de progreso y coach</li>
+                      <li>✓ Jonah por WhatsApp</li>
+                    </ul>
+                  </div>
+                </div>
                 <div className="grid gap-2 mt-4">
                   <button onClick={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                     className="jb-display w-full rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 py-3 text-base tracking-wide">

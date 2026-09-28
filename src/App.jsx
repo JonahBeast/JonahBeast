@@ -513,6 +513,11 @@ const UNITS_BY_NAME = {
   'Hamburguesa de carretilla': [['unidad', 200]],
   'Pizza americana': [['tajada', 110]],
   'Pollo broaster': [['presa', 150]],
+  // Pollada y pollo frito se sirven en cuarto u octavo de pollo (carne sin
+  // hueso, aprox.). La foto elige cuál según los gramos que calcula la IA.
+  'Pollada (pollo frito)': [['cuarto de pollo', 220], ['octavo de pollo', 110]],
+  'Chicharrón de pollo': [['porción', 200]],
+  'Filete de pollo frito': [['filete', 150]],
   'Humita': [['unidad', 150]],
   'Picarones con miel': [['porción', 150]],
   'Cancha serrana': [['puñado', 30]],

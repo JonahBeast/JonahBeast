@@ -5684,6 +5684,15 @@ function esPorPiezas(food) {
 }
 
 function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
+  // Pollada / pollo frito: 1/4 u 1/8 de pollo según los gramos de la IA,
+  // en unidades enteras (nadie come "½ cuarto de pollo").
+  const cuarto = gramsPerUnit(food, 'cuarto de pollo'), octavo = gramsPerUnit(food, 'octavo de pollo');
+  if (unitsFor(food).some(u => u[0] === 'cuarto de pollo') && cuarto > 0 && octavo > 0) {
+    const factor = (TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1;
+    const g = (Number(gramosIA) > 0 ? Number(gramosIA) : cuarto) * factor;
+    if (g < (cuarto + octavo) / 2) return { unit: 'octavo de pollo', qty: Math.max(1, Math.round(g / octavo)) };
+    return { unit: 'cuarto de pollo', qty: Math.max(1, Math.round(g / cuarto)) };
+  }
   const d = unidadPorDefecto(food);
   if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
@@ -5770,6 +5779,9 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
   // corrección se guarda para que la próxima foto de este alumno la sepa.
   const [correcciones, setCorrecciones] = useState({});
   const [corrigiendo, setCorrigiendo] = useState(null); // key o id que se está corrigiendo
+  // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
+  // cuando la IA dijo ese alimento (viene del servidor). { [foodKey]: [foodKey] }
+  const [alternativasIA, setAlternativasIA] = useState({});
   const [aceite, setAceite] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
@@ -5856,6 +5868,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
       if (data?.error) throw new Error(data.error);
       anotarCupo(data);
       setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
+      setAlternativasIA(data?.alternativas && typeof data.alternativas === 'object' ? data.alternativas : {});
 
       const encontradosIA = (data?.items || [])
         .map(it => {
@@ -5910,6 +5923,31 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
   function extraAceite(elegidos) {
     if (!elegidos.some(e => esConAceite(e.food, e.item._aceiteIA))) return 0;
     return (OPCIONES_ACEITE.find(o => o.key === aceite) || {}).cucharadas || 0;
+  }
+
+  // Hasta 3 opciones rápidas para corregir un alimento: primero lo que
+  // otros alumnos eligieron cuando la IA dijo lo mismo; si faltan, platos
+  // parecidos (comparten palabras del nombre, de preferencia del mismo grupo).
+  function opcionesRapidas(f) {
+    const dijo = f.esOpciones ? f.alternativas : [f];
+    const fuera = new Set(dijo.map(d => d.key));
+    const lista = [];
+    const sumar = food => { if (food && !food.esProducto && !fuera.has(food.key) && !lista.some(x => x.key === food.key)) lista.push(food); };
+    dijo.forEach(d => (alternativasIA[d.key] || []).forEach(k => sumar(buscarFood(k))));
+    if (lista.length < 3) {
+      const VACIAS = new Set(['con', 'de', 'del', 'la', 'el', 'en', 'sin', 'y', 'al', 'a', 'cocido', 'cocida', 'crudo', 'cruda']);
+      const palabras = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-zñ]+/).filter(w => w.length >= 4 && !VACIAS.has(w));
+      const base = new Set(dijo.flatMap(d => palabras(d.name)));
+      const grupos = new Set(dijo.map(d => d.group));
+      todosLosAlimentos
+        .filter(a => !a.esProducto && !fuera.has(a.key))
+        .map(a => ({ a, n: palabras(a.name).filter(w => base.has(w)).length + (grupos.has(a.group) ? 0.5 : 0) }))
+        .filter(x => x.n >= 1)
+        .sort((x, y) => y.n - x.n)
+        .slice(0, 6)
+        .forEach(x => { if (lista.length < 3) sumar(x.a); });
+    }
+    return lista.slice(0, 3);
   }
 
   function confirmar() {
@@ -6064,7 +6102,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                 </span>
               </MarcoEscaner>
             )}
-            <p className="jb-body text-xs text-zinc-500 mb-3">Desmarca lo que no corresponda y ajusta la porción si comiste más o menos. Las cantidades son un cálculo aproximado mirando tu plato.</p>
+            <p className="jb-body text-xs text-zinc-500 mb-3">Si algo no es, toca <span className="text-orange-400">"✏️ No es esto"</span>: la IA aprende de tu corrección. Ajusta la porción si comiste más o menos; las cantidades son un cálculo aproximado mirando tu plato.</p>
             <div className="flex flex-col gap-2 mb-4">
               {items.map((f, i) => {
                 const retraso = { animationDelay: `${i * 90}ms` };
@@ -6073,9 +6111,24 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                 const food = corregido || (f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : f);
                 const marcado = corregido ? true : f.esOpciones ? !!food : !!seleccionados[f.key];
                 // "¿Qué era en realidad?": buscador para corregir a la IA.
+                const rapidas = corrigiendo === id ? opcionesRapidas(f) : [];
                 const corregir = corrigiendo === id ? (
                   <div className="mt-2">
-                    <p className="jb-body text-[11px] text-zinc-400 mb-1">Búscalo y la próxima foto ya lo sabrá:</p>
+                    {rapidas.length > 0 && (
+                      <>
+                        <p className="jb-body text-[11px] text-zinc-400 mb-1.5">¿Era alguno de estos?</p>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {rapidas.map(alt => (
+                            <button key={alt.key} type="button"
+                              onClick={() => { setCorrecciones(v => ({ ...v, [id]: alt.key })); setCorrigiendo(null); }}
+                              className="jb-body text-xs px-3 py-1.5 rounded-full border border-orange-500/50 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950 transition-colors">
+                              {nombreAlimento(alt)}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    <p className="jb-body text-[11px] text-zinc-400 mb-1">{rapidas.length ? 'Si no, búscalo' : 'Búscalo'} y la próxima foto ya lo sabrá:</p>
                     <BuscadorAlimento valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
                       onElegir={key => { setCorrecciones(v => ({ ...v, [id]: key })); setCorrigiendo(null); }}
                       onNoEncuentra={() => setCorrigiendo(null)} />
@@ -6135,7 +6188,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                           {corrigiendo !== id && (
                             <button type="button" onClick={() => { setElecciones(v => ({ ...v, [f.id]: undefined })); setCorrigiendo(id); }}
                               className="jb-body text-xs px-3 py-1.5 rounded-full border border-dashed border-zinc-600 text-zinc-400 hover:text-zinc-200">
-                              Era otro…
+                              ✏️ Ninguno, era otro…
                             </button>
                           )}
                         </div>
@@ -6168,10 +6221,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
                     </label>
                     {avisoCorregido && <div className="pl-7">{avisoCorregido}</div>}
-                    {!marcado && !corregido && corrigiendo !== id && (
+                    {!corregido && corrigiendo !== id && (
                       <button type="button" onClick={() => setCorrigiendo(id)}
-                        className="pl-7 mt-1 jb-body text-xs text-orange-400 hover:text-orange-300 underline">
-                        ¿Qué era en realidad?
+                        className="ml-7 mt-1.5 jb-body text-xs text-orange-400 hover:text-orange-300 border border-orange-500/40 rounded-full px-2.5 py-0.5">
+                        ✏️ No es esto
                       </button>
                     )}
                     {corregir && <div className="pl-7">{corregir}</div>}

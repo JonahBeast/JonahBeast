@@ -917,18 +917,24 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
   );
 }
 
-/* "¿Qué puedo comer?" en la versión gratis: 3 veces por semana (el
-   servidor lleva la cuenta). Abrirlo varias veces el mismo día cuenta una
-   sola vez. Si no hay internet o el servidor falla, se deja usar. */
+/* "¿Qué puedo comer?" en la versión gratis: 3 usos por semana (el
+   servidor lleva la cuenta). Cada vez que lo abre cuenta 1, para que no
+   sirva para armar el día completo (eso es Premium). Si lo cierra sin
+   querer y lo vuelve a abrir en menos de 10 minutos, no cuenta de nuevo.
+   Si no hay internet o el servidor falla, se deja usar. */
+const GRACIA_SUGERENCIA_MS = 10 * 60 * 1000;
 async function usarSugerenciaGratis(username) {
-  const clave = `jb-sugerencia-${username}-${todayISO()}`;
-  try { if (localStorage.getItem(clave)) return { ok: true, yaContada: true }; } catch {}
+  const clave = `jb-sugerencia-ultima-${username}`;
+  try {
+    const ultima = Number(localStorage.getItem(clave)) || 0;
+    if (Date.now() - ultima < GRACIA_SUGERENCIA_MS) return { ok: true, yaContada: true };
+  } catch {}
   try {
     const { data, error } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'sugerencia_usar' } });
     if (error || !data) return { ok: true };
     if (data.premium) return { ok: true, premium: true };
     if (data.error === 'limite_alcanzado') return { ok: false, limite: data.limite };
-    try { localStorage.setItem(clave, '1'); } catch {}
+    try { localStorage.setItem(clave, String(Date.now())); } catch {}
     return { ok: true, quedan: Math.max(0, (data.limite || 3) - (Number(data.usadas) || 0)), limite: data.limite };
   } catch { return { ok: true }; }
 }
@@ -945,7 +951,9 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
     setRevisando(true);
     const r = await usarSugerenciaGratis(username);
     setRevisando(false);
-    setCupoSug(r);
+    // Si no se contó de nuevo (reabrió en menos de 10 min), se mantiene el
+    // contador que ya se mostraba.
+    if (!r.yaContada) setCupoSug(r);
     setOpen(r.ok);
   }
   const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);

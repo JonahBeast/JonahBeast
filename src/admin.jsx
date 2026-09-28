@@ -3309,7 +3309,7 @@ const MOTIVOS_TROPIEZO = {
 };
 
 function resumirEmbudo(filas) {
-  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set() });
+  const pasos = () => ({ vistas: 0, visitantes: new Set(), clics: new Set(), registros: new Set(), usuarios: new Set(), demos: new Set(), demosResultado: new Set(), recorrido: {}, recorridoPlan: new Set(), recorridoCuenta: new Set() });
   const total = pasos();
   const porFuente = {};
   // Tropiezos del registro (evento 'error_registro'): motivo -> personas.
@@ -3331,10 +3331,17 @@ function resumirEmbudo(filas) {
       else if (r.evento === 'clic_cta') g.clics.add(quien);
       else if (r.evento === 'demo_abrir') g.demos.add(quien);
       else if (r.evento === 'demo_resultado') g.demosResultado.add(quien);
+      // Recorrido antes del registro: cuántos llegan a cada paso.
+      else if (r.evento === 'recorrido') (g.recorrido[r.detalle] = g.recorrido[r.detalle] || new Set()).add(quien);
+      else if (r.evento === 'recorrido_plan') g.recorridoPlan.add(quien);
+      else if (r.evento === 'recorrido_cuenta') g.recorridoCuenta.add(quien);
       else if (r.evento === 'registro') { g.registros.add(quien); if (r.username) g.usuarios.add(r.username); }
     });
   });
-  const numeros = g => ({ vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios], demos: g.demos.size, demosResultado: g.demosResultado.size });
+  const numeros = g => ({
+    vistas: g.vistas, visitantes: g.visitantes.size, clics: g.clics.size, registros: g.registros.size, usuarios: [...g.usuarios], demos: g.demos.size, demosResultado: g.demosResultado.size,
+    recorrido: Object.fromEntries(Object.entries(g.recorrido).map(([k, v]) => [k, v.size])), recorridoPlan: g.recorridoPlan.size, recorridoCuenta: g.recorridoCuenta.size,
+  });
   return {
     ...numeros(total),
     conGoogle,
@@ -3449,6 +3456,16 @@ function EmbudoResumenPanel() {
             📸 Probaron la foto sin cuenta: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demos}</span>
             {' · '}vieron el resultado de su plato: <span className="text-zinc-100 font-semibold tabular-nums">{datos.demosResultado}</span>
           </p>
+          {/* "Tu cambio empieza aquí": objetivo, datos y su plan antes de crear la cuenta. */}
+          {Object.keys(datos.recorrido || {}).length > 0 && (
+            <p className="jb-body text-xs text-zinc-400">
+              🧭 Recorrido antes del registro:{' '}
+              {[['1', 'objetivo'], ['2', 'sexo y edad'], ['3', 'estatura y peso'], ['4', 'actividad'], ['5', 'peso meta']]
+                .filter(([k]) => datos.recorrido[k]).map(([k, t]) => `${t} ${datos.recorrido[k]}`).join(' → ')}
+              {' → '}vieron su plan <span className="text-zinc-100 font-semibold tabular-nums">{datos.recorridoPlan}</span>
+              {' → '}tocaron crear cuenta <span className="text-zinc-100 font-semibold tabular-nums">{datos.recorridoCuenta}</span>
+            </p>
+          )}
           <div className="flex flex-col gap-1.5">
             {PASOS.map(p => (
               <div key={p.label} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2">

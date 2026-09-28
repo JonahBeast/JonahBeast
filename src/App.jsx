@@ -2276,7 +2276,9 @@ function Landing({ onChoose }) {
     try {
       if (window.fbq) window.fbq('track', 'Lead');
     } catch (e) {}
-    onChoose('trial');
+    // Antes de crear la cuenta: su objetivo y sus datos (Recorrido). Si ya
+    // lo hizo en este celular, va directo a crear la cuenta.
+    onChoose(leerRecorrido() ? 'trial' : 'recorrido');
   }
 
   // Transformación del fondo (Jonah / Andrea) que se muestra ahora.
@@ -2435,7 +2437,7 @@ function Landing({ onChoose }) {
         </button>
         <button onClick={registrarClicCTA} style={step(322)}
           className="w-full inline-flex items-center justify-center gap-2 mb-2 border border-orange-500/60 hover:border-orange-400 rounded-full py-3 px-6 transition-colors">
-          <span className="jb-display text-sm text-orange-400 tracking-wide">EMPIEZA A BAJAR DE PESO</span>
+          <span className="jb-display text-sm text-orange-400 tracking-wide">TU CAMBIO EMPIEZA AQUÍ</span>
           <ChevronRight className="text-orange-400" size={16} />
         </button>
         <p className="jb-body text-zinc-400 text-xs mb-4" style={step(325)}>
@@ -2735,6 +2737,248 @@ function SeparadorO({ texto = 'o con tu correo' }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* RECORRIDO ANTES DEL REGISTRO ("TU CAMBIO EMPIEZA AQUÍ")              */
+/* ------------------------------------------------------------------ */
+/* Antes de crear la cuenta: objetivo, datos y actividad, y le mostramos su
+   plan con sus números. Quien ya ve su plan tiene más ganas de guardarlo.
+   Las respuestas quedan en el celular (jb-recorrido) y pasan a su cuenta
+   al entrar por primera vez (formConRecorrido). Cada paso se cuenta en el
+   embudo ('recorrido', detalle = número de paso) para ver dónde se va. */
+const CLAVE_RECORRIDO = 'jb-recorrido';
+const OBJETIVOS_RECORRIDO = [
+  { valor: 'Perder grasa', emoji: '🔥', texto: 'Bajar grasa', sub: 'Verme y sentirme más ligero' },
+  { valor: 'Ganar músculo', emoji: '💪', texto: 'Ganar músculo', sub: 'Subir de peso con buena comida' },
+  { valor: 'Mantener peso', emoji: '⚖️', texto: 'Mantenerme y comer mejor', sub: 'Ordenar lo que como' },
+];
+
+function leerRecorrido() {
+  try {
+    const r = JSON.parse(localStorage.getItem(CLAVE_RECORRIDO) || 'null');
+    if (!r || !r.ts || Date.now() - r.ts > 30 * 86400000) return null;
+    return r;
+  } catch { return null; }
+}
+
+// Si la cuenta todavía no tiene sus datos, se completan con el recorrido.
+function formConRecorrido(form) {
+  const r = leerRecorrido();
+  if (!r || tieneDatosBasicos(form)) return form;
+  try { localStorage.removeItem(CLAVE_RECORRIDO); } catch {}
+  return {
+    ...form, sexo: r.sexo, edad: r.edad, estatura: r.estatura, peso: r.peso, actividad: r.actividad,
+    objetivo: r.objetivo, ajustePct: null, pesoInicial: r.peso,
+    pesoObjetivo: r.objetivo === 'Mantener peso' ? null : r.pesoObjetivo,
+  };
+}
+
+// Su plan: mismas fórmulas que la app (Mifflin-St Jeor, proteína sobre masa magra estimada).
+function planDelRecorrido(r) {
+  const peso = Number(r.peso), est = Number(r.estatura), edad = Number(r.edad);
+  const tmb = r.sexo === 'M' ? 10 * peso + 6.25 * est - 5 * edad + 5 : 10 * peso + 6.25 * est - 5 * edad - 161;
+  const tdee = tmb * (ACTIVITY_FACTORS[r.actividad] || 1.55);
+  const pct = r.objetivo === 'Perder grasa' ? -20 : r.objetivo === 'Ganar músculo' ? 10 : 0;
+  const kcal = Math.max(tdee * (1 + pct / 100), 800);
+  const magra = peso * 0.75;
+  let proteina = magra * 2.2;
+  if (proteina * 4 > kcal * 0.4) proteina = (kcal * 0.4) / 4;
+  if (proteina < magra * 1.6) proteina = magra * 1.6;
+  let semanas = null;
+  const meta = Number(r.pesoObjetivo);
+  if (r.objetivo === 'Perder grasa' && meta > 0 && meta < peso) {
+    const kgSemana = ((tdee - kcal) * 7) / 7700;
+    if (kgSemana > 0) semanas = Math.ceil((peso - meta) / kgSemana);
+  } else if (r.objetivo === 'Ganar músculo' && meta > peso) {
+    semanas = Math.ceil((meta - peso) / 0.25);
+  }
+  return { kcal: Math.round(kcal / 10) * 10, proteina: Math.round(proteina), semanas };
+}
+
+function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder }) {
+  const n = Number(valor);
+  const ajustar = d => {
+    const base = Number.isFinite(n) && valor !== '' ? n : Number(placeholder) || min;
+    onCambio(String(Math.min(max, Math.max(min, Math.round((base + d) * 10) / 10))));
+  };
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+      <p className="jb-body text-xs text-zinc-400 mb-2">{label}</p>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => ajustar(-paso)} className="w-11 h-11 rounded-full border border-orange-500/60 text-orange-400 text-xl shrink-0">−</button>
+        <input type="number" inputMode="decimal" value={valor} placeholder={placeholder}
+          onChange={e => onCambio(e.target.value)}
+          className="flex-1 min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+        <button type="button" onClick={() => ajustar(paso)} className="w-11 h-11 rounded-full border border-orange-500/60 text-orange-400 text-xl shrink-0">+</button>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">{unidad}</p>
+    </div>
+  );
+}
+
+function Recorrido({ onBack, onListo }) {
+  const guardado = leerRecorrido();
+  const [r, setR] = useState(guardado || { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' });
+  const [paso, setPaso] = useState(0);
+  const fijar = (campo, valor) => setR(v => ({ ...v, [campo]: valor }));
+  const conMeta = r.objetivo !== 'Mantener peso';
+  const pasos = conMeta ? ['objetivo', 'persona', 'cuerpo', 'actividad', 'meta', 'plan'] : ['objetivo', 'persona', 'cuerpo', 'actividad', 'plan'];
+  const actual = pasos[paso];
+
+  useEffect(() => {
+    registrarEventoEmbudo(actual === 'plan' ? 'recorrido_plan' : 'recorrido', actual === 'plan' ? {} : { detalle: String(paso + 1) });
+    window.scrollTo({ top: 0 });
+  }, [actual]);
+
+  const edad = Number(r.edad), est = Number(r.estatura), peso = Number(r.peso), meta = Number(r.pesoObjetivo);
+  const valido = {
+    objetivo: !!r.objetivo,
+    persona: !!r.sexo && edad >= 14 && edad <= 90,
+    cuerpo: est >= 120 && est <= 230 && peso >= 30 && peso <= 300,
+    actividad: !!r.actividad,
+    meta: r.objetivo === 'Perder grasa' ? meta >= 30 && meta < peso : meta > peso && meta <= 300,
+    plan: true,
+  }[actual];
+  const error = {
+    persona: r.edad !== '' && !(edad >= 14 && edad <= 90) ? 'Pon una edad entre 14 y 90 años.' : '',
+    cuerpo: r.estatura !== '' && !(est >= 120 && est <= 230) ? 'La estatura va en centímetros (ej. 165).'
+      : r.peso !== '' && !(peso >= 30 && peso <= 300) ? 'Revisa tu peso en kilos (ej. 72).' : '',
+    meta: r.pesoObjetivo !== '' && !valido ? (r.objetivo === 'Perder grasa' ? 'Tu peso meta debe ser menor a tu peso actual.' : 'Tu peso meta debe ser mayor a tu peso actual.') : '',
+  }[actual] || '';
+
+  function siguiente() {
+    if (!valido) return;
+    if (actual === 'actividad' && conMeta && !r.pesoObjetivo) {
+      fijar('pesoObjetivo', String(r.objetivo === 'Perder grasa' ? Math.round(peso - 5) : Math.round(peso + 3)));
+    }
+    setPaso(p => Math.min(pasos.length - 1, p + 1));
+  }
+  function guardarPlan() {
+    try { localStorage.setItem(CLAVE_RECORRIDO, JSON.stringify({ ...r, ts: Date.now() })); } catch {}
+    registrarEventoEmbudo('recorrido_cuenta');
+    onListo();
+  }
+
+  const plan = actual === 'plan' ? planDelRecorrido(r) : null;
+  const opcion = (activo, onClick, contenido, key) => (
+    <button key={key} type="button" onClick={onClick}
+      className={`w-full text-left rounded-2xl border px-4 py-3.5 transition-colors ${activo ? 'bg-orange-500/15 border-orange-500 text-zinc-50' : 'bg-zinc-950 border-zinc-800 text-zinc-200'}`}>
+      {contenido}
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen bg-zinc-950 px-5 py-6 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 50% 0%, rgba(249,115,22,0.12), transparent 60%)' }} />
+      <div className="max-w-md mx-auto relative flex flex-col min-h-[calc(100vh-3rem)]">
+        <div className="flex items-center gap-3 mb-5">
+          <button type="button" onClick={() => (paso === 0 ? onBack() : setPaso(p => p - 1))} className="text-zinc-400 p-1" aria-label="Atrás">
+            <ChevronRight size={22} className="rotate-180" />
+          </button>
+          <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="h-full bg-orange-500 rounded-full transition-all duration-300" style={{ width: `${((paso + 1) / pasos.length) * 100}%` }} />
+          </div>
+          <span className="jb-body text-[11px] text-zinc-500 tabular-nums">{paso + 1}/{pasos.length}</span>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-3">
+          {actual === 'objetivo' && (
+            <>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">¿QUÉ QUIERES LOGRAR?</h1>
+              <p className="jb-body text-sm text-zinc-400 mb-2">Armamos tu plan con comida peruana, según tu objetivo.</p>
+              {OBJETIVOS_RECORRIDO.map(o => opcion(r.objetivo === o.valor, () => { fijar('objetivo', o.valor); fijar('pesoObjetivo', ''); },
+                <span className="flex items-center gap-3"><span className="text-2xl">{o.emoji}</span>
+                  <span><span className="jb-display text-lg block">{o.texto.toUpperCase()}</span><span className="jb-body text-xs text-zinc-400">{o.sub}</span></span></span>, o.valor))}
+            </>
+          )}
+          {actual === 'persona' && (
+            <>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">CUÉNTANOS DE TI</h1>
+              <p className="jb-body text-sm text-zinc-400 mb-2">Tu cuerpo gasta distinto según tu sexo y tu edad.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[['M', '🙋‍♂️ Hombre'], ['F', '🙋‍♀️ Mujer']].map(([v, t]) => opcion(r.sexo === v, () => fijar('sexo', v), <span className="jb-display text-lg block text-center">{t}</span>, v))}
+              </div>
+              <NumeroGrande label="Edad" valor={r.edad} onCambio={v => fijar('edad', v)} min={14} max={90} unidad="años" placeholder="30" />
+            </>
+          )}
+          {actual === 'cuerpo' && (
+            <>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">TU ESTATURA Y TU PESO</h1>
+              <p className="jb-body text-sm text-zinc-400 mb-2">Con esto calculamos cuánto gasta tu cuerpo al día.</p>
+              <NumeroGrande label="Estatura" valor={r.estatura} onCambio={v => fijar('estatura', v)} min={120} max={230} unidad="centímetros" placeholder="165" />
+              <NumeroGrande label="Peso actual" valor={r.peso} onCambio={v => fijar('peso', v)} paso={0.5} min={30} max={300} unidad="kilos" placeholder="70" />
+            </>
+          )}
+          {actual === 'actividad' && (
+            <>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">¿QUÉ TAN ACTIVO ERES?</h1>
+              <p className="jb-body text-sm text-zinc-400 mb-2">Cuenta el ejercicio y también tu trabajo.</p>
+              {Object.keys(ACTIVITY_FACTORS).map(a => opcion(r.actividad === a, () => fijar('actividad', a),
+                <span><span className="jb-display text-base block">{a.toUpperCase()}</span><span className="jb-body text-xs text-zinc-400">{ACTIVITY_DESC[a]}</span></span>, a))}
+            </>
+          )}
+          {actual === 'meta' && (
+            <>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">¿A QUÉ PESO QUIERES LLEGAR?</h1>
+              <p className="jb-body text-sm text-zinc-400 mb-2">Hoy pesas {r.peso} kg. Pon una meta realista; luego la puedes cambiar.</p>
+              <NumeroGrande label="Peso meta" valor={r.pesoObjetivo} onCambio={v => fijar('pesoObjetivo', v)} paso={0.5} min={30} max={300} unidad="kilos" />
+            </>
+          )}
+          {actual === 'plan' && plan && (
+            <>
+              <p className="jb-body text-xs text-orange-300 uppercase tracking-wider">Tu plan está listo</p>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">ESTO ES LO QUE TE TOCA</h1>
+              <div className="relative bg-zinc-900 border border-orange-500/50 rounded-3xl p-5 overflow-hidden" style={{ boxShadow: '0 0 40px -12px rgba(232,89,12,.5)' }}>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div>
+                    <p className="jb-display text-4xl text-orange-400 tabular-nums">{plan.kcal.toLocaleString('es-PE')}</p>
+                    <p className="jb-body text-xs text-zinc-400">kcal al día</p>
+                  </div>
+                  <div>
+                    <p className="jb-display text-4xl text-orange-400 tabular-nums">{plan.proteina} g</p>
+                    <p className="jb-body text-xs text-zinc-400">de proteína al día</p>
+                  </div>
+                </div>
+                {plan.semanas && (
+                  <p className="jb-body text-sm text-zinc-200 text-center mt-4">
+                    A este ritmo llegarías a <span className="text-orange-400 font-semibold">{r.pesoObjetivo} kg</span> en unas <span className="text-orange-400 font-semibold">{plan.semanas} semanas</span>.
+                  </p>
+                )}
+                {r.objetivo === 'Mantener peso' && (
+                  <p className="jb-body text-sm text-zinc-200 text-center mt-4">Para mantenerte en {r.peso} kg comiendo ordenado y rico.</p>
+                )}
+              </div>
+              <ul className="jb-body text-sm text-zinc-300 flex flex-col gap-1.5 mt-1">
+                <li>📸 Tómale foto a tu plato y la app te dice cuánto es</li>
+                <li>🍽️ Tu menú del día con comida peruana, justo para tu meta</li>
+                <li>📈 Sigue tu avance día a día</li>
+              </ul>
+              <p className="jb-body text-[11px] text-zinc-500">Son estimaciones de referencia, no una receta médica.</p>
+            </>
+          )}
+          {error && <p className="jb-body text-xs text-amber-400">{error}</p>}
+        </div>
+
+        <div className="pt-4">
+          {actual === 'plan' ? (
+            <>
+              <button onClick={guardarPlan} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">
+                CREAR MI CUENTA Y GUARDAR MI PLAN
+              </button>
+              <p className="jb-body text-xs text-zinc-400 text-center mt-2"><span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta</p>
+            </>
+          ) : (
+            <button onClick={siguiente} disabled={!valido}
+              className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">
+              {actual === 'actividad' && !conMeta ? 'VER MI PLAN' : actual === 'meta' ? 'VER MI PLAN' : 'SIGUIENTE'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
@@ -2749,6 +2993,7 @@ function TrialSignup({ onBack, onCreated }) {
   // El campo de código se esconde tras "¿Tienes un código?" para que el
   // formulario se vea más corto; si llegó con ?ref= se abre ya lleno.
   const [verReferido, setVerReferido] = useState(!!refDesdeURL);
+  const planGuardado = useMemo(() => { const r = leerRecorrido(); return r ? planDelRecorrido(r) : null; }, []);
 
   // Verifica el código mientras escribe
   useEffect(() => {
@@ -2837,10 +3082,24 @@ function TrialSignup({ onBack, onCreated }) {
         <div className="mb-6"><Logo size="lg" /></div>
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 shadow-xl shadow-black/40">
           <div className="mb-5">
-            <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">CREA TU<br />CUENTA GRATIS</h1>
-            <p className="jb-body text-sm text-zinc-400">
-              <span className="text-orange-400 font-semibold">Gratis para siempre</span>, con Premium hasta el {fechaFinPrueba()} · sin tarjeta. Registro en 30 segundos.
-            </p>
+            {planGuardado ? (
+              <>
+                <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">GUARDA<br />TU PLAN</h1>
+                <p className="jb-body text-sm text-zinc-300 mb-1">
+                  Tu meta: <span className="text-orange-400 font-semibold tabular-nums">{planGuardado.kcal.toLocaleString('es-PE')} kcal</span> y <span className="text-orange-400 font-semibold tabular-nums">{planGuardado.proteina} g de proteína</span> al día.
+                </p>
+                <p className="jb-body text-sm text-zinc-400">
+                  <span className="text-orange-400 font-semibold">Gratis para siempre</span>, con Premium hasta el {fechaFinPrueba()} · sin tarjeta.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="jb-display text-3xl text-zinc-50 leading-[0.98] mb-2">CREA TU<br />CUENTA GRATIS</h1>
+                <p className="jb-body text-sm text-zinc-400">
+                  <span className="text-orange-400 font-semibold">Gratis para siempre</span>, con Premium hasta el {fechaFinPrueba()} · sin tarjeta. Registro en 30 segundos.
+                </p>
+              </>
+            )}
           </div>
 
           {!aviso && (
@@ -4781,7 +5040,7 @@ export default function App() {
   // Mientras el alumno escribe su correo (o se registra), ya se va
   // descargando su parte de la app, para que al entrar no tenga que esperar.
   useEffect(() => {
-    if (view === 'studentAuth' || view === 'trial') import('./alumno.jsx').catch(() => {});
+    if (view === 'studentAuth' || view === 'trial' || view === 'recorrido') import('./alumno.jsx').catch(() => {});
   }, [view]);
 
   /* Vuelta de "Continuar con Google": si la cuenta se acaba de crear, se
@@ -4992,12 +5251,17 @@ export default function App() {
       formGuardado = { ...formGuardado, edad: '', estatura: '', peso: '', cuello: '', cintura: '', cadera: '' };
     }
 
+    // Si se registró después del recorrido (ej. con Google), sus datos
+    // entran a la cuenta: se guardan apenas abre.
+    const antesRecorrido = formGuardado;
+    formGuardado = formConRecorrido(formGuardado);
+
     setCurrentUser(username);
     setForm(formGuardado);
     setMealPlan(plan);
     // Con una copia pendiente de hoy, se sube apenas abre (el reintento
     // automático también la toma); si no, no hay nada nuevo que guardar.
-    skipNextSave.current = !hayPendienteHoy;
+    skipNextSave.current = !hayPendienteHoy && formGuardado === antesRecorrido;
     setEstadoGuardado(leerPendiente(username) ? 'guardando' : 'ok');
     setView('student');
   }
@@ -5005,9 +5269,10 @@ export default function App() {
   async function handleTrialCreated(username) {
     await init();
     setCurrentUser(username);
-    setForm(EMPTY_FORM);
+    const form = formConRecorrido(EMPTY_FORM);
+    setForm(form);
     setMealPlan(EMPTY_MEALPLAN());
-    skipNextSave.current = true;
+    skipNextSave.current = form === EMPTY_FORM;
     setView('student');
   }
 
@@ -5275,6 +5540,7 @@ export default function App() {
       {!tokenRef && view === 'reto' && <RetoPage onIrALaApp={() => { window.location.href = '/'; }} />}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
       {!tokenRef && view === 'free' && <FreeCalculator onBack={() => setView('landing')} />}
+      {!tokenRef && view === 'recorrido' && <Recorrido onBack={() => setView('landing')} onListo={() => setView('trial')} />}
       {!tokenRef && view === 'trial' && <TrialSignup onBack={() => setView('landing')} onCreated={handleTrialCreated} />}
       {!tokenRef && view === 'adminAuth' && (
         <AdminAuth onBack={() => setView('landing')} busy={busy} onLogin={handleAdminLogin} />

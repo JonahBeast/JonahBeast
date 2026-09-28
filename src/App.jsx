@@ -3134,7 +3134,7 @@ function EncuestaSalida({ username }) {
   );
 }
 
-function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva }) {
+function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva, onSeguirGratis }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -3214,6 +3214,23 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 ? 'Renueva para seguir donde te quedaste. Nada de lo que hiciste se borró: tu historial completo te está esperando.'
                 : 'Pero nada de lo que hiciste se borró. Tu historial completo te está esperando.'}
             </p>
+            {expiredInfo.userRecord?.enabled && onSeguirGratis && (
+              <>
+                <p className="jb-body text-sm text-zinc-300 mt-3">
+                  Puedes seguir usando la app <span className="text-orange-400 font-semibold">gratis</span>: registrar tus comidas, tu meta de calorías, tu peso y <span className="text-zinc-50 font-semibold">3 fotos inteligentes por semana</span>.
+                </p>
+                <div className="grid gap-2 mt-4">
+                  <button onClick={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className="jb-display w-full rounded-xl bg-orange-500 hover:bg-orange-400 text-zinc-950 py-3 text-base tracking-wide">
+                    QUIERO PREMIUM
+                  </button>
+                  <button onClick={onSeguirGratis}
+                    className="jb-body w-full rounded-xl border border-zinc-700 hover:border-zinc-500 text-zinc-200 py-3 text-sm font-semibold">
+                    Seguir con la versión gratis
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           {/* Bono de +7 días: en las 48 h después de vencer la prueba, arriba
               de todo (antes quedaba abajo y había que bajar para verlo). */}
@@ -3471,6 +3488,20 @@ function membershipActive(u) {
   const dl = daysLeft(u.fechaVencimiento);
   if (dl === null) return true;
   return dl >= 0;
+}
+
+/* Versión gratis: la cuenta sigue habilitada pero su prueba o plan venció.
+   Ya no se bloquea: puede seguir usando la app con las funciones gratis.
+   La pantalla de "tu prueba terminó" se muestra una sola vez por cada
+   vencimiento; después entra directo. */
+function claveGratisVisto(username, fechaVencimiento) {
+  return `jb-gratis-visto:${username}:${fechaVencimiento || ''}`;
+}
+function yaVioPantallaGratis(username, fechaVencimiento) {
+  try { return localStorage.getItem(claveGratisVisto(username, fechaVencimiento)) === '1'; } catch { return false; }
+}
+function marcarPantallaGratisVista(username, fechaVencimiento) {
+  try { localStorage.setItem(claveGratisVisto(username, fechaVencimiento), '1'); } catch {}
 }
 
 
@@ -4763,7 +4794,7 @@ export default function App() {
         if (!u.enabled) return;
         // Prueba o plan vencido: en vez de mostrarle la landing de gente
         // nueva, va directo a su resumen y a los planes para pagar.
-        if (!membershipActive(u)) { await mostrarVencido(a, p.nombre); return; }
+        if (!membershipActive(u) && !yaVioPantallaGratis(u.username, u.fechaVencimiento)) { await mostrarVencido(a, p.nombre); return; }
       }
       await loadStudentSession(p.username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
@@ -4990,7 +5021,7 @@ export default function App() {
         codigoReferido: cuenta.codigo_referido,
       };
       if (!u.enabled) { setBusy(false); return setErr('Tu acceso fue deshabilitado. Escríbenos para más información.'); }
-      if (!membershipActive(u)) {
+      if (!membershipActive(u) && !yaVioPantallaGratis(u.username, u.fechaVencimiento)) {
         // Prueba o plan pagado vencido: resumen y planes para pagar en la
         // app (antes, al plan pagado solo se le decía "escríbenos").
         await mostrarVencido(cuenta, perfil.nombre);
@@ -5224,7 +5255,13 @@ export default function App() {
             try { await supabase.auth.signOut(); } catch {}
             setExpiredInfo(null);
           }}
-          onMembresiaActiva={() => loadStudentSession(expiredInfo.username)} />
+          onMembresiaActiva={() => loadStudentSession(expiredInfo.username)}
+          onSeguirGratis={async () => {
+            marcarPantallaGratisVista(expiredInfo.username, expiredInfo.userRecord?.fechaVencimiento);
+            const username = expiredInfo.username;
+            setExpiredInfo(null);
+            await loadStudentSession(username);
+          }} />
       )}
       {!tokenRef && view === 'admin' && adminAuthed && (
         <>

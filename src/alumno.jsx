@@ -7597,6 +7597,22 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
   const [editarGustos, setEditarGustos] = useState(false);
   const alimentosListos = usarAlimentosExtra();
 
+  // Lo que ya registró hoy en cada comida (sea o no lo del menú): el menú lo
+  // toma como hecho y recalcula lo que falta para cerrar el día en la meta.
+  const consumido = useMemo(() => {
+    const r = {};
+    for (const nombre of MEAL_NAMES) {
+      const entradas = (mealPlan.meals?.[nombre] || []).filter(e => e.foodKey);
+      if (!entradas.length) continue;
+      const t = entradas.reduce((a, e) => {
+        const m = entryMacros(e);
+        return { kcal: a.kcal + m.kcal, p: a.p + m.protein, c: a.c + m.carbs, f: a.f + m.fat };
+      }, { kcal: 0, p: 0, c: 0, f: 0 });
+      if (t.kcal > 0) r[nombre] = t;
+    }
+    return r;
+  }, [mealPlan.meals, alimentosListos]);
+
   const menu = useMemo(() => {
     if (!gustos) return null;
     try {
@@ -7605,9 +7621,10 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
         restricciones: mealPlan.restricciones || [],
         mealPlan, semilla: `${username}|${hoy}`, variantes: menuDia.variantes || {},
         extras: FOODS.filter(f => f.esExtra && f.menuUso),
+        consumido,
       });
     } catch (e) { console.error('No se pudo armar el menú:', e); return null; }
-  }, [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, menuDia.variantes, alimentosListos]);
+  }, [gustos, mealPlan.restricciones, mealPlan.targetKcal, mealPlan.macros, username, hoy, menuDia.variantes, alimentosListos, consumido]);
 
   function guardarMenuDia(cambio) {
     setMealPlan(v => {
@@ -7625,15 +7642,11 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
   }
   function loComi(comida) {
     vibrar(20);
-    setMealPlan(v => {
-      const actual = v.menuDia?.fecha === hoy ? v.menuDia : { fecha: hoy, variantes: {}, hechos: {} };
-      return {
-        ...v,
-        meals: { ...v.meals, [comida.nombre]: [...(v.meals[comida.nombre] || []), ...comida.entradas.map(e => ({ id: uid(), ...e }))] },
-        // Se guarda lo que comió tal cual, para que "Otro menú" no lo cambie.
-        menuDia: { ...actual, hechos: { ...(actual.hechos || {}), [comida.nombre]: { lineas: comida.lineas, totales: comida.totales } } },
-      };
-    });
+    // Se suma a "Comidas": desde ahí el menú la toma como registrada.
+    setMealPlan(v => ({
+      ...v,
+      meals: { ...v.meals, [comida.nombre]: [...(v.meals[comida.nombre] || []), ...comida.entradas.map(e => ({ id: uid(), ...e }))] },
+    }));
     showToast(`✅ Tu ${comida.nombre.toLowerCase()} del menú quedó registrado`);
   }
   function guardarGustos(g) {
@@ -7686,19 +7699,36 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
             <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
               Carbos {total.c}/{meta.c} g · Grasas {total.f}/{meta.f} g. Las cantidades son de la comida ya cocida (salvo la avena).
             </p>
-            {menu.comidas.map((armada, i) => {
-              const bloqueada = !premium && i > 0;
-              const hecha = !!menuDia.hechos?.[armada.nombre];
-              const guardada = menuDia.hechos?.[armada.nombre];
-              const c = hecha && guardada?.lineas ? { ...armada, lineas: guardada.lineas, totales: guardada.totales } : armada;
+            {menu.adaptado && (
+              <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2">
+                <p className="jb-body text-xs text-zinc-200">
+                  {menu.restante.kcal >= 80
+                    ? <>🔄 <b>Ajustado a lo que ya registraste.</b> Te quedan <span className="text-orange-400 font-semibold tabular-nums">{menu.restante.kcal} kcal</span> y {menu.restante.p} g de proteína para lo que falta del día.</>
+                    : <>🎉 <b>Ya llegaste a tu meta de hoy.</b> No necesitas comer más; si te da hambre, algo ligero como fruta o ensalada.</>}
+                </p>
+              </div>
+            )}
+            {menu.comidas.map((c, i) => {
+              const hecha = !!c.registrado;
+              const bloqueada = !premium && i > 0 && !hecha;
+              const registradas = hecha ? (mealPlan.meals?.[c.nombre] || []).filter(e => e.foodKey) : [];
+              if (c.saltada || c.vacia) {
+                return (
+                  <div key={c.nombre} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-2.5 flex items-baseline justify-between gap-2">
+                    <p className="jb-display text-xs text-zinc-500">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}</p>
+                    <p className="jb-body text-[11px] text-zinc-500">{c.saltada ? 'No la registraste' : 'Ya no la necesitas hoy'}</p>
+                  </div>
+                );
+              }
               return (
                 <div key={c.nombre} className={`rounded-xl border p-3 ${hecha ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-950'}`}>
                   <div className="flex items-baseline justify-between gap-2 mb-1.5">
                     <p className="jb-display text-xs text-zinc-200">{ICONO_COMIDA[c.nombre]} {c.nombre.toUpperCase()}{c.plato ? ' · 🇵🇪' : ''}</p>
                     <p className="jb-body text-[11px] text-orange-400 tabular-nums">{c.totales.kcal} kcal · P {c.totales.p} g</p>
                   </div>
+                  {hecha && <p className="jb-body text-[10px] text-emerald-400 uppercase tracking-wider mb-1">Lo que registraste</p>}
                   <ul className={`flex flex-col gap-1 ${bloqueada ? 'blur-[5px] select-none pointer-events-none' : ''}`} aria-hidden={bloqueada}>
-                    {c.lineas.map((l, j) => (
+                    {(hecha ? registradas.map(e => ({ texto: nombreAlimento(buscarFood(e.foodKey)) || e.foodKey, cantidad: textoPorcion(porcionDeEntrada(e)) })) : c.lineas).map((l, j) => (
                       <li key={j} className="jb-body text-sm text-zinc-300 flex justify-between gap-3">
                         <span className="min-w-0">{l.texto}</span>
                         <span className="text-zinc-400 shrink-0 text-right tabular-nums">{l.cantidad}</span>

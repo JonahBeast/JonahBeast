@@ -5266,10 +5266,13 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                   <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
                     {GROUP_EMOJI[f.group] || '🍴'}
                   </span>
+                  {/* El nombre completo, en varias líneas si hace falta: con nombres
+                      parecidos ("Chocolate con leche" en barra o batido en taza)
+                      cortarlo con "…" hacía fácil elegir el equivocado. */}
                   <div className="min-w-0">
-                    <div className="jb-body text-sm text-zinc-100 truncate">{f.name}</div>
+                    <div className="jb-body text-sm text-zinc-100 break-words leading-snug">{f.name}</div>
                     <div className="jb-body text-[11px] text-zinc-500">
-                      {f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
+                      {f.group && !f.esPersonal ? f.group + ' · ' : ''}{f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
                       {f.esPersonal ? ' · tuyo' : ''}
                     </div>
                   </div>
@@ -7276,6 +7279,15 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null }) {
   const [personales, setPersonales] = useState([]);
   const [editarPropio, setEditarPropio] = useState(null);
+  const [escribiendo, setEscribiendo] = useState(false);
+  useEffect(() => {
+    const esCampo = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+    const alEnfocar = e => { if (esCampo(e.target)) setEscribiendo(true); };
+    const alSalir = () => setTimeout(() => setEscribiendo(esCampo(document.activeElement)), 200);
+    document.addEventListener('focusin', alEnfocar);
+    document.addEventListener('focusout', alSalir);
+    return () => { document.removeEventListener('focusin', alEnfocar); document.removeEventListener('focusout', alSalir); };
+  }, []);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
@@ -7417,8 +7429,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}
-      {/* Botón principal para registrar: uno solo, siempre a mano */}
-      {!hojaMeal && !fotoPara && !codigoPara && !crearPara && !editando && (
+      {/* Botón principal para registrar: uno solo, siempre a mano (se
+          esconde mientras escribe, para no tapar la lista del buscador). */}
+      {!hojaMeal && !fotoPara && !codigoPara && !crearPara && !editando && !escribiendo && (
         <button onClick={() => { vibrar(10); setHojaMeal(mealAhora); }}
           className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
           aria-label="Registrar comida">

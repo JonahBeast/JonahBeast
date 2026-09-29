@@ -2202,7 +2202,14 @@ function ActivacionPanel({ users }) {
   );
 }
 
-function TableroPanel({ users }) {
+// Cuentas del dueño (sus pruebas y pagos propios): no cuentan en las
+// métricas del negocio (alumnos pagando, ingresos, alumnos nuevos,
+// conversión, cobros de Jarvis).
+const CUENTAS_PROPIAS = ['martin'];
+const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username);
+
+function TableroPanel({ users: todosLosUsuarios }) {
+  const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [datos, setDatos] = useState(null);
 
   useEffect(() => {
@@ -2211,13 +2218,13 @@ function TableroPanel({ users }) {
       const hace30 = fechaLocalISO(new Date(Date.now() - 29 * 86400000));
       const inicioMeses = new Date(); inicioMeses.setDate(1); inicioMeses.setMonth(inicioMeses.getMonth() - 5);
       const [{ data: pagos }, { data: hist }, { data: subs }] = await Promise.all([
-        supabase.from('pagos').select('monto, creado_en').eq('estado', 'aprobado')
+        supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado')
           .gte('creado_en', fechaLocalISO(inicioMeses)).range(0, 4999),
         supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', hace30).range(0, 9999),
         supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
       ]);
       if (cancelado) return;
-      setDatos({ pagos: pagos || [], hist: hist || [], subs: subs || [] });
+      setDatos({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), hist: hist || [], subs: subs || [] });
     })().catch(() => { if (!cancelado) setDatos({ pagos: [], hist: [], subs: [] }); });
     return () => { cancelado = true; };
   }, []);
@@ -2474,7 +2481,8 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
   );
 }
 
-function RentabilidadPanel({ users }) {
+function RentabilidadPanel({ users: todosLosUsuarios }) {
+  const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
   const [precios, setPrecios] = useState(() => Object.fromEntries(PLANES.map(p => [p.meses, p.precioDefault])));
   const [mes, setMes] = useState(null);
@@ -2490,7 +2498,7 @@ function RentabilidadPanel({ users }) {
       const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
-        supabase.from('pagos').select('monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
+        supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').not('periodo', 'like', 'sugerencia-%').range(0, 9999),
         supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
           .gte('creado_en', inicioISO).range(0, 19999),
@@ -2510,7 +2518,7 @@ function RentabilidadPanel({ users }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: pagos || [], fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: historialPagos || [] });
+      setMes({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: (historialPagos || []).filter(p => !esCuentaPropia(p.username)) });
     })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], gastos: [], historialPagos: [] }); });
     return () => { cancelado = true; };
   }, []);
@@ -2543,8 +2551,8 @@ function RentabilidadPanel({ users }) {
   // Costo real de la IA (tabla ia_uso), en soles.
   const iaFilas = (mes?.ia || []).map(f => ({ ...f, soles: costoUsdIA(f) * sup.tipoCambio }));
   const suma = filas => filas.reduce((a, f) => a + f.soles, 0);
-  const iaAlumnos = iaFilas.filter(f => TIPOS_IA_ALUMNO.includes(f.tipo));
-  const iaAdmin = iaFilas.filter(f => !TIPOS_IA_ALUMNO.includes(f.tipo));
+  const iaAlumnos = iaFilas.filter(f => TIPOS_IA_ALUMNO.includes(f.tipo) && !esCuentaPropia(f.username));
+  const iaAdmin = iaFilas.filter(f => !TIPOS_IA_ALUMNO.includes(f.tipo) || esCuentaPropia(f.username));
   const fotosMedidas = iaFilas.filter(f => f.tipo === 'plato' || f.tipo === 'etiqueta');
   const costoFotoReal = fotosMedidas.length >= 5 ? suma(fotosMedidas) / fotosMedidas.length : null;
   const costoFoto = costoFotoReal ?? sup.costoFoto;
@@ -2765,7 +2773,7 @@ function RentabilidadPanel({ users }) {
               {[
                 { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos` },
                 { v: fmtS(suma(iaAlumnos)), l: 'La usan tus alumnos', sub: 'fotos, etiquetas, códigos y WhatsApp' },
-                { v: fmtS(suma(iaAdmin)), l: 'La usas tú', sub: 'Jarvis y pedidos de alimentos' },
+                { v: fmtS(suma(iaAdmin)), l: 'La usas tú', sub: 'Jarvis, pedidos de alimentos y tus pruebas' },
                 { v: costoFotoReal === null ? '—' : fmtS(costoFotoReal), l: 'Costo real por foto', sub: costoFotoReal === null ? `faltan fotos para medir (${fotosMedidas.length} de 5)` : `promedio de ${fotosMedidas.length} fotos` },
               ].map(t => (
                 <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
@@ -4968,10 +4976,11 @@ async function datosNegocioJarvis(users) {
   let cobradoDesdeAyer = null, pagosDesdeAyer = null;
   try {
     // Lo que entró desde ayer (00:00, hora de Lima), sin pruebas de 0 soles.
-    const { data } = await supabase.from('pagos').select('monto').eq('estado', 'aprobado')
+    const { data: filas } = await supabase.from('pagos').select('username, monto').eq('estado', 'aprobado')
       .gte('creado_en', `${ayer}T00:00:00-05:00`).gt('monto', 0).range(0, 999);
-    pagosDesdeAyer = (data || []).length;
-    cobradoDesdeAyer = Math.round((data || []).reduce((a, p) => a + (Number(p.monto) || 0), 0) * 100) / 100;
+    const data = (filas || []).filter(p => !esCuentaPropia(p.username));
+    pagosDesdeAyer = data.length;
+    cobradoDesdeAyer = Math.round(data.reduce((a, p) => a + (Number(p.monto) || 0), 0) * 100) / 100;
   } catch {}
   try {
     const { data } = await supabase.from('pagos').select('creado_en').eq('estado', 'pendiente').range(0, 999);
@@ -4983,7 +4992,7 @@ async function datosNegocioJarvis(users) {
     registraronAyer = new Set((data || []).filter(r => r.fecha === ayer).map(r => r.username)).size;
     registraronHoy = new Set((data || []).filter(r => r.fecha === hoy).map(r => r.username)).size;
   } catch {}
-  const lista = users || [];
+  const lista = (users || []).filter(u => !esCuentaPropia(u.username));
   const esPrueba = u => u.plan === 'trial' || u.plan === 'prueba';
   const activosL = lista.filter(u => u.enabled && membershipActive(u));
   // "A medias": pusieron sus datos del cuerpo hace 3 horas o más (y no más
@@ -5061,7 +5070,7 @@ function waDeAlumno(u, texto) {
   return `https://wa.me/${tel.length <= 9 ? '51' + tel : tel}?text=${encodeURIComponent(texto)}`;
 }
 async function sugerenciasJarvis(users, d) {
-  const lista = users || [];
+  const lista = (users || []).filter(u => !esCuentaPropia(u.username));
   const primerNombre = u => String(u.nombre || u.username).trim().split(/\s+/)[0];
   // Nombre completo y username: va solo a la memoria de Jarvis (no se ve),
   // para que después sepa de quién le hablan.

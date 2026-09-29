@@ -5335,7 +5335,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
       const datos = { kcal, proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0 };
       // Al corregirlo vuelve a la lista de revisión de Jonah.
       const { error } = editar
-        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null }).eq('id', editar.idPropio)
+        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null, editado_en: new Date().toISOString() }).eq('id', editar.idPropio)
         : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos });
       if (error) throw error;
       await onCreado(f.nombre.trim());
@@ -7321,32 +7321,78 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     try { return localStorage.getItem('jb_ayuda_no_comidas') === '1'; } catch { return false; }
   });
 
-  useEffect(() => { if (username) cargarPersonales(); }, [username]);
-
+  // Sus alimentos propios. Si Jonah marcó que uno "ya existe en la app"
+  // (columna reemplazo), deja de salir en su buscador y, en sus comidas, ese
+  // nombre usa los datos del alimento de la app.
   async function cargarPersonales() {
     try {
       const { data } = await supabase.from('alimentos_personales')
         .select('*').eq('username', username).order('created_at', { ascending: false }).limit(200);
-      const lista = (data || []).map(a => ({
+      const filas = data || [];
+      const lista = filas.filter(a => !a.reemplazo).map(a => ({
         key: a.nombre + ' (mío)', name: a.nombre, group: 'Mis alimentos', state: '-',
         kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos),
         fat: Number(a.grasas), fiber: 0, esPersonal: true, idPropio: a.id,
       }));
+      const reemplazos = filas.filter(a => a.reemplazo).map(a => {
+        const oficial = FOODS.find(f => f.key === a.reemplazo);
+        return oficial ? { ...oficial, key: a.nombre + ' (mío)', reemplazaA: a.nombre } : null;
+      }).filter(Boolean);
       setPersonales(lista);
-      setFoodsPersonales(lista);
-      // Aviso (una vez) si Jonah corrigió alguno de sus alimentos.
+      setFoodsPersonales([...lista, ...reemplazos]);
+      // Avisos (una vez) de lo que cambió Jonah.
       try {
         const visto = localStorage.getItem('jb_alim_corregido_visto') || '';
-        const corregidos = (data || []).filter(a => a.revision === 'corregido' && a.revisado_en && a.revisado_en > visto);
-        if (corregidos.length) {
-          showToast(`✏️ Jonah corrigió los datos de "${corregidos[0].nombre}"${corregidos.length > 1 ? ` y ${corregidos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
-          localStorage.setItem('jb_alim_corregido_visto', corregidos.map(a => a.revisado_en).sort().pop());
+        const nuevos = filas.filter(a => (a.revision === 'corregido' || a.revision === 'existe') && a.revisado_en && a.revisado_en > visto);
+        if (nuevos.length) {
+          const a = nuevos[0];
+          const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
+          showToast(oficial
+            ? `🔗 "${a.nombre}" ya estaba en la app: Jonah lo cambió por "${oficial.name}". Tus comidas ya se actualizaron.`
+            : `✏️ Jonah corrigió los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+          localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
+      await recalcularHistorialPropio(filas);
+    } catch {}
+  }
+
+  // Los totales de días pasados (Progreso, tendencias) se guardan ya
+  // sumados. Si un alimento suyo cambió (lo corrigió él o Jonah, o se
+  // reemplazó por uno de la app), se vuelven a sumar los días donde lo usó.
+  async function recalcularHistorialPropio(filas) {
+    let hechos = {};
+    try { hechos = JSON.parse(localStorage.getItem('jb_alim_recalculado') || '{}'); } catch {}
+    const cambiados = filas.filter(a => {
+      const marca = a.revisado_en || a.editado_en;
+      return marca && hechos[a.id] !== marca;
+    });
+    if (!cambiados.length) return;
+    try {
+      const { data: dias } = await supabase.from('historial').select('fecha, meal_plan').eq('username', username).range(0, 1999);
+      const claves = cambiados.map(a => a.nombre + ' (mío)');
+      for (const d of dias || []) {
+        const texto = JSON.stringify(d.meal_plan || {});
+        if (!claves.some(k => texto.includes(JSON.stringify(k)))) continue;
+        const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+        Object.values(d.meal_plan?.meals || {}).forEach(entries => (entries || []).forEach(en => {
+          const m = entryMacros(en);
+          t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat;
+        }));
+        await supabase.from('historial').update({
+          kcal_consumidas: Math.round(t.kcal), proteina_g: Math.round(t.protein),
+          carbos_g: Math.round(t.carbs), grasas_g: Math.round(t.fat),
+        }).eq('username', username).eq('fecha', d.fecha);
+      }
+      cambiados.forEach(a => { hechos[a.id] = a.revisado_en || a.editado_en; });
+      localStorage.setItem('jb_alim_recalculado', JSON.stringify(hechos));
     } catch {}
   }
 
   const versionAlimentos = usarAlimentosExtra();
+  // Se vuelve a cargar cuando llegan los alimentos que agregó Jonah: un
+  // alimento propio puede estar reemplazado por uno de ellos.
+  useEffect(() => { if (username) cargarPersonales(); }, [username, versionAlimentos]);
   const todosLosAlimentos = useMemo(() => [...personales, ...foodsBuscador()], [personales, versionAlimentos]);
   const totals = useMemo(() => {
     const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };

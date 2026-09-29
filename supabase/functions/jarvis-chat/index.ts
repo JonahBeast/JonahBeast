@@ -733,8 +733,22 @@ Deno.serve(async (req) => {
       ? (memoria || []).map((m: any) => `- [${m.id}] ${m.texto}`).join("\n")
       : "(vacía: el señor todavía no te pidió recordar nada)";
 
+    // Bitácora: lo conversado en los últimos 2 días, para que Jarvis sepa qué
+    // quedó pendiente de un día para otro (tabla jarvis_bitacora).
+    const { data: bitacora } = await supabase.from("jarvis_bitacora").select("creado_en, pregunta, respuesta")
+      .gte("creado_en", new Date(Date.now() - 2 * 86400000).toISOString())
+      .order("creado_en", { ascending: false }).limit(16);
+    const horaLima = (iso: string) => new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+    const recorte = (t: string, n: number) => (t.length > n ? t.slice(0, n) + "…" : t);
+    const bitacoraTexto = (bitacora || []).length
+      ? (bitacora || []).reverse().map((b: any) => `- ${horaLima(b.creado_en)} · El señor: "${recorte(b.pregunta, 250)}" · Tú: "${recorte(b.respuesta, 350)}"`).join("\n")
+      : "(no hubo conversaciones en los últimos 2 días)";
+
     const contexto = `Lo que el señor te pidió recordar (tu memoria permanente; tenla en cuenta en tus respuestas y sugerencias, y úsala con naturalidad, sin recitarla):
 ${memoriaTexto}
+
+Lo que conversaron en los últimos 2 días (tu bitácora, de lo más antiguo a lo más reciente; incluye lo de hoy). Úsala para dar continuidad: si quedó algo pendiente (a quién iba a escribirle, un pago por aprobar, algo que prometiste revisar), puedes retomarlo o preguntar cómo quedó, sin recitar la bitácora. Si en esta conversación todavía no lo mencionaste y en la bitácora de días anteriores quedó algo pendiente, menciónalo en una frase corta al final de tu respuesta (ej. "Por cierto, señor: ayer quedó pendiente escribirle a Giannina, ¿cómo le fue?"). Si algo ya está en la conversación actual, no lo repitas. Compara con los datos en vivo antes de afirmar algo (por ejemplo, si ya pagó):
+${bitacoraTexto}
 
 Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
 - Precios vigentes de los planes: ${preciosTexto}
@@ -1008,6 +1022,12 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       const textoFinal = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim();
       const { texto, visual } = separarVisual(textoFinal);
       const respuesta = texto || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
+      // Se anota en la bitácora (y se borra lo de más de 30 días). Si falla,
+      // la respuesta igual llega.
+      try {
+        await supabase.from("jarvis_bitacora").insert({ pregunta: pregunta.slice(0, 2000), respuesta: respuesta.slice(0, 4000) });
+        await supabase.from("jarvis_bitacora").delete().lt("creado_en", new Date(Date.now() - 30 * 86400000).toISOString());
+      } catch (_) { /* sin bitácora esta vez */ }
       return { respuesta, acciones, ...(visual ? { visual } : {}) };
     }
 

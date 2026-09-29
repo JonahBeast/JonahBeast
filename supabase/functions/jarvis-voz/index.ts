@@ -24,9 +24,13 @@ const CORS_HEADERS = {
 // es una voz aparte: es la voz masculina "cedar" (la más natural de OpenAI)
 // con instrucciones de estilo de mayordomo inteligente (no imita la voz de
 // ningún actor real). Si "cedar" no respondiera, se usa "onyx".
-const VOCES = ["jarvis", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+const VOCES = ["jarvis", "friday", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
 const VOZ_JARVIS = "cedar";
 const VOZ_JARVIS_RESPALDO = "onyx";
+// "friday": voz femenina "marin" con estilo de asistente de laboratorio
+// joven y directa (respaldo: "coral").
+const VOZ_FRIDAY = "marin";
+const VOZ_FRIDAY_RESPALDO = "coral";
 // Tope de texto por llamada: acota el costo de cada respuesta.
 const MAX_CARACTERES = 1500;
 const INSTRUCCIONES =
@@ -42,6 +46,13 @@ const INSTRUCCIONES_JARVIS =
   "encadena las frases sin pausas largas, sin alargar las palabras y sin dramatizar. " +
   "Seguro y eficiente, cortés, con humor seco apenas insinuado. " +
   "Pronuncia nombres y cifras con claridad pero sin frenar. Nunca suenes robótico, lento ni teatral.";
+// Estilo inspirado en la asistente IA femenina del cine, sin imitar a ninguna actriz.
+const INSTRUCCIONES_FRIDAY =
+  "Eres la voz de una asistente de inteligencia artificial de laboratorio, joven, lista y leal, que habla español " +
+  "latinoamericano neutro. Voz femenina de registro medio, clara y cálida. Habla RÁPIDO y FLUIDO, práctica y directa, " +
+  "como una compañera de trabajo de confianza que ya sabe lo que el jefe necesita: frases encadenadas, sin pausas largas. " +
+  "Relajada y segura, un poco informal, con un toque de picardía y humor rápido apenas insinuado. " +
+  "Pronuncia nombres y cifras con claridad pero sin frenar. Nunca suenes robótica, lenta ni teatral.";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
@@ -64,15 +75,16 @@ Deno.serve(async (req) => {
     const input = String(texto || "").replace(/\s+/g, " ").trim().slice(0, MAX_CARACTERES);
     if (!input) return json({ error: "Falta el texto." }, 400);
     const elegida = VOCES.includes(voz) ? voz : VOCES[0];
-    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : INSTRUCCIONES;
+    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : elegida === "friday" ? INSTRUCCIONES_FRIDAY : INSTRUCCIONES;
     const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "authorization": `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
     });
-    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida);
-    // Si OpenAI no acepta la voz nueva, Jarvis sigue hablando con la anterior.
+    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida === "friday" ? VOZ_FRIDAY : elegida);
+    // Si OpenAI no acepta la voz nueva, sigue hablando con la de respaldo.
     if (r.status === 400 && elegida === "jarvis") r = await pedir(VOZ_JARVIS_RESPALDO);
+    if (r.status === 400 && elegida === "friday") r = await pedir(VOZ_FRIDAY_RESPALDO);
     if (!r.ok || !r.body) {
       console.error("jarvis-voz: OpenAI respondió", r.status, (await r.text().catch(() => "")).slice(0, 300));
       return json({ error: "No se pudo generar la voz." }, 502);

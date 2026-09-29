@@ -974,6 +974,7 @@ function AlimentoPropio({ a, onListo }) {
   const [ia, setIa] = useState(null);
   const [paraTodos, setParaTodos] = useState(null);
   const [fuente, setFuente] = useState('alumno'); // de dónde salen las cifras del formulario "para todos"
+  const [existe, setExiste] = useState(null); // texto del buscador "Ya existe en la app" (null = cerrado)
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
 
@@ -1012,7 +1013,21 @@ function AlimentoPropio({ a, onListo }) {
   }
 
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
-  const estado = { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos' }[a.revision];
+  const estado = { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos', existe: '🔗 Cambiado por uno de la app' }[a.revision];
+
+  // "Ya existe en la app": el alumno creó algo que la app ya tiene. Su
+  // alimento deja de salir en su buscador y, en sus comidas (también las de
+  // días pasados), se usan los datos del alimento de la app.
+  const sinTildes = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const opcionesExiste = existe === null ? [] : (() => {
+    const palabras = sinTildes(existe).split(/\s+/).filter(Boolean);
+    if (!palabras.length) return [];
+    return FOODS.filter(f => { const t = sinTildes(f.key + ' ' + f.group); return palabras.every(p => t.includes(p)); }).slice(0, 8);
+  })();
+  async function marcarExiste(f) {
+    if (!confirm(`¿Cambiar "${a.nombre}" de @${a.username} por "${f.key}" de la app (${Math.round(f.kcal)} kcal / 100 g)?\n\nSu alimento deja de salir en su buscador y sus comidas pasan a usar los datos de la app.`)) return;
+    await marcar('existe', { reemplazo: f.key });
+  }
 
   // Cifras del formulario "Agregar para todos": las del alumno o las de la IA
   // (con su grupo, estado y medida de casa). El nombre que ya escribió Jonah
@@ -1084,7 +1099,23 @@ function AlimentoPropio({ a, onListo }) {
         </div>
       )}
 
-      {!paraTodos && (
+      {existe !== null && !paraTodos && (
+        <div className="flex flex-col gap-1.5 border-t border-zinc-800 pt-2">
+          <p className="jb-body text-xs text-zinc-400">¿Cuál de la app es? Toca el correcto:</p>
+          <input value={existe} onChange={e => setExiste(e.target.value)} className={inputCls + ' text-sm'} placeholder="Buscar en la app…" autoFocus />
+          {opcionesExiste.map(f => (
+            <button key={f.key} disabled={ocupado} onClick={() => marcarExiste(f)}
+              className="text-left bg-zinc-900 border border-zinc-800 hover:border-orange-500 rounded-lg px-3 py-2">
+              <span className="jb-body text-sm text-zinc-100 block">{f.key}</span>
+              <span className="jb-body text-[11px] text-zinc-500">{f.group} · {Math.round(f.kcal)} kcal · P {n(f.protein)} g · C {n(f.carbs)} g · G {n(f.fat)} g (por 100 g)</span>
+            </button>
+          ))}
+          {existe.trim() && !opcionesExiste.length && <p className="jb-body text-xs text-zinc-500">No encontré nada con ese nombre en la app. Prueba con otra palabra o usa "➕ Agregar para todos".</p>}
+          <button onClick={() => setExiste(null)} className="jb-body text-xs text-zinc-500 underline self-start">Cancelar</button>
+        </div>
+      )}
+
+      {!paraTodos && existe === null && (
         <div className="flex flex-wrap gap-2">
           {editando ? (
             <>
@@ -1098,6 +1129,10 @@ function AlimentoPropio({ a, onListo }) {
               {a.revision !== 'ok' && <button disabled={ocupado} onClick={() => marcar('ok')} className={btnGhost + ' text-xs py-1.5 px-3'}>✓ Está bien</button>}
               <button disabled={ocupado} onClick={() => setEditando(true)} className={btnGhost + ' text-xs py-1.5 px-3'}>✏️ Corregir</button>
               {!ia && <button disabled={ocupado} onClick={compararIA} className={btnGhost + ' text-xs py-1.5 px-3'}>{ocupado ? <Loader2 size={13} className="animate-spin" /> : '🤖 Comparar con la IA'}</button>}
+              {a.revision !== 'existe' && (
+                <button disabled={ocupado} onClick={() => setExiste(String(ia?.ya_existe || a.nombre).replace(/[()'"]/g, ' ').trim())}
+                  className={btnGhost + ' text-xs py-1.5 px-3'}>🔗 Ya existe en la app</button>
+              )}
               {a.revision !== 'aprobado' && (
                 <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno }); }}
                   className={btnGhost + ' text-xs py-1.5 px-3'}>➕ Agregar para todos</button>

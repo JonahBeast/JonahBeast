@@ -326,7 +326,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 3. Toca **"Guardar alimento"**. Solo tú lo ves; en el buscador sale como "tuyo".
 - Error "Revisa las calorías: ningún alimento pasa de 900 kcal por 100 g." → seguramente pusiste las calorías del paquete entero, no de 100 g.
 - **Corregirlo:** en "Comidas", toca un alimento tuyo que ya registraste → **"✏️ Corregir los datos de este alimento (lo creaste tú)"** → cambia las calorías o macros (el nombre no se cambia) → **"Guardar cambios"**. Las comidas donde ya lo usaste se corrigen solas. Por ahora no se pueden borrar.
-- Jonah revisa los alimentos que crean los alumnos. Si corrige uno tuyo, al abrir la app sale "✏️ Jonah corrigió los datos de "[alimento]". Tus comidas ya se actualizaron." Si le parece útil para todos, puede agregarlo a la lista de la app.
+- Jonah revisa los alimentos que crean los alumnos. Si corrige uno tuyo, al abrir la app sale "✏️ Jonah corrigió los datos de "[alimento]". Tus comidas ya se actualizaron." Si le parece útil para todos, puede agregarlo a la lista de la app. Si ya existía en la app, Jonah puede cambiarlo por el de la app: sale "🔗 "[alimento]" ya estaba en la app: Jonah lo cambió por "[alimento de la app]". Tus comidas ya se actualizaron.", deja de salir en su buscador como "tuyo" y sus comidas (también las de días pasados en "Progreso") usan los datos de la app.
 
 ### 8.5 Si no encuentras un plato
 

@@ -234,7 +234,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 **A) Escribir**
 1. Toca **"Escribir"** y escribe el nombre en "Escribe para buscar…".
-2. Toca el alimento. Se agrega con una medida de casa (unidad, taza, plato…) o en gramos.
+2. Toca el alimento. En la lista cada uno sale con su **nombre completo** y debajo su grupo y sus calorías por 100 g (ej. "Bebidas · 86 kcal / 100 g"), para no confundir nombres parecidos. Se agrega con una medida de casa (unidad, taza, plato…) o en gramos. Mientras escribes se esconde el botón "REGISTRAR" para que no tape la lista.
 3. Ajusta la cantidad con **−** y **+**.
 - El buscador entiende sinónimos (ej. keke/queque). Los platos preparados (ají de gallina, ceviche…) son estimaciones promedio.
 

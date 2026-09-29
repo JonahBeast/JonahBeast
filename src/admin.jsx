@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { opcionesUsoMenu } from './menuDia.js';
+import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD } from './saldoIA.js';
 import {
   ANGULOS,
   CATEGORIAS_TIENDA,
@@ -918,6 +919,116 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
         </div>
       )}
       {error && <p className="jb-body text-[11px] text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+/* Saldo de la IA (Anthropic). Anthropic no deja leer el saldo desde
+   afuera: Jonah anota sus recargas y, cuando lo ve en su página, el saldo
+   real; el panel resta lo que gastó la IA desde entonces (tabla ia_uso). */
+function SaldoIAPanel() {
+  const [movs, setMovs] = useState(null);
+  const [calc, setCalc] = useState(null);
+  const [abierto, setAbierto] = useState(false);
+  const [form, setForm] = useState(null); // { tipo, monto }
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const tc = SUPUESTOS_RENTABILIDAD.tipoCambio;
+
+  async function cargar() {
+    try {
+      const { data: m, error: e } = await supabase.from('ia_saldo').select('id, tipo, monto_usd, fecha, nota').order('fecha', { ascending: false }).limit(50);
+      if (e) throw e;
+      setMovs(m || []);
+      const p = puntoDePartidaSaldo(m || []);
+      const desdeSemana = new Date(Date.now() - 7 * 864e5).toISOString();
+      const desde = p && new Date(p.desde) < new Date(desdeSemana) ? p.desde : desdeSemana;
+      const { data: usos } = await supabase.from('ia_uso')
+        .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+        .gte('creado_en', desde).range(0, 19999);
+      const est = saldoEstimado(m || [], usos || []);
+      const semana = (usos || []).filter(u => new Date(u.creado_en) >= new Date(desdeSemana)).reduce((s, u) => s + costoUsdIA(u), 0);
+      setCalc({ est, porDia: semana / 7 });
+    } catch (e) { setError('No se pudo cargar: ' + (e?.message || '')); setMovs([]); }
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function guardar() {
+    const monto = Number(String(form.monto).replace(',', '.'));
+    if (!(monto >= 0) || monto > 100000) return setError('Escribe el monto en dólares (ej. 20).');
+    setOcupado(true); setError('');
+    try {
+      const { error: e } = await supabase.from('ia_saldo').insert({ tipo: form.tipo, monto_usd: monto });
+      if (e) throw e;
+      setForm(null);
+      await cargar();
+    } catch (e) { setError('No se pudo guardar: ' + (e?.message || '')); }
+    setOcupado(false);
+  }
+
+  const est = calc?.est;
+  const dias = est && calc.porDia > 0 ? Math.floor(est.saldo / calc.porDia) : null;
+  const bajo = est && est.saldo < SALDO_IA_MINIMO_USD;
+  const usd = v => `US$ ${v.toFixed(2)}`;
+  return (
+    <div className={`bg-zinc-900 border rounded-2xl overflow-hidden ${bajo ? 'border-amber-600/60' : 'border-zinc-800'}`}>
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left gap-3">
+        <div className="min-w-0">
+          <h2 className="jb-display text-base text-zinc-200">🤖 SALDO DE LA IA{bajo && <span className="text-amber-400"> ⚠️</span>}</h2>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5 tabular-nums">
+            {movs === null ? 'Cargando…'
+              : !est ? 'Anota tu saldo de Anthropic para empezar el control.'
+              : <>Estimado: <span className={bajo ? 'text-amber-400 font-semibold' : 'text-zinc-100 font-semibold'}>{usd(est.saldo)}</span> (≈ S/ {(est.saldo * tc).toFixed(2)}){dias !== null ? ` · alcanza para unos ${Math.max(dias, 0)} días` : ''}</>}
+          </p>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
+          <p className="jb-body text-xs text-zinc-500">
+            Es la IA de las fotos, Jarvis, los pedidos de alimentos y el asistente de WhatsApp. Anthropic no deja ver el saldo desde aquí: anota cada recarga y, cuando entres a su página (console.anthropic.com → Billing), anota el saldo real para corregir el estimado. Si baja de {usd(SALDO_IA_MINIMO_USD)}, Jarvis te avisa en el informe de la mañana. Si llega a cero, las fotos, Jarvis y los pedidos automáticos dejan de funcionar hasta que recargues.
+          </p>
+          {est && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                <p className="jb-body text-[11px] text-zinc-500">Gastado desde {fechaHoraCorta(est.desde)}</p>
+                <p className="jb-display text-lg text-zinc-100 tabular-nums">{usd(est.gastado)}</p>
+              </div>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                <p className="jb-body text-[11px] text-zinc-500">Gasto promedio (últimos 7 días)</p>
+                <p className="jb-display text-lg text-zinc-100 tabular-nums">{usd(calc.porDia)} / día</p>
+              </div>
+            </div>
+          )}
+          {form ? (
+            <div className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <p className="jb-body text-xs text-zinc-300">{form.tipo === 'recarga' ? '¿Cuántos dólares recargaste?' : '¿Qué saldo te muestra Anthropic ahora?'}</p>
+              <input type="number" inputMode="decimal" autoFocus value={form.monto} onChange={e => setForm(f => ({ ...f, monto: e.target.value }))}
+                className={inputCls + ' text-sm'} placeholder="Ej. 20" />
+              <div className="flex gap-2">
+                <button disabled={ocupado || form.monto === ''} onClick={guardar} className={btnPrimary + ' text-sm py-2 flex-1'}>{ocupado ? <Loader2 size={15} className="animate-spin" /> : 'Guardar'}</button>
+                <button onClick={() => setForm(null)} className={btnGhost + ' text-sm py-2'}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setForm({ tipo: 'saldo_real', monto: '' })} className={btnPrimary + ' text-xs py-2 px-3'}>📌 Anotar saldo real</button>
+              <button onClick={() => setForm({ tipo: 'recarga', monto: '' })} className={btnGhost + ' text-xs py-2 px-3'}>➕ Anotar recarga</button>
+            </div>
+          )}
+          {movs?.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <p className="jb-body text-[11px] text-zinc-500">Últimos movimientos</p>
+              {movs.slice(0, 6).map(m => (
+                <p key={m.id} className="jb-body text-xs text-zinc-400 tabular-nums">
+                  {m.tipo === 'recarga' ? '➕ Recarga' : '📌 Saldo real'}: {usd(Number(m.monto_usd))} · {fechaHoraCorta(m.fecha)}
+                </p>
+              ))}
+            </div>
+          )}
+          {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -2147,23 +2258,7 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-// Precio de la IA en dólares por millón de tokens (entrada, salida, lectura
-// y escritura de caché). Con esto y los tokens de la tabla ia_uso sale el
-// costo real de cada llamada.
-const PRECIOS_IA_USD = {
-  'claude-sonnet-5': [2, 10, 0.2, 2.5],
-  'claude-opus-5': [5, 25, 0.5, 6.25],
-  'claude-opus-5-5': [4, 20, 0.4, 5],
-  'claude-haiku-4-5': [1, 5, 0.1, 1.25],
-};
 const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp'];
-
-function costoUsdIA(f) {
-  const m = String(f.modelo || '');
-  const p = PRECIOS_IA_USD[m]
-    || (m.includes('haiku') ? PRECIOS_IA_USD['claude-haiku-4-5'] : m.includes('opus') ? PRECIOS_IA_USD['claude-opus-5'] : PRECIOS_IA_USD['claude-sonnet-5']);
-  return (f.tokens_entrada * p[0] + f.tokens_salida * p[1] + f.tokens_cache_lectura * p[2] + f.tokens_cache_escritura * p[3]) / 1e6;
-}
 
 function cuotaNuevoRus(ingresos) {
   if (ingresos <= 5000) return 20;
@@ -6586,6 +6681,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
+            <SaldoIAPanel />
             <AlimentosPropiosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />

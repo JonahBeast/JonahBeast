@@ -27,6 +27,12 @@
 //                está segura, el pedido queda pendiente para Jonah (con los
 //                macros ya calculados) y le llega un aviso. En propuesta.ia_estado
 //                queda lo que hizo (revisando / agregado / descartado / dudoso).
+//   Variantes: al agregar un pedido (lo haga la IA o Jonah), se agregan
+//                también hasta 3 variantes comunes del plato en restaurantes
+//                peruanos (ej. Jalea de pescado → Jalea mixta), con la misma
+//                regla: si la IA está segura, solas; si no, quedan como
+//                sugerencia en el panel ("agregar_variante" → {id, indice}).
+//                Lo que pasó con cada una queda en propuesta.variantes_resultado.
 //   "automatico" → la tarea automática (cada 15 min, con x-webhook-secret):
 //                revisa los alimentos creados y atiende los pedidos (también
 //                los de WhatsApp y los de las fotos) que quedaron sin atender.
@@ -97,6 +103,7 @@ Deno.serve(async (req) => {
     if (accion === "calcular") return json(await calcular(String(nombre || "").trim().slice(0, 80), id));
     if (accion === "aprobar") return json(await aprobar(alimento, id));
     if (accion === "descartar") return json(await descartar(Number(id), respuesta));
+    if (accion === "agregar_variante") return json(await agregarVarianteSugerida(Number(id), Number(cuerpo?.indice)));
     return json({ error: "Acción desconocida." }, 400);
   } catch (e) {
     const mensaje = (e as Error)?.message || "Error inesperado.";
@@ -128,8 +135,30 @@ const ESQUEMA_PROPUESTA = {
       type: "string", enum: ["alta", "media", "baja"],
       description: "alta SOLO si sabes exactamente qué es (o, con ya_existe, que es exactamente lo mismo) y apostarías a tus números. Nombre ambiguo, genérico, una marca que no conoces o algo que no es comida → baja.",
     },
+    variantes: {
+      type: "array",
+      description: "Hasta 3 variantes del mismo plato que se piden comúnmente en restaurantes peruanos, que NO estén en la lista y cuyos macros sean claramente distintos (ej. Jalea de pescado → Jalea mixta). Lista vacía si no hay o si ya_existe no está vacío.",
+      items: {
+        type: "object",
+        properties: {
+          nombre: { type: "string" },
+          grupo: { type: "string", enum: GRUPOS_APP },
+          estado: { type: "string" },
+          kcal: { type: "number" },
+          proteina: { type: "number" },
+          carbos: { type: "number" },
+          grasa: { type: "number" },
+          fibra: { type: "number" },
+          unidad: { type: "string" },
+          gramos_unidad: { type: "number" },
+          seguridad: { type: "string", enum: ["alta", "media", "baja"] },
+        },
+        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad"],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes"],
   additionalProperties: false,
 };
 
@@ -157,6 +186,7 @@ Reglas:
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
 - En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
+- Variantes: piensa como la carta de un restaurante peruano. Si piden "Jalea de pescado", en la carta también está "Jalea mixta"; si piden "Ceviche de pescado", "Ceviche mixto". Máximo 3, solo las comunes de verdad (no inventes), que no estén en la lista y con macros claramente distintos del plato pedido (si serían casi iguales, no la pongas). Cada una con sus números por 100 g, su medida casera y su propia seguridad. Si el pedido ya existe o no es un plato con variantes, deja la lista vacía.
 
 Alimentos que ya están en la app (nombre y estado):
 ${lista}`,
@@ -169,7 +199,10 @@ ${lista}`,
   const texto = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("");
   let propuesta: any;
   try { propuesta = JSON.parse(texto); } catch { throw new Error("La IA respondió algo que no se pudo leer. Intenta de nuevo."); }
-  for (const k of ["kcal", "proteina", "carbos", "grasa", "fibra", "gramos_unidad"]) propuesta[k] = Math.max(0, Math.round(Number(propuesta[k]) * 10) / 10 || 0);
+  const redondear = (o: any) => { for (const k of ["kcal", "proteina", "carbos", "grasa", "fibra", "gramos_unidad"]) o[k] = Math.max(0, Math.round(Number(o[k]) * 10) / 10 || 0); };
+  redondear(propuesta);
+  propuesta.variantes = (Array.isArray(propuesta.variantes) ? propuesta.variantes : []).slice(0, 3);
+  propuesta.variantes.forEach(redondear);
 
   if (id) {
     await supabase.from("pedidos_alimentos").update({ propuesta, actualizado_en: new Date().toISOString() }).eq("id", id);
@@ -512,18 +545,74 @@ function limpiarAlimento(a: any) {
   };
 }
 
-async function aprobar(entrada: any, id?: number) {
+const etiquetaDe = (a: { nombre: string; estado: string }) => a.estado && a.estado !== "-" ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre;
+
+// Agrega un alimento a la lista de la app (alimentos_extra).
+async function agregarAlimento(entrada: any) {
   const alimento = limpiarAlimento(entrada);
-  const etiqueta = alimento.estado !== "-" ? `${alimento.nombre} (${alimento.estado.toLowerCase()})` : alimento.nombre;
+  const etiqueta = etiquetaDe(alimento);
   if (ALIMENTOS_APP.some((n) => n.toLowerCase() === etiqueta.toLowerCase())) {
     throw new ErrorDeDatos(`"${etiqueta}" ya está en la app. Si es otra cosa, cámbiale el nombre.`);
   }
-
   const { data: nuevo, error } = await supabase.from("alimentos_extra").insert(alimento).select("id").single();
   if (error) {
     if (error.code === "23505") throw new ErrorDeDatos(`"${etiqueta}" ya lo agregaste antes.`);
     throw new Error(error.message);
   }
+  return { id: nuevo.id as number, etiqueta, alimento };
+}
+
+// Variantes del plato que se acaba de agregar. Si la IA estuvo segura de
+// una (y sus números cuadran), se agrega sola; si no, queda como sugerencia
+// para Jonah. Nunca frena la aprobación del pedido.
+async function agregarVariantes(pedidoId: number) {
+  try {
+    const { data: pedido } = await supabase.from("pedidos_alimentos").select("propuesta").eq("id", pedidoId).maybeSingle();
+    const propuesta = pedido?.propuesta;
+    const variantes = Array.isArray(propuesta?.variantes) ? propuesta.variantes.slice(0, 3) : [];
+    if (!variantes.length || propuesta.variantes_resultado) return;
+    const resultado: any[] = [];
+    for (const v of variantes) {
+      const nombre = String(v?.nombre || "").trim();
+      if (!nombre) continue;
+      const base = { ...v, nombre, grupo: GRUPOS_APP.includes(v.grupo) ? v.grupo : propuesta.grupo, estado: String(v.estado || "-").trim() || "-" };
+      const etiqueta = etiquetaDe(base);
+      if (etiqueta.toLowerCase() === etiquetaDe(propuesta).toLowerCase() || await existeEnApp(etiqueta)) {
+        resultado.push({ nombre: etiqueta, estado: "ya_existia" });
+        continue;
+      }
+      if (v.seguridad === "alta" && cuadra(v.kcal, v.proteina, v.carbos, v.grasa)) {
+        try {
+          const r = await agregarAlimento(base);
+          resultado.push({ ...base, nombre: r.alimento.nombre, etiqueta: r.etiqueta, estado: "agregada", alimento_id: r.id });
+          continue;
+        } catch (e) {
+          console.error("No se pudo agregar la variante", etiqueta, (e as Error)?.message);
+        }
+      }
+      resultado.push({ ...base, etiqueta, estado: "sugerida" });
+    }
+    await supabase.from("pedidos_alimentos").update({ propuesta: { ...propuesta, variantes_resultado: resultado } }).eq("id", pedidoId);
+  } catch (e) {
+    console.error("Variantes:", (e as Error)?.message);
+  }
+}
+
+// Jonah agrega desde el panel una variante que quedó como sugerencia.
+async function agregarVarianteSugerida(pedidoId: number, indice: number) {
+  const { data: pedido } = await supabase.from("pedidos_alimentos").select("propuesta").eq("id", pedidoId).maybeSingle();
+  const lista = pedido?.propuesta?.variantes_resultado;
+  const v = Array.isArray(lista) ? lista[indice] : null;
+  if (!v || v.estado !== "sugerida") throw new ErrorDeDatos("Esa variante ya no está pendiente.");
+  const r = await agregarAlimento(v);
+  lista[indice] = { ...v, estado: "agregada", alimento_id: r.id, por: "jonah" };
+  await supabase.from("pedidos_alimentos").update({ propuesta: { ...pedido.propuesta, variantes_resultado: lista } }).eq("id", pedidoId);
+  return { ok: true, alimento_id: r.id };
+}
+
+async function aprobar(entrada: any, id?: number) {
+  const { id: nuevoId, alimento } = await agregarAlimento(entrada);
+  const nuevo = { id: nuevoId };
   if (!id) return { ok: true, alimento_id: nuevo.id, avisos: null };
 
   const { data: pedido } = await supabase.from("pedidos_alimentos").select("*").eq("id", id).maybeSingle();
@@ -535,6 +624,7 @@ async function aprobar(entrada: any, id?: number) {
     estado: "agregado", alimento_id: nuevo.id, avisos,
     resuelto_en: new Date().toISOString(), actualizado_en: new Date().toISOString(),
   }).eq("id", id);
+  await agregarVariantes(id);
   return { ok: true, alimento_id: nuevo.id, avisos };
 }
 

@@ -5314,10 +5314,21 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
   );
 }
 
+// La IA revisa el alimento apenas se guarda (en segundo plano: el alumno
+// sigue usando la app). Si lo corrigió o lo cambió por uno de la app, se
+// vuelve a cargar su lista (y ahí sale el aviso). Si falla, lo revisa la
+// tarea automática de cada hora.
+function revisarAlimentoPropio(id, onRevisado) {
+  if (!id) return;
+  supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'revisar_propio', id } })
+    .then(({ data }) => { if (data?.revision === 'corregido' || data?.revision === 'existe') onRevisado?.(); })
+    .catch(() => {});
+}
+
 // Crear un alimento propio, o corregir uno que ya creó (editar = el
 // alimento). Al corregir no se cambia el nombre: las comidas donde ya lo
 // usó lo buscan por el nombre y se recalculan solas con los datos nuevos.
-function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado }) {
+function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado, onRevisado }) {
   const [f, setF] = useState(editar
     ? { nombre: editar.name, kcal: String(editar.kcal), proteina: String(editar.protein || ''), carbos: String(editar.carbs || ''), grasas: String(editar.fat || '') }
     : { nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
@@ -5333,11 +5344,12 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
     setBusy(true);
     try {
       const datos = { kcal, proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0 };
-      // Al corregirlo vuelve a la lista de revisión de Jonah.
-      const { error } = editar
-        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null, editado_en: new Date().toISOString() }).eq('id', editar.idPropio)
-        : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos });
+      // Al corregirlo vuelve a revisión.
+      const { data: fila, error } = editar
+        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null, editado_en: new Date().toISOString() }).eq('id', editar.idPropio).select('id').single()
+        : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos }).select('id').single();
       if (error) throw error;
+      revisarAlimentoPropio(fila?.id, onRevisado);
       await onCreado(f.nombre.trim());
       onCerrar();
     } catch (e) { setErr('No se pudo guardar. Intenta de nuevo.'); }
@@ -7348,8 +7360,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
           showToast(oficial
-            ? `🔗 "${a.nombre}" ya estaba en la app: Jonah lo cambió por "${oficial.name}". Tus comidas ya se actualizaron.`
-            : `✏️ Jonah corrigió los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+            ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
+            : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
@@ -7500,6 +7512,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           username={username}
           nombreInicial={crearPara.texto}
           onCerrar={() => setCrearPara(null)}
+          onRevisado={cargarPersonales}
           onCreado={async (nombre) => {
             await cargarPersonales();
             const nuevo = (nombre || crearPara.texto).trim() + ' (mío)';
@@ -7509,7 +7522,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       )}
       {editarPropio && (
         <CrearAlimentoModal username={username} editar={editarPropio}
-          onCerrar={() => setEditarPropio(null)}
+          onCerrar={() => setEditarPropio(null)} onRevisado={cargarPersonales}
           onCreado={async () => { await cargarPersonales(); showToast('✅ Alimento corregido'); }} />
       )}
       {codigoPara && (

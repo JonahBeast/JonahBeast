@@ -18,8 +18,12 @@ const aqui = (ruta) => new URL(`../${ruta}`, import.meta.url);
 // Filas de RAW_FOODS: ["Grupo","Nombre","Estado",kcal,...]
 const app = readFileSync(aqui('src/App.jsx'), 'utf8');
 const bloque = app.slice(app.indexOf('const RAW_FOODS = ['), app.indexOf('];', app.indexOf('const RAW_FOODS = [')));
-const alimentos = [...bloque.matchAll(/^\s*\["([^"]+)","([^"]+)","([^"]*)"/gm)]
-  .map(([, grupo, nombre, estado]) => estado && estado !== '-' ? `${nombre} (${estado.toLowerCase()})` : nombre);
+const filas = [...bloque.matchAll(/^\s*\["([^"]+)","([^"]+)","([^"]*)"/gm)];
+const alimentos = filas.map(([, grupo, nombre, estado]) => estado && estado !== '-' ? `${nombre} (${estado.toLowerCase()})` : nombre);
+// Clave exacta de cada alimento en la app (misma que FOODS: "Nombre (Estado)"),
+// en el mismo orden que ALIMENTOS_APP. Solo la usa alimentos-pedidos, para
+// cambiar un alimento de un alumno por el de la app ("ya existe").
+const claves = filas.map(([, grupo, nombre, estado]) => `${nombre} (${estado})`);
 if (alimentos.length < 100) {
   console.error('✗ No se pudo leer la lista de alimentos de src/App.jsx (RAW_FOODS).');
   process.exit(1);
@@ -30,8 +34,10 @@ export const GRUPOS_APP: string[] = ${JSON.stringify(grupos)};
 export const ALIMENTOS_APP: string[] = ${JSON.stringify(alimentos, null, 0).replace(/","/g, '",\n  "').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]')};
 `;
 
+const lista = (a) => JSON.stringify(a, null, 0).replace(/","/g, '",\n  "').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]');
 const destinos = [
-  ...['whatsapp-webhook', 'alimentos-pedidos'].map(f => ({ ruta: `supabase/functions/${f}/alimentos.ts`, contenido: contenidoAlimentos })),
+  { ruta: 'supabase/functions/whatsapp-webhook/alimentos.ts', contenido: contenidoAlimentos },
+  { ruta: 'supabase/functions/alimentos-pedidos/alimentos.ts', contenido: contenidoAlimentos + `export const CLAVES_APP: string[] = ${lista(claves)};\n` },
 ];
 
 if (process.argv.includes('--revisar')) {

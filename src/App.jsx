@@ -2089,6 +2089,31 @@ function fechaFinPrueba() {
    la cuenta nueva (canjear_codigo_live en la base: una vez por cuenta). */
 const CLAVE_CODIGO_LIVE = 'jb-codigo-live';
 const CLAVE_GRASA_WHATSAPP = 'jb-grasa-whatsapp';
+// Lo que puso en la calculadora (datos y medidas con cinta): pasa al
+// recorrido (ya viene lleno) y a su cuenta nueva, así en la app ve su % de
+// grasa sin volver a medirse.
+const CLAVE_MEDIDAS_CALC = 'jb-medidas-calc';
+function guardarMedidasCalc(form) {
+  try {
+    const { sexo, edad, estatura, peso, actividad, cuello, cintura, cadera } = form;
+    localStorage.setItem(CLAVE_MEDIDAS_CALC, JSON.stringify({ sexo, edad, estatura, peso, actividad, cuello, cintura, cadera, ts: Date.now() }));
+  } catch {}
+}
+function leerMedidasCalc() {
+  try {
+    const m = JSON.parse(localStorage.getItem(CLAVE_MEDIDAS_CALC) || 'null');
+    if (!m || !m.ts || Date.now() - m.ts > 30 * 86400000) return null;
+    return m;
+  } catch { return null; }
+}
+
+/* Link del video "comenta QUIERO" (jonahbeast.com/calculadora): abre directo
+   la calculadora y, para ver el % de grasa, pide crear la cuenta gratis (en
+   la web normal se pide por WhatsApp). Si no trae ?fuente=, cuenta como
+   fuente "quiero" en el embudo. */
+function esLinkCalculadora() {
+  try { return window.location.pathname.replace(/\/+$/, '') === '/calculadora'; } catch { return false; }
+}
 function leerCodigoLive() {
   try {
     const c = JSON.parse(localStorage.getItem(CLAVE_CODIGO_LIVE) || 'null');
@@ -2441,7 +2466,7 @@ function Landing({ onChoose }) {
 /* AUTH SCREENS                                                        */
 /* ------------------------------------------------------------------ */
 
-function FreeCalculator({ onBack, onEmpezar }) {
+function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
   // Vacío (con ejemplos en gris): antes venía lleno y mucha gente veía
   // resultados que no eran suyos.
   const [form, setForm] = useState({ ...EMPTY_FORM, actividad: 'Moderado' });
@@ -2456,6 +2481,19 @@ function FreeCalculator({ onBack, onEmpezar }) {
   const [premio, setPremio] = useState(() => leerCodigoLive());
   const [error, setError] = useState('');
   const [revisando, setRevisando] = useState(false);
+  // Link del video: entró directo a la calculadora; cuenta como visita.
+  useEffect(() => {
+    if (!grasaConCuenta) return;
+    supabase.auth.getSession()
+      .then(({ data }) => { if (!data?.session) registrarEventoEmbudo('vista', { detalle: 'calculadora' }); })
+      .catch(() => registrarEventoEmbudo('vista', { detalle: 'calculadora' }));
+  }, []);
+  // Al ir a crear su cuenta, lo que puso aquí se lleva al recorrido y a la cuenta.
+  function empezar(detalle) {
+    guardarMedidasCalc(form);
+    if (detalle) registrarEventoEmbudo(detalle);
+    onEmpezar();
+  }
 
   const num = k => Number(form[k]) || 0;
   const conCinta = num('cuello') >= 15 && num('cintura') > num('cuello') && (form.sexo === 'M' || num('cadera') >= 40);
@@ -2513,7 +2551,9 @@ function FreeCalculator({ onBack, onEmpezar }) {
       <main className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-6">
         <div className="text-center">
           <h1 className="jb-display text-3xl sm:text-4xl text-zinc-50 mb-2">MIDE TU COMPOSICIÓN CORPORAL</h1>
-          <p className="jb-body text-sm text-zinc-400">Gratis, sin registro. Para tu % de grasa necesitas una cinta métrica.</p>
+          <p className="jb-body text-sm text-zinc-400">{grasaConCuenta
+            ? 'Gratis, sin registro: tus calorías al instante. Con una cinta métrica, también tu % de grasa (lo ves al crear tu cuenta gratis).'
+            : 'Gratis, sin registro. Para tu % de grasa necesitas una cinta métrica.'}</p>
         </div>
 
         {step === 'form' ? (
@@ -2575,7 +2615,16 @@ function FreeCalculator({ onBack, onEmpezar }) {
                   <StatCard label="Masa magra" value={results.leanKg.toFixed(1) + ' kg'} />
                   <StatCard label="Masa muscular est." value={results.muscleKg.toFixed(1) + ' kg'} />
                 </div>
-                {!grasaVisible && (
+                {!grasaVisible && grasaConCuenta && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-5 bg-zinc-950/60 text-center">
+                    <p className="jb-display text-lg text-zinc-50">TU % DE GRASA ESTÁ LISTO</p>
+                    <p className="jb-body text-xs text-zinc-300 max-w-xs">Crea tu cuenta gratis y míralo en la app, con tu plan para bajarlo. Tus medidas ya quedan guardadas.</p>
+                    <button onClick={() => empezar('calculadora_cuenta')} className={btnPrimary + ' w-full max-w-xs py-3 text-sm'}>
+                      🔓 CREAR MI CUENTA GRATIS Y VER MI % DE GRASA
+                    </button>
+                  </div>
+                )}
+                {!grasaVisible && !grasaConCuenta && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-5 bg-zinc-950/60 text-center">
                     <p className="jb-display text-lg text-zinc-50">TU % DE GRASA ESTÁ LISTO</p>
                     <p className="jb-body text-xs text-zinc-300 max-w-xs">Míralo ahora y recíbelo en tu WhatsApp, junto con la ayuda de Jonah para empezar.</p>
@@ -2587,7 +2636,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
                       className={btnPrimary + ' w-full max-w-xs py-3 text-sm'}>
                       📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP
                     </a>
-                    <button onClick={onEmpezar} className="jb-body text-xs text-zinc-300 underline">o crea tu cuenta gratis y guárdalo ahí</button>
+                    <button onClick={() => empezar()} className="jb-body text-xs text-zinc-300 underline">o crea tu cuenta gratis y guárdalo ahí</button>
                   </div>
                 )}
                 {yaLoPidio && (
@@ -2595,7 +2644,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
                     <p className="jb-body text-xs text-zinc-300 flex-1">
                       📈 ¿Quieres ver cómo baja tu % de grasa semana a semana? Crea tu cuenta gratis y guarda tu historial.
                     </p>
-                    <button onClick={onEmpezar} className={btnPrimary + ' py-2 px-4 text-xs shrink-0'}>Guardar mi historial</button>
+                    <button onClick={() => empezar()} className={btnPrimary + ' py-2 px-4 text-xs shrink-0'}>Guardar mi historial</button>
                   </div>
                 )}
               </div>
@@ -2630,7 +2679,7 @@ function FreeCalculator({ onBack, onEmpezar }) {
               <p className="jb-body text-sm text-zinc-400 mb-5">
                 Arma tu plan con comida peruana, justo para tu meta: cuánto comer, qué comer y tu avance día a día. Gratis para siempre, con {TRIAL_DAYS + (premio?.dias || 0)} días de Premium incluidos.
               </p>
-              <button onClick={onEmpezar} className={btnPrimary + ' w-full py-3 text-base'}>
+              <button onClick={() => empezar()} className={btnPrimary + ' w-full py-3 text-base'}>
                 TU CAMBIO EMPIEZA AQUÍ
               </button>
               <button onClick={() => setStep('form')} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-4">
@@ -2759,16 +2808,28 @@ function leerRecorrido() {
   } catch { return null; }
 }
 
-// Si la cuenta todavía no tiene sus datos, se completan con el recorrido.
+// Si la cuenta todavía no tiene sus datos, se completan con el recorrido
+// y, si se midió en la calculadora, con sus medidas de cinta (así ve su %
+// de grasa en la app sin volver a medirse).
 function formConRecorrido(form) {
+  if (tieneDatosBasicos(form)) return form;
   const r = leerRecorrido();
-  if (!r || tieneDatosBasicos(form)) return form;
-  try { localStorage.removeItem(CLAVE_RECORRIDO); } catch {}
-  return {
-    ...form, sexo: r.sexo, edad: r.edad, estatura: r.estatura, peso: r.peso, actividad: r.actividad,
-    objetivo: r.objetivo, ajustePct: null, pesoInicial: r.peso,
-    pesoObjetivo: r.objetivo === 'Mantener peso' ? null : r.pesoObjetivo,
-  };
+  const m = leerMedidasCalc();
+  if (!r && !m) return form;
+  try { localStorage.removeItem(CLAVE_RECORRIDO); localStorage.removeItem(CLAVE_MEDIDAS_CALC); } catch {}
+  let nuevo = { ...form };
+  if (m) {
+    nuevo = { ...nuevo, sexo: m.sexo || nuevo.sexo, edad: m.edad, estatura: m.estatura, peso: m.peso, actividad: m.actividad || nuevo.actividad, pesoInicial: m.peso };
+    if (m.cuello && m.cintura) nuevo = { ...nuevo, cuello: m.cuello, cintura: m.cintura, cadera: m.cadera || nuevo.cadera };
+  }
+  if (r) {
+    nuevo = {
+      ...nuevo, sexo: r.sexo, edad: r.edad, estatura: r.estatura, peso: r.peso, actividad: r.actividad,
+      objetivo: r.objetivo, ajustePct: null, pesoInicial: r.peso,
+      pesoObjetivo: r.objetivo === 'Mantener peso' ? null : r.pesoObjetivo,
+    };
+  }
+  return nuevo;
 }
 
 // Su plan: mismas fórmulas que la app (Mifflin-St Jeor, proteína sobre masa magra estimada).
@@ -2838,7 +2899,13 @@ function BotonAtras({ onClick, className = '', style }) {
 
 function Recorrido({ onBack, onListo }) {
   const guardado = leerRecorrido();
-  const [r, setR] = useState(guardado || { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' });
+  // Si viene de la calculadora, sus datos ya vienen puestos.
+  const [r, setR] = useState(() => {
+    if (guardado) return guardado;
+    const m = leerMedidasCalc();
+    const vacio = { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
+    return m ? { ...vacio, sexo: m.sexo || '', edad: m.edad ?? '', estatura: m.estatura ?? '', peso: m.peso ?? '', actividad: m.actividad || '' } : vacio;
+  });
   // Cada paso queda en el historial del navegador: el botón "atrás" del
   // celular vuelve al paso anterior (y del primero, a la portada).
   const [paso, setPaso] = useState(() => {
@@ -5184,9 +5251,16 @@ export default function App() {
     try {
       if (window.location.pathname.startsWith('/tienda')) return 'tienda';
       if (window.location.pathname.startsWith('/reto')) return 'reto';
+      if (esLinkCalculadora()) {
+        if (!new URLSearchParams(window.location.search).get('fuente') && !new URLSearchParams(window.location.search).get('utm_source')) {
+          try { sessionStorage.setItem('jb-fuente', 'quiero'); } catch {}
+        }
+        return 'free';
+      }
       return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing';
     } catch { return 'landing'; }
   });
+  const [linkCalculadora] = useState(esLinkCalculadora);
   // Pantallas antes de entrar: se abren con irA (quedan en el historial del
   // navegador) para que el botón "atrás" del celular regrese a la anterior
   // en vez de cerrar la app; "← Atrás" hace lo mismo (volver).
@@ -5776,7 +5850,11 @@ export default function App() {
       ))}
       {!tokenRef && view === 'reto' && <RetoPage onIrALaApp={() => { window.location.href = '/'; }} />}
       {!tokenRef && view === 'tienda' && <TiendaPublica username={currentUser} onIrALaApp={() => { window.history.replaceState({}, '', '/'); setView('landing'); }} />}
-      {!tokenRef && view === 'free' && <FreeCalculator onBack={volver} onEmpezar={() => {
+      {!tokenRef && view === 'free' && <FreeCalculator grasaConCuenta={linkCalculadora} onBack={() => {
+        // Desde el link del video, "Volver" lleva a la portada.
+        if (linkCalculadora && !VISTAS_CON_ATRAS.includes(window.history.state?.jb)) { try { window.history.replaceState({}, '', '/'); } catch {} }
+        volver();
+      }} onEmpezar={() => {
         registrarEventoEmbudo('clic_cta', { detalle: 'calculadora' });
         try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
         irA(leerRecorrido() ? 'trial' : 'recorrido');

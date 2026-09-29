@@ -5095,16 +5095,21 @@ function JarvisPanel({ onClose, users }) {
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
     const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
-    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no activé nada.'); return; }
+    if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no hice ningún cambio.'); return; }
     marcar('enviando');
     try {
-      const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias } });
+      const data = await llamarJarvis({ confirmar: { tipo: accion.tipo, username: accion.username, dias: accion.dias, pago_id: accion.pago_id, motivo: accion.motivo } });
       marcar(data.ok ? 'hecha' : 'pendiente');
       decir(data.respuesta);
     } catch (e) {
       marcar('pendiente');
-      decir('No pude activarlo ahora mismo. Intenta de nuevo.');
+      decir('No pude hacerlo ahora mismo. Intenta de nuevo.');
     }
+  }
+  // Mensaje de WhatsApp listo: se abre con el texto escrito y queda marcado.
+  function abrirWhatsAppAccion(iTurno, iAccion) {
+    setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
+      : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado: 'hecha' } : a) }));
   }
 
   // Los navegadores solo permiten que suene una voz sintetizada si se
@@ -5291,14 +5296,28 @@ function JarvisPanel({ onClose, users }) {
               {(m.acciones || []).map((a, j) => (
                 <div key={j} className="mt-2 rounded p-2.5 flex flex-col gap-2" style={{ background: '#0d1c28', border: '1px solid #1c6b85' }}>
                   <div className="text-xs">
-                    Activar el reconocimiento por foto a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong> por {a.dias} días (hasta el {a.hasta}).
+                    {a.tipo === 'aprobar_pago' ? (
+                      <>Aprobar el pago de <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>: S/{Number(a.monto || 0).toFixed(2)}{a.plan_meses ? ` · plan de ${a.plan_meses} ${Number(a.plan_meses) === 1 ? 'mes' : 'meses'}` : ''}{a.metodo ? ` · ${a.metodo}` : ''}. Queda activo hasta el {a.hasta}{a.bono ? ' (incluye +7 días de regalo)' : ''}.</>
+                    ) : a.tipo === 'regalar_dias' ? (
+                      <>Regalar {a.dias} días de Premium a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>{a.desde_hoy ? ' desde hoy' : ''} (hasta el {a.hasta}).</>
+                    ) : a.tipo === 'whatsapp' ? (
+                      <>Mensaje para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>:<span className="block mt-1 whitespace-pre-line" style={{ color: '#b9d4e3' }}>{a.texto}</span></>
+                    ) : (
+                      <>Activar el reconocimiento por foto a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong> por {a.dias} días (hasta el {a.hasta}).</>
+                    )}
                   </div>
-                  {a.estado === 'pendiente' || a.estado === 'enviando' ? (
+                  {a.tipo === 'whatsapp' ? (
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" onClick={() => abrirWhatsAppAccion(i, j)}
+                      className="self-start text-xs px-3 py-1.5 rounded font-semibold"
+                      style={{ background: a.estado === 'hecha' ? 'transparent' : '#25D366', color: a.estado === 'hecha' ? '#4affb0' : '#050a0f', border: a.estado === 'hecha' ? '1px solid #1c6b85' : 'none' }}>
+                      {a.estado === 'hecha' ? '✓ Abierto · abrir de nuevo' : '📲 Abrir WhatsApp'}
+                    </a>
+                  ) : a.estado === 'pendiente' || a.estado === 'enviando' ? (
                     <div className="flex gap-2">
                       <button onClick={() => { desbloquearVoz(); responderAccion(i, j, true); }} disabled={a.estado === 'enviando'}
                         className="text-xs px-3 py-1.5 rounded font-semibold disabled:opacity-50"
                         style={{ background: '#4affb0', color: '#050a0f' }}>
-                        {a.estado === 'enviando' ? 'Activando…' : '✅ Confirmar'}
+                        {a.estado === 'enviando' ? 'Aplicando…' : '✅ Confirmar'}
                       </button>
                       <button onClick={() => { desbloquearVoz(); responderAccion(i, j, false); }} disabled={a.estado === 'enviando'}
                         className="text-xs px-3 py-1.5 rounded disabled:opacity-50"
@@ -5308,7 +5327,7 @@ function JarvisPanel({ onClose, users }) {
                     </div>
                   ) : (
                     <div className="text-[11px]" style={{ color: a.estado === 'hecha' ? '#4affb0' : '#6f92a8', fontFamily: 'monospace' }}>
-                      {a.estado === 'hecha' ? '✓ Activado' : 'Cancelado'}
+                      {a.estado === 'hecha' ? (a.tipo === 'aprobar_pago' ? '✓ Aprobado' : a.tipo === 'regalar_dias' ? '✓ Regalado' : '✓ Activado') : 'Cancelado'}
                     </div>
                   )}
                 </div>

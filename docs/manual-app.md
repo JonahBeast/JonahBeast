@@ -241,7 +241,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - El buscador entiende sinónimos (ej. keke/queque). Los platos preparados (ají de gallina, ceviche…) son estimaciones promedio.
 
 **B) Foto (la inteligencia artificial reconoce el plato)**
-1. Toca **"Foto"** → **"Tomar foto"**.
+1. Toca **"Foto"** → **"Tomar foto"**. Si la cámara no abre (por ejemplo, porque el celular no le dio permiso a la app) o ya tomaste la foto antes, toca **"🖼️ Subir de mi galería"** y elige la foto: se analiza igual y gasta una foto igual.
 2. Espera el escaneo. Verás "⚡ N ALIMENTOS DETECTADOS".
 3. Desmarca lo que no corresponda. **Si la IA se equivocó**, toca **"✏️ No es esto"** debajo de ese alimento (sale en todos, marcados o no). Aparece **"¿Era alguno de estos?"** con hasta 3 opciones rápidas (lo que otros alumnos eligieron cuando la IA dijo lo mismo, o platos parecidos) y, debajo, el buscador ("Si no, búscalo y la próxima foto ya lo sabrá"). Al elegir, se registra ese alimento con la porción que calculó la IA y sale "✏️ Corregido: la IA dijo [lo que dijo]" (con **"Deshacer"**). En las preguntas "¿cuál es?" está también **"✏️ Ninguno, era otro…"** para lo mismo. **La IA aprende de las correcciones:** las tuyas las recuerda en tus próximas fotos, y cuando **3 alumnos distintos o más** hacen la misma corrección (ej. la IA dijo chicharrón de pollo y era pollada), la tiene en cuenta en las fotos de todos: si algo se parece, pregunta "¿cuál es?" con las dos opciones. Jonah puede apagar una corrección desde su panel si no es correcta. **La IA también aprende cuando:** (a) respondes una pregunta "¿cuál es?" de la foto (ej. eliges Pollada entre Chicharrón de pollo y Pollada; no cuenta en las variantes de gusto como con o sin azúcar); (b) cambias después, en tu lista, un alimento que vino de la foto con **"¿Era otro alimento?"**. Si solo desmarcas algo y luego agregas otra cosa a mano, la IA no lo toma como corrección (podría no tener relación); para enseñarle, usa "✏️ No es esto". Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
@@ -655,6 +655,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 - "En iPhone, primero instala la app en tu pantalla de inicio…" → ver 14.3.
 - "Tu navegador actual no soporta notificaciones." → usar Chrome (Android) o la app instalada (iPhone).
 - "No me llegan" → revisar permisos, batería "Sin restricciones" (Android) y que el plan esté vigente.
+- "Toco 'Tomar foto' y la cámara no abre / no me deja" → es el permiso de cámara del celular. Android: Ajustes → Aplicaciones → Jonah Beast Fuel (o Chrome, si la usa desde el navegador) → Permisos → Cámara → Permitir. iPhone: Ajustes → Safari (o Chrome) → Cámara → Permitir. Luego cerrar la app y volver a abrirla. Mientras tanto puede tomar la foto con la cámara normal y usar "🖼️ Subir de mi galería".
 
 ---
 

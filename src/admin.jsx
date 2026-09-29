@@ -739,6 +739,11 @@ function PedidoAlimento({ pedido, onResuelto }) {
             </p>
           )}
           {propuesta.nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {propuesta.nota}</p>}
+          {propuesta.variantes?.length > 0 && (
+            <p className="jb-body text-[11px] text-zinc-400">
+              🧩 Variantes que se agregan al aprobar: {propuesta.variantes.map(v => `${v.nombre}${v.seguridad === 'alta' ? '' : ' (te queda como sugerencia)'}`).join(' · ')}
+            </p>
+          )}
           <FormAlimento form={form} setForm={setForm} />
           <div className="flex gap-2">
             <button onClick={aprobar} disabled={!listo || guardando} className={btnPrimary + ' flex-1 text-sm py-2'}>
@@ -771,9 +776,10 @@ function PedidoAlimento({ pedido, onResuelto }) {
   );
 }
 
-/* Lo que la IA atendió sola (últimos 7 días): pedidos que agregó a la app
-   o que respondió porque ya existían. Si se equivocó en los números de uno
-   que agregó, Jonah los corrige aquí (se corrigen para todos al abrir la app). */
+/* Lo que hizo la IA (últimos 7 días): pedidos que agregó sola o que
+   respondió porque ya existían, y las variantes de cada plato agregado
+   (las que agregó sola y las que dejó como sugerencia). Si se equivocó en
+   los números, Jonah los corrige aquí (se corrigen para todos al abrir la app). */
 function PedidosAtendidosIA() {
   const [abierto, setAbierto] = useState(false);
   const [lista, setLista] = useState(null);
@@ -781,16 +787,20 @@ function PedidosAtendidosIA() {
     const desde = new Date(Date.now() - 7 * 864e5).toISOString();
     const { data } = await supabase.from('pedidos_alimentos')
       .select('id, nombre, estado, propuesta, respuesta, solicitantes, resuelto_en, alimento_id, alimentos_extra(id, nombre, estado, kcal, proteina, carbos, grasa)')
-      .in('estado', ['agregado', 'descartado']).in('propuesta->>ia_estado', ['agregado', 'descartado'])
-      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(50);
-    setLista(data || []);
+      .in('estado', ['agregado', 'descartado'])
+      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(80);
+    const porIA = p => ['agregado', 'descartado'].includes(p.propuesta?.ia_estado) || p.propuesta?.variantes_resultado?.length;
+    setLista((data || []).filter(porIA));
   }
   useEffect(() => { cargar(); }, []);
   if (!lista?.length) return null;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
-        <span className="jb-body text-xs text-zinc-300">🤖 Lo que atendió la IA sola (7 días) · {lista.length}</span>
+        <span className="jb-body text-xs text-zinc-300">
+          🤖 Lo que hizo la IA (7 días) · {lista.length}
+          {lista.some(p => p.propuesta?.variantes_resultado?.some(v => v.estado === 'sugerida')) && <span className="text-amber-400"> · variantes por decidir</span>}
+        </span>
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
@@ -836,6 +846,8 @@ function PedidoIA({ p, onListo }) {
         <p className="jb-body text-xs text-zinc-400 mt-0.5">{p.respuesta || 'Respondido: ya estaba en la app.'}</p>
       )}
       {p.propuesta?.nota && <p className="jb-body text-[11px] text-zinc-500 mt-0.5">🤖 {p.propuesta.nota}</p>}
+      {p.propuesta?.ia_estado !== 'agregado' && p.propuesta?.ia_estado !== 'descartado' && <p className="jb-body text-[11px] text-zinc-500">(Lo aprobaste tú; la IA agregó sus variantes.)</p>}
+      {(p.propuesta?.variantes_resultado || []).map((v, i) => <VarianteIA key={i} pedidoId={p.id} v={v} indice={i} onListo={onListo} />)}
       {p.estado === 'agregado' && a && (f ? (
         <div className="flex flex-col gap-2 mt-2">
           <div className="grid grid-cols-4 gap-2">
@@ -855,6 +867,40 @@ function PedidoIA({ p, onListo }) {
           className="jb-body text-[11px] text-orange-400 underline mt-1">✏️ Corregir los números</button>
       ))}
       {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+function VarianteIA({ pedidoId, v, indice, onListo }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const n = x => Math.round((Number(x) || 0) * 10) / 10;
+  const nombre = v.etiqueta || v.nombre;
+  async function agregar() {
+    setOcupado(true); setError('');
+    try {
+      await llamarPedidosAlimentos({ accion: 'agregar_variante', id: pedidoId, indice });
+      await cargarAlimentosExtraDeNuevo();
+      await onListo();
+    } catch (e) { setError(e.message); }
+    setOcupado(false);
+  }
+  return (
+    <div className="mt-1.5 pl-3 border-l-2 border-zinc-700">
+      <p className="jb-body text-xs text-zinc-300">
+        {v.estado === 'agregada' ? '➕ ' : v.estado === 'sugerida' ? '🤔 ' : '🔎 '}
+        <span className="text-zinc-100">{nombre}</span>
+        <span className="text-zinc-500"> · variante{v.estado === 'agregada' ? (v.por === 'jonah' ? ' (la agregaste tú)' : ' agregada sola') : v.estado === 'sugerida' ? ' sugerida (la IA no estuvo segura)' : ': ya estaba en la app'}</span>
+      </p>
+      {v.estado !== 'ya_existia' && v.kcal != null && (
+        <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g)</p>
+      )}
+      {v.estado === 'sugerida' && (
+        <button disabled={ocupado} onClick={agregar} className="jb-body text-[11px] text-orange-400 underline mt-0.5">
+          {ocupado ? 'Agregando…' : '➕ Agregar para todos'}
+        </button>
+      )}
+      {error && <p className="jb-body text-[11px] text-red-400">{error}</p>}
     </div>
   );
 }

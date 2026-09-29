@@ -5574,6 +5574,7 @@ function WhatsAppPanel() {
   const [simTexto, setSimTexto] = useState('');
   const [simComo, setSimComo] = useState('');
   const [simEnviando, setSimEnviando] = useState(false);
+  const [costo, setCosto] = useState(null);
 
   useEffect(() => { cargar(); }, []);
 
@@ -5589,6 +5590,7 @@ function WhatsAppPanel() {
       setModo(g.modo); setNumeros(g.numeros); setGuardado(g);
     } catch {}
     await cargarChats();
+    await cargarCosto();
   }
 
   async function cargarChats() {
@@ -5691,6 +5693,23 @@ function WhatsAppPanel() {
       setNuevoPersonal('');
       await cargarChats();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  // Costo real del asistente (tabla ia_uso), en soles: este mes y hoy.
+  async function cargarCosto() {
+    try {
+      const hoy = todayISO();
+      const { data } = await supabase.from('ia_uso')
+        .select('tipo, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${hoy.slice(0, 7)}-01T00:00:00-05:00`).range(0, 9999);
+      const filas = (data || []).map(f => ({ ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === hoy }));
+      const reales = filas.filter(f => f.tipo === 'whatsapp');
+      const suma = l => l.reduce((a, f) => a + f.soles, 0);
+      setCosto({
+        mes: suma(reales), respuestas: reales.length, hoy: suma(reales.filter(f => f.hoy)),
+        prueba: suma(filas.filter(f => f.tipo === 'whatsapp_prueba')),
+      });
+    } catch { setCosto(null); }
   }
 
   async function simular() {
@@ -5808,6 +5827,14 @@ function WhatsAppPanel() {
         <button onClick={guardarAjustes} disabled={!cambios} className={btnPrimary + ' text-sm mt-4'}>
           {cambios ? 'Guardar' : 'Guardado'}
         </button>
+        {costo && (
+          <p className="jb-body text-xs text-zinc-400 mt-4 border-t border-zinc-800 pt-3">
+            💰 <span className="text-zinc-200">Costo este mes: S/{costo.mes.toFixed(2)}</span> en {costo.respuestas} {costo.respuestas === 1 ? 'respuesta' : 'respuestas'}
+            {costo.respuestas > 0 ? ` (S/${(costo.mes / costo.respuestas).toFixed(3)} cada una)` : ''} · hoy S/{costo.hoy.toFixed(2)}
+            {costo.prueba > 0 ? ` · pruebas del simulador: S/${costo.prueba.toFixed(2)}` : ''}.
+            <span className="block text-zinc-500 mt-0.5">Tope de seguridad: si alguien manda más de 40 mensajes en un día, el asistente deja de responderle y te pasa el chat.</span>
+          </p>
+        )}
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">

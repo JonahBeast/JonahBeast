@@ -80,6 +80,8 @@ Tus herramientas principales se describen abajo (puedes pedir varias a la vez si
 
 7) preparar_whatsapp -- deja listo un mensaje para que Jonah Beast lo envíe desde su WhatsApp con un botón. Úsala cuando te pida escribirle a alguien o cuando acepte una sugerencia tuya de escribirle. No copies el mensaje en tu respuesta: di en una frase que está listo.
 
+9) ver_whatsapp (solo lectura) -- lo que pasó en el WhatsApp del negocio: chats, quiénes esperan su respuesta (🙋) y qué preguntó la gente. Si te pide un resumen, agrupa las preguntas por tema (precios, pagos, cómo usar la app, alimentos...) y dile primero los chats que lo esperan. No copies conversaciones completas.
+
 8) ver_anuncios (solo lectura) -- resultados de los anuncios de Meta. Si devuelve sin_token, explícale en palabras simples que falta conectar Meta.
 
    No tienes otras herramientas de escritura -- si te piden otro tipo de cambio (crear alumno, cambiar de plan sin pago, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
@@ -245,6 +247,15 @@ const TOOLS = [
         texto: { type: "string", description: "El mensaje completo, listo para enviar" },
       },
       required: ["username", "texto"],
+    },
+  },
+  {
+    name: "ver_whatsapp",
+    description: "Lo que pasó en el WhatsApp del negocio (atendido por el asistente de WhatsApp): chats con sus últimos mensajes, quiénes esperan que Jonah les responda (🙋) y por qué, y cuántos mensajes hubo. dias: 1 = hoy (desde la medianoche de Lima), hasta 7. Úsala cuando pregunte qué le escribieron, qué pregunta la gente, qué chats lo esperan o cómo va el asistente de WhatsApp. Los chats personales de Jonah no se guardan ni aparecen.",
+    input_schema: {
+      type: "object",
+      properties: { dias: { type: "number", description: "Días hacia atrás (1 a 7). Si no lo dice, usa 1." } },
+      required: [],
     },
   },
   {
@@ -733,6 +744,10 @@ Deno.serve(async (req) => {
       .map(([f, v]) => `${f}: ${v.visitantes} visitantes, ${v.clics} clics, ${v.registros} registros, ${v.pagaron} pagaron`)
       .join("; ") || "sin datos aún";
 
+    // Chats de WhatsApp que esperan que Jonah responda en persona.
+    const { count: waEsperan } = await supabase.from("whatsapp_chats")
+      .select("telefono", { count: "exact", head: true }).eq("modo", "jonah");
+
     // Memoria permanente: las notas que el señor pidió recordar.
     const { data: memoria } = await supabase.from("jarvis_memoria").select("id, texto")
       .order("creado_en", { ascending: true }).limit(50);
@@ -769,6 +784,7 @@ Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy 
 - Pagos registrados hoy: ${pagosHoy.length} (monto aprobado hoy: S/${montoAprobado(pagosHoy).toFixed(2)}) -- detalle con ver_pagos
 - Pagos registrados en los últimos 7 días: ${pagosSemana.length} (monto aprobado en la semana: S/${montoAprobado(pagosSemana).toFixed(2)}) -- detalle con ver_pagos
 - Pagos pendientes de revisar (todos, no solo hoy): ${pagosPendientes ?? 0}
+- Chats de WhatsApp que esperan que el señor responda en persona (🙋): ${waEsperan ?? 0} (detalle con ver_whatsapp)
 - Alumnos activos que vencen en los próximos 7 días: ${proximosAVencer.length} -- detalle con ver_alumnos_por_vencer
 - Comisiones de referido pendientes de pagar: ${comisionesPendientes.length} alumnos, total S/${totalComisionesPendientes.toFixed(2)} -- detalle con ver_comisiones_pendientes
 - Embudo de la landing HOY (personas únicas, sin las visitas de Jonah Beast ni de la versión de prueba): ${textoEmbudo(embudoHoy)}
@@ -968,6 +984,35 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         const i = acciones.findIndex((x) => x.tipo === accion.tipo && x.username === accion.username);
         if (i >= 0) acciones[i] = accion; else acciones.push(accion);
         return { listo: true, aviso: "En el panel aparece el botón para abrir WhatsApp con este texto; el señor lo envía. No repitas el mensaje completo en tu respuesta, basta con decir que está listo.", texto };
+      }
+      if (bloque.name === "ver_whatsapp") {
+        const dias = Math.min(Math.max(Math.round(Number(bloque.input?.dias) || 1), 1), 7);
+        const desde = dias === 1 ? inicioHoyLima : new Date(Date.now() - dias * 86400000).toISOString();
+        const [{ data: chats }, { data: mensajes }] = await Promise.all([
+          supabase.from("whatsapp_chats").select("telefono, nombre, username, modo, motivo, resumen, ultimo_mensaje_en")
+            .neq("modo", "personal").gte("ultimo_mensaje_en", desde).order("ultimo_mensaje_en", { ascending: false }).limit(60),
+          supabase.from("whatsapp_mensajes").select("telefono, direccion, tipo, texto, creado_en")
+            .gte("creado_en", desde).order("creado_en", { ascending: true }).limit(600),
+        ]);
+        if (!chats?.length) return { dias, chats: 0, aviso: "No hubo mensajes de WhatsApp en ese periodo (o el asistente todavía no está conectado al número)." };
+        const porChat: Record<string, any[]> = {};
+        (mensajes || []).forEach((m: any) => { (porChat[m.telefono] ||= []).push(m); });
+        const quien = { entrante: "cliente", asistente: "asistente", jonah: "Jonah" } as Record<string, string>;
+        const recorte = (t: string) => (t.length > 160 ? t.slice(0, 160) + "…" : t);
+        return {
+          dias,
+          chats: chats.length,
+          esperan_a_jonah: chats.filter((c: any) => c.modo === "jonah").map((c: any) => ({ nombre: c.nombre || "+" + c.telefono, motivo: c.motivo, resumen: c.resumen })),
+          mensajes_de_clientes: (mensajes || []).filter((m: any) => m.direccion === "entrante").length,
+          respuestas_del_asistente: (mensajes || []).filter((m: any) => m.direccion === "asistente").length,
+          seguimientos_enviados: (mensajes || []).filter((m: any) => m.tipo === "seguimiento" || m.tipo === "bienvenida").length,
+          conversaciones: chats.slice(0, 30).map((c: any) => ({
+            nombre: c.nombre || "+" + c.telefono,
+            es_alumno: c.username ? `sí (@${c.username})` : "no",
+            estado: c.modo === "jonah" ? "espera a Jonah 🙋" : "con el asistente",
+            ultimos_mensajes: (porChat[c.telefono] || []).slice(-6).map((m: any) => `${quien[m.direccion] || m.direccion}: ${recorte(String(m.texto || ""))}`),
+          })),
+        };
       }
       if (bloque.name === "ver_anuncios") {
         return await verAnuncios(String(bloque.input?.periodo || "7dias"));

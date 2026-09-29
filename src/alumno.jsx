@@ -5311,8 +5311,13 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
   );
 }
 
-function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
-  const [f, setF] = useState({ nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
+// Crear un alimento propio, o corregir uno que ya creó (editar = el
+// alimento). Al corregir no se cambia el nombre: las comidas donde ya lo
+// usó lo buscan por el nombre y se recalculan solas con los datos nuevos.
+function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado }) {
+  const [f, setF] = useState(editar
+    ? { nombre: editar.name, kcal: String(editar.kcal), proteina: String(editar.protein || ''), carbos: String(editar.carbs || ''), grasas: String(editar.fat || '') }
+    : { nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -5324,13 +5329,13 @@ function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
     if (kcal > 900) return setErr('Revisa las calorías: ningún alimento pasa de 900 kcal por 100 g.');
     setBusy(true);
     try {
-      const { error } = await supabase.from('alimentos_personales').insert({
-        username, nombre: f.nombre.trim(),
-        kcal, proteina: Number(f.proteina) || 0,
-        carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0,
-      });
+      const datos = { kcal, proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0 };
+      // Al corregirlo vuelve a la lista de revisión de Jonah.
+      const { error } = editar
+        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null }).eq('id', editar.idPropio)
+        : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos });
       if (error) throw error;
-      await onCreado();
+      await onCreado(f.nombre.trim());
       onCerrar();
     } catch (e) { setErr('No se pudo guardar. Intenta de nuevo.'); }
     setBusy(false);
@@ -5343,19 +5348,19 @@ function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-sm shrink-0">🍴</div>
-            <h2 className="jb-display text-lg text-zinc-50">CREAR MI ALIMENTO</h2>
+            <h2 className="jb-display text-lg text-zinc-50">{editar ? 'CORREGIR MI ALIMENTO' : 'CREAR MI ALIMENTO'}</h2>
           </div>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300"><X size={20} /></button>
         </div>
         <p className="jb-body text-xs text-zinc-500 mb-4">
           Copia los datos de la etiqueta del producto. Deben ser los valores <span className="text-zinc-300">por cada 100 g</span>.
-          Solo tú verás este alimento.
+          {editar ? ' Las comidas donde ya lo usaste se corrigen solas.' : ' Solo tú verás este alimento.'}
         </p>
 
         <div className="flex flex-col gap-3">
           <Field label="Nombre">
-            <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))}
-              className={inputCls} placeholder="Ej. Barra proteica marca X" />
+            <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
+              className={inputCls + (editar ? ' opacity-60' : '')} placeholder="Ej. Barra proteica marca X" />
           </Field>
           <Field label="Calorías por 100 g">
             <input type="number" inputMode="decimal" value={f.kcal}
@@ -5378,7 +5383,7 @@ function CrearAlimentoModal({ username, nombreInicial, onCerrar, onCreado }) {
           </div>
           {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
           <button onClick={guardar} disabled={busy} className={btnPrimary + ' py-2.5'}>
-            {busy ? <Loader2 className="animate-spin" size={16} /> : 'Guardar alimento'}
+            {busy ? <Loader2 className="animate-spin" size={16} /> : editar ? 'Guardar cambios' : 'Guardar alimento'}
           </button>
         </div>
       </div>
@@ -7045,7 +7050,7 @@ function BotonPaso({ onClick, children, grande = false, etiqueta }) {
 
 // Panel que sube al tocar un alimento: cantidad con − / + grandes, medida
 // en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
-function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onCerrar }) {
+function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onCerrar }) {
   const [verSustitutos, setVerSustitutos] = useState(false);
   const food = buscarFood(en.foodKey);
 
@@ -7107,6 +7112,12 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
+        {food.esPersonal && onEditarPropio && (
+          <button type="button" onClick={() => { onEditarPropio(food); onCerrar(); }}
+            className="w-full jb-body text-xs text-orange-400 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 mb-4 text-left">
+            ✏️ Corregir los datos de este alimento (lo creaste tú)
+          </button>
+        )}
 
         {bucket && (
           <div className="mb-4">
@@ -7264,6 +7275,7 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
 
 function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null }) {
   const [personales, setPersonales] = useState([]);
+  const [editarPropio, setEditarPropio] = useState(null);
   const [crearPara, setCrearPara] = useState(null); // {meal, id, texto}
   const [editando, setEditando] = useState(null); // { meal, id } del alimento abierto en el panel de edición
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
@@ -7306,10 +7318,19 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       const lista = (data || []).map(a => ({
         key: a.nombre + ' (mío)', name: a.nombre, group: 'Mis alimentos', state: '-',
         kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos),
-        fat: Number(a.grasas), fiber: 0, esPersonal: true,
+        fat: Number(a.grasas), fiber: 0, esPersonal: true, idPropio: a.id,
       }));
       setPersonales(lista);
       setFoodsPersonales(lista);
+      // Aviso (una vez) si Jonah corrigió alguno de sus alimentos.
+      try {
+        const visto = localStorage.getItem('jb_alim_corregido_visto') || '';
+        const corregidos = (data || []).filter(a => a.revision === 'corregido' && a.revisado_en && a.revisado_en > visto);
+        if (corregidos.length) {
+          showToast(`✏️ Jonah corrigió los datos de "${corregidos[0].nombre}"${corregidos.length > 1 ? ` y ${corregidos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+          localStorage.setItem('jb_alim_corregido_visto', corregidos.map(a => a.revisado_en).sort().pop());
+        }
+      } catch {}
     } catch {}
   }
 
@@ -7411,6 +7432,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           <HojaEditarAlimento meal={editando.meal} en={en} todosLosAlimentos={todosLosAlimentos}
             username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={removeEntry}
             onCrear={texto => setCrearPara({ meal: editando.meal, id: en.id, texto })}
+            onEditarPropio={food => setEditarPropio(food)}
             onCerrar={() => setEditando(null)} />
         ) : null;
       })()}
@@ -7419,12 +7441,17 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           username={username}
           nombreInicial={crearPara.texto}
           onCerrar={() => setCrearPara(null)}
-          onCreado={async () => {
+          onCreado={async (nombre) => {
             await cargarPersonales();
-            const nuevo = crearPara.texto.trim() + ' (mío)';
+            const nuevo = (nombre || crearPara.texto).trim() + ' (mío)';
             updateEntry(crearPara.meal, crearPara.id, { foodKey: nuevo, unit: 'gramos', qty: 100, grams: undefined });
           }}
         />
+      )}
+      {editarPropio && (
+        <CrearAlimentoModal username={username} editar={editarPropio}
+          onCerrar={() => setEditarPropio(null)}
+          onCreado={async () => { await cargarPersonales(); showToast('✅ Alimento corregido'); }} />
       )}
       {codigoPara && (
         <EscanearCodigoModal

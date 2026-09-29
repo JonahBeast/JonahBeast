@@ -5200,6 +5200,7 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
+  { id: 'premium:friday', nombre: 'Estilo FRIDAY · femenina, directa' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -5567,7 +5568,7 @@ function JarvisPanel({ onClose, users }) {
     if (mio !== turnoVozRef.current) return; // llegó otra respuesta mientras tanto
     const analizador = ctx.createAnalyser();
     analizador.fftSize = 512;
-    const destino = voz === 'jarvis' ? cadenaEfectoJarvis(ctx) : null;
+    const destino = (voz === 'jarvis' || voz === 'friday') ? cadenaEfectoJarvis(ctx) : null;
     if (destino) { destino.salida.disconnect(); destino.salida.connect(analizador); }
     analizador.connect(ctx.destination);
     const muestras = new Uint8Array(analizador.fftSize);

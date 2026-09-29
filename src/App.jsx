@@ -3320,9 +3320,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     // Avisa a TikTok y a Meta que se completó un registro exitoso, para
     // que puedan optimizar las campañas hacia este evento de conversión.
-    try {
-      if (window.ttq) window.ttq.track('CompleteRegistration');
-    } catch (e) {}
+    avisarRegistroTikTok(data?.user?.id);
     try {
       if (window.fbq) window.fbq('track', 'CompleteRegistration');
     } catch (e) {}
@@ -5246,6 +5244,35 @@ const CATEGORIAS_TIENDA = [
 // Se piden apenas carga la página, en paralelo con la sesión.
 cargarAlimentosExtra();
 
+/* TikTok: si la visita viene de un anuncio, la dirección trae ?ttclid=…
+   Se guarda 7 días para mandarlo con el registro (Events API), así TikTok
+   sabe qué anuncio trajo a esa persona aunque el píxel del navegador falle. */
+try {
+  const ttclid = new URLSearchParams(window.location.search).get('ttclid');
+  if (ttclid) localStorage.setItem('jb-ttclid', JSON.stringify({ v: ttclid.slice(0, 300), ts: Date.now() }));
+} catch {}
+
+/* Registro completado: el píxel del navegador y, además, el servidor
+   (api/tiktok-registro, Events API) con el mismo event_id para que TikTok
+   no lo cuente dos veces. Nunca bloquea ni falla hacia el alumno. */
+function avisarRegistroTikTok(userId) {
+  const eventId = userId ? `reg_${userId}` : undefined;
+  try { if (window.ttq) window.ttq.track('CompleteRegistration', {}, eventId ? { event_id: eventId } : undefined); } catch (e) {}
+  if (!userId) return;
+  try {
+    let ttclid = null;
+    try {
+      const c = JSON.parse(localStorage.getItem('jb-ttclid') || 'null');
+      if (c && Date.now() - c.ts < 7 * 864e5) ttclid = c.v;
+    } catch {}
+    const ttp = (document.cookie.match(/(?:^|;\s*)_ttp=([^;]+)/) || [])[1] || null;
+    fetch('/api/tiktok-registro', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ user_id: userId, ttclid, ttp, url: window.location.href, referrer: document.referrer || null }),
+    }).catch(() => {});
+  } catch {}
+}
+
 export default function App() {
   const [view, setView] = useState(() => {
     try {
@@ -5353,7 +5380,7 @@ export default function App() {
     if (nueva && perfil.role !== 'admin') {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
       registrarEventoEmbudo('registro', { username: perfil.username, detalle: 'google' });
-      try { if (window.ttq) window.ttq.track('CompleteRegistration'); } catch (e) {}
+      avisarRegistroTikTok(user?.id);
       try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
     }
     try { localStorage.setItem('jb-conocido', '1'); } catch {}

@@ -703,6 +703,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | ¿Cada cuánto me peso y tomo fotos? | El peso, **cada domingo** en ayunas (la app lo pide en Inicio). Medidas con cinta y fotos, **cada 2 semanas** (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |
 | ¿Pueden agregar un plato que no está? | Sí: en el buscador toca "🙋 Pedirle a Jonah que lo agregue", o pídelo por WhatsApp. Jonah calcula los macros y te avisan cuando está (8.5). |
+| ¿Puedo mandar notas de voz por WhatsApp? | Sí: el asistente escucha el audio y responde por escrito. Si no se entendió, pide que lo escriba. |
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |
 | ¿Por qué mi meta de comidas no cambió? | Si la ajustó a mano, toca "Usar mi objetivo" en Comidas (sección 10.3). |

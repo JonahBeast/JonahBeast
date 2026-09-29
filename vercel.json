@@ -12,6 +12,10 @@
       "schedule": "5 * * * *"
     },
     {
+      "path": "/api/cron/whatsapp-seguimiento",
+      "schedule": "20 * * * *"
+    },
+    {
       "path": "/api/cron/racha-en-riesgo",
       "schedule": "0 1 * * *"
     },

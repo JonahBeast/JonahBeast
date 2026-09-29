@@ -26,6 +26,17 @@
 //   3) Si un número nuevo escribe algo claramente personal, Claude usa la
 //      herramienta mensaje_personal y el asistente no responde.
 //
+// Notas de voz: se pasan a texto con OpenAI (secreto OPENAI_API_KEY) y el
+// asistente responde como si le hubieran escrito.
+//
+// Otras dos entradas, además de los avisos de Meta:
+//   - Simulador del panel (POST con la sesión del admin, {simular}): responde
+//     lo mismo que el asistente pero sin enviar ni guardar nada.
+//   - Seguimiento (POST con x-webhook-secret, {accion: "seguimiento"}), cada
+//     hora desde api/cron/whatsapp-seguimiento: recuerda crear la cuenta a
+//     quien preguntó y no se registró, y da la bienvenida a quien ya lo hizo,
+//     siempre dentro de las 24 h en que WhatsApp permite escribir.
+//
 // Se despliega con verify_jwt = false: Meta no manda sesión. La seguridad es
 // la firma X-Hub-Signature-256 (secreto WHATSAPP_APP_SECRET): sin firma
 // válida no se procesa nada.
@@ -42,6 +53,16 @@ const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") || "";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "jonahbeast-asistente";
 const AVISO_SECRETO = Deno.env.get("NUEVO_ALUMNO_SECRET") || "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
+const MAX_AUDIO = 20 * 1024 * 1024;
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "content-type": "application/json" } });
+}
 
 // Horas que el asistente se queda callado en un chat.
 const PAUSA_TRAS_PASAR_A_JONAH = 24;
@@ -64,6 +85,7 @@ Qué sabes:
 - El manual de la app (abajo) y los datos del cliente que vienen en el bloque "Datos de esta conversación". No inventes nada que no esté ahí: ni precios, ni fechas, ni funciones de la app.
 - Los precios vigentes están en "Datos de esta conversación"; úsalos solo de ahí.
 - Si quien escribe no es alumno, invítalo a crear su cuenta gratis en jonahbeast.com: es gratis para siempre, sin tarjeta, con 7 días de Premium incluidos.
+- Los mensajes que empiezan con "(nota de voz)" son audios que ya pasamos a texto: responde a lo que dice. Si solo dice "(nota de voz)", no se pudo escuchar: pide con amabilidad que lo escriba.
 - Si el mensaje empieza con "Hola Jonah 👋 Este es mi plan de Jonah Beast Fuel", viene del botón "Recibir mi plan por WhatsApp" de la web (manual, sección 3): felicítalo por dar el primer paso, repítele su plan con SUS números tal cual (no los cambies ni calcules otros), explícale en 2 o 3 líneas cómo se ve en su día con comida peruana (repartir las calorías en sus comidas, proteína en cada una, sin prohibir nada) y dile que cree su cuenta gratis en jonahbeast.com desde el mismo celular: su plan ya queda guardado y tiene 7 días de Premium. Sé breve y cálido.
 - Si el mensaje empieza con "Hola Jonah 👋 Medí mi composición corporal en la web", viene de la calculadora de jonahbeast.com (manual, sección 2): felicítalo, explícale en simple qué significan SUS números tal cual (no calcules otros; el % de grasa y el IMC son estimaciones de referencia, no un diagnóstico), dale un primer paso concreto y dile que cree su cuenta gratis en jonahbeast.com para tener su plan con comida peruana, con 7 días de Premium. Sé breve y cálido.
 
@@ -151,7 +173,15 @@ Deno.serve(async (req) => {
     }
     return new Response("No autorizado", { status: 403 });
   }
+  if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return new Response("ok", { status: 200 });
+
+  // Seguimiento (cron) y simulador del panel: no vienen de Meta.
+  if (AVISO_SECRETO && req.headers.get("x-webhook-secret") === AVISO_SECRETO) {
+    const r = await seguimiento().catch((e) => ({ error: (e as Error)?.message || "error" }));
+    return json(r);
+  }
+  if (!req.headers.get("x-hub-signature-256") && req.headers.get("authorization")) return await simular(req);
 
   const crudo = await req.text();
   if (!APP_SECRET || !(await firmaValida(crudo, req.headers.get("x-hub-signature-256") || ""))) {
@@ -267,6 +297,15 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
     .insert({ telefono, wa_id: msg.id, direccion: "entrante", tipo, texto });
   if (repetido) return;
 
+  // Nota de voz: se pasa a texto para que el asistente la entienda.
+  if (msg.type === "audio" && msg.audio?.id && cuenta?.token) {
+    const dicho = await transcribir(cuenta, msg.audio.id).catch((e) => {
+      console.error("No se pudo transcribir la nota de voz:", (e as Error)?.message);
+      return "";
+    });
+    if (dicho) await supabase.from("whatsapp_mensajes").update({ texto: `(nota de voz) ${dicho}` }).eq("wa_id", msg.id);
+  }
+
   const nombreWa = valor?.contacts?.find((c: any) => c.wa_id === telefono)?.profile?.name || valor?.contacts?.[0]?.profile?.name || null;
   const alumno = await buscarAlumno(telefono);
   const ahora = new Date();
@@ -290,7 +329,7 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
 
   await graph(cuenta, `/${cuenta.phone_number_id}/messages`, { messaging_product: "whatsapp", status: "read", message_id: msg.id }).catch(() => {});
 
-  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string };
+  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string; personal?: string };
   try {
     respuesta = await preguntarAClaude(cuenta, telefono, msg, alumno, nombreWa);
   } catch (e) {
@@ -451,12 +490,12 @@ async function imagenEnBase64(cuenta: any, mediaId: string) {
   return { type: "image", source: { type: "base64", media_type: tipo, data: encodeBase64(bytes) } };
 }
 
-async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno: any, nombreWa: string | null) {
-  const mensajes = await historial(telefono);
+async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno: any, nombreWa: string | null, dados?: { role: "user" | "assistant"; content: any }[]) {
+  const mensajes = dados || await historial(telefono);
   if (!mensajes.length || mensajes[mensajes.length - 1].role !== "user") return {};
 
   // La foto que acaba de mandar va junto a su último mensaje.
-  if (msg.type === "image" && msg.image?.id) {
+  if (cuenta && msg.type === "image" && msg.image?.id) {
     const imagen = await imagenEnBase64(cuenta, msg.image.id).catch(() => null);
     if (imagen) {
       const ultimo = mensajes[mensajes.length - 1];
@@ -518,7 +557,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   const personal = bloques.find((b: any) => b.type === "tool_use" && b.name === "mensaje_personal");
   if (personal) {
     console.log(JSON.stringify({ evento: "whatsapp_personal", resumen: String(personal.input?.resumen || "").slice(0, 80) }));
-    return {};
+    return { personal: String(personal.input?.resumen || "mensaje personal").slice(0, 120) };
   }
   const pedido = bloques.find((b: any) => b.type === "tool_use" && b.name === "pedir_alimento");
   const alimento = String(pedido?.input?.alimento || "").replace(/\s+/g, " ").trim().slice(0, 80);
@@ -541,7 +580,7 @@ async function graph(cuenta: any, ruta: string, cuerpo: unknown) {
   return data;
 }
 
-async function enviarTexto(cuenta: any, telefono: string, texto: string) {
+async function enviarTexto(cuenta: any, telefono: string, texto: string, tipo = "texto") {
   // WhatsApp acepta hasta 4096 caracteres por mensaje.
   const partes = texto.match(/[\s\S]{1,4000}(?=\s|$)|[\s\S]{1,4000}/g) || [];
   for (const parte of partes) {
@@ -551,7 +590,7 @@ async function enviarTexto(cuenta: any, telefono: string, texto: string) {
         type: "text", text: { body: parte.trim(), preview_url: false },
       });
       await supabase.from("whatsapp_mensajes").insert({
-        telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo: "texto", texto: parte.trim(),
+        telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo, texto: parte.trim(),
       });
     } catch (e) {
       console.error("No se pudo enviar el WhatsApp:", (e as Error)?.message);
@@ -588,4 +627,130 @@ async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: strin
   } catch (e) {
     console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
   }
+}
+
+// Nota de voz → texto (OpenAI). Devuelve "" si no hay clave o no se pudo.
+async function transcribir(cuenta: any, mediaId: string) {
+  if (!OPENAI_API_KEY) return "";
+  const info = await graph(cuenta, `/${mediaId}`, null);
+  if (!info?.url || (info.file_size && info.file_size > MAX_AUDIO)) return "";
+  const r = await fetch(info.url, { headers: { Authorization: `Bearer ${cuenta.token}` } });
+  if (!r.ok) return "";
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (!bytes.length || bytes.length > MAX_AUDIO) return "";
+  const tipo = String(info.mime_type || "audio/ogg").split(";")[0];
+  const extension = tipo.includes("mpeg") ? "mp3" : tipo.includes("mp4") || tipo.includes("aac") ? "m4a" : tipo.includes("amr") ? "amr" : "ogg";
+  const form = new FormData();
+  form.append("file", new Blob([bytes], { type: tipo }), `nota.${extension}`);
+  form.append("model", "gpt-4o-mini-transcribe");
+  form.append("language", "es");
+  const t = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST", headers: { authorization: `Bearer ${OPENAI_API_KEY}` }, body: form,
+  });
+  if (!t.ok) {
+    console.error("OpenAI (transcripción) respondió", t.status, (await t.text().catch(() => "")).slice(0, 200));
+    return "";
+  }
+  const d = await t.json().catch(() => ({}));
+  console.log(JSON.stringify({ evento: "whatsapp_nota_de_voz", segundos_aprox: Math.round(bytes.length / 4000) }));
+  return String(d?.text || "").replace(/\s+/g, " ").trim().slice(0, 2000);
+}
+
+// Simulador del panel: el admin escribe como si fuera un cliente y ve lo que
+// respondería el asistente. No se envía ni se guarda nada.
+async function simular(req: Request) {
+  try {
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const { data: authData } = await supabase.auth.getUser(token);
+    if (!authData?.user) return json({ error: "No autorizado." }, 401);
+    const { data: perfil } = await supabase.from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
+    if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
+
+    const { simular: datos } = await req.json();
+    const mensajes = (Array.isArray(datos?.mensajes) ? datos.mensajes : [])
+      .filter((m: any) => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.trim())
+      .slice(-20)
+      .map((m: any) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+    while (mensajes.length && mensajes[0].role !== "user") mensajes.shift();
+    if (!mensajes.length || mensajes[mensajes.length - 1].role !== "user") return json({ error: "Escribe un mensaje." }, 400);
+
+    let alumno: any = null;
+    const username = String(datos?.username || "").trim();
+    if (username) {
+      const { data } = await supabase.from("alumnos")
+        .select("username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, reconocimiento_foto_hasta")
+        .ilike("username", username).maybeSingle();
+      if (!data) return json({ error: `No encontré al alumno "${username}".` }, 404);
+      alumno = data;
+    }
+    const nombre = String(datos?.nombre || "").trim().slice(0, 40) || (alumno ? alumno.nombre : null);
+    const r: any = await preguntarAClaude(null, "51900000000", { type: "text" }, alumno, nombre, mensajes);
+    if (r.pasar) return json({ texto: MENSAJE_PASO_A_JONAH, pasar: r.pasar });
+    if (r.pedido) return json({ texto: mensajePedido(r.pedido), pedido: r.pedido });
+    if (r.personal) return json({ personal: r.personal });
+    return json({ texto: r.texto || "" });
+  } catch (e) {
+    console.error("whatsapp-webhook (simulador):", (e as Error)?.message);
+    return json({ error: "No se pudo simular: " + ((e as Error)?.message || "error") }, 500);
+  }
+}
+
+// Seguimiento, cada hora (8am a 9pm de Lima), solo a chats que el asistente
+// atiende y dentro de las 24 h desde el último mensaje del cliente:
+//   - Lead que preguntó y no se registró: pasadas 3 h sin responder, un
+//     recordatorio amable (una sola vez por número).
+//   - Lead que luego creó su cuenta y guardó este celular: bienvenida con su
+//     nombre y el primer paso (una sola vez).
+async function seguimiento() {
+  const hora = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Lima", hour: "numeric", hourCycle: "h23" }).format(new Date()));
+  if (hora < 8 || hora >= 21) return { ok: true, enviados: 0, motivo: "fuera de horario" };
+  const { data: cuenta } = await supabase.from("whatsapp_cuenta").select("phone_number_id, token").eq("id", 1).maybeSingle();
+  if (!cuenta?.token || !cuenta?.phone_number_id) return { ok: true, enviados: 0, motivo: "sin conexión" };
+
+  const ahora = Date.now();
+  const desde = new Date(ahora - 23 * 3600000).toISOString();
+  const { data: recientes } = await supabase.from("whatsapp_mensajes")
+    .select("telefono").eq("direccion", "entrante").gte("creado_en", desde).range(0, 4999);
+  const telefonos = [...new Set<string>((recientes || []).map((m: any) => String(m.telefono)))];
+  let enviados = 0;
+
+  for (const telefono of telefonos) {
+    const { data: chat } = await supabase.from("whatsapp_chats").select("modo, nombre, username").eq("telefono", telefono).maybeSingle();
+    if (!chat || chat.modo === "personal" || chat.modo === "jonah") continue;
+    if (!(await debeResponder(telefono))) continue;
+    const { data: msgs } = await supabase.from("whatsapp_mensajes")
+      .select("direccion, tipo, creado_en").eq("telefono", telefono)
+      .order("creado_en", { ascending: false }).limit(50);
+    const lista = msgs || [];
+    const ultimo = lista[0];
+    const ultimoCliente = lista.find((m: any) => m.direccion === "entrante");
+    if (!ultimo || !ultimoCliente) continue;
+    if (ahora - new Date(ultimoCliente.creado_en).getTime() > 23 * 3600000) continue;
+    const yaEnviado = (tipo: string) => lista.some((m: any) => m.tipo === tipo);
+    const primerNombre = (n: string | null) => String(n || "").trim().split(/\s+/)[0] || "";
+
+    const alumno = await buscarAlumno(telefono);
+    if (alumno) {
+      // Era lead (el chat no tenía cuenta) y ya se registró.
+      if (chat.username || yaEnviado("bienvenida")) continue;
+      if (!alumno.fecha_inicio || alumno.fecha_inicio < fechaLima(new Date(ahora - 3 * 86400000))) continue;
+      const nombre = primerNombre(alumno.nombre) || primerNombre(chat.nombre);
+      await supabase.from("whatsapp_chats").update({ username: alumno.username, nombre: alumno.nombre || chat.nombre }).eq("telefono", telefono);
+      await enviarTexto(cuenta, telefono,
+        `🎉 ¡${nombre ? nombre + ", y" : "Y"}a vi que creaste tu cuenta! Bienvenido/a a Jonah Beast Fuel. Tu primer paso: en la app toca *"REGISTRAR"* y tómale una foto a tu próxima comida 📸. Cualquier duda, me escribes aquí 💪`,
+        "bienvenida");
+      enviados++;
+      continue;
+    }
+    // Lead sin cuenta: el último mensaje es del asistente (no está esperando
+    // respuesta) y pasaron al menos 3 h.
+    if (yaEnviado("seguimiento") || ultimo.direccion !== "asistente") continue;
+    if (ahora - new Date(ultimo.creado_en).getTime() < 3 * 3600000) continue;
+    const nombre = primerNombre(chat.nombre);
+    await enviarTexto(cuenta, telefono,
+      `Hola${nombre ? " " + nombre : ""} 👋 ¿Pudiste crear tu cuenta en *jonahbeast.com*? Es gratis y tienes 7 días de Premium para empezar con tu plan. Si te trabaste en algún paso, cuéntame y te ayudo 💪`,
+      "seguimiento");
+    enviados++;
+  }
+  return { ok: true, enviados, revisados: telefonos.length };
 }

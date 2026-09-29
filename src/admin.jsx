@@ -5569,6 +5569,11 @@ function WhatsAppPanel() {
   const [mensajes, setMensajes] = useState([]);
   const [nuevoPersonal, setNuevoPersonal] = useState('');
   const [verPersonales, setVerPersonales] = useState(false);
+  // Simulador: escribir como cliente y ver lo que respondería el asistente.
+  const [simMensajes, setSimMensajes] = useState([]);
+  const [simTexto, setSimTexto] = useState('');
+  const [simComo, setSimComo] = useState('');
+  const [simEnviando, setSimEnviando] = useState(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -5686,6 +5691,33 @@ function WhatsAppPanel() {
       setNuevoPersonal('');
       await cargarChats();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  async function simular() {
+    const t = simTexto.trim();
+    if (!t || simEnviando) return;
+    const lista = [...simMensajes, { role: 'user', content: t }];
+    setSimMensajes(lista); setSimTexto(''); setSimEnviando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ simular: { mensajes: lista.filter(m => m.role === 'user' || m.role === 'assistant').map(({ role, content }) => ({ role, content })), username: simComo.trim() } }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) throw new Error(d.error || `Error ${r.status}`);
+      if (d.personal) setSimMensajes([...lista, { role: 'nota', content: `🚫 No respondería: le pareció un mensaje personal (${d.personal}).` }]);
+      else {
+        const nuevos = [...lista, { role: 'assistant', content: d.texto || '(sin respuesta)' }];
+        if (d.pasar) nuevos.push({ role: 'nota', content: `🙋 Aquí te pasaría el chat y te llegaría un aviso: ${d.pasar.resumen}` });
+        if (d.pedido) nuevos.push({ role: 'nota', content: `🍽️ Anotaría el pedido "${d.pedido}" en Pedidos de alimentos.` });
+        setSimMensajes(nuevos);
+      }
+    } catch (e) {
+      setSimMensajes([...lista, { role: 'nota', content: 'No se pudo probar: ' + (e?.message || 'intenta de nuevo.') }]);
+    }
+    setSimEnviando(false);
   }
 
   async function devolverAlAsistente(telefono) {
@@ -5825,6 +5857,34 @@ function WhatsAppPanel() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h2 className="jb-display text-base text-zinc-200">🧪 PROBAR EL ASISTENTE</h2>
+          {simMensajes.length > 0 && <button onClick={() => setSimMensajes([])} className={btnGhost + ' text-xs'}>Empezar de nuevo</button>}
+        </div>
+        <p className="jb-body text-xs text-zinc-500 mb-3">
+          Escríbele como si fueras un cliente y mira qué respondería. No se envía nada a nadie. Funciona aunque tu WhatsApp aún no esté conectado.
+        </p>
+        <Field label="Probar como (opcional): username de un alumno">
+          <input value={simComo} onChange={e => setSimComo(e.target.value)} className={inputCls} placeholder="Vacío = cliente nuevo sin cuenta" />
+        </Field>
+        <div className="flex flex-col gap-1.5 my-3 max-h-96 overflow-y-auto">
+          {simMensajes.map((m, i) => (
+            <div key={i} className={`jb-body text-xs rounded-lg px-2.5 py-1.5 max-w-[85%] whitespace-pre-wrap break-words ${
+              m.role === 'user' ? 'bg-orange-500/20 text-orange-100 self-end' : m.role === 'nota' ? 'bg-zinc-950 border border-zinc-700 text-zinc-300 self-center max-w-full' : 'bg-zinc-800 text-zinc-100 self-start'}`}>
+              {m.role !== 'nota' && <div className="text-[10px] text-zinc-500 mb-0.5">{m.role === 'user' ? 'Cliente (tú)' : 'Asistente'}</div>}
+              {m.content}
+            </div>
+          ))}
+          {simEnviando && <p className="jb-body text-xs text-zinc-500 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> El asistente está escribiendo…</p>}
+        </div>
+        <div className="flex gap-2">
+          <input value={simTexto} onChange={e => setSimTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') simular(); }}
+            className={inputCls} placeholder="Ej. Hola, ¿cuánto cuesta el plan?" />
+          <button onClick={simular} disabled={!simTexto.trim() || simEnviando} className={btnPrimary + ' text-sm shrink-0'}>Enviar</button>
+        </div>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">

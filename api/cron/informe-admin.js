@@ -29,21 +29,24 @@ export default async function handler(req, res) {
     if (!admin?.username) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin admin' });
 
     const [{ data: cobrados }, { data: pendientes }, { data: alumnos }] = await Promise.all([
-      supabase.from('pagos').select('monto').eq('estado', 'aprobado').gt('monto', 0)
+      supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0)
         .gte('creado_en', `${ayer}T00:00:00-05:00`).lt('creado_en', `${hoyISO}T00:00:00-05:00`).range(0, 999),
       supabase.from('pagos').select('id').eq('estado', 'pendiente').range(0, 999),
       supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento').eq('enabled', true).gte('fecha_vencimiento', hoyISO).range(0, 4999),
     ]);
 
     const esPrueba = a => a.plan === 'trial' || a.plan === 'prueba';
-    const cobrado = Math.round((cobrados || []).reduce((s, p) => s + (Number(p.monto) || 0), 0) * 100) / 100;
+    // Las cuentas del dueño (sus pruebas y pagos propios) no cuentan.
+    const CUENTAS_PROPIAS = ['martin'];
+    const cobradosReales = (cobrados || []).filter(p => !CUENTAS_PROPIAS.includes(p.username));
+    const cobrado = Math.round(cobradosReales.reduce((s, p) => s + (Number(p.monto) || 0), 0) * 100) / 100;
     const nPendientes = (pendientes || []).length;
     const vencenHoy = (alumnos || []).filter(a => esPrueba(a) && a.fecha_vencimiento === hoyISO).length;
     const vencenManana = (alumnos || []).filter(a => esPrueba(a) && a.fecha_vencimiento === manana).length;
 
     // Alumnos que pagan y llevan 3 a 7 días sin registrar comidas.
     let quietos = 0;
-    const pagando = (alumnos || []).filter(a => !esPrueba(a)).map(a => a.username);
+    const pagando = (alumnos || []).filter(a => !esPrueba(a) && !CUENTAS_PROPIAS.includes(a.username)).map(a => a.username);
     if (pagando.length) {
       const { data: hist } = await supabase.from('historial').select('username, fecha')
         .in('username', pagando).gte('fecha', addDaysISO(hoyISO, -10)).gt('comidas_count', 0).range(0, 9999);
@@ -88,7 +91,7 @@ export default async function handler(req, res) {
     } catch {}
 
     const partes = [];
-    if (cobrado > 0) partes.push(`Ayer entraron S/${cobrado.toFixed(2)} (${(cobrados || []).length} ${(cobrados || []).length === 1 ? 'pago' : 'pagos'}).`);
+    if (cobrado > 0) partes.push(`Ayer entraron S/${cobrado.toFixed(2)} (${cobradosReales.length} ${cobradosReales.length === 1 ? 'pago' : 'pagos'}).`);
     const hoy = [];
     if (nPendientes) hoy.push(`${enLetras(nPendientes)} ${nPendientes === 1 ? 'pago' : 'pagos'} por revisar`);
     if (vencenHoy) hoy.push(`${vencenHoy === 1 ? 'una prueba vence' : `${enLetras(vencenHoy)} pruebas vencen`} hoy`);

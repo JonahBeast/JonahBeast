@@ -77,7 +77,8 @@ export default async function handler(req, res) {
 
     // Aviso a Jonah Beast: solo si el pago se aprobó solo y es dinero real.
     let avisoAdmin = 0;
-    if (quien === 'webhook' && Number(pago.monto) > 0) {
+    // No avisa de los pagos de prueba del propio dueño (cuenta "martin").
+    if (quien === 'webhook' && Number(pago.monto) > 0 && pago.username !== 'martin') {
       try {
         const { data: admin } = await supabase.from('profiles').select('username').eq('role', 'admin').limit(1).maybeSingle();
         if (admin?.username) {

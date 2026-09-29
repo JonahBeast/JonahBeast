@@ -143,6 +143,10 @@ async function cargarManual(supabase: any): Promise<Manual> {
   return manualCache?.manual || armarManual("");
 }
 
+// Cuentas del señor (sus pruebas y pagos propios): no cuentan como alumnos
+// ni como ingresos en las métricas (mismo criterio que el panel).
+const CUENTAS_PROPIAS = ["martin"];
+
 const TOOLS = [
   {
     name: "recordar",
@@ -689,7 +693,7 @@ Deno.serve(async (req) => {
     const desdeEmbudo = hace7dias > INICIO_EMBUDO ? hace7dias : INICIO_EMBUDO;
 
     // Todas las consultas a la vez, en vez de una detrás de otra.
-    const [alumnos, pagosSemana, { count: pagosPendientes }, { count: leadsCalculadora }, { data: config }, eventosSemana] = await Promise.all([
+    const [alumnos, pagosSemanaTodos, { count: pagosPendientes }, { count: leadsCalculadora }, { data: config }, eventosSemana] = await Promise.all([
       traerTodo((d, h) => supabase.from("alumnos")
         .select("username, nombre, telefono, plan, enabled, fecha_vencimiento, created_at, codigo_referido, comision_monto, comision_pagada, reconocimiento_foto_activo, reconocimiento_foto_hasta")
         .order("created_at", { ascending: false }).range(d, h)),
@@ -704,12 +708,19 @@ Deno.serve(async (req) => {
         .gte("creado_en", desdeEmbudo).order("creado_en", { ascending: true }).range(d, h)),
     ]);
 
+    // La cuenta de alumno del señor ("martin", con sus pruebas y pagos
+    // propios) no cuenta en las métricas del negocio, igual que en el panel.
+    const esCuentaPropia = (u: string) => CUENTAS_PROPIAS.includes(String(u || "").toLowerCase());
+    const pagosSemana = pagosSemanaTodos.filter((p: any) => !esCuentaPropia(p.username));
+    const alumnosNegocio = alumnos.filter((a: any) => !esCuentaPropia(a.username));
+
     // Alumnos: se traen una sola vez y se cuentan aquí, con el mismo
     // criterio que el panel (en prueba / pagando = solo los vigentes).
     const alumnoPorUsuario: Record<string, any> = {};
     let activos = 0, enPrueba = 0, pagando = 0, conTelefono = 0, conAddonFoto = 0, conReferido = 0;
     alumnos.forEach((a) => {
       alumnoPorUsuario[(a.username || "").toLowerCase()] = a;
+      if (esCuentaPropia(a.username)) return;
       if (a.telefono) conTelefono++;
       if (a.codigo_referido) conReferido++;
       if (a.reconocimiento_foto_activo && a.reconocimiento_foto_hasta && a.reconocimiento_foto_hasta >= hoyISO) conAddonFoto++;
@@ -718,13 +729,13 @@ Deno.serve(async (req) => {
       if (a.plan === "trial" || a.plan === "prueba") enPrueba++;
       else if (a.plan === "pago") pagando++;
     });
-    const totalAlumnos = alumnos.length;
+    const totalAlumnos = alumnosNegocio.length;
     const vencidos = totalAlumnos - activos;
-    const recientes = alumnos.slice(0, 5);
-    const proximosAVencer = alumnos
+    const recientes = alumnosNegocio.slice(0, 5);
+    const proximosAVencer = alumnosNegocio
       .filter((a) => esActivo(a, hoyISO) && a.fecha_vencimiento && a.fecha_vencimiento <= en7dias)
       .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento));
-    const comisionesPendientes = alumnos.filter((a) => a.comision_monto !== null && a.comision_monto !== undefined && a.comision_pagada === false);
+    const comisionesPendientes = alumnosNegocio.filter((a) => a.comision_monto !== null && a.comision_monto !== undefined && a.comision_pagada === false);
     const totalComisionesPendientes = comisionesPendientes.reduce((s, c) => s + Number(c.comision_monto || 0), 0);
 
     const pagosHoy = pagosSemana.filter((p) => p.creado_en >= inicioHoyLima);
@@ -791,7 +802,8 @@ Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy 
 - Embudo de la landing ÚLTIMOS 7 DÍAS: ${textoEmbudo(embudoSemana)}
 - Por fuente de tráfico (últimos 7 días): ${fuentesTexto}
 - Leads de la calculadora gratis (total histórico): ${leadsCalculadora ?? 0}
-Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landing; "pagando" en membresías cuenta a todos los alumnos.`;
+Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landing; "pagando" en membresías cuenta a todos los alumnos.
+Nota 2: estas cifras NO incluyen la cuenta de alumno del señor ("martin"), que usa para sus pruebas. Si alguna herramienta (ej. ver_pagos) devuelve pagos o datos de "martin", menciónalos como pruebas del señor y no los sumes como ingresos ni como alumnos.`;
 
     const mensajes: any[] = [
       ...limpiarHistorial(historial, pregunta),

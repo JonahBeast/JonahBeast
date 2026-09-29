@@ -1986,13 +1986,6 @@ const TESTIMONIOS = [
   },
 ];
 
-// Antes/después de la primera pantalla: alterna Jonah y Andrea.
-// Es la única vez que salen en la portada (antes se repetían abajo).
-const HERO_TRANSFORMACIONES = [
-  { ...TESTIMONIOS[0], nombreCorto: 'JONAH', logro: '−37 KG' },
-  { ...TESTIMONIOS[1], nombreCorto: 'ANDREA', logro: 'EN 6 MESES' },
-];
-
 /* ------------------------------------------------------------------ */
 /* EMBUDO DE LA LANDING                                                */
 /* ------------------------------------------------------------------ */
@@ -2323,13 +2316,6 @@ function Landing({ onChoose }) {
     onChoose(leerRecorrido() ? 'trial' : 'recorrido');
   }
 
-  // Antes/después de más abajo (Jonah / Andrea), cambia cada 6 s.
-  const [heroIdx, setHeroIdx] = useState(0);
-  useEffect(() => {
-    const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_TRANSFORMACIONES.length), 6000);
-    return () => clearInterval(iv);
-  }, []);
-
   // Portada igual a la de la app instalada: primero el logo animado (solo
   // la primera vez en la visita; se salta tocando) y luego Jonah y Andrea a
   // pantalla completa, con "EMPEZAR AHORA".
@@ -2347,41 +2333,7 @@ function Landing({ onChoose }) {
     return () => clearTimeout(t);
   }, [splash, fotoIdx]);
 
-  // Lo de más abajo aparece al llegar a él.
-  const [abajoVisible, setAbajoVisible] = useState(false);
-  const abajoRef = useRef(null);
-  useEffect(() => {
-    if (splash || !abajoRef.current) return;
-    if (typeof IntersectionObserver === 'undefined') { setAbajoVisible(true); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setAbajoVisible(true); io.disconnect(); } }, { threshold: 0.15 });
-    io.observe(abajoRef.current);
-    return () => io.disconnect();
-  }, [splash]);
 
-  // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
-  // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
-  const [scanPct, setScanPct] = useState(0);
-  useEffect(() => {
-    let held = false;
-    const iv = setInterval(() => {
-      setScanPct(p => {
-        if (held) return p;
-        if (p >= 100) {
-          held = true;
-          setTimeout(() => { held = false; setScanPct(0); }, 2600);
-          return 100;
-        }
-        return p + 1;
-      });
-    }, 34);
-    return () => clearInterval(iv);
-  }, []);
-
-  const step = (delay) => ({
-    opacity: abajoVisible ? 1 : 0,
-    transform: abajoVisible ? 'translateY(0)' : 'translateY(18px)',
-    transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-  });
   const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
 
   if (splash) return <SplashMarca onSaltar={() => { marcarSplashWebVisto(); setSplash(false); }} />;
@@ -2474,136 +2426,12 @@ function Landing({ onChoose }) {
               ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
             </button>
           </div>
-          <p className="jbb-a jb-body text-[11px] text-zinc-500 text-center lg:hidden mt-1" style={anim('jbb-sube', 1.8)} aria-hidden="true">Desliza para ver más ↓</p>
+          <button onClick={() => onChoose('free')} className="jbb-a jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-1 self-center" style={anim('jbb-sube', 1.4)}>
+            📏 ¿Solo quieres medirte? Hazlo sin registro →
+          </button>
         </div>
       </section>
 
-      {/* ---------- Más abajo: la frase, resultados reales y la demo ---------- */}
-      <section ref={abajoRef} className="relative px-6 pt-14 pb-12">
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
-          backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
-        }} />
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(circle at 50% 10%, rgba(249,115,22,0.14), transparent 55%)' }} />
-        <div className="relative z-10 max-w-xl mx-auto text-center">
-          {/* La idea central del método: nada está prohibido, lo que cambia
-              el cuerpo es la cantidad. Y justo eso es lo que mide la app. */}
-          <h2 className="jb-display leading-[0.95] mb-2" style={step(0)}>
-            <span className="block text-zinc-50 text-[2.3rem] sm:text-5xl">NO ES QUÉ COMES.</span>
-            <span className="block text-orange-500 text-[3.1rem] sm:text-7xl mt-1.5">ES CUÁNTO.</span>
-          </h2>
-          <p className="jb-body text-sm sm:text-base text-zinc-300 mb-6" style={step(100)}>
-            Toma foto a tu plato y sabes cuánto te toca.
-          </p>
-
-          {/* Antes / después, nítido y a color. Alterna Jonah y Andrea. */}
-          <div className="relative mx-auto mb-3 h-[260px] sm:h-[320px] rounded-2xl overflow-hidden border border-orange-500/40"
-            style={{ ...step(180), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
-            {HERO_TRANSFORMACIONES.map((t, i) => (
-              <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
-                style={{ opacity: i === heroIdx ? 1 : 0 }} aria-hidden={i !== heroIdx}>
-                <img src={t.antes} alt={i === heroIdx ? `${t.nombre} antes` : ''} loading="lazy" className="w-full h-full object-cover object-top" />
-                <img src={t.despues} alt={i === heroIdx ? `${t.nombre} ahora` : ''} loading="lazy" className="w-full h-full object-cover object-top" />
-              </div>
-            ))}
-            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-orange-500" />
-            <span className="absolute top-2.5 left-2.5 jb-display text-[11px] tracking-wider text-zinc-50 bg-zinc-950/75 border border-zinc-600 rounded-full px-2.5 py-0.5">ANTES</span>
-            <span className="absolute top-2.5 right-2.5 jb-display text-[11px] tracking-wider text-zinc-950 bg-orange-500 rounded-full px-2.5 py-0.5">AHORA</span>
-            <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(22,17,13,0.85), transparent)' }} />
-            {(() => {
-              const t = HERO_TRANSFORMACIONES[heroIdx];
-              return (
-                <div key={t.nombre} className="absolute bottom-2.5 inset-x-0 flex flex-col items-center">
-                  <span className="jb-display text-3xl sm:text-4xl text-zinc-950 bg-orange-500 rounded-lg px-3 leading-tight -rotate-2 shadow-lg shadow-black/40 whitespace-nowrap">
-                    {t.prefijo}{t.cifra} {t.unidad}
-                  </span>
-                  <span className="jb-body text-[11px] text-zinc-100 mt-1 whitespace-nowrap" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-                    {t.nombre} · {t.detalle}
-                  </span>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* El plato, ya medido: una foto que se escanea y se suma al día.
-              La barra de avance lo hace leer como un registro (seguimiento),
-              no como un producto con precio. */}
-          {(() => {
-            const detectado = scanPct >= 85;
-            const porcionDemo = { unit: 'plato', qty: 1 };
-            const m = entryMacros({ foodKey: 'Lomo saltado (-)', ...porcionDemo });
-            const metaDemo = 1888;
-            const kcal = Math.round(m.kcal);
-            const pasoDemo = scanPct < 30 ? 'Detectando alimentos' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías';
-            return (
-              <>
-                <style>{ESTILOS_ESCANER}</style>
-                <div className="mx-auto mb-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
-                  <div className="w-[72px] h-[72px] rounded-xl bg-zinc-950 border border-orange-500/40 relative overflow-hidden shrink-0">
-                    <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
-                    {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
-                    <div className="absolute inset-1 pointer-events-none">
-                      <div className="jbe-esquina absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-orange-500 rounded-tl" />
-                      <div className="jbe-esquina absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-orange-500 rounded-tr" />
-                      <div className="jbe-esquina absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-orange-500 rounded-bl" />
-                      <div className="jbe-esquina absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-orange-500 rounded-br" />
-                    </div>
-                    {!detectado && (
-                      <div className="absolute left-[8%] right-[8%] h-0.5 bg-orange-500"
-                        style={{ top: `${10 + (scanPct / 100) * 78}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="jb-display text-[11px] tracking-wider text-zinc-400">HOY</span>
-                      <span className={`jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 ${detectado ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 border border-orange-500/40'}`}>
-                        {detectado ? '⚡ DETECTADO' : `ESCANEANDO ${scanPct}%`}
-                      </span>
-                    </div>
-                    <div className="jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1 truncate">
-                      {detectado ? `+ Lomo saltado · ${kcal} kcal` : <span className="text-orange-300 font-normal inline-flex items-center gap-1.5"><Loader2 className="animate-spin" size={12} /> {pasoDemo}…</span>}
-                    </div>
-                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
-                      <div className="h-full bg-orange-500 rounded-full transition-all duration-700"
-                        style={{ width: detectado ? `${Math.round((kcal / metaDemo) * 100)}%` : '0%' }} />
-                    </div>
-                    <div className="jb-body text-[11px] text-zinc-400 mt-1 tabular-nums">
-                      Te quedan <span className="text-zinc-200 font-semibold">{(detectado ? metaDemo - kcal : metaDemo).toLocaleString('es-PE')} kcal</span> para tu meta
-                    </div>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-
-          <p className="jb-body text-[11px] text-zinc-400 mb-4" style={step(300)}>
-            📸 Foto del plato <span className="text-zinc-600">·</span> ▮▮▮ Código de barras <span className="text-zinc-600">·</span> 🎙️ Voz
-          </p>
-
-          <button onClick={abrirDemo} style={step(340)}
-            className="w-full inline-flex items-center justify-center gap-2 mb-2 border border-orange-500/60 hover:border-orange-400 rounded-full py-3.5 px-6 transition-colors">
-            <span className="jb-display text-base text-orange-400 tracking-wide">📸 PRUÉBALA YA CON TU PLATO</span>
-          </button>
-          <button onClick={registrarClicCTA} style={step(380)}
-            className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mb-2 transition-colors shadow-lg shadow-orange-500/20">
-            EMPEZAR AHORA
-          </button>
-          <p className="jb-body text-zinc-400 text-xs mb-5" style={step(400)}>
-            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
-          </p>
-
-          <div className="flex flex-col items-center gap-2" style={step(440)}>
-            <button onClick={() => onChoose('studentAuth')}
-              className="jb-body text-sm text-zinc-300 hover:text-zinc-50 border border-zinc-800 hover:border-orange-500 rounded-full px-4 py-2 transition-colors inline-flex items-center gap-1.5">
-              <User className="text-orange-500" size={14} />
-              ¿Ya tienes cuenta? <span className="jb-display tracking-wide text-orange-400">SOY ALUMNO</span>
-            </button>
-            <button onClick={() => onChoose('free')} className="jb-body text-xs text-zinc-500 hover:text-zinc-300">
-              📏 ¿Solo quieres medirte? Hazlo sin registro →
-            </button>
-          </div>
-        </div>
-      </section>
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
     </div>
   );

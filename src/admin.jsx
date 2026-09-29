@@ -2190,8 +2190,10 @@ const ESTILOS_GRAFICO_HUD = `
 @media (prefers-reduced-motion: reduce) { .jbg-anim { animation: none !important; } }
 `;
 function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) {
-  const [hover, setHover] = useState(null);
+  const [hoverCrudo, setHover] = useState(null);
   const maxN = Math.min(400, Math.max(40, Math.ceil(((paraSueldo || equilibrio || hoy || 20) * 1.25) / 10) * 10));
+  // Si el eje cambió (otro sueldo u otros costos), el punto tocado no puede quedar fuera del gráfico.
+  const hover = hoverCrudo === null ? null : Math.min(hoverCrudo, maxN);
   const ganancia = n => n * queda - fijos;
   const W = 600, H = 220, pl = 10, pr = 10, pt = 26, pb = 24;
   const yMin = Math.min(-fijos, ganancia(maxN)) * 1.25, yMax = Math.max(sueldo * 1.15, ganancia(maxN), 10);
@@ -2427,6 +2429,27 @@ function RentabilidadPanel({ users }) {
     } else if (ym === mesActual) gastosCat[cat] += monto;
   });
   const gastosMes = Object.values(gastosCat).reduce((a, v) => a + v, 0);
+  // Para las proyecciones (equilibrio, sueldo, precio mínimo, gráfico y
+  // simulador): el promedio mensual de estos gastos en los últimos 3 meses
+  // que tienen gastos anotados. Así la publicidad y el marketing de todos
+  // los meses cuentan, sin que un solo mes raro lo distorsione.
+  const gastoAppDelMes = ym => (mes?.gastos || []).reduce((acc, g) => {
+    if (g.negocio !== 'app') return acc;
+    const monto = Number(g.monto) || 0;
+    const gm = String(g.fecha || '').slice(0, 7);
+    const meses = Number(g.meses_a_repartir) || 0;
+    if (g.categoria === 'equipo' && meses > 1) {
+      const dif = numMes(ym) - numMes(gm);
+      return dif >= 0 && dif < meses ? acc + monto / meses : acc;
+    }
+    return gm === ym ? acc + monto : acc;
+  }, 0);
+  const ultimosMeses = [0, 1, 2].map(k => {
+    const n = numMes(mesActual) - k - 1; // numMes usa meses 1-12
+    return `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`;
+  });
+  const conGastos = ultimosMeses.map(gastoAppDelMes).filter(v => v > 0);
+  const gastosPromedio = conGastos.length ? conGastos.reduce((a, v) => a + v, 0) / conGastos.length : 0;
   // Alumnos nuevos del mes: su primer pago con dinero real fue este mes.
   const primerPago = {};
   (mes?.historialPagos || []).forEach(pg => {
@@ -2438,9 +2461,11 @@ function RentabilidadPanel({ users }) {
 
   const cuotaRus = cuotaNuevoRus(Math.max(ingresosMes, comprasMes));
   const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
-  const fijos = fijosTec + (cuotaRus ?? 50);
+  const fijosBase = fijosTec + (cuotaRus ?? 50);
+  // Gastos fijos para proyectar: tecnología + RUS + promedio de gastos anotados.
+  const fijos = fijosBase + gastosPromedio;
   const costoIAMes = mes ? mes.fotos * costoFoto : 0;
-  const resultadoMes = ingresosMes - comisionesMes - fijos - costoIAMes - gastosMes;
+  const resultadoMes = ingresosMes - comisionesMes - fijosBase - costoIAMes - gastosMes;
 
   const precioMensual = precios[1] || 24.9;
   const cv = costoPorAlumno(supR, sup.conversion);
@@ -2523,7 +2548,7 @@ function RentabilidadPanel({ users }) {
         </div>
         {mes && (
           <p className="jb-body text-[11px] text-zinc-500 mt-1">
-            Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijos)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos a {fmtS(costoFoto)}{costoFotoReal !== null ? ', costo medido' : ', costo estimado'})
+            Cobraste {fmtS(ingresosMes)} − comisiones {fmtS(comisionesMes)} − gastos fijos {fmtS(fijosBase)} − fotos con IA {fmtS(costoIAMes)} ({mes.fotos} fotos a {fmtS(costoFoto)}{costoFotoReal !== null ? ', costo medido' : ', costo estimado'})
             {CATEGORIAS_GASTO.filter(c => gastosCat[c.id] > 0).map(c => (
               <span key={c.id}> − <span className="text-zinc-300">{c.emoji} {c.id === 'equipo' ? 'equipos (repartido)' : c.label.toLowerCase()} {fmtS(gastosCat[c.id])}</span></span>
             ))}
@@ -2542,7 +2567,7 @@ function RentabilidadPanel({ users }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { v: fmtS(fijos), l: 'Gastos fijos al mes', sub: `tecnología ${fmtS(fijosTec)} + RUS ${fmtS(cuotaRus ?? 50)}` },
+          { v: fmtS(fijos), l: 'Gastos fijos al mes', sub: `tecnología ${fmtS(fijosTec)} + RUS ${fmtS(cuotaRus ?? 50)}${gastosPromedio > 0 ? ` + publicidad y otros ${fmtS(gastosPromedio)} (promedio de ${conGastos.length} ${conGastos.length === 1 ? 'mes' : 'meses'})` : ''}` },
           { v: fmtS(cv), l: 'Costo por alumno', sub: 'fotos, pruebas gratis y avisos' },
           { v: fmtS(quedaPorAlumno), l: 'Te deja cada alumno', sub: `plan mensual por Mercado Pago` },
           { v: `${sup.conversion}%`, l: 'Pruebas que pagan', sub: conversionReal === null ? 'supuesto (aún pocos datos)' : `medido en la app: ${conversionReal}%` },
@@ -2683,7 +2708,7 @@ function RentabilidadPanel({ users }) {
 
       <div>
         <h3 className="jb-display text-sm text-zinc-300 mb-1">GANANCIA SEGÚN TUS ALUMNOS</h3>
-        <p className="jb-body text-[11px] text-zinc-500 mb-1">Con tu precio actual y tus costos de hoy. En rojo pierdes, en verde ganas.</p>
+        <p className="jb-body text-[11px] text-zinc-500 mb-1">Con tu precio actual y tus costos de hoy{gastosPromedio > 0 ? `, incluida tu publicidad y otros gastos (promedio ${fmtS(gastosPromedio)} al mes)` : ''}. En rojo pierdes, en verde ganas.</p>
         <GraficoGanancia fijos={fijos} queda={quedaPorAlumno} hoy={pagando} equilibrio={equilibrio} paraSueldo={paraSueldo} sueldo={sup.sueldoMeta} />
       </div>
 

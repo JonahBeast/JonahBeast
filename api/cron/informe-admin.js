@@ -4,11 +4,13 @@
 // un aviso corto con lo del día: lo que entró ayer, los pagos por revisar,
 // las pruebas gratis que vencen hoy o mañana, los alumnos que pagan y
 // dejaron de registrar y los alimentos por revisar (variantes y menú del día
-// que propuso la IA). Si no hay nada que valga la pena, no manda nada.
+// que propuso la IA) y el saldo de la IA si quedó bajo (tabla ia_saldo).
+// Si no hay nada que valga la pena, no manda nada.
 //
 // Cron en vercel.json: "0 13 * * *" (13:00 UTC = 8:00 Perú)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
+import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD } from '../../src/saldoIA.js';
 
 const NUMEROS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
 const enLetras = n => NUMEROS[n] || String(n);
@@ -62,6 +64,19 @@ export default async function handler(req, res) {
       return n + variantes + menu;
     }, 0);
 
+    // Saldo de la IA (Anthropic), estimado con lo que Jonah anotó en el panel.
+    let saldoIA = null;
+    try {
+      const { data: movs } = await supabase.from('ia_saldo').select('tipo, monto_usd, fecha').range(0, 499);
+      const p = puntoDePartidaSaldo(movs || []);
+      if (p) {
+        const { data: usos } = await supabase.from('ia_uso')
+          .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', p.desde).range(0, 19999);
+        saldoIA = saldoEstimado(movs || [], usos || [])?.saldo ?? null;
+      }
+    } catch {}
+
     const partes = [];
     if (cobrado > 0) partes.push(`Ayer entraron S/${cobrado.toFixed(2)} (${(cobrados || []).length} ${(cobrados || []).length === 1 ? 'pago' : 'pagos'}).`);
     const hoy = [];
@@ -71,6 +86,9 @@ export default async function handler(req, res) {
     if (quietos) hoy.push(`${quietos === 1 ? 'un alumno lleva' : `${enLetras(quietos)} alumnos llevan`} días sin registrar`);
     if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
+    if (saldoIA !== null && saldoIA < SALDO_IA_MINIMO_USD) {
+      partes.push(`⚠️ El saldo de la IA está bajo: quedan unos US$ ${Math.max(saldoIA, 0).toFixed(2)}. Recárgalo en Anthropic para que las fotos y Jarvis sigan funcionando.`);
+    }
 
     // Nada que valga la pena: Jarvis no molesta.
     if (!partes.length) return res.status(200).json({ ok: true, enviado: false, motivo: 'nada importante' });

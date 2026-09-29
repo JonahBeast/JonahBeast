@@ -5157,8 +5157,10 @@ function CalorieStatus({ consumed, target }) {
 /* Novedades de los alimentos que el alumno pidió ("🙋 Pedirle a Jonah" o
    por la foto): al abrir la app ve cuáles ya se agregaron y cuáles no, con
    el mensaje de Jonah. No depende de las notificaciones, así se entera
-   aunque las tenga apagadas. Lo ya visto se recuerda en este celular. */
-function PedidosResueltosCard({ username }) {
+   aunque las tenga apagadas. Lo ya visto se recuerda en este celular.
+   oculto: en Planes no se muestra (no distrae al que va a pagar), pero
+   sigue cargada para volver a salir al cambiar de pantalla. */
+function PedidosResueltosCard({ username, oculto = false }) {
   const clave = 'jb-pedidos-vistos:' + username;
   const [pedidos, setPedidos] = useState([]);
   useEffect(() => {
@@ -5167,7 +5169,7 @@ function PedidosResueltosCard({ username }) {
     supabase.rpc('mis_pedidos_resueltos', { p_desde: desde || new Date(Date.now() - 7 * 86400000).toISOString() })
       .then(({ data }) => setPedidos(Array.isArray(data) ? data : []), () => {});
   }, [clave]);
-  if (!pedidos.length) return null;
+  if (!pedidos.length || oculto) return null;
   function listo() {
     try { localStorage.setItem(clave, pedidos[0].resuelto_en || new Date().toISOString()); } catch {}
     setPedidos([]);
@@ -8833,7 +8835,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           )
         )}
-        <PedidosResueltosCard username={username} />
+        <PedidosResueltosCard username={username} oculto={tab === 'planes'} />
         {tab === 'dash' && <PesajeCard form={form} setForm={setForm} />}
         {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
       </div>

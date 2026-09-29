@@ -18,6 +18,14 @@
 // su celular), el asistente se queda callado hasta que vence la pausa o el
 // admin se lo devuelve desde el panel.
 //
+// Chats personales (el número es el WhatsApp de Jonah, también personal):
+//   1) Los contactos guardados en su celular (Meta los manda por el campo
+//      smb_app_state_sync) quedan como "personal", salvo que sean alumnos.
+//   2) Jonah agrega o quita números a mano en "No responder" del panel.
+//   En los chats "personal" el asistente no responde ni guarda nada.
+//   3) Si un número nuevo escribe algo claramente personal, Claude usa la
+//      herramienta mensaje_personal y el asistente no responde.
+//
 // Se despliega con verify_jwt = false: Meta no manda sesión. La seguridad es
 // la firma X-Hub-Signature-256 (secreto WHATSAPP_APP_SECRET): sin firma
 // válida no se procesa nada.
@@ -64,6 +72,7 @@ Reglas (además de las de la sección 0 del manual):
 - Nunca des información sensible: datos de otras personas, números de Yape/Plin o cuentas bancarias (di que están en la app, en el ícono de tarjeta "Mi plan"), el código de la calculadora, contraseñas o códigos de verificación.
 - Solo hablas de Jonah Beast Fuel (la app, planes, alimentación dentro de la app, la tienda). Si preguntan otra cosa, di con amabilidad que solo puedes ayudar con la app.
 - Si piden agregar un alimento o plato a la app: primero revisa la lista "Alimentos que ya están en la app" y los que Jonah agregó hace poco. Si ya existe (aunque se escriba distinto), dile con qué nombre buscarlo en "REGISTRAR" → "Escribir". Si no existe, usa la herramienta pedir_alimento (sin escribir texto: el sistema le responde al cliente que se están calculando los macros y le avisa cuando esté listo). No uses pasar_a_jonah para esto.
+- Este WhatsApp es también el número personal de Jonah. Si el mensaje es claramente personal (familia, pareja, amigos, planes para salir, trabajo o temas ajenos a Jonah Beast Fuel) y no pregunta nada de la app, los planes, los pagos, la alimentación ni la tienda, usa la herramienta mensaje_personal (sin escribir texto): no se responde y el chat queda para Jonah. Si hay cualquier duda (por ejemplo "hola", "información" o "precio" de un número nuevo), NO la uses: responde normalmente.
 - Usa la herramienta pasar_a_jonah cuando: haya un pago por aprobar, rechazado o con problemas; pidan descuentos o precios especiales; haya temas médicos (embarazo, diabetes, lesiones, medicamentos, trastornos de la alimentación); haya reclamos, enojo o pedidos de reembolso; no sepas la respuesta; o pidan hablar con una persona. Cuando la uses, no escribas texto: el sistema le avisa al cliente.`;
 
 const HERRAMIENTAS = [{
@@ -89,6 +98,18 @@ const HERRAMIENTAS = [{
       resumen: { type: "string", description: "Una línea para Jonah: quién es y qué necesita. Ej.: \"Alumna Carla pide reembolso de su plan trimestral\"." },
     },
     required: ["motivo", "resumen"],
+    additionalProperties: false,
+  },
+}, {
+  name: "mensaje_personal",
+  description: "El mensaje es claramente personal para Jonah (familia, pareja, amigos, temas ajenos a Jonah Beast Fuel). El asistente no responde nada y el chat queda para Jonah. Nunca la uses si hay dudas.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {
+      resumen: { type: "string", description: "De qué trata, en pocas palabras. Ej.: \"saludo familiar\"." },
+    },
+    required: ["resumen"],
     additionalProperties: false,
   },
 }];
@@ -172,6 +193,8 @@ async function procesar(cuerpo: any) {
         for (const msg of valor.messages || []) await atenderMensaje(cuenta, valor, msg);
       } else if (cambio.field === "smb_message_echoes") {
         for (const eco of valor.message_echoes || []) await registrarRespuestaDeJonah(eco);
+      } else if (cambio.field === "smb_app_state_sync") {
+        for (const s of valor.state_sync || []) await sincronizarContacto(s);
       }
     }
   }
@@ -180,6 +203,40 @@ async function procesar(cuerpo: any) {
 // Los últimos 9 dígitos: así se compara "51963760819" con "963 760 819".
 function nueveDigitos(tel: string) {
   return String(tel || "").replace(/\D/g, "").slice(-9);
+}
+
+// Número en el formato en que Meta manda los mensajes: solo dígitos y con
+// el 51 de Perú si vino sin código de país.
+function telefonoWhatsApp(tel: string) {
+  const d = String(tel || "").replace(/\D/g, "");
+  return d.length === 9 ? "51" + d : d;
+}
+
+async function esPersonal(telefono: string) {
+  const { data } = await supabase.from("whatsapp_chats").select("modo").eq("telefono", telefono).maybeSingle();
+  return data?.modo === "personal";
+}
+
+// Regla 1: un contacto guardado en el celular de Jonah es personal (familia,
+// amigos), salvo que sea alumno. Si lo borra de sus contactos, vuelve al
+// asistente. Lo que Jonah puso a mano en "No responder" no se toca.
+async function sincronizarContacto(s: any) {
+  if (s?.type !== "contact") return;
+  const telefono = telefonoWhatsApp(s.contact?.phone_number || "");
+  if (telefono.length < 11) return;
+  const { data: chat } = await supabase.from("whatsapp_chats").select("modo, motivo, nombre").eq("telefono", telefono).maybeSingle();
+  if (s.action === "remove") {
+    if (chat?.modo === "personal" && chat?.motivo === "contacto") {
+      await supabase.from("whatsapp_chats").update({ modo: "asistente", motivo: null }).eq("telefono", telefono);
+    }
+    return;
+  }
+  if (chat?.modo === "personal") return;
+  if (await buscarAlumno(telefono)) return;
+  const nombre = String(s.contact?.full_name || s.contact?.first_name || "").trim() || chat?.nombre || null;
+  await supabase.from("whatsapp_chats").upsert({
+    telefono, nombre, modo: "personal", motivo: "contacto", resumen: null, pausado_hasta: null,
+  }, { onConflict: "telefono" });
 }
 
 function textoDe(msg: any): { tipo: string; texto: string } {
@@ -200,6 +257,8 @@ function textoDe(msg: any): { tipo: string; texto: string } {
 async function atenderMensaje(cuenta: any, valor: any, msg: any) {
   const telefono = String(msg?.from || "");
   if (!telefono || !msg?.id) return;
+  // Reglas 1 y 2: chat personal de Jonah. Ni se guarda ni se responde.
+  if (await esPersonal(telefono)) return;
   const { tipo, texto } = textoDe(msg);
 
   // Meta a veces repite el aviso: el id del mensaje es único, así no se
@@ -281,6 +340,7 @@ async function registrarPedido(telefono: string, alumno: any, nombreWa: string |
 async function registrarRespuestaDeJonah(eco: any) {
   const telefono = String(eco?.to || "");
   if (!telefono || !eco?.id) return;
+  if (await esPersonal(telefono)) return; // chat personal: no se guarda
   const { tipo, texto } = textoDe(eco);
   const { error: repetido } = await supabase.from("whatsapp_mensajes")
     .insert({ telefono, wa_id: eco.id, direccion: "jonah", tipo, texto });
@@ -453,6 +513,12 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   const herramienta = bloques.find((b: any) => b.type === "tool_use" && b.name === "pasar_a_jonah");
   if (herramienta) {
     return { pasar: { motivo: String(herramienta.input?.motivo || "otro"), resumen: String(herramienta.input?.resumen || "").slice(0, 300) } };
+  }
+  // Regla 3: mensaje personal de un número nuevo. No se responde.
+  const personal = bloques.find((b: any) => b.type === "tool_use" && b.name === "mensaje_personal");
+  if (personal) {
+    console.log(JSON.stringify({ evento: "whatsapp_personal", resumen: String(personal.input?.resumen || "").slice(0, 80) }));
+    return {};
   }
   const pedido = bloques.find((b: any) => b.type === "tool_use" && b.name === "pedir_alimento");
   const alimento = String(pedido?.input?.alimento || "").replace(/\s+/g, " ").trim().slice(0, 80);

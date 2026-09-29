@@ -5302,8 +5302,13 @@ function JarvisPanel({ onClose, users }) {
                       <>Regalar {a.dias} días de Premium a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>{a.desde_hoy ? ' desde hoy' : ''} (hasta el {a.hasta}).</>
                     ) : a.tipo === 'whatsapp' ? (
                       <>Mensaje para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>:<span className="block mt-1 whitespace-pre-line" style={{ color: '#b9d4e3' }}>{a.texto}</span></>
-                    ) : (
+                    ) : a.tipo === 'activar_foto' ? (
                       <>Activar el reconocimiento por foto a <strong style={{ color: '#ffffff' }}>{a.nombre}</strong> por {a.dias} días (hasta el {a.hasta}).</>
+                    ) : (
+                      // Acción que esta versión del panel no conoce (Jarvis se
+                      // actualizó y la página no se recargó): nunca mostrarla
+                      // como otra cosa.
+                      <>Jarvis preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
                     )}
                   </div>
                   {a.tipo === 'whatsapp' ? (
@@ -5312,7 +5317,8 @@ function JarvisPanel({ onClose, users }) {
                       style={{ background: a.estado === 'hecha' ? 'transparent' : '#25D366', color: a.estado === 'hecha' ? '#4affb0' : '#050a0f', border: a.estado === 'hecha' ? '1px solid #1c6b85' : 'none' }}>
                       {a.estado === 'hecha' ? '✓ Abierto · abrir de nuevo' : '📲 Abrir WhatsApp'}
                     </a>
-                  ) : a.estado === 'pendiente' || a.estado === 'enviando' ? (
+                  ) : !['activar_foto', 'aprobar_pago', 'regalar_dias'].includes(a.tipo) ? null
+                  : a.estado === 'pendiente' || a.estado === 'enviando' ? (
                     <div className="flex gap-2">
                       <button onClick={() => { desbloquearVoz(); responderAccion(i, j, true); }} disabled={a.estado === 'enviando'}
                         className="text-xs px-3 py-1.5 rounded font-semibold disabled:opacity-50"
@@ -5561,6 +5567,8 @@ function WhatsAppPanel() {
   const [chats, setChats] = useState([]);
   const [abierto, setAbierto] = useState(null);
   const [mensajes, setMensajes] = useState([]);
+  const [nuevoPersonal, setNuevoPersonal] = useState('');
+  const [verPersonales, setVerPersonales] = useState(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -5581,7 +5589,7 @@ function WhatsAppPanel() {
   async function cargarChats() {
     try {
       const { data } = await supabase.from('whatsapp_chats').select('*')
-        .order('ultimo_mensaje_en', { ascending: false }).limit(50);
+        .order('ultimo_mensaje_en', { ascending: false }).limit(1000);
       setChats(data || []);
     } catch { setChats([]); }
   }
@@ -5663,6 +5671,23 @@ function WhatsAppPanel() {
     } catch { setMensajes([]); }
   }
 
+  // "No responder": chats personales (familia, amigos). El asistente no les
+  // responde ni guarda sus mensajes. Los contactos guardados en el celular
+  // entran solos; aquí se agregan o quitan a mano.
+  const telWhatsApp = t => { const d = String(t || '').replace(/\D/g, ''); return d.length === 9 ? '51' + d : d; };
+  async function marcarPersonal(telefono, nombre) {
+    const tel = telWhatsApp(telefono);
+    if (tel.length < 11) { alert('Escribe el celular con 9 dígitos (o con el código de país).'); return; }
+    try {
+      const { error } = await supabase.from('whatsapp_chats').upsert({
+        telefono: tel, ...(nombre ? { nombre } : {}), modo: 'personal', motivo: 'manual', resumen: null, pausado_hasta: null,
+      }, { onConflict: 'telefono' });
+      if (error) throw error;
+      setNuevoPersonal('');
+      await cargarChats();
+    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
   async function devolverAlAsistente(telefono) {
     try {
       await supabase.from('whatsapp_chats')
@@ -5673,7 +5698,9 @@ function WhatsAppPanel() {
   }
 
   const cambios = modo !== guardado.modo || numeros.trim() !== guardado.numeros;
-  const pendientes = chats.filter(c => c.modo === 'jonah').length;
+  const personales = chats.filter(c => c.modo === 'personal');
+  const chatsNegocio = chats.filter(c => c.modo !== 'personal').slice(0, 50);
+  const pendientes = chatsNegocio.filter(c => c.modo === 'jonah').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -5756,11 +5783,11 @@ function WhatsAppPanel() {
           <h2 className="jb-display text-base text-zinc-200">💬 CHATS {pendientes > 0 && <span className="text-orange-400">· {pendientes} te esperan 🙋</span>}</h2>
           <button onClick={cargarChats} className={btnGhost + ' text-xs'}>Actualizar</button>
         </div>
-        {chats.length === 0 ? (
+        {chatsNegocio.length === 0 ? (
           <p className="jb-body text-sm text-zinc-500">Todavía no hay chats. Aparecerán aquí cuando te escriban.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {chats.map(c => (
+            {chatsNegocio.map(c => (
               <div key={c.telefono} className={`bg-zinc-950 border rounded-xl p-3 ${c.modo === 'jonah' ? 'border-orange-500/50' : 'border-zinc-800'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <button onClick={() => verMensajes(c.telefono)} className="text-left min-w-0 flex-1">
@@ -5773,9 +5800,13 @@ function WhatsAppPanel() {
                     )}
                     <div className="jb-body text-[11px] text-zinc-500 mt-0.5">+{c.telefono} · {fechaHoraCorta(c.ultimo_mensaje_en)}</div>
                   </button>
-                  {c.modo === 'jonah' && (
-                    <button onClick={() => devolverAlAsistente(c.telefono)} className={btnGhost + ' text-xs shrink-0'}>Devolver al asistente</button>
-                  )}
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    {c.modo === 'jonah' && (
+                      <button onClick={() => devolverAlAsistente(c.telefono)} className={btnGhost + ' text-xs'}>Devolver al asistente</button>
+                    )}
+                    <button onClick={() => { if (confirm(`¿${c.nombre || '+' + c.telefono} es un contacto personal? El asistente dejará de responderle.`)) marcarPersonal(c.telefono); }}
+                      className="jb-body text-[11px] text-zinc-500 hover:text-orange-400">🚫 Es personal</button>
+                  </div>
                 </div>
                 {abierto === c.telefono && (
                   <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-col gap-1.5 max-h-80 overflow-y-auto">
@@ -5790,6 +5821,35 @@ function WhatsAppPanel() {
                     ))}
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <h2 className="jb-display text-base text-zinc-200 mb-1">🚫 NO RESPONDER</h2>
+        <p className="jb-body text-xs text-zinc-500 mb-4">
+          Familia y amigos: el asistente nunca les responde ni guarda sus mensajes. Los contactos guardados en tu celular entran solos
+          (menos los que son alumnos). Si alguien personal te escribe desde un número nuevo, agrégalo aquí.
+        </p>
+        <div className="flex gap-2 mb-4">
+          <input value={nuevoPersonal} onChange={e => setNuevoPersonal(e.target.value)} className={inputCls} placeholder="Celular, ej. 987654321" inputMode="tel" />
+          <button onClick={() => marcarPersonal(nuevoPersonal)} disabled={!nuevoPersonal.trim()} className={btnPrimary + ' text-sm shrink-0'}>Agregar</button>
+        </div>
+        <button onClick={() => setVerPersonales(v => !v)} className="jb-body text-xs text-orange-400">
+          {verPersonales ? 'Ocultar' : 'Ver'} la lista ({personales.length})
+        </button>
+        {verPersonales && (
+          <div className="flex flex-col gap-1.5 mt-3 max-h-80 overflow-y-auto">
+            {personales.length === 0 && <p className="jb-body text-xs text-zinc-500">Todavía no hay números en la lista.</p>}
+            {personales.map(c => (
+              <div key={c.telefono} className="flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+                <div className="min-w-0">
+                  <div className="jb-body text-sm text-zinc-200 truncate">{c.nombre || `+${c.telefono}`}</div>
+                  <div className="jb-body text-[11px] text-zinc-500">+{c.telefono} · {c.motivo === 'contacto' ? 'contacto de tu celular' : 'agregado por ti'}</div>
+                </div>
+                <button onClick={() => devolverAlAsistente(c.telefono)} className={btnGhost + ' text-xs shrink-0'}>Quitar</button>
               </div>
             ))}
           </div>

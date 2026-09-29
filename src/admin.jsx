@@ -973,6 +973,7 @@ function AlimentoPropio({ a, onListo }) {
   const [f, setF] = useState({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasas: a.grasas });
   const [ia, setIa] = useState(null);
   const [paraTodos, setParaTodos] = useState(null);
+  const [fuente, setFuente] = useState('alumno'); // de dónde salen las cifras del formulario "para todos"
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
 
@@ -993,8 +994,11 @@ function AlimentoPropio({ a, onListo }) {
       const r = await llamarPedidosAlimentos({ accion: 'calcular', nombre: a.nombre });
       setIa(r.propuesta || null);
       if (!r.propuesta) setError('La IA no pudo calcularlo.');
+      setOcupado(false);
+      return r.propuesta || null;
     } catch (e) { setError(e.message); }
     setOcupado(false);
+    return null;
   }
 
   async function agregarParaTodos() {
@@ -1009,6 +1013,22 @@ function AlimentoPropio({ a, onListo }) {
 
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
   const estado = { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos' }[a.revision];
+
+  // Cifras del formulario "Agregar para todos": las del alumno o las de la IA
+  // (con su grupo, estado y medida de casa). El nombre que ya escribió Jonah
+  // se respeta.
+  const cifrasAlumno = { kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasas, fibra: '' };
+  function usarCifras(de, propuestaIA = ia) {
+    setFuente(de);
+    setParaTodos(f => {
+      const base = f || { ...ALIMENTO_VACIO, nombre: a.nombre };
+      if (de === 'ia' && propuestaIA) {
+        const p = formDesdePropuesta(propuestaIA, base.nombre);
+        return { ...p, nombre: base.nombre, menu_uso: base.menu_uso };
+      }
+      return { ...base, ...cifrasAlumno };
+    });
+  }
 
   return (
     <div className={`bg-zinc-950 border rounded-xl p-3.5 flex flex-col gap-2 ${a.alertas.length && !a.revision ? 'border-amber-600/50' : 'border-zinc-800'}`}>
@@ -1041,6 +1061,19 @@ function AlimentoPropio({ a, onListo }) {
       {paraTodos && (
         <div className="flex flex-col gap-2 border-t border-zinc-800 pt-2">
           <p className="jb-body text-xs text-zinc-400">Revisa el grupo y los datos: así aparecerá en la app para todos.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="jb-body text-[11px] text-zinc-500">Usar las cifras de:</span>
+            {[['alumno', `👤 El alumno (${n(a.kcal)} kcal)`], ['ia', ia ? `🤖 La IA (${n(ia.kcal)} kcal)` : '🤖 La IA']].map(([id, texto]) => (
+              <button key={id} type="button" disabled={ocupado}
+                onClick={async () => {
+                  if (id === 'ia' && !ia) { const p = await compararIA(); if (p) usarCifras('ia', p); return; }
+                  usarCifras(id);
+                }}
+                className={`jb-body text-xs px-3 py-1 rounded-full border ${fuente === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                {id === 'ia' && !ia && ocupado ? 'Calculando…' : texto}
+              </button>
+            ))}
+          </div>
           <FormAlimento form={paraTodos} setForm={setParaTodos} />
           <div className="flex gap-2">
             <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === ''} className={btnPrimary + ' text-sm py-2 flex-1'}>
@@ -1066,7 +1099,7 @@ function AlimentoPropio({ a, onListo }) {
               <button disabled={ocupado} onClick={() => setEditando(true)} className={btnGhost + ' text-xs py-1.5 px-3'}>✏️ Corregir</button>
               {!ia && <button disabled={ocupado} onClick={compararIA} className={btnGhost + ' text-xs py-1.5 px-3'}>{ocupado ? <Loader2 size={13} className="animate-spin" /> : '🤖 Comparar con la IA'}</button>}
               {a.revision !== 'aprobado' && (
-                <button disabled={ocupado} onClick={() => setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasas })}
+                <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno }); }}
                   className={btnGhost + ' text-xs py-1.5 px-3'}>➕ Agregar para todos</button>
               )}
             </>

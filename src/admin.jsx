@@ -893,6 +893,191 @@ function PedidosAlimentosPanel() {
   );
 }
 
+/* Alimentos que crearon los alumnos ("+ Crear mi alimento"). Solo los ve
+   quien los creó, pero pueden estar mal (calorías del paquete, macros que
+   no cuadran). Jonah los revisa: los deja como están, los corrige (las
+   comidas del alumno se recalculan solas, porque se buscan por nombre) o
+   los agrega a la app para todos. */
+function alertasAlimentoPropio(a) {
+  const k = Number(a.kcal) || 0, p = Number(a.proteina) || 0, c = Number(a.carbos) || 0, g = Number(a.grasas) || 0;
+  const alertas = [];
+  if (p + c + g === 0) alertas.push('Sin proteína, carbos ni grasa: solo cuentan las calorías.');
+  else {
+    const calc = 4 * p + 4 * c + 9 * g;
+    if (Math.abs(calc - k) > 40 && Math.abs(calc - k) / Math.max(k, 1) > 0.25) alertas.push(`Las calorías no cuadran con sus macros (darían unas ${Math.round(calc)} kcal).`);
+  }
+  if (p + c + g > 100) alertas.push('Sus macros suman más de 100 g por cada 100 g.');
+  if (p > 90) alertas.push('Proteína imposible (más de 90 g por 100 g).');
+  if (k > 0 && k < 5) alertas.push('Calorías muy bajas.');
+  return alertas;
+}
+
+function AlimentosPropiosPanel() {
+  const [lista, setLista] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [abierto, setAbierto] = useState(false);
+  const [verTodos, setVerTodos] = useState(false);
+
+  useEffect(() => { cargar(); }, [verTodos]);
+
+  async function cargar() {
+    setCargando(true);
+    try {
+      let q = supabase.from('alimentos_personales')
+        .select('id, username, nombre, kcal, proteina, carbos, grasas, created_at, revision, revisado_en')
+        .order('created_at', { ascending: false }).limit(200);
+      if (!verTodos) q = q.is('revision', null);
+      const { data, error } = await q;
+      if (error) throw error;
+      // Primero los que tienen alertas.
+      const filas = (data || []).map(a => ({ ...a, alertas: alertasAlimentoPropio(a) }));
+      setLista(filas.sort((a, b) => b.alertas.length - a.alertas.length));
+    } catch { setLista([]); }
+    setCargando(false);
+  }
+
+  const pendientes = lista.filter(a => !a.revision).length;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">
+          🍴 ALIMENTOS CREADOS POR ALUMNOS · {pendientes}
+          {lista.some(a => !a.revision && a.alertas.length) && <span className="text-amber-400"> ⚠️</span>}
+        </h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="jb-body text-xs text-zinc-500">
+              Los crean con "+ Crear mi alimento" y solo los ve quien los creó. Si corriges uno, sus comidas se recalculan solas y le avisamos al abrir la app.
+            </p>
+            <button onClick={() => setVerTodos(v => !v)} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>{verTodos ? 'Solo pendientes' : 'Ver todos'}</button>
+          </div>
+          {cargando ? (
+            <Loader2 className="animate-spin text-orange-500" size={20} />
+          ) : lista.length === 0 ? (
+            <p className="jb-body text-zinc-500 text-sm">No hay alimentos por revisar.</p>
+          ) : (
+            lista.map(a => <AlimentoPropio key={a.id} a={a} onListo={cargar} />)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AlimentoPropio({ a, onListo }) {
+  const [editando, setEditando] = useState(false);
+  const [f, setF] = useState({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasas: a.grasas });
+  const [ia, setIa] = useState(null);
+  const [paraTodos, setParaTodos] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+
+  async function marcar(revision, datos = {}) {
+    setOcupado(true); setError('');
+    try {
+      const { error: e } = await supabase.from('alimentos_personales')
+        .update({ ...datos, revision, revisado_en: new Date().toISOString() }).eq('id', a.id);
+      if (e) throw e;
+      await onListo();
+    } catch (e) { setError('No se pudo guardar: ' + (e?.message || 'intenta de nuevo.')); }
+    setOcupado(false);
+  }
+
+  async function compararIA() {
+    setOcupado(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'calcular', nombre: a.nombre });
+      setIa(r.propuesta || null);
+      if (!r.propuesta) setError('La IA no pudo calcularlo.');
+    } catch (e) { setError(e.message); }
+    setOcupado(false);
+  }
+
+  async function agregarParaTodos() {
+    setOcupado(true); setError('');
+    try {
+      const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: paraTodos });
+      if (paraTodos.menu_uso) await guardarUsoMenu(r.alimento_id, paraTodos.menu_uso);
+      await cargarAlimentosExtraDeNuevo();
+      await marcar('aprobado');
+    } catch (e) { setError(e.message); setOcupado(false); }
+  }
+
+  const n = v => Math.round((Number(v) || 0) * 10) / 10;
+  const estado = { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos' }[a.revision];
+
+  return (
+    <div className={`bg-zinc-950 border rounded-xl p-3.5 flex flex-col gap-2 ${a.alertas.length && !a.revision ? 'border-amber-600/50' : 'border-zinc-800'}`}>
+      <div>
+        <p className="jb-body text-sm text-zinc-100 font-semibold">{a.nombre}</p>
+        <p className="jb-body text-[11px] text-zinc-500">@{a.username} · {fechaHoraCorta(a.created_at)}{estado ? ` · ${estado}` : ''}</p>
+        <p className="jb-body text-xs text-zinc-300 mt-1 tabular-nums">Por 100 g: {n(a.kcal)} kcal · P {n(a.proteina)} g · C {n(a.carbos)} g · G {n(a.grasas)} g</p>
+        {a.alertas.map((t, i) => <p key={i} className="jb-body text-xs text-amber-400 mt-0.5">⚠️ {t}</p>)}
+      </div>
+
+      {ia && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+          <p className="jb-body text-xs text-zinc-300 tabular-nums">🤖 La IA estima: {n(ia.kcal)} kcal · P {n(ia.proteina)} g · C {n(ia.carbos)} g · G {n(ia.grasa)} g</p>
+          {ia.nota && <p className="jb-body text-[11px] text-zinc-500 mt-0.5">{ia.nota}</p>}
+          <button onClick={() => { setF({ kcal: ia.kcal ?? '', proteina: ia.proteina ?? '', carbos: ia.carbos ?? '', grasas: ia.grasa ?? '' }); setEditando(true); }}
+            className="jb-body text-[11px] text-orange-400 underline mt-1">Usar estos números para corregirlo</button>
+        </div>
+      )}
+
+      {editando && (
+        <div className="grid grid-cols-4 gap-2">
+          {[['kcal', 'kcal'], ['proteina', 'Prot. g'], ['carbos', 'Carbos g'], ['grasas', 'Grasa g']].map(([k, l]) => (
+            <label key={k} className="jb-body text-[10px] text-zinc-500">{l}
+              <input type="number" inputMode="decimal" value={f[k]} onChange={e => setF(v => ({ ...v, [k]: e.target.value }))} className={inputCls + ' text-sm mt-0.5'} />
+            </label>
+          ))}
+        </div>
+      )}
+
+      {paraTodos && (
+        <div className="flex flex-col gap-2 border-t border-zinc-800 pt-2">
+          <p className="jb-body text-xs text-zinc-400">Revisa el grupo y los datos: así aparecerá en la app para todos.</p>
+          <FormAlimento form={paraTodos} setForm={setParaTodos} />
+          <div className="flex gap-2">
+            <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === ''} className={btnPrimary + ' text-sm py-2 flex-1'}>
+              {ocupado ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
+            </button>
+            <button onClick={() => setParaTodos(null)} className={btnGhost + ' text-sm py-2'}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {!paraTodos && (
+        <div className="flex flex-wrap gap-2">
+          {editando ? (
+            <>
+              <button disabled={ocupado || !(Number(f.kcal) > 0) || Number(f.kcal) > 900}
+                onClick={() => marcar('corregido', { kcal: Number(f.kcal), proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0 })}
+                className={btnPrimary + ' text-xs py-1.5 px-3'}>Guardar corrección</button>
+              <button onClick={() => setEditando(false)} className={btnGhost + ' text-xs py-1.5 px-3'}>Cancelar</button>
+            </>
+          ) : (
+            <>
+              {a.revision !== 'ok' && <button disabled={ocupado} onClick={() => marcar('ok')} className={btnGhost + ' text-xs py-1.5 px-3'}>✓ Está bien</button>}
+              <button disabled={ocupado} onClick={() => setEditando(true)} className={btnGhost + ' text-xs py-1.5 px-3'}>✏️ Corregir</button>
+              {!ia && <button disabled={ocupado} onClick={compararIA} className={btnGhost + ' text-xs py-1.5 px-3'}>{ocupado ? <Loader2 size={13} className="animate-spin" /> : '🤖 Comparar con la IA'}</button>}
+              {a.revision !== 'aprobado' && (
+                <button disabled={ocupado} onClick={() => setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasas })}
+                  className={btnGhost + ' text-xs py-1.5 px-3'}>➕ Agregar para todos</button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 // Los alimentos que ya agregó Jonah, para marcar cuáles salen en el menú del día.
 function AlimentosEnMenu() {
   const [abierto, setAbierto] = useState(false);
@@ -5574,6 +5759,7 @@ function WhatsAppPanel() {
   const [simTexto, setSimTexto] = useState('');
   const [simComo, setSimComo] = useState('');
   const [simEnviando, setSimEnviando] = useState(false);
+  const [costo, setCosto] = useState(null);
 
   useEffect(() => { cargar(); }, []);
 
@@ -5589,6 +5775,7 @@ function WhatsAppPanel() {
       setModo(g.modo); setNumeros(g.numeros); setGuardado(g);
     } catch {}
     await cargarChats();
+    await cargarCosto();
   }
 
   async function cargarChats() {
@@ -5691,6 +5878,23 @@ function WhatsAppPanel() {
       setNuevoPersonal('');
       await cargarChats();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+  }
+
+  // Costo real del asistente (tabla ia_uso), en soles: este mes y hoy.
+  async function cargarCosto() {
+    try {
+      const hoy = todayISO();
+      const { data } = await supabase.from('ia_uso')
+        .select('tipo, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${hoy.slice(0, 7)}-01T00:00:00-05:00`).range(0, 9999);
+      const filas = (data || []).map(f => ({ ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === hoy }));
+      const reales = filas.filter(f => f.tipo === 'whatsapp');
+      const suma = l => l.reduce((a, f) => a + f.soles, 0);
+      setCosto({
+        mes: suma(reales), respuestas: reales.length, hoy: suma(reales.filter(f => f.hoy)),
+        prueba: suma(filas.filter(f => f.tipo === 'whatsapp_prueba')),
+      });
+    } catch { setCosto(null); }
   }
 
   async function simular() {
@@ -5808,6 +6012,14 @@ function WhatsAppPanel() {
         <button onClick={guardarAjustes} disabled={!cambios} className={btnPrimary + ' text-sm mt-4'}>
           {cambios ? 'Guardar' : 'Guardado'}
         </button>
+        {costo && (
+          <p className="jb-body text-xs text-zinc-400 mt-4 border-t border-zinc-800 pt-3">
+            💰 <span className="text-zinc-200">Costo este mes: S/{costo.mes.toFixed(2)}</span> en {costo.respuestas} {costo.respuestas === 1 ? 'respuesta' : 'respuestas'}
+            {costo.respuestas > 0 ? ` (S/${(costo.mes / costo.respuestas).toFixed(3)} cada una)` : ''} · hoy S/{costo.hoy.toFixed(2)}
+            {costo.prueba > 0 ? ` · pruebas del simulador: S/${costo.prueba.toFixed(2)}` : ''}.
+            <span className="block text-zinc-500 mt-0.5">Tope de seguridad: si alguien manda más de 40 mensajes en un día, el asistente deja de responderle y te pasa el chat.</span>
+          </p>
+        )}
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -6013,6 +6225,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <PagosPanel />
             <PedidosAlimentosPanel />
+            <AlimentosPropiosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />

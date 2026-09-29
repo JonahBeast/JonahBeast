@@ -67,6 +67,10 @@ function json(body: unknown, status = 200) {
 // Horas que el asistente se queda callado en un chat.
 const PAUSA_TRAS_PASAR_A_JONAH = 24;
 const PAUSA_TRAS_RESPUESTA_DE_JONAH = 12;
+// Tope de mensajes de un mismo número por día: pasado eso, el asistente
+// deja de responder (evita que alguien gaste la IA mandando spam) y le pasa
+// el chat a Jonah.
+const LIMITE_MENSAJES_DIA = 40;
 const MAX_IMAGEN = 5 * 1024 * 1024; // límite de imágenes de la API de Claude
 
 const MENSAJE_PASO_A_JONAH = "🙋 Te paso con Jonah para que te ayude personalmente. Te escribe en breve.";
@@ -327,6 +331,20 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
     await supabase.from("whatsapp_chats").update({ modo: "asistente", motivo: null, resumen: null, pausado_hasta: null }).eq("telefono", telefono);
   }
 
+  // Tope diario por número.
+  const inicioDia = `${fechaLima()}T00:00:00-05:00`;
+  const { count: hoyCliente } = await supabase.from("whatsapp_mensajes")
+    .select("id", { count: "exact", head: true }).eq("telefono", telefono).eq("direccion", "entrante").gte("creado_en", inicioDia);
+  if ((hoyCliente || 0) > LIMITE_MENSAJES_DIA) {
+    const resumen = `${alumno?.nombre || nombreWa || "+" + telefono} mandó más de ${LIMITE_MENSAJES_DIA} mensajes hoy: el asistente dejó de responderle hasta mañana.`;
+    await enviarTexto(cuenta, telefono, MENSAJE_PASO_A_JONAH);
+    await supabase.from("whatsapp_chats").update({
+      modo: "jonah", motivo: "otro", resumen, pausado_hasta: new Date(Date.now() + 12 * 3600000).toISOString(),
+    }).eq("telefono", telefono);
+    await avisarAJonah(telefono, alumno?.nombre || nombreWa, resumen);
+    return;
+  }
+
   await graph(cuenta, `/${cuenta.phone_number_id}/messages`, { messaging_product: "whatsapp", status: "read", message_id: msg.id }).catch(() => {});
 
   let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string; personal?: string };
@@ -543,7 +561,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   }
 
   console.log(JSON.stringify({ evento: "whatsapp_uso", modelo: data.model, stop: data.stop_reason, ...data.usage }));
-  await anotarUsoIA(supabase, { tipo: "whatsapp", username: alumno?.username, modelo: data.model || MODELO, usage: data.usage });
+  await anotarUsoIA(supabase, { tipo: dados ? "whatsapp_prueba" : "whatsapp", username: alumno?.username, modelo: data.model || MODELO, usage: data.usage });
 
   if (data.stop_reason === "refusal") {
     return { pasar: { motivo: "otro", resumen: `El asistente no pudo responder a ${alumno?.nombre || nombreWa || "+" + telefono}.` } };

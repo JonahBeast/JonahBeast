@@ -704,3 +704,93 @@ export const CLAVES_APP: string[] = [
   "Cheesecake (PECAFIT) (-)",
   "Parfait (PECAFIT) (-)",
 ];
+export const USOS_MENU: { valor: string; texto: string }[] = [
+  {
+    "valor": "proteina:pollo",
+    "texto": "Proteína (almuerzo/cena) · Pollo"
+  },
+  {
+    "valor": "proteina:res",
+    "texto": "Proteína (almuerzo/cena) · Carne de res"
+  },
+  {
+    "valor": "proteina:cerdo",
+    "texto": "Proteína (almuerzo/cena) · Cerdo"
+  },
+  {
+    "valor": "proteina:pescado",
+    "texto": "Proteína (almuerzo/cena) · Pescado"
+  },
+  {
+    "valor": "proteina:atun",
+    "texto": "Proteína (almuerzo/cena) · Atún"
+  },
+  {
+    "valor": "proteina:pavo",
+    "texto": "Proteína (almuerzo/cena) · Pavita"
+  },
+  {
+    "valor": "proteina:huevo",
+    "texto": "Proteína (almuerzo/cena) · Huevo"
+  },
+  {
+    "valor": "acompanamiento:arroz",
+    "texto": "Acompañamiento · Arroz"
+  },
+  {
+    "valor": "acompanamiento:papa",
+    "texto": "Acompañamiento · Papa"
+  },
+  {
+    "valor": "acompanamiento:camote",
+    "texto": "Acompañamiento · Camote"
+  },
+  {
+    "valor": "acompanamiento:yuca",
+    "texto": "Acompañamiento · Yuca"
+  },
+  {
+    "valor": "acompanamiento:fideos",
+    "texto": "Acompañamiento · Fideos"
+  },
+  {
+    "valor": "acompanamiento:quinua",
+    "texto": "Acompañamiento · Quinua"
+  },
+  {
+    "valor": "acompanamiento:choclo",
+    "texto": "Acompañamiento · Choclo"
+  },
+  {
+    "valor": "acompanamiento:menestras",
+    "texto": "Acompañamiento · Menestras"
+  },
+  {
+    "valor": "almuerzo:pollo",
+    "texto": "Plato de almuerzo · con pollo"
+  },
+  {
+    "valor": "almuerzo:res",
+    "texto": "Plato de almuerzo · con carne de res"
+  },
+  {
+    "valor": "almuerzo:cerdo",
+    "texto": "Plato de almuerzo · con cerdo"
+  },
+  {
+    "valor": "almuerzo:pescado",
+    "texto": "Plato de almuerzo · con pescado"
+  },
+  {
+    "valor": "almuerzo:menestras",
+    "texto": "Plato de almuerzo · con menestras"
+  },
+  {
+    "valor": "desayuno",
+    "texto": "Desayuno completo"
+  },
+  {
+    "valor": "snack",
+    "texto": "Media mañana / media tarde"
+  }
+];

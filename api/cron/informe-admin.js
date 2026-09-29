@@ -2,8 +2,9 @@
 //
 // Corre todos los días a las 8am hora Perú. Le manda a Jonah Beast (admin)
 // un aviso corto con lo del día: lo que entró ayer, los pagos por revisar,
-// las pruebas gratis que vencen hoy o mañana y los alumnos que pagan y
-// dejaron de registrar. Si no hay nada que valga la pena, no manda nada.
+// las pruebas gratis que vencen hoy o mañana, los alumnos que pagan y
+// dejaron de registrar y los alimentos por revisar (variantes y menú del día
+// que propuso la IA). Si no hay nada que valga la pena, no manda nada.
 //
 // Cron en vercel.json: "0 13 * * *" (13:00 UTC = 8:00 Perú)
 
@@ -49,6 +50,18 @@ export default async function handler(req, res) {
       quietos = Object.values(ultima).filter(f => f <= addDaysISO(hoyISO, -3) && f >= addDaysISO(hoyISO, -7)).length;
     }
 
+    // Alimentos por revisar (panel → HOY → "Alimentos por revisar"): variantes
+    // que propuso la IA y sugerencias de menú de los platos que agregó sola.
+    const { data: agregados } = await supabase.from('pedidos_alimentos')
+      .select('propuesta, alimentos_extra(menu_uso)').eq('estado', 'agregado')
+      .gte('resuelto_en', new Date(Date.now() - 60 * 864e5).toISOString()).range(0, 499);
+    const porRevisar = (agregados || []).reduce((n, p) => {
+      const pr = p.propuesta || {};
+      const variantes = (pr.variantes_resultado || []).filter(v => v.estado === 'sugerida').length;
+      const menu = pr.ia_estado === 'agregado' && pr.menu_uso && !pr.menu_revision && p.alimentos_extra && !p.alimentos_extra.menu_uso ? 1 : 0;
+      return n + variantes + menu;
+    }, 0);
+
     const partes = [];
     if (cobrado > 0) partes.push(`Ayer entraron S/${cobrado.toFixed(2)} (${(cobrados || []).length} ${(cobrados || []).length === 1 ? 'pago' : 'pagos'}).`);
     const hoy = [];
@@ -56,6 +69,7 @@ export default async function handler(req, res) {
     if (vencenHoy) hoy.push(`${vencenHoy === 1 ? 'una prueba vence' : `${enLetras(vencenHoy)} pruebas vencen`} hoy`);
     if (vencenManana) hoy.push(`${vencenManana === 1 ? 'una vence' : `${enLetras(vencenManana)} vencen`} mañana`);
     if (quietos) hoy.push(`${quietos === 1 ? 'un alumno lleva' : `${enLetras(quietos)} alumnos llevan`} días sin registrar`);
+    if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
 
     // Nada que valga la pena: Jarvis no molesta.

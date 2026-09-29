@@ -8112,19 +8112,10 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 
 function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  const [globoVisible, setGloboVisible] = useState(true);
+  // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
+  // se entiende como soporte, y el globo tapaba la pantalla.
   return (
     <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-2">
-      {globoVisible && (
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-lg max-w-[200px] relative">
-          <button onClick={() => setGloboVisible(false)}
-            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
-            <X size={11} className="text-zinc-300" />
-          </button>
-          <p className="text-zinc-200 text-xs font-medium">¿Necesitas ayuda?</p>
-          <p className="text-orange-400 text-xs">Escríbeme 👋</p>
-        </div>
-      )}
       <a
         href={url}
         target="_blank"

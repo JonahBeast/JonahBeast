@@ -46,15 +46,20 @@
 
 ## 2. La portada (jonahbeast.com)
 
-- Arriba: **"JONAH BEAST FUEL"**, "App de nutrición y pérdida de grasa" y el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca."
-- Debajo: el antes/después de Jonah (−37 kg en 3 años y 8 meses), que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
-- Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
-- Botón principal **"📸 PRUÉBALA YA CON TU PLATO"**: prueba sin registrarse (ver abajo).
-- Debajo, el botón **"TU CAMBIO EMPIEZA AQUÍ"** → recorrido de 6 pasos antes del registro (ver 3). Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
-- Justo debajo, el botón **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
-- Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
-- La portada entra en una sola pantalla: no hay que bajar para ver nada.
-- La animación del escaneo de la portada es solo una demostración; para probar de verdad está el botón "📸 PRUÉBALA YA CON TU PLATO".
+La portada web se ve igual que la bienvenida de la app instalada:
+
+- **Al abrirla**, sale el logo animado (el gorila, "JONAH BEAST FUEL", una línea naranja y "NO ES QUÉ COMES. ES CUÁNTO."). Dura poco más de un segundo, solo sale la primera vez en esa visita y se salta tocando la pantalla.
+- **Primera pantalla**, a pantalla completa: la foto de Jonah ("−37 KG · Jonah · en 3 años y 8 meses") que se alterna con la de Andrea ("6 MESES · Andrea · de cambio visible"), con **"TU CAMBIO EMPIEZA AQUÍ"**, "Tu plan con comida peruana, justo para tu meta." y tres fotos pequeñas con "Hombres y mujeres reales ya empezaron su cambio". En computadora, la foto va a la izquierda y el texto a la derecha.
+  - Botón principal **"EMPEZAR AHORA"** → recorrido de 6 pasos antes del registro (ver 3). Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
+  - **"📸 Pruébala con tu plato"**: prueba sin registrarse (ver abajo).
+  - **"¿Ya tienes cuenta? ENTRAR"** → ingresar.
+  - Abajo dice "Desliza para ver más ↓".
+- **Más abajo** (bajando con el dedo): el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca.", el antes/después de Jonah (−37 kg en 3 años y 8 meses) que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
+  - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
+  - Botones **"📸 PRUÉBALA YA CON TU PLATO"** y **"EMPEZAR AHORA"** (los mismos de arriba).
+  - **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
+  - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
+- La animación del escaneo es solo una demostración; para probar de verdad está el botón "📸 PRUÉBALA YA CON TU PLATO".
 
 **Probar la foto sin registrarse ("📸 PRUÉBALA YA CON TU PLATO"):**
 1. Se abre "📸 PRUÉBALA CON TU PLATO". Toca **"📷 TOMAR FOTO AHORA"** (abre la cámara) o **"🖼️ SUBIR UNA FOTO DE MI GALERÍA"** (elige una foto guardada).
@@ -79,13 +84,13 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 
 ---
 
-**App instalada (Play Store o agregada a la pantalla de inicio), sin sesión iniciada:** en lugar de la portada web sale la bienvenida: el logo animado sobre fondo carbón ("JONAH BEAST FUEL" y "NO ES QUÉ COMES. ES CUÁNTO.") y luego, a pantalla completa, la foto de Jonah ("−37 KG · Jonah · en 3 años y 8 meses") que se alterna con la de Andrea ("6 MESES · Andrea · de cambio visible"), con **"TU CAMBIO EMPIEZA AQUÍ"**, "Tu plan con comida peruana, justo para tu meta.", tres fotos pequeñas con "Hombres y mujeres reales ya empezaron su cambio", el botón **"EMPEZAR AHORA"** (lleva al recorrido de la sección 3) y **"¿Ya tienes cuenta? ENTRAR"**. Mientras la app instalada revisa la sesión también se ve el logo animado.
+**App instalada (Play Store o agregada a la pantalla de inicio), sin sesión iniciada:** en lugar de la portada web sale la bienvenida (la portada web se ve casi igual, ver 2): el logo animado sobre fondo carbón ("JONAH BEAST FUEL" y "NO ES QUÉ COMES. ES CUÁNTO.") y luego, a pantalla completa, la foto de Jonah ("−37 KG · Jonah · en 3 años y 8 meses") que se alterna con la de Andrea ("6 MESES · Andrea · de cambio visible"), con **"TU CAMBIO EMPIEZA AQUÍ"**, "Tu plan con comida peruana, justo para tu meta.", tres fotos pequeñas con "Hombres y mujeres reales ya empezaron su cambio", el botón **"EMPEZAR AHORA"** (lleva al recorrido de la sección 3) y **"¿Ya tienes cuenta? ENTRAR"**. Mientras la app instalada revisa la sesión también se ve el logo animado.
 
 ## 3. Crear cuenta (gratis, con 7 días de Premium)
 
 **Volver atrás antes de entrar:** el recorrido, "Crear cuenta", "Entrar a mi cuenta" tienen el botón **"← Atrás"** arriba a la izquierda (la calculadora, "← Volver" arriba a la derecha). El botón o gesto **"atrás" del celular** también regresa a la pantalla anterior (o al paso anterior del recorrido) en vez de cerrar la app.
 
-0. **Recorrido antes del registro:** al tocar **"TU CAMBIO EMPIEZA AQUÍ"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y el botón **"← Atrás"** arriba a la izquierda (vuelve al paso anterior; en el primero, a la portada):
+0. **Recorrido antes del registro:** al tocar **"EMPEZAR AHORA"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y el botón **"← Atrás"** arriba a la izquierda (vuelve al paso anterior; en el primero, a la portada):
    1. **"¿QUÉ QUIERES LOGRAR?"**: 🔥 Bajar grasa · 💪 Ganar músculo · ⚖️ Mantenerme y comer mejor.
    2. **"CUÉNTANOS DE TI"**: Hombre o Mujer y su edad.
    3. **"TU ESTATURA Y TU PESO"** (en centímetros y kilos, con − / + o escribiendo).

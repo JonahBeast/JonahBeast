@@ -16,12 +16,20 @@
 //   "revisar_propio" → {id}: la IA revisa un alimento que acaba de crear o
 //                corregir un alumno ("+ Crear mi alimento"). La llama la app
 //                del alumno al guardarlo (solo para sus propios alimentos).
-//   "revisar_propios" → la tarea automática de cada hora (con la clave
-//                x-webhook-secret) revisa los que quedaron sin revisar.
-//   Si la IA está SEGURA: lo da por bueno, corrige sus números o lo cambia
-//   por el mismo alimento de la app. Si no está segura, queda "dudoso" y le
-//   llega a Jonah (panel + aviso al celular). Lo que hizo queda en
-//   revision_ia (con los números que había puesto el alumno).
+//                Si la IA está SEGURA: lo da por bueno, corrige sus números o
+//                lo cambia por el mismo alimento de la app. Si no está segura,
+//                queda "dudoso" y le llega a Jonah (panel + aviso al celular).
+//                Lo que hizo queda en revision_ia (con los números del alumno).
+//   "atender_pedido" → {nombre}: la IA atiende el pedido que acaba de hacer
+//                un alumno con "🙋 Pedirle a Jonah que lo agregue". Si está
+//                SEGURA: si ya existe, le responde con qué nombre buscarlo; si
+//                no, calcula los macros y lo agrega a la app para todos. Si no
+//                está segura, el pedido queda pendiente para Jonah (con los
+//                macros ya calculados) y le llega un aviso. En propuesta.ia_estado
+//                queda lo que hizo (revisando / agregado / descartado / dudoso).
+//   "automatico" → la tarea automática (cada 15 min, con x-webhook-secret):
+//                revisa los alimentos creados y atiende los pedidos (también
+//                los de WhatsApp y los de las fotos) que quedaron sin atender.
 //
 // Además de la notificación, la app le muestra al alumno sus pedidos
 // resueltos al abrirla (función mis_pedidos_resueltos), así se entera aunque
@@ -62,10 +70,11 @@ Deno.serve(async (req) => {
     const cuerpo = await req.json().catch(() => ({}));
     const { accion, id, nombre, alimento, respuesta } = cuerpo || {};
 
-    // Tarea automática de cada hora (api/cron/alimentos-revision.js).
-    if (accion === "revisar_propios") {
+    // Tarea automática (api/cron/alimentos-revision.js).
+    if (accion === "automatico") {
       if (!AVISO_SECRETO || req.headers.get("x-webhook-secret") !== AVISO_SECRETO) return json({ error: "No autorizado." }, 401);
-      return json(await revisarPendientes());
+      const [alimentos, pedidos] = await Promise.all([revisarPendientes(), atenderPedidosPendientes()]);
+      return json({ ok: true, alimentos, pedidos });
     }
 
     // Candado: sesión iniciada. Todo es solo para el admin, menos que un
@@ -78,6 +87,10 @@ Deno.serve(async (req) => {
     if (accion === "revisar_propio") {
       if (!perfil?.username) return json({ error: "No autorizado." }, 403);
       return json(await revisarPropio(String(id || ""), perfil.role === "admin" ? null : perfil.username));
+    }
+    if (accion === "atender_pedido") {
+      if (!perfil?.username) return json({ error: "No autorizado." }, 403);
+      return json(await atenderMiPedido(String(nombre || ""), perfil.username));
     }
     if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
 
@@ -111,12 +124,16 @@ const ESQUEMA_PROPUESTA = {
     unidad: { type: "string", description: "Medida casera natural (\"unidad\", \"plato\", \"taza\", \"rebanada\"…) o \"\" si no aplica." },
     gramos_unidad: { type: "number", description: "Gramos de esa medida casera, o 0 si no hay unidad." },
     nota: { type: "string", description: "Una línea para Jonah: de dónde salen los números o qué conviene revisar." },
+    seguridad: {
+      type: "string", enum: ["alta", "media", "baja"],
+      description: "alta SOLO si sabes exactamente qué es (o, con ya_existe, que es exactamente lo mismo) y apostarías a tus números. Nombre ambiguo, genérico, una marca que no conoces o algo que no es comida → baja.",
+    },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad"],
   additionalProperties: false,
 };
 
-async function calcular(nombre: string, id?: number) {
+async function calcular(nombre: string, id?: number, tipo = "alimento") {
   if (!nombre) throw new ErrorDeDatos("Escribe el nombre del alimento.");
   const extras = await nombresExtra();
   const lista = [...ALIMENTOS_APP, ...extras].join("\n");
@@ -139,6 +156,7 @@ Reglas:
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
+- En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
 
 Alimentos que ya están en la app (nombre y estado):
 ${lista}`,
@@ -146,7 +164,7 @@ ${lista}`,
     messages: [{ role: "user", content: `Alimento pedido: ${nombre}` }],
   });
 
-  const data = await llamarClaude(cuerpo);
+  const data = await llamarClaude(cuerpo, tipo);
   if (data.stop_reason === "refusal") throw new Error("La IA no pudo calcular este alimento. Llénalo a mano.");
   const texto = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("");
   let propuesta: any;
@@ -267,7 +285,7 @@ async function revisarPendientes() {
       contar("error");
     }
   }));
-  return { ok: true, revisados: resultado };
+  return resultado;
 }
 
 async function revisarUno(fila: any) {
@@ -361,6 +379,108 @@ ${lista}`,
   if (data.stop_reason === "refusal") return { veredicto: "no_se", seguridad: "baja", ya_existe: "", kcal: 0, proteina: 0, carbos: 0, grasa: 0, nota: "La IA no quiso revisarlo." };
   const texto = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("");
   try { return JSON.parse(texto); } catch { throw new Error("La IA respondió algo que no se pudo leer."); }
+}
+
+// ------------------------------------------------- atender pedidos (IA)
+
+// Toma un pedido pendiente para atenderlo (así la app y la tarea
+// automática no lo atienden dos veces a la vez). Devuelve el pedido o null.
+async function tomarPedido(pedidoId: number) {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("pedidos_alimentos")
+    .update({ propuesta: { ia_estado: "revisando", ia_en: new Date().toISOString() }, actualizado_en: new Date().toISOString() })
+    .eq("id", pedidoId).eq("estado", "pendiente")
+    .or(`propuesta.is.null,propuesta->>ia_estado.is.null,and(propuesta->>ia_estado.eq.revisando,propuesta->>ia_en.lt."${vencido}")`)
+    .select("*").maybeSingle();
+  return data;
+}
+
+async function atenderMiPedido(nombre: string, username: string) {
+  const clave = nombre.replace(/\s+/g, " ").trim().slice(0, 80).toLowerCase();
+  if (!clave) throw new ErrorDeDatos("Falta el nombre.");
+  const { data: pedido } = await supabase.from("pedidos_alimentos").select("id, solicitantes")
+    .eq("clave", clave).eq("estado", "pendiente").maybeSingle();
+  if (!pedido || !(pedido.solicitantes || []).some((s: any) => s?.username === username)) return { estado: null };
+  const tomado = await tomarPedido(pedido.id);
+  if (!tomado) return { estado: null };
+  return await atenderPedido(tomado);
+}
+
+async function atenderPedidosPendientes() {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("pedidos_alimentos").select("id")
+    .eq("estado", "pendiente")
+    .or(`propuesta.is.null,propuesta->>ia_estado.is.null,and(propuesta->>ia_estado.eq.revisando,propuesta->>ia_en.lt."${vencido}")`)
+    .order("creado_en").limit(MAX_POR_TAREA);
+  const resultado: Record<string, number> = {};
+  const contar = (k: string) => { resultado[k] = (resultado[k] || 0) + 1; };
+  await Promise.all((data || []).map(async ({ id }: any) => {
+    const tomado = await tomarPedido(id);
+    if (!tomado) return;
+    try {
+      contar((await atenderPedido(tomado)).estado || "cambiado_mientras");
+    } catch (e) {
+      console.error("No se pudo atender el pedido", id, (e as Error)?.message);
+      contar("error");
+    }
+  }));
+  return resultado;
+}
+
+// Etiqueta (como en la lista de la app) → nombre para mostrarle al alumno.
+async function existeEnApp(etiqueta: string) {
+  const e = etiqueta.trim().toLowerCase();
+  if (!e) return null;
+  const i = ALIMENTOS_APP.findIndex((n) => n.toLowerCase() === e);
+  if (i >= 0) return ALIMENTOS_APP[i];
+  const extras = await nombresExtra();
+  return extras.find((n: string) => n.toLowerCase() === e) || null;
+}
+
+async function atenderPedido(pedido: any) {
+  const soltar = () => supabase.from("pedidos_alimentos").update({ propuesta: null }).eq("id", pedido.id)
+    .eq("estado", "pendiente").eq("propuesta->>ia_estado", "revisando");
+  let propuesta: any;
+  try {
+    propuesta = (await calcular(pedido.nombre, undefined, "alimento_pedido_auto")).propuesta;
+  } catch (e) {
+    await soltar(); // se reintenta en la siguiente tarea automática
+    throw e;
+  }
+  const ahora = new Date().toISOString();
+  const segura = propuesta.seguridad === "alta";
+  const guardar = (estadoIA: string, extra: any = {}) => ({ ...propuesta, ...extra, ia_estado: estadoIA, ia_en: ahora });
+
+  // 1) Ya existe en la app: se le responde con qué nombre buscarlo.
+  if (segura && propuesta.ya_existe) {
+    const nombreApp = await existeEnApp(String(propuesta.ya_existe));
+    if (nombreApp) {
+      await supabase.from("pedidos_alimentos").update({ propuesta: guardar("descartado", { ya_existe: nombreApp }) }).eq("id", pedido.id);
+      const r = await descartar(pedido.id, `Ya estaba en la app como "${nombreApp}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+      return { estado: "descartado", ya_existe: nombreApp, avisos: r.avisos };
+    }
+  }
+
+  // 2) No existe y la IA está segura de sus números: se agrega para todos.
+  if (segura && !propuesta.ya_existe && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+    try {
+      await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
+      const r = await aprobar(propuesta, pedido.id);
+      const etiqueta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
+      return { estado: "agregado", alimento: etiqueta, avisos: r.avisos };
+    } catch (e) {
+      // ej. ya había uno con ese nombre: que lo vea Jonah
+      console.error("No se pudo agregar solo el pedido", pedido.id, (e as Error)?.message);
+      propuesta.nota = `${propuesta.nota || ""} (No se pudo agregar solo: ${(e as Error)?.message || "error"})`.trim();
+    }
+  }
+
+  // 3) No está segura: queda para Jonah, con los macros ya calculados.
+  await supabase.from("pedidos_alimentos").update({ propuesta: guardar("dudoso"), actualizado_en: ahora }).eq("id", pedido.id).eq("estado", "pendiente");
+  if (!horaDeSilencio()) {
+    await enviarPush({ admin: true, body: `🍽️ La IA no está segura del pedido "${pedido.nombre}". Revísalo en HOY → Pedidos de alimentos.` });
+  }
+  return { estado: "dudoso" };
 }
 
 // ----------------------------------------------------------------- aprobar

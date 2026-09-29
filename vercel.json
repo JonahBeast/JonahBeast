@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/cron/alimentos-revision",
-      "schedule": "35 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/racha-en-riesgo",

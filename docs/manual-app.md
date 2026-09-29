@@ -53,15 +53,10 @@ La portada web se ve igual que la bienvenida de la app instalada:
   - Botón principal **"EMPEZAR AHORA"** → recorrido de 6 pasos antes del registro (ver 3). Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
   - **"📸 Pruébala con tu plato"**: prueba sin registrarse (ver abajo).
   - **"¿Ya tienes cuenta? ENTRAR"** → ingresar.
-  - Abajo dice "Desliza para ver más ↓".
-- **Más abajo** (bajando con el dedo): el título **"NO ES QUÉ COMES. ES CUÁNTO."** con "Toma foto a tu plato y sabes cuánto te toca.", el antes/después de Jonah (−37 kg en 3 años y 8 meses) que cambia cada 6 segundos al de Andrea, y una demostración del registro del día ("+ Lomo saltado · 700 kcal", barra de avance y "Te quedan 1,188 kcal para tu meta").
-  - Una línea con las formas de anotar comidas: "📸 Foto del plato · ▮▮▮ Código de barras · 🎙️ Voz".
-  - Botones **"📸 PRUÉBALA YA CON TU PLATO"** y **"EMPEZAR AHORA"** (los mismos de arriba).
-  - **"¿Ya tienes cuenta? SOY ALUMNO"** → ingresar.
   - Enlace **"📏 ¿Solo quieres medirte? Hazlo sin registro →"** → calculadora gratis.
-- La animación del escaneo es solo una demostración; para probar de verdad está el botón "📸 PRUÉBALA YA CON TU PLATO".
+- Todo entra en una sola pantalla: no hay que bajar para ver nada.
 
-**Probar la foto sin registrarse ("📸 PRUÉBALA YA CON TU PLATO"):**
+**Probar la foto sin registrarse ("📸 Pruébala con tu plato"):**
 1. Se abre "📸 PRUÉBALA CON TU PLATO". Toca **"📷 TOMAR FOTO AHORA"** (abre la cámara) o **"🖼️ SUBIR UNA FOTO DE MI GALERÍA"** (elige una foto guardada).
 2. La línea naranja escanea la foto ("Detectando alimentos…", "Comparando con platos peruanos…", "Calculando calorías…").
 3. Sale "⚡ DETECTADO" con cada alimento, sus gramos y calorías, el **TOTAL** en kcal y la proteína, carbos y grasa. Son aproximados.
@@ -121,7 +116,7 @@ Errores del registro y qué hacer:
 | "Escribe un correo válido." | Revisar el correo (sin espacios). |
 | "La contraseña debe tener al menos 6 caracteres." / "La contraseña es muy corta…" | Usar una más larga. |
 | "Esa contraseña es muy común o ya se filtró en internet. Elige otra." / "…muy fácil de adivinar…" | Elegir una contraseña más única. |
-| "Ese correo ya tiene una cuenta. Inicia sesión." | Entrar por "SOY ALUMNO". Si no recuerda la contraseña, recuperarla (sección 5). |
+| "Ese correo ya tiene una cuenta. Inicia sesión." | Entrar por "¿Ya tienes cuenta? ENTRAR". Si no recuerda la contraseña, recuperarla (sección 5). |
 | "Ese código de referido no existe o ya no está activo…" | Revisar cómo está escrito. Si toca de nuevo el botón, la cuenta se crea sin código (sin descuento). |
 | "No se pudo preparar tu cuenta…" / "No se pudo crear tu cuenta: …" | Intentar de nuevo; si sigue, pasar a Jonah. |
 | "No se pudo abrir Google. Intenta de nuevo o usa tu correo." | Intentar de nuevo o registrarse con correo y contraseña. |
@@ -130,7 +125,7 @@ Errores del registro y qué hacer:
 
 ## 4. Ingresar a la cuenta
 
-1. En la portada toca **"SOY ALUMNO"**.
+1. En la portada toca **"¿Ya tienes cuenta? ENTRAR"**.
 2. Si te registraste con Google (o tu correo es de Gmail), toca **"Entrar con Google"**. Si no, escribe correo y contraseña y toca **"Entrar"**.
    - Si te registraste con correo y contraseña y ese correo es de Google, también puedes usar "Entrar con Google": entras a la misma cuenta.
 3. La sesión queda guardada: la próxima vez entras directo.

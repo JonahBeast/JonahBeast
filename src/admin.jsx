@@ -5200,6 +5200,8 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
+  { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
+  { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
   { id: 'premium:nova', nombre: 'Nova · femenina' },
   { id: 'premium:shimmer', nombre: 'Shimmer · femenina' },

@@ -21,23 +21,27 @@ const CORS_HEADERS = {
 };
 
 // Voces que ofrece el panel (la primera es la de por defecto). "jarvis" no
-// es una voz aparte: es la voz masculina "onyx" con instrucciones de estilo
-// de mayordomo inteligente (no imita la voz de ningún actor real).
-const VOCES = ["jarvis", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+// es una voz aparte: es la voz masculina "cedar" (la más natural de OpenAI)
+// con instrucciones de estilo de mayordomo inteligente (no imita la voz de
+// ningún actor real). Si "cedar" no respondiera, se usa "onyx".
+const VOCES = ["jarvis", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+const VOZ_JARVIS = "cedar";
+const VOZ_JARVIS_RESPALDO = "onyx";
 // Tope de texto por llamada: acota el costo de cada respuesta.
 const MAX_CARACTERES = 1500;
 const INSTRUCCIONES =
   "Habla en español latinoamericano neutro, como una asistente de inteligencia artificial futurista " +
-  "y elegante: tono calmado, seguro y cercano, ritmo ágil, pronunciación clara de nombres y cifras. " +
-  "Suena natural, nunca robótica.";
+  "y elegante: tono seguro y cercano, ritmo rápido y fluido de conversación, sin pausas largas, " +
+  "pronunciación clara de nombres y cifras. Suena natural, nunca robótica.";
 // Estilo inspirado en las IA mayordomo del cine, sin imitar a ningún actor.
+// Antes pedía "calma absoluta" y "pausas": sonaba lento. Ahora, ágil.
 const INSTRUCCIONES_JARVIS =
-  "Eres la voz de un asistente de inteligencia artificial de laboratorio, refinado y leal, al estilo de un mayordomo " +
-  "británico muy culto que habla español latinoamericano neutro. Voz masculina de registro medio-grave, cálida y aterciopelada, " +
-  "dicción impecable y articulada, cada consonante nítida. Calma absoluta: nunca te apuras ni te exaltas. " +
-  "Tono de seguridad total, cortés y un poco formal, con humor seco y una ironía finísima apenas insinuada, como si sonrieras sin mostrarlo. " +
-  "Ritmo mesurado con pausas breves y naturales entre ideas; baja ligeramente el tono al final de las frases. " +
-  "Pronuncia nombres y cifras con claridad. Nunca suenes robótico, teatral ni exagerado: sofisticado y humano.";
+  "Eres la voz de un asistente de inteligencia artificial refinado y leal, al estilo de un mayordomo británico muy culto " +
+  "que habla español latinoamericano neutro. Voz masculina de registro medio, cálida, dicción nítida. " +
+  "Habla RÁPIDO y FLUIDO, a la velocidad de una conversación ágil entre personas que se conocen bien: " +
+  "encadena las frases sin pausas largas, sin alargar las palabras y sin dramatizar. " +
+  "Seguro y eficiente, cortés, con humor seco apenas insinuado. " +
+  "Pronuncia nombres y cifras con claridad pero sin frenar. Nunca suenes robótico, lento ni teatral.";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
@@ -60,14 +64,15 @@ Deno.serve(async (req) => {
     const input = String(texto || "").replace(/\s+/g, " ").trim().slice(0, MAX_CARACTERES);
     if (!input) return json({ error: "Falta el texto." }, 400);
     const elegida = VOCES.includes(voz) ? voz : VOCES[0];
-    const voice = elegida === "jarvis" ? "onyx" : elegida;
     const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : INSTRUCCIONES;
-
-    const r = await fetch("https://api.openai.com/v1/audio/speech", {
+    const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "authorization": `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
     });
+    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida);
+    // Si OpenAI no acepta la voz nueva, Jarvis sigue hablando con la anterior.
+    if (r.status === 400 && elegida === "jarvis") r = await pedir(VOZ_JARVIS_RESPALDO);
     if (!r.ok || !r.body) {
       console.error("jarvis-voz: OpenAI respondió", r.status, (await r.text().catch(() => "")).slice(0, 300));
       return json({ error: "No se pudo generar la voz." }, 502);

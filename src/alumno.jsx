@@ -6,6 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
 import {
   ACTIVITY_DESC,
+  cargarAlimentosExtra,
   ACTIVITY_FACTORS,
   ANGULOS,
   AnimatedNumber,
@@ -5198,11 +5199,13 @@ function PedidosResueltosCard({ username }) {
 function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false }) {
   const [texto, setTexto] = useState(valor || '');
   const [abierto, setAbierto] = useState(false);
-  const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'error' | 'premium', nombre, error? }
+  const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'agregado' | 'existe' | 'error' | 'premium', nombre, error?, alimento? }
   const { premium, onVerPremium } = usePremium();
 
-  /* "Pedirle a Jonah que lo agregue": el pedido llega a "Pedidos de
-     alimentos" del panel y, cuando Jonah lo aprueba, le avisamos al alumno. */
+  /* "Pedirle a Jonah que lo agregue": la IA lo atiende al instante. Si está
+     segura, lo agrega a la app (o le dice con qué nombre ya existe) y aquí
+     mismo se le muestra; si no, queda en "Pedidos de alimentos" del panel y,
+     cuando Jonah lo resuelve, le avisamos al alumno. */
   async function pedirAJonah() {
     const nombre = texto.trim().slice(0, 80);
     if (nombre.length < 2) return;
@@ -5215,6 +5218,16 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
     setPedido(error
       ? { estado: 'error', nombre, error: error.message?.startsWith('Ya enviaste') ? error.message : 'No se pudo enviar el pedido. Intenta de nuevo.' }
       : { estado: 'ok', nombre });
+    if (error) return;
+    try {
+      const { data } = await supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } });
+      if (data?.estado === 'agregado') {
+        await cargarAlimentosExtra(true);
+        setPedido(p => p?.nombre === nombre ? { estado: 'agregado', nombre, alimento: data.alimento } : p);
+      } else if (data?.estado === 'descartado' && data.ya_existe) {
+        setPedido(p => p?.nombre === nombre ? { estado: 'existe', nombre, alimento: data.ya_existe } : p);
+      }
+    } catch {}
   }
 
   useEffect(() => { setTexto(valor || ''); }, [valor]);
@@ -5248,7 +5261,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 <button type="button" onMouseDown={e => e.preventDefault()} onClick={pedirAJonah}
                   className={btnPrimary + ' w-full py-2 text-xs flex flex-col items-center leading-tight'}>
                   <span>🙋 Pedirle a Jonah que lo agregue</span>
-                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">{premium ? 'Él calcula los macros y te avisamos cuando esté' : '👑 Solo Premium'}</span>
+                  <span className="jb-body text-[10px] font-normal opacity-80 mt-0.5">{premium ? 'Calculamos los macros y te avisamos cuando esté' : '👑 Solo Premium'}</span>
                 </button>
               )}
               <button type="button" onMouseDown={e => e.preventDefault()}
@@ -5301,7 +5314,9 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
       {pedido && (
         <p className={`jb-body text-xs mt-1.5 ${pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
           {pedido.estado === 'enviando' && 'Enviando tu pedido…'}
-          {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Jonah va a calcular los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
+          {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Estamos calculando los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
+          {pedido.estado === 'agregado' && <>✅ ¡Listo! <b className="text-orange-400">{pedido.alimento}</b> ya está en la app. Escríbelo arriba y elígelo 💪</>}
+          {pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{pedido.alimento}</b>. Escríbelo así arriba y elígelo 🙌</>}
           {pedido.estado === 'error' && pedido.error}
           {pedido.estado === 'premium' && <>
             👑 Pedirle alimentos a Jonah es <b className="text-orange-400">Premium</b>. En la versión gratis puedes crear tu propio alimento con sus calorías.
@@ -5314,10 +5329,21 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
   );
 }
 
+// La IA revisa el alimento apenas se guarda (en segundo plano: el alumno
+// sigue usando la app). Si lo corrigió o lo cambió por uno de la app, se
+// vuelve a cargar su lista (y ahí sale el aviso). Si falla, lo revisa la
+// tarea automática (cada 15 minutos).
+function revisarAlimentoPropio(id, onRevisado) {
+  if (!id) return;
+  supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'revisar_propio', id } })
+    .then(({ data }) => { if (data?.revision === 'corregido' || data?.revision === 'existe') onRevisado?.(); })
+    .catch(() => {});
+}
+
 // Crear un alimento propio, o corregir uno que ya creó (editar = el
 // alimento). Al corregir no se cambia el nombre: las comidas donde ya lo
 // usó lo buscan por el nombre y se recalculan solas con los datos nuevos.
-function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado }) {
+function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado, onRevisado }) {
   const [f, setF] = useState(editar
     ? { nombre: editar.name, kcal: String(editar.kcal), proteina: String(editar.protein || ''), carbos: String(editar.carbs || ''), grasas: String(editar.fat || '') }
     : { nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
@@ -5333,11 +5359,12 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
     setBusy(true);
     try {
       const datos = { kcal, proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasas: Number(f.grasas) || 0 };
-      // Al corregirlo vuelve a la lista de revisión de Jonah.
-      const { error } = editar
-        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null, editado_en: new Date().toISOString() }).eq('id', editar.idPropio)
-        : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos });
+      // Al corregirlo vuelve a revisión.
+      const { data: fila, error } = editar
+        ? await supabase.from('alimentos_personales').update({ ...datos, revision: null, revisado_en: null, editado_en: new Date().toISOString() }).eq('id', editar.idPropio).select('id').single()
+        : await supabase.from('alimentos_personales').insert({ username, nombre: f.nombre.trim(), ...datos }).select('id').single();
       if (error) throw error;
+      revisarAlimentoPropio(fila?.id, onRevisado);
       await onCreado(f.nombre.trim());
       onCerrar();
     } catch (e) { setErr('No se pudo guardar. Intenta de nuevo.'); }
@@ -7348,8 +7375,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
           showToast(oficial
-            ? `🔗 "${a.nombre}" ya estaba en la app: Jonah lo cambió por "${oficial.name}". Tus comidas ya se actualizaron.`
-            : `✏️ Jonah corrigió los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+            ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
+            : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
@@ -7500,6 +7527,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           username={username}
           nombreInicial={crearPara.texto}
           onCerrar={() => setCrearPara(null)}
+          onRevisado={cargarPersonales}
           onCreado={async (nombre) => {
             await cargarPersonales();
             const nuevo = (nombre || crearPara.texto).trim() + ' (mío)';
@@ -7509,7 +7537,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       )}
       {editarPropio && (
         <CrearAlimentoModal username={username} editar={editarPropio}
-          onCerrar={() => setEditarPropio(null)}
+          onCerrar={() => setEditarPropio(null)} onRevisado={cargarPersonales}
           onCreado={async () => { await cargarPersonales(); showToast('✅ Alimento corregido'); }} />
       )}
       {codigoPara && (
@@ -8084,19 +8112,10 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 
 function WhatsAppButton() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  const [globoVisible, setGloboVisible] = useState(true);
+  // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
+  // se entiende como soporte, y el globo tapaba la pantalla.
   return (
     <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-2">
-      {globoVisible && (
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl rounded-br-sm px-3.5 py-2.5 shadow-lg max-w-[200px] relative">
-          <button onClick={() => setGloboVisible(false)}
-            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center">
-            <X size={11} className="text-zinc-300" />
-          </button>
-          <p className="text-zinc-200 text-xs font-medium">¿Necesitas ayuda?</p>
-          <p className="text-orange-400 text-xs">Escríbeme 👋</p>
-        </div>
-      )}
       <a
         href={url}
         target="_blank"

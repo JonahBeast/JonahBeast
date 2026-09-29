@@ -13,6 +13,24 @@
 //                de Jonah (ej. "Ya estaba en la app como …") y se le avisa a
 //                quien lo pidió por las mismas vías.
 //
+//   "revisar_propio" → {id}: la IA revisa un alimento que acaba de crear o
+//                corregir un alumno ("+ Crear mi alimento"). La llama la app
+//                del alumno al guardarlo (solo para sus propios alimentos).
+//                Si la IA está SEGURA: lo da por bueno, corrige sus números o
+//                lo cambia por el mismo alimento de la app. Si no está segura,
+//                queda "dudoso" y le llega a Jonah (panel + aviso al celular).
+//                Lo que hizo queda en revision_ia (con los números del alumno).
+//   "atender_pedido" → {nombre}: la IA atiende el pedido que acaba de hacer
+//                un alumno con "🙋 Pedirle a Jonah que lo agregue". Si está
+//                SEGURA: si ya existe, le responde con qué nombre buscarlo; si
+//                no, calcula los macros y lo agrega a la app para todos. Si no
+//                está segura, el pedido queda pendiente para Jonah (con los
+//                macros ya calculados) y le llega un aviso. En propuesta.ia_estado
+//                queda lo que hizo (revisando / agregado / descartado / dudoso).
+//   "automatico" → la tarea automática (cada 15 min, con x-webhook-secret):
+//                revisa los alimentos creados y atiende los pedidos (también
+//                los de WhatsApp y los de las fotos) que quedaron sin atender.
+//
 // Además de la notificación, la app le muestra al alumno sus pedidos
 // resueltos al abrirla (función mis_pedidos_resueltos), así se entera aunque
 // tenga los avisos apagados. Al panel se le dice a quién NO le llegó la
@@ -23,7 +41,7 @@
 // merge, con el código de main.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ALIMENTOS_APP, GRUPOS_APP } from "./alimentos.ts";
+import { ALIMENTOS_APP, CLAVES_APP, GRUPOS_APP } from "./alimentos.ts";
 
 const MODELO = "claude-opus-5";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
@@ -49,15 +67,33 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
   try {
-    // Candado: solo el admin con sesión iniciada.
+    const cuerpo = await req.json().catch(() => ({}));
+    const { accion, id, nombre, alimento, respuesta } = cuerpo || {};
+
+    // Tarea automática (api/cron/alimentos-revision.js).
+    if (accion === "automatico") {
+      if (!AVISO_SECRETO || req.headers.get("x-webhook-secret") !== AVISO_SECRETO) return json({ error: "No autorizado." }, 401);
+      const [alimentos, pedidos] = await Promise.all([revisarPendientes(), atenderPedidosPendientes()]);
+      return json({ ok: true, alimentos, pedidos });
+    }
+
+    // Candado: sesión iniciada. Todo es solo para el admin, menos que un
+    // alumno pida revisar SU alimento.
     const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
     if (!token) return json({ error: "No autorizado." }, 401);
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData?.user) return json({ error: "No autorizado." }, 401);
-    const { data: perfil } = await supabase.from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
+    const { data: perfil } = await supabase.from("profiles").select("role, username").eq("id", authData.user.id).maybeSingle();
+    if (accion === "revisar_propio") {
+      if (!perfil?.username) return json({ error: "No autorizado." }, 403);
+      return json(await revisarPropio(String(id || ""), perfil.role === "admin" ? null : perfil.username));
+    }
+    if (accion === "atender_pedido") {
+      if (!perfil?.username) return json({ error: "No autorizado." }, 403);
+      return json(await atenderMiPedido(String(nombre || ""), perfil.username));
+    }
     if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
 
-    const { accion, id, nombre, alimento, respuesta } = await req.json();
     if (accion === "calcular") return json(await calcular(String(nombre || "").trim().slice(0, 80), id));
     if (accion === "aprobar") return json(await aprobar(alimento, id));
     if (accion === "descartar") return json(await descartar(Number(id), respuesta));
@@ -88,12 +124,16 @@ const ESQUEMA_PROPUESTA = {
     unidad: { type: "string", description: "Medida casera natural (\"unidad\", \"plato\", \"taza\", \"rebanada\"…) o \"\" si no aplica." },
     gramos_unidad: { type: "number", description: "Gramos de esa medida casera, o 0 si no hay unidad." },
     nota: { type: "string", description: "Una línea para Jonah: de dónde salen los números o qué conviene revisar." },
+    seguridad: {
+      type: "string", enum: ["alta", "media", "baja"],
+      description: "alta SOLO si sabes exactamente qué es (o, con ya_existe, que es exactamente lo mismo) y apostarías a tus números. Nombre ambiguo, genérico, una marca que no conoces o algo que no es comida → baja.",
+    },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad"],
   additionalProperties: false,
 };
 
-async function calcular(nombre: string, id?: number) {
+async function calcular(nombre: string, id?: number, tipo = "alimento") {
   if (!nombre) throw new ErrorDeDatos("Escribe el nombre del alimento.");
   const extras = await nombresExtra();
   const lista = [...ALIMENTOS_APP, ...extras].join("\n");
@@ -116,6 +156,7 @@ Reglas:
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
+- En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
 
 Alimentos que ya están en la app (nombre y estado):
 ${lista}`,
@@ -123,7 +164,7 @@ ${lista}`,
     messages: [{ role: "user", content: `Alimento pedido: ${nombre}` }],
   });
 
-  const data = await llamarClaude(cuerpo);
+  const data = await llamarClaude(cuerpo, tipo);
   if (data.stop_reason === "refusal") throw new Error("La IA no pudo calcular este alimento. Llénalo a mano.");
   const texto = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("");
   let propuesta: any;
@@ -136,7 +177,7 @@ ${lista}`,
   return { propuesta };
 }
 
-async function llamarClaude(cuerpo: string) {
+async function llamarClaude(cuerpo: string, tipo = "alimento") {
   for (let intento = 0; ; intento++) {
     let r: Response | null = null;
     try {
@@ -156,7 +197,7 @@ async function llamarClaude(cuerpo: string) {
     if (r?.ok) {
       const data = await r.json();
       console.log(JSON.stringify({ evento: "alimentos_pedidos_uso", modelo: data.model, stop: data.stop_reason, ...data.usage }));
-      await anotarUsoIA(supabase, { tipo: "alimento", modelo: data.model || MODELO, usage: data.usage });
+      await anotarUsoIA(supabase, { tipo, modelo: data.model || MODELO, usage: data.usage });
       return data;
     }
     const reintentable = !r || r.status === 429 || r.status >= 500;
@@ -169,6 +210,277 @@ async function llamarClaude(cuerpo: string) {
 async function nombresExtra() {
   const { data } = await supabase.from("alimentos_extra").select("nombre, estado");
   return (data || []).map((a: any) => a.estado && a.estado !== "-" ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre);
+}
+
+// ------------------------------------------- revisar alimentos de alumnos
+
+// Un alimento que se quedó "revisando" más de esto (la función se cortó) se
+// vuelve a revisar en la siguiente tarea automática.
+const REVISANDO_VENCE_MS = 30 * 60000;
+const MAX_POR_TAREA = 8; // se revisan a la vez, para que la tarea no pase el límite de tiempo
+
+const ESQUEMA_REVISION = {
+  type: "object",
+  properties: {
+    veredicto: {
+      type: "string", enum: ["bien", "corregir", "ya_existe", "no_se"],
+      description: "bien = los números del alumno son razonables; corregir = tienen un error claro; ya_existe = la lista ya tiene exactamente ese alimento; no_se = no lo conoces bien o el nombre es ambiguo.",
+    },
+    seguridad: { type: "string", enum: ["alta", "media", "baja"], description: "alta SOLO si apostarías a que tu veredicto es correcto." },
+    ya_existe: { type: "string", description: "Si veredicto = ya_existe: nombre EXACTO copiado de la lista. Si no, \"\"." },
+    kcal: { type: "number", description: "Tu estimación por 100 g." },
+    proteina: { type: "number" },
+    carbos: { type: "number" },
+    grasa: { type: "number" },
+    nota: { type: "string", description: "Una línea para Jonah: qué viste (ej. \"Puso los datos de una porción de 30 g, no de 100 g\")." },
+  },
+  required: ["veredicto", "seguridad", "ya_existe", "kcal", "proteina", "carbos", "grasa", "nota"],
+  additionalProperties: false,
+};
+
+// ¿Las calorías cuadran con los macros? (4 kcal por g de proteína y carbos,
+// 9 por g de grasa; se acepta un desvío por fibra, alcohol o redondeo).
+function cuadra(k: number, p: number, c: number, g: number) {
+  if (!(k > 0) || k > 900 || p < 0 || c < 0 || g < 0 || p + c + g > 100) return false;
+  const calc = 4 * p + 4 * c + 9 * g;
+  return Math.abs(calc - k) <= 40 || Math.abs(calc - k) / k <= 0.25;
+}
+
+// Toma un alimento para revisarlo (así la app del alumno y la tarea
+// automática no lo revisan dos veces a la vez).
+async function tomar(filaId: string) {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("alimentos_personales")
+    .update({ revision: "revisando", revisado_en: new Date().toISOString() })
+    .eq("id", filaId).is("reemplazo", null)
+    .or(`revision.is.null,and(revision.eq.revisando,revisado_en.lt."${vencido}")`)
+    .select("*").maybeSingle();
+  return data;
+}
+
+async function revisarPropio(filaId: string, username: string | null) {
+  if (!filaId) throw new ErrorDeDatos("Falta el alimento.");
+  const { data: fila } = await supabase.from("alimentos_personales").select("id, username").eq("id", filaId).maybeSingle();
+  if (!fila || (username && fila.username !== username)) throw new ErrorDeDatos("Ese alimento no existe.");
+  const tomada = await tomar(filaId);
+  if (!tomada) return { revision: null };
+  return await revisarUno(tomada);
+}
+
+async function revisarPendientes() {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("alimentos_personales").select("id")
+    .is("reemplazo", null)
+    .or(`revision.is.null,and(revision.eq.revisando,revisado_en.lt."${vencido}")`)
+    .order("created_at").limit(MAX_POR_TAREA);
+  const resultado: Record<string, number> = {};
+  const contar = (k: string) => { resultado[k] = (resultado[k] || 0) + 1; };
+  await Promise.all((data || []).map(async ({ id }: any) => {
+    const tomada = await tomar(id);
+    if (!tomada) return;
+    try {
+      contar((await revisarUno(tomada)).revision || "cambiado_mientras");
+    } catch (e) {
+      console.error("No se pudo revisar el alimento", id, (e as Error)?.message);
+      contar("error");
+    }
+  }));
+  return resultado;
+}
+
+async function revisarUno(fila: any) {
+  const antes = { kcal: Number(fila.kcal) || 0, proteina: Number(fila.proteina) || 0, carbos: Number(fila.carbos) || 0, grasas: Number(fila.grasas) || 0 };
+  let ia: any;
+  try {
+    ia = await opinionIA(fila.nombre, antes);
+  } catch (e) {
+    // Sin respuesta de la IA: se suelta para que la tarea automática lo reintente.
+    await supabase.from("alimentos_personales").update({ revision: null, revisado_en: null }).eq("id", fila.id).eq("revision", "revisando");
+    throw e;
+  }
+  const r1 = (v: unknown) => Math.max(0, Math.round(Number(v) * 10) / 10 || 0);
+  const cifrasIA = { kcal: r1(ia.kcal), proteina: r1(ia.proteina), carbos: r1(ia.carbos), grasa: r1(ia.grasa) };
+  const segura = ia.seguridad === "alta";
+  const ahora = new Date().toISOString();
+  const revisionIA: any = { auto: true, veredicto: ia.veredicto, seguridad: ia.seguridad, nota: String(ia.nota || "").slice(0, 300), ia: cifrasIA, antes, en: ahora };
+
+  let cambios: any = null;
+  if (segura && ia.veredicto === "ya_existe") {
+    const i = ALIMENTOS_APP.findIndex((n) => n.toLowerCase() === String(ia.ya_existe || "").trim().toLowerCase());
+    const extra = i < 0 ? await claveExtra(String(ia.ya_existe || "")) : null;
+    const clave = i >= 0 ? CLAVES_APP[i] : extra;
+    if (clave) { cambios = { revision: "existe", reemplazo: clave }; revisionIA.ya_existe = clave; }
+  } else if (segura && ia.veredicto === "bien" && cuadra(antes.kcal, antes.proteina, antes.carbos, antes.grasas)) {
+    cambios = { revision: "ok" };
+  } else if (segura && ia.veredicto === "corregir" && cuadra(cifrasIA.kcal, cifrasIA.proteina, cifrasIA.carbos, cifrasIA.grasa)) {
+    cambios = { revision: "corregido", kcal: cifrasIA.kcal, proteina: cifrasIA.proteina, carbos: cifrasIA.carbos, grasas: cifrasIA.grasa };
+  }
+  if (!cambios) revisionIA.auto = false;
+  const revision = cambios?.revision || "dudoso";
+
+  // Solo si nadie lo tocó mientras tanto (el alumno pudo corregirlo).
+  const { data: guardada, error } = await supabase.from("alimentos_personales")
+    .update({ ...(cambios || { revision: "dudoso" }), revisado_en: ahora, revision_ia: revisionIA })
+    .eq("id", fila.id).eq("revision", "revisando").select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!guardada) return { revision: null };
+
+  if (revision === "dudoso" && !horaDeSilencio()) {
+    await enviarPush({ admin: true, body: `🍴 La IA no está segura de "${fila.nombre}" (@${fila.username}). Revísalo en HOY → Alimentos creados por alumnos.` });
+  }
+  return { revision };
+}
+
+// De 10pm a 7am (Perú) no se le manda el aviso a Jonah; igual queda en el panel.
+function horaDeSilencio() {
+  const hora = (new Date().getUTCHours() + 24 - 5) % 24;
+  return hora >= 22 || hora < 7;
+}
+
+async function claveExtra(etiqueta: string) {
+  const { data } = await supabase.from("alimentos_extra").select("nombre, estado");
+  const e = etiqueta.trim().toLowerCase();
+  const a = (data || []).find((x: any) => (x.estado && x.estado !== "-" ? `${x.nombre} (${String(x.estado).toLowerCase()})` : x.nombre).toLowerCase() === e);
+  return a ? `${a.nombre} (${a.estado || "-"})` : null;
+}
+
+async function opinionIA(nombre: string, antes: { kcal: number; proteina: number; carbos: number; grasas: number }) {
+  const extras = await nombresExtra();
+  const lista = [...ALIMENTOS_APP, ...extras].join("\n");
+  const cuerpo = JSON.stringify({
+    model: MODELO,
+    max_tokens: 16000,
+    output_config: {
+      effort: "medium",
+      format: { type: "json_schema", schema: ESQUEMA_REVISION },
+    },
+    fallbacks: "default",
+    system: [{
+      type: "text",
+      cache_control: { type: "ephemeral" },
+      text: `Eres nutricionista de Jonah Beast Fuel, una app peruana de nutrición. Un alumno creó su propio alimento escribiendo su nombre y sus números POR CADA 100 g (muchas veces copiados de la etiqueta del producto). Revisa si esos números están bien. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS), USDA y productos comunes en Perú.
+
+Veredictos:
+- "bien": los números son razonables para ese alimento. Las marcas varían: si es un producto de marca y los números son creíbles para ese tipo de producto, está bien aunque no coincidan con tu estimación.
+- "corregir": hay un error claro (puso los datos de una porción y no de 100 g, confundió proteína con carbos, un cero de más, calorías que no cuadran con los macros, valores imposibles) Y conoces bien ese alimento para dar los números correctos.
+- "ya_existe": la lista de la app ya tiene EXACTAMENTE ese alimento (lo mismo y en el mismo estado: cocido/crudo, con/sin azúcar…). Si solo es parecido, NO es ya_existe.
+- "no_se": no conoces bien el alimento, el nombre es ambiguo o no te alcanza para decidir.
+
+Seguridad: pon "alta" solo si apostarías a que tu veredicto es correcto. Ante la duda, "media" o "baja": en ese caso Jonah lo revisa a mano, y eso está bien.
+
+En kcal/proteina/carbos/grasa pon SIEMPRE tu estimación por 100 g (tal como se come), con un decimal como máximo, que cuadre: kcal ≈ 4·proteína + 4·carbos + 9·grasa.
+
+Alimentos que ya están en la app (nombre y estado):
+${lista}`,
+    }],
+    messages: [{ role: "user", content: `Alimento del alumno: ${nombre}\nSus números por 100 g: ${antes.kcal} kcal · proteína ${antes.proteina} g · carbos ${antes.carbos} g · grasa ${antes.grasas} g` }],
+  });
+  const data = await llamarClaude(cuerpo, "alimento_revision");
+  if (data.stop_reason === "refusal") return { veredicto: "no_se", seguridad: "baja", ya_existe: "", kcal: 0, proteina: 0, carbos: 0, grasa: 0, nota: "La IA no quiso revisarlo." };
+  const texto = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("");
+  try { return JSON.parse(texto); } catch { throw new Error("La IA respondió algo que no se pudo leer."); }
+}
+
+// ------------------------------------------------- atender pedidos (IA)
+
+// Toma un pedido pendiente para atenderlo (así la app y la tarea
+// automática no lo atienden dos veces a la vez). Devuelve el pedido o null.
+async function tomarPedido(pedidoId: number) {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("pedidos_alimentos")
+    .update({ propuesta: { ia_estado: "revisando", ia_en: new Date().toISOString() }, actualizado_en: new Date().toISOString() })
+    .eq("id", pedidoId).eq("estado", "pendiente")
+    .or(`propuesta.is.null,propuesta->>ia_estado.is.null,and(propuesta->>ia_estado.eq.revisando,propuesta->>ia_en.lt."${vencido}")`)
+    .select("*").maybeSingle();
+  return data;
+}
+
+async function atenderMiPedido(nombre: string, username: string) {
+  const clave = nombre.replace(/\s+/g, " ").trim().slice(0, 80).toLowerCase();
+  if (!clave) throw new ErrorDeDatos("Falta el nombre.");
+  const { data: pedido } = await supabase.from("pedidos_alimentos").select("id, solicitantes")
+    .eq("clave", clave).eq("estado", "pendiente").maybeSingle();
+  if (!pedido || !(pedido.solicitantes || []).some((s: any) => s?.username === username)) return { estado: null };
+  const tomado = await tomarPedido(pedido.id);
+  if (!tomado) return { estado: null };
+  return await atenderPedido(tomado);
+}
+
+async function atenderPedidosPendientes() {
+  const vencido = new Date(Date.now() - REVISANDO_VENCE_MS).toISOString();
+  const { data } = await supabase.from("pedidos_alimentos").select("id")
+    .eq("estado", "pendiente")
+    .or(`propuesta.is.null,propuesta->>ia_estado.is.null,and(propuesta->>ia_estado.eq.revisando,propuesta->>ia_en.lt."${vencido}")`)
+    .order("creado_en").limit(MAX_POR_TAREA);
+  const resultado: Record<string, number> = {};
+  const contar = (k: string) => { resultado[k] = (resultado[k] || 0) + 1; };
+  await Promise.all((data || []).map(async ({ id }: any) => {
+    const tomado = await tomarPedido(id);
+    if (!tomado) return;
+    try {
+      contar((await atenderPedido(tomado)).estado || "cambiado_mientras");
+    } catch (e) {
+      console.error("No se pudo atender el pedido", id, (e as Error)?.message);
+      contar("error");
+    }
+  }));
+  return resultado;
+}
+
+// Etiqueta (como en la lista de la app) → nombre para mostrarle al alumno.
+async function existeEnApp(etiqueta: string) {
+  const e = etiqueta.trim().toLowerCase();
+  if (!e) return null;
+  const i = ALIMENTOS_APP.findIndex((n) => n.toLowerCase() === e);
+  if (i >= 0) return ALIMENTOS_APP[i];
+  const extras = await nombresExtra();
+  return extras.find((n: string) => n.toLowerCase() === e) || null;
+}
+
+async function atenderPedido(pedido: any) {
+  const soltar = () => supabase.from("pedidos_alimentos").update({ propuesta: null }).eq("id", pedido.id)
+    .eq("estado", "pendiente").eq("propuesta->>ia_estado", "revisando");
+  let propuesta: any;
+  try {
+    propuesta = (await calcular(pedido.nombre, undefined, "alimento_pedido_auto")).propuesta;
+  } catch (e) {
+    await soltar(); // se reintenta en la siguiente tarea automática
+    throw e;
+  }
+  const ahora = new Date().toISOString();
+  const segura = propuesta.seguridad === "alta";
+  const guardar = (estadoIA: string, extra: any = {}) => ({ ...propuesta, ...extra, ia_estado: estadoIA, ia_en: ahora });
+
+  // 1) Ya existe en la app: se le responde con qué nombre buscarlo.
+  if (segura && propuesta.ya_existe) {
+    const nombreApp = await existeEnApp(String(propuesta.ya_existe));
+    if (nombreApp) {
+      await supabase.from("pedidos_alimentos").update({ propuesta: guardar("descartado", { ya_existe: nombreApp }) }).eq("id", pedido.id);
+      const r = await descartar(pedido.id, `Ya estaba en la app como "${nombreApp}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+      return { estado: "descartado", ya_existe: nombreApp, avisos: r.avisos };
+    }
+  }
+
+  // 2) No existe y la IA está segura de sus números: se agrega para todos.
+  if (segura && !propuesta.ya_existe && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+    try {
+      await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
+      const r = await aprobar(propuesta, pedido.id);
+      const etiqueta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
+      return { estado: "agregado", alimento: etiqueta, avisos: r.avisos };
+    } catch (e) {
+      // ej. ya había uno con ese nombre: que lo vea Jonah
+      console.error("No se pudo agregar solo el pedido", pedido.id, (e as Error)?.message);
+      propuesta.nota = `${propuesta.nota || ""} (No se pudo agregar solo: ${(e as Error)?.message || "error"})`.trim();
+    }
+  }
+
+  // 3) No está segura: queda para Jonah, con los macros ya calculados.
+  await supabase.from("pedidos_alimentos").update({ propuesta: guardar("dudoso"), actualizado_en: ahora }).eq("id", pedido.id).eq("estado", "pendiente");
+  if (!horaDeSilencio()) {
+    await enviarPush({ admin: true, body: `🍽️ La IA no está segura del pedido "${pedido.nombre}". Revísalo en HOY → Pedidos de alimentos.` });
+  }
+  return { estado: "dudoso" };
 }
 
 // ----------------------------------------------------------------- aprobar

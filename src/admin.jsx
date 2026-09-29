@@ -721,7 +721,13 @@ function PedidoAlimento({ pedido, onResuelto }) {
         </p>
       </div>
 
-      {!propuesta ? (
+      {propuesta?.ia_estado === 'dudoso' && (
+        <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no estuvo segura, así que no lo agregó sola. Decide tú:</p>
+      )}
+      {propuesta?.ia_estado === 'revisando' && (
+        <p className="jb-body text-xs text-zinc-400">🤖 La IA lo está atendiendo… Toca "Actualizar" en un momento.</p>
+      )}
+      {!(propuesta && propuesta.kcal != null) ? (
         <button onClick={calcular} disabled={calculando} className={btnPrimary + ' text-sm py-2'}>
           {calculando ? <><Loader2 size={15} className="animate-spin" /> Calculando macros…</> : '🤖 Calcular macros'}
         </button>
@@ -761,6 +767,94 @@ function PedidoAlimento({ pedido, onResuelto }) {
       ) : (
         <button onClick={abrirDescarte} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 self-start underline">Descartar pedido</button>
       )}
+    </div>
+  );
+}
+
+/* Lo que la IA atendió sola (últimos 7 días): pedidos que agregó a la app
+   o que respondió porque ya existían. Si se equivocó en los números de uno
+   que agregó, Jonah los corrige aquí (se corrigen para todos al abrir la app). */
+function PedidosAtendidosIA() {
+  const [abierto, setAbierto] = useState(false);
+  const [lista, setLista] = useState(null);
+  async function cargar() {
+    const desde = new Date(Date.now() - 7 * 864e5).toISOString();
+    const { data } = await supabase.from('pedidos_alimentos')
+      .select('id, nombre, estado, propuesta, respuesta, solicitantes, resuelto_en, alimento_id, alimentos_extra(id, nombre, estado, kcal, proteina, carbos, grasa)')
+      .in('estado', ['agregado', 'descartado']).in('propuesta->>ia_estado', ['agregado', 'descartado'])
+      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(50);
+    setLista(data || []);
+  }
+  useEffect(() => { cargar(); }, []);
+  if (!lista?.length) return null;
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
+        <span className="jb-body text-xs text-zinc-300">🤖 Lo que atendió la IA sola (7 días) · {lista.length}</span>
+        <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-3.5 pb-3.5 flex flex-col gap-2">
+          {lista.map(p => <PedidoIA key={p.id} p={p} onListo={cargar} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PedidoIA({ p, onListo }) {
+  const a = p.alimentos_extra;
+  const [f, setF] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const n = v => Math.round((Number(v) || 0) * 10) / 10;
+  const quienes = quienesPidieron(p.solicitantes);
+  async function guardar() {
+    setOcupado(true); setError('');
+    try {
+      const datos = { kcal: Number(f.kcal), proteina: Number(f.proteina) || 0, carbos: Number(f.carbos) || 0, grasa: Number(f.grasa) || 0 };
+      if (!(datos.kcal > 0) || datos.kcal > 900) throw new Error('Revisa las calorías (entre 1 y 900 por 100 g).');
+      const { error: e } = await supabase.from('alimentos_extra').update(datos).eq('id', a.id);
+      if (e) throw e;
+      await cargarAlimentosExtraDeNuevo();
+      setF(null);
+      await onListo();
+    } catch (e) { setError(e.message || 'No se pudo guardar.'); }
+    setOcupado(false);
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+      <p className="jb-body text-sm text-zinc-100">
+        {p.estado === 'agregado' ? '✅ ' : '🔎 '}<b>{p.nombre}</b>
+        <span className="text-[11px] text-zinc-500"> · {quienes.slice(0, 3).join(', ')} · {fechaHoraCorta(p.resuelto_en)}</span>
+      </p>
+      {p.estado === 'agregado' && a ? (
+        <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">
+          Agregado para todos como "{a.estado && a.estado !== '-' ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre}": {n(a.kcal)} kcal · P {n(a.proteina)} g · C {n(a.carbos)} g · G {n(a.grasa)} g (por 100 g)
+        </p>
+      ) : (
+        <p className="jb-body text-xs text-zinc-400 mt-0.5">{p.respuesta || 'Respondido: ya estaba en la app.'}</p>
+      )}
+      {p.propuesta?.nota && <p className="jb-body text-[11px] text-zinc-500 mt-0.5">🤖 {p.propuesta.nota}</p>}
+      {p.estado === 'agregado' && a && (f ? (
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="grid grid-cols-4 gap-2">
+            {[['kcal', 'kcal'], ['proteina', 'Prot. g'], ['carbos', 'Carbos g'], ['grasa', 'Grasa g']].map(([k, l]) => (
+              <label key={k} className="jb-body text-[10px] text-zinc-500">{l}
+                <input type="number" inputMode="decimal" value={f[k]} onChange={e => setF(v => ({ ...v, [k]: e.target.value }))} className={inputCls + ' text-sm mt-0.5'} />
+              </label>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button disabled={ocupado} onClick={guardar} className={btnPrimary + ' text-xs py-1.5 px-3'}>{ocupado ? <Loader2 size={13} className="animate-spin" /> : 'Guardar corrección'}</button>
+            <button onClick={() => setF(null)} className={btnGhost + ' text-xs py-1.5 px-3'}>Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setF({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasa })}
+          className="jb-body text-[11px] text-orange-400 underline mt-1">✏️ Corregir los números</button>
+      ))}
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -863,7 +957,7 @@ function PedidosAlimentosPanel() {
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). Al aprobar o descartar, avisamos a quien lo pidió (y lo ve también al abrir la app).</p>
+            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). La IA los atiende sola: si está segura, lo agrega a la app (o responde con qué nombre ya existe). Aquí te quedan solo los que no pudo decidir (🤔). Al aprobar o descartar, avisamos a quien lo pidió (y lo ve también al abrir la app).</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
 
@@ -885,6 +979,7 @@ function PedidosAlimentosPanel() {
             pedidos.map(p => <PedidoAlimento key={p.id} pedido={p} onResuelto={resuelto} />)
           )}
 
+          <PedidosAtendidosIA />
           <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ nombre, avisos: null }, ...rs])} />
           <AlimentosEnMenu />
         </div>
@@ -924,26 +1019,29 @@ function AlimentosPropiosPanel() {
     setCargando(true);
     try {
       let q = supabase.from('alimentos_personales')
-        .select('id, username, nombre, kcal, proteina, carbos, grasas, created_at, revision, revisado_en')
+        .select('id, username, nombre, kcal, proteina, carbos, grasas, created_at, revision, revisado_en, revision_ia')
         .order('created_at', { ascending: false }).limit(200);
-      if (!verTodos) q = q.is('revision', null);
+      // Pendientes: los dudosos (la IA no estuvo segura) y los que la IA aún no revisa.
+      if (!verTodos) q = q.or('revision.is.null,revision.eq.revisando,revision.eq.dudoso');
       const { data, error } = await q;
       if (error) throw error;
-      // Primero los que tienen alertas.
+      // Primero los dudosos, luego los que tienen alertas.
       const filas = (data || []).map(a => ({ ...a, alertas: alertasAlimentoPropio(a) }));
-      setLista(filas.sort((a, b) => b.alertas.length - a.alertas.length));
+      const peso = a => (a.revision === 'dudoso' ? 100 : 0) + a.alertas.length;
+      setLista(filas.sort((a, b) => peso(b) - peso(a)));
     } catch { setLista([]); }
     setCargando(false);
   }
 
-  const pendientes = lista.filter(a => !a.revision).length;
+  const porRevisar = a => !a.revision || a.revision === 'revisando' || a.revision === 'dudoso';
+  const pendientes = lista.filter(porRevisar).length;
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
         <h2 className="jb-display text-base text-zinc-200">
           🍴 ALIMENTOS CREADOS POR ALUMNOS · {pendientes}
-          {lista.some(a => !a.revision && a.alertas.length) && <span className="text-amber-400"> ⚠️</span>}
+          {lista.some(a => a.revision === 'dudoso') && <span className="text-amber-400"> ⚠️</span>}
         </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
@@ -951,7 +1049,7 @@ function AlimentosPropiosPanel() {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <p className="jb-body text-xs text-zinc-500">
-              Los crean con "+ Crear mi alimento" y solo los ve quien los creó. Si corriges uno, sus comidas se recalculan solas y le avisamos al abrir la app.
+              Los crean con "+ Crear mi alimento" y solo los ve quien los creó. La IA los revisa sola apenas se crean: si está segura, lo da por bueno, lo corrige o lo cambia por el de la app. Aquí te quedan solo los que no pudo decidir (🤔). Si corriges uno, sus comidas se recalculan solas y le avisamos al abrir la app.
             </p>
             <button onClick={() => setVerTodos(v => !v)} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>{verTodos ? 'Solo pendientes' : 'Ver todos'}</button>
           </div>
@@ -982,7 +1080,8 @@ function AlimentoPropio({ a, onListo }) {
     setOcupado(true); setError('');
     try {
       const { error: e } = await supabase.from('alimentos_personales')
-        .update({ ...datos, revision, revisado_en: new Date().toISOString() }).eq('id', a.id);
+        // Lo decidió Jonah: deja de contar como decisión de la IA.
+        .update({ ...datos, revision, revisado_en: new Date().toISOString(), ...(a.revision_ia ? { revision_ia: { ...a.revision_ia, auto: false } } : {}) }).eq('id', a.id);
       if (e) throw e;
       await onListo();
     } catch (e) { setError('No se pudo guardar: ' + (e?.message || 'intenta de nuevo.')); }
@@ -1013,7 +1112,12 @@ function AlimentoPropio({ a, onListo }) {
   }
 
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
-  const estado = { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos', existe: '🔗 Cambiado por uno de la app' }[a.revision];
+  const ri = a.revision_ia || null;
+  const porIA = ri?.auto && ['ok', 'corregido', 'existe'].includes(a.revision); // lo decidió la IA sola (Jonah no lo tocó después)
+  const estado = porIA
+    ? { ok: '🤖 La IA lo dio por bueno', corregido: '🤖 La IA lo corrigió', existe: '🤖 La IA lo cambió por uno de la app' }[a.revision]
+    : { ok: '✓ Revisado', corregido: '✏️ Corregido', aprobado: '➕ Agregado para todos', existe: '🔗 Cambiado por uno de la app', dudoso: '🤔 La IA no está segura', revisando: '🤖 La IA lo está revisando…' }[a.revision]
+      || (!a.revision ? '🤖 La IA lo revisará pronto' : '');
 
   // "Ya existe en la app": el alumno creó algo que la app ya tiene. Su
   // alimento deja de salir en su buscador y, en sus comidas (también las de
@@ -1046,13 +1150,35 @@ function AlimentoPropio({ a, onListo }) {
   }
 
   return (
-    <div className={`bg-zinc-950 border rounded-xl p-3.5 flex flex-col gap-2 ${a.alertas.length && !a.revision ? 'border-amber-600/50' : 'border-zinc-800'}`}>
+    <div className={`bg-zinc-950 border rounded-xl p-3.5 flex flex-col gap-2 ${a.revision === 'dudoso' || (a.alertas.length && !a.revision) ? 'border-amber-600/50' : 'border-zinc-800'}`}>
       <div>
         <p className="jb-body text-sm text-zinc-100 font-semibold">{a.nombre}</p>
         <p className="jb-body text-[11px] text-zinc-500">@{a.username} · {fechaHoraCorta(a.created_at)}{estado ? ` · ${estado}` : ''}</p>
         <p className="jb-body text-xs text-zinc-300 mt-1 tabular-nums">Por 100 g: {n(a.kcal)} kcal · P {n(a.proteina)} g · C {n(a.carbos)} g · G {n(a.grasas)} g</p>
         {a.alertas.map((t, i) => <p key={i} className="jb-body text-xs text-amber-400 mt-0.5">⚠️ {t}</p>)}
       </div>
+
+      {ri?.ia && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+          {a.revision === 'dudoso' && <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no está segura. Decide tú:</p>}
+          {ri.nota && <p className="jb-body text-[11px] text-zinc-400 mt-0.5">🤖 {ri.nota}</p>}
+          <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">🤖 La IA estima: {n(ri.ia.kcal)} kcal · P {n(ri.ia.proteina)} g · C {n(ri.ia.carbos)} g · G {n(ri.ia.grasa)} g</p>
+          {porIA && a.revision === 'corregido' && ri.antes && (
+            <p className="jb-body text-[11px] text-zinc-500 mt-0.5 tabular-nums">El alumno había puesto: {n(ri.antes.kcal)} kcal · P {n(ri.antes.proteina)} g · C {n(ri.antes.carbos)} g · G {n(ri.antes.grasas)} g</p>
+          )}
+          {porIA && a.revision === 'existe' && ri.ya_existe && <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cambiado por: {ri.ya_existe}</p>}
+          <div className="flex flex-wrap gap-x-3">
+            {a.revision !== 'existe' && (
+              <button onClick={() => { setF({ kcal: ri.ia.kcal ?? '', proteina: ri.ia.proteina ?? '', carbos: ri.ia.carbos ?? '', grasas: ri.ia.grasa ?? '' }); setEditando(true); }}
+                className="jb-body text-[11px] text-orange-400 underline mt-1">Usar los números de la IA</button>
+            )}
+            {porIA && a.revision === 'corregido' && ri.antes && (
+              <button onClick={() => { setF({ kcal: ri.antes.kcal, proteina: ri.antes.proteina, carbos: ri.antes.carbos, grasas: ri.antes.grasas }); setEditando(true); }}
+                className="jb-body text-[11px] text-zinc-400 underline mt-1">Volver a los del alumno</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {ia && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">

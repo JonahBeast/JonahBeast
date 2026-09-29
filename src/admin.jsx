@@ -566,7 +566,9 @@ function formDesdePropuesta(p, nombre) {
   return {
     nombre: p.nombre || nombre, grupo: GRUPOS_ALIMENTOS.includes(p.grupo) ? p.grupo : 'Platos preparados', estado: p.estado || '-',
     kcal: p.kcal ?? '', proteina: p.proteina ?? '', carbos: p.carbos ?? '', grasa: p.grasa ?? '', fibra: p.fibra ?? '',
-    unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '', menu_uso: '',
+    unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '',
+    // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
+    menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
   };
 }
 
@@ -874,13 +876,17 @@ function PedidoIA({ p, onListo }) {
 function VarianteIA({ pedidoId, v, indice, onListo }) {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
+  const [menuUso, setMenuUso] = useState(USOS_MENU.some(o => o.valor === v.menu_uso) ? v.menu_uso : '');
   const n = x => Math.round((Number(x) || 0) * 10) / 10;
   const nombre = v.etiqueta || v.nombre;
   async function decidir(accion) {
     setOcupado(true); setError('');
     try {
-      await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
-      if (accion === 'agregar_variante') await cargarAlimentosExtraDeNuevo();
+      const r = await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
+      if (accion === 'agregar_variante') {
+        if (menuUso) await guardarUsoMenu(r.alimento_id, menuUso);
+        await cargarAlimentosExtraDeNuevo();
+      }
       await onListo();
     } catch (e) { setError(e.message); }
     setOcupado(false);
@@ -899,6 +905,11 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
         </p>
       )}
       {v.estado === 'sugerida' && (
+        <label className="jb-body text-[10px] text-zinc-500 block mt-1">Menú del día{v.menu_uso ? ' (la IA sugiere lo elegido)' : ''}:
+          <SelectUsoMenu valor={menuUso} onCambiar={setMenuUso} className="mt-0.5 text-xs" />
+        </label>
+      )}
+      {v.estado === 'sugerida' && (
         <div className="flex gap-3 mt-0.5">
           <button disabled={ocupado} onClick={() => decidir('agregar_variante')} className="jb-body text-[11px] text-orange-400 underline">
             {ocupado ? 'Un momento…' : '➕ Agregar para todos'}
@@ -911,33 +922,41 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
   );
 }
 
-/* Variantes por revisar: las que propuso la IA al agregar un plato (ej.
-   Jalea de pescado → Jalea mixta). Nadie las está esperando, así que no se
-   agregan solas: Jonah las revisa una vez al día (le llega un aviso). */
-function VariantesPorRevisar() {
-  const [pedidos, setPedidos] = useState(null);
+/* Revisión diaria: lo que la IA propone para adelantarse y nadie está
+   esperando. Jarvis lo menciona en el informe de la mañana.
+   - Menú del día: para qué serviría en el menú cada plato que la IA agregó
+     sola. Nunca se aplica solo (el menú es lo que la app recomienda comer).
+   - Variantes: otros platos de la misma carta (ej. con Jalea de pescado,
+     Jalea mixta). No se agregan solas. */
+function RevisionDiaria() {
+  const [pedidos, setPedidos] = useState([]);
   const [abierto, setAbierto] = useState(false);
   async function cargar() {
     const desde = new Date(Date.now() - 60 * 864e5).toISOString();
     const { data } = await supabase.from('pedidos_alimentos')
-      .select('id, nombre, propuesta, resuelto_en')
-      .eq('estado', 'agregado').not('propuesta->variantes_resultado', 'is', null)
-      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(200);
-    setPedidos((data || []).filter(p => (p.propuesta?.variantes_resultado || []).some(v => v.estado === 'sugerida')));
+      .select('id, nombre, propuesta, resuelto_en, alimento_id, alimentos_extra(id, nombre, estado, menu_uso)')
+      .eq('estado', 'agregado').gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(200);
+    setPedidos(data || []);
   }
   useEffect(() => { cargar(); }, []);
-  const total = (pedidos || []).reduce((s, p) => s + p.propuesta.variantes_resultado.filter(v => v.estado === 'sugerida').length, 0);
+  const menuPendiente = p => p.propuesta?.ia_estado === 'agregado' && p.propuesta?.menu_uso && !p.propuesta?.menu_revision && p.alimentos_extra && !p.alimentos_extra.menu_uso;
+  const conMenu = pedidos.filter(menuPendiente);
+  const conVariantes = pedidos.filter(p => (p.propuesta?.variantes_resultado || []).some(v => v.estado === 'sugerida'));
+  const total = conMenu.length + conVariantes.reduce((s, p) => s + p.propuesta.variantes_resultado.filter(v => v.estado === 'sugerida').length, 0);
   if (!total) return null;
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🧩 VARIANTES POR REVISAR · {total}</h2>
+        <h2 className="jb-display text-base text-zinc-200">🧩 ALIMENTOS POR REVISAR · {total}</h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
-          <p className="jb-body text-xs text-zinc-500">Al agregar un plato, la IA propone otros de la misma carta (ej. con Jalea de pescado, Jalea mixta). Revisa sus números: "Agregar para todos" lo pone en la app de todos; "Descartar" lo quita de esta lista.</p>
-          {pedidos.map(p => (
+          <p className="jb-body text-xs text-zinc-500">Lo que la IA propone para adelantarse; ningún alumno lo está esperando. Nada de esto se aplica sin tu OK.</p>
+          {conMenu.length > 0 && <p className="jb-display text-xs text-zinc-300">🍽️ MENÚ DEL DÍA</p>}
+          {conMenu.map(p => <MenuSugerido key={p.id} p={p} onListo={cargar} />)}
+          {conVariantes.length > 0 && <p className="jb-display text-xs text-zinc-300 mt-1">🧩 VARIANTES</p>}
+          {conVariantes.map(p => (
             <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
               <p className="jb-body text-xs text-zinc-400">Por <span className="text-zinc-100 font-semibold">{p.nombre}</span> · {fechaHoraCorta(p.resuelto_en)}</p>
               {p.propuesta.variantes_resultado.map((v, i) => v.estado === 'sugerida' && <VarianteIA key={i} pedidoId={p.id} v={v} indice={i} onListo={cargar} />)}
@@ -945,6 +964,38 @@ function VariantesPorRevisar() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Sugerencia de menú para un plato que la IA agregó sola.
+function MenuSugerido({ p, onListo }) {
+  const a = p.alimentos_extra;
+  const [valor, setValor] = useState(p.propuesta.menu_uso);
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  async function decidir(usar) {
+    setOcupado(true); setError('');
+    try {
+      if (usar && valor) { await guardarUsoMenu(a.id, valor); await cargarAlimentosExtraDeNuevo(); }
+      const { error: e } = await supabase.from('pedidos_alimentos')
+        .update({ propuesta: { ...p.propuesta, menu_revision: usar && valor ? 'aplicado' : 'no' } }).eq('id', p.id);
+      if (e) throw e;
+      await onListo();
+    } catch (e) { setError(e.message || 'No se pudo guardar.'); }
+    setOcupado(false);
+  }
+  const sugerido = USOS_MENU.find(o => o.valor === p.propuesta.menu_uso)?.texto || p.propuesta.menu_uso;
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex flex-col gap-1.5">
+      <p className="jb-body text-sm text-zinc-100">{a.estado && a.estado !== '-' ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre}</p>
+      <p className="jb-body text-[11px] text-zinc-500">🤖 La IA sugiere: <span className="text-zinc-300">{sugerido}</span></p>
+      <SelectUsoMenu valor={valor} onCambiar={setValor} className="text-xs" />
+      <div className="flex gap-3">
+        <button disabled={ocupado || !valor} onClick={() => decidir(true)} className="jb-body text-[11px] text-orange-400 underline">✅ Usar en el menú</button>
+        <button disabled={ocupado} onClick={() => decidir(false)} className="jb-body text-[11px] text-zinc-400 underline">No va en el menú</button>
+      </div>
+      {error && <p className="jb-body text-[11px] text-red-400">{error}</p>}
     </div>
   );
 }
@@ -6509,7 +6560,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <PagosPanel />
             <PedidosAlimentosPanel />
-            <VariantesPorRevisar />
+            <RevisionDiaria />
             <AlimentosPropiosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />

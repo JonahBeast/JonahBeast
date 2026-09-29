@@ -2,7 +2,8 @@
 // puede leer archivos del repo cuando corre):
 //  * la lista de alimentos de src/App.jsx → alimentos.ts, en whatsapp-webhook
 //    (para que el asistente sepa qué platos ya existen) y en alimentos-pedidos
-//    (para no agregar dos veces el mismo alimento).
+//    (para no agregar dos veces el mismo alimento; ahí van también los usos
+//    del menú del día de src/menuDia.js, para que la IA los sugiera).
 //
 // El manual (docs/manual-app.md) ya NO se copia a las funciones: Jarvis y
 // el asistente de WhatsApp lo leen de la tabla manual_app, que se actualiza
@@ -12,6 +13,7 @@
 //   node scripts/manual-jarvis.mjs --revisar  → falla si alguna copia está desactualizada
 //                                       (se corre antes de cada build)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { opcionesUsoMenu } from '../src/menuDia.js';
 
 const aqui = (ruta) => new URL(`../${ruta}`, import.meta.url);
 
@@ -37,7 +39,9 @@ export const ALIMENTOS_APP: string[] = ${JSON.stringify(alimentos, null, 0).repl
 const lista = (a) => JSON.stringify(a, null, 0).replace(/","/g, '",\n  "').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]');
 const destinos = [
   { ruta: 'supabase/functions/whatsapp-webhook/alimentos.ts', contenido: contenidoAlimentos },
-  { ruta: 'supabase/functions/alimentos-pedidos/alimentos.ts', contenido: contenidoAlimentos + `export const CLAVES_APP: string[] = ${lista(claves)};\n` },
+  // USOS_MENU: para qué puede servir un alimento en el menú del día (src/menuDia.js).
+  { ruta: 'supabase/functions/alimentos-pedidos/alimentos.ts', contenido: contenidoAlimentos + `export const CLAVES_APP: string[] = ${lista(claves)};\n`
+    + `export const USOS_MENU: { valor: string; texto: string }[] = ${JSON.stringify(opcionesUsoMenu().map(o => ({ valor: o.valor, texto: o.texto })), null, 2)};\n` },
 ];
 
 if (process.argv.includes('--revisar')) {

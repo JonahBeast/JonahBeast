@@ -2294,8 +2294,6 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
 }
 
 function Landing({ onChoose }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 60); return () => clearTimeout(t); }, []);
 
 
   // Embudo: una 'vista' al abrir la landing y un 'clic_cta' al tocar
@@ -2325,12 +2323,40 @@ function Landing({ onChoose }) {
     onChoose(leerRecorrido() ? 'trial' : 'recorrido');
   }
 
-  // Transformación del fondo (Jonah / Andrea) que se muestra ahora.
+  // Antes/después de más abajo (Jonah / Andrea), cambia cada 6 s.
   const [heroIdx, setHeroIdx] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setHeroIdx(i => (i + 1) % HERO_TRANSFORMACIONES.length), 6000);
     return () => clearInterval(iv);
   }, []);
+
+  // Portada igual a la de la app instalada: primero el logo animado (solo
+  // la primera vez en la visita; se salta tocando) y luego Jonah y Andrea a
+  // pantalla completa, con "EMPEZAR AHORA".
+  const [splash, setSplash] = useState(splashWebPendiente);
+  useEffect(() => {
+    if (!splash) return;
+    const t = setTimeout(() => { marcarSplashWebVisto(); setSplash(false); }, Math.max(0, SPLASH_WEB_MS - msDeSplash()));
+    return () => clearTimeout(t);
+  }, [splash]);
+  const [fotoIdx, setFotoIdx] = useState(0);
+  const [ciclo, setCiclo] = useState(0);
+  useEffect(() => {
+    if (splash) return;
+    const t = setTimeout(() => { setFotoIdx(i => (i + 1) % BIENVENIDA_FOTOS.length); setCiclo(c => c + 1); }, BIENVENIDA_FOTOS[fotoIdx].ms);
+    return () => clearTimeout(t);
+  }, [splash, fotoIdx]);
+
+  // Lo de más abajo aparece al llegar a él.
+  const [abajoVisible, setAbajoVisible] = useState(false);
+  const abajoRef = useRef(null);
+  useEffect(() => {
+    if (splash || !abajoRef.current) return;
+    if (typeof IntersectionObserver === 'undefined') { setAbajoVisible(true); return; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setAbajoVisible(true); io.disconnect(); } }, { threshold: 0.15 });
+    io.observe(abajoRef.current);
+    return () => io.disconnect();
+  }, [splash]);
 
   // Porcentaje del escaneo — sube de 0 a 100, se queda ahí 1.8s (para
   // que dé tiempo a leer el desglose), y recién ahí reinicia el bucle.
@@ -2352,156 +2378,232 @@ function Landing({ onChoose }) {
   }, []);
 
   const step = (delay) => ({
-    opacity: mounted ? 1 : 0,
-    transform: mounted ? 'translateY(0)' : 'translateY(10px)',
-    transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
+    opacity: abajoVisible ? 1 : 0,
+    transform: abajoVisible ? 'translateY(0)' : 'translateY(18px)',
+    transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
   });
+  const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
+
+  if (splash) return <SplashMarca onSaltar={() => { marcarSplashWebVisto(); setSplash(false); }} />;
+
+  const foto = BIENVENIDA_FOTOS[fotoIdx];
+  const logro = (
+    <div className="jbb-a" key={`logro-${fotoIdx}`} style={anim('jbb-pop', ciclo === 0 ? .35 : .1)}>
+      <span className="jb-display inline-block bg-orange-500 text-zinc-950 rounded-xl px-3 py-1 text-3xl lg:text-4xl">{foto.logro}</span>
+      <p className="jb-body text-sm text-zinc-50 mt-1" style={{ textShadow: '0 2px 10px #000' }}>{foto.nombre}</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 relative overflow-hidden" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
-      <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
-      }} />
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 20%, rgba(249,115,22,0.14), transparent 55%)' }} />
-      <div className="relative z-10 max-w-xl w-full text-center">
-        {/* Primera impresión: lo que se vende es el cambio del cuerpo, no
-            la comida. Antes el centro era un plato con "700 kcal" al lado
-            (se leía como una app de delivery con precio) y la transformación
-            quedaba de fondo, oscurecida. Ahora: qué es la app, la promesa,
-            el antes/después al frente y el plato ya "medido" dentro de un
-            registro del día. */}
-        <div className="pt-2 mb-3" style={step(0)}>
-          <div className="jb-display text-lg text-zinc-50 leading-none tracking-wide">JONAH BEAST <span className="text-orange-500">FUEL</span></div>
-          <div className="jb-body text-[10px] tracking-[0.2em] uppercase text-zinc-400 mt-1.5">App de nutrición y pérdida de grasa</div>
-        </div>
+    <div className="min-h-screen bg-zinc-950 relative overflow-x-hidden">
+      <style>{ESTILOS_BIENVENIDA}</style>
 
-        {/* La idea central del método: nada está prohibido, lo que cambia
-            el cuerpo es la cantidad. Y justo eso es lo que mide la app. */}
-        <h1 className="jb-display leading-[0.95] mb-2" style={step(120)}>
-          <span className="block text-zinc-50 text-[2.1rem] sm:text-5xl">NO ES QUÉ COMES.</span>
-          <span className="block text-orange-500 text-[2.9rem] sm:text-7xl mt-1.5">ES CUÁNTO.</span>
-        </h1>
-        <p className="jb-body text-sm text-zinc-300 mb-4" style={step(160)}>
-          Toma foto a tu plato y sabes cuánto te toca.
-        </p>
+      {/* ---------- Primera pantalla: igual que la app instalada ----------
+          En el celular, la foto ocupa toda la pantalla y el texto va abajo.
+          En la computadora, la foto grande a la izquierda y el texto a la
+          derecha. */}
+      <section className="relative min-h-[100svh] lg:grid lg:grid-cols-2 lg:items-center lg:gap-14 lg:max-w-6xl lg:mx-auto lg:px-10 lg:py-10">
+        <div className="absolute inset-0 pointer-events-none hidden lg:block"
+          style={{ background: 'radial-gradient(circle at 70% 40%, rgba(232,89,12,.18), transparent 55%)' }} />
 
-        {/* Antes / después al frente, nítido y a color. Alterna Jonah y
-            Andrea cada 6 s para que hombres y mujeres se vean reflejados. */}
-        <div className="relative mx-auto mb-3 h-[230px] [@media(max-height:700px)]:h-[185px] sm:h-[300px] rounded-2xl overflow-hidden border border-orange-500/40"
-          style={{ ...step(200), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
-          {HERO_TRANSFORMACIONES.map((t, i) => (
-            <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
-              style={{ opacity: i === heroIdx ? 1 : 0 }} aria-hidden={i !== heroIdx}>
-              <img src={t.antes} alt={i === heroIdx ? `${t.nombre} antes` : ''} className="w-full h-full object-cover object-top" />
-              <img src={t.despues} alt={i === heroIdx ? `${t.nombre} ahora` : ''} className="w-full h-full object-cover object-top" />
+        {/* Fotos (Jonah y Andrea) con zoom lento */}
+        <div className="absolute inset-0 overflow-hidden lg:relative lg:inset-auto lg:h-[84vh] lg:max-h-[820px] lg:rounded-3xl lg:border lg:border-orange-500/40"
+          style={{ boxShadow: '0 20px 60px -20px rgba(232,89,12,.55)' }}>
+          {BIENVENIDA_FOTOS.map((f, i) => (
+            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0 }}>
+              <img key={i === fotoIdx ? `on-${ciclo}` : 'off'} src={f.src} alt={i === fotoIdx ? f.nombre : ''} className="w-full h-full object-cover"
+                style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
           ))}
-          <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-orange-500" />
-          <span className="absolute top-2.5 left-2.5 jb-display text-[11px] tracking-wider text-zinc-50 bg-zinc-950/75 border border-zinc-600 rounded-full px-2.5 py-0.5">ANTES</span>
-          <span className="absolute top-2.5 right-2.5 jb-display text-[11px] tracking-wider text-zinc-950 bg-orange-500 rounded-full px-2.5 py-0.5">AHORA</span>
-          <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(22,17,13,0.85), transparent)' }} />
-          {(() => {
-            const t = HERO_TRANSFORMACIONES[heroIdx];
-            return (
-              <div key={t.nombre} className="absolute bottom-2.5 inset-x-0 flex flex-col items-center">
-                <span className="jb-display text-3xl sm:text-4xl text-zinc-950 bg-orange-500 rounded-lg px-3 leading-tight -rotate-2 shadow-lg shadow-black/40 whitespace-nowrap">
-                  {t.prefijo}{t.cifra} {t.unidad}
-                </span>
-                <span className="jb-body text-[11px] text-zinc-100 mt-1 whitespace-nowrap" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
-                  {t.nombre} · {t.detalle}
-                </span>
+          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
+          <div className="absolute inset-x-0 bottom-0 h-48 hidden lg:block" style={{ background: 'linear-gradient(to top, rgba(22,17,13,.9), transparent)' }} />
+          <div className="absolute left-6 bottom-6 hidden lg:block">{logro}</div>
+          <div className="absolute right-5 top-5 hidden lg:flex gap-1.5" aria-hidden="true">
+            {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
+          </div>
+        </div>
+
+        {/* Arriba en el celular: logo y puntos del carrusel */}
+        <div className="jbb-a absolute left-5 right-5 flex items-center justify-between lg:hidden" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
+          <div className="flex items-center gap-2">
+            <img src="/logo-marca.webp" alt="" className="w-8" />
+            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+          </div>
+          <div className="flex gap-1.5" aria-hidden="true">
+            {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
+          </div>
+        </div>
+
+        {/* Texto y botones */}
+        <div className="relative z-10 min-h-[100svh] lg:min-h-0 flex flex-col justify-end lg:justify-center gap-3 px-5 lg:px-0 max-w-md mx-auto lg:mx-0 w-full"
+          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          <div className="jbb-a hidden lg:flex items-center gap-3 mb-4" style={anim('jbb-baja', .1)}>
+            <img src="/logo-marca.webp" alt="" className="w-12" />
+            <div>
+              <div className="jb-display text-2xl text-zinc-50 tracking-wide leading-none">JONAH BEAST <span className="text-orange-400">FUEL</span></div>
+              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-zinc-400 mt-1">App de nutrición y pérdida de grasa</div>
+            </div>
+          </div>
+          <div className="lg:hidden">{logro}</div>
+          <h1 className="jb-display leading-[0.92] text-[15vw] sm:text-7xl lg:text-[5.5rem] mt-2">
+            <span className="jbb-a block text-zinc-50" style={anim('jbb-sube', .55)}>TU CAMBIO</span>
+            <span className="jbb-a block text-orange-400" style={anim('jbb-sube', .7)}>EMPIEZA AQUÍ</span>
+          </h1>
+          <p className="jbb-a jb-body text-base lg:text-lg text-zinc-300" style={anim('jbb-sube', .85)}>Tu plan con comida peruana, justo para tu meta.</p>
+          <div className="jbb-a flex items-center gap-3" style={anim('jbb-sube', 1)}>
+            <div className="flex">
+              {['martin', 'andrea', 'cesar'].map((n, i) => (
+                <img key={n} src={`/testimonios/${n}-despues.jpg`} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-zinc-950"
+                  style={{ objectPosition: '50% 15%', marginLeft: i ? -10 : 0 }} />
+              ))}
+            </div>
+            <p className="jb-body text-xs text-zinc-300 leading-snug">Hombres y mujeres reales<br />ya empezaron su cambio</p>
+          </div>
+          <button onClick={registrarClicCTA} className="jbb-a w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mt-1"
+            style={{ ...anim('jbb-pop', 1.15), boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
+            <span className="inline-block" style={{ animation: 'jbb-late 1.6s ease-in-out 2s infinite' }}>EMPEZAR AHORA</span>
+          </button>
+          <p className="jbb-a jb-body text-zinc-400 text-xs text-center" style={anim('jbb-sube', 1.25)}>
+            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
+          </p>
+          <div className="jbb-a flex items-center justify-center gap-4" style={anim('jbb-sube', 1.3)}>
+            <button onClick={abrirDemo} className="jb-body text-[13px] whitespace-nowrap text-zinc-200 border border-zinc-700 hover:border-orange-500 rounded-full px-3.5 py-2 transition-colors">
+              📸 Pruébala con tu plato
+            </button>
+            <button onClick={() => onChoose('studentAuth')} className="jb-body text-[13px] whitespace-nowrap text-zinc-400 py-2">
+              ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
+            </button>
+          </div>
+          <p className="jbb-a jb-body text-[11px] text-zinc-500 text-center lg:hidden mt-1" style={anim('jbb-sube', 1.8)} aria-hidden="true">Desliza para ver más ↓</p>
+        </div>
+      </section>
+
+      {/* ---------- Más abajo: la frase, resultados reales y la demo ---------- */}
+      <section ref={abajoRef} className="relative px-6 pt-14 pb-12">
+        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
+          backgroundImage: 'repeating-linear-gradient(45deg, #f97316 0, #f97316 2px, transparent 2px, transparent 40px)'
+        }} />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at 50% 10%, rgba(249,115,22,0.14), transparent 55%)' }} />
+        <div className="relative z-10 max-w-xl mx-auto text-center">
+          {/* La idea central del método: nada está prohibido, lo que cambia
+              el cuerpo es la cantidad. Y justo eso es lo que mide la app. */}
+          <h2 className="jb-display leading-[0.95] mb-2" style={step(0)}>
+            <span className="block text-zinc-50 text-[2.3rem] sm:text-5xl">NO ES QUÉ COMES.</span>
+            <span className="block text-orange-500 text-[3.1rem] sm:text-7xl mt-1.5">ES CUÁNTO.</span>
+          </h2>
+          <p className="jb-body text-sm sm:text-base text-zinc-300 mb-6" style={step(100)}>
+            Toma foto a tu plato y sabes cuánto te toca.
+          </p>
+
+          {/* Antes / después, nítido y a color. Alterna Jonah y Andrea. */}
+          <div className="relative mx-auto mb-3 h-[260px] sm:h-[320px] rounded-2xl overflow-hidden border border-orange-500/40"
+            style={{ ...step(180), boxShadow: '0 12px 40px -14px rgba(232,89,12,.55)' }}>
+            {HERO_TRANSFORMACIONES.map((t, i) => (
+              <div key={t.nombre} className="absolute inset-0 grid grid-cols-2 transition-opacity duration-1000"
+                style={{ opacity: i === heroIdx ? 1 : 0 }} aria-hidden={i !== heroIdx}>
+                <img src={t.antes} alt={i === heroIdx ? `${t.nombre} antes` : ''} loading="lazy" className="w-full h-full object-cover object-top" />
+                <img src={t.despues} alt={i === heroIdx ? `${t.nombre} ahora` : ''} loading="lazy" className="w-full h-full object-cover object-top" />
               </div>
+            ))}
+            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-orange-500" />
+            <span className="absolute top-2.5 left-2.5 jb-display text-[11px] tracking-wider text-zinc-50 bg-zinc-950/75 border border-zinc-600 rounded-full px-2.5 py-0.5">ANTES</span>
+            <span className="absolute top-2.5 right-2.5 jb-display text-[11px] tracking-wider text-zinc-950 bg-orange-500 rounded-full px-2.5 py-0.5">AHORA</span>
+            <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(22,17,13,0.85), transparent)' }} />
+            {(() => {
+              const t = HERO_TRANSFORMACIONES[heroIdx];
+              return (
+                <div key={t.nombre} className="absolute bottom-2.5 inset-x-0 flex flex-col items-center">
+                  <span className="jb-display text-3xl sm:text-4xl text-zinc-950 bg-orange-500 rounded-lg px-3 leading-tight -rotate-2 shadow-lg shadow-black/40 whitespace-nowrap">
+                    {t.prefijo}{t.cifra} {t.unidad}
+                  </span>
+                  <span className="jb-body text-[11px] text-zinc-100 mt-1 whitespace-nowrap" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>
+                    {t.nombre} · {t.detalle}
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* El plato, ya medido: una foto que se escanea y se suma al día.
+              La barra de avance lo hace leer como un registro (seguimiento),
+              no como un producto con precio. */}
+          {(() => {
+            const detectado = scanPct >= 85;
+            const porcionDemo = { unit: 'plato', qty: 1 };
+            const m = entryMacros({ foodKey: 'Lomo saltado (-)', ...porcionDemo });
+            const metaDemo = 1888;
+            const kcal = Math.round(m.kcal);
+            const pasoDemo = scanPct < 30 ? 'Detectando alimentos' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías';
+            return (
+              <>
+                <style>{ESTILOS_ESCANER}</style>
+                <div className="mx-auto mb-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
+                  <div className="w-[72px] h-[72px] rounded-xl bg-zinc-950 border border-orange-500/40 relative overflow-hidden shrink-0">
+                    <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
+                    {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
+                    <div className="absolute inset-1 pointer-events-none">
+                      <div className="jbe-esquina absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-orange-500 rounded-tl" />
+                      <div className="jbe-esquina absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-orange-500 rounded-tr" />
+                      <div className="jbe-esquina absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-orange-500 rounded-bl" />
+                      <div className="jbe-esquina absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-orange-500 rounded-br" />
+                    </div>
+                    {!detectado && (
+                      <div className="absolute left-[8%] right-[8%] h-0.5 bg-orange-500"
+                        style={{ top: `${10 + (scanPct / 100) * 78}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="jb-display text-[11px] tracking-wider text-zinc-400">HOY</span>
+                      <span className={`jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 ${detectado ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 border border-orange-500/40'}`}>
+                        {detectado ? '⚡ DETECTADO' : `ESCANEANDO ${scanPct}%`}
+                      </span>
+                    </div>
+                    <div className="jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1 truncate">
+                      {detectado ? `+ Lomo saltado · ${kcal} kcal` : <span className="text-orange-300 font-normal inline-flex items-center gap-1.5"><Loader2 className="animate-spin" size={12} /> {pasoDemo}…</span>}
+                    </div>
+                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
+                      <div className="h-full bg-orange-500 rounded-full transition-all duration-700"
+                        style={{ width: detectado ? `${Math.round((kcal / metaDemo) * 100)}%` : '0%' }} />
+                    </div>
+                    <div className="jb-body text-[11px] text-zinc-400 mt-1 tabular-nums">
+                      Te quedan <span className="text-zinc-200 font-semibold">{(detectado ? metaDemo - kcal : metaDemo).toLocaleString('es-PE')} kcal</span> para tu meta
+                    </div>
+                  </div>
+                </div>
+              </>
             );
           })()}
-        </div>
 
-        {/* El plato, ya medido: una foto que se escanea y se suma al día.
-            La barra de avance lo hace leer como un registro (seguimiento),
-            no como un producto con precio. */}
-        {(() => {
-          const detectado = scanPct >= 85;
-          const porcionDemo = { unit: 'plato', qty: 1 };
-          const m = entryMacros({ foodKey: 'Lomo saltado (-)', ...porcionDemo });
-          const metaDemo = 1888;
-          const kcal = Math.round(m.kcal);
-          const pasoDemo = scanPct < 30 ? 'Detectando alimentos' : scanPct < 60 ? 'Comparando con platos peruanos' : 'Calculando calorías';
-          return (
-            <>
-              <style>{ESTILOS_ESCANER}</style>
-              <div className="mx-auto mb-2 bg-zinc-900/90 border border-zinc-800 rounded-2xl p-2.5 flex items-center gap-3 text-left" style={step(260)}>
-                <div className="w-[72px] h-[72px] rounded-xl bg-zinc-950 border border-orange-500/40 relative overflow-hidden shrink-0">
-                  <img src="/lomo-saltado.png" alt="" className="w-full h-full object-contain p-1" />
-                  {!detectado && <div className="jbe-rejilla absolute inset-0 pointer-events-none" />}
-                  <div className="absolute inset-1 pointer-events-none">
-                    <div className="jbe-esquina absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-orange-500 rounded-tl" />
-                    <div className="jbe-esquina absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-orange-500 rounded-tr" />
-                    <div className="jbe-esquina absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-orange-500 rounded-bl" />
-                    <div className="jbe-esquina absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-orange-500 rounded-br" />
-                  </div>
-                  {!detectado && (
-                    <div className="absolute left-[8%] right-[8%] h-0.5 bg-orange-500"
-                      style={{ top: `${10 + (scanPct / 100) * 78}%`, boxShadow: '0 0 10px 3px rgba(232,89,12,0.85)' }} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="jb-display text-[11px] tracking-wider text-zinc-400">HOY</span>
-                    <span className={`jb-display text-[9px] tracking-[0.18em] rounded-full px-2 py-0.5 ${detectado ? 'text-zinc-950 bg-orange-500' : 'text-orange-400 border border-orange-500/40'}`}>
-                      {detectado ? '⚡ DETECTADO' : `ESCANEANDO ${scanPct}%`}
-                    </span>
-                  </div>
-                  <div className="jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1 truncate">
-                    {detectado ? `+ Lomo saltado · ${kcal} kcal` : <span className="text-orange-300 font-normal inline-flex items-center gap-1.5"><Loader2 className="animate-spin" size={12} /> {pasoDemo}…</span>}
-                  </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
-                    <div className="h-full bg-orange-500 rounded-full transition-all duration-700"
-                      style={{ width: detectado ? `${Math.round((kcal / metaDemo) * 100)}%` : '0%' }} />
-                  </div>
-                  <div className="jb-body text-[11px] text-zinc-400 mt-1 tabular-nums">
-                    Te quedan <span className="text-zinc-200 font-semibold">{(detectado ? metaDemo - kcal : metaDemo).toLocaleString('es-PE')} kcal</span> para tu meta
-                  </div>
-                </div>
-              </div>
-            </>
-          );
-        })()}
+          <p className="jb-body text-[11px] text-zinc-400 mb-4" style={step(300)}>
+            📸 Foto del plato <span className="text-zinc-600">·</span> ▮▮▮ Código de barras <span className="text-zinc-600">·</span> 🎙️ Voz
+          </p>
 
-        {/* Las formas de anotar, en una línea: el escáner de código existe,
-            pero la estrella sigue siendo la foto del plato peruano. */}
-        <p className="jb-body text-[11px] text-zinc-400 mb-4" style={step(290)}>
-          📸 Foto del plato <span className="text-zinc-600">·</span> ▮▮▮ Código de barras <span className="text-zinc-600">·</span> 🎙️ Voz
-        </p>
-
-        {/* Primero la prueba sin registro (vivir la foto del plato) y, al
-            lado, crear la cuenta para quien ya está decidido. */}
-        <button onClick={abrirDemo} style={step(320)}
-          className="w-full inline-flex items-center justify-center gap-2 mb-2 bg-orange-500 hover:bg-orange-400 rounded-full py-3.5 px-6 transition-colors shadow-lg shadow-orange-500/20">
-          <span className="jb-display text-base text-zinc-950 tracking-wide">📸 PRUÉBALA YA CON TU PLATO</span>
-        </button>
-        <button onClick={registrarClicCTA} style={step(322)}
-          className="w-full inline-flex items-center justify-center gap-2 mb-2 border border-orange-500/60 hover:border-orange-400 rounded-full py-3 px-6 transition-colors">
-          <span className="jb-display text-sm text-orange-400 tracking-wide">TU CAMBIO EMPIEZA AQUÍ</span>
-          <ChevronRight className="text-orange-400" size={16} />
-        </button>
-        <p className="jb-body text-zinc-400 text-xs mb-4" style={step(325)}>
-          <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
-        </p>
-
-        {/* Todo entra en una pantalla: un solo botón grande y, debajo,
-            la entrada de los alumnos que ya tienen cuenta (sin tener que
-            bajar) y la calculadora sin registro como opción secundaria. */}
-        <div className="flex flex-col items-center gap-2 pb-8" style={step(380)}>
-          <button onClick={() => onChoose('studentAuth')}
-            className="jb-body text-sm text-zinc-300 hover:text-zinc-50 border border-zinc-800 hover:border-orange-500 rounded-full px-4 py-2 transition-colors inline-flex items-center gap-1.5">
-            <User className="text-orange-500" size={14} />
-            ¿Ya tienes cuenta? <span className="jb-display tracking-wide text-orange-400">SOY ALUMNO</span>
+          <button onClick={abrirDemo} style={step(340)}
+            className="w-full inline-flex items-center justify-center gap-2 mb-2 border border-orange-500/60 hover:border-orange-400 rounded-full py-3.5 px-6 transition-colors">
+            <span className="jb-display text-base text-orange-400 tracking-wide">📸 PRUÉBALA YA CON TU PLATO</span>
           </button>
-          <button onClick={() => onChoose('free')} className="jb-body text-xs text-zinc-500 hover:text-zinc-300">
-            📏 ¿Solo quieres medirte? Hazlo sin registro →
+          <button onClick={registrarClicCTA} style={step(380)}
+            className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mb-2 transition-colors shadow-lg shadow-orange-500/20">
+            EMPEZAR AHORA
           </button>
+          <p className="jb-body text-zinc-400 text-xs mb-5" style={step(400)}>
+            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
+          </p>
+
+          <div className="flex flex-col items-center gap-2" style={step(440)}>
+            <button onClick={() => onChoose('studentAuth')}
+              className="jb-body text-sm text-zinc-300 hover:text-zinc-50 border border-zinc-800 hover:border-orange-500 rounded-full px-4 py-2 transition-colors inline-flex items-center gap-1.5">
+              <User className="text-orange-500" size={14} />
+              ¿Ya tienes cuenta? <span className="jb-display tracking-wide text-orange-400">SOY ALUMNO</span>
+            </button>
+            <button onClick={() => onChoose('free')} className="jb-body text-xs text-zinc-500 hover:text-zinc-300">
+              📏 ¿Solo quieres medirte? Hazlo sin registro →
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
     </div>
   );
@@ -3125,22 +3227,47 @@ const ESTILOS_BIENVENIDA = `
 `;
 
 // El logo animado (también se usa mientras la app revisa la sesión).
-function SplashMarca() {
+// Si se vuelve a montar (la pantalla de carga pasa a la portada), la
+// animación sigue donde iba en vez de empezar de nuevo.
+let splashInicio = null;
+function msDeSplash() {
+  if (splashInicio === null) return 0;
+  return performance.now() - splashInicio;
+}
+function SplashMarca({ onSaltar }) {
+  if (splashInicio === null) splashInicio = performance.now();
+  const ya = msDeSplash() / 1000;
+  const a = (nombre, dur, retraso) => ({ animation: `${nombre} ${dur}s ease-out ${(retraso - ya).toFixed(2)}s forwards` });
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center gap-5 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center gap-5 overflow-hidden" onClick={onSaltar}>
       <style>{ESTILOS_BIENVENIDA}</style>
       <div className="absolute w-[140vw] h-[140vw] max-w-[900px] max-h-[900px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(232,89,12,.32), rgba(232,89,12,0) 55%)' }} />
-      <img src="/logo-marca.webp" alt="" className="jbb-a relative w-[34vw] max-w-[180px]" style={{ animation: 'jbb-logo .6s ease-out .15s forwards' }} />
-      <p className="jbb-a relative jb-display text-[8.5vw] sm:text-4xl text-zinc-50 whitespace-nowrap" style={{ animation: 'jbb-marca .5s ease-out .5s forwards' }}>
+      <img src="/logo-marca.webp" alt="" className="jbb-a relative w-[34vw] max-w-[180px]" style={a('jbb-logo', .6, .15)} />
+      <p className="jbb-a relative jb-display text-[8.5vw] sm:text-4xl text-zinc-50 whitespace-nowrap" style={a('jbb-marca', .5, .5)}>
         JONAH BEAST <span className="text-orange-400">FUEL</span>
       </p>
-      <div className="relative h-1 rounded-full bg-orange-500 w-0" style={{ animation: 'jbb-linea .45s ease-out .8s forwards', boxShadow: '0 0 18px 4px rgba(232,89,12,.7)' }} />
-      <p className="jbb-a relative jb-body text-[3.4vw] sm:text-sm tracking-[.2em] text-zinc-300" style={{ animation: 'jbb-sube .4s ease-out 1s forwards' }}>
+      <div className="relative h-1 rounded-full bg-orange-500 w-0" style={{ ...a('jbb-linea', .45, .8), boxShadow: '0 0 18px 4px rgba(232,89,12,.7)' }} />
+      <p className="jbb-a relative jb-body text-[3.4vw] sm:text-sm tracking-[.2em] text-zinc-300" style={a('jbb-sube', .4, 1)}>
         NO ES QUÉ COMES. ES CUÁNTO.
       </p>
     </div>
   );
+}
+
+// En la web, el logo animado sale solo la primera vez que se abre la
+// portada en esa visita (al volver atrás no se repite), y nunca a quien
+// pidió menos movimiento en su celular.
+const SPLASH_WEB_MS = 1600;
+function splashWebPendiente() {
+  try {
+    if (sessionStorage.getItem('jb-splash-visto') === '1') return false;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+    return true;
+  } catch { return false; }
+}
+function marcarSplashWebVisto() {
+  try { sessionStorage.setItem('jb-splash-visto', '1'); } catch {}
 }
 
 const BIENVENIDA_FOTOS = [
@@ -5814,7 +5941,7 @@ export default function App() {
               irA(leerRecorrido() ? 'trial' : 'recorrido');
             }} />
           : <Landing onChoose={irA} />)
-        : instalada ? <SplashMarca /> : (
+        : (instalada || splashWebPendiente()) ? <SplashMarca /> : (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
           <Loader2 className="animate-spin text-orange-500" size={28} />
         </div>

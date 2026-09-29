@@ -8,6 +8,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/cron/alertas-admin",
+      "schedule": "5 * * * *"
+    },
+    {
       "path": "/api/cron/racha-en-riesgo",
       "schedule": "0 1 * * *"
     },

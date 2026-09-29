@@ -56,11 +56,11 @@ Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jo
 - Programa "Invita a un amigo" (alumnos): cada alumno tiene su código; su amigo usa la app gratis con 7 días de Premium y 10% de descuento en su primer plan, y el alumno gana 15 días de Premium cuando ese amigo paga su primer plan (una vez por amigo). No hay dinero de por medio para los alumnos
 - Programa de embajadores (influencers): aparte del anterior; cada embajador tiene su código y cobra una comisión en dinero, variable según el plan que compre su referido (se paga a mano)
 - Registro: solo pide correo y contraseña. El nombre y el celular se piden después, en la guía de bienvenida dentro de la app (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp); el celular también se pide al pagar con Yape/Plin/transferencia si aún no lo tiene
-- Soporte de WhatsApp: hoy es 100% manual (enlaces wa.me), no hay API oficial de WhatsApp Business integrada todavía
+- Soporte de WhatsApp: los mensajes a alumnos los envía Jonah desde su WhatsApp (enlaces wa.me); con preparar_whatsapp le dejas el texto listo
 - Categoría en Play Store: Salud y deportes. Publicada como TWA/PWA, package_name com.jonahbeast.twa
-- Sin acceso en vivo a TikTok Ads: si te preguntan por eso, dilo con honestidad
+- Anuncios: con ver_anuncios lees los resultados de Meta (Facebook e Instagram). Sin acceso a TikTok Ads: si te preguntan por eso, dilo con honestidad. Desde fines de septiembre de 2026 una agencia maneja campañas en paralelo por 30 días para comparar resultados
 
-Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemplo buscar a dos alumnos). En el estado del negocio solo recibes totales: cuando Jonah Beast pregunte por nombres, montos o celulares concretos, consulta la herramienta de lectura que corresponda en vez de decir que no tienes el detalle.
+Tus herramientas principales se describen abajo (puedes pedir varias a la vez si hace falta, por ejemplo buscar a dos alumnos). En el estado del negocio solo recibes totales: cuando Jonah Beast pregunte por nombres, montos o celulares concretos, consulta la herramienta de lectura que corresponda en vez de decir que no tienes el detalle.
 
 1) buscar_alumno (solo lectura) -- busca alumnos por nombre o username. Úsala SIEMPRE que Jonah Beast mencione cualquier nombre de persona, por corto o incompleto que parezca (ej. "Yara", "Bru", "el chico nuevo") -- la búsqueda es parcial y encuentra coincidencias aunque solo escriba una parte del nombre, así que nunca asumas que no vas a encontrar a alguien solo porque el nombre es corto. Si la búsqueda no devuelve resultados, ahí sí dilo con honestidad -- pero intenta primero, no lo des por hecho. Jonah Beast suele hablarte por micrófono y el dictado cambia letras de los nombres (Giannina se dicta Yanina o Janina, Brenda/Brenna): si menciona a alguien que tú mismo nombraste antes en esta conversación (por ejemplo en el informe de al abrir), es esa persona aunque el nombre no se escriba igual -- úsala con el username que ya tienes, sin decirle que no la conoces. Si la búsqueda trae un resultado marcado como parecido, confírmalo con él en vez de decir que no existe.
 
@@ -75,7 +75,14 @@ Tienes cinco herramientas (puedes pedir varias a la vez si hace falta, por ejemp
    b) Si Jonah Beast te pide activar el reconocimiento inteligente pero NO ha dicho por cuánto tiempo (días, semanas o meses), NUNCA llames a activar_reconocimiento_foto todavía -- pregúntale primero cuántos días quiere activarlo (puedes sugerir duraciones típicas como 7, 15 o 30 días si te pide una referencia).
    c) Solo llama a activar_reconocimiento_foto una vez que Jonah Beast haya confirmado explícitamente la duración en la conversación (ya sea en su mensaje original o en su respuesta a tu pregunta). Si te da la duración en otra unidad, conviértela tú mismo a días antes de llamar la herramienta (1 semana = 7, 1 mes = 30).
    d) Después de prepararlo, dile con claridad a quién, por cuántos días y hasta qué fecha quedaría vigente (la herramienta te devuelve esa fecha), y que toque el botón "Confirmar" para aplicarlo. Nunca digas que ya quedó activado: todavía no lo está.
-   No tienes ninguna otra herramienta de escritura por ahora -- si te piden otro tipo de cambio (crear alumno, cambiar plan, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
+
+6) aprobar_pago y regalar_dias -- igual que el add-on de fotos: preparan la acción y el panel muestra el botón "Confirmar"; nada cambia hasta que Jonah Beast lo toca. Ubica primero al alumno. Para aprobar_pago, dile a quién, cuánto pagó, hasta qué fecha quedaría su plan y si le toca el bono de +7 días. Para regalar_dias, si no dijo cuántos días pregúntale (lo típico son 7: por ejemplo a quien respondió "QUIERO" a la oferta de 7 días de Premium). Nunca digas que ya quedó hecho.
+
+7) preparar_whatsapp -- deja listo un mensaje para que Jonah Beast lo envíe desde su WhatsApp con un botón. Úsala cuando te pida escribirle a alguien o cuando acepte una sugerencia tuya de escribirle. No copies el mensaje en tu respuesta: di en una frase que está listo.
+
+8) ver_anuncios (solo lectura) -- resultados de los anuncios de Meta. Si devuelve sin_token, explícale en palabras simples que falta conectar Meta.
+
+   No tienes otras herramientas de escritura -- si te piden otro tipo de cambio (crear alumno, cambiar de plan sin pago, eliminar algo), dilo con honestidad y aclara que no puedes hacerlo todavía.`;
 
 // Manual de la app (docs/manual-app.md). Se lee de la tabla manual_app,
 // que se actualiza después de cada merge con el texto de main; así cambiar
@@ -206,6 +213,49 @@ const TOOLS = [
       required: ["username", "dias"],
     },
   },
+  {
+    name: "aprobar_pago",
+    description: "Prepara la aprobación del pago pendiente (Yape/Plin/transferencia) de un alumno: calcula hasta qué fecha quedaría su plan, si le toca el bono de +7 días por suscribirse a tiempo y la comisión de su referido. No aprueba nada todavía: el panel muestra el botón Confirmar y se aprueba solo cuando Jonah Beast lo toca. Úsala solo cuando el señor pida aprobar un pago.",
+    input_schema: {
+      type: "object",
+      properties: { username: { type: "string", description: "Username exacto del alumno (confirmado con buscar_alumno o ver_pagos)" } },
+      required: ["username"],
+    },
+  },
+  {
+    name: "regalar_dias",
+    description: "Prepara un regalo de días de Premium para un alumno (por ejemplo los 7 días a quien respondió QUIERO, o recuperar una prueba vencida). Si su plan o prueba ya venció, los días cuentan desde hoy y la cuenta se reactiva; si sigue vigente, se suman a su fecha actual. No cambia nada todavía: el panel muestra el botón Confirmar. SOLO llámala cuando el señor haya dicho cuántos días (nunca un número supuesto).",
+    input_schema: {
+      type: "object",
+      properties: {
+        username: { type: "string", description: "Username exacto del alumno (confirmado con buscar_alumno)" },
+        dias: { type: "number", description: "Días a regalar (1 a 90)" },
+        motivo: { type: "string", description: "Motivo corto, ej. 'Respondió QUIERO: 7 días Premium'" },
+      },
+      required: ["username", "dias"],
+    },
+  },
+  {
+    name: "preparar_whatsapp",
+    description: "Prepara un mensaje de WhatsApp para un alumno: el panel muestra un botón que abre WhatsApp con el texto ya escrito, y Jonah Beast lo envía él mismo. Úsala cuando el señor pida escribirle o mandarle un mensaje a alguien, o cuando sugieras escribirle a un alumno y el señor acepte. Escribe el texto como Jonah (primera persona, cercano, tuteando al alumno, con su primer nombre, breve, 1 o 2 emojis como 🦍💪), según el caso: prueba por vencer, dejó de registrar, bienvenida, pago aprobado, etc.",
+    input_schema: {
+      type: "object",
+      properties: {
+        username: { type: "string", description: "Username exacto del alumno" },
+        texto: { type: "string", description: "El mensaje completo, listo para enviar" },
+      },
+      required: ["username", "texto"],
+    },
+  },
+  {
+    name: "ver_anuncios",
+    description: "Resultados de los anuncios de Meta (Facebook e Instagram) de la cuenta de Jonah Beast Fuel: gasto, alcance, clics, registros (leads) y costo por registro, por campaña. periodo: 'hoy', 'ayer', '7dias' o '30dias'. Para comparar con los registros reales de la app usa el estado del negocio. No hay datos de TikTok.",
+    input_schema: {
+      type: "object",
+      properties: { periodo: { type: "string", enum: ["hoy", "ayer", "7dias", "30dias"] } },
+      required: ["periodo"],
+    },
+  },
 ];
 
 // Fecha YYYY-MM-DD en hora de Lima.
@@ -320,6 +370,162 @@ async function activarFoto(supabase: any, usernameIn: unknown, diasIn: unknown) 
   return actualizado
     ? { ok: true, ...actualizado, dias }
     : { error: `No se encontró ningún alumno con username "${username}".` };
+}
+
+// Fechas YYYY-MM-DD: mismas reglas que el panel (src/App.jsx).
+function sumarDias(iso: string, dias: number) {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + dias));
+  return dt.toISOString().slice(0, 10);
+}
+function sumarMeses(iso: string, meses: number) {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const anio = y + Math.floor((m - 1 + meses) / 12);
+  const mes = ((m - 1 + meses) % 12 + 12) % 12;
+  const ultimo = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(anio, mes, Math.min(d, ultimo))).toISOString().slice(0, 10);
+}
+// Bono por suscribirse a tiempo (misma regla que ganaBonoSuscripcion en
+// src/App.jsx): primer plan de alguien en prueba, enviado antes de que
+// termine su prueba o hasta 48 h después.
+const BONO_DIAS = 7;
+function ganaBono(plan: string, vence: string | null, primerPlan: boolean, enviadoEn: string | null) {
+  if (!primerPlan || !(plan === "trial" || plan === "prueba") || !vence) return false;
+  const limite = new Date(`${vence}T23:59:59-05:00`).getTime() + 48 * 3600000;
+  const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
+  return Number.isFinite(enviado) && enviado <= limite;
+}
+
+// Calcula cómo quedaría la aprobación de un pago pendiente (lo mismo que
+// hace el botón "✓ Aprobar y activar" de Pagos). Se usa para mostrar la
+// tarjeta y otra vez al confirmar, con los datos frescos.
+async function planDeAprobacion(supabase: any, filtro: { pagoId?: string; username?: string }) {
+  let q = supabase.from("pagos").select("id, username, nombre, monto, plan_meses, metodo, estado, creado_en, nota_admin").eq("estado", "pendiente");
+  q = filtro.pagoId ? q.eq("id", filtro.pagoId) : q.eq("username", filtro.username);
+  const { data: pagos, error } = await q.order("creado_en", { ascending: false }).limit(2);
+  if (error) return { error: "No se pudo leer el pago: " + error.message };
+  if (!pagos?.length) return { error: filtro.pagoId ? "Ese pago ya no está pendiente (quizá ya se aprobó o rechazó)." : "Ese alumno no tiene pagos pendientes." };
+  const pago = pagos[0];
+  const { data: al } = await supabase.from("alumnos")
+    .select("nombre, username, plan, fecha_vencimiento, codigo_referido, comision_monto").eq("username", pago.username).maybeSingle();
+  if (!al) return { error: `No se encontró al alumno "${pago.username}".` };
+  const hoy = fechaLima();
+  const base = al.fecha_vencimiento && al.fecha_vencimiento > hoy ? al.fecha_vencimiento : hoy;
+  let bono = false;
+  if (!/add-on/i.test(pago.metodo || "")) {
+    const { data: previos } = await supabase.from("pagos").select("id")
+      .eq("username", pago.username).eq("estado", "aprobado").neq("id", pago.id)
+      .or("metodo.is.null,metodo.not.ilike.*add-on*").limit(1);
+    bono = ganaBono(al.plan, al.fecha_vencimiento, (previos || []).length === 0, pago.creado_en);
+  }
+  const meses = Number(pago.plan_meses) || 1;
+  const nuevo = sumarDias(sumarMeses(base, meses), bono ? BONO_DIAS : 0);
+  const cambios: Record<string, unknown> = { fecha_vencimiento: nuevo, enabled: true, plan: "pago" };
+  if (al.codigo_referido && (al.comision_monto === null || al.comision_monto === undefined)) {
+    const { data: ref } = await supabase.from("referidores")
+      .select("comision_pct, descuento_pct, comision_1, comision_3, comision_6, comision_12")
+      .ilike("codigo", al.codigo_referido).maybeSingle();
+    if (ref) {
+      let monto: any = null;
+      if (Number(ref.comision_pct) > 0) {
+        const dcto = Number(ref.descuento_pct) || 0;
+        const lista = dcto > 0 ? Number(pago.monto) / (1 - dcto / 100) : Number(pago.monto);
+        monto = lista * (Number(ref.comision_pct) / 100);
+      } else {
+        monto = ({ 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 } as any)[meses];
+      }
+      if (monto !== undefined && monto !== null) {
+        cambios.comision_monto = Math.round(Number(monto) * 100) / 100;
+        cambios.plan_meses_referido = meses;
+      }
+    }
+  }
+  return { ok: true, pago, alumno: al, nuevo, bono, cambios, varios: pagos.length > 1 };
+}
+
+// Aprueba el pago. Solo se llama desde el botón "Confirmar" del panel.
+async function aprobarPago(supabase: any, pagoId: unknown, tokenAdmin: string) {
+  const plan: any = await planDeAprobacion(supabase, { pagoId: String(pagoId || "") });
+  if (!plan.ok) return plan;
+  const { pago, alumno, nuevo, bono, cambios } = plan;
+  const { error: e1 } = await supabase.from("alumnos").update(cambios).eq("username", pago.username);
+  if (e1) return { error: "No se pudo activar el plan: " + e1.message };
+  const { error: e2 } = await supabase.from("pagos").update({
+    estado: "aprobado", revisado_en: new Date().toISOString(),
+    ...(bono ? { nota_admin: [pago.nota_admin, `Incluye +${BONO_DIAS} días de regalo por suscribirse a tiempo.`].filter(Boolean).join(" · ") } : {}),
+  }).eq("id", pago.id);
+  if (e2) return { error: "El plan quedó activo pero no se pudo marcar el pago como aprobado: " + e2.message };
+  // Aviso al celular del alumno ("tu pago fue aprobado"), igual que el panel.
+  try {
+    await fetch("https://jonahbeast.com/api/pago-aprobado", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tokenAdmin}` },
+      body: JSON.stringify({ pagoId: pago.id }),
+    });
+  } catch (_) { /* la aprobación igual queda hecha */ }
+  return { ok: true, nombre: alumno.nombre || alumno.username, nuevo, bono, monto: pago.monto };
+}
+
+// Regala días de Premium. Solo se llama desde el botón "Confirmar".
+function planDeRegalo(alumno: any, dias: number) {
+  const hoy = fechaLima();
+  const vigente = alumno.enabled && alumno.fecha_vencimiento && alumno.fecha_vencimiento >= hoy;
+  const base = vigente ? alumno.fecha_vencimiento : hoy;
+  return { desdeHoy: !vigente, hasta: sumarDias(base, dias) };
+}
+async function regalarDias(supabase: any, usernameIn: unknown, diasIn: unknown, motivoIn: unknown) {
+  const username = String(usernameIn || "").trim();
+  const dias = Math.round(Number(diasIn));
+  if (!username || !Number.isFinite(dias) || dias <= 0 || dias > 90) return { error: "Faltan datos válidos (username y días entre 1 y 90)." };
+  const { data: al } = await supabase.from("alumnos").select("nombre, username, enabled, fecha_vencimiento").eq("username", username).maybeSingle();
+  if (!al) return { error: `No se encontró ningún alumno con username "${username}".` };
+  const { desdeHoy, hasta } = planDeRegalo(al, dias);
+  const motivo = String(motivoIn || "").trim().slice(0, 200) || `Regalo de ${dias} días (Jarvis)`;
+  const { error } = await supabase.from("alumnos").update(desdeHoy ? { fecha_vencimiento: hasta, enabled: true } : { fecha_vencimiento: hasta }).eq("username", username);
+  if (error) return { error: "No se pudo regalar los días: " + error.message };
+  await supabase.from("ajustes_membresia").insert({ username, dias, motivo, fecha_resultante: hasta });
+  return { ok: true, nombre: al.nombre || al.username, dias, hasta };
+}
+
+// Resultados de Meta Ads (Marketing API, solo lectura). Necesita el secreto
+// META_ADS_TOKEN (token de usuario del sistema con permiso ads_read).
+const META_CUENTA = "act_2270489313790965";
+async function verAnuncios(periodo: string) {
+  // Se limpian espacios, saltos de línea o comillas que se cuelan al pegarla.
+  const token = (Deno.env.get("META_ADS_TOKEN") || "").replace(/^\s*(bearer\s+)?["']?|["']?\s*$/gi, "").replace(/\s+/g, "");
+  if (!token) return { error: "sin_token: todavía no está conectado Meta. El señor debe crear un token de Meta con permiso ads_read y guardarlo en Supabase como META_ADS_TOKEN." };
+  const preset = ({ hoy: "today", ayer: "yesterday", "7dias": "last_7d", "30dias": "last_30d" } as any)[periodo] || "last_7d";
+  const url = new URL(`https://graph.facebook.com/v23.0/${META_CUENTA}/insights`);
+  url.searchParams.set("level", "campaign");
+  url.searchParams.set("date_preset", preset);
+  url.searchParams.set("fields", "campaign_name,spend,reach,impressions,clicks,actions,cost_per_action_type");
+  url.searchParams.set("limit", "50");
+  url.searchParams.set("access_token", token);
+  const r = await fetch(url);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    console.error("ver_anuncios: Meta respondió", r.status, d?.error?.code, d?.error?.error_subcode, (d?.error?.message || "").slice(0, 200));
+    const vencido = d?.error?.code === 190;
+    return { error: vencido
+      ? "La llave de Meta (META_ADS_TOKEN) no es válida o ya venció. El señor debe generar una nueva de 60 días y reemplazarla en Supabase."
+      : "Meta respondió con error: " + (d?.error?.message || r.status) };
+  }
+  const accion = (lista: any[], tipos: string[]) => {
+    const f = (lista || []).find((a: any) => tipos.includes(a.action_type));
+    return f ? Number(f.value) : 0;
+  };
+  const TIPOS_REGISTRO = ["lead", "offsite_conversion.fb_pixel_lead", "complete_registration", "offsite_conversion.fb_pixel_complete_registration"];
+  const campanas = (d.data || []).map((c: any) => {
+    const gasto = Number(c.spend) || 0;
+    const registros = accion(c.actions, TIPOS_REGISTRO);
+    return {
+      campana: c.campaign_name, gasto_soles: Math.round(gasto * 100) / 100, alcance: Number(c.reach) || 0,
+      clics: Number(c.clicks) || 0, registros_meta: registros,
+      costo_por_registro: registros ? Math.round((gasto / registros) * 100) / 100 : null,
+    };
+  });
+  const total = campanas.reduce((t: any, c: any) => ({ gasto: t.gasto + c.gasto_soles, registros: t.registros + c.registros_meta, clics: t.clics + c.clics }), { gasto: 0, registros: 0, clics: 0 });
+  return { periodo, moneda: "PEN", campanas, total: { ...total, gasto: Math.round(total.gasto * 100) / 100 }, nota: "registros_meta es lo que cuenta Meta (su píxel); los registros reales de la app están en el estado del negocio." };
 }
 
 // Lee la respuesta de Anthropic en modo streaming (eventos SSE), avisa cada
@@ -441,15 +647,22 @@ Deno.serve(async (req) => {
     // Botón "Confirmar" del panel: aquí sí se aplica el cambio, sin pasar
     // por Claude (el candado de admin ya se revisó arriba).
     if (confirmar) {
-      if (confirmar.tipo !== "activar_foto") return json({ error: "Acción desconocida." }, 400);
-      const r: any = await activarFoto(supabase, confirmar.username, confirmar.dias);
-      console.log(JSON.stringify({ evento: "jarvis_confirmacion", tipo: confirmar.tipo, username: confirmar.username, dias: confirmar.dias, ok: !!r.ok }));
-      return json({
-        respuesta: r.ok
-          ? `Listo, Jonah Beast: activé el reconocimiento por foto a **${r.nombre || r.username}** por ${r.dias} días, vigente hasta el ${r.reconocimiento_foto_hasta}.`
-          : r.error,
-        ok: !!r.ok,
-      });
+      let r: any;
+      let respuesta = "";
+      if (confirmar.tipo === "activar_foto") {
+        r = await activarFoto(supabase, confirmar.username, confirmar.dias);
+        if (r.ok) respuesta = `Listo, señor: activé el reconocimiento por foto a **${r.nombre || r.username}** por ${r.dias} días, vigente hasta el ${r.reconocimiento_foto_hasta}.`;
+      } else if (confirmar.tipo === "aprobar_pago") {
+        r = await aprobarPago(supabase, confirmar.pago_id, token);
+        if (r.ok) respuesta = `Listo, señor: aprobé el pago de **${r.nombre}**. Su plan queda activo hasta el ${r.nuevo}${r.bono ? `, con los +${BONO_DIAS} días de regalo por suscribirse a tiempo` : ""}. Ya le llegó el aviso al celular.`;
+      } else if (confirmar.tipo === "regalar_dias") {
+        r = await regalarDias(supabase, confirmar.username, confirmar.dias, confirmar.motivo);
+        if (r.ok) respuesta = `Listo, señor: le regalé ${r.dias} días de Premium a **${r.nombre}**, hasta el ${r.hasta}.`;
+      } else {
+        return json({ error: "Acción desconocida." }, 400);
+      }
+      console.log(JSON.stringify({ evento: "jarvis_confirmacion", tipo: confirmar.tipo, username: confirmar.username, pago_id: confirmar.pago_id, dias: confirmar.dias, ok: !!r.ok }));
+      return json({ respuesta: r.ok ? respuesta : r.error, ok: !!r.ok });
     }
 
     if (!pregunta || typeof pregunta !== "string") {
@@ -527,8 +740,22 @@ Deno.serve(async (req) => {
       ? (memoria || []).map((m: any) => `- [${m.id}] ${m.texto}`).join("\n")
       : "(vacía: el señor todavía no te pidió recordar nada)";
 
+    // Bitácora: lo conversado en los últimos 2 días, para que Jarvis sepa qué
+    // quedó pendiente de un día para otro (tabla jarvis_bitacora).
+    const { data: bitacora } = await supabase.from("jarvis_bitacora").select("creado_en, pregunta, respuesta")
+      .gte("creado_en", new Date(Date.now() - 2 * 86400000).toISOString())
+      .order("creado_en", { ascending: false }).limit(16);
+    const horaLima = (iso: string) => new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+    const recorte = (t: string, n: number) => (t.length > n ? t.slice(0, n) + "…" : t);
+    const bitacoraTexto = (bitacora || []).length
+      ? (bitacora || []).reverse().map((b: any) => `- ${horaLima(b.creado_en)} · El señor: "${recorte(b.pregunta, 250)}" · Tú: "${recorte(b.respuesta, 350)}"`).join("\n")
+      : "(no hubo conversaciones en los últimos 2 días)";
+
     const contexto = `Lo que el señor te pidió recordar (tu memoria permanente; tenla en cuenta en tus respuestas y sugerencias, y úsala con naturalidad, sin recitarla):
 ${memoriaTexto}
+
+Lo que conversaron en los últimos 2 días (tu bitácora, de lo más antiguo a lo más reciente; incluye lo de hoy). Úsala para dar continuidad: si quedó algo pendiente (a quién iba a escribirle, un pago por aprobar, algo que prometiste revisar), puedes retomarlo o preguntar cómo quedó, sin recitar la bitácora. Si en esta conversación todavía no lo mencionaste y en la bitácora de días anteriores quedó algo pendiente, menciónalo en una frase corta al final de tu respuesta (ej. "Por cierto, señor: ayer quedó pendiente escribirle a Giannina, ¿cómo le fue?"). Si algo ya está en la conversación actual, no lo repitas. Compara con los datos en vivo antes de afirmar algo (por ejemplo, si ya pagó):
+${bitacoraTexto}
 
 Estado actual de Jonah Beast Fuel (datos en vivo de Supabase, ahora mismo). Hoy es ${hoyISO}; todas las fechas de "hoy" están en hora de Lima.
 - Precios vigentes de los planes: ${preciosTexto}
@@ -695,6 +922,56 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
         if (i >= 0) acciones[i] = accion; else acciones.push(accion);
         return { pendiente_confirmacion: true, ...accion, aviso: "Todavía NO está activado. En el panel aparece el botón Confirmar; se activa solo cuando Jonah Beast lo toque." };
       }
+      if (bloque.name === "aprobar_pago") {
+        const username = String(bloque.input?.username || "").trim();
+        const alumno = alumnoPorUsuario[username.toLowerCase()];
+        if (!alumno) return { error: `No se encontró ningún alumno con username "${username}".` };
+        const plan: any = await planDeAprobacion(supabase, { username: alumno.username });
+        if (!plan.ok) return plan;
+        const accion = {
+          tipo: "aprobar_pago", pago_id: plan.pago.id, username: alumno.username, nombre: alumno.nombre || alumno.username,
+          monto: plan.pago.monto, plan_meses: plan.pago.plan_meses, metodo: plan.pago.metodo || "", hasta: plan.nuevo, bono: plan.bono,
+        };
+        const i = acciones.findIndex((x) => x.tipo === accion.tipo && x.pago_id === accion.pago_id);
+        if (i >= 0) acciones[i] = accion; else acciones.push(accion);
+        return {
+          pendiente_confirmacion: true, ...accion,
+          ...(plan.varios ? { ojo: "Tiene más de un pago pendiente: se preparó el más reciente." } : {}),
+          aviso: "Todavía NO está aprobado. En el panel aparece el botón Confirmar; se aprueba solo cuando Jonah Beast lo toque.",
+        };
+      }
+      if (bloque.name === "regalar_dias") {
+        const username = String(bloque.input?.username || "").trim();
+        const dias = Math.round(Number(bloque.input?.dias));
+        if (!username || !Number.isFinite(dias) || dias <= 0 || dias > 90) return { error: "Faltan datos válidos (username y días entre 1 y 90)." };
+        const alumno = alumnoPorUsuario[username.toLowerCase()];
+        if (!alumno) return { error: `No se encontró ningún alumno con username "${username}".` };
+        const { desdeHoy, hasta } = planDeRegalo(alumno, dias);
+        const motivo = String(bloque.input?.motivo || "").trim().slice(0, 200);
+        const accion = { tipo: "regalar_dias", username: alumno.username, nombre: alumno.nombre || alumno.username, dias, hasta, desde_hoy: desdeHoy, motivo };
+        const i = acciones.findIndex((x) => x.tipo === accion.tipo && x.username === accion.username);
+        if (i >= 0) acciones[i] = accion; else acciones.push(accion);
+        return { pendiente_confirmacion: true, ...accion, aviso: "Todavía NO se regaló nada. En el panel aparece el botón Confirmar." };
+      }
+      if (bloque.name === "preparar_whatsapp") {
+        const username = String(bloque.input?.username || "").trim();
+        const texto = String(bloque.input?.texto || "").trim().slice(0, 1000);
+        const alumno = alumnoPorUsuario[username.toLowerCase()];
+        if (!alumno) return { error: `No se encontró ningún alumno con username "${username}".` };
+        if (!texto) return { error: "Falta el texto del mensaje." };
+        const tel = String(alumno.telefono || "").replace(/\D/g, "");
+        if (!tel) return { error: `${alumno.nombre || alumno.username} no tiene celular registrado.` };
+        const accion = {
+          tipo: "whatsapp", username: alumno.username, nombre: alumno.nombre || alumno.username, texto,
+          url: `https://wa.me/${tel.length <= 9 ? "51" + tel : tel}?text=${encodeURIComponent(texto)}`,
+        };
+        const i = acciones.findIndex((x) => x.tipo === accion.tipo && x.username === accion.username);
+        if (i >= 0) acciones[i] = accion; else acciones.push(accion);
+        return { listo: true, aviso: "En el panel aparece el botón para abrir WhatsApp con este texto; el señor lo envía. No repitas el mensaje completo en tu respuesta, basta con decir que está listo.", texto };
+      }
+      if (bloque.name === "ver_anuncios") {
+        return await verAnuncios(String(bloque.input?.periodo || "7dias"));
+      }
       if (bloque.name === "ver_pagos") {
         const detalle = (p: any) => ({ nombre: p.nombre || p.username, monto: p.monto, plan_meses: p.plan_meses, metodo: p.metodo, estado: p.estado, fecha: p.creado_en });
         const periodo = String(bloque.input?.periodo || "");
@@ -752,6 +1029,12 @@ Nota: "pagaron" en el embudo solo cuenta a quienes se registraron desde la landi
       const textoFinal = (data.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text || "").join("").trim();
       const { texto, visual } = separarVisual(textoFinal);
       const respuesta = texto || "No alcancé a terminar esa consulta. ¿Me la puedes pedir de nuevo, un poco más concreta?";
+      // Se anota en la bitácora (y se borra lo de más de 30 días). Si falla,
+      // la respuesta igual llega.
+      try {
+        await supabase.from("jarvis_bitacora").insert({ pregunta: pregunta.slice(0, 2000), respuesta: respuesta.slice(0, 4000) });
+        await supabase.from("jarvis_bitacora").delete().lt("creado_en", new Date(Date.now() - 30 * 86400000).toISOString());
+      } catch (_) { /* sin bitácora esta vez */ }
       return { respuesta, acciones, ...(visual ? { visual } : {}) };
     }
 

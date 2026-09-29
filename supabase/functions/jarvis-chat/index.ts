@@ -491,7 +491,8 @@ async function regalarDias(supabase: any, usernameIn: unknown, diasIn: unknown, 
 // META_ADS_TOKEN (token de usuario del sistema con permiso ads_read).
 const META_CUENTA = "act_2270489313790965";
 async function verAnuncios(periodo: string) {
-  const token = Deno.env.get("META_ADS_TOKEN") || "";
+  // Se limpian espacios, saltos de línea o comillas que se cuelan al pegarla.
+  const token = (Deno.env.get("META_ADS_TOKEN") || "").replace(/^\s*(bearer\s+)?["']?|["']?\s*$/gi, "").replace(/\s+/g, "");
   if (!token) return { error: "sin_token: todavía no está conectado Meta. El señor debe crear un token de Meta con permiso ads_read y guardarlo en Supabase como META_ADS_TOKEN." };
   const preset = ({ hoy: "today", ayer: "yesterday", "7dias": "last_7d", "30dias": "last_30d" } as any)[periodo] || "last_7d";
   const url = new URL(`https://graph.facebook.com/v23.0/${META_CUENTA}/insights`);
@@ -502,7 +503,13 @@ async function verAnuncios(periodo: string) {
   url.searchParams.set("access_token", token);
   const r = await fetch(url);
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) return { error: "Meta respondió con error: " + (d?.error?.message || r.status) };
+  if (!r.ok) {
+    console.error("ver_anuncios: Meta respondió", r.status, d?.error?.code, d?.error?.error_subcode, (d?.error?.message || "").slice(0, 200));
+    const vencido = d?.error?.code === 190;
+    return { error: vencido
+      ? "La llave de Meta (META_ADS_TOKEN) no es válida o ya venció. El señor debe generar una nueva de 60 días y reemplazarla en Supabase."
+      : "Meta respondió con error: " + (d?.error?.message || r.status) };
+  }
   const accion = (lista: any[], tipos: string[]) => {
     const f = (lista || []).find((a: any) => tipos.includes(a.action_type));
     return f ? Number(f.value) : 0;

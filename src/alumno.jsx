@@ -6115,6 +6115,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               <Camera size={16} /> Tomar foto
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={elegirArchivo} />
             </label>
+            {/* Por si la cámara no abre (permiso del celular) o ya tomó la
+                foto antes: la elige de su galería y se analiza igual. */}
+            <label className={btnGhost + ' w-full py-2.5 mt-2 cursor-pointer text-sm'}>
+              🖼️ Subir de mi galería
+              <input type="file" accept="image/*" className="hidden" onChange={elegirArchivo} />
+            </label>
           </div>
         )}
 

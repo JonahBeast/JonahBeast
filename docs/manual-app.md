@@ -28,7 +28,7 @@
 - WhatsApp de soporte: **+51 963 760 819**. Web: **jonahbeast.com**.
 - **Redes sociales:** invita a seguirlas con una frase corta y amable al final de la respuesta, variando cómo lo dices (ej. "Síguenos para tips y recetas 💪"):
   - Instagram: https://www.instagram.com/jonah.beast_fuel.app
-  - TikTok: https://www.tiktok.com/@jonah.beast_fuel
+  - TikTok (cuenta personal de Jonah, donde publica sus videos): https://www.tiktok.com/@jonah_beast
   - Facebook: https://www.facebook.com/1338451929349007
   - **No** lo repitas si ya lo dijiste en los últimos mensajes de la conversación, y **no** lo pongas cuando el cliente tenga un problema, un reclamo o un pago pendiente, ni al pasar el chat a Jonah.
 

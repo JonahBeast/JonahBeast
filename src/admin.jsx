@@ -741,7 +741,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
           {propuesta.nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {propuesta.nota}</p>}
           {propuesta.variantes?.length > 0 && (
             <p className="jb-body text-[11px] text-zinc-400">
-              🧩 Variantes que se agregan al aprobar: {propuesta.variantes.map(v => `${v.nombre}${v.seguridad === 'alta' ? '' : ' (te queda como sugerencia)'}`).join(' · ')}
+              🧩 Al aprobar, te quedan para revisar estas variantes: {propuesta.variantes.map(v => v.nombre).join(' · ')}
             </p>
           )}
           <FormAlimento form={form} setForm={setForm} />
@@ -799,7 +799,7 @@ function PedidosAtendidosIA() {
       <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
         <span className="jb-body text-xs text-zinc-300">
           🤖 Lo que hizo la IA (7 días) · {lista.length}
-          {lista.some(p => p.propuesta?.variantes_resultado?.some(v => v.estado === 'sugerida')) && <span className="text-amber-400"> · variantes por decidir</span>}
+          {lista.some(p => p.propuesta?.variantes_resultado?.some(v => v.estado === 'sugerida')) && <span className="text-amber-400"> · variantes por revisar</span>}
         </span>
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
@@ -846,7 +846,7 @@ function PedidoIA({ p, onListo }) {
         <p className="jb-body text-xs text-zinc-400 mt-0.5">{p.respuesta || 'Respondido: ya estaba en la app.'}</p>
       )}
       {p.propuesta?.nota && <p className="jb-body text-[11px] text-zinc-500 mt-0.5">🤖 {p.propuesta.nota}</p>}
-      {p.propuesta?.ia_estado !== 'agregado' && p.propuesta?.ia_estado !== 'descartado' && <p className="jb-body text-[11px] text-zinc-500">(Lo aprobaste tú; la IA agregó sus variantes.)</p>}
+      {p.propuesta?.ia_estado !== 'agregado' && p.propuesta?.ia_estado !== 'descartado' && <p className="jb-body text-[11px] text-zinc-500">(Lo aprobaste tú; la IA propuso sus variantes.)</p>}
       {(p.propuesta?.variantes_resultado || []).map((v, i) => <VarianteIA key={i} pedidoId={p.id} v={v} indice={i} onListo={onListo} />)}
       {p.estado === 'agregado' && a && (f ? (
         <div className="flex flex-col gap-2 mt-2">
@@ -876,11 +876,11 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
   const [error, setError] = useState('');
   const n = x => Math.round((Number(x) || 0) * 10) / 10;
   const nombre = v.etiqueta || v.nombre;
-  async function agregar() {
+  async function decidir(accion) {
     setOcupado(true); setError('');
     try {
-      await llamarPedidosAlimentos({ accion: 'agregar_variante', id: pedidoId, indice });
-      await cargarAlimentosExtraDeNuevo();
+      await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
+      if (accion === 'agregar_variante') await cargarAlimentosExtraDeNuevo();
       await onListo();
     } catch (e) { setError(e.message); }
     setOcupado(false);
@@ -888,19 +888,63 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
   return (
     <div className="mt-1.5 pl-3 border-l-2 border-zinc-700">
       <p className="jb-body text-xs text-zinc-300">
-        {v.estado === 'agregada' ? '➕ ' : v.estado === 'sugerida' ? '🤔 ' : '🔎 '}
+        {{ agregada: '➕ ', sugerida: '🧩 ', descartada: '✕ ' }[v.estado] || '🔎 '}
         <span className="text-zinc-100">{nombre}</span>
-        <span className="text-zinc-500"> · variante{v.estado === 'agregada' ? (v.por === 'jonah' ? ' (la agregaste tú)' : ' agregada sola') : v.estado === 'sugerida' ? ' sugerida (la IA no estuvo segura)' : ': ya estaba en la app'}</span>
+        <span className="text-zinc-500"> · variante{{ agregada: v.por === 'jonah' ? ' (la agregaste tú)' : ' agregada', sugerida: ' por revisar', descartada: ' descartada' }[v.estado] || ': ya estaba en la app'}</span>
       </p>
       {v.estado !== 'ya_existia' && v.kcal != null && (
-        <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g)</p>
+        <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+          {n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g){v.unidad ? ` · 1 ${v.unidad} = ${n(v.gramos_unidad)} g` : ''}
+          {v.estado === 'sugerida' && v.cuadra === false && <span className="text-amber-400"> · ⚠️ las calorías no cuadran con los macros</span>}
+        </p>
       )}
       {v.estado === 'sugerida' && (
-        <button disabled={ocupado} onClick={agregar} className="jb-body text-[11px] text-orange-400 underline mt-0.5">
-          {ocupado ? 'Agregando…' : '➕ Agregar para todos'}
-        </button>
+        <div className="flex gap-3 mt-0.5">
+          <button disabled={ocupado} onClick={() => decidir('agregar_variante')} className="jb-body text-[11px] text-orange-400 underline">
+            {ocupado ? 'Un momento…' : '➕ Agregar para todos'}
+          </button>
+          <button disabled={ocupado} onClick={() => decidir('descartar_variante')} className="jb-body text-[11px] text-zinc-400 underline">✕ Descartar</button>
+        </div>
       )}
       {error && <p className="jb-body text-[11px] text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+/* Variantes por revisar: las que propuso la IA al agregar un plato (ej.
+   Jalea de pescado → Jalea mixta). Nadie las está esperando, así que no se
+   agregan solas: Jonah las revisa una vez al día (le llega un aviso). */
+function VariantesPorRevisar() {
+  const [pedidos, setPedidos] = useState(null);
+  const [abierto, setAbierto] = useState(false);
+  async function cargar() {
+    const desde = new Date(Date.now() - 60 * 864e5).toISOString();
+    const { data } = await supabase.from('pedidos_alimentos')
+      .select('id, nombre, propuesta, resuelto_en')
+      .eq('estado', 'agregado').not('propuesta->variantes_resultado', 'is', null)
+      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(200);
+    setPedidos((data || []).filter(p => (p.propuesta?.variantes_resultado || []).some(v => v.estado === 'sugerida')));
+  }
+  useEffect(() => { cargar(); }, []);
+  const total = (pedidos || []).reduce((s, p) => s + p.propuesta.variantes_resultado.filter(v => v.estado === 'sugerida').length, 0);
+  if (!total) return null;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <h2 className="jb-display text-base text-zinc-200">🧩 VARIANTES POR REVISAR · {total}</h2>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
+          <p className="jb-body text-xs text-zinc-500">Al agregar un plato, la IA propone otros de la misma carta (ej. con Jalea de pescado, Jalea mixta). Revisa sus números: "Agregar para todos" lo pone en la app de todos; "Descartar" lo quita de esta lista.</p>
+          {pedidos.map(p => (
+            <div key={p.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <p className="jb-body text-xs text-zinc-400">Por <span className="text-zinc-100 font-semibold">{p.nombre}</span> · {fechaHoraCorta(p.resuelto_en)}</p>
+              {p.propuesta.variantes_resultado.map((v, i) => v.estado === 'sugerida' && <VarianteIA key={i} pedidoId={p.id} v={v} indice={i} onListo={cargar} />)}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -6465,6 +6509,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <PagosPanel />
             <PedidosAlimentosPanel />
+            <VariantesPorRevisar />
             <AlimentosPropiosPanel />
             <RescatePanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />

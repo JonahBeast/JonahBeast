@@ -20,6 +20,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/variantes-diario",
+      "schedule": "10 16 * * *"
+    },
+    {
       "path": "/api/cron/racha-en-riesgo",
       "schedule": "0 1 * * *"
     },

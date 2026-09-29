@@ -40,9 +40,45 @@ export function puntoDePartidaSaldo(movimientos) {
   return { desde, base: base + recargas, ancla };
 }
 
-export function saldoEstimado(movimientos, usosDesde) {
+/* Recarga automática de Anthropic (config → ia_recarga_auto):
+   { activa, umbral, restablecer }: cuando el saldo baja a "umbral", Anthropic
+   lo sube a "restablecer" cobrando a la tarjeta. El estimado aplica la misma
+   regla, así no hace falta anotar cada recarga automática. */
+export const RECARGA_AUTO_POR_DEFECTO = { activa: true, umbral: 10, restablecer: 20 };
+
+export function leerRecargaAuto(valor) {
+  try {
+    const v = typeof valor === 'string' ? JSON.parse(valor) : valor;
+    if (!v) return null;
+    const umbral = Number(v.umbral), restablecer = Number(v.restablecer);
+    if (!(umbral >= 0) || !(restablecer > umbral)) return null;
+    return { activa: v.activa !== false, umbral, restablecer };
+  } catch { return null; }
+}
+
+// Devuelve { saldo, gastado, desde, ancla, recargasAuto: [{ fecha, monto }] } o null.
+export function saldoEstimado(movimientos, usosDesde, recargaAuto = null) {
   const p = puntoDePartidaSaldo(movimientos);
   if (!p) return null;
-  const gastado = (usosDesde || []).filter(u => new Date(u.creado_en) >= new Date(p.desde)).reduce((s, u) => s + costoUsdIA(u), 0);
-  return { saldo: p.base - gastado, gastado, desde: p.desde, ancla: p.ancla };
+  const inicio = new Date(p.desde);
+  // Uso y recargas anotadas, en orden, desde el punto de partida.
+  const recargasAnotadas = (movimientos || []).filter(m => m.tipo === 'recarga' && new Date(m.fecha) > inicio && !(p.ancla && new Date(m.fecha) <= new Date(p.ancla.fecha)));
+  const eventos = [
+    ...(usosDesde || []).filter(u => new Date(u.creado_en) >= inicio).map(u => ({ t: new Date(u.creado_en), costo: costoUsdIA(u) })),
+    ...recargasAnotadas.map(m => ({ t: new Date(m.fecha), recarga: Number(m.monto_usd) })),
+  ].sort((a, b) => a.t - b.t);
+  const recargasPrevias = recargasAnotadas.reduce((s, m) => s + Number(m.monto_usd), 0);
+  let saldo = p.base - recargasPrevias; // las recargas anotadas se suman en su momento
+  let gastado = 0;
+  const recargasAuto = [];
+  const auto = recargaAuto && recargaAuto.activa ? recargaAuto : null;
+  for (const e of eventos) {
+    if (e.recarga) { saldo += e.recarga; continue; }
+    saldo -= e.costo; gastado += e.costo;
+    if (auto && saldo <= auto.umbral) {
+      recargasAuto.push({ fecha: e.t.toISOString(), monto: auto.restablecer - saldo });
+      saldo = auto.restablecer;
+    }
+  }
+  return { saldo, gastado, desde: p.desde, ancla: p.ancla, recargasAuto };
 }

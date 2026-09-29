@@ -10,7 +10,7 @@
 // Cron en vercel.json: "0 13 * * *" (13:00 UTC = 8:00 Perú)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
-import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD } from '../../src/saldoIA.js';
+import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from '../../src/saldoIA.js';
 
 const NUMEROS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
 const enLetras = n => NUMEROS[n] || String(n);
@@ -66,14 +66,24 @@ export default async function handler(req, res) {
 
     // Saldo de la IA (Anthropic), estimado con lo que Jonah anotó en el panel.
     let saldoIA = null;
+    let recargaAyer = 0;
+    const reglaAuto = { ...RECARGA_AUTO_POR_DEFECTO };
     try {
-      const { data: movs } = await supabase.from('ia_saldo').select('tipo, monto_usd, fecha').range(0, 499);
+      const [{ data: movs }, { data: cfg }] = await Promise.all([
+        supabase.from('ia_saldo').select('tipo, monto_usd, fecha').range(0, 499),
+        supabase.from('config').select('value').eq('key', 'ia_recarga_auto').maybeSingle(),
+      ]);
+      Object.assign(reglaAuto, (cfg?.value && leerRecargaAuto(cfg.value)) || {});
       const p = puntoDePartidaSaldo(movs || []);
       if (p) {
         const { data: usos } = await supabase.from('ia_uso')
           .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
           .gte('creado_en', p.desde).range(0, 19999);
-        saldoIA = saldoEstimado(movs || [], usos || [])?.saldo ?? null;
+        const est = saldoEstimado(movs || [], usos || [], reglaAuto);
+        saldoIA = est?.saldo ?? null;
+        // Recargas automáticas de las últimas 24 h (se cobran a la tarjeta).
+        const hace24 = Date.now() - 864e5;
+        recargaAyer = (est?.recargasAuto || []).filter(r => new Date(r.fecha).getTime() >= hace24).reduce((s, r) => s + r.monto, 0);
       }
     } catch {}
 
@@ -86,7 +96,10 @@ export default async function handler(req, res) {
     if (quietos) hoy.push(`${quietos === 1 ? 'un alumno lleva' : `${enLetras(quietos)} alumnos llevan`} días sin registrar`);
     if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
-    if (saldoIA !== null && saldoIA < SALDO_IA_MINIMO_USD) {
+    if (recargaAyer > 0) {
+      partes.push(`🔄 Anthropic habría recargado unos US$ ${recargaAyer.toFixed(2)} a tu tarjeta (saldo de la IA ≈ US$ ${saldoIA.toFixed(2)}).`);
+    }
+    if (!reglaAuto.activa && saldoIA !== null && saldoIA < SALDO_IA_MINIMO_USD) {
       partes.push(`⚠️ El saldo de la IA está bajo: quedan unos US$ ${Math.max(saldoIA, 0).toFixed(2)}. Recárgalo en Anthropic para que las fotos y Jarvis sigan funcionando.`);
     }
 

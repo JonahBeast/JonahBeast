@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { opcionesUsoMenu } from './menuDia.js';
-import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD } from './saldoIA.js';
+import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
   CATEGORIAS_TIENDA,
@@ -931,14 +931,21 @@ function SaldoIAPanel() {
   const [calc, setCalc] = useState(null);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState(null); // { tipo, monto }
+  const [auto, setAuto] = useState(RECARGA_AUTO_POR_DEFECTO); // regla de recarga automática de Anthropic
+  const [editAuto, setEditAuto] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const tc = SUPUESTOS_RENTABILIDAD.tipoCambio;
 
   async function cargar() {
     try {
-      const { data: m, error: e } = await supabase.from('ia_saldo').select('id, tipo, monto_usd, fecha, nota').order('fecha', { ascending: false }).limit(50);
+      const [{ data: m, error: e }, { data: cfg }] = await Promise.all([
+        supabase.from('ia_saldo').select('id, tipo, monto_usd, fecha, nota').order('fecha', { ascending: false }).limit(50),
+        supabase.from('config').select('value').eq('key', 'ia_recarga_auto').maybeSingle(),
+      ]);
       if (e) throw e;
+      const regla = (cfg?.value && leerRecargaAuto(cfg.value)) || RECARGA_AUTO_POR_DEFECTO;
+      setAuto(regla);
       setMovs(m || []);
       const p = puntoDePartidaSaldo(m || []);
       const desdeSemana = new Date(Date.now() - 7 * 864e5).toISOString();
@@ -946,7 +953,7 @@ function SaldoIAPanel() {
       const { data: usos } = await supabase.from('ia_uso')
         .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
         .gte('creado_en', desde).range(0, 19999);
-      const est = saldoEstimado(m || [], usos || []);
+      const est = saldoEstimado(m || [], usos || [], regla);
       const semana = (usos || []).filter(u => new Date(u.creado_en) >= new Date(desdeSemana)).reduce((s, u) => s + costoUsdIA(u), 0);
       setCalc({ est, porDia: semana / 7 });
     } catch (e) { setError('No se pudo cargar: ' + (e?.message || '')); setMovs([]); }
@@ -966,9 +973,24 @@ function SaldoIAPanel() {
     setOcupado(false);
   }
 
+  async function guardarAuto() {
+    const umbral = Number(editAuto.umbral), restablecer = Number(editAuto.restablecer);
+    if (editAuto.activa && !(umbral >= 0 && restablecer > umbral)) return setError('El monto al que se restablece debe ser mayor que el umbral.');
+    setOcupado(true); setError('');
+    try {
+      const { error: e } = await supabase.from('config').upsert({ key: 'ia_recarga_auto', value: JSON.stringify({ activa: editAuto.activa, umbral, restablecer }) });
+      if (e) throw e;
+      setEditAuto(null);
+      await cargar();
+    } catch (e) { setError('No se pudo guardar: ' + (e?.message || '')); }
+    setOcupado(false);
+  }
+
   const est = calc?.est;
-  const dias = est && calc.porDia > 0 ? Math.floor(est.saldo / calc.porDia) : null;
-  const bajo = est && est.saldo < SALDO_IA_MINIMO_USD;
+  // Con recarga automática el saldo no baja del umbral: los días se cuentan hasta la próxima recarga.
+  const dias = est && calc.porDia > 0 ? Math.floor((est.saldo - (auto.activa ? auto.umbral : 0)) / calc.porDia) : null;
+  const bajo = est && !auto.activa && est.saldo < SALDO_IA_MINIMO_USD;
+  const recargado = (est?.recargasAuto || []).reduce((s, r) => s + r.monto, 0);
   const usd = v => `US$ ${v.toFixed(2)}`;
   return (
     <div className={`bg-zinc-900 border rounded-2xl overflow-hidden ${bajo ? 'border-amber-600/60' : 'border-zinc-800'}`}>
@@ -978,7 +1000,7 @@ function SaldoIAPanel() {
           <p className="jb-body text-xs text-zinc-400 mt-0.5 tabular-nums">
             {movs === null ? 'Cargando…'
               : !est ? 'Anota tu saldo de Anthropic para empezar el control.'
-              : <>Estimado: <span className={bajo ? 'text-amber-400 font-semibold' : 'text-zinc-100 font-semibold'}>{usd(est.saldo)}</span> (≈ S/ {(est.saldo * tc).toFixed(2)}){dias !== null ? ` · alcanza para unos ${Math.max(dias, 0)} días` : ''}</>}
+              : <>Estimado: <span className={bajo ? 'text-amber-400 font-semibold' : 'text-zinc-100 font-semibold'}>{usd(est.saldo)}</span> (≈ S/ {(est.saldo * tc).toFixed(2)}){dias !== null ? (auto.activa ? ` · próxima recarga automática en unos ${Math.max(dias, 0)} días` : ` · alcanza para unos ${Math.max(dias, 0)} días`) : ''}</>}
           </p>
         </div>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
@@ -986,7 +1008,9 @@ function SaldoIAPanel() {
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <p className="jb-body text-xs text-zinc-500">
-            Es la IA de las fotos, Jarvis, los pedidos de alimentos y el asistente de WhatsApp. Anthropic no deja ver el saldo desde aquí: anota cada recarga y, cuando entres a su página (console.anthropic.com → Billing), anota el saldo real para corregir el estimado. Si baja de {usd(SALDO_IA_MINIMO_USD)}, Jarvis te avisa en el informe de la mañana. Si llega a cero, las fotos, Jarvis y los pedidos automáticos dejan de funcionar hasta que recargues.
+            Es la IA de las fotos, Jarvis, los pedidos de alimentos y el asistente de WhatsApp. Anthropic no deja ver el saldo desde aquí: el panel parte del saldo real que anotes y resta lo que gasta la IA.{auto.activa
+              ? ` Con tu recarga automática (cuando baja a ${usd(auto.umbral)} sube a ${usd(auto.restablecer)}), el panel la aplica solo: no hace falta anotarla. Jarvis te cuenta en el informe de la mañana cuando hubo una recarga.`
+              : ` Anota cada recarga. Si baja de ${usd(SALDO_IA_MINIMO_USD)}, Jarvis te avisa en el informe de la mañana; si llega a cero, las fotos, Jarvis y los pedidos automáticos dejan de funcionar.`} De vez en cuando, anota el saldo real que ves en Anthropic para que el estimado siga casi exacto.
           </p>
           {est && (
             <div className="grid grid-cols-2 gap-2">
@@ -999,6 +1023,38 @@ function SaldoIAPanel() {
                 <p className="jb-display text-lg text-zinc-100 tabular-nums">{usd(calc.porDia)} / día</p>
               </div>
             </div>
+          )}
+          {est && auto.activa && (
+            <p className="jb-body text-xs text-zinc-400">
+              🔄 Recargas automáticas estimadas desde {fechaHoraCorta(est.desde)}: <span className="text-zinc-100">{est.recargasAuto.length}</span>
+              {est.recargasAuto.length > 0 && <> · {usd(recargado)} cobrados a tu tarjeta (≈ S/ {(recargado * tc).toFixed(2)}) · última: {fechaHoraCorta(est.recargasAuto[est.recargasAuto.length - 1].fecha)}</>}
+            </p>
+          )}
+          {editAuto ? (
+            <div className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <label className="jb-body text-xs text-zinc-300 flex items-center gap-2">
+                <input type="checkbox" checked={editAuto.activa} onChange={e => setEditAuto(v => ({ ...v, activa: e.target.checked }))} />
+                Tengo la recarga automática activada en Anthropic
+              </label>
+              {editAuto.activa && (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="jb-body text-[11px] text-zinc-500">Cuando el saldo baja a (US$)
+                    <input type="number" inputMode="decimal" value={editAuto.umbral} onChange={e => setEditAuto(v => ({ ...v, umbral: e.target.value }))} className={inputCls + ' text-sm mt-0.5'} />
+                  </label>
+                  <label className="jb-body text-[11px] text-zinc-500">Lo sube a (US$)
+                    <input type="number" inputMode="decimal" value={editAuto.restablecer} onChange={e => setEditAuto(v => ({ ...v, restablecer: e.target.value }))} className={inputCls + ' text-sm mt-0.5'} />
+                  </label>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button disabled={ocupado} onClick={guardarAuto} className={btnPrimary + ' text-sm py-2 flex-1'}>{ocupado ? <Loader2 size={15} className="animate-spin" /> : 'Guardar'}</button>
+                <button onClick={() => setEditAuto(null)} className={btnGhost + ' text-sm py-2'}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setEditAuto({ ...auto })} className="jb-body text-[11px] text-zinc-400 underline self-start">
+              ⚙️ Recarga automática: {auto.activa ? `activada (baja a ${usd(auto.umbral)} → sube a ${usd(auto.restablecer)})` : 'desactivada'} · cambiar
+            </button>
           )}
           {form ? (
             <div className="flex flex-col gap-2 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
@@ -1013,7 +1069,7 @@ function SaldoIAPanel() {
           ) : (
             <div className="flex flex-wrap gap-2">
               <button onClick={() => setForm({ tipo: 'saldo_real', monto: '' })} className={btnPrimary + ' text-xs py-2 px-3'}>📌 Anotar saldo real</button>
-              <button onClick={() => setForm({ tipo: 'recarga', monto: '' })} className={btnGhost + ' text-xs py-2 px-3'}>➕ Anotar recarga</button>
+              <button onClick={() => setForm({ tipo: 'recarga', monto: '' })} className={btnGhost + ' text-xs py-2 px-3'}>➕ Anotar recarga manual</button>
             </div>
           )}
           {movs?.length > 0 && (

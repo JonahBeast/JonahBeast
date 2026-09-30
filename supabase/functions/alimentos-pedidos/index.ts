@@ -55,7 +55,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ALIMENTOS_APP, CLAVES_APP, GRUPOS_APP, USOS_MENU } from "./alimentos.ts";
 
-const MODELO = "claude-opus-5";
+// Jonah calculando desde el panel: la IA más fuerte. Lo automático (pedidos
+// de alumnos y revisión de sus alimentos) usa una ~2.5 veces más barata; si
+// no está segura, igual queda para que Jonah lo revise.
+const MODELO = "claude-opus-5-5";
+const MODELO_AUTOMATICO = "claude-sonnet-5-5";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const AVISO_SECRETO = Deno.env.get("NUEVO_ALUMNO_SECRET") || "";
 const GRAPH = "https://graph.facebook.com/v23.0";
@@ -184,13 +188,13 @@ function mensajePorPartes(nombres: string[]) {
   return `Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${nombres.join(" + ")}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`;
 }
 
-async function calcular(nombre: string, id?: number, tipo = "alimento") {
+async function calcular(nombre: string, id?: number, tipo = "alimento", modelo = MODELO) {
   if (!nombre) throw new ErrorDeDatos("Escribe el nombre del alimento.");
   const extras = await nombresExtra();
   const lista = [...ALIMENTOS_APP, ...extras].join("\n");
 
   const cuerpo = JSON.stringify({
-    model: MODELO,
+    model: modelo,
     max_tokens: 16000,
     output_config: {
       effort: "medium",
@@ -199,7 +203,6 @@ async function calcular(nombre: string, id?: number, tipo = "alimento") {
     fallbacks: "default",
     system: [{
       type: "text",
-      cache_control: { type: "ephemeral" },
       text: `Eres nutricionista y armas la base de alimentos de Jonah Beast Fuel, una app peruana de nutrición. Te piden agregar un alimento o plato. Calcula sus macros POR CADA 100 g, tal como se come (cocido si se come cocido), con porciones y recetas típicas de Perú. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS) y, si no está, USDA o recetas caseras promedio.
 
 Reglas:
@@ -411,7 +414,7 @@ async function opinionIA(nombre: string, antes: { kcal: number; proteina: number
   const extras = await nombresExtra();
   const lista = [...ALIMENTOS_APP, ...extras].join("\n");
   const cuerpo = JSON.stringify({
-    model: MODELO,
+    model: MODELO_AUTOMATICO,
     max_tokens: 16000,
     output_config: {
       effort: "medium",
@@ -420,7 +423,6 @@ async function opinionIA(nombre: string, antes: { kcal: number; proteina: number
     fallbacks: "default",
     system: [{
       type: "text",
-      cache_control: { type: "ephemeral" },
       text: `Eres nutricionista de Jonah Beast Fuel, una app peruana de nutrición. Un alumno creó su propio alimento escribiendo su nombre y sus números POR CADA 100 g (muchas veces copiados de la etiqueta del producto). Revisa si esos números están bien. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS), USDA y productos comunes en Perú.
 
 Veredictos:
@@ -490,6 +492,17 @@ async function atenderPedidosPendientes() {
   return resultado;
 }
 
+// Busca, sin IA, alimentos de la app con el mismo nombre que el pedido
+// (sin importar mayúsculas, tildes ni el estado entre paréntesis: "arroz
+// verde" → "Arroz verde (cocido)"). Devuelve hasta 3 nombres, o [] si no hay.
+const normalizar = (t: string) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+async function igualesEnApp(nombre: string) {
+  const q = normalizar(nombre);
+  if (!q) return [];
+  const todos = [...ALIMENTOS_APP, ...await nombresExtra()];
+  return [...new Set(todos.filter((n) => normalizar(n) === q || normalizar(n.replace(/\s*\([^()]*\)$/, "")) === q))].slice(0, 3);
+}
+
 // Etiqueta (como en la lista de la app) → nombre para mostrarle al alumno.
 async function existeEnApp(etiqueta: string) {
   const e = etiqueta.trim().toLowerCase();
@@ -503,9 +516,18 @@ async function existeEnApp(etiqueta: string) {
 async function atenderPedido(pedido: any) {
   const soltar = () => supabase.from("pedidos_alimentos").update({ propuesta: null }).eq("id", pedido.id)
     .eq("estado", "pendiente").eq("propuesta->>ia_estado", "revisando");
+  // 0) Si el nombre ya está tal cual en la app, se responde sin gastar IA.
+  const iguales = await igualesEnApp(pedido.nombre);
+  if (iguales.length) {
+    const ahora0 = new Date().toISOString();
+    await supabase.from("pedidos_alimentos").update({ propuesta: { ya_existe: iguales[0], sin_ia: true, ia_estado: "descartado", ia_en: ahora0 } }).eq("id", pedido.id);
+    const lista = iguales.map((n) => `"${n}"`).join(" o ");
+    const r = await descartar(pedido.id, `Ya estaba en la app como ${lista}. Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+    return { estado: "descartado", ya_existe: iguales[0], sin_ia: true, avisos: r.avisos };
+  }
   let propuesta: any;
   try {
-    propuesta = (await calcular(pedido.nombre, undefined, "alimento_pedido_auto")).propuesta;
+    propuesta = (await calcular(pedido.nombre, undefined, "alimento_pedido_auto", MODELO_AUTOMATICO)).propuesta;
   } catch (e) {
     await soltar(); // se reintenta en la siguiente tarea automática
     throw e;

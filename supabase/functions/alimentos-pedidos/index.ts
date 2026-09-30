@@ -130,6 +130,10 @@ const ESQUEMA_PROPUESTA = {
   type: "object",
   properties: {
     ya_existe: { type: "string", description: "Nombre EXACTO de un alimento de la lista que ya es lo mismo que lo pedido, o \"\" si no hay." },
+    por_partes: {
+      type: "array", items: { type: "string" },
+      description: "Si lo pedido es una mezcla casera de ingredientes que YA están cada uno en la lista y cuyas cantidades cambian según quien lo prepara (ej. avena con leche y whey, batido de plátano con proteína, pan con palta y huevo): los nombres EXACTOS de esos ingredientes copiados de la lista (2 a 5). Lista vacía si es un plato con receta estándar (restaurante, comida típica) o si falta algún ingrediente en la lista.",
+    },
     grupo: { type: "string", enum: GRUPOS_APP },
     nombre: { type: "string", description: "Nombre corto y claro, como los de la lista (ej. \"Plátano bellaco\", \"Tallarines rojos con carne molida\")." },
     estado: { type: "string", description: "Cómo se come: \"Cocido\", \"Crudo\", \"Frito\", \"Sancochado\"… o \"-\" si es un plato preparado, bebida o producto listo." },
@@ -170,9 +174,15 @@ const ESQUEMA_PROPUESTA = {
     },
     menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes"],
   additionalProperties: false,
 };
+
+// Mensaje para quien pidió una mezcla casera que ya se puede registrar por
+// partes (misma frase que propone el panel al descartar).
+function mensajePorPartes(nombres: string[]) {
+  return `Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${nombres.join(" + ")}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`;
+}
 
 async function calcular(nombre: string, id?: number, tipo = "alimento") {
   if (!nombre) throw new ErrorDeDatos("Escribe el nombre del alimento.");
@@ -195,13 +205,14 @@ async function calcular(nombre: string, id?: number, tipo = "alimento") {
 Reglas:
 - Números por 100 g, con un decimal como máximo. kcal ≈ 4·proteína + 4·carbos + 9·grasa (acepta un pequeño desvío por fibra o alcohol).
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
+- Mezclas caseras (por_partes): si lo pedido es una combinación que cada persona arma a su gusto con ingredientes que YA están en la lista (ej. "avena con proteína" = avena en hojuelas + leche + proteína en polvo; "batido de plátano con whey"), pon esos ingredientes en "por_partes" con su nombre exacto. Así el alumno lo registra por partes con sus cantidades y la app no se llena de mezclas personales. NO lo uses para platos con receta estándar de restaurante o comida típica (lomo saltado, ají de gallina, jugo surtido de juguería): esos se agregan como plato. Si falta algún ingrediente en la lista, deja "por_partes" vacío. Igual calcula los macros de la mezcla típica, por si Jonah decide agregarla.
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
 - En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
 - Menú del día (menu_uso): la app arma menús para bajar grasa con estos usos:
 ${USOS_MENU.map((u) => `  · ${u.valor} = ${u.texto}`).join("\n")}
   Sugiere uno SOLO si el alimento encaja de verdad en un menú saludable con porción controlada (a la plancha, sancochado, al horno, guisos caseros). Frituras, comida rápida, postres, dulces, bebidas azucaradas y alcohol → "". Es solo una sugerencia: la revisa Jonah.
-- Variantes: piensa como la carta de un restaurante peruano. Si piden "Jalea de pescado", en la carta también está "Jalea mixta"; si piden "Ceviche de pescado", "Ceviche mixto". Máximo 3, solo las comunes de verdad (no inventes), que no estén en la lista y con macros claramente distintos del plato pedido (si serían casi iguales, no la pongas). Cada una con sus números por 100 g, su medida casera y su propia seguridad. Si el pedido ya existe o no es un plato con variantes, deja la lista vacía.
+- Variantes: piensa como la carta de un restaurante peruano. Si piden "Jalea de pescado", en la carta también está "Jalea mixta"; si piden "Ceviche de pescado", "Ceviche mixto". Máximo 3, solo las comunes de verdad (no inventes), que no estén en la lista y con macros claramente distintos del plato pedido (si serían casi iguales, no la pongas). Cada una con sus números por 100 g, su medida casera y su propia seguridad. Si el pedido ya existe, va por partes o no es un plato con variantes, deja la lista vacía.
 
 Alimentos que ya están en la app (nombre y estado):
 ${lista}`,
@@ -220,6 +231,7 @@ ${lista}`,
   propuesta.variantes.forEach(redondear);
   const usoValido = (u: unknown) => VALORES_MENU.includes(String(u || "")) ? String(u || "") : "";
   propuesta.menu_uso = usoValido(propuesta.menu_uso);
+  propuesta.por_partes = (Array.isArray(propuesta.por_partes) ? propuesta.por_partes : []).map((n: unknown) => String(n || "").trim()).filter(Boolean).slice(0, 5);
   propuesta.variantes.forEach((v: any) => { v.menu_uso = usoValido(v.menu_uso); });
 
   if (id) {
@@ -512,8 +524,21 @@ async function atenderPedido(pedido: any) {
     }
   }
 
+  // 1b) Mezcla casera con ingredientes que ya están en la app: se le dice
+  // que la registre por partes (no se llena la app de mezclas personales).
+  if (segura && !propuesta.ya_existe && propuesta.por_partes.length >= 2) {
+    const nombres = await Promise.all(propuesta.por_partes.map((n: string) => existeEnApp(n)));
+    if (nombres.every(Boolean)) {
+      const partes = nombres as string[];
+      await supabase.from("pedidos_alimentos").update({ propuesta: guardar("descartado", { por_partes: partes, variantes: [] }) }).eq("id", pedido.id);
+      const r = await descartar(pedido.id, mensajePorPartes(partes));
+      return { estado: "descartado", por_partes: partes, avisos: r.avisos };
+    }
+    propuesta.por_partes = []; // algún ingrediente no está: sigue como pedido normal
+  }
+
   // 2) No existe y la IA está segura de sus números: se agrega para todos.
-  if (segura && !propuesta.ya_existe && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+  if (segura && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
     try {
       await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
       const r = await aprobar(propuesta, pedido.id);

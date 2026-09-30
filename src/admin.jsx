@@ -702,6 +702,8 @@ function PedidoAlimento({ pedido, onResuelto }) {
   function abrirDescarte() {
     setRespuesta(propuesta?.ya_existe
       ? `Ya estaba en la app como "${propuesta.ya_existe}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`
+      : propuesta?.por_partes?.length
+      ? `Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${propuesta.por_partes.join(' + ')}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`
       : `No pudimos identificar "${pedido.nombre}". Si nos das más detalles (cómo se prepara o de qué marca es), lo agregamos 🙌`);
     setDescartando(true);
   }
@@ -741,6 +743,11 @@ function PedidoAlimento({ pedido, onResuelto }) {
           {propuesta.ya_existe && (
             <p className="jb-body text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-2">
               Parece que ya está en la app como <b>{propuesta.ya_existe}</b>. Si es lo mismo, descártalo y dile a quien lo pidió que lo busque con ese nombre.
+            </p>
+          )}
+          {propuesta.por_partes?.length > 0 && !propuesta.ya_existe && (
+            <p className="jb-body text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded-lg p-2">
+              🧩 Se puede registrar por partes: <b>{propuesta.por_partes.join(' + ')}</b>. Si es una mezcla que cada uno arma a su gusto, descártalo: el mensaje ya le explica cómo.
             </p>
           )}
           {propuesta.nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {propuesta.nota}</p>}

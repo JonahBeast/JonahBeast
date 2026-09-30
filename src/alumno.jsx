@@ -7148,7 +7148,12 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         </div>
 
         <div className="flex items-center justify-center gap-5 mb-3">
-          <BotonPaso grande etiqueta="Menos" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, -1) })}>−</BotonPaso>
+          <BotonPaso grande etiqueta="Menos" onClick={() => {
+            const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
+            // En lo mínimo, "−" lo quita (cero).
+            if (nueva >= Number(porcion.qty)) { vibrar(15); removeEntry(meal, en.id); onCerrar(); showToast(`🗑️ Quitaste ${nombreAlimento(food)}`); return; }
+            fijar({ unit: porcion.unit, qty: nueva });
+          }}>−</BotonPaso>
           <div className="text-center min-w-[120px]">
             <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{porcion.qty}</p>
             <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
@@ -7709,7 +7714,13 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                         </span>
                       </button>
                       <div className="flex items-center gap-1 shrink-0">
-                        <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, -1), grams: undefined })}>−</BotonPaso>
+                        <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => {
+                          // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con
+                          // pollo separado, pero sin lechuga.
+                          const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
+                          if (nueva >= Number(porcion.qty)) { vibrar(15); removeEntry(meal, en.id); showToast(`🗑️ Quitaste ${nombreAlimento(food)}`); return; }
+                          updateEntry(meal, en.id, { unit: porcion.unit, qty: nueva, grams: undefined });
+                        }}>−</BotonPaso>
                         <button type="button" onClick={() => setEditando({ meal, id: en.id })}
                           className="jb-body text-[11px] text-zinc-200 text-center w-[58px] leading-tight tabular-nums">
                           {textoPorcion(porcion)}

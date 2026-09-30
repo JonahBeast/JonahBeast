@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { opcionesUsoMenu } from './menuDia.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -6766,6 +6767,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'hoy' && (
           <>
             <PagosPanel />
+            <ListaCarinoPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
             <SaldoIAPanel />
@@ -7213,6 +7215,67 @@ function textoHoras(h) {
 function ordenMedias(h) {
   if (h === null || h === undefined) return 1e9;
   return h < 3 ? 1e6 + h : h;
+}
+
+/* 💛 LISTA DE CARIÑO: las (como mucho) 3 personas a las que hoy más les
+   haría bien un mensaje de Jonah, con el mensaje listo (src/listaCarino.js).
+   Al tocar "Escribirle" se anota, y no vuelve a salir en 7 días. */
+function ListaCarinoPanel() {
+  const [lista, setLista] = useState(null);
+  const [escritos, setEscritos] = useState({});
+  const hoy = todayISO();
+
+  useEffect(() => {
+    let cancelado = false;
+    cargarDatosCarino(supabase, hoy)
+      .then(d => { if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, hoyISO: hoy })); } })
+      .catch(() => { if (!cancelado) setLista([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  async function anotar(username) {
+    const nuevos = { ...escritos, [username]: hoy };
+    // Solo se guardan los últimos 30 días, para que no crezca sin fin.
+    Object.keys(nuevos).forEach(u => { if (nuevos[u] < addDaysISO(hoy, -30)) delete nuevos[u]; });
+    setEscritos(nuevos);
+    try { await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) }); } catch {}
+  }
+
+  if (!lista) return null;
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
+      <h2 className="jb-display text-base text-zinc-200">💛 TU LISTA DE CARIÑO DE HOY</h2>
+      <p className="jb-body text-xs text-zinc-500 mt-0.5 mb-3">
+        {lista.length
+          ? 'Un mensaje tuyo hoy a estas personas vale más que cualquier aviso automático. Toca, revisa y envía.'
+          : 'Hoy no hay a quién escribirle en especial. ¡Buen día! 🙌'}
+      </p>
+      <div className="flex flex-col gap-2">
+        {lista.map(x => {
+          const listo = escritos[x.username] === hoy;
+          return (
+            <div key={x.username} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}</p>
+                  <p className="jb-body text-[11px] text-orange-300">{x.motivo}</p>
+                </div>
+                {listo ? (
+                  <span className="jb-body text-xs text-emerald-400 shrink-0">✅ Escrito</span>
+                ) : (
+                  <a href={enlaceWhatsApp(x.telefono, x.mensaje)} target="_blank" rel="noreferrer" onClick={() => anotar(x.username)}
+                    className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
+                    <MessageCircle size={14} /> Escribirle
+                  </a>
+                )}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5 leading-snug">“{x.mensaje}”</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 /* SIN AVISOS: alumnos vigentes que no reciben notificaciones, con el

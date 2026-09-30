@@ -4,13 +4,15 @@
 // un aviso corto con lo del día: lo que entró ayer, los pagos por revisar,
 // las pruebas gratis que vencen hoy o mañana, los alumnos que pagan y
 // dejaron de registrar, los alumnos sin avisos (nuevos de la semana; los
-// lunes, todos) y los alimentos por revisar (variantes y menú del día
+// lunes, todos), la lista de cariño (a quién escribirle hoy en persona:
+// src/listaCarino.js) y los alimentos por revisar (variantes y menú del día
 // que propuso la IA) y el saldo de la IA si quedó bajo (tabla ia_saldo).
 // Si no hay nada que valga la pena, no manda nada.
 //
 // Cron en vercel.json: "0 13 * * *" (13:00 UTC = 8:00 Perú)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
+import { cargarDatosCarino, armarListaCarino } from '../../src/listaCarino.js';
 import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from '../../src/saldoIA.js';
 
 const NUMEROS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
@@ -115,6 +117,14 @@ export default async function handler(req, res) {
     if (sinAvisos) hoy.push(`${sinAvisos === 1 ? 'un alumno' : `${enLetras(sinAvisos)} alumnos`}${esLunes ? '' : ' nuevos'} sin avisos (en "Sin avisos" tienes el mensaje listo para ayudarlos)`);
     if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
+    // 💛 Lista de cariño (misma que el panel: src/listaCarino.js).
+    try {
+      const carino = armarListaCarino({ ...(await cargarDatosCarino(supabase, hoyISO)), hoyISO });
+      if (carino.length) {
+        const quien = carino.map(c => `${String(c.nombre).trim().split(/\s+/)[0]} (${c.motivo.replace(/^\S+\s/, '').toLowerCase()})`);
+        partes.push(`💛 Escríbele hoy a: ${quien.join(', ')}. El mensaje está listo en tu panel → HOY.`);
+      }
+    } catch (e) { console.error('lista de cariño:', e?.message); }
     if (recargaAyer > 0) {
       partes.push(`🔄 Anthropic habría recargado unos US$ ${recargaAyer.toFixed(2)} a tu tarjeta (saldo de la IA ≈ US$ ${saldoIA.toFixed(2)}).`);
     }

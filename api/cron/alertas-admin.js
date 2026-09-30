@@ -4,7 +4,9 @@
 // puede esperar al informe de las 8am:
 //   - un pago nuevo por revisar (Yape/Plin/transferencia) que entró en la
 //     última hora: el alumno espera su acceso;
-//   - un pago que cumplió 12 horas esperando revisión en la última hora.
+//   - un pago que cumplió 12 horas esperando revisión en la última hora;
+//   - la conexión del WhatsApp del asistente (dura 60 días) vence en 7 días
+//     o menos, o ya venció: una vez al día, a las 9am.
 // De noche (10pm a 7am, hora Perú) no avisa: lo pendiente sale en el
 // informe de la mañana.
 //
@@ -51,6 +53,17 @@ export default async function handler(req, res) {
           ? `${nombre(atrasados[0])} sigue esperando que revises su pago de ${soles(atrasados[0])}. Aún no tiene acceso.`
           : `${atrasados.length} pagos llevan más de 12 horas esperando: ${atrasados.map(nombre).join(', ')}.`,
       });
+    }
+    if (hora === 9) {
+      const { data: wa } = await supabase.from('whatsapp_cuenta').select('conectado_en, token').eq('id', 1).maybeSingle();
+      if (wa?.token && wa.conectado_en) {
+        const dias = Math.ceil((new Date(wa.conectado_en).getTime() + 60 * 24 * HORA_MS - ahora) / (24 * HORA_MS));
+        if (dias <= 0) {
+          avisos.push({ title: '⚠️ WhatsApp desconectado', body: 'La conexión de tu WhatsApp venció: el asistente ya no responde. Entra al panel → WHATSAPP → Conectar mi WhatsApp.' });
+        } else if (dias <= 7) {
+          avisos.push({ title: '📱 Renueva tu WhatsApp', body: `La conexión del asistente de WhatsApp vence en ${dias} ${dias === 1 ? 'día' : 'días'}. Renuévala en el panel → WHATSAPP → Conectar mi WhatsApp.` });
+        }
+      }
     }
     if (!avisos.length) return res.status(200).json({ ok: true, enviado: false, motivo: 'nada nuevo' });
 

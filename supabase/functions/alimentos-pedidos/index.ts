@@ -495,7 +495,7 @@ async function atenderPedidosPendientes() {
 // Busca, sin IA, alimentos de la app con el mismo nombre que el pedido
 // (sin importar mayúsculas, tildes ni el estado entre paréntesis: "arroz
 // verde" → "Arroz verde (cocido)"). Devuelve hasta 3 nombres, o [] si no hay.
-const normalizar = (t: string) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const normalizar = (t: string) => String(t || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 async function igualesEnApp(nombre: string) {
   const q = normalizar(nombre);
   if (!q) return [];

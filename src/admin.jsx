@@ -606,10 +606,12 @@ function FormAlimento({ form, setForm }) {
         </label>
       </div>
       <p className="jb-body text-[11px] text-zinc-500 mt-1">Por cada 100 g:</p>
-      <div className="grid grid-cols-5 gap-1.5">
+      {/* En el celular van de 3 en 3: de 5 en 5 las casillas quedaban tan
+          angostas que "96" se veía "9". */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
         {[['kcal', 'Kcal'], ['proteina', 'Prot.'], ['carbos', 'Carbos'], ['grasa', 'Grasa'], ['fibra', 'Fibra']].map(([k, t]) => (
-          <label key={k} className="jb-body text-[11px] text-zinc-500">{t}
-            <input type="number" inputMode="decimal" min="0" step="0.1" value={form[k]} onChange={campo(k)} className={inputCls + ' w-full text-sm mt-0.5 px-2 tabular-nums'} />
+          <label key={k} className="jb-body text-[11px] text-zinc-500 min-w-0">{t}
+            <input type="number" inputMode="decimal" min="0" step="0.1" value={form[k]} onChange={campo(k)} className={inputCls.replace('px-3', 'px-1.5') + ' w-full min-w-0 text-sm mt-0.5 text-center tabular-nums'} />
           </label>
         ))}
       </div>

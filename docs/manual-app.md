@@ -179,7 +179,8 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 2. "¿QUIERES QUE TE ACOMPAÑE DE CERCA?" → WhatsApp (9 dígitos) → "Guardar y seguir".
 3. "ACTIVA TUS NOTIFICACIONES" → "Activar notificaciones" (si lo rechaza, igual puede seguir con "Continuar").
 4. Explicación de los 3 pasos (Tus datos, Tu objetivo, Tus comidas) y de la rutina: registrar todos los días, usar «¿Qué puedo comer?», pesarse cada domingo y cada 2 semanas medirse y tomarse fotos.
-5. **"¡Empecemos!"** (también se puede "Saltar y empezar").
+5. **"GRACIAS POR CONFIAR EN MÍ, [NOMBRE]"** (firmado "— JONAH BEAST"): "Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪". Lo ven todos, también quien toca "Saltar y empezar" (ese botón lleva directo a esta pantalla).
+6. **"¡Empecemos!"**.
 
 Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**.
 

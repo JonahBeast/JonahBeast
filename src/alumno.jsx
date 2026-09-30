@@ -4582,6 +4582,13 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         ['Cada 2 semanas', 'Mídete y toma tus fotos'],
       ],
     },
+    // Cierre: el agradecimiento de Jonah. Lo ven todos (activen o no las
+    // notificaciones), también quien toca "Saltar y empezar".
+    {
+      emoji: '🦍', titulo: `GRACIAS POR CONFIAR EN MÍ${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}`,
+      texto: 'Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪',
+      esGracias: true,
+    },
   ];
   const p = pasos[paso];
   const ultimo = paso === pasos.length - 1;
@@ -4629,6 +4636,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
           </div>
           <h2 className="jb-display text-xl text-zinc-50 mb-3">{p.titulo}</h2>
           <p className="jb-body text-sm text-zinc-300 leading-relaxed">{p.texto}</p>
+          {p.esGracias && <p className="jb-display text-sm text-orange-500 mt-3">— JONAH BEAST</p>}
           {p.esNombre && (
             <div className="mt-4 text-left">
               <input value={nombreInput} onChange={e => setNombreInput(e.target.value)}
@@ -4699,7 +4707,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         </div>
 
         {!ultimo && !p.esNombre && !p.esNotificacion && !p.esTelefono && (
-          <button onClick={onClose} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-3 w-full text-center">
+          <button onClick={() => setPaso(pasos.length - 1)} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-3 w-full text-center">
             Saltar y empezar
           </button>
         )}

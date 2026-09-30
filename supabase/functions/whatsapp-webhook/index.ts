@@ -26,6 +26,15 @@
 //   3) Si un número nuevo escribe algo claramente personal, Claude usa la
 //      herramienta mensaje_personal y el asistente no responde.
 //
+// Cuidados antes de responder:
+//   - Mensajes seguidos del cliente: espera unos segundos y responde una
+//     sola vez a todo junto.
+//   - Justo antes de enviar vuelve a mirar: si llegó otro mensaje o Jonah
+//     respondió desde su celular, no envía nada.
+//   - Reacciones (👍) y avisos del sistema no se responden.
+//   - Tope diario total de respuestas de la IA (LIMITE_RESPUESTAS_IA_DIA) y
+//     aviso a Jonah si la IA falla o si vence la conexión (una vez, no por chat).
+//
 // Notas de voz: se pasan a texto con OpenAI (secreto OPENAI_API_KEY) y el
 // asistente responde como si le hubieran escrito.
 //
@@ -71,6 +80,16 @@ const PAUSA_TRAS_RESPUESTA_DE_JONAH = 12;
 // deja de responder (evita que alguien gaste la IA mandando spam) y le pasa
 // el chat a Jonah.
 const LIMITE_MENSAJES_DIA = 40;
+// Tope de respuestas de la IA en el día, sumando todos los chats (spam de
+// muchos números o un bot de otra empresa conversando con el nuestro).
+// Pasado el tope, el asistente calla hasta mañana y Jonah recibe un aviso.
+const LIMITE_RESPUESTAS_IA_DIA = 400;
+// Si el cliente manda varios mensajes seguidos ("Hola" + "info" + "precio"),
+// se espera este tiempo y se responde una sola vez, a todo junto.
+const ESPERA_MENSAJES_SEGUIDOS_MS = 8000;
+// Tipos de aviso que no son un mensaje para responder (una reacción 👍, un
+// mensaje que WhatsApp no sabe mostrar, avisos del sistema).
+const TIPOS_SIN_RESPUESTA = ["reaction", "unsupported", "system", "ephemeral", "request_welcome"];
 const MAX_IMAGEN = 5 * 1024 * 1024; // límite de imágenes de la API de Claude
 
 const MENSAJE_PASO_A_JONAH = "🙋 Te paso con Jonah para que te ayude personalmente. Te escribe en breve.";
@@ -268,9 +287,12 @@ async function sincronizarContacto(s: any) {
   if (chat?.modo === "personal") return;
   if (await buscarAlumno(telefono)) return;
   const nombre = String(s.contact?.full_name || s.contact?.first_name || "").trim() || chat?.nombre || null;
-  await supabase.from("whatsapp_chats").upsert({
+  const { error } = await supabase.from("whatsapp_chats").upsert({
     telefono, nombre, modo: "personal", motivo: "contacto", resumen: null, pausado_hasta: null,
   }, { onConflict: "telefono" });
+  if (error) { console.error("No se pudo marcar el contacto como personal:", error.message); return; }
+  // Lo que se hubiera guardado antes de saber que era personal, se borra.
+  await supabase.from("whatsapp_mensajes").delete().eq("telefono", telefono);
 }
 
 function textoDe(msg: any): { tipo: string; texto: string } {
@@ -293,6 +315,7 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
   if (!telefono || !msg?.id) return;
   // Reglas 1 y 2: chat personal de Jonah. Ni se guarda ni se responde.
   if (await esPersonal(telefono)) return;
+  if (TIPOS_SIN_RESPUESTA.includes(msg?.type)) return;
   const { tipo, texto } = textoDe(msg);
 
   // Meta a veces repite el aviso: el id del mensaje es único, así no se
@@ -345,6 +368,20 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
     return;
   }
 
+  // Mensajes seguidos: se espera un momento; si llegó otro después, ese
+  // responde a todo junto (el historial incluye este).
+  await new Promise((r) => setTimeout(r, ESPERA_MENSAJES_SEGUIDOS_MS));
+  if (!(await esElUltimoDelCliente(telefono, msg.id))) return;
+
+  // Tope diario de la IA sumando todos los chats.
+  const { count: hoyIA } = await supabase.from("ia_uso")
+    .select("id", { count: "exact", head: true }).eq("funcion", "whatsapp-webhook").eq("tipo", "whatsapp").gte("creado_en", inicioDia);
+  if ((hoyIA || 0) >= LIMITE_RESPUESTAS_IA_DIA) {
+    await avisarUnaVez("whatsapp_aviso_tope", fechaLima(),
+      `⚠️ El asistente de WhatsApp llegó a ${LIMITE_RESPUESTAS_IA_DIA} respuestas hoy y se pausó hasta mañana (para cuidar el gasto). Revisa los chats en el panel.`);
+    return;
+  }
+
   await graph(cuenta, `/${cuenta.phone_number_id}/messages`, { messaging_product: "whatsapp", status: "read", message_id: msg.id }).catch(() => {});
 
   let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string; personal?: string };
@@ -352,7 +389,34 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
     respuesta = await preguntarAClaude(cuenta, telefono, msg, alumno, nombreWa);
   } catch (e) {
     console.error("whatsapp-webhook: Claude no respondió:", (e as Error)?.message);
-    respuesta = { pasar: { motivo: "otro", resumen: `El asistente no pudo responder a ${alumno?.nombre || nombreWa || "+" + telefono} (error técnico). Último mensaje: ${texto.slice(0, 120)}` } };
+    // Falla técnica (IA caída o sin saldo): al cliente no se le promete nada;
+    // el chat queda para Jonah y le llega UN aviso por hora, no uno por chat.
+    await supabase.from("whatsapp_chats").update({
+      modo: "jonah", motivo: "otro",
+      resumen: `El asistente no pudo responder (falla técnica). Último mensaje: ${texto.slice(0, 120)}`,
+      pausado_hasta: new Date(Date.now() + PAUSA_TRAS_PASAR_A_JONAH * 3600000).toISOString(),
+    }).eq("telefono", telefono);
+    await avisarUnaVez("whatsapp_aviso_falla", new Date().toISOString().slice(0, 13),
+      "⚠️ El asistente de WhatsApp no puede responder (la IA no contesta; revisa el saldo). Los chats que llegan quedan para ti en el panel.");
+    return;
+  }
+
+  // Mientras la IA pensaba pudo llegar otro mensaje (ese responde a todo) o
+  // Jonah pudo responder desde su celular: entonces no se envía nada.
+  if (!(await esElUltimoDelCliente(telefono, msg.id))) return;
+  const { data: ahoraChat } = await supabase.from("whatsapp_chats").select("modo, pausado_hasta").eq("telefono", telefono).maybeSingle();
+  if (ahoraChat?.modo === "personal") return;
+  if (ahoraChat?.modo === "jonah" && (!ahoraChat.pausado_hasta || new Date(ahoraChat.pausado_hasta) > new Date())) return;
+
+  if (respuesta.personal) {
+    // Regla 3: la IA vio que es un mensaje personal. El chat queda como
+    // personal (no se vuelve a consultar a la IA) y no se guarda nada.
+    const { error } = await supabase.from("whatsapp_chats").upsert({
+      telefono, modo: "personal", motivo: "ia", resumen: null, pausado_hasta: null,
+    }, { onConflict: "telefono" });
+    if (error) console.error("No se pudo marcar el chat como personal:", error.message);
+    else await supabase.from("whatsapp_mensajes").delete().eq("telefono", telefono);
+    return;
   }
 
   if (respuesta.pasar) {
@@ -398,6 +462,10 @@ async function registrarRespuestaDeJonah(eco: any) {
   const telefono = String(eco?.to || "");
   if (!telefono || !eco?.id) return;
   if (await esPersonal(telefono)) return; // chat personal: no se guarda
+  // Solo chats que ya existen (un cliente que escribió antes): lo que Jonah
+  // conversa con otros números desde su celular no se guarda.
+  const { data: existe } = await supabase.from("whatsapp_chats").select("telefono").eq("telefono", telefono).maybeSingle();
+  if (!existe) return;
   const { tipo, texto } = textoDe(eco);
   const { error: repetido } = await supabase.from("whatsapp_mensajes")
     .insert({ telefono, wa_id: eco.id, direccion: "jonah", tipo, texto });
@@ -523,7 +591,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
 
   const cuerpo = JSON.stringify({
     model: MODELO,
-    max_tokens: 16000,
+    max_tokens: 2000, // una respuesta de WhatsApp es corta: acota el gasto
     output_config: { effort: "low" },
     fallbacks: "default",
     // El manual es igual en todas las llamadas: va primero y queda en caché.
@@ -611,7 +679,13 @@ async function enviarTexto(cuenta: any, telefono: string, texto: string, tipo = 
         telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo, texto: parte.trim(),
       });
     } catch (e) {
-      console.error("No se pudo enviar el WhatsApp:", (e as Error)?.message);
+      const m = (e as Error)?.message || "";
+      console.error("No se pudo enviar el WhatsApp:", m);
+      // Llave vencida o revocada (Meta responde 401 o el error 190).
+      if (/Graph 401|"code":190/.test(m)) {
+        await avisarUnaVez("whatsapp_aviso_llave", fechaLima(),
+          "⚠️ La conexión de tu WhatsApp venció: el asistente ya no puede responder. Entra al panel → WHATSAPP → Conectar mi WhatsApp.");
+      }
       return;
     }
   }
@@ -624,6 +698,32 @@ async function avisarAJonah(telefono: string, nombre: string | null, resumen: st
       method: "POST",
       headers: { "Content-Type": "application/json", "x-webhook-secret": AVISO_SECRETO },
       body: JSON.stringify({ telefono, nombre, resumen }),
+    });
+  } catch (e) {
+    console.error("No se pudo avisar a Jonah:", (e as Error)?.message);
+  }
+}
+
+// ¿Este mensaje sigue siendo el último que mandó el cliente?
+async function esElUltimoDelCliente(telefono: string, waId: string) {
+  const { data } = await supabase.from("whatsapp_mensajes").select("wa_id")
+    .eq("telefono", telefono).eq("direccion", "entrante")
+    .order("creado_en", { ascending: false }).limit(1).maybeSingle();
+  return !data || data.wa_id === waId;
+}
+
+// Aviso al celular de Jonah que no debe repetirse: se manda una sola vez por
+// "periodo" (ej. el día o la hora), anotado en config.
+async function avisarUnaVez(clave: string, periodo: string, texto: string) {
+  const { data } = await supabase.from("config").select("value").eq("key", clave).maybeSingle();
+  if (data?.value === periodo) return;
+  await supabase.from("config").upsert({ key: clave, value: periodo });
+  if (!AVISO_SECRETO) return;
+  try {
+    await fetch("https://jonahbeast.com/api/aviso-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-webhook-secret": AVISO_SECRETO },
+      body: JSON.stringify({ admin: true, body: texto }),
     });
   } catch (e) {
     console.error("No se pudo avisar a Jonah:", (e as Error)?.message);

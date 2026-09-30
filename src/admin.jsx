@@ -6523,6 +6523,16 @@ function WhatsAppPanel() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">🤖 ASISTENTE</h2>
         <p className="jb-body text-xs text-zinc-500 mb-4">Decide cuándo responde el asistente. Empieza en "Solo prueba" con tu número personal.</p>
+        {/* Si WhatsApp Business o Meta también responden solos, el cliente
+            recibe dos respuestas. */}
+        <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl p-3 mb-4">
+          <p className="jb-body text-xs text-amber-300 font-semibold mb-1">⚠️ Antes de ponerlo en "Activo", apaga en tu app WhatsApp Business:</p>
+          <ul className="jb-body text-xs text-zinc-300 list-disc pl-4 space-y-0.5">
+            <li>El <b>"Agente de IA"</b> de Meta (Herramientas para la empresa → IA de Meta / Agente de IA).</li>
+            <li>El <b>mensaje de bienvenida</b> y el <b>mensaje de ausencia</b> (Herramientas para la empresa).</li>
+          </ul>
+          <p className="jb-body text-[11px] text-zinc-500 mt-1">Si alguno queda prendido, el cliente recibe dos respuestas: la de Meta y la del asistente.</p>
+        </div>
         <div className="grid sm:grid-cols-3 gap-2 mb-4">
           {[
             ['apagado', 'Apagado', 'No responde a nadie. Solo guarda los mensajes.'],

@@ -21,7 +21,7 @@
 // Mismo patrón de envío en paralelo que api/cron/recordatorio.js, para
 // no repetir el problema de timeout de Vercel con muchos alumnos.
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos } from '../_lib/push.js';
 
 const INTERVALO_DIAS = 15;
 
@@ -64,10 +64,11 @@ async function enviarLote(supabase, targets) {
 
   const resultados = await Promise.allSettled(tareas);
   let enviados = 0;
+  const usuariosOk = new Set();
   const endpointsInvalidos = [];
   const detalleFallos = [];
   resultados.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) { enviados++; return; }
+    if (r.status === 'fulfilled' && r.value.ok) { enviados++; usuariosOk.add(r.value.username); return; }
     const val = r.status === 'fulfilled' ? r.value : { ok: false, mensaje: String(r.reason) };
     detalleFallos.push({ username: val.username, statusCode: val.statusCode, mensaje: val.mensaje });
     // Igual que en recordatorio.js: solo se desactiva la suscripción
@@ -77,7 +78,7 @@ async function enviarLote(supabase, targets) {
   if (endpointsInvalidos.length) {
     await supabase.from('push_subs').update({ activa: false }).in('endpoint', endpointsInvalidos);
   }
-  return { enviados, fallidos: detalleFallos.length, detalleFallos };
+  return { enviados, fallidos: detalleFallos.length, detalleFallos, usuariosOk: [...usuariosOk] };
 }
 
 export default async function handler(req, res) {
@@ -142,8 +143,11 @@ export default async function handler(req, res) {
       }
     }
 
-    const r = await enviarLote(supabase, targets);
-    return res.status(200).json({ ok: true, ...r, tipo: 'control_quincenal', candidatos: targets.length });
+    // Presupuesto de avisos: es un aviso especial de la mañana.
+    const conCupo = new Set(await conPresupuesto(supabase, targets.map(t => t.username), { momento: 'manana', especial: true, hoyISO }));
+    const r = await enviarLote(supabase, targets.filter(t => conCupo.has(t.username)));
+    await anotarAvisos(supabase, r.usuariosOk || [], { tipo: 'control_quincenal', momento: 'manana', hoyISO });
+    return res.status(200).json({ ok: true, enviados: r.enviados, fallidos: r.fallidos, tipo: 'control_quincenal', candidatos: targets.length });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ ok: false, error: e.message });

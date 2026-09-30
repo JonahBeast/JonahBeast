@@ -13,7 +13,7 @@
 //
 // Cron en vercel.json: "15 23 * * *" (23:15 UTC = 18:15 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, enviarPushA } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, avisoConPresupuesto } from '../_lib/push.js';
 
 const URL_PLANES = '/?ir=planes';
 const primerNombre = (n) => (n || '').trim().split(/\s+/)[0] || '';
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
       .filter(Boolean);
 
     const resultados = await Promise.all(envios.map(e =>
-      enviarPushA(supabase, [e.username], { title: 'Jonah 🦍', body: e.body, url: e.url })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: e.url }, { tipo: 'prueba_guiada', momento: 'noche', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
     return res.status(200).json({ ok: true, enviados, fallidos, avisos: envios.length });

@@ -12,7 +12,7 @@
 //
 // Cron sugerido en vercel.json: "0 1 * * *" (01:00 UTC = 20:00 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos } from '../_lib/push.js';
 
 const RACHA_MINIMA = 3;
 const HITOS = [3, 7, 14, 30, 60, 90];
@@ -40,27 +40,28 @@ export default async function handler(req, res) {
 
     let totalEnviados = 0;
     const fallidosTotal = [];
+    // Presupuesto de avisos: este es el aviso de la noche. Si la noche ya la
+    // usó otro aviso (avance de la prueba, reto del sábado) o ya recibió 3
+    // hoy, no se le manda nada más (ver conPresupuesto en _lib/push.js).
+    const libres = new Set(await conPresupuesto(supabase, usernames, { momento: 'noche', hoyISO }));
+    const enviar = async (u, mensaje, tipo) => {
+      const r = await enviarPushA(supabase, [u], mensaje);
+      totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
+      if (r.enviados > 0) await anotarAvisos(supabase, [u], { tipo, momento: 'noche', hoyISO });
+      return r.enviados > 0;
+    };
 
     // 1. Racha en riesgo (3+ días, sin registrar hoy)
-    const enRiesgo = usernames.filter(u => rachas[u] && rachas[u].racha >= RACHA_MINIMA && !rachas[u].registroHoy);
-    const porRacha = {};
-    enRiesgo.forEach(u => {
-      const r = rachas[u].racha;
-      porRacha[r] = porRacha[r] || [];
-      porRacha[r].push(u);
-    });
-    for (const [dias, users] of Object.entries(porRacha)) {
-      const r = await enviarPushA(supabase, users, {
-        title: 'Jonah 🦍',
-        body: `Llevas ${dias} día(s) seguidos registrando tus comidas. No la rompas hoy — solo toma un minuto.`,
-        url: '/?registrar=ahora',
-      });
-      totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
-    }
+    const enRiesgo = usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha >= RACHA_MINIMA && !rachas[u].registroHoy);
+    await Promise.all(enRiesgo.map(u => enviar(u, {
+      title: 'Jonah 🦍',
+      body: `Llevas ${rachas[u].racha} día(s) seguidos registrando tus comidas. No la rompas hoy — solo toma un minuto.`,
+      url: '/?registrar=ahora',
+    }, 'racha_en_riesgo')));
 
     // 2. Silencio 24h+: sin racha activa y sin registrar hoy — un
     // mensaje más cercano que un recordatorio, para el que lleva rato sin volver.
-    const sinRegistro = usernames.filter(u => rachas[u] && rachas[u].racha < RACHA_MINIMA && !rachas[u].registroHoy);
+    const sinRegistro = usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha < RACHA_MINIMA && !rachas[u].registroHoy);
     if (sinRegistro.length) {
       const variantes = [
         'Te extrañé hoy. Cuando quieras volver, aquí sigo — sin juicios, solo acompañándote 🦍',
@@ -69,30 +70,29 @@ export default async function handler(req, res) {
       ];
       // En paralelo, no uno por uno — evita que la función se quede
       // corta de tiempo con muchos alumnos.
-      const resultados = await Promise.all(sinRegistro.map(u => {
+      await Promise.all(sinRegistro.map(u => {
         const body = variantes[Math.floor(Math.random() * variantes.length)];
-        return enviarPushA(supabase, [u], { title: 'Jonah 🦍', body, url: '/?registrar=ahora' });
+        return enviar(u, { title: 'Jonah 🦍', body, url: '/?registrar=ahora' }, 'te_extrane');
       }));
-      resultados.forEach(r => { totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos); });
     }
 
     // 3. Celebración de hito: registró hoy y su racha cruzó un nuevo hito.
     const conHitoNuevo = [];
     for (const u of usernames) {
       const r = rachas[u];
-      if (!r || !r.registroHoy) continue;
+      if (!libres.has(u) || !r || !r.registroHoy) continue;
       const hitoAlcanzado = [...HITOS].reverse().find(h => r.racha >= h);
       if (hitoAlcanzado && hitoAlcanzado > hitoDe[u]) {
         conHitoNuevo.push({ username: u, hito: hitoAlcanzado });
       }
     }
     await Promise.all(conHitoNuevo.map(async ({ username, hito }) => {
-      const r = await enviarPushA(supabase, [username], {
+      const enviado = await enviar(username, {
         title: 'Jonah 🦍',
         body: `🔥 ¡Llegaste a ${hito} días de racha! Eso es constancia de verdad — sigue así, vamos con todo 🦍`,
-      });
-      totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
-      await supabase.from('alumnos').update({ ultimo_hito_racha: hito }).eq('username', username);
+      }, 'hito_racha');
+      // Si hoy no se pudo (sin presupuesto o sin avisos), se celebra otro día.
+      if (enviado) await supabase.from('alumnos').update({ ultimo_hito_racha: hito }).eq('username', username);
     }));
 
     return res.status(200).json({

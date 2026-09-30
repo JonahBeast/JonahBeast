@@ -1,14 +1,18 @@
 // api/cron/recordatorio.js
 //
-// Corre cada hora. Revisa cada una de las 5 comidas del alumno
-// (Desayuno, Media mañana, Almuerzo, Media tarde, Cena) en su horario
-// típico, y si no la registró, le manda un push con la voz de Jonah.
-// Además: hidratación (1x al día, 3pm), un chequeo de ánimo agrupado
-// (1x al día, 7pm — antes eran 2 avisos por separado a las 2pm y 8pm,
-// se fusionaron porque repetían el mismo dato que ya avisaban las
-// comidas individuales, solo con otro tono) un saludo de buenos días
-// (7am, con variante de lunes y de aniversario de uso) y un mensaje
-// de buenas noches (10pm).
+// Corre cada hora. Avisos de rutina de cada día, dentro del PRESUPUESTO DE
+// AVISOS (máximo 3 al día por alumno, uno por momento: ver conPresupuesto
+// en api/_lib/push.js):
+//   - 8am (mañana): buenos días + "registra tu desayuno", en un solo aviso
+//     (con variante de lunes y de aniversario de uso). Si ya registró su
+//     desayuno, no le llega.
+//   - 2pm (mediodía): "¿ya almorzaste?", solo si no registró su almuerzo.
+//   - 9pm (noche): "¿ya cenaste?", solo si no registró su cena y la noche
+//     sigue libre (a las 8pm tiene prioridad racha-en-riesgo.js).
+// Si ese momento ya lo usó un aviso especial (plan por vencer, pesaje,
+// avisos de la primera semana…), no se manda nada más.
+// Antes había además media mañana, media tarde, agua, ánimo y buenas
+// noches: hasta 10 avisos al día. Se quitaron para no cansar al alumno.
 //
 // IMPORTANTE — rendimiento: todos los envíos de una misma ejecución se
 // mandan EN PARALELO (Promise.allSettled) con una sola consulta de
@@ -20,13 +24,14 @@
 // Solo se envía a alumnos con acceso vigente (enabled=true y su plan
 // o prueba gratis no vencidos).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos } from '../_lib/push.js';
 
-const VENTANAS = { 9: 'Desayuno', 11: 'Media mañana', 13: 'Almuerzo', 17: 'Media tarde', 21: 'Cena' };
-const HORAS_HIDRATACION = [15];
-const HORAS_ANIMO = [19];
-const HORA_BUENOS_DIAS = 7;
-const HORA_BUENAS_NOCHES = 22;
+// Hora de Perú → momento del día y comida que se revisa.
+const RUTINA = {
+  8: { momento: 'manana', comida: 'Desayuno', tipo: 'buenos_dias' },
+  14: { momento: 'mediodia', comida: 'Almuerzo', tipo: 'almuerzo' },
+  21: { momento: 'noche', comida: 'Cena', tipo: 'cena' },
+};
 
 const NOMBRE_COMIDA = {
   Desayuno: 'tu desayuno', 'Media mañana': 'tu media mañana', Almuerzo: 'tu almuerzo',
@@ -47,27 +52,6 @@ function mensajeJonah(comida, objetivo, horaPeru) {
   if (objetivo) {
     variantes.push({ title: 'Jonah 🦍', body: `Recuerda tu objetivo: ${objetivo}. Registra ${nombre} y sigamos sumando juntos 🦍🔥` });
   }
-  return variantes[Math.floor(Math.random() * variantes.length)];
-}
-
-function mensajeHidratacion() {
-  const variantes = [
-    { title: 'Jonah 🦍', body: 'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧' },
-    { title: 'Jonah 🦍', body: '¿Cómo vas con el agua hoy? Recuerda llegar a tus 2-3 litros diarios.' },
-    { title: 'Jonah 🦍', body: 'Un buen momento para tomar agua. Jonah siempre estará al pendiente de ti 🦍' },
-    { title: 'Jonah 🦍', body: 'Hidratarte bien también es parte de tu objetivo. Vamos, un vaso más 💧' },
-  ];
-  return variantes[Math.floor(Math.random() * variantes.length)];
-}
-
-function mensajeAnimo(nombresPendientes) {
-  const lista = nombresPendientes.join(', ');
-  const variantes = [
-    { title: 'Jonah 🦍', body: `No te rindas, yo siempre estoy contigo. Aún puedes registrar: ${lista}. Nunca es tarde 💪` },
-    { title: 'Jonah 🦍', body: `Sé que el día se puede complicar. Cuando puedas, registra: ${lista} — aquí sigo, contigo 🦍` },
-    { title: 'Jonah 🦍', body: `Un momento libre y seguimos: aún puedes registrar ${lista}. Tú puedes con esto 🔥` },
-    { title: 'Jonah 🦍', body: `No pasa nada si se te fue la hora. Registra ${lista} cuando puedas — Jonah no se rinde contigo 🦍` },
-  ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
@@ -92,16 +76,6 @@ function mensajeBuenosDias(objetivo, esLunes, diasDeUso) {
   if (objetivo) {
     variantes.push({ title: 'Jonah 🦍', body: `Buenos días. Hoy sigamos trabajando en tu objetivo: ${objetivo} 🦍🔥` });
   }
-  return variantes[Math.floor(Math.random() * variantes.length)];
-}
-
-function mensajeBuenasNoches() {
-  const variantes = [
-    { title: 'Jonah 🦍', body: 'Buenas noches 🌙 Descansa bien — yo cuido tus sueños. Mañana seguimos juntos 🦍' },
-    { title: 'Jonah 🦍', body: 'Que descanses. El esfuerzo de hoy ya es parte de tu progreso. Buenas noches 🌙' },
-    { title: 'Jonah 🦍', body: 'Duerme bien, te lo mereces. Jonah está pendiente de ti hasta mañana 🦍💤' },
-    { title: 'Jonah 🦍', body: 'Otro día más caminando juntos. Descansa — mañana seguimos 🌙🦍' },
-  ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
 
@@ -139,10 +113,11 @@ async function enviarLote(supabase, targets) {
 
   const resultados = await Promise.allSettled(tareas);
   let enviados = 0;
+  const usuariosOk = new Set();
   const endpointsInvalidos = [];
   const detalleFallos = [];
   resultados.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) { enviados++; return; }
+    if (r.status === 'fulfilled' && r.value.ok) { enviados++; usuariosOk.add(r.value.username); return; }
     const val = r.status === 'fulfilled' ? r.value : { ok: false, mensaje: String(r.reason) };
     detalleFallos.push({ username: val.username, statusCode: val.statusCode, mensaje: val.mensaje });
     // Solo se desactiva la suscripción si el dispositivo ya no existe
@@ -153,7 +128,7 @@ async function enviarLote(supabase, targets) {
   if (endpointsInvalidos.length) {
     await supabase.from('push_subs').update({ activa: false }).in('endpoint', endpointsInvalidos);
   }
-  return { enviados, fallidos: detalleFallos.length, detalleFallos };
+  return { enviados, fallidos: detalleFallos.length, detalleFallos, usuariosOk: [...usuariosOk] };
 }
 
 export default async function handler(req, res) {
@@ -173,89 +148,38 @@ export default async function handler(req, res) {
     }
     const usernames = alumnos.map(a => a.username);
 
-    // Buenos días
-    if (horaPeru === HORA_BUENOS_DIAS) {
-      const [{ data: datos }, { data: fechas }] = await Promise.all([
-        supabase.from('datos_alumnos').select('username, form').in('username', usernames),
-        supabase.from('alumnos').select('username, fecha_inicio').in('username', usernames),
-      ]);
-      const objetivoDe = {}; (datos || []).forEach(d => { objetivoDe[d.username] = d.form?.objetivo || null; });
-      const inicioDe = {}; (fechas || []).forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
-      const esLunes = diaSemanaPeru(hoyISO) === 1;
-
-      const targets = usernames.map(u => ({
-        username: u,
-        mensaje: mensajeBuenosDias(objetivoDe[u], esLunes, inicioDe[u] ? diasDesde(inicioDe[u], hoyISO) : 0),
-      }));
-      const r = await enviarLote(supabase, targets);
-      return res.status(200).json({ ok: true, ...r, tipo: 'buenos_dias', esLunes });
-    }
-
-    // Buenas noches
-    if (horaPeru === HORA_BUENAS_NOCHES) {
-      const targets = usernames.map(u => ({ username: u, mensaje: mensajeBuenasNoches() }));
-      const r = await enviarLote(supabase, targets);
-      return res.status(200).json({ ok: true, ...r, tipo: 'buenas_noches' });
-    }
-
-    // Hidratación
-    if (HORAS_HIDRATACION.includes(horaPeru)) {
-      const targets = usernames.map(u => ({ username: u, mensaje: mensajeHidratacion() }));
-      const r = await enviarLote(supabase, targets);
-      return res.status(200).json({ ok: true, ...r, tipo: 'hidratacion', horaPeru });
-    }
-
-    // Chequeo de ánimo agrupado
-    if (HORAS_ANIMO.includes(horaPeru)) {
-      const { data: datos } = await supabase
-        .from('datos_alumnos').select('username, meal_plan, meal_plan_fecha').in('username', usernames);
-      const horasYaPasadas = Object.keys(VENTANAS).map(Number).filter(h => h < horaPeru);
-
-      const targets = [];
-      for (const u of usernames) {
-        const fila = (datos || []).find(d => d.username === u);
-        const esHoy = fila && fila.meal_plan_fecha === hoyISO;
-        const pendientes = [];
-        for (const h of horasYaPasadas) {
-          const comida = VENTANAS[h];
-          const items = esHoy ? (fila.meal_plan?.meals?.[comida] || []) : [];
-          if (!items.length) pendientes.push(NOMBRE_COMIDA[comida]);
-        }
-        if (pendientes.length) targets.push({ username: u, mensaje: { ...mensajeAnimo(pendientes), url: '/?registrar=ahora' } });
-      }
-      const r = await enviarLote(supabase, targets);
-      return res.status(200).json({ ok: true, ...r, tipo: 'animo', horaPeru, alumnosConAnimo: targets.length });
-    }
-
-    // Recordatorio de comida a tiempo
-    const comida = VENTANAS[horaPeru];
-    if (!comida) {
-      return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de comidas' });
-    }
+    const rutina = RUTINA[horaPeru];
+    if (!rutina) return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de avisos' });
+    const { momento, comida, tipo } = rutina;
 
     const { data: datos } = await supabase
       .from('datos_alumnos').select('username, meal_plan, meal_plan_fecha, form').in('username', usernames);
-
     const objetivoDe = {};
-    const conFila = new Set();
-    const pendientes = [];
+    const yaRegistro = new Set();
     (datos || []).forEach(d => {
-      conFila.add(d.username);
       objetivoDe[d.username] = d.form?.objetivo || null;
-      const esHoy = d.meal_plan_fecha === hoyISO;
-      const items = esHoy ? (d.meal_plan?.meals?.[comida] || []) : [];
-      if (!items.length) pendientes.push(d.username);
+      const items = d.meal_plan_fecha === hoyISO ? (d.meal_plan?.meals?.[comida] || []) : [];
+      if (items.length) yaRegistro.add(d.username);
     });
-    usernames.forEach(u => { if (!conFila.has(u)) pendientes.push(u); });
+    const pendientes = await conPresupuesto(supabase, usernames.filter(u => !yaRegistro.has(u)), { momento, hoyISO });
+    if (!pendientes.length) return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'nadie pendiente o sin presupuesto' });
 
-    if (pendientes.length === 0) {
-      return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'todos ya registraron esa comida' });
+    const url = `/?registrar=${encodeURIComponent(comida)}`;
+    let targets;
+    if (tipo === 'buenos_dias') {
+      const { data: fechas } = await supabase.from('alumnos').select('username, fecha_inicio').in('username', pendientes);
+      const inicioDe = {}; (fechas || []).forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
+      const esLunes = diaSemanaPeru(hoyISO) === 1;
+      targets = pendientes.map(u => {
+        const m = mensajeBuenosDias(objetivoDe[u], esLunes, inicioDe[u] ? diasDesde(inicioDe[u], hoyISO) : 0);
+        return { username: u, mensaje: { ...m, body: `${m.body} Empieza registrando tu desayuno 🍳`, url } };
+      });
+    } else {
+      targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url } }));
     }
-
-    const urlComida = `/?registrar=${encodeURIComponent(comida)}`;
-    const targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url: urlComida } }));
     const r = await enviarLote(supabase, targets);
-    return res.status(200).json({ ok: true, ...r, comida, pendientes: pendientes.length });
+    await anotarAvisos(supabase, r.usuariosOk || [], { tipo, momento, hoyISO });
+    return res.status(200).json({ ok: true, enviados: r.enviados, fallidos: r.fallidos, comida, alumnos: (r.usuariosOk || []).length });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ ok: false, error: e.message });

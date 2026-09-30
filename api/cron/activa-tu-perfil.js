@@ -17,7 +17,7 @@
 //
 // Cron en vercel.json: "30 17 * * *" (17:30 UTC = 12:30 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, enviarPushA } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, avisoConPresupuesto } from '../_lib/push.js';
 
 const PRIMERA_COMIDA = {
   1: '¿Qué vas a almorzar hoy? Tómale una foto y te digo cuántas calorías y proteína tiene 📸',
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
 
     // En paralelo, no uno por uno, para no quedarse sin tiempo.
     const resultados = await Promise.all(envios.map(e =>
-      enviarPushA(supabase, [e.username], { title: 'Jonah 🦍', body: e.body, url: e.url })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: e.url }, { tipo: 'arranque', momento: 'mediodia', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
 

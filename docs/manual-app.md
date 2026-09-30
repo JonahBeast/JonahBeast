@@ -632,24 +632,15 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 Solo llegan con prueba o plan vigente y notificaciones activadas.
 
-| Hora | Aviso |
-|---|---|
-| 7:00 am | Buenos días (y cada 30 días de uso, felicitación) |
-| 9:00 am | Registrar desayuno (si falta) · aviso de vencimiento de prueba o plan (2 días antes y el día que vence) |
-| 10:00 am | Control quincenal: medirse con cinta y fotos de progreso (cada 15 días desde las últimas medidas o fotos) |
-| 11:00 am | Registrar media mañana (si falta) |
-| 12:30 pm | Ayuda para alumnos nuevos (primeros 5 días): quien no registró nada, una invitación a tomarle foto a su comida (días 1, 2, 3 y 5); quien registra pero nunca usó la foto, una invitación a probar la captura inteligente (días 2 y 4). Al tocarlas se abre la cámara directo |
-| 1:00 pm | Registrar almuerzo (si falta) |
-| 3:00 pm | Hidratación |
-| 5:00 pm | Registrar media tarde (si falta) |
-| 6:15 pm | Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah, que después sigue gratis y lo que conserva con Premium |
-| 7:00 pm | Ánimo con las comidas que faltan |
-| 8:00 pm | Racha en riesgo, "te extrañé" o felicitación por racha |
-| 9:00 pm | Registrar cena (si falta) |
-| 10:00 pm | Buenas noches |
-| Sábado 6:00 pm | Reto semanal |
-| Domingo 8:00 am | Pesaje de la semana: pesarse en ayunas y anotarlo (a quien ya tiene un peso anotado) |
-| Lunes 9:00 am | "Tu semana" lista (solo si registró algo la semana pasada): "Semana de bestia 🔥 X/7 días…" o "Tu semana: X/7 días registrados 📊…" |
+**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos) llegan siempre.
+
+| Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
+|---|---|---|
+| **Mañana** | 8:00 am · Buenos días + "Empieza registrando tu desayuno 🍳" (si aún no lo registró; cada 30 días de uso, felicitación; los lunes, "arrancamos la semana") | 7:00 am · Vencimiento de prueba o plan (2 días antes, el día que vence y el día después si era prueba) · Control quincenal (medirse con cinta y fotos, cada 15 días) · Domingo: pesaje de la semana (a quien ya tiene un peso anotado) · Lunes: "Tu semana" lista (solo si registró algo la semana pasada) |
+| **Mediodía** | 2:00 pm · Registrar almuerzo (si falta) | 12:30 pm · Ayuda para alumnos nuevos (primeros 5 días): quien no registró nada, invitación a tomarle foto a su comida (días 1, 2, 3 y 5); quien registra pero nunca usó la foto, invitación a probar la captura inteligente (días 2 y 4). Al tocarlas se abre la cámara directo |
+| **Noche** | 8:00 pm · Racha en riesgo, "te extrañé" o felicitación por racha · si no le llegó ninguno, 9:00 pm · registrar cena (si falta) | 6:15 pm · Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah · Sábado 6:00 pm · Reto semanal |
+
+Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm ni buenas noches.
 
 Tocar un aviso de comida abre la app directo en esa comida.
 

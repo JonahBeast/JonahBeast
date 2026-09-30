@@ -1,6 +1,7 @@
 // api/cron/plan-por-vencer.js
 //
-// Corre una vez al día, a las 9am hora Perú. Avisa sobre el fin de la
+// Corre una vez al día, a las 7am hora Perú (antes que el buenos días de
+// las 8am, que así no se suma: presupuesto de avisos en _lib/push.js). Avisa sobre el fin de la
 // prueba gratis o del plan pagado, y al tocar el aviso la app abre
 // directo la pestaña Planes (?ir=planes):
 //   - 2 días antes del vencimiento (prueba y plan pagado).
@@ -9,9 +10,9 @@
 //   - El día después de vencer, solo para pruebas que no pagaron: un
 //     único aviso amable, sin insistir más.
 //
-// Cron en vercel.json: "0 14 * * *" (14:00 UTC = 09:00 Perú)
+// Cron en vercel.json: "0 12 * * *" (12:00 UTC = 07:00 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, avisoConPresupuesto } from '../_lib/push.js';
 
 const URL_PLANES = '/?ir=planes';
 
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
 
     // En paralelo, no uno por uno, para no quedarse sin tiempo.
     const resultados = await Promise.all(envios.map(e =>
-      enviarPushA(supabase, [e.username], { title: 'Jonah 🦍', body: e.body, url: URL_PLANES })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: URL_PLANES }, { tipo: 'plan_por_vencer', momento: 'manana', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
 

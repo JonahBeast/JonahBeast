@@ -70,8 +70,7 @@ export const RECETAS_PLATOS = {
     ['Arroz aderezado (con ají panca) (Cocido)', 280, 'gramos'], ['Cerdo (costilla) (Cocida)', 120, 'gramos'],
   ],
   'Arroz chaufa (-)': [
-    ['Arroz blanco (Cocido)', 280, 'gramos'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
-    ['Huevo de gallina (Cocido)', 1, 'unidad'], ['Aceite vegetal (-)', 1, 'cucharada'],
+    ['Arroz chaufa (solo el arroz) (Cocido)', 330, 'gramos'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
   ],
   // Ensalada rusa: sin mayonesa (con limón y sal) o sin betarraga → se
   // baja ese ingrediente a cero.

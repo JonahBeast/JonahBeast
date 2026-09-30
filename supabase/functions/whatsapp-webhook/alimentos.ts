@@ -6,6 +6,7 @@ export const ALIMENTOS_APP: string[] = [
   "Arroz verde (cocido)",
   "Arroz amarillo (a la jardinera) (cocido)",
   "Arroz aderezado (con ají panca) (cocido)",
+  "Arroz chaufa (solo el arroz) (cocido)",
   "Quinua (cruda)",
   "Quinua (cocida)",
   "Avena en hojuelas (cruda)",

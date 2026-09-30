@@ -6102,7 +6102,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
             </div>
             {cupo?.tipo === 'ilimitado' && (
               <div className="rounded-xl px-3 py-2.5 mb-4 text-left border bg-zinc-950 border-orange-500/40">
-                <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Fotos ilimitadas</span> en esta cuenta · hoy llevas {Number(cupo.usadas) || 0}</p>
+                <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Sin límite de fotos</span></p>
               </div>
             )}
             {/* Premium (prueba o plan): sin contador, se siente sin límite.

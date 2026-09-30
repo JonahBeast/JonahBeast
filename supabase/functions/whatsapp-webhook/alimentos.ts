@@ -210,6 +210,7 @@ export const ALIMENTOS_APP: string[] = [
   "Arroz chaufa",
   "Arroz chaufa de carne",
   "Arroz chaufa de chancho",
+  "Arroz chaufa especial",
   "Arroz a la jardinera",
   "Arroz con chancho",
   "Ensalada rusa",

@@ -236,6 +236,7 @@ const RAW_FOODS = [
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
   ["Platos preparados","Arroz chaufa de carne","-",167,8.0,17.8,6.6,0.5],
   ["Platos preparados","Arroz chaufa de chancho","-",166,8.2,17.8,6.4,0.5],
+  ["Platos preparados","Arroz chaufa especial","-",169,11.4,15.1,6.5,0.4],
   ["Platos preparados","Arroz a la jardinera","-",175,9.3,18.2,7.0,1.3],
   ["Platos preparados","Arroz con chancho","-",202,9.6,18.9,9.8,0.7],
   ["Platos preparados","Ensalada rusa","-",105,1.6,12.7,5.6,2.1],

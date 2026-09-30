@@ -72,6 +72,12 @@ export const RECETAS_PLATOS = {
   'Arroz chaufa (-)': [
     ['Arroz chaufa (solo el arroz) (Cocido)', 330, 'gramos'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
   ],
+  'Arroz chaufa de carne (-)': [
+    ['Arroz chaufa (solo el arroz) (Cocido)', 330, 'gramos'], ['Carne de res (bistec) (Cocida)', 70, 'gramos'],
+  ],
+  'Arroz chaufa de chancho (-)': [
+    ['Arroz chaufa (solo el arroz) (Cocido)', 330, 'gramos'], ['Cerdo (lomo) (Cocido)', 70, 'gramos'],
+  ],
   // Ensalada rusa: sin mayonesa (con limón y sal) o sin betarraga → se
   // baja ese ingrediente a cero.
   'Ensalada rusa (-)': [

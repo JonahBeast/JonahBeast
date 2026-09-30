@@ -38,6 +38,7 @@ import {
   daysLeft,
   entryGrams,
   entryMacros,
+  fechaLocalISO,
   esTWA,
   fetchTrialStats,
   fmtS,
@@ -2074,9 +2075,15 @@ function equipoDelAlumno() {
   const iphone = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const dispositivo = iphone ? 'iphone' : /Android/i.test(ua) ? 'android'
     : /Windows|Macintosh|Linux|CrOS/.test(ua) ? 'computadora' : 'otro';
-  const navegadorInterno = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|Bytedance/i.test(ua);
   const instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  return { dispositivo, navegadorInterno, instalada };
+  const app = /FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua) ? 'Facebook'
+    : /Instagram/i.test(ua) ? 'Instagram'
+    : /musical_ly|Bytedance|TikTok|trill|aweme/i.test(ua) ? 'TikTok'
+    // Otras apps que abren páginas por dentro: en Android se ven como
+    // "; wv)"; en iPhone, sin la palabra "Safari" (y sin estar instalada).
+    : (/Android/i.test(ua) && /; wv\)/.test(ua)) || (iphone && !instalada && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)) ? 'otra app'
+    : null;
+  return { dispositivo, navegadorInterno: !!app, app, instalada };
 }
 
 // Estado de avisos del equipo -> lo que se guarda en la tabla
@@ -7162,6 +7169,56 @@ function partesDelPlato(en) {
   return partes.length ? partes : null;
 }
 
+/* Recién registrado desde el navegador de TikTok, Instagram o Facebook
+   (así llega casi todo el que viene de un anuncio): ahí no le llegan los
+   avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
+   al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
+   entra con su correo. */
+function AbrirEnNavegadorModal({ onCerrar }) {
+  const { dispositivo, app } = equipoDelAlumno();
+  const [correo, setCorreo] = useState('');
+  const [copiado, setCopiado] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCorreo(data?.user?.email || ''), () => {});
+  }, []);
+  const esIphone = dispositivo === 'iphone';
+  const navegador = esIphone ? 'Safari' : 'Chrome';
+  // Android: abre Chrome directo. iPhone (iOS 17+): abre Safari directo.
+  const enlace = esIphone
+    ? 'x-safari-https://jonahbeast.com/?desde=app'
+    : 'intent://jonahbeast.com/?desde=app#Intent;scheme=https;package=com.android.chrome;end';
+  async function copiar() {
+    try { await navigator.clipboard.writeText('https://jonahbeast.com'); setCopiado(true); } catch {}
+  }
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        <h2 className="jb-display text-xl text-zinc-50 mb-3">UN ÚLTIMO PASO PARA ACOMPAÑARTE</h2>
+        <p className="jb-body text-sm text-zinc-300 leading-relaxed">
+          Estás usando la app dentro de {app === 'otra app' ? 'otra app' : app}. Ahí <b className="text-zinc-100">no te llegan mis avisos</b> ni puedes instalarla.
+          Ábrela en <b className="text-zinc-100">{navegador}</b>: tu cuenta y tu plan ya están guardados.
+        </p>
+        {correo && (
+          <p className="jb-body text-xs text-zinc-400 mt-3">Entra con tu correo: <b className="text-orange-400">{correo}</b></p>
+        )}
+        <a href={enlace} className={btnPrimary + ' w-full py-3 mt-4'}>🌐 Abrir en {navegador}</a>
+        <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-left">
+          <p className="jb-body text-[11px] text-zinc-400">
+            Si no se abre: toca los <b className="text-zinc-200">tres puntos</b> (arriba a la derecha) → <b className="text-zinc-200">"Abrir en {esIphone ? 'Safari' : 'el navegador'}"</b>. O escribe <b className="text-zinc-200">jonahbeast.com</b> en {navegador}.
+          </p>
+          <button type="button" onClick={copiar} className="jb-body text-[11px] text-orange-400 underline mt-1.5">
+            {copiado ? '✅ Enlace copiado' : 'Copiar el enlace'}
+          </button>
+        </div>
+        <button type="button" onClick={onCerrar} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">
+          Seguir aquí por ahora
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Panel que sube al tocar un alimento: cantidad con − / + grandes, medida
 // en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
 function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onDesarmar, onCerrar }) {
@@ -8717,6 +8774,18 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }, [form.cuello, form.cintura, form.cadera]);
 
   const [verGuia, setVerGuia] = useState(false);
+  // Abrir en Chrome/Safari si está en el navegador de TikTok, Instagram o
+  // Facebook: una vez al día como mucho.
+  const [abrirEnNavegador, setAbrirEnNavegador] = useState(() => {
+    try {
+      if (!equipoDelAlumno().navegadorInterno) return false;
+      return localStorage.getItem('jb-abrir-navegador') !== fechaLocalISO(new Date());
+    } catch { return false; }
+  });
+  function cerrarAbrirEnNavegador() {
+    setAbrirEnNavegador(false);
+    try { localStorage.setItem('jb-abrir-navegador', fechaLocalISO(new Date())); } catch {}
+  }
   const [tieneFotos, setTieneFotos] = useState(false);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
@@ -8917,8 +8986,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <AvisoGuardado estado={estadoGuardado} onVolverAEntrar={onLogout} />
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
-        {ofrecerNotif && !verGuia && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
-        {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
+        {abrirEnNavegador && !verGuia && <AbrirEnNavegadorModal onCerrar={cerrarAbrirEnNavegador} />}
+        {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {verPrimeraComida && !verGuia && !abrirEnNavegador && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
             onFoto={(meal) => { setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}

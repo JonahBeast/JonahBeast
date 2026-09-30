@@ -182,6 +182,8 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 5. **"GRACIAS POR CONFIAR EN MÍ, [NOMBRE]"** (firmado "— JONAH BEAST"): "Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪". Lo ven todos, también quien toca "Saltar y empezar" (ese botón lleva directo a esta pantalla).
 6. **"¡Empecemos!"**.
 
+**Si usa la app dentro de TikTok, Instagram o Facebook** (pasa cuando llega desde un anuncio): al cerrar la guía (y como mucho una vez al día) sale **"UN ÚLTIMO PASO PARA ACOMPAÑARTE"**: "Estás usando la app dentro de [TikTok/Instagram/Facebook/otra app]. Ahí no te llegan mis avisos ni puedes instalarla. Ábrela en Chrome (Safari en iPhone): tu cuenta y tu plan ya están guardados." Muestra "Entra con tu correo: [su correo]" y el botón **"🌐 Abrir en Chrome"** (o Safari). Si no se abre: tres puntos arriba a la derecha → "Abrir en el navegador" (o "Abrir en Safari"), o escribir **jonahbeast.com** en el navegador; también hay **"Copiar el enlace"**. **"Seguir aquí por ahora"** la cierra hasta el día siguiente. En Chrome o Safari debe **entrar con su correo y contraseña** (o "Continuar con Google" si se registró así).
+
 Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**.
 
 ### 6.2 "¡TU PLAN ESTÁ LISTO!" (primera comida en 1 toque)

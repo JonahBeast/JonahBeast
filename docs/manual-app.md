@@ -316,10 +316,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ### 8.3 Editar o borrar un alimento
 
-- **Cantidad rápida:** −/+ en la fila.
+- **Cantidad rápida:** −/+ en la fila. Si ya está en lo mínimo (ej. 10 g o 1 unidad), **"−" lo quita** (es como ponerle cero) y sale "🗑️ Quitaste [alimento]". Sirve, por ejemplo, para dejar tu pan con pollo separado sin lechuga.
 - **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida, **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
 - **Borrar rápido:** desliza la fila hacia la izquierda.
 - Si pones 5 kg o más sale "Cantidad muy alta, revísala".
+- **Ajustar los ingredientes de un plato (🧩):** en los platos fáciles de separar (Pan con pollo, Pan con jamonada, Pan con chicharrón, Hot dog, Hamburguesa de carretilla, Sándwich de pollo, Ensalada de pollo, Frejolada, Menestra de lentejas con arroz, Salchipapa, Salchipollo y Pollo a la brasa con papas y ensalada), al tocarlo aparece **"🧩 Ajustar ingredientes"** ("¿Le pusiste más o menos de algo? Se separa en [ingredientes] y cambias lo que quieras."). Al tocarlo, el plato se cambia por sus partes con cantidades típicas (ej. Pan con pollo → Pan francés 1 unidad + Pollo pechuga 90 g + Mayonesa 1 cucharada + Lechuga 10 g) y sale "🧩 Separado en [N] ingredientes: toca cada uno para cambiar su cantidad". Si registraste 2 unidades, las cantidades salen dobles. Las calorías pasan a ser la suma de las partes, así que pueden cambiar un poco respecto al plato.
+- **Truco para un extra sin separar:** si a un plato le pusiste algo de más (ej. más pollo a tu pan con pollo), registra el plato normal y agrega aparte solo el extra (ej. "Pollo pechuga (cocida)" 40 g). Las mezclas caseras (avena con leche y whey, arroz con huevo y papa…) se registran por partes, cada ingrediente con su cantidad.
 
 ### 8.4 Crear tu propio alimento
 

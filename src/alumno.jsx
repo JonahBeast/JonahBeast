@@ -6090,9 +6090,16 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
         </div>
         {estado === 'elegir' && (
           <div className="text-center">
-            <p className="jb-body text-sm text-zinc-400 mb-4">
+            <p className="jb-body text-sm text-zinc-400 mb-3">
               Toma una foto de tu comida — identificamos qué es, y tú eliges la cantidad como siempre.
             </p>
+            {/* Había alumnos tomando una foto por cosa (plato, bebida,
+                ensalada) sin saber que una sola lo detecta todo. */}
+            <div className="rounded-xl px-3 py-2.5 mb-4 text-left bg-orange-500/10 border border-orange-500/40">
+              <p className="jb-body text-xs text-zinc-200 leading-snug">
+                💡 <span className="text-orange-400 font-semibold">Todo en una sola foto:</span> pon juntos tu plato, la bebida, la ensalada, el pan… La IA detecta cada cosa por separado y gastas una sola foto.
+              </p>
+            </div>
             {cupo?.tipo === 'ilimitado' && (
               <div className="rounded-xl px-3 py-2.5 mb-4 text-left border bg-zinc-950 border-orange-500/40">
                 <p className="jb-body text-xs text-zinc-300">📸 <span className="text-orange-400 font-semibold">Fotos ilimitadas</span> en esta cuenta · hoy llevas {Number(cupo.usadas) || 0}</p>

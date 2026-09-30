@@ -55,6 +55,24 @@ export const RECETAS_PLATOS = {
   'Salchipollo (-)': [
     ['Papas fritas (comida rápida) (-)', 200, 'gramos'], ['Chicharrón de pollo (-)', 150, 'gramos'],
   ],
+  // Platos de arroz: el arroz base + la carne. Si al alumno le sobró
+  // solo el arroz, baja la carne a cero y queda el arroz solo.
+  'Arroz con pollo (-)': [
+    ['Arroz verde (Cocido)', 280, 'gramos'], ['Pollo pierna (con piel) (Cocida)', 120, 'gramos'],
+  ],
+  'Arroz con pato (-)': [
+    ['Arroz verde (Cocido)', 280, 'gramos'], ['Pato (sin piel) (Cocido)', 120, 'gramos'],
+  ],
+  'Arroz a la jardinera (-)': [
+    ['Arroz amarillo (a la jardinera) (Cocido)', 280, 'gramos'], ['Pollo pierna (con piel) (Cocida)', 120, 'gramos'],
+  ],
+  'Arroz con chancho (-)': [
+    ['Arroz aderezado (con ají panca) (Cocido)', 280, 'gramos'], ['Cerdo (costilla) (Cocida)', 120, 'gramos'],
+  ],
+  'Arroz chaufa (-)': [
+    ['Arroz blanco (Cocido)', 280, 'gramos'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
+    ['Huevo de gallina (Cocido)', 1, 'unidad'], ['Aceite vegetal (-)', 1, 'cucharada'],
+  ],
   'Pollo a la brasa con papas y ensalada (-)': [
     ['Pollo a la brasa (solo la presa) (-)', 1, '1/4 de pollo'], ['Papas fritas (comida rápida) (-)', 150, 'gramos'],
     ['Lechuga (Cruda)', 40, 'gramos'], ['Tomate (Crudo)', 30, 'gramos'],

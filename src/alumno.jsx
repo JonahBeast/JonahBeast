@@ -7184,14 +7184,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         {onDesarmar && RECETAS_PLATOS[en.foodKey] && (() => {
           const partes = RECETAS_PLATOS[en.foodKey].map(([k]) => nombreAlimento(buscarFood(k)) || k);
           return (
-            <button type="button" onClick={() => {
-              const nuevas = partesDelPlato(en);
-              if (!nuevas) return;
-              vibrar(20);
-              onDesarmar(nuevas);
-              onCerrar();
-              showToast(`🧩 Separado en ${nuevas.length} ingredientes: toca cada uno para cambiar su cantidad`);
-            }}
+            <button type="button" onClick={() => { onDesarmar(); onCerrar(); }}
               className="w-full bg-zinc-950 border border-orange-500/40 rounded-xl px-4 py-3 mb-4 text-left">
               <span className="block jb-body text-sm text-zinc-100">🧩 Ajustar ingredientes</span>
               <span className="block jb-body text-[11px] text-zinc-500 mt-0.5 leading-snug">
@@ -7514,6 +7507,14 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
   function removeEntry(meal, id) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
   }
+  // "🧩 Ajustar ingredientes": el plato se cambia, en su lugar, por sus partes.
+  function desarmarPlato(meal, en) {
+    const partes = partesDelPlato(en);
+    if (!partes) return;
+    vibrar(20);
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].flatMap(x => x.id === en.id ? partes : [x]) } }));
+    showToast(`🧩 Separado en ${partes.length} ingredientes: cambia la cantidad de cada uno con − y +`);
+  }
 
   const SWIPE_UMBRAL = -70; // px hacia la izquierda para eliminar
   function onSwipeStart(id, clientX) {
@@ -7577,10 +7578,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
             username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={removeEntry}
             onCrear={texto => setCrearPara({ meal: editando.meal, id: en.id, texto })}
             onEditarPropio={food => setEditarPropio(food)}
-            onDesarmar={partes => setMealPlan(v => ({
-              ...v,
-              meals: { ...v.meals, [editando.meal]: v.meals[editando.meal].flatMap(x => x.id === en.id ? partes : [x]) },
-            }))}
+            onDesarmar={() => desarmarPlato(editando.meal, en)}
             onCerrar={() => setEditando(null)} />
         ) : null;
       })()}
@@ -7704,8 +7702,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                       onTouchMove={e => onSwipeMove(en.id, e.touches[0].clientX)}
                       onTouchEnd={() => onSwipeEnd(meal, en.id)}
                     >
+                      <div className="flex-1 min-w-0">
                       <button type="button" onClick={() => setEditando({ meal, id: en.id })}
-                        className="flex-1 min-w-0 flex items-center gap-2.5 text-left">
+                        className="w-full min-w-0 flex items-center gap-2.5 text-left">
                         <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
                         <span className="min-w-0">
                           <span className="block jb-body text-sm text-zinc-100 leading-snug line-clamp-2 break-words">{nombreAlimento(food)}</span>
@@ -7713,6 +7712,15 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                           {muyAlta && <span className="block text-amber-400 text-[10px]">Cantidad muy alta, revísala</span>}
                         </span>
                       </button>
+                      {/* A la vista, para que el alumno sepa que puede
+                          cambiar las cantidades de cada ingrediente. */}
+                      {RECETAS_PLATOS[en.foodKey] && (
+                        <button type="button" onClick={() => desarmarPlato(meal, en)}
+                          className="ml-[38px] mt-1 jb-body text-[11px] text-orange-400 border border-orange-500/40 rounded-full px-2.5 py-0.5 hover:bg-orange-500/10">
+                          🧩 Ajustar ingredientes
+                        </button>
+                      )}
+                      </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => {
                           // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con

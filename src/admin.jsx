@@ -66,6 +66,7 @@ function formatActivity(lastActivity) {
 
 function ReferidosPanel({ users, onCambio }) {
   const [refs, setRefs] = useState([]);
+  const [refsCargados, setRefsCargados] = useState(false); // true solo cuando la lista llegó bien
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [nuevo, setNuevo] = useState({ codigo: '', nombre: '', telefono: '', pct: 10, desc: 10 });
@@ -77,7 +78,15 @@ function ReferidosPanel({ users, onCambio }) {
   const [guardandoEdit, setGuardandoEdit] = useState(false);
   const [precioMensual, setPrecioMensual] = useState(PLANES[0].precioDefault);
 
-  useEffect(() => { cargar(); cargarPrecio(); }, []);
+  useEffect(() => {
+    cargar(); cargarPrecio();
+    // Si la sesión de admin aún no estaba lista al abrir el panel, la lista llega
+    // vacía; cuando la sesión se confirma o se renueva, se vuelve a cargar.
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') cargar();
+    });
+    return () => sub?.subscription?.unsubscribe();
+  }, []);
 
   async function cargarPrecio() {
     try {
@@ -90,9 +99,14 @@ function ReferidosPanel({ users, onCambio }) {
   async function cargar() {
     setLoading(true);
     try {
-      const { data } = await supabase.from('referidores').select('*').order('created_at', { ascending: false });
+      // Esperar la sesión: sin ella la base responde una lista vacía (solo el admin puede leer los códigos).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setLoading(false); return; }
+      const { data, error } = await supabase.from('referidores').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
       setRefs(data || []);
-    } catch { setRefs([]); }
+      setRefsCargados(true);
+    } catch { /* se conserva la última lista buena */ }
     setLoading(false);
   }
 
@@ -219,7 +233,9 @@ function ReferidosPanel({ users, onCambio }) {
   // (típicamente porque ese código fue borrado o renombrado). Cuentan en el total
   // de arriba pero no aparecen en ninguna tarjeta de abajo si no se detectan aquí.
   const codigosActivos = new Set(refs.map(r => r.codigo.toUpperCase()));
-  const huerfanos = (users || []).filter(u => u.codigoReferido && !codigosActivos.has(u.codigoReferido.toUpperCase()));
+  // Solo se revisa con una lista de códigos que llegó bien: una lista vacía por
+  // sesión no lista haría ver a todos los referidos como "código borrado".
+  const huerfanos = (!refsCargados || refs.length === 0) ? [] : (users || []).filter(u => u.codigoReferido && !codigosActivos.has(u.codigoReferido.toUpperCase()));
   // Los códigos de "Invita a un amigo" (tipo 'alumno') se muestran aparte:
   // no son embajadores y no generan comisión en dinero.
   const embajadores = refs.filter(r => r.tipo !== 'alumno');

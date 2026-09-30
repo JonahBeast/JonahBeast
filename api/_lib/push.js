@@ -104,6 +104,52 @@ export async function enviarPushA(supabase, usernames, { title, body, url = '/' 
   return { enviados, fallidos };
 }
 
+/* PRESUPUESTO DE AVISOS: como mucho AVISOS_POR_DIA avisos automáticos al
+   día por alumno, y uno por momento del día (mañana, mediodía, noche).
+   Cada aviso enviado se anota en la tabla avisos_enviados.
+   - Avisos "de rutina" (buenos días + desayuno, almuerzo, racha, cena):
+     solo si ese momento del día todavía está libre.
+   - Avisos "especiales" (plan por vencer, pesaje, resumen, control, avisos
+     de la primera semana, reto): toman el momento aunque ya se haya usado,
+     pero igual respetan el tope del día. Corren antes que la rutina de ese
+     momento, así la reemplazan en vez de sumarse.
+   Los avisos que responden a algo que hizo el alumno (pago aprobado, su
+   alimento ya está, bienvenida al activar avisos) no pasan por aquí. */
+export const AVISOS_POR_DIA = 3;
+
+export async function conPresupuesto(supabase, usernames, { momento = null, especial = false, hoyISO }) {
+  const lista = [...new Set(usernames)];
+  if (!lista.length) return [];
+  const { data, error } = await supabase.from('avisos_enviados')
+    .select('username, momento').eq('fecha', hoyISO).in('username', lista);
+  if (error) { console.error('No se pudo leer avisos_enviados:', error.message); return lista; }
+  const cuenta = {}, momentos = {};
+  (data || []).forEach(a => {
+    cuenta[a.username] = (cuenta[a.username] || 0) + 1;
+    (momentos[a.username] = momentos[a.username] || new Set()).add(a.momento);
+  });
+  return lista.filter(u => (cuenta[u] || 0) < AVISOS_POR_DIA
+    && (especial || !momento || !momentos[u]?.has(momento)));
+}
+
+export async function anotarAvisos(supabase, usernames, { tipo, momento = null, hoyISO }) {
+  const lista = [...new Set(usernames)];
+  if (!lista.length) return;
+  const { error } = await supabase.from('avisos_enviados')
+    .insert(lista.map(username => ({ username, tipo, momento, fecha: hoyISO })));
+  if (error) console.error('No se pudo anotar en avisos_enviados:', error.message);
+}
+
+/* Un aviso a un alumno, respetando el presupuesto. Devuelve lo mismo que
+   enviarPushA (enviados: 0 si no le quedaba presupuesto). */
+export async function avisoConPresupuesto(supabase, username, mensaje, { tipo, momento = null, especial = false, hoyISO }) {
+  const ok = await conPresupuesto(supabase, [username], { momento, especial, hoyISO });
+  if (!ok.length) return { enviados: 0, fallidos: [], sinPresupuesto: true };
+  const r = await enviarPushA(supabase, [username], mensaje);
+  if (r.enviados > 0) await anotarAvisos(supabase, [username], { tipo, momento, hoyISO });
+  return r;
+}
+
 /* Calcula la racha de días consecutivos con comidas registradas para un
    conjunto de alumnos, igual que la lógica del frontend (RachaCard). */
 export async function calcularRachas(supabase, usernames, hoyISO) {

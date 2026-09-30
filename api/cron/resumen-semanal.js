@@ -1,13 +1,13 @@
 // api/cron/resumen-semanal.js
 //
-// Corre los lunes a las 9am hora Perú. A cada alumno activo que registró
+// Corre los lunes a las 7am hora Perú (antes del buenos días de las 8am). A cada alumno activo que registró
 // comidas la semana pasada (lunes a domingo) le avisa que su resumen
 // "Tu semana" está listo en la app (tarjeta de Inicio, con botón para
 // compartirlo en historias).
 //
-// Cron en vercel.json: "0 14 * * 1" (14:00 UTC lunes = 9:00 Perú lunes)
+// Cron en vercel.json: "0 12 * * 1" (12:00 UTC lunes = 7:00 Perú lunes)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, avisoConPresupuesto } from '../_lib/push.js';
 
 function sumarDias(iso, dias) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     });
 
     const resultados = await Promise.all(envios.map(e =>
-      enviarPushA(supabase, [e.username], { title: 'Jonah 🦍', body: e.body, url: '/' })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: '/' }, { tipo: 'resumen_semanal', momento: 'manana', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
 

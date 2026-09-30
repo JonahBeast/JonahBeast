@@ -615,9 +615,11 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 ### 14.1 Activar
 
 - En la guía de bienvenida, en la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos"), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos"), o en el pie → **"Activar notificaciones"**.
-- La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante el Premium de prueba**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 7 días; después vuelve a salir una vez por semana.
+- La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante el Premium de prueba**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 3 días; después vuelve a salir.
 - **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio, la guía de bienvenida y "Activar notificaciones" tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
 - **En Android** (Xiaomi, Huawei, Oppo, Samsung): Ajustes → Batería → Chrome → **"Sin restricciones"**, si no se apagan los avisos.
+- **Si abrió la app desde Instagram, TikTok o Facebook** (el navegador de esas apps no permite avisos), la tarjeta de Inicio dice "Abriste la app desde Instagram, TikTok o Facebook, y ahí no llegan avisos. Ábrela en tu navegador:" con los pasos: tres puntos (arriba a la derecha) → **"Abrir en Chrome"** (en iPhone, **"Abrir en Safari"**), o escribir **jonahbeast.com** en el navegador, y ahí tocar "Activar avisos".
+- Jonah ve en su panel quién no recibe avisos y por qué (iPhone sin instalar, bloqueados, nunca activados, navegador de Instagram/TikTok), y puede escribirle por WhatsApp con los pasos para su celular.
 
 ### 14.2 Desactivar
 

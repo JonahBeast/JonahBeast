@@ -2066,25 +2066,49 @@ async function estadoPushEquipo() {
   } catch { return 'disponible'; }
 }
 
-// Estado de avisos del equipo -> palabra que se guarda en la ficha del
-// alumno (columna estado_avisos), para que Jonah sepa por qué alguien no
-// recibe recordatorios.
+// Tipo de celular y si abrió la app desde el navegador de Instagram,
+// TikTok o Facebook (ahí no llegan avisos: hay que abrirla en Chrome o
+// Safari).
+function equipoDelAlumno() {
+  const ua = window.navigator.userAgent || '';
+  const iphone = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const dispositivo = iphone ? 'iphone' : /Android/i.test(ua) ? 'android'
+    : /Windows|Macintosh|Linux|CrOS/.test(ua) ? 'computadora' : 'otro';
+  const navegadorInterno = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|Bytedance/i.test(ua);
+  const instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return { dispositivo, navegadorInterno, instalada };
+}
+
+// Estado de avisos del equipo -> lo que se guarda en la tabla
+// estado_avisos, para que Jonah vea en su panel quién no recibe avisos,
+// por qué y en qué celular (y le escriba con los pasos justos).
 const ESTADO_AVISOS_DB = {
-  activo: 'activo', iosNoInstalado: 'iphone_sin_instalar', bloqueado: 'bloqueado',
-  disponible: 'no_activados', nosoportado: 'no_compatible',
+  activo: 'activo', iosNoInstalado: 'ios_sin_instalar', bloqueado: 'bloqueado',
+  disponible: 'sin_activar', nosoportado: 'no_soportado',
 };
 
-function anotarEstadoAvisos(estado) {
+function anotarEstadoAvisos(estado, username) {
   const valor = ESTADO_AVISOS_DB[estado];
-  if (!valor) return;
-  supabase.rpc('registrar_estado_avisos', { p_estado: valor }).then(() => {}, () => {});
+  if (!valor || !username) return;
+  const { dispositivo, navegadorInterno, instalada } = equipoDelAlumno();
+  // Una vez al día como mucho, salvo que cambie algo.
+  const firma = [username, valor, dispositivo, navegadorInterno, instalada].join('|');
+  try {
+    const previa = JSON.parse(localStorage.getItem('jb-estado-avisos') || 'null');
+    if (previa?.firma === firma && Date.now() - previa.en < 86400000) return;
+    localStorage.setItem('jb-estado-avisos', JSON.stringify({ firma, en: Date.now() }));
+  } catch {}
+  supabase.from('estado_avisos').upsert({
+    username, dispositivo, estado: valor, instalada, navegador_interno: navegadorInterno,
+    actualizado_en: new Date().toISOString(),
+  }, { onConflict: 'username' }).then(() => {}, () => {});
 }
 
 // Pide el permiso del navegador, crea la suscripción y la guarda para
 // el alumno. Devuelve el estado final ('activo', 'bloqueado' o 'disponible').
 async function activarPushAlumno(username) {
   const final = await activarPushAlumnoInterno(username);
-  anotarEstadoAvisos(final);
+  anotarEstadoAvisos(final, username);
   return final;
 }
 
@@ -2309,15 +2333,16 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
 
       try {
         const marca = Number(localStorage.getItem('jb_notif_no'));
-        // Igual que con el banner de instalar: la marca de "no
-        // mostrar" dura 7 días, no para siempre.
-        if (marca && Date.now() - marca < 7 * 24 * 60 * 60 * 1000) setOcultoManual(true);
+        // La marca de "no mostrar" dura 3 días, no para siempre: sin
+        // avisos, el alumno se pierde casi todo el acompañamiento.
+        if (marca && Date.now() - marca < 3 * 24 * 60 * 60 * 1000) setOcultoManual(true);
       } catch {}
 
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         // En iPhone, esto es normal si todavía no instaló la app —
-        // se lo explicamos en vez de quedarnos en silencio.
-        setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        // se lo explicamos en vez de quedarnos en silencio. Lo mismo si
+        // abrió la app desde Instagram, TikTok o Facebook.
+        setEstado(equipoDelAlumno().navegadorInterno ? 'navegadorInterno' : esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
         return;
       }
 
@@ -2351,6 +2376,7 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
         await sub.unsubscribe();
       }
       setEstado('disponible');
+      anotarEstadoAvisos('disponible', username);
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setTrabajando(false);
   }
@@ -2403,14 +2429,22 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
             {estado === 'bloqueado' ? 'TUS AVISOS ESTÁN BLOQUEADOS' : 'ACTIVA LOS AVISOS DE JONAH'}
           </p>
           <p className="jb-body text-xs text-zinc-400">
-            {estado === 'iosNoInstalado'
+            {estado === 'navegadorInterno'
+              ? 'Abriste la app desde Instagram, TikTok o Facebook, y ahí no llegan avisos. Ábrela en tu navegador:'
+              : estado === 'iosNoInstalado'
               ? 'En iPhone los avisos solo llegan si la app está en tu pantalla de inicio. Toma 1 minuto:'
               : estado === 'bloqueado'
                 ? 'Así te perderías estos avisos:'
                 : 'Solo lo importante, sin spam:'}
           </p>
           {beneficios}
-          {estado === 'iosNoInstalado' ? (
+          {estado === 'navegadorInterno' ? (
+            <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+              <p className="jb-body text-[11px] text-zinc-300">
+                Toca los <b>tres puntos</b> (arriba a la derecha) → <b>"Abrir en Chrome"</b> (en iPhone, <b>"Abrir en Safari"</b>). O escribe <b>jonahbeast.com</b> en tu navegador. Ahí toca "Activar avisos".
+              </p>
+            </div>
+          ) : estado === 'iosNoInstalado' ? (
             <button onClick={() => setVerGuiaIphone(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
               📲 Ver cómo, paso a paso
             </button>
@@ -4531,6 +4565,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
       }, { onConflict: 'endpoint' });
       setEstadoPush('yaActivo');
+      anotarEstadoAvisos('activo', username);
       // Recién acá existe una suscripción real a la que mandarle algo —
       // este es el momento más cercano posible a "el instante en que
       // se registra" en el que Jonah puede saludarlo de verdad.
@@ -8691,7 +8726,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // Anota en su ficha si le llegan los avisos (o por qué no), una vez al
   // abrir la app, para que Jonah lo vea en su panel.
   useEffect(() => {
-    estadoPushEquipo().then(anotarEstadoAvisos).catch(() => {});
+    estadoPushEquipo().then(e => anotarEstadoAvisos(e, username)).catch(() => {});
   }, [username]);
   const metaEstimada = !tieneDatosBasicos(form) || !form.objetivo;
 

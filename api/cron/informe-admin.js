@@ -3,7 +3,8 @@
 // Corre todos los días a las 8am hora Perú. Le manda a Jonah Beast (admin)
 // un aviso corto con lo del día: lo que entró ayer, los pagos por revisar,
 // las pruebas gratis que vencen hoy o mañana, los alumnos que pagan y
-// dejaron de registrar y los alimentos por revisar (variantes y menú del día
+// dejaron de registrar, los alumnos sin avisos (nuevos de la semana; los
+// lunes, todos) y los alimentos por revisar (variantes y menú del día
 // que propuso la IA) y el saldo de la IA si quedó bajo (tabla ia_saldo).
 // Si no hay nada que valga la pena, no manda nada.
 //
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0)
         .gte('creado_en', `${ayer}T00:00:00-05:00`).lt('creado_en', `${hoyISO}T00:00:00-05:00`).range(0, 999),
       supabase.from('pagos').select('id').eq('estado', 'pendiente').range(0, 999),
-      supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento').eq('enabled', true).gte('fecha_vencimiento', hoyISO).range(0, 4999),
+      supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento, fecha_inicio').eq('enabled', true).gte('fecha_vencimiento', hoyISO).range(0, 4999),
     ]);
 
     const esPrueba = a => a.plan === 'trial' || a.plan === 'prueba';
@@ -53,6 +54,20 @@ export default async function handler(req, res) {
       const ultima = {};
       (hist || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
       quietos = Object.values(ultima).filter(f => f <= addDaysISO(hoyISO, -3) && f >= addDaysISO(hoyISO, -7)).length;
+    }
+
+    // Sin avisos (panel → HOY → "Sin avisos"): los nuevos de la última
+    // semana todos los días (es cuando más importa ayudarlos); los lunes,
+    // el total.
+    let sinAvisos = 0;
+    const esLunes = new Date(`${hoyISO}T12:00:00Z`).getUTCDay() === 1;
+    const reales = (alumnos || []).filter(a => !CUENTAS_PROPIAS.includes(a.username));
+    const candidatos = esLunes ? reales : reales.filter(a => a.fecha_inicio && a.fecha_inicio >= addDaysISO(hoyISO, -7));
+    if (candidatos.length) {
+      const { data: subs } = await supabase.from('push_subs').select('username').eq('activa', true)
+        .in('username', candidatos.map(a => a.username)).range(0, 4999);
+      const con = new Set((subs || []).map(x => x.username));
+      sinAvisos = candidatos.filter(a => !con.has(a.username)).length;
     }
 
     // Alimentos por revisar (panel → HOY → "Alimentos por revisar"): variantes
@@ -97,6 +112,7 @@ export default async function handler(req, res) {
     if (vencenHoy) hoy.push(`${vencenHoy === 1 ? 'una prueba vence' : `${enLetras(vencenHoy)} pruebas vencen`} hoy`);
     if (vencenManana) hoy.push(`${vencenManana === 1 ? 'una vence' : `${enLetras(vencenManana)} vencen`} mañana`);
     if (quietos) hoy.push(`${quietos === 1 ? 'un alumno lleva' : `${enLetras(quietos)} alumnos llevan`} días sin registrar`);
+    if (sinAvisos) hoy.push(`${sinAvisos === 1 ? 'un alumno' : `${enLetras(sinAvisos)} alumnos`}${esLunes ? '' : ' nuevos'} sin avisos (en "Sin avisos" tienes el mensaje listo para ayudarlos)`);
     if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
     if (recargaAyer > 0) {

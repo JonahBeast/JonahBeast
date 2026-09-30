@@ -6771,6 +6771,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <SaldoIAPanel />
             <AlimentosPropiosPanel />
             <RescatePanel users={users} />
+            <SinAvisosPanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
             <EmbudoPanel />
@@ -7212,6 +7213,123 @@ function textoHoras(h) {
 function ordenMedias(h) {
   if (h === null || h === undefined) return 1e9;
   return h < 3 ? 1e6 + h : h;
+}
+
+/* SIN AVISOS: alumnos vigentes que no reciben notificaciones, con el
+   motivo (lo anota la app en estado_avisos al abrirse) y un botón de
+   WhatsApp con los pasos justos para su celular. Sin avisos se pierden casi
+   todo el acompañamiento: un mensaje de Jonah los ayuda a activarlos. */
+const MOTIVO_SIN_AVISOS = {
+  ios_sin_instalar: '📱 iPhone sin instalar la app',
+  bloqueado: '🚫 Los bloqueó',
+  sin_activar: '🔕 Nunca los activó',
+  navegador: '🌐 Abre la app desde Instagram, TikTok o Facebook',
+  no_soportado: '⚠️ Su navegador no permite avisos',
+  sin_dato: '❔ No abrió la app desde que medimos esto',
+};
+
+function motivoSinAvisos(e) {
+  if (!e) return 'sin_dato';
+  if (e.navegador_interno) return 'navegador';
+  return e.estado;
+}
+
+function mensajeActivarAvisos(nombre, motivo, dispositivo) {
+  const hola = `Hola${nombre ? ' ' + nombre.split(' ')[0] : ''} 👋 Soy Jonah.`;
+  const cierre = 'Así te aviso si se te pasa una comida y te acompaño en tu proceso 🦍';
+  if (motivo === 'ios_sin_instalar') {
+    return `${hola} Para que te lleguen mis avisos en tu iPhone, instala la app (1 minuto): 1) Abre jonahbeast.com en Safari 2) Toca el botón Compartir (el cuadrado con la flecha ↑) 3) "Agregar a pantalla de inicio" → "Agregar". Luego entra desde el ícono nuevo y toca "Activar avisos". ${cierre}`;
+  }
+  if (motivo === 'bloqueado') {
+    const pasos = dispositivo === 'iphone'
+      ? 'Ajustes del iPhone → Notificaciones → Jonah Beast Fuel → Permitir notificaciones'
+      : dispositivo === 'computadora'
+        ? 'toca el candado junto a la dirección de la página → Notificaciones → Permitir'
+        : 'Ajustes del celular → Aplicaciones → Jonah Beast Fuel (o Chrome) → Notificaciones → Permitir';
+    return `${hola} Vi que los avisos de la app quedaron bloqueados en tu celular. Para activarlos: ${pasos}. Luego cierra la app y vuelve a abrirla. ${cierre}`;
+  }
+  if (motivo === 'navegador') {
+    return `${hola} Estás abriendo la app desde Instagram, TikTok o Facebook, y ahí no llegan mis avisos. Ábrela en ${dispositivo === 'iphone' ? 'Safari' : 'Chrome'}: jonahbeast.com (o toca los tres puntos → "Abrir en ${dispositivo === 'iphone' ? 'Safari' : 'Chrome'}") y toca "Activar avisos". ${cierre}`;
+  }
+  if (motivo === 'no_soportado') {
+    return `${hola} Tu navegador no deja recibir mis avisos. Abre jonahbeast.com en ${dispositivo === 'iphone' ? 'Safari e instálala en tu pantalla de inicio (Compartir → "Agregar a pantalla de inicio")' : 'Chrome'} y toca "Activar avisos". ${cierre}`;
+  }
+  if (motivo === 'sin_dato') {
+    return `${hola} ¿Cómo vas? Entra a la app cuando puedas y toca "Activar avisos" (sale arriba en Inicio). ${cierre}`;
+  }
+  return `${hola} Todavía no activaste mis avisos. Abre la app y en Inicio toca "Activar avisos" (sale arriba). ${cierre}`;
+}
+
+function SinAvisosPanel({ users }) {
+  const [open, setOpen] = useState(false);
+  const [estados, setEstados] = useState(null);
+  const vigentes = useMemo(() => (users || []).filter(u => u.enabled && membershipActive(u) && !esCuentaPropia(u.username)), [users]);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const [{ data: est }, { data: subs }] = await Promise.all([
+        supabase.from('estado_avisos').select('*').range(0, 4999),
+        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+      ]);
+      if (cancelado) return;
+      const m = {}; (est || []).forEach(e => { m[e.username] = e; });
+      setEstados({ porUsuario: m, conPush: new Set((subs || []).map(s => s.username)) });
+    })().catch(() => { if (!cancelado) setEstados({ porUsuario: {}, conPush: new Set() }); });
+    return () => { cancelado = true; };
+  }, []);
+
+  if (!estados) return null;
+  // Tiene avisos si hay una suscripción activa (es lo que de verdad recibe).
+  const sinAvisos = vigentes.filter(u => !estados.conPush.has(u.username))
+    .map(u => { const e = estados.porUsuario[u.username]; return { u, e, motivo: motivoSinAvisos(e && e.estado === 'activo' ? { ...e, estado: 'sin_activar' } : e) }; });
+  const conteo = {};
+  sinAvisos.forEach(x => { conteo[x.motivo] = (conteo[x.motivo] || 0) + 1; });
+
+  return (
+    <div className={`bg-zinc-900 border rounded-2xl ${sinAvisos.length ? 'border-orange-500/40' : 'border-zinc-800'}`}>
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-3 p-5 text-left">
+        <div className="min-w-0">
+          <h2 className="jb-display text-base text-zinc-200">🔕 SIN AVISOS ({sinAvisos.length} de {vigentes.length})</h2>
+          <p className="jb-body text-xs text-zinc-500 mt-0.5">
+            {sinAvisos.length
+              ? 'No les llegan tus recordatorios. Escríbeles con los pasos para su celular.'
+              : 'Todos tus alumnos activos reciben tus avisos 🙌'}
+          </p>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && sinAvisos.length > 0 && (
+        <div className="px-5 pb-5 flex flex-col gap-2">
+          <div className="flex flex-wrap gap-1.5 mb-1">
+            {Object.entries(conteo).map(([m, n]) => (
+              <span key={m} className="jb-body text-[11px] text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-full px-2.5 py-1">{MOTIVO_SIN_AVISOS[m] || m}: {n}</span>
+            ))}
+          </div>
+          {sinAvisos.map(({ u, e, motivo }) => {
+            const num = String(u.telefono || '').replace(/\D/g, '');
+            const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+            const texto = mensajeActivarAvisos(u.nombre, motivo, e?.dispositivo);
+            return (
+              <div key={u.username} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="jb-body text-sm text-zinc-100 truncate">{u.nombre || u.username}</p>
+                  <p className="jb-body text-[11px] text-zinc-500">
+                    {MOTIVO_SIN_AVISOS[motivo] || motivo}
+                    {e?.dispositivo && e.dispositivo !== 'otro' ? ` · ${e.dispositivo === 'iphone' ? 'iPhone' : e.dispositivo === 'android' ? 'Android' : 'computadora'}` : ''}
+                  </p>
+                </div>
+                <a href={full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`}
+                  target="_blank" rel="noreferrer" className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
+                  <MessageCircle size={14} /> Escribirle
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RescatePanel({ users }) {

@@ -5228,6 +5228,8 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
         setPedido(p => p?.nombre === nombre ? { estado: 'agregado', nombre, alimento: data.alimento } : p);
       } else if (data?.estado === 'descartado' && data.ya_existe) {
         setPedido(p => p?.nombre === nombre ? { estado: 'existe', nombre, alimento: data.ya_existe } : p);
+      } else if (data?.estado === 'descartado' && data.por_partes?.length) {
+        setPedido(p => p?.nombre === nombre ? { estado: 'partes', nombre, partes: data.por_partes } : p);
       }
     } catch {}
   }
@@ -5319,6 +5321,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
           {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Estamos calculando los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
           {pedido.estado === 'agregado' && <>✅ ¡Listo! <b className="text-orange-400">{pedido.alimento}</b> ya está en la app. Escríbelo arriba y elígelo 💪</>}
           {pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{pedido.alimento}</b>. Escríbelo así arriba y elígelo 🙌</>}
+          {pedido.estado === 'partes' && <>🧩 Regístralo por partes, cada uno con tu cantidad: <b className="text-orange-400">{pedido.partes.join(' + ')}</b>. Así es más exacto y luego te sale en ⭐ Favoritos 💪</>}
           {pedido.estado === 'error' && pedido.error}
           {pedido.estado === 'premium' && <>
             👑 Pedirle alimentos a Jonah es <b className="text-orange-400">Premium</b>. En la versión gratis puedes crear tu propio alimento con sus calorías.

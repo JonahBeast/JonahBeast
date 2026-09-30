@@ -262,12 +262,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 **B2) Código de barras (productos empacados: yogurt, galletas, leche, atún, barras…)**
 1. Toca **"Código"**. Se abre la cámara con un recuadro y un láser naranja: apunta al **código de barras** del empaque y se lee solo.
    - Si no lo lee en unos segundos, sale **"¿No lo lee?"**: acerca el celular hasta que las barras llenen el recuadro, estira el empaque y evita el brillo.
-   - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, con las barras y los números visibles. Se leen las barras y, si no se puede, la app lee los números impresos debajo. No gasta fotos. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece.
+   - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, con las barras y los números visibles. Se leen las barras y, si no se puede, la app lee los números impresos debajo. No gasta fotos. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece. Debajo está **"🖼️ Subir de mi galería"**, por si ya le tomaste foto al código (por ejemplo, en la tienda).
    - O **"Buscarlo por su nombre"** para buscarlo escribiendo como cualquier alimento.
 2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
    - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.
    - Toca **"Agregar a [comida]"**.
-3. Si sale **"✓ Código leído: …"** y **"Este producto todavía no está registrado"**, el código se leyó bien pero nadie ha registrado ese producto aún (pasa con muchas marcas peruanas). **Sé el primero en agregarlo:** toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque. (Si el código leído no coincide con los números debajo de las barras, toca **"Escanear de nuevo"** abajo.)
+3. Si sale **"✓ Código leído: …"** y **"Este producto todavía no está registrado"**, el código se leyó bien pero nadie ha registrado ese producto aún (pasa con muchas marcas peruanas). **Sé el primero en agregarlo:** toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque. Si ya le tomaste foto antes, toca **"🖼️ Subir de mi galería"** (debajo) y elígela. (Si el código leído no coincide con los números debajo de las barras, toca **"Escanear de nuevo"** abajo.)
    - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar producto"**. Si cierras la ventana con el nombre puesto, el producto se guarda igual.
    - Si los números no coinciden con la etiqueta, toca **"Los números no coinciden: otra foto"**.
    - El producto queda guardado para todos: la próxima vez, tú y los demás alumnos lo encuentran al escanearlo.
@@ -454,9 +454,10 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 - **Son Premium.** En la versión gratis, "Fotos" muestra "Tus fotos de progreso son Premium" con "VER PREMIUM".
 
 1. "Progreso" → **"Fotos"**.
-2. En "📸 FOTOS DE HOY" toca "De frente", "De perfil", "De espalda" y "Libre".
-3. Repítelo **cada 2 semanas**.
-- Consejos: misma ropa, lugar, luz y hora (mejor en ayunas); celular a la altura del pecho a 2 pasos.
+2. Tómate las fotos con la **cámara normal de tu celular** (con **temporizador**: apoya el celular y sal de cuerpo completo) y elige las mejores.
+3. En "📸 FOTOS DE HOY" toca "De frente", "De perfil", "De espalda" y "Libre" (cada cuadro dice **"🖼️ Subir foto"**) y elige la foto de tu galería. Si prefieres tomarla en ese momento, toca **"📷 Tomar ahora"** debajo del cuadro.
+4. Repítelo **cada 2 semanas**.
+- Consejos: usa el temporizador de tu cámara; misma ropa, lugar, luz y hora (mejor en ayunas); celular a la altura del pecho a 2 pasos.
 - **"Volver a tomar"** borra la foto (no se puede recuperar) para tomarla de nuevo.
 - **"🔄 Comparar primera vs. última"** (necesitas fotos de 2 fechas distintas).
 - Las fotos son **privadas**: solo las ven el alumno y el equipo.

@@ -3352,12 +3352,12 @@ function PhotosTab({ username, pesoActual }) {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
         <h2 className="jb-display text-base text-zinc-200 mb-1">📸 FOTOS DE HOY</h2>
         <p className="jb-body text-xs text-zinc-500 mb-4">
-          Toma 4 fotos: de frente, de perfil, de espalda y una libre. La cámara de tu celular es suficiente. No es diario: hazlo cada 2 semanas para notar el cambio.
+          Sube 4 fotos: de frente, de perfil, de espalda y una libre. Tómalas con la cámara de tu celular (con temporizador, cuerpo completo) y luego súbelas aquí. No es diario: hazlo cada 2 semanas para notar el cambio.
         </p>
 
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-4">
           <p className="jb-body text-xs text-zinc-400 mb-2 font-semibold">Para que la comparación sirva:</p>
-          {['Misma ropa (ajustada o deportiva)', 'Mismo lugar y misma luz', 'A la misma hora, de preferencia en ayunas', 'Celular a la altura del pecho, a 2 pasos de distancia'].map(t => (
+          {['Usa el temporizador de tu cámara: apoya el celular y sal de cuerpo completo', 'Misma ropa (ajustada o deportiva)', 'Mismo lugar y misma luz', 'A la misma hora, de preferencia en ayunas', 'Celular a la altura del pecho, a 2 pasos de distancia'].map(t => (
             <div key={t} className="flex items-start gap-2 text-[11px] text-zinc-500 jb-body py-0.5">
               <span className="text-orange-500 shrink-0">•</span> {t}
             </div>
@@ -3372,7 +3372,9 @@ function PhotosTab({ username, pesoActual }) {
               <div key={a.id}>
                 <label className={`block cursor-pointer rounded-xl border-2 border-dashed transition-colors overflow-hidden
                   ${ya ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'}`}>
-                  <input type="file" accept="image/*" capture="environment" className="hidden"
+                  {/* Se sube de la galería: con la cámara normal puede usar
+                      temporizador y elegir la mejor. "Tomar ahora" va abajo. */}
+                  <input type="file" accept="image/*" className="hidden"
                     onChange={e => { subir(a.id, e.target.files[0]); e.target.value = ''; }} />
                   <div className="aspect-[3/4] flex flex-col items-center justify-center p-2 text-center">
                     {cargando ? (
@@ -3384,14 +3386,21 @@ function PhotosTab({ username, pesoActual }) {
                         <span className="text-2xl mb-1">{a.emoji}</span>
                         <span className="jb-body text-xs text-zinc-300 font-medium">{a.label}</span>
                         <span className="jb-body text-[10px] text-zinc-600 mt-1 leading-tight">{a.tip}</span>
+                        <span className="jb-body text-[11px] text-orange-400 font-semibold mt-2">🖼️ Subir foto</span>
                       </>
                     )}
                   </div>
                 </label>
-                {ya && (
+                {ya ? (
                   <button onClick={() => borrar(ya)} className="jb-body text-[10px] text-zinc-600 hover:text-red-400 mt-1 w-full text-center">
                     Volver a tomar
                   </button>
+                ) : !cargando && (
+                  <label className="block jb-body text-[10px] text-zinc-500 hover:text-orange-400 mt-1 w-full text-center cursor-pointer">
+                    📷 Tomar ahora
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={e => { subir(a.id, e.target.files[0]); e.target.value = ''; }} />
+                  </label>
                 )}
               </div>
             );
@@ -6854,12 +6863,25 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoCodigo} />
     </label>
   );
+  // Por si ya le tomó foto antes (en la tienda) o la cámara no abre.
+  const galeriaCodigo = (
+    <label className="block jb-body text-xs text-zinc-500 hover:text-orange-400 text-center py-2 cursor-pointer">
+      🖼️ Subir de mi galería
+      <input type="file" accept="image/*" className="hidden" onChange={fotoCodigo} />
+    </label>
+  );
 
   const botonFotoEtiqueta = (
-    <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
-      <Camera size={16} /> Tomar foto a la tabla nutricional
-      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoEtiqueta} />
-    </label>
+    <>
+      <label className={btnPrimary + ' w-full py-3 cursor-pointer'}>
+        <Camera size={16} /> Tomar foto a la tabla nutricional
+        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={fotoEtiqueta} />
+      </label>
+      <label className="block jb-body text-xs text-zinc-500 hover:text-orange-400 text-center py-2 cursor-pointer">
+        🖼️ Subir de mi galería
+        <input type="file" accept="image/*" className="hidden" onChange={fotoEtiqueta} />
+      </label>
+    </>
   );
 
   return (
@@ -6905,6 +6927,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               </div>
             )}
             {botonFotoCodigo(tardando)}
+            {galeriaCodigo}
             <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
           </div>
         )}
@@ -6914,6 +6937,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             {mensaje && <p className="jb-body text-sm text-zinc-200 mb-1">{mensaje}</p>}
             <p className="jb-body text-sm text-zinc-400 mb-4">Tómale una <span className="text-orange-400 font-semibold">foto al código de barras</span>, de cerca y sin brillo, y lo leemos desde la foto.</p>
             {botonFotoCodigo(true)}
+            {galeriaCodigo}
             <button onClick={() => { setMensaje(''); setEstado('camara'); }} className={btnGhost + ' w-full py-2.5 text-sm mt-2'}>Volver a la cámara en vivo</button>
             <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
           </div>

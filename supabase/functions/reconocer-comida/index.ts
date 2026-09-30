@@ -356,7 +356,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
               corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
               deTodos.reglas.length && `Correcciones frecuentes de todos los alumnos (la IA dijo → en realidad era):\n${deTodos.reglas.join("\n")}`,
               frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
-              "Identifica los alimentos de esta foto.",
+              "Identifica los alimentos de esta foto. Responde solo con el JSON final, sin explicaciones antes ni después.",
             ].filter(Boolean).join("\n\n") },
           ],
         }],
@@ -377,9 +377,11 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
   console.log("Respuesta cruda de la IA:", textoRespuesta);
   let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
   let noEncontrados: string[] = [];
+  const parsed = extraerJson(textoRespuesta);
+  // Si la respuesta no trae el JSON (o viene cortada), se trata como una
+  // falla de la IA: quien llamó devuelve la foto y el alumno reintenta.
+  if (!parsed) return null;
   try {
-    const limpio = textoRespuesta.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(limpio);
     items = Array.isArray(parsed.items) ? parsed.items : [];
     const vistos = new Set<string>();
     noEncontrados = (Array.isArray(parsed.no_encontrados) ? parsed.no_encontrados : [])
@@ -639,7 +641,8 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
   const texto = (data.content || []).map((c: any) => c.text || "").join("");
   console.log("Etiqueta leída por la IA:", texto);
   try {
-    const parsed = JSON.parse(texto.replace(/```json|```/g, "").trim());
+    const parsed = extraerJson(texto);
+    if (!parsed) throw new Error("sin JSON");
     if (parsed?.legible === false) return { ok: false, error: "No pudimos leer la tabla nutricional. Toma la foto más cerca, con buena luz y sin reflejos." };
     const p = productoLimpio(parsed);
     if (!p) return { ok: false, error: "No pudimos leer bien los valores. Toma la foto más cerca, con buena luz y sin reflejos." };
@@ -657,6 +660,22 @@ function codigoValido(cod: string) {
   const control = d.pop() as number;
   const suma = d.reverse().reduce((a, n, i) => a + n * (i % 2 === 0 ? 3 : 1), 0);
   return (10 - (suma % 10)) % 10 === control;
+}
+
+/* La IA a veces explica lo que ve antes del JSON ("Se ve un caldo...
+   {...}"), o escribe uno, se corrige y escribe otro. Se toma el último
+   JSON completo de la respuesta. Devuelve null si no hay ninguno válido. */
+function extraerJson(texto: string): any | null {
+  const limpio = String(texto || "").replace(/```json|```/g, "");
+  const fin = limpio.lastIndexOf("}");
+  for (let ini = limpio.lastIndexOf("{", fin); ini >= 0; ini = limpio.lastIndexOf("{", ini - 1)) {
+    try {
+      const v = JSON.parse(limpio.slice(ini, fin + 1));
+      if (v && typeof v === "object" && !Array.isArray(v)) return v;
+    } catch { /* sigue buscando más atrás */ }
+    if (ini === 0) break;
+  }
+  return null;
 }
 
 async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string, anotar: (usage: any) => Promise<void>): Promise<string | null> {

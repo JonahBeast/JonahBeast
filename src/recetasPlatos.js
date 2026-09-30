@@ -73,6 +73,13 @@ export const RECETAS_PLATOS = {
     ['Arroz blanco (Cocido)', 280, 'gramos'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
     ['Huevo de gallina (Cocido)', 1, 'unidad'], ['Aceite vegetal (-)', 1, 'cucharada'],
   ],
+  // Ensalada rusa: sin mayonesa (con limón y sal) o sin betarraga → se
+  // baja ese ingrediente a cero.
+  'Ensalada rusa (-)': [
+    ['Papa (Cocida)', 80, 'gramos'], ['Betarraga (Cocida)', 50, 'gramos'],
+    ['Zanahoria (Cocida)', 35, 'gramos'], ['Vainita (Cocida)', 25, 'gramos'],
+    ['Mayonesa (-)', 1, 'cucharada'],
+  ],
   'Pollo a la brasa con papas y ensalada (-)': [
     ['Pollo a la brasa (solo la presa) (-)', 1, '1/4 de pollo'], ['Papas fritas (comida rápida) (-)', 150, 'gramos'],
     ['Lechuga (Cruda)', 40, 'gramos'], ['Tomate (Crudo)', 30, 'gramos'],

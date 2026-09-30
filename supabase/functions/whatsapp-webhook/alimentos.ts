@@ -209,6 +209,7 @@ export const ALIMENTOS_APP: string[] = [
   "Arroz chaufa",
   "Arroz a la jardinera",
   "Arroz con chancho",
+  "Ensalada rusa",
   "Tallarines rojos con pollo",
   "Tallarines rojos con carne molida",
   "Tallarines verdes",

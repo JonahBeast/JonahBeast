@@ -309,6 +309,7 @@ export const ALIMENTOS_APP: string[] = [
   "Crema de arroz (estimado - varía según marca)",
   "Proteína en polvo (isolate)",
   "Aceite de oliva",
+  "Mayonesa",
   "Almendras (crudas)",
   "Nueces (crudas)",
   "Pecanas (crudas)",

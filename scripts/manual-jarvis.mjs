@@ -14,6 +14,7 @@
 //                                       (se corre antes de cada build)
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { opcionesUsoMenu } from '../src/menuDia.js';
+import { RECETAS_PLATOS } from '../src/recetasPlatos.js';
 
 const aqui = (ruta) => new URL(`../${ruta}`, import.meta.url);
 
@@ -30,6 +31,27 @@ if (alimentos.length < 100) {
   console.error('✗ No se pudo leer la lista de alimentos de src/App.jsx (RAW_FOODS).');
   process.exit(1);
 }
+// Recetas de "🧩 Ajustar ingredientes" (src/recetasPlatos.js): cada plato e
+// ingrediente debe existir con ese nombre, y cada medida casera también.
+{
+  const nombreDe = new Map(filas.map(([, , nombre, estado]) => [`${nombre} (${estado})`, nombre]));
+  const bloqueUnidades = app.slice(app.indexOf('const UNITS_BY_NAME = {'), app.indexOf('const UNITS_BY_GROUP = {'));
+  const errores = [];
+  for (const [plato, partes] of Object.entries(RECETAS_PLATOS)) {
+    if (!nombreDe.has(plato)) errores.push(`plato "${plato}" no existe`);
+    for (const [clave, , medida] of partes) {
+      if (!nombreDe.has(clave)) { errores.push(`"${clave}" (en ${plato}) no existe`); continue; }
+      if (medida !== 'gramos' && !bloqueUnidades.includes(`'${nombreDe.get(clave)}': [`) ) errores.push(`"${clave}" no tiene medidas caseras`);
+      else if (medida !== 'gramos' && !new RegExp(`'${nombreDe.get(clave).replace(/[()]/g, '\\$&')}': \\[[^\\n]*'${medida.replace(/\//g, '\\/')}'`).test(bloqueUnidades)) errores.push(`"${clave}" no tiene la medida "${medida}"`);
+    }
+  }
+  if (errores.length) {
+    console.error('\n✗ src/recetasPlatos.js tiene alimentos o medidas que no existen:');
+    errores.forEach(e => console.error('  - ' + e));
+    process.exit(1);
+  }
+}
+
 const grupos = [...new Set([...bloque.matchAll(/^\s*\["([^"]+)"/gm)].map(m => m[1]))];
 const contenidoAlimentos = `// Generado desde RAW_FOODS de src/App.jsx con "npm run manual-jarvis". No editar a mano.
 export const GRUPOS_APP: string[] = ${JSON.stringify(grupos)};

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
 import {
   ACTIVITY_DESC,
@@ -7089,9 +7090,31 @@ function BotonPaso({ onClick, children, grande = false, etiqueta }) {
   );
 }
 
+/* "🧩 Ajustar ingredientes": cambia un plato registrado por sus partes
+   (src/recetasPlatos.js), escaladas a lo que registró (1 unidad, 2
+   unidades, 300 g…). Devuelve null si el plato no tiene receta. */
+function partesDelPlato(en) {
+  const receta = RECETAS_PLATOS[en.foodKey];
+  const plato = buscarFood(en.foodKey);
+  if (!receta || !plato) return null;
+  const medida = unitsFor(plato).find(([u]) => u !== 'gramos');
+  const gramosPorcion = medida ? medida[1] : 100;
+  const factor = entryGrams(en) / gramosPorcion || 1;
+  const partes = receta.map(([foodKey, qty, unit]) => {
+    const food = buscarFood(foodKey);
+    if (!food) return null;
+    let q = qty * factor;
+    if (unit === 'gramos') q = Math.max(5, Math.round(q / 5) * 5);
+    else if (UNIDADES_DISCRETAS.includes(unit)) q = Math.max(1, Math.round(q));
+    else q = Math.max(0.5, Math.round(q * 2) / 2);
+    return { id: uid(), foodKey, unit, qty: q };
+  }).filter(Boolean);
+  return partes.length ? partes : null;
+}
+
 // Panel que sube al tocar un alimento: cantidad con − / + grandes, medida
 // en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
-function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onCerrar }) {
+function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onDesarmar, onCerrar }) {
   const [verSustitutos, setVerSustitutos] = useState(false);
   const food = buscarFood(en.foodKey);
 
@@ -7153,6 +7176,25 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
+        {onDesarmar && RECETAS_PLATOS[en.foodKey] && (() => {
+          const partes = RECETAS_PLATOS[en.foodKey].map(([k]) => nombreAlimento(buscarFood(k)) || k);
+          return (
+            <button type="button" onClick={() => {
+              const nuevas = partesDelPlato(en);
+              if (!nuevas) return;
+              vibrar(20);
+              onDesarmar(nuevas);
+              onCerrar();
+              showToast(`🧩 Separado en ${nuevas.length} ingredientes: toca cada uno para cambiar su cantidad`);
+            }}
+              className="w-full bg-zinc-950 border border-orange-500/40 rounded-xl px-4 py-3 mb-4 text-left">
+              <span className="block jb-body text-sm text-zinc-100">🧩 Ajustar ingredientes</span>
+              <span className="block jb-body text-[11px] text-zinc-500 mt-0.5 leading-snug">
+                ¿Le pusiste más o menos de algo? Se separa en {partes.join(', ')} y cambias lo que quieras.
+              </span>
+            </button>
+          );
+        })()}
         {food.esPersonal && onEditarPropio && (
           <button type="button" onClick={() => { onEditarPropio(food); onCerrar(); }}
             className="w-full jb-body text-xs text-orange-400 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 mb-4 text-left">
@@ -7530,6 +7572,10 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
             username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={removeEntry}
             onCrear={texto => setCrearPara({ meal: editando.meal, id: en.id, texto })}
             onEditarPropio={food => setEditarPropio(food)}
+            onDesarmar={partes => setMealPlan(v => ({
+              ...v,
+              meals: { ...v.meals, [editando.meal]: v.meals[editando.meal].flatMap(x => x.id === en.id ? partes : [x]) },
+            }))}
             onCerrar={() => setEditando(null)} />
         ) : null;
       })()}

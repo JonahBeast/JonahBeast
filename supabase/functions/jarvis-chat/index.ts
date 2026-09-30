@@ -16,6 +16,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+// IA de Jarvis.
+const MODELO = "claude-sonnet-5-5";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 
@@ -838,7 +840,7 @@ Nota 2: estas cifras NO incluyen la cuenta de alumno del señor ("martin"), que 
     // de texto se reenvía al panel apenas llega.
     async function llamarClaude(msgs: any[], alTexto?: (t: string) => void) {
       const cuerpo = JSON.stringify({
-        model: "claude-sonnet-5",
+        model: MODELO,
         max_tokens: 1500,
         output_config: { effort: "low" },
         system, messages: msgs, tools: TOOLS,
@@ -1097,7 +1099,7 @@ Nota 2: estas cifras NO incluyen la cuenta de alumno del señor ("martin"), que 
 
     const registrarUso = async (ok: boolean) => {
       console.log(JSON.stringify({ evento: "jarvis_uso", ok, streaming: !!stream, ms: Date.now() - inicio, ...uso }));
-      if (uso.llamadas > 0) await anotarUsoIA(supabase, { tipo: "jarvis", modelo: "claude-sonnet-5", usage: uso });
+      if (uso.llamadas > 0) await anotarUsoIA(supabase, { tipo: "jarvis", modelo: MODELO, usage: uso });
     };
 
     // Modo streaming: el panel recibe una línea JSON por evento

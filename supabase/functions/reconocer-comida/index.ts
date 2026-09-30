@@ -5,12 +5,14 @@
 // (tu propia base de datos), para que nunca invente un plato
 // que no exista en Jonah Beast Fuel.
 //
-// Mismo modelo (Sonnet 5) para todos los alumnos -- dar peor calidad a
+// Mismo modelo (Sonnet 5.5) para todos los alumnos -- dar peor calidad a
 // quien paga que a quien prueba gratis sería backwards.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
+// IA que lee las fotos (plato, etiqueta y código de barras).
+const MODELO_FOTOS = "claude-sonnet-5-5";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 
@@ -138,7 +140,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     if (accion === "leer_codigo_foto") {
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto del código." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
-      return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: "claude-sonnet-5", usage })) });
+      return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: MODELO_FOTOS, usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
     if (accion === "leer_etiqueta") {
@@ -152,7 +154,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       });
       if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
       if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);
-      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: "claude-sonnet-5", usage }));
+      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: MODELO_FOTOS, usage }));
       if (!leida.ok) {
         // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
         if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
@@ -319,7 +321,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exac
 {"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": []}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
-  const modelo = "claude-sonnet-5";
+  const modelo = MODELO_FOTOS;
 
   // Si la IA falla (o no se puede conectar) devuelve null, y quien llamó
   // devuelve la foto reservada para que no se pierda.
@@ -334,7 +336,12 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
       },
       body: JSON.stringify({
         model: modelo,
-        max_tokens: 800,
+        // max_tokens incluye lo que la IA "piensa" antes de responder, no
+        // solo el JSON: con margen para que no se corte. Solo se paga lo
+        // que de verdad usa (hoy ~180 por foto).
+        max_tokens: 3000,
+        // Esfuerzo medio: piensa un poco antes de estimar porciones.
+        output_config: { effort: "medium" },
         // Las instrucciones y la lista común son iguales en todas las
         // fotos: van primero y quedan en caché unos minutos, así la
         // siguiente foto (de cualquier alumno) paga ~10% por esa parte.
@@ -610,8 +617,9 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 400,
+        model: MODELO_FOTOS,
+        max_tokens: 1500,
+        output_config: { effort: "low" },
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
           { type: "text", text: prompt },
@@ -657,8 +665,9 @@ async function leerNumerosCodigo(imagenBase64: string, tipoImagen: string, anota
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: 60,
+        model: MODELO_FOTOS,
+        max_tokens: 1000,
+        output_config: { effort: "low" },
         messages: [{ role: "user", content: [
           { type: "image", source: { type: "base64", media_type: tipoImagen, data: imagenBase64 } },
           { type: "text", text: 'En la foto hay un código de barras de un producto. Lee los números impresos debajo (o al lado) de las barras, todos seguidos y sin espacios (normalmente 13 dígitos, ej. 7751271012345). Responde SOLO con los dígitos. Si no se leen con seguridad, responde "NO".' },

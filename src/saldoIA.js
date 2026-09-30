@@ -6,9 +6,10 @@
 // escritura de caché). Con esto y los tokens de la tabla ia_uso sale el
 // costo real de cada llamada.
 export const PRECIOS_IA_USD = {
+  'claude-sonnet-5-5': [2, 10, 0.2, 2.5],
   'claude-sonnet-5': [2, 10, 0.2, 2.5],
   'claude-opus-5': [5, 25, 0.5, 6.25],
-  'claude-opus-5-5': [4, 20, 0.4, 5],
+  'claude-opus-5-5': [4, 20, 0.2, 5],
   'claude-haiku-4-5': [1, 5, 0.1, 1.25],
 };
 

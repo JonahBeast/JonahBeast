@@ -1,15 +1,18 @@
 /* MENSAJES DEL DÍA: a quién le escribe Jonah hoy por WhatsApp, con el
-   mensaje ya listo, ordenado por el camino del alumno. Cada persona sale
-   una sola vez, en el primer paso que le toca:
+   mensaje ya listo, ordenado de lo más urgente a lo motivador. Cada
+   persona sale una sola vez, en el primer paso que le toca:
 
+   🔴 URGENTE
      1. 🎉 Bienvenida      — se registró en las últimas 24 horas.
-     2. 🌱 Primera comida  — lleva más de un día sin anotar ninguna (hasta 7).
-     3. 🔔 Activar avisos  — no le llegan los avisos (usa la app dentro de
-                             Facebook/Instagram/TikTok, iPhone sin instalar,
-                             los bloqueó…). Solo los de los últimos 14 días.
+     2. ⏳ Prueba por terminar — termina hoy o mañana.
+     3. 🌱 Primera comida  — lleva más de un día sin anotar ninguna (hasta 7).
+   🟠 IMPORTANTE
      4. 💪 Retomar         — en prueba lleva 2 a 4 días sin registrar; paga
                              y lleva 3 a 7.
-     5. ⏳ Prueba por terminar — termina hoy o mañana.
+     5. 🔔 Activar avisos  — no le llegan los avisos (usa la app dentro de
+                             Facebook/Instagram/TikTok, iPhone sin instalar,
+                             los bloqueó…). Solo los de los últimos 14 días.
+   🟢 ACOMPAÑAMIENTO
      6. 🙌 Celebrar        — acaba de pagar, cumplió una racha (7, 14, 21,
                              30, 60, 90 días), bajó un kilo más, cumple
                              meses con la app o cumpleaños.
@@ -34,13 +37,18 @@ export const MAX_LISTA = 20;
 const HITOS_RACHA = [7, 14, 21, 30, 60, 90];
 const CUENTAS_PROPIAS = ['martin'];
 
+export const NIVELES = [
+  { id: 'urgente', titulo: '🔴 URGENTE', ayuda: 'Hazlo primero: es ahora o se enfría.' },
+  { id: 'importante', titulo: '🟠 IMPORTANTE', ayuda: 'Hoy, en cuanto puedas.' },
+  { id: 'acompanamiento', titulo: '🟢 ACOMPAÑAMIENTO', ayuda: 'Motivación y cariño: lo que crea vínculo.' },
+];
 export const ETAPAS = [
-  { id: 'bienvenida', titulo: '🎉 Bienvenida', ayuda: 'Se registraron hace poco. Un saludo tuyo a tiempo marca la diferencia.' },
-  { id: 'primera', titulo: '🌱 Primera comida', ayuda: 'Ya tienen cuenta, pero todavía no anotan nada.' },
-  { id: 'avisos', titulo: '🔔 Activar avisos', ayuda: 'No les llegan tus recordatorios. Les explicas cómo, en su celular.' },
-  { id: 'retomar', titulo: '💪 Retomar', ayuda: 'Venían registrando y se frenaron unos días.' },
-  { id: 'prueba', titulo: '⏳ Prueba por terminar', ayuda: 'Se les vence hoy o mañana: buen momento para invitarlos a seguir.' },
-  { id: 'celebrar', titulo: '🙌 Celebrar', ayuda: 'Logros y buenas noticias: celébralos con ellos.' },
+  { id: 'bienvenida', nivel: 'urgente', titulo: '🎉 Bienvenida', ayuda: 'Se acaban de registrar. Un saludo tuyo a tiempo marca la diferencia.' },
+  { id: 'prueba', nivel: 'urgente', titulo: '⏳ Prueba por terminar', ayuda: 'Se les vence hoy o mañana: buen momento para invitarlos a seguir.' },
+  { id: 'primera', nivel: 'urgente', titulo: '🌱 Primera comida', ayuda: 'Ya tienen cuenta, pero todavía no anotan nada.' },
+  { id: 'retomar', nivel: 'importante', titulo: '💪 Retomar', ayuda: 'Venían registrando y se frenaron unos días.' },
+  { id: 'avisos', nivel: 'importante', titulo: '🔔 Activar avisos', ayuda: 'No les llegan tus recordatorios. Les explicas cómo, en su celular.' },
+  { id: 'celebrar', nivel: 'acompanamiento', titulo: '🙌 Celebrar', ayuda: 'Logros y buenas noticias: celébralos con ellos.' },
 ];
 const ORDEN = Object.fromEntries(ETAPAS.map((e, i) => [e.id, i]));
 
@@ -156,18 +164,20 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
           : { etapa: 'bienvenida', motivo: 'Se registró hoy',
               mensaje: `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Yo bajé de 104 a 90 kg empezando así, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
       }
-      // 2. Primera comida: más de un día sin anotar nada (hasta 7).
+      // 2. Prueba por terminar (hoy o mañana).
+      if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {
+        const cuando = a.fecha_vencimiento === hoyISO ? 'hoy' : 'mañana';
+        return conComida.size
+          ? { etapa: 'prueba', motivo: `Su prueba termina ${cuando} · registró ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}`,
+              mensaje: `Hola${n ? ' ' + n : ''} 👋 Tu Premium de prueba termina ${cuando}. En estos días registraste tus comidas ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}, ¡y eso ya es empezar a cambiar! 💪 No sueltes ahora que agarraste ritmo: con constancia, en unas semanas vas a ver la diferencia en el espejo. ¿Te cuento los planes para seguir juntos? 🦍` }
+          : { etapa: 'prueba', motivo: `Su prueba termina ${cuando} y no llegó a usarla`,
+              mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu Premium de prueba termina ${cuando} y me quedé con ganas de acompañarte 😅 Igual la app sigue gratis para ti, para siempre. Si te animas, hoy registra una comida con una foto y empezamos de a poquito. ¿Qué te frenó? Cuéntame y lo vemos juntos 💪🦍` };
+      }
+      // 3. Primera comida: más de un día sin anotar nada (hasta 7).
       if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 7)) {
         const cuando = diasDesdeInicio === 1 ? 'ayer' : `hace ${diasDesdeInicio ?? 'unos'} días`;
         return { etapa: 'primera', motivo: `Se registró ${cuando} y aún no anota ninguna comida`,
           mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Yo bajé de 104 a 90 kg empezando así. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
-      }
-      // 3. Activar avisos (nuevos de los últimos 14 días que ya registran).
-      if (!tieneAvisos.has(a.username) && diasDesdeInicio !== null && diasDesdeInicio <= 14 && est) {
-        const motivo = est.navegador_interno ? 'navegador' : est.estado;
-        if (MOTIVO_AVISOS[motivo]) {
-          return { etapa: 'avisos', motivo: MOTIVO_AVISOS[motivo], mensaje: mensajeAvisos(n, motivo, est.dispositivo) };
-        }
       }
       // 4. Retomar.
       if (ultimaComida) {
@@ -181,14 +191,12 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
             mensaje: `Hola${n ? ' ' + n : ''} 👋 Hace unos días que no te veo registrar. ¿Todo bien? A todos se nos complica a veces; lo importante es no soltar. Hoy registra aunque sea una comida y retomamos juntos 💪 Si algo no te está funcionando, cuéntame y lo ajustamos 🦍` };
         }
       }
-      // 5. Prueba por terminar (hoy o mañana).
-      if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {
-        const cuando = a.fecha_vencimiento === hoyISO ? 'hoy' : 'mañana';
-        return conComida.size
-          ? { etapa: 'prueba', motivo: `Su prueba termina ${cuando} · registró ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}`,
-              mensaje: `Hola${n ? ' ' + n : ''} 👋 Tu Premium de prueba termina ${cuando}. En estos días registraste tus comidas ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}, ¡y eso ya es empezar a cambiar! 💪 No sueltes ahora que agarraste ritmo: con constancia, en unas semanas vas a ver la diferencia en el espejo. ¿Te cuento los planes para seguir juntos? 🦍` }
-          : { etapa: 'prueba', motivo: `Su prueba termina ${cuando} y no llegó a usarla`,
-              mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu Premium de prueba termina ${cuando} y me quedé con ganas de acompañarte 😅 Igual la app sigue gratis para ti, para siempre. Si te animas, hoy registra una comida con una foto y empezamos de a poquito. ¿Qué te frenó? Cuéntame y lo vemos juntos 💪🦍` };
+      // 5. Activar avisos (nuevos de los últimos 14 días que ya registran).
+      if (!tieneAvisos.has(a.username) && diasDesdeInicio !== null && diasDesdeInicio <= 14 && est) {
+        const motivo = est.navegador_interno ? 'navegador' : est.estado;
+        if (MOTIVO_AVISOS[motivo]) {
+          return { etapa: 'avisos', motivo: MOTIVO_AVISOS[motivo], mensaje: mensajeAvisos(n, motivo, est.dispositivo) };
+        }
       }
       // 6. Celebrar.
       if (pagaron.has(a.username)) {

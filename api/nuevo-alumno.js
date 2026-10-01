@@ -29,9 +29,10 @@ export default async function handler(req, res) {
   setupWebPush();
 
   try {
-    const [{ data: admin }, { data: alumno }] = await Promise.all([
+    const [{ data: admin }, { data: alumno }, { data: plantilla }] = await Promise.all([
       supabase.from('profiles').select('username').eq('role', 'admin').limit(1).maybeSingle(),
       supabase.from('profiles').select('nombre').eq('username', username).maybeSingle(),
+      supabase.from('config').select('value').eq('key', 'whatsapp_plantilla_bienvenida').maybeSingle(),
     ]);
     if (!admin) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin admin configurado' });
 
@@ -41,10 +42,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, enviado: false, motivo: 'admin sin notificaciones activas' });
     }
 
+    // Lo urgente, al toque: Jonah abre el panel y en HOY → "📲 Mensajes del
+    // día" la bienvenida de este alumno está primera, con el mensaje listo.
+    // Si ya está activa la bienvenida automática por WhatsApp, solo avisa.
     const nombre = alumno?.nombre || username;
     const payload = JSON.stringify({
-      titulo: 'Jonah 🦍',
-      cuerpo: `🎉 Nuevo alumno registrado: ${nombre} (@${username})`,
+      titulo: '🎉 Nuevo alumno: mándale tu bienvenida',
+      cuerpo: plantilla?.value
+        ? `Se inscribió ${nombre} (@${username}). Le llega tu bienvenida automática por WhatsApp; si quieres sumarle algo tuyo, está en Mensajes del día.`
+        : `Se inscribió ${nombre} (@${username}). Toca aquí: su bienvenida está primera en Mensajes del día, con el mensaje listo. Solo tocas "Escribirle".`,
       url: '/',
     });
 

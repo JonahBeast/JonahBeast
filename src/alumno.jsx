@@ -58,6 +58,7 @@ import {
   unitsFor,
   ventanaBono,
   vibrar,
+  esFritoOSaltado,
 } from './App.jsx';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -5819,9 +5820,13 @@ function textoPorcionFoto(food, porcion) {
 }
 
 /* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos
-   ya traen el aceite normal; "Bastante" y "Mucho" suman 1 o 2 cucharadas
-   de aceite vegetal (≈ 124 kcal cada una). */
+   ya traen el aceite normal; "Poco" resta un 30% de su grasa (poco aceite o
+   freidora de aire) y "Bastante" y "Mucho" suman 1 o 2 cucharadas de
+   aceite vegetal (≈ 124 kcal cada una). En la foto, "Bastante" y "Mucho"
+   van como aceite aparte; al escribir, quedan en el mismo alimento
+   (entry.aceite, ver entryMacros). */
 const OPCIONES_ACEITE = [
+  { key: 'poco', label: 'Air fryer / poco', cucharadas: 0 },
   { key: 'normal', label: 'Normal', cucharadas: 0 },
   { key: 'bastante', label: 'Bastante', cucharadas: 1 },
   { key: 'mucho', label: 'Mucho', cucharadas: 2 },
@@ -5829,11 +5834,11 @@ const OPCIONES_ACEITE = [
 const CLAVE_ACEITE = 'Aceite vegetal (-)';
 
 function esConAceite(food, aceiteIA) {
-  return !!aceiteIA || /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
+  return !!aceiteIA || esFritoOSaltado(food);
 }
 
-function macrosDeFoto(food, porcion) {
-  return entryMacros({ foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
+function macrosDeFoto(food, porcion, aceite) {
+  return entryMacros({ foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(aceite ? { aceite } : {}) });
 }
 
 // Pasos que se muestran mientras la IA analiza la foto (avanzan con la
@@ -6072,10 +6077,11 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
 
   function confirmar() {
     const elegidos = elegidosConPorcion();
-    elegidos.forEach(({ food, porcion, corregido }) => {
+    elegidos.forEach(({ item, food, porcion, corregido }) => {
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
-      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(corregido ? {} : { fotoIA: food.key }) });
+      const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
+      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -6381,7 +6387,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               return (
                 <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
                   <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-                  <p className="jb-body text-[11px] text-zinc-500 mb-2">Los fritos y saltados ya incluyen el aceite normal. "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">Los fritos y saltados ya incluyen el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
                     {OPCIONES_ACEITE.map(o => {
                       const activo = aceite === o.key;
@@ -6400,7 +6406,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               // Total de lo que está marcado, con los ajustes y el aceite extra.
               const elegidos = elegidosConPorcion();
               if (!elegidos.length) return null;
-              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion));
+              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion, aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco' : null));
               const cucharadas = extraAceite(elegidos);
               const aceiteFood = cucharadas ? buscarFood(CLAVE_ACEITE) : null;
               if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
@@ -7359,6 +7365,24 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
+        {esConAceite(food) && (
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">
+            <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
+              {OPCIONES_ACEITE.map(o => {
+                const activo = (en.aceite || 'normal') === o.key;
+                return (
+                  <button key={o.key} type="button" aria-pressed={activo}
+                    onClick={() => updateEntry(meal, en.id, { aceite: o.key === 'normal' ? undefined : o.key })}
+                    className={`jb-body text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {onDesarmar && RECETAS_PLATOS[en.foodKey] && (() => {
           const partes = RECETAS_PLATOS[en.foodKey].map(([k]) => nombreAlimento(buscarFood(k)) || k);
           return (
@@ -7856,6 +7880,8 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                           const f = buscarFood(key);
                           const d = unidadPorDefecto(f);
                           updateEntry(meal, en.id, { foodKey: key, unit: d.unit, qty: d.qty, grams: undefined });
+                          // Frito o saltado: se abre su panel para preguntar por el aceite.
+                          if (esConAceite(f)) setEditando({ meal, id: en.id });
                         }}
                         onNoEncuentra={texto => setCrearPara({ meal, id: en.id, texto })}
                         autoFocus={enfocar === en.id}

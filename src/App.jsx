@@ -3262,7 +3262,7 @@ function TrialSignup({ onBack, onCreated }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
-  const [f, setF] = useState({ email: '', password: '', referido: refDesdeURL });
+  const [f, setF] = useState({ email: '', password: '', telefono: '', referido: refDesdeURL });
   const [verPass, setVerPass] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -3299,6 +3299,10 @@ function TrialSignup({ onBack, onCreated }) {
     const tropiezo = (detalle, texto) => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); };
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', 'Escribe un correo válido.');
     if (f.password.length < 6) return tropiezo('contrasena_corta', 'La contraseña debe tener al menos 6 caracteres.');
+    // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
+    // con quien llega desde un anuncio), es la única forma de escribirle.
+    const tel = f.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
+    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
       return tropiezo('referido_invalido', 'Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
@@ -3329,8 +3333,9 @@ function TrialSignup({ onBack, onCreated }) {
 
     // El registro de alumno y su prueba de Premium de 7 días se crean
     // automáticamente en la base de datos al confirmarse la cuenta.
-    // El celular y la fecha de nacimiento se piden más adelante, en la
-    // pantalla de planes, si es que aún faltan (ver PlanesTab).
+    // El celular se pide aquí (obligatorio) y se guarda apenas existe su
+    // ficha de alumno (la crea la base al registrarse; se reintenta por si
+    // tarda un momento). La fecha de nacimiento se pide en Planes.
 
     // Avisa a TikTok y a Meta que se completó un registro exitoso, para
     // que puedan optimizar las campañas hacia este evento de conversión.
@@ -3342,6 +3347,16 @@ function TrialSignup({ onBack, onCreated }) {
     // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el
     // usuario para poder seguir a esta persona hasta la prueba y el pago.
     registrarEventoEmbudo('registro', { username: user });
+
+    if (data.session) {
+      for (let intento = 0; intento < 4; intento++) {
+        try {
+          const { data: fila } = await supabase.from('alumnos').update({ telefono: tel }).eq('username', user).select('username').maybeSingle();
+          if (fila) break;
+        } catch {}
+        await new Promise(r => setTimeout(r, 600));
+      }
+    }
 
     setBusy(false);
     if (!data.session) {
@@ -3411,6 +3426,10 @@ function TrialSignup({ onBack, onCreated }) {
                     <Eye size={16} />
                   </button>
                 </div>
+              </Field>
+              <Field label="Tu WhatsApp">
+                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => setF(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="9XX XXX XXX" />
+                <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>
               </Field>
               {verReferido ? (
                 <Field label="Código de referido (opcional)">

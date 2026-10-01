@@ -8897,15 +8897,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // Primera comida en 1 toque (ver PrimeraComidaModal): solo para quien
   // nunca registró una comida y ya tiene su meta lista. "Ahora no" la
   // guarda hasta el día siguiente.
-  const [nuncaRegistro, setNuncaRegistro] = useState(false);
+  const [nuncaRegistro, setNuncaRegistro] = useState(null); // null = aún no se sabe
   const [primeraDescartada, setPrimeraDescartada] = useState(() => {
     try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
   });
   useEffect(() => {
     let vivo = true;
     supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).limit(1)
-      .then(({ data, error }) => { if (vivo && !error) setNuncaRegistro((data || []).length === 0); })
-      .then(null, () => {});
+      .then(({ data, error }) => { if (vivo) setNuncaRegistro(error ? false : (data || []).length === 0); })
+      .then(null, () => { if (vivo) setNuncaRegistro(false); });
     return () => { vivo = false; };
   }, [username]);
   function registrarPrimeraComida(meal, p) {
@@ -8999,7 +8999,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
      de ejemplo (2000 kcal) sin haberla tocado nunca.                   */
   const targetsObjetivo = goalTargets(form, results.tdee);
   const metaListaPrimera = targetsObjetivo?.kcal || 0;
-  const verPrimeraComida = nuncaRegistro && !primeraDescartada && alimentosHoy === 0
+  const verPrimeraComida = nuncaRegistro === true && !primeraDescartada && alimentosHoy === 0
     && tieneDatosBasicos(form) && !!form.objetivo && metaListaPrimera > 0;
   const firmaObjetivo = targetsObjetivo
     ? [targetsObjetivo.kcal, targetsObjetivo.protein, targetsObjetivo.fat].map(Math.round).join('|') : '';
@@ -9057,9 +9057,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <AvisoGuardado estado={estadoGuardado} onVolverAEntrar={onLogout} />
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
-        {abrirEnNavegador && !verGuia && <AbrirEnNavegadorModal onCerrar={cerrarAbrirEnNavegador} />}
+        {/* Primero su primera comida (está motivado y ya está adentro); recién
+            después se le pide abrir la app en Chrome/Safari, donde tiene que
+            volver a entrar con su correo. */}
+        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal onCerrar={cerrarAbrirEnNavegador} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
-        {verPrimeraComida && !verGuia && !abrirEnNavegador && !ofrecerNotif && !ajustarMeta && (
+        {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
             onFoto={(meal) => { setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}

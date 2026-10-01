@@ -648,7 +648,10 @@ async function agregarVariantes(pedidoId: number) {
         resultado.push({ nombre: etiqueta, estado: "ya_existia" });
         continue;
       }
-      resultado.push({ ...base, etiqueta, estado: "sugerida", cuadra: cuadra(v.kcal, v.proteina, v.carbos, v.grasa) });
+      // "estado" aquí es el estado de la revisión (sugerida, agregada…); el
+      // estado del alimento (crudo, cocido, "-") se guarda aparte para que no
+      // termine pegado al nombre en la app ("Picante de pollo (sugerida)").
+      resultado.push({ ...base, etiqueta, estado: "sugerida", estado_alimento: base.estado, cuadra: cuadra(v.kcal, v.proteina, v.carbos, v.grasa) });
     }
     await supabase.from("pedidos_alimentos").update({ propuesta: { ...propuesta, variantes_resultado: resultado } }).eq("id", pedidoId);
   } catch (e) {
@@ -662,7 +665,7 @@ async function agregarVarianteSugerida(pedidoId: number, indice: number) {
   const lista = pedido?.propuesta?.variantes_resultado;
   const v = Array.isArray(lista) ? lista[indice] : null;
   if (!v || v.estado !== "sugerida") throw new ErrorDeDatos("Esa variante ya no está pendiente.");
-  const r = await agregarAlimento(v);
+  const r = await agregarAlimento({ ...v, estado: v.estado_alimento || "-" });
   lista[indice] = { ...v, estado: "agregada", alimento_id: r.id, por: "jonah", revisada_en: new Date().toISOString() };
   await supabase.from("pedidos_alimentos").update({ propuesta: { ...pedido.propuesta, variantes_resultado: lista } }).eq("id", pedidoId);
   return { ok: true, alimento_id: r.id };

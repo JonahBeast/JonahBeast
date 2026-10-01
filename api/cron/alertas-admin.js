@@ -5,6 +5,8 @@
 //   - un pago nuevo por revisar (Yape/Plin/transferencia) que entró en la
 //     última hora: el alumno espera su acceso;
 //   - un pago que cumplió 12 horas esperando revisión en la última hora;
+//   - a las 7am, los alimentos que la IA dejó para revisar durante la noche
+//     (de noche no se avisa al momento y el aviso se perdía);
 //   - la conexión del WhatsApp del asistente (dura 60 días) vence en 7 días
 //     o menos, o ya venció: una vez al día, a las 9am.
 // De noche (10pm a 7am, hora Perú) no avisa: lo pendiente sale en el
@@ -53,6 +55,34 @@ export default async function handler(req, res) {
           ? `${nombre(atrasados[0])} sigue esperando que revises su pago de ${soles(atrasados[0])}. Aún no tiene acceso.`
           : `${atrasados.length} pagos llevan más de 12 horas esperando: ${atrasados.map(nombre).join(', ')}.`,
       });
+    }
+    if (hora === 7) {
+      // 10pm de anoche en Perú = 03:00 UTC de hoy (a esta hora, en UTC ya es
+      // el mismo día). Lo dudoso de antes de las 10pm ya se avisó al momento.
+      const desde = new Date(new Date(ahora).toISOString().slice(0, 10) + 'T03:00:00Z').toISOString();
+      const [{ data: pedidos }, { data: creados }] = await Promise.all([
+        supabase.from('pedidos_alimentos').select('nombre').eq('estado', 'pendiente')
+          .eq('propuesta->>ia_estado', 'dudoso').gte('actualizado_en', desde).range(0, 49),
+        supabase.from('alimentos_personales').select('nombre').eq('revision', 'dudoso')
+          .gte('revisado_en', desde).range(0, 49),
+      ]);
+      const lista = l => l.map(x => `"${x.nombre}"`).join(', ');
+      if (pedidos?.length) {
+        avisos.push({
+          title: '🍽️ Pedidos por revisar',
+          body: pedidos.length === 1
+            ? `Anoche quedó 1 pedido que la IA no pudo decidir: ${lista(pedidos)}. Revísalo en HOY → Pedidos de alimentos.`
+            : `Anoche quedaron ${pedidos.length} pedidos que la IA no pudo decidir: ${lista(pedidos.slice(0, 5))}${pedidos.length > 5 ? '…' : ''}. Revísalos en HOY → Pedidos de alimentos.`,
+        });
+      }
+      if (creados?.length) {
+        avisos.push({
+          title: '🍴 Alimentos por revisar',
+          body: creados.length === 1
+            ? `Anoche un alumno creó ${lista(creados)} y la IA no está segura. Revísalo en HOY → Alimentos creados por alumnos.`
+            : `Anoche quedaron ${creados.length} alimentos creados por alumnos que la IA no pudo decidir. Revísalos en HOY → Alimentos creados por alumnos.`,
+        });
+      }
     }
     if (hora === 9) {
       const { data: wa } = await supabase.from('whatsapp_cuenta').select('conectado_en, token').eq('id', 1).maybeSingle();

@@ -114,15 +114,16 @@ export default async function handler(req, res) {
     if (vencenHoy) hoy.push(`${vencenHoy === 1 ? 'una prueba vence' : `${enLetras(vencenHoy)} pruebas vencen`} hoy`);
     if (vencenManana) hoy.push(`${vencenManana === 1 ? 'una vence' : `${enLetras(vencenManana)} vencen`} mañana`);
     if (quietos) hoy.push(`${quietos === 1 ? 'un alumno lleva' : `${enLetras(quietos)} alumnos llevan`} días sin registrar`);
-    if (sinAvisos) hoy.push(`${sinAvisos === 1 ? 'un alumno' : `${enLetras(sinAvisos)} alumnos`}${esLunes ? '' : ' nuevos'} sin avisos (en "Sin avisos" tienes el mensaje listo para ayudarlos)`);
+    if (sinAvisos) hoy.push(`${sinAvisos === 1 ? 'un alumno' : `${enLetras(sinAvisos)} alumnos`}${esLunes ? '' : ' nuevos'} sin avisos (en "Mensajes del día" tienes el mensaje listo para ayudarlos)`);
     if (porRevisar) hoy.push(`${porRevisar === 1 ? 'un alimento' : `${enLetras(porRevisar)} alimentos`} por revisar (variantes y menú del día)`);
     if (hoy.length) partes.push(`Hoy: ${hoy.join(' · ')}.`);
-    // 💛 Lista de cariño (misma que el panel: src/listaCarino.js).
+    // 📲 Mensajes del día (los mismos del panel: src/listaCarino.js).
     try {
       const carino = armarListaCarino({ ...(await cargarDatosCarino(supabase, hoyISO)), hoyISO });
       if (carino.length) {
-        const quien = carino.map(c => `${String(c.nombre).trim().split(/\s+/)[0]} (${c.motivo.replace(/^\S+\s/, '').toLowerCase()})`);
-        partes.push(`💛 Escríbele hoy a: ${quien.join(', ')}. El mensaje está listo en tu panel → HOY.`);
+        const nombres = carino.map(c => String(c.nombre).trim().split(/\s+/)[0]);
+        const quien = nombres.length > 6 ? `${nombres.slice(0, 6).join(', ')} y ${nombres.length - 6} más` : nombres.join(', ');
+        partes.push(`📲 Hoy tienes ${carino.length === 1 ? '1 mensaje' : `${carino.length} mensajes`} para mandar: ${quien}. Están listos y en orden en tu panel → HOY → Mensajes del día.`);
       }
     } catch (e) { console.error('lista de cariño:', e?.message); }
     if (recargaAyer > 0) {

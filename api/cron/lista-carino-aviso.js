@@ -6,6 +6,7 @@
 // el aviso se abre el panel en HOY, donde cada persona tiene su mensaje listo.
 // A la de las 7:30pm solo llegan los que aún no recibieron su mensaje (al
 // tocar "Escribirle" quedan anotados). Si no hay nadie, no avisa.
+// Mismas reglas y orden que el panel (HOY → "📲 Mensajes del día").
 //
 // Cron en vercel.json: "0 18 * * *" (1pm) y "30 0 * * *" (7:30pm).
 
@@ -25,10 +26,12 @@ export default async function handler(req, res) {
     if (!lista.length) return res.status(200).json({ ok: true, enviado: false, motivo: 'nadie' });
 
     const nombres = lista.map(x => String(x.nombre).trim().split(/\s+/)[0]);
-    const quien = nombres.length === 1 ? nombres[0] : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+    const quien = nombres.length === 1 ? nombres[0]
+      : nombres.length > 5 ? `${nombres.slice(0, 5).join(', ')} y ${nombres.length - 5} más`
+      : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
     const r = await enviarPushA(supabase, [admin.username], {
       title: lista.length === 1 ? '📲 1 mensaje para mandar hoy' : `📲 ${lista.length} mensajes para mandar hoy`,
-      body: `${quien}. Toca aquí: cada uno tiene su mensaje listo, solo tocas "Escribirle" y envías (${lista.length <= 2 ? '1 minuto' : '2 minutos'}).`,
+      body: `${quien}. Toca aquí: están en orden en "Mensajes del día", cada uno con su mensaje listo. Solo tocas "Escribirle" y envías.`,
       url: '/',
     });
     return res.status(200).json({ ok: true, enviados: r.enviados || 0, personas: lista.length });

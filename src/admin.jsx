@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, anotarEscrito } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -6782,18 +6782,17 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
+            {/* Primero, todos los mensajes del día en un solo lugar y en orden;
+                después, lo que es trámite (pagos, alimentos, vencimientos…). */}
+            <MensajesDelDiaPanel />
             <PagosPanel />
-            <ListaCarinoPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
-            <SaldoIAPanel />
             <AlimentosPropiosPanel />
-            <RescatePanel users={users} />
-            <SinAvisosPanel users={users} />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
+            <SaldoIAPanel />
             <EmbudoPanel />
-            <CumpleanosPanel users={users} />
 
           </>
         )}
@@ -6968,6 +6967,11 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <FinanzasPanel />
             <ReferidosPanel users={users} onCambio={onRecargar} />
             <LeadsPanel />
+            {/* Estadística de cómo van los alumnos (los mensajes ahora están
+                en HOY → Mensajes del día). */}
+            <RescatePanel users={users} />
+            <SinAvisosPanel users={users} />
+            <CumpleanosPanel users={users} />
           </>
         )}
 
@@ -7233,59 +7237,93 @@ function ordenMedias(h) {
   return h < 3 ? 1e6 + h : h;
 }
 
-/* 💛 LISTA DE CARIÑO: las (como mucho) 3 personas a las que hoy más les
-   haría bien un mensaje de Jonah, con el mensaje listo (src/listaCarino.js).
-   Al tocar "Escribirle" se anota, y no vuelve a salir en 7 días. */
-function ListaCarinoPanel() {
+/* 📲 MENSAJES DEL DÍA: a quién escribirle hoy por WhatsApp, en un solo
+   lugar y ordenado por el camino del alumno (bienvenida → primera comida →
+   avisos → retomar → prueba por terminar → celebrar), con el mensaje listo
+   en la voz de Jonah (reglas en src/listaCarino.js). Al tocar "Escribirle"
+   queda ✅ y ese paso no se repite en 7 días. */
+function MensajesDelDiaPanel() {
   const [lista, setLista] = useState(null);
   const [escritos, setEscritos] = useState({});
+  const [verMensaje, setVerMensaje] = useState(null); // username con el mensaje abierto
   const hoy = todayISO();
 
   useEffect(() => {
     let cancelado = false;
     cargarDatosCarino(supabase, hoy)
-      .then(d => { if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, hoyISO: hoy })); } })
+      .then(d => { if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, hoyISO: hoy, incluirHechos: true })); } })
       .catch(() => { if (!cancelado) setLista([]); });
     return () => { cancelado = true; };
   }, []);
 
-  async function anotar(username) {
-    const nuevos = { ...escritos, [username]: hoy };
-    // Solo se guardan los últimos 30 días, para que no crezca sin fin.
-    Object.keys(nuevos).forEach(u => { if (nuevos[u] < addDaysISO(hoy, -30)) delete nuevos[u]; });
+  async function anotar(x) {
+    const nuevos = anotarEscrito(escritos, x.username, x.etapa, hoy);
     setEscritos(nuevos);
+    setLista(l => l.map(y => y.username === x.username ? { ...y, hecho: true } : y));
     try { await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) }); } catch {}
   }
 
   if (!lista) return null;
+  const hechos = lista.filter(x => x.hecho).length;
+  const faltan = lista.length - hechos;
   return (
-    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
-      <h2 className="jb-display text-base text-zinc-200">💛 TU LISTA DE CARIÑO DE HOY</h2>
-      <p className="jb-body text-xs text-zinc-500 mt-0.5 mb-3">
-        {lista.length
-          ? 'Un mensaje tuyo hoy a estas personas vale más que cualquier aviso automático. Toca, revisa y envía.'
-          : 'Hoy no hay a quién escribirle en especial. ¡Buen día! 🙌'}
-      </p>
-      <div className="flex flex-col gap-2">
-        {lista.map(x => {
-          const listo = escritos[x.username] === hoy;
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="jb-display text-lg text-zinc-50">📲 MENSAJES DEL DÍA</h2>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">
+            {lista.length
+              ? 'Ordenados por el camino del alumno. Toca "Escribirle", revisa y envía. Un mensaje tuyo vale más que cualquier aviso automático.'
+              : 'Hoy no hay a quién escribirle en especial. ¡Buen día! 🙌'}
+          </p>
+        </div>
+        {lista.length > 0 && (
+          <div className="text-right shrink-0">
+            <p className="jb-display text-2xl text-orange-400 tabular-nums">{hechos}/{lista.length}</p>
+            <p className="jb-body text-[10px] text-zinc-500">{faltan ? `faltan ${faltan}` : '¡todos listos! ✅'}</p>
+          </div>
+        )}
+      </div>
+      {lista.length > 0 && (
+        <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden mt-3">
+          <div className="h-full bg-orange-500 transition-all" style={{ width: `${(hechos / lista.length) * 100}%` }} />
+        </div>
+      )}
+      <div className="flex flex-col gap-4 mt-4">
+        {ETAPAS.map((etapa, i) => {
+          const grupo = lista.filter(x => x.etapa === etapa.id);
+          if (!grupo.length) return null;
           return (
-            <div key={x.username} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}</p>
-                  <p className="jb-body text-[11px] text-orange-300">{x.motivo}</p>
-                </div>
-                {listo ? (
-                  <span className="jb-body text-xs text-emerald-400 shrink-0">✅ Escrito</span>
-                ) : (
-                  <a href={enlaceWhatsApp(x.telefono, x.mensaje)} target="_blank" rel="noreferrer" onClick={() => anotar(x.username)}
-                    className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
-                    <MessageCircle size={14} /> Escribirle
-                  </a>
-                )}
+            <div key={etapa.id}>
+              <p className="jb-display text-sm text-zinc-200">{i + 1}. {etapa.titulo} <span className="text-zinc-500">({grupo.length})</span></p>
+              <p className="jb-body text-[11px] text-zinc-500 mb-2">{etapa.ayuda}</p>
+              <div className="flex flex-col gap-2">
+                {grupo.map(x => (
+                  <div key={x.username} className={`rounded-xl p-3 border ${x.hecho ? 'bg-zinc-950/50 border-zinc-800/60 opacity-70' : 'bg-zinc-950 border-zinc-800'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}</p>
+                        <p className="jb-body text-[11px] text-orange-300">{x.motivo}{!x.telefono ? ' · sin WhatsApp' : ''}</p>
+                      </div>
+                      {x.hecho ? (
+                        <span className="jb-body text-xs text-emerald-400 shrink-0">✅ Escrito</span>
+                      ) : (
+                        <a href={enlaceWhatsApp(x.telefono, x.mensaje)} target="_blank" rel="noreferrer" onClick={() => anotar(x)}
+                          className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
+                          <MessageCircle size={14} /> Escribirle
+                        </a>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => setVerMensaje(v => v === x.username ? null : x.username)}
+                      className="jb-body text-[11px] text-zinc-500 underline underline-offset-2 mt-1.5">
+                      {verMensaje === x.username ? 'Ocultar mensaje' : 'Ver mensaje'}
+                    </button>
+                    {verMensaje === x.username && (
+                      <p className="jb-body text-[12px] text-zinc-300 mt-1.5 leading-snug bg-zinc-900 rounded-lg p-2.5">“{x.mensaje}”</p>
+                    )}
+                  </div>
+                ))}
               </div>
-              <p className="jb-body text-[11px] text-zinc-500 mt-1.5 leading-snug">“{x.mensaje}”</p>
             </div>
           );
         })}

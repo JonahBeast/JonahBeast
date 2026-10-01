@@ -911,5 +911,49 @@ async function seguimiento() {
       "seguimiento");
     enviados++;
   }
+  enviados += await bienvenidasAutomaticas(cuenta);
   return { ok: true, enviados, revisados: telefonos.length };
+}
+
+// Bienvenida automática a cada alumno nuevo (registrado en las últimas 24 h,
+// con su WhatsApp). WhatsApp solo deja escribirle primero a alguien con una
+// plantilla aprobada por Meta: su nombre, idioma y texto se guardan en config
+// → whatsapp_plantilla_bienvenida ({"nombre":"…","idioma":"es","texto":"…{{1}}…"},
+// {{1}} = primer nombre). Mientras no esté, no se manda nada y la bienvenida
+// queda en el panel (HOY → Mensajes del día) para que Jonah la mande a mano.
+async function bienvenidasAutomaticas(cuenta: any) {
+  const { data: cfg } = await supabase.from("config").select("value").eq("key", "whatsapp_plantilla_bienvenida").maybeSingle();
+  let plantilla: any = null;
+  try { plantilla = cfg?.value ? JSON.parse(cfg.value) : null; } catch { plantilla = null; }
+  if (!plantilla?.nombre) return 0;
+  const { data: nuevos } = await supabase.from("alumnos").select("username, nombre, telefono")
+    .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString()).not("telefono", "is", null).range(0, 99);
+  let enviados = 0;
+  for (const a of nuevos || []) {
+    const n9 = nueveDigitos(a.telefono);
+    if (n9.length < 9 || a.username === "martin") continue;
+    const telefono = "51" + n9;
+    const { count } = await supabase.from("whatsapp_mensajes").select("id", { count: "exact", head: true })
+      .eq("telefono", telefono).in("tipo", ["bienvenida_auto", "bienvenida"]);
+    if (count) continue;
+    const nombre = String(a.nombre || "").trim().split(/\s+/)[0] || "";
+    const nombreBonito = nombre ? nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase() : "crack";
+    try {
+      const r = await graph(cuenta, `/${cuenta.phone_number_id}/messages`, {
+        messaging_product: "whatsapp", to: telefono, type: "template",
+        template: {
+          name: plantilla.nombre, language: { code: plantilla.idioma || "es" },
+          components: [{ type: "body", parameters: [{ type: "text", text: nombreBonito }] }],
+        },
+      });
+      await supabase.from("whatsapp_mensajes").insert({
+        telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo: "bienvenida_auto",
+        texto: String(plantilla.texto || "(bienvenida automática)").replace("{{1}}", nombreBonito),
+      });
+      enviados++;
+    } catch (e) {
+      console.error("No se pudo mandar la bienvenida automática:", (e as Error)?.message || "");
+    }
+  }
+  return enviados;
 }

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -7304,6 +7304,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             {/* Primero, todos los mensajes del día en un solo lugar y en orden;
                 después, lo que es trámite (pagos, alimentos, vencimientos…). */}
             <MensajesDelDiaPanel />
+            <ListosParaPagarPanel />
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
@@ -7853,6 +7854,164 @@ function MensajesDelDiaPanel() {
                   </div>
                 );
               })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* 🔥 LISTOS PARA PAGAR: alumnos que todavía no pagan pero usan la app de
+   verdad (registran casi todos los días, se pesan), ordenados por qué tan
+   probable es que paguen. Arriba los que más la usan y a los que menos días
+   de Premium de prueba les quedan; también los que siguen registrando en la
+   versión gratis. Cada uno con un mensaje listo en la voz de Jonah. Usa el
+   mismo registro de "ya le escribí" que Mensajes del día (paso "convertir"),
+   así no se le escribe dos veces el mismo día ni se repite en 7 días. */
+const MIN_DIAS_LISTOS = 3; // días con comidas en las últimas 2 semanas para entrar
+const MAX_LISTOS = 10;
+
+function puntajeListo({ dias14, diasSinRegistrar, pesos, diasRestantes }) {
+  let p = dias14 * 10;
+  if (diasSinRegistrar <= 1) p += 15;
+  else if (diasSinRegistrar <= 3) p += 5;
+  p += Math.min(pesos, 4) * 2;
+  if (diasRestantes >= 0 && diasRestantes <= 3) p += 20;
+  else if (diasRestantes < 0) p += 10;
+  return p;
+}
+
+function mensajeListo(x, precioMensual) {
+  const n = String(x.nombre || '').trim().split(/\s+/)[0];
+  const hola = `Hola${n ? ' ' + n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : ''} 👋 Soy Jonah.`;
+  const precio = `desde S/${precioMensual.toFixed(2)} al mes`;
+  const que = 'la foto inteligente en todas tus comidas, tu menú completo y tu coach';
+  const dias = `${x.dias14} de los últimos 14 días`;
+  if (x.diasRestantes < 0) {
+    return `${hola} Me encanta ver que sigues registrando tus comidas aunque ya terminó tu prueba 🙌 Eso dice mucho de ti. Si quieres volver a tener ${que}, en la app tocas "VER PREMIUM" y eliges tu plan (${precio}). ¿Te cuento cuál te conviene? Vamos juntos, comida a comida 💪🦍`;
+  }
+  if (x.diasRestantes <= 3) {
+    const cuando = x.diasRestantes === 0 ? 'hoy' : x.diasRestantes === 1 ? 'mañana' : `en ${x.diasRestantes} días`;
+    return `${hola} Registraste tus comidas ${dias}, ¡eso es compromiso de verdad! 💪 Tu Premium de prueba termina ${cuando}. Si quieres seguir con ${que}, tengo planes ${precio}: en la app tocas "VER PREMIUM". ¿Te cuento cuál te conviene? Vamos juntos, comida a comida 🦍`;
+  }
+  return `${hola} Registraste tus comidas ${dias}, ¡vas increíble! 💪 Esa constancia es la que trae los cambios, poco a poco. Cuando termine tu prueba vas a poder seguir con ${que} con un plan ${precio} ("VER PREMIUM" en la app). Si tienes cualquier duda, aquí estoy 🦍`;
+}
+
+function ListosParaPagarPanel() {
+  const [lista, setLista] = useState(null);
+  const [escritos, setEscritos] = useState({});
+  const [precioMensual, setPrecioMensual] = useState(PLANES[0].precioDefault);
+  const [verMensaje, setVerMensaje] = useState(null);
+  const hoy = todayISO();
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const desde14 = addDaysISO(hoy, -13);
+      const [{ data: alumnos }, { data: hist }, { data: cfg }] = await Promise.all([
+        supabase.from('alumnos').select('username, nombre, telefono, plan, fecha_vencimiento')
+          .eq('enabled', true).neq('plan', 'pago').gte('fecha_vencimiento', addDaysISO(hoy, -30)).range(0, 4999),
+        supabase.from('historial').select('username, fecha, comidas_count, peso').gte('fecha', addDaysISO(hoy, -30)).range(0, 19999),
+        supabase.from('config').select('key, value').in('key', [CLAVE_ESCRITOS, PLANES[0].configKey]),
+      ]);
+      if (cancelado) return;
+      const valor = k => (cfg || []).find(c => c.key === k)?.value;
+      const esc = leerEscritos(valor(CLAVE_ESCRITOS));
+      const p1 = Number(valor(PLANES[0].configKey));
+      if (p1 > 0) setPrecioMensual(p1);
+      const porUsuario = {};
+      (hist || []).forEach(h => { (porUsuario[h.username] = porUsuario[h.username] || []).push(h); });
+      const filas = (alumnos || []).filter(a => !esCuentaPropia(a.username)).map(a => {
+        const h = porUsuario[a.username] || [];
+        const conComida = h.filter(f => Number(f.comidas_count) > 0).map(f => f.fecha);
+        const dias14 = new Set(conComida.filter(f => f >= desde14)).size;
+        const ultima = conComida.sort().pop() || null;
+        const diasSinRegistrar = ultima ? Math.round((Date.parse(hoy) - Date.parse(ultima)) / 864e5) : 99;
+        const pesos = h.filter(f => Number(f.peso) > 0).length;
+        const diasRestantes = a.fecha_vencimiento ? Math.round((Date.parse(a.fecha_vencimiento) - Date.parse(hoy)) / 864e5) : -1;
+        return { ...a, dias14, diasSinRegistrar, pesos, diasRestantes };
+      }).filter(x => x.dias14 >= MIN_DIAS_LISTOS && (x.diasRestantes >= 0 || x.diasSinRegistrar <= 7))
+        .map(x => {
+          const e = esc[x.username];
+          const f = typeof e === 'string' ? e : e?.f;
+          const etapa = typeof e === 'string' ? null : e?.e;
+          const hecho = f === hoy;
+          const reciente = !hecho && f && etapa === 'convertir' && (Date.parse(hoy) - Date.parse(f)) / 864e5 < 7;
+          return { ...x, puntaje: puntajeListo(x), hecho, reciente };
+        })
+        .filter(x => !x.reciente)
+        .sort((a, b) => b.puntaje - a.puntaje)
+        .slice(0, MAX_LISTOS);
+      setEscritos(esc);
+      setLista(filas);
+    })().catch(() => { if (!cancelado) setLista([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  async function anotar(x) {
+    const nuevos = anotarEscrito(escritos, x.username, 'convertir', hoy);
+    setEscritos(nuevos);
+    setLista(l => l.map(y => y.username === x.username ? { ...y, hecho: true } : y));
+    try { await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) }); } catch {}
+  }
+
+  if (!lista || !lista.length) return null;
+  const hechos = lista.filter(x => x.hecho).length;
+  const chip = (texto, fuerte) => (
+    <span className={`jb-body text-[10px] px-1.5 py-0.5 rounded-md ${fuerte ? 'bg-orange-500/15 text-orange-300' : 'bg-zinc-800 text-zinc-400'}`}>{texto}</span>
+  );
+  return (
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="jb-display text-lg text-zinc-50">🔥 LISTOS PARA PAGAR</h2>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">
+            Todavía no pagan, pero usan la app de verdad. Arriba, los más probables: los que más registran y a los que menos días de prueba les quedan. Un mensaje tuyo a tiempo puede hacer la diferencia.
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="jb-display text-2xl text-orange-400 tabular-nums">{hechos}/{lista.length}</p>
+          <p className="jb-body text-[10px] text-zinc-500">escritos hoy</p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 mt-4">
+        {lista.map(x => {
+          const mensaje = mensajeListo(x, precioMensual);
+          const prueba = x.diasRestantes < 0 ? 'Ya en la versión gratis'
+            : x.diasRestantes === 0 ? 'Su prueba termina hoy'
+            : x.diasRestantes === 1 ? 'Su prueba termina mañana'
+            : `Le quedan ${x.diasRestantes} días de prueba`;
+          const ultima = x.diasSinRegistrar === 0 ? 'registró hoy' : x.diasSinRegistrar === 1 ? 'registró ayer' : `último registro hace ${x.diasSinRegistrar} días`;
+          return (
+            <div key={x.username} className={`rounded-xl p-3 border ${x.hecho ? 'bg-zinc-950/50 border-zinc-800/60 opacity-70' : 'bg-zinc-950 border-zinc-800'}`}>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre || x.username}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {chip(`${x.dias14} de 14 días registrando`, x.dias14 >= 10)}
+                    {chip(ultima, x.diasSinRegistrar <= 1)}
+                    {x.pesos > 0 && chip(`${x.pesos} ${x.pesos === 1 ? 'peso' : 'pesos'}`)}
+                    {chip(prueba, x.diasRestantes >= 0 && x.diasRestantes <= 3)}
+                    {!x.telefono && chip('sin WhatsApp')}
+                  </div>
+                </div>
+                {x.hecho ? (
+                  <span className="jb-body text-xs text-emerald-400 shrink-0">✅ Escrito</span>
+                ) : (
+                  <a href={enlaceWhatsApp(x.telefono, mensaje)} target="_blank" rel="noreferrer" onClick={() => anotar(x)}
+                    className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
+                    <MessageCircle size={14} /> Escribirle
+                  </a>
+                )}
+              </div>
+              <button type="button" onClick={() => setVerMensaje(v => v === x.username ? null : x.username)}
+                className="jb-body text-[11px] text-zinc-500 underline underline-offset-2 mt-1.5">
+                {verMensaje === x.username ? 'Ocultar mensaje' : 'Ver mensaje'}
+              </button>
+              {verMensaje === x.username && (
+                <p className="jb-body text-[12px] text-zinc-300 mt-1.5 leading-snug bg-zinc-900 rounded-lg p-2.5">“{mensaje}”</p>
+              )}
             </div>
           );
         })}

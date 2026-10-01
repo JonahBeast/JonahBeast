@@ -2552,7 +2552,7 @@ function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
     window.scrollTo({ top: 0 });
   }
 
-  const mensajeGrasa = `Hola Jonah 👋 Medí mi composición corporal en la web: ${results.bf.toFixed(1)}% de grasa (${results.bfCat.toLowerCase()}), masa muscular ${results.muscleKg.toFixed(1)} kg, IMC ${results.bmi.toFixed(1)} y gasto de mantenimiento ${Math.round(results.tdee)} kcal al día (peso ${num('peso')} kg). ¿Me ayudas a empezar mi plan?`;
+  const mensajeGrasa = `Hola Jonah, medí mi composición corporal en la web: ${results.bf.toFixed(1)}% de grasa (${results.bfCat.toLowerCase()}), masa muscular ${results.muscleKg.toFixed(1)} kg, IMC ${results.bmi.toFixed(1)} y gasto de mantenimiento ${Math.round(results.tdee)} kcal al día (peso ${num('peso')} kg). ¿Me ayudas a empezar mi plan?`;
   const campo = (k, label, extra = {}) => (
     <Field label={label} helpHref={extra.ayuda}>
       <input type="number" inputMode="decimal" className={inputCls + ' w-full placeholder:text-zinc-600'} value={form[k]} placeholder={extra.ph}
@@ -2879,7 +2879,7 @@ function mensajePlanWhatsApp(r, plan) {
   const objetivo = { 'Perder grasa': 'bajar grasa', 'Ganar músculo': 'ganar músculo', 'Mantener peso': 'mantenerme y comer mejor' }[r.objetivo] || r.objetivo;
   const meta = r.objetivo !== 'Mantener peso' && r.pesoObjetivo
     ? `, meta ${r.pesoObjetivo} kg${plan.semanas ? ` en unas ${plan.semanas} semanas` : ''}` : '';
-  return `Hola Jonah 👋 Este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}). ¿Me ayudas a empezar?`;
+  return `Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}). ¿Me ayudas a empezar?`;
 }
 
 function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder }) {

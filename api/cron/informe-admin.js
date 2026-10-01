@@ -14,6 +14,7 @@
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
 import { cargarDatosCarino, armarListaCarino } from '../../src/listaCarino.js';
 import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from '../../src/saldoIA.js';
+import { traerTodas } from '../../src/traerTodas.js';
 
 const NUMEROS = ['cero', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez'];
 const enLetras = n => NUMEROS[n] || String(n);
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
       supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0)
         .gte('creado_en', `${ayer}T00:00:00-05:00`).lt('creado_en', `${hoyISO}T00:00:00-05:00`).range(0, 999),
       supabase.from('pagos').select('id').eq('estado', 'pendiente').range(0, 999),
-      supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento, fecha_inicio').eq('enabled', true).gte('fecha_vencimiento', hoyISO).range(0, 4999),
+      traerTodas(() => supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento, fecha_inicio').eq('enabled', true).gte('fecha_vencimiento', hoyISO), 'username'),
     ]);
 
     const esPrueba = a => a.plan === 'trial' || a.plan === 'prueba';
@@ -51,8 +52,8 @@ export default async function handler(req, res) {
     let quietos = 0;
     const pagando = (alumnos || []).filter(a => !esPrueba(a) && !CUENTAS_PROPIAS.includes(a.username)).map(a => a.username);
     if (pagando.length) {
-      const { data: hist } = await supabase.from('historial').select('username, fecha')
-        .in('username', pagando).gte('fecha', addDaysISO(hoyISO, -10)).gt('comidas_count', 0).range(0, 9999);
+      const { data: hist } = await traerTodas(() => supabase.from('historial').select('username, fecha')
+        .in('username', pagando).gte('fecha', addDaysISO(hoyISO, -10)).gt('comidas_count', 0));
       const ultima = {};
       (hist || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
       quietos = Object.values(ultima).filter(f => f <= addDaysISO(hoyISO, -3) && f >= addDaysISO(hoyISO, -7)).length;
@@ -66,8 +67,8 @@ export default async function handler(req, res) {
     const reales = (alumnos || []).filter(a => !CUENTAS_PROPIAS.includes(a.username));
     const candidatos = esLunes ? reales : reales.filter(a => a.fecha_inicio && a.fecha_inicio >= addDaysISO(hoyISO, -7));
     if (candidatos.length) {
-      const { data: subs } = await supabase.from('push_subs').select('username').eq('activa', true)
-        .in('username', candidatos.map(a => a.username)).range(0, 4999);
+      const { data: subs } = await traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)
+        .in('username', candidatos.map(a => a.username)));
       const con = new Set((subs || []).map(x => x.username));
       sinAvisos = candidatos.filter(a => !con.has(a.username)).length;
     }
@@ -96,9 +97,9 @@ export default async function handler(req, res) {
       Object.assign(reglaAuto, (cfg?.value && leerRecargaAuto(cfg.value)) || {});
       const p = puntoDePartidaSaldo(movs || []);
       if (p) {
-        const { data: usos } = await supabase.from('ia_uso')
+        const { data: usos } = await traerTodas(() => supabase.from('ia_uso')
           .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-          .gte('creado_en', p.desde).range(0, 19999);
+          .gte('creado_en', p.desde));
         const est = saldoEstimado(movs || [], usos || [], reglaAuto);
         saldoIA = est?.saldo ?? null;
         // Recargas automáticas de las últimas 24 h (se cobran a la tarjeta).

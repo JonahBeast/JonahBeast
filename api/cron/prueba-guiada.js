@@ -14,6 +14,7 @@
 // Cron en vercel.json: "15 23 * * *" (23:15 UTC = 18:15 Perú)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, avisoConPresupuesto } from '../_lib/push.js';
+import { traerTodas } from '../../src/traerTodas.js';
 
 const URL_PLANES = '/?ir=planes';
 const primerNombre = (n) => (n || '').trim().split(/\s+/)[0] || '';
@@ -51,8 +52,8 @@ export default async function handler(req, res) {
     if (!candidatos.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'nadie en un día con aviso' });
 
     // Días con comidas registradas desde que empezó la prueba.
-    const { data: hist } = await supabase.from('historial').select('username, fecha')
-      .in('username', candidatos.map(a => a.username)).gt('comidas_count', 0).range(0, 9999);
+    const { data: hist } = await traerTodas(() => supabase.from('historial').select('username, fecha')
+      .in('username', candidatos.map(a => a.username)).gt('comidas_count', 0));
     const dias = {};
     (hist || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
 

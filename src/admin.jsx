@@ -3233,6 +3233,84 @@ function ConversionSemanalPanel() {
   );
 }
 
+/* 🙋 QUÉ SE LES HACE DIFÍCIL: respuestas de la pregunta que la app les hace
+   una vez a los alumnos de 40 años o más (form.encuestaFacilidad), y
+   cuántos usan el Modo fácil (letra grande e Inicio sencillo). */
+const TEXTO_DIFICIL = {
+  registrar: 'Registrar sus comidas', foto: 'La foto de la comida', numeros: 'Entender los números',
+  botones: 'Encontrar los botones', letra: 'La letra es pequeña', nada: 'Nada, todo bien',
+};
+
+function EncuestaFacilidadPanel({ users }) {
+  const [filas, setFilas] = useState(null);
+  useEffect(() => {
+    let cancelado = false;
+    traerTodas(() => supabase.from('datos_alumnos').select('username, form'), 'username')
+      .then(({ data }) => { if (!cancelado) setFilas((data || []).filter(d => !esCuentaPropia(d.username))); })
+      .catch(() => { if (!cancelado) setFilas([]); });
+    return () => { cancelado = true; };
+  }, []);
+  if (!filas) return null;
+  const edad = f => Number(String(f?.edad ?? '').replace(/[^0-9]/g, '')) || 0;
+  const mayores = filas.filter(d => edad(d.form) >= 40);
+  const conModo = filas.filter(d => d.form?.modoFacil === true).length;
+  const rechazaron = mayores.filter(d => d.form?.modoFacil === false).length;
+  const respuestas = filas.filter(d => d.form?.encuestaFacilidad)
+    .map(d => ({ ...d.form.encuestaFacilidad, username: d.username, edad: edad(d.form) }))
+    .sort((a, b) => String(b.en).localeCompare(String(a.en)));
+  const conteo = {};
+  respuestas.forEach(r => (r.respuestas || []).forEach(id => { conteo[id] = (conteo[id] || 0) + 1; }));
+  const ranking = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+  const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">🙋 QUÉ SE LES HACE DIFÍCIL (40 AÑOS O MÁS)</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">La app les pregunta una vez qué se les hace difícil, y les ofrece el Modo fácil (letra grande e Inicio con 3 botones).</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { v: mayores.length, l: 'alumnos de 40 o más' },
+          { v: conModo, l: `usan el Modo fácil${rechazaron ? ` · ${rechazaron} no quisieron` : ''}` },
+          { v: respuestas.length, l: respuestas.length === 1 ? 'respondió la pregunta' : 'respondieron la pregunta' },
+        ].map(t => (
+          <div key={t.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 min-w-0">
+            <div className="jb-display text-lg text-orange-400">{t.v}</div>
+            <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.l}</div>
+          </div>
+        ))}
+      </div>
+      {!respuestas.length ? (
+        <p className="jb-body text-xs text-zinc-500">Todavía nadie respondió. La pregunta les aparece en Inicio desde su segundo día con la app.</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            {ranking.map(([id, n]) => (
+              <div key={id} className="flex items-center gap-2">
+                <span className="jb-body text-[11px] text-zinc-300 w-40 shrink-0 truncate">{TEXTO_DIFICIL[id] || id}</span>
+                <BarraBrillo pct={(n / respuestas.length) * 100} />
+                <span className="font-mono text-[11px] text-zinc-200 w-8 text-right shrink-0">{n}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1.5 border-t border-zinc-800 pt-2">
+            {respuestas.slice(0, 20).map(r => (
+              <div key={r.username} className="jb-body text-xs">
+                <span className="text-zinc-100">{nombreDe(r.username)}</span>
+                <span className="text-zinc-500"> · {r.edad} años · {r.en}{r.modoFacil ? ' · usa Modo fácil' : ''}</span>
+                <p className="text-zinc-300">
+                  {(r.respuestas || []).map(id => TEXTO_DIFICIL[id] || id).join(' · ') || '—'}
+                  {r.otro ? <span className="text-orange-300"> · "{r.otro}"</span> : null}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RentabilidadPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
@@ -7748,6 +7826,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
               <>
                 <TableroPanel users={users} />
                 <FuncionandoPanel users={users} />
+                <EncuestaFacilidadPanel users={users} />
               </>
             )}
             {subNegocio === 'dinero' && (

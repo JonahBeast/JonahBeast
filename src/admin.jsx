@@ -1894,45 +1894,24 @@ function LeadsPanel() {
   );
 }
 
-// Gráfico de barras simple (una sola serie, así que no lleva leyenda: el
-// título dice qué es). Barras naranja ají con la punta redondeada, 2px de
-// separación y el valor al tocar o pasar el mouse. Se marcan solo el último
-// valor y el más alto, para no llenar de números.
-function BarrasSimples({ datos, formato = v => v, alto = 120, etiquetaCada = 1 }) {
-  const [activo, setActivo] = useState(null);
-  const max = Math.max(1, ...datos.map(d => d.valor));
-  const iMax = datos.reduce((im, d, i) => (d.valor > datos[im].valor ? i : im), 0);
-  const mostrado = activo !== null ? activo : datos.length - 1;
+// Para usar BarrasLed con una sola serie: cada dato {clave, etiqueta, valor}
+// pasa a {partes: {valor}} y se pinta en naranja ají.
+const SERIE_LED_UNICA = [{ key: 'valor', label: 'Valor', color: '#FF7020' }];
+const ledsDeUnValor = datos => datos.map(d => ({ ...d, partes: { valor: d.valor } }));
+
+// Barra horizontal de LEDs (mismo estilo que "Cada alumno te cuesta…"):
+// se encienden de izquierda a derecha con brillo naranja.
+function BarraLed({ pct, leds = 20, fila = 0, alto = 'h-2.5' }) {
+  const encendidos = Math.min(leds, Math.max(pct > 0 ? 1 : 0, Math.round((pct / 100) * leds)));
   return (
-    <div>
-      <div className="jb-body text-xs text-zinc-400 h-5 mb-1">
-        {datos[mostrado] && <><span className="text-zinc-500">{datos[mostrado].etiquetaLarga || datos[mostrado].etiqueta}:</span> <span className="text-zinc-50 font-semibold">{formato(datos[mostrado].valor)}</span></>}
-      </div>
-      <div className="flex items-end gap-[2px] border-b border-zinc-700" style={{ height: alto }}
-        onMouseLeave={() => setActivo(null)}>
-        {datos.map((d, i) => (
-          <button key={d.clave} type="button"
-            aria-label={`${d.etiquetaLarga || d.etiqueta}: ${formato(d.valor)}`}
-            onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
-            className="flex-1 h-full flex flex-col justify-end items-center group min-w-0">
-            {(i === iMax || i === datos.length - 1) && d.valor > 0 && (
-              <span className="jb-body text-[10px] text-zinc-300 mb-0.5 whitespace-nowrap">{formato(d.valor)}</span>
-            )}
-            <span className={`w-full rounded-t-[4px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-50'}`}
-              style={{ height: `${(d.valor / max) * 100}%`, minHeight: d.valor > 0 ? 2 : 0, background: '#E8590C', maxHeight: `calc(100% - 16px)` }} />
-          </button>
-        ))}
-      </div>
-      <div className="flex gap-[2px] mt-1">
-        {datos.map((d, i) => (
-          <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
-            <span className="jb-body text-[10px] text-zinc-500 whitespace-nowrap">
-              {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
+    <span className="flex-1 flex gap-[2px] w-full" aria-hidden="true">
+      {Array.from({ length: leds }).map((_, k) => (
+        <span key={k} className={`flex-1 ${alto} rounded-[2px] jbg-anim`}
+          style={k < encendidos
+            ? { background: '#FF7020', boxShadow: '0 0 6px rgba(255,112,32,0.7)', animation: `jbg-aparece .3s ease-out ${fila * 0.1 + k * 0.03}s both` }
+            : { background: '#27272a' }} />
+      ))}
+    </span>
   );
 }
 
@@ -2222,9 +2201,7 @@ function ActivacionPanel({ users }) {
                       <span className="jb-display text-base text-zinc-50">{p.n}</span> · {pct}%
                     </span>
                   </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
-                  </div>
+                  <div className="flex"><BarraLed pct={p.n ? Math.max(pct, 1) : 0} fila={i} /></div>
                 </div>
               </div>
             );
@@ -2294,9 +2271,7 @@ function ActivacionPanel({ users }) {
                     )}
                     <div className="flex items-center gap-2">
                       <span className="jb-body text-xs text-zinc-300 w-36 shrink-0">{p.titulo}</span>
-                      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
-                      </div>
+                      <BarraLed pct={p.n ? Math.max(pct, 1) : 0} fila={i} />
                       <span className="jb-body text-xs text-zinc-400 tabular-nums w-14 text-right"><span className="jb-display text-sm text-zinc-50">{p.n}</span> · {pct}%</span>
                     </div>
                   </div>
@@ -2410,14 +2385,9 @@ function TableroPanel({ users: todosLosUsuarios }) {
         <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Cargando gráficos…</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-5">
-          <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">INGRESOS POR MES</h3>
-            <BarrasSimples datos={graficoIngresos} formato={fmtSoles} />
-          </div>
-          <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS</h3>
-            <BarrasSimples datos={graficoUso} formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
-          </div>
+          <BarrasLed titulo="INGRESOS POR MES" datos={ledsDeUnValor(graficoIngresos)} series={SERIE_LED_UNICA} formato={fmtSoles} />
+          <BarrasLed titulo="ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS" datos={ledsDeUnValor(graficoUso)} series={SERIE_LED_UNICA}
+            formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
         </div>
       )}
     </div>
@@ -3197,9 +3167,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
             <span>Alumnos pagando: <span className="text-zinc-50 font-semibold">{pagando}</span></span>
             <span>Para no perder: <span className="text-zinc-50 font-semibold">{equilibrio ?? '—'}</span> · Para tu sueldo: <span className="text-zinc-50 font-semibold">{paraSueldo ?? '—'}</span></span>
           </div>
-          <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${avance}%` }} />
-          </div>
+          <div className="flex"><BarraLed pct={avance} leds={30} /></div>
         </div>
       </div>
 
@@ -3993,9 +3961,7 @@ function FinanzasPanel() {
               {regimen === 'rmt' && (
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
-                  <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
-                  </div>
+                  <div className="flex"><BarraLed pct={pctTope} leds={30} /></div>
                   <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
                 </div>
               )}
@@ -7795,9 +7761,7 @@ function MensajesDelDiaPanel() {
         )}
       </div>
       {lista.length > 0 && (
-        <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden mt-3">
-          <div className="h-full bg-orange-500 transition-all" style={{ width: `${(hechos / lista.length) * 100}%` }} />
-        </div>
+        <div className="flex mt-3"><BarraLed pct={(hechos / lista.length) * 100} leds={30} alto="h-1.5" /></div>
       )}
       <div className="flex flex-col gap-5 mt-4">
         {NIVELES.map(nivel => {

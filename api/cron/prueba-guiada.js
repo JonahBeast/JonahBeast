@@ -26,7 +26,7 @@ const AVISOS = {
     url: '/',
   }),
   3: (a) => ({
-    body: `Jonah bajó 37 kg midiendo lo que comía, sin dietas raras. Te quedan 3 días de Premium${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}. Después sigues gratis; con Premium mantienes la foto en todas tus comidas 🦍`,
+    body: `Jonah bajó de 104 a 90 kg en 2 meses con esta app, entrenamiento y disciplina, sin dietas raras. Te quedan 3 días de Premium${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}. Después sigues gratis; con Premium mantienes la foto en todas tus comidas 🦍`,
     url: URL_PLANES,
   }),
 };

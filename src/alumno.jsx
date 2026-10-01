@@ -4638,7 +4638,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     // notificaciones), también quien toca "Saltar y empezar".
     {
       emoji: '🦍', titulo: `GRACIAS POR CONFIAR EN MÍ${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}`,
-      texto: 'Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪',
+      texto: 'Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Y ahora, con esta misma app, entrenando y con disciplina, bajé de 104 a 90 kg en 2 meses. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪',
       esGracias: true,
     },
   ];

@@ -27,7 +27,8 @@
    Se usa en tres lugares, con los mismos datos y las mismas reglas:
      - el panel (HOY → "📲 Mensajes del día"), con el botón "Escribirle";
      - el informe de las 8am de Jarvis (api/cron/informe-admin.js);
-     - los avisos de la 1pm y las 7:30pm (api/cron/lista-carino-aviso.js).
+     - el aviso al celular apenas aparece alguien nuevo en la lista, a
+       cualquier hora del día (api/cron/lista-carino-aviso.js).
 
    Al tocar "Escribirle" se anota (config → lista_carino_escritos): ese día
    queda ✅ y ese mismo paso no se repite en 7 días. */

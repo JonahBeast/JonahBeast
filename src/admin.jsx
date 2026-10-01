@@ -2641,7 +2641,7 @@ function claveDeBarra(periodo, dia) {
 // cuadrículas ni figuras repetidas: solo la línea del 0 y una guía punteada
 // con el valor más alto. Con varias partes, una línea por parte (con
 // leyenda). Al tocar o pasar el mouse se ve el dato de ese punto.
-function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true }) {
+function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true, desdeCero = true }) {
   const [hover, setHover] = useState(null);
   const uid = useMemo(() => 'h' + Math.random().toString(36).slice(2, 8), []);
   const W = 600, H = 190, pl = 10, pr = 10, pt = 22, pb = 14;
@@ -2649,10 +2649,14 @@ function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1,
   const valor = (d, s) => d.partes[s.key] || 0;
   const total = d => series.reduce((a, s) => a + valor(d, s), 0);
   const maxReal = Math.max(0, ...datos.flatMap(d => series.map(s => valor(d, s))));
-  const yMax = maxReal > 0 ? maxReal * 1.18 : 1;
+  // Con desdeCero = false (ej. el peso) el eje empieza cerca del valor más
+  // bajo, para que se note la bajada de unos kilos.
+  const minReal = Math.min(...datos.flatMap(d => series.map(s => valor(d, s))));
+  const yMin = desdeCero || !(minReal > 0) ? 0 : Math.max(0, minReal - Math.max(1, (maxReal - minReal) * 0.6));
+  const yMax = maxReal > 0 ? (desdeCero ? maxReal * 1.18 : maxReal + Math.max(0.5, (maxReal - yMin) * 0.18)) : 1;
   const x = i => pl + (n <= 1 ? 0.5 : i / (n - 1)) * (W - pl - pr);
-  const y = v => pt + (1 - v / yMax) * (H - pt - pb);
-  const y0 = y(0);
+  const y = v => pt + (1 - (v - yMin) / (yMax - yMin)) * (H - pt - pb);
+  const y0 = y(yMin);
   const unica = series.length === 1;
   const mostrado = hover !== null ? hover : n - 1;
   const d0 = datos[mostrado];
@@ -7684,6 +7688,116 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   );
 }
 
+/* 📇 HISTORIA DEL ALUMNO (arriba de su ficha): todo lo que pasó con él en
+   un solo lugar, para saber cómo le va antes de escribirle. Cuándo y por
+   qué canal llegó, su plan, su constancia (comidas por día de los últimos
+   30 días), sus pesos, y la línea de tiempo: pagos, días regalados,
+   pedidos de alimentos y el último mensaje que le mandó Jonah desde el panel. */
+function HistoriaAlumno({ username }) {
+  const [d, setD] = useState(null);
+  const hoy = todayISO();
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }] = await Promise.all([
+        supabase.from('alumnos').select('nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, created_at').eq('username', username).maybeSingle(),
+        supabase.from('historial').select('fecha, comidas_count, peso').eq('username', username).order('fecha').range(0, 4999),
+        supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
+        supabase.from('ajustes_membresia').select('created_at, dias, motivo').eq('username', username).order('created_at').range(0, 999),
+        supabase.from('embudo_landing_eventos').select('fuente').eq('evento', 'registro').eq('username', username).limit(1),
+        supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
+        supabase.from('push_subs').select('username').eq('username', username).eq('activa', true).limit(1),
+        supabase.from('pedidos_alimentos').select('creado_en, nombre, estado, solicitantes').order('creado_en', { ascending: false }).range(0, 499),
+      ]);
+      if (cancelado) return;
+      const escrito = leerEscritos(cfg?.value)[username];
+      setD({
+        al, hist: hist || [], pagos: pagos || [], ajustes: ajustes || [],
+        fuente: reg?.[0]?.fuente || null, escrito: typeof escrito === 'string' ? { f: escrito } : escrito || null,
+        conAvisos: (subs || []).length > 0,
+        pedidos: (pedidos || []).filter(p => (p.solicitantes || []).some(x => x?.username === username)),
+      });
+    })().catch(() => { if (!cancelado) setD({ al: null, hist: [], pagos: [], ajustes: [], pedidos: [] }); });
+    return () => { cancelado = true; };
+  }, [username]);
+
+  if (!d) return <div className="flex items-center gap-2 text-zinc-500 text-xs mb-4"><Loader2 size={14} className="animate-spin" /> Cargando su historia…</div>;
+  const fechaCorta = iso => { const [y, m, dd] = String(iso).slice(0, 10).split('-').map(Number); return `${dd} ${MESES_CORTOS[m - 1]}${y !== Number(hoy.slice(0, 4)) ? ' ' + y : ''}`; };
+  const conComida = new Set(d.hist.filter(h => Number(h.comidas_count) > 0).map(h => h.fecha));
+  const dias30 = [...conComida].filter(f => f >= addDaysISO(hoy, -29)).length;
+  let racha = 0;
+  for (let f = conComida.has(hoy) ? hoy : addDaysISO(hoy, -1); conComida.has(f); f = addDaysISO(f, -1)) racha++;
+  const ultima = [...conComida].sort().pop() || null;
+  const pesos = d.hist.filter(h => Number(h.peso) > 0);
+  const kg = pesos.length >= 2 ? Number(pesos[0].peso) - Number(pesos[pesos.length - 1].peso) : null;
+  const esPrueba = d.al?.plan === 'trial' || d.al?.plan === 'prueba';
+  const vence = d.al?.fecha_vencimiento;
+  const estadoPlan = !d.al ? '—' : d.al.plan === 'pago'
+    ? (vence && vence < hoy ? 'Su plan venció' : 'Pagando')
+    : esPrueba && vence && vence >= hoy ? 'En prueba Premium' : 'Versión gratis';
+  const comidasDia = Array.from({ length: 30 }, (_, i) => {
+    const f = addDaysISO(hoy, i - 29);
+    const h = d.hist.find(x => x.fecha === f);
+    return { clave: f, etiqueta: String(Number(f.slice(8))), etiquetaLarga: fechaCorta(f), partes: { valor: Number(h?.comidas_count) || 0 } };
+  });
+  const datosPeso = pesos.map(h => ({ clave: h.fecha, etiqueta: fechaCorta(h.fecha), etiquetaLarga: fechaCorta(h.fecha), partes: { valor: Number(h.peso) } }));
+  const eventos = [
+    d.al?.created_at && { f: d.al.created_at, t: `🎉 Se registró${d.fuente ? ` (llegó por ${NOMBRE_FUENTE[d.fuente] || d.fuente})` : ''}` },
+    conComida.size > 0 && { f: [...conComida].sort()[0], t: '🌱 Registró su primera comida' },
+    ...d.pagos.map(p => ({ f: p.creado_en, t: `💳 Pago de ${fmtS(Number(p.monto) || 0)}${p.plan_meses ? ` · plan de ${p.plan_meses} ${Number(p.plan_meses) === 1 ? 'mes' : 'meses'}` : ''}${p.metodo ? ` · ${p.metodo}` : ''}`, extra: p.estado === 'aprobado' ? null : p.estado })),
+    ...d.ajustes.map(a => ({ f: a.created_at, t: `${Number(a.dias) >= 0 ? '🎁' : '➖'} ${Number(a.dias) >= 0 ? '+' : ''}${a.dias} días de Premium${a.motivo ? ` · ${a.motivo}` : ''}` })),
+    ...d.pedidos.map(p => ({ f: p.creado_en, t: `🍽️ Pidió "${p.nombre}"`, extra: p.estado === 'agregado' ? 'agregado' : p.estado === 'descartado' ? 'descartado' : 'pendiente' })),
+    d.escrito?.f && { f: d.escrito.f, t: `📲 Le escribiste desde el panel${d.escrito.e ? ` (${(ETAPAS.find(e => e.id === d.escrito.e)?.titulo) || (d.escrito.e === 'convertir' ? '🔥 Listos para pagar' : d.escrito.e)})` : ''}` },
+  ].filter(Boolean).sort((a, b) => String(b.f).localeCompare(String(a.f)));
+  const tarjetas = [
+    { v: estadoPlan, l: vence ? `${d.al?.plan === 'pago' || esPrueba ? 'Vence' : 'Venció'} el ${fechaCorta(vence)}` : 'Plan' },
+    { v: `${dias30} de 30`, l: 'días registrando' },
+    { v: racha ? `${racha} ${racha === 1 ? 'día' : 'días'}` : '—', l: ultima ? `racha · último registro ${ultima === hoy ? 'hoy' : fechaCorta(ultima)}` : 'nunca registró' },
+    { v: kg === null ? '—' : `${kg > 0 ? '−' : kg < 0 ? '+' : ''}${Math.abs(kg).toFixed(1)} kg`, l: pesos.length ? `${pesos.length} ${pesos.length === 1 ? 'peso' : 'pesos'} anotados` : 'sin pesos' },
+  ];
+  return (
+    <div className="flex flex-col gap-3 mb-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 jb-body text-xs text-zinc-400">
+        {d.al?.nombre && <span className="text-zinc-200">{d.al.nombre}</span>}
+        {d.al?.telefono && (
+          <a href={enlaceWhatsApp(d.al.telefono, '')} target="_blank" rel="noreferrer" className="text-orange-400 inline-flex items-center gap-1">
+            <MessageCircle size={12} /> {d.al.telefono}
+          </a>
+        )}
+        <span>{d.conAvisos ? '🔔 Recibe tus avisos' : '🔕 Sin avisos'}</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {tarjetas.map(t => (
+          <div key={t.l} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 min-w-0">
+            <div className="jb-display text-base text-orange-400 leading-tight">{t.v}</div>
+            <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.l}</div>
+          </div>
+        ))}
+      </div>
+      <GraficoHud titulo="COMIDAS POR DÍA · 30 DÍAS" datos={comidasDia} series={SERIE_LED_UNICA}
+        formato={v => `${v} ${v === 1 ? 'comida' : 'comidas'}`} etiquetaCada={5} />
+      {datosPeso.length >= 2 && (
+        <GraficoHud titulo="PESO" datos={datosPeso} series={SERIE_LED_UNICA} desdeCero={false}
+          formato={v => `${Number(v).toFixed(1)} kg`} etiquetaCada={Math.max(1, Math.ceil(datosPeso.length / 5))} />
+      )}
+      {eventos.length > 0 && (
+        <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+          <h3 className="jb-display text-sm text-zinc-300 mb-2">📇 SU HISTORIA</h3>
+          <div className="flex flex-col gap-1.5">
+            {eventos.slice(0, 25).map((e, i) => (
+              <div key={i} className="flex gap-3 jb-body text-xs">
+                <span className="text-zinc-500 w-14 shrink-0 tabular-nums">{fechaCorta(e.f)}</span>
+                <span className="text-zinc-200 flex-1 min-w-0">{e.t}{e.extra && <span className="text-zinc-500"> · {e.extra}</span>}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StudentDataModal({ username, data, onClose }) {
   const results = useMemo(() => (data?.form ? calcAll(data.form) : null), [data]);
   const [fotos, setFotos] = useState([]);
@@ -7737,6 +7851,7 @@ function StudentDataModal({ username, data, onClose }) {
           <h2 className="jb-display text-xl text-zinc-50">{username}</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={20} /></button>
         </div>
+        <HistoriaAlumno username={username} />
         {!results ? (
           <p className="text-zinc-500 text-sm">Este alumno todavía no ha registrado sus datos.</p>
         ) : (

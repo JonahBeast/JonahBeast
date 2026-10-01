@@ -2961,6 +2961,173 @@ function AnaliticaIAPanel({ tipoCambio }) {
   );
 }
 
+/* 📣 ¿CUÁNTO TE CUESTA CADA ALUMNO? Junta lo que Jonah anota en Finanzas
+   como publicidad y marketing (de la app) con lo que trajo ese mes:
+   registros, cuántos empezaron (anotaron al menos una comida) y cuántos
+   pagaron por primera vez. Así sale el costo por registro, por alumno que
+   empezó y por alumno que pagó, comparado con el mes anterior, y de qué
+   canal llegó cada registro (el ?utm_source= del link). */
+const NOMBRE_FUENTE = {
+  meta_propio: 'Tus anuncios de Meta', meta: 'Meta', agencia: 'Agencia',
+  fb: 'Facebook', facebook: 'Facebook', ig: 'Instagram', instagram: 'Instagram', instagram_app: 'Instagram', ig_bio: 'Bio de Instagram',
+  tiktok: 'TikTok', tiktok_bio: 'Bio de TikTok', directo: 'Directo / sin marca', sin_dato: 'Sin dato (antes de medirlo)',
+};
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
+  const [datos, setDatos] = useState(null);
+  const hoy = todayISO();
+  const mesesLista = useMemo(() => {
+    const [y, m] = hoy.split('-').map(Number);
+    return [0, 1, 2].map(k => { const n = y * 12 + (m - 1) - k; return `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}`; });
+  }, [hoy]);
+  const [mesSel, setMesSel] = useState(mesesLista[0]);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const desde = `${mesesLista[2].slice(0, 7)}-01`;
+      const desdeAnterior = (() => { const [y, m] = desde.split('-').map(Number); const n = y * 12 + (m - 1) - 1; return `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}-01`; })();
+      const [{ data: gastos }, { data: alumnos }, { data: pagos }, { data: regs }] = await Promise.all([
+        supabase.from('movimientos_financieros').select('fecha, monto, categoria').eq('tipo', 'gasto').eq('negocio', 'app')
+          .in('categoria', ['publicidad', 'marketing']).gte('fecha', desdeAnterior).range(0, 4999),
+        supabase.from('alumnos').select('username, created_at').gte('created_at', desdeAnterior).range(0, 4999),
+        supabase.from('pagos').select('username, monto, metodo, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 9999),
+        supabase.from('embudo_landing_eventos').select('username, fuente').eq('evento', 'registro').gte('creado_en', desdeAnterior).range(0, 9999),
+      ]);
+      const nuevos = (alumnos || []).filter(a => !esCuentaPropia(a.username)).map(a => a.username);
+      const { data: hist } = nuevos.length
+        ? await supabase.from('historial').select('username').in('username', nuevos).gt('comidas_count', 0).range(0, 19999)
+        : { data: [] };
+      if (cancelado) return;
+      setDatos({ gastos: gastos || [], alumnos: (alumnos || []).filter(a => !esCuentaPropia(a.username)), pagos: (pagos || []).filter(p => !esCuentaPropia(p.username) && !/add-on/i.test(p.metodo || '')), regs: regs || [], empezaron: new Set((hist || []).map(h => h.username)) });
+    })().catch(() => { if (!cancelado) setDatos({ gastos: [], alumnos: [], pagos: [], regs: [], empezaron: new Set() }); });
+    return () => { cancelado = true; };
+  }, []);
+
+  if (!datos) return null;
+  const mesDe = iso => String(iso || '').slice(0, 7);
+  // Primer pago con dinero real de cada alumno (así "pagaron" = alumnos nuevos que pagaron ese mes).
+  const primerPago = {};
+  datos.pagos.forEach(p => { const f = mesDe(p.creado_en); if (!primerPago[p.username] || f < primerPago[p.username]) primerPago[p.username] = f; });
+  const fuenteDe = Object.fromEntries(datos.regs.filter(r => r.username).map(r => [r.username, r.fuente || 'directo']));
+  const resumen = ym => {
+    const inversion = datos.gastos.filter(g => mesDe(g.fecha) === ym).reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const registrados = datos.alumnos.filter(a => mesDe(a.created_at) === ym);
+    const empezaron = registrados.filter(a => datos.empezaron.has(a.username)).length;
+    const pagaron = Object.values(primerPago).filter(f => f === ym).length;
+    const porFuente = {};
+    registrados.forEach(a => {
+      const f = fuenteDe[a.username] || 'sin_dato';
+      const g = porFuente[f] || (porFuente[f] = { registros: 0, empezaron: 0, pagaron: 0 });
+      g.registros++;
+      if (datos.empezaron.has(a.username)) g.empezaron++;
+      if (primerPago[a.username]) g.pagaron++;
+    });
+    const costo = n => (inversion > 0 && n > 0 ? inversion / n : null);
+    return { inversion, registros: registrados.length, empezaron, pagaron, porRegistro: costo(registrados.length), porEmpezo: costo(empezaron), porPago: costo(pagaron), porFuente };
+  };
+  const anteriorDe = ym => { const [y, m] = ym.split('-').map(Number); const n = y * 12 + (m - 1) - 1; return `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}`; };
+  const r = resumen(mesSel);
+  const ra = resumen(anteriorDe(mesSel));
+  const nombreMes = ym => MESES_LARGOS[Number(ym.slice(5, 7)) - 1];
+  const esMesActual = mesSel === mesesLista[0];
+  const comparar = (a, b) => {
+    if (a === null || b === null || !b) return null;
+    const c = Math.round((a / b - 1) * 100);
+    return c <= -5 ? <span className="text-emerald-400">▼ {Math.abs(c)}% vs {nombreMes(anteriorDe(mesSel))}</span>
+      : c >= 5 ? <span className="text-orange-400">▲ {c}% vs {nombreMes(anteriorDe(mesSel))}</span>
+      : <span className="text-zinc-400">igual que {nombreMes(anteriorDe(mesSel))}</span>;
+  };
+  const tarjetas = [
+    { v: r.porRegistro, l: 'Cada registro', sub: `${r.registros} ${r.registros === 1 ? 'cuenta nueva' : 'cuentas nuevas'}`, c: comparar(r.porRegistro, ra.porRegistro) },
+    { v: r.porEmpezo, l: 'Cada alumno que empezó', sub: `${r.empezaron} anotaron su primera comida`, c: comparar(r.porEmpezo, ra.porEmpezo) },
+    { v: r.porPago, l: 'Cada alumno que pagó', sub: `${r.pagaron} ${r.pagaron === 1 ? 'pagó' : 'pagaron'} por primera vez`, c: comparar(r.porPago, ra.porPago) },
+  ];
+  const fuentes = Object.entries(r.porFuente).sort((a, b) => b[1].registros - a[1].registros);
+  const chip = (activa, onClick, texto) => (
+    <button type="button" onClick={onClick}
+      className={`jb-body text-[11px] px-2.5 py-1 rounded-full border transition-colors ${activa ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+      {texto}
+    </button>
+  );
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-3">
+      <div>
+        <h3 className="jb-display text-sm text-zinc-300">📣 ¿CUÁNTO TE CUESTA CADA ALUMNO?</h3>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Lo que anotaste en Finanzas como publicidad y marketing, dividido entre lo que trajo ese mes. Mientras más bajo, mejor.</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {mesesLista.map((ym, k) => chip(mesSel === ym, () => setMesSel(ym), k === 0 ? `${nombreMes(ym)} (en curso)` : nombreMes(ym)))}
+      </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex items-baseline justify-between gap-2">
+        <span className="jb-body text-xs text-zinc-400">Invertiste en {nombreMes(mesSel)}</span>
+        <span className="jb-display text-xl text-orange-400">{fmtS(r.inversion)}</span>
+      </div>
+      {r.inversion === 0 ? (
+        <p className="jb-body text-xs text-zinc-400">
+          {esMesActual ? 'Este mes todavía no anotaste gastos de publicidad.' : `En ${nombreMes(mesSel)} no anotaste gastos de publicidad.`} Anótalos en <b>Finanzas</b> con la categoría <b>📣 Publicidad</b> (lo que pagas en Meta, TikTok o a la agencia) y aquí verás cuánto te cuesta cada alumno.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {tarjetas.map(t => (
+            <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-w-0">
+              <div className="jb-display text-lg text-orange-400">{t.v === null ? '—' : fmtS(t.v)}</div>
+              <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+              <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.sub}</div>
+              {t.c && <div className="jb-body text-[10px] leading-tight mt-0.5">{t.c}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      {r.porPago !== null && valorAlumno > 0 && (() => {
+        const rinde = r.porPago <= valorAlumno;
+        return (
+          <div className={`rounded-lg p-3 border ${rinde ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-red-500/10 border-red-500/40'}`}>
+            <p className="jb-body text-xs text-zinc-300">
+              Cada alumno que paga te deja unos <span className="text-zinc-50 font-semibold">{fmtS(valorAlumno)}</span> en el tiempo que se queda ({explicacionValor}).{' '}
+              <span className={`font-semibold ${rinde ? 'text-emerald-400' : 'text-red-400'}`}>
+                {rinde ? 'La publicidad te devuelve más de lo que cuesta. ✓' : 'Hoy la publicidad te cuesta más de lo que te devuelve.'}
+              </span>
+            </p>
+          </div>
+        );
+      })()}
+      {esMesActual && r.inversion > 0 && (
+        <p className="jb-body text-[10px] text-zinc-500 -mt-1">El mes está en curso: los registros de estos días todavía pueden pagar más adelante.</p>
+      )}
+      {fuentes.length > 0 && (
+        <div>
+          <div className="jb-body text-xs text-zinc-400 mb-1">De dónde llegaron los registros de {nombreMes(mesSel)}</div>
+          <div className="overflow-x-auto">
+            <table className="w-full jb-body text-xs">
+              <thead>
+                <tr className="text-zinc-500 text-[11px]">
+                  <th className="text-left font-normal py-1 pr-2">Canal</th>
+                  <th className="text-right font-normal py-1 px-2">Registros</th>
+                  <th className="text-right font-normal py-1 px-2">Empezaron</th>
+                  <th className="text-right font-normal py-1 pl-2">Pagaron</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fuentes.map(([f, g]) => (
+                  <tr key={f} className="border-t border-zinc-800 text-zinc-200">
+                    <td className="py-1 pr-2">{NOMBRE_FUENTE[f] || f}</td>
+                    <td className="text-right py-1 px-2 tabular-nums">{g.registros}</td>
+                    <td className="text-right py-1 px-2 tabular-nums">{g.empezaron}</td>
+                    <td className="text-right py-1 pl-2 tabular-nums">{g.pagaron}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="jb-body text-[10px] text-zinc-500 mt-1">El canal sale de la marca del link (?utm_source=). Los que entraron sin marca quedan como "Directo".</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RentabilidadPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
@@ -3110,14 +3277,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
   });
   const conGastos = ultimosMeses.map(gastoAppDelMes).filter(v => v > 0);
   const gastosPromedio = conGastos.length ? conGastos.reduce((a, v) => a + v, 0) / conGastos.length : 0;
-  // Alumnos nuevos del mes: su primer pago con dinero real fue este mes.
-  const primerPago = {};
-  (mes?.historialPagos || []).forEach(pg => {
-    const f = String(pg.creado_en).slice(0, 7);
-    if (!primerPago[pg.username] || f < primerPago[pg.username]) primerPago[pg.username] = f;
-  });
-  const nuevosPagantes = Object.values(primerPago).filter(f => f === mesActual).length;
-  const inversionCaptar = gastosCat.publicidad + gastosCat.marketing;
 
   const cuotaRus = cuotaNuevoRus(Math.max(ingresosMes, comprasMes));
   const fijosTec = sup.supabase + sup.vercel + sup.jarvis + sup.dominio + sup.otrosFijos;
@@ -3138,7 +3297,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
   const nRef = Math.max(pagando, 25);
   const minimoRef = precioMinimo(nRef);
   // Cuánto cuesta conseguir un alumno vs. cuánto deja en el tiempo que se queda.
-  const costoCaptar = nuevosPagantes > 0 ? inversionCaptar / nuevosPagantes : null;
   const valorAlumno = quedaPorAlumno * sup.mesesPromedio;
 
   const canales = [
@@ -3238,26 +3396,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
         ))}
       </div>
 
-      {mes && (inversionCaptar > 0 || nuevosPagantes > 0) && (() => {
-        const rinde = costoCaptar !== null && costoCaptar <= valorAlumno;
-        const sinNuevos = costoCaptar === null;
-        return (
-          <div className={`rounded-lg p-3 border ${sinNuevos ? 'bg-zinc-950 border-zinc-800' : rinde ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-red-500/10 border-red-500/40'}`}>
-            <div className="jb-body text-xs text-zinc-400">📣 Publicidad y marketing de este mes: <span className="text-zinc-100 font-semibold">{fmtS(inversionCaptar)}</span> · alumnos nuevos que pagaron: <span className="text-zinc-100 font-semibold">{nuevosPagantes}</span></div>
-            {sinNuevos ? (
-              <p className="jb-body text-sm text-zinc-300 mt-1">Todavía no llega ningún alumno nuevo este mes, así que aún no se puede medir cuánto te cuesta conseguir cada uno.</p>
-            ) : (
-              <>
-                <p className={`jb-display text-lg mt-1 ${rinde ? 'text-emerald-400' : 'text-red-400'}`}>Cada alumno nuevo te costó {fmtS(costoCaptar)}</p>
-                <p className="jb-body text-xs text-zinc-300">
-                  y te deja unos {fmtS(valorAlumno)} en el tiempo que se queda ({sup.mesesPromedio} {sup.mesesPromedio === 1 ? 'mes' : 'meses'} en promedio × {fmtS(quedaPorAlumno)}).{' '}
-                  <span className="font-semibold">{rinde ? 'La publicidad te devuelve más de lo que cuesta. ✓' : 'Hoy la publicidad te cuesta más de lo que te devuelve.'}</span>
-                </p>
-              </>
-            )}
-          </div>
-        );
-      })()}
+      <CostoPorAlumnoPanel valorAlumno={valorAlumno} explicacionValor={`${sup.mesesPromedio} ${sup.mesesPromedio === 1 ? 'mes' : 'meses'} en promedio × ${fmtS(quedaPorAlumno)}`} />
 
       <div className={`${tarjeta} flex flex-col gap-3`}>
         <div>

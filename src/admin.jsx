@@ -1253,11 +1253,96 @@ async function cargarAlimentosExtraDeNuevo() {
   try { await cargarAlimentosExtra(true); } catch {}
 }
 
+/* Respuestas de pedidos para mandar por WhatsApp: la respuesta de un
+   pedido (agregado o descartado) le llega al alumno como notificación o al
+   abrir la app, pero un mensaje de Jonah por WhatsApp lo motiva más. Aquí
+   quedan los pedidos resueltos de los últimos 3 días que pidió un alumno
+   desde la app o con una foto, con el mensaje listo en la voz de Jonah.
+   Al tocar "Escribirle" se abre WhatsApp y queda anotado en el pedido
+   (avisos.escrito_wa) para que no vuelva a salir. */
+const DIAS_RESPUESTAS_WA = 3;
+function mensajePedidoWhatsApp(p, nombre) {
+  const n = String(nombre || '').trim().split(/\s+/)[0] || '';
+  if (p.estado === 'agregado') {
+    const a = p.alimentos_extra;
+    const plato = a ? (a.estado && a.estado !== '-' ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre) : p.nombre;
+    return `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah. Ya agregué "${plato}" a la app, como me pediste. Búscalo en "REGISTRAR" → "Escribir" (si no te sale, cierra y vuelve a abrir la app). ¡Seguimos juntos, comida a comida! 💪🦍`;
+  }
+  const r = String(p.respuesta || '').trim();
+  if (!r) return `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Revisé tu pedido "${p.nombre}". Cuéntame cómo lo preparas y vemos juntos cómo registrarlo 💪🦍`;
+  // Si la respuesta ya lo saluda por su nombre, va tal cual.
+  if (n && r.toLowerCase().includes(n.toLowerCase())) return r;
+  return `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Sobre tu pedido "${p.nombre}": ${r}`;
+}
+
+function RespuestasParaWhatsApp({ onCantidad }) {
+  const [lista, setLista] = useState(null);
+  async function cargar() {
+    const desde = new Date(Date.now() - DIAS_RESPUESTAS_WA * 864e5).toISOString();
+    const { data } = await supabase.from('pedidos_alimentos')
+      .select('id, nombre, estado, respuesta, solicitantes, avisos, resuelto_en, alimentos_extra(nombre, estado)')
+      .in('estado', ['agregado', 'descartado'])
+      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(60);
+    const items = [];
+    (data || []).forEach(p => {
+      const escritos = p.avisos?.escrito_wa || [];
+      const sinAviso = p.avisos?.sin_avisos || [];
+      const usuarios = [...new Set((p.solicitantes || []).filter(s => s?.origen !== 'whatsapp' && s.username).map(s => String(s.username)))];
+      usuarios.filter(u => u !== 'martin' && !escritos.includes(u))
+        .forEach(u => items.push({ p, username: u, sinAviso: sinAviso.includes(u) }));
+    });
+    const usernames = [...new Set(items.map(i => i.username))];
+    const { data: alumnos } = usernames.length
+      ? await supabase.from('alumnos').select('username, nombre, telefono').in('username', usernames)
+      : { data: [] };
+    const porUsuario = Object.fromEntries((alumnos || []).map(a => [a.username, a]));
+    const conTelefono = items
+      .map(i => ({ ...i, alumno: porUsuario[i.username] }))
+      .filter(i => i.alumno?.telefono)
+      .sort((a, b) => Number(b.sinAviso) - Number(a.sinAviso));
+    setLista(conTelefono);
+    onCantidad?.(conTelefono.length);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function escribir(item, abrir = true) {
+    if (abrir) window.open(enlaceWhatsApp(item.alumno.telefono, mensajePedidoWhatsApp(item.p, item.alumno.nombre)), '_blank', 'noopener');
+    const avisos = { ...(item.p.avisos || {}), escrito_wa: [...new Set([...(item.p.avisos?.escrito_wa || []), item.username])] };
+    await supabase.from('pedidos_alimentos').update({ avisos }).eq('id', item.p.id);
+    await cargar();
+  }
+
+  if (!lista?.length) return null;
+  return (
+    <div className="bg-orange-950/20 border border-orange-900/60 rounded-xl p-3.5 flex flex-col gap-2">
+      <p className="jb-display text-sm text-orange-400">💬 RESPUESTAS PARA MANDAR POR WHATSAPP · {lista.length}</p>
+      <p className="jb-body text-[11px] text-zinc-400">Pedidos resueltos de los últimos {DIAS_RESPUESTAS_WA} días. Un mensaje tuyo los motiva más que la notificación. Toca "Escribirle": se abre WhatsApp con el mensaje listo y aquí deja de salir. Si no hace falta escribirle, toca "No hace falta".</p>
+      {lista.map(item => (
+        <div key={item.p.id + item.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-1.5">
+          <p className="jb-body text-sm text-zinc-100">
+            <b>{item.alumno.nombre || item.username}</b>
+            <span className="text-[11px] text-zinc-500"> · {item.p.estado === 'agregado' ? '✅ agregado' : '🗑️ descartado'} "{item.p.nombre}" · {fechaHoraCorta(item.p.resuelto_en)}</span>
+          </p>
+          {item.sinAviso && <p className="jb-body text-[11px] text-amber-300">⚠️ No le llegó la notificación: escríbele para que se entere.</p>}
+          <p className="jb-body text-xs text-zinc-400 whitespace-pre-line">{mensajePedidoWhatsApp(item.p, item.alumno.nombre)}</p>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => escribir(item)} className={btnPrimary + ' text-xs py-1.5 px-3'}>
+              <MessageCircle size={14} /> Escribirle
+            </button>
+            <button onClick={() => escribir(item, false)} className={btnGhost + ' text-xs py-1.5 px-3'}>No hace falta</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PedidosAlimentosPanel() {
   const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(false);
   const [resueltos, setResueltos] = useState([]); // aprobados en esta sesión, con sus avisos
+  const [porEscribir, setPorEscribir] = useState(0); // respuestas para mandar por WhatsApp
 
   useEffect(() => { cargar(); }, []);
 
@@ -1285,9 +1370,12 @@ function PedidosAlimentosPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🍽️ PEDIDOS DE ALIMENTOS · {pedidos.length}</h2>
+        <h2 className="jb-display text-base text-zinc-200">🍽️ PEDIDOS DE ALIMENTOS · {pedidos.length}{porEscribir > 0 && <span className="text-orange-400"> · 💬 {porEscribir}</span>}</h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
+      <div className={abierto ? 'px-5 pt-1 pb-3' : 'hidden'}>
+        <RespuestasParaWhatsApp key={resueltos.length} onCantidad={n => { setPorEscribir(n); if (n > 0) setAbierto(true); }} />
+      </div>
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">

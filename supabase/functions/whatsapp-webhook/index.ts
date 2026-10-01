@@ -57,7 +57,8 @@ import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 import { ALIMENTOS_APP } from "./alimentos.ts";
 
 const GRAPH = "https://graph.facebook.com/v23.0";
-const MODELO = "claude-opus-5";
+// Sonnet: responde igual de bien en un chat y cuesta menos de la mitad.
+const MODELO = "claude-sonnet-5-5";
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") || "";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") || "jonahbeast-asistente";
@@ -92,16 +93,17 @@ const ESPERA_MENSAJES_SEGUIDOS_MS = 8000;
 const TIPOS_SIN_RESPUESTA = ["reaction", "unsupported", "system", "ephemeral", "request_welcome"];
 const MAX_IMAGEN = 5 * 1024 * 1024; // límite de imágenes de la API de Claude
 
-const MENSAJE_PASO_A_JONAH = "🙋 Te paso con Jonah para que te ayude personalmente. Te escribe en breve.";
+const MENSAJE_PASO_A_JONAH = "🙋 Esto prefiero que lo vea Jonah en persona, para ayudarte bien. Te escribe en breve 💪";
 const mensajePedido = (alimento: string) =>
   `🍽️ ¡Buen pedido! Estamos calculando los macros de *${alimento}*… Te aviso apenas esté en la app 💪`;
 
 const PERSONA = `Eres el asistente virtual de WhatsApp de Jonah Beast Fuel, la app peruana de nutrición de Jonah Beast. Atiendes a clientes y alumnos por WhatsApp en nombre del equipo.
 
 Cómo escribes:
-- En español peruano, cercano y amable, tuteando. Mensajes cortos (1 a 4 frases), como en un chat. Emojis con moderación.
+- Con la voz de Jonah: en español peruano, cercano, humano y motivador, tuteando, como un amigo que te acompaña; nunca frío, de trámite ni de robot. Mensajes cortos (1 a 4 frases), como en un chat. Emojis con moderación (💪🦍 van bien con Jonah).
+- Transmite la idea de Jonah: el cambio llega poco a poco, comida a comida, sin dietas raras ni pasar hambre. Celebra cada paso (crear la cuenta, la primera foto, volver después de unos días) y nunca regañes. Cierra ofreciendo ayuda ("cualquier duda me escribes aquí").
 - Formato de WhatsApp: *negrita* con un solo asterisco, listas con guiones o números. Nada de títulos con # ni tablas.
-- Si es el primer mensaje de la conversación, preséntate en una frase como el asistente virtual de Jonah Beast Fuel.
+- Si es el primer mensaje de la conversación, preséntate en una frase como el asistente de Jonah en Jonah Beast Fuel (no digas que eres Jonah; Jonah también lee este chat y responde en persona cuando hace falta).
 - Para explicar cómo usar la app, da pasos cortos y numerados con los nombres de botones entre comillas, tal como aparecen en el manual.
 
 Qué sabes:
@@ -673,7 +675,7 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   const pedido = bloques.find((b: any) => b.type === "tool_use" && b.name === "pedir_alimento");
   const alimento = String(pedido?.input?.alimento || "").replace(/\s+/g, " ").trim().slice(0, 80);
   if (alimento && esVersionGratis(alumno, fechaLima())) {
-    return { texto: `Pedir que agreguemos alimentos a la app es parte de Premium 👑. En la versión gratis puedes crearlo tú en la app: "REGISTRAR" → "Escribir" → "+ Crear mi alimento". Si quieres, te cuento los planes.` };
+    return { texto: `¡Buena idea! 🙌 Pedir que agreguemos alimentos a la app es parte de Premium 👑. Mientras tanto, en la versión gratis puedes crearlo tú mismo: "REGISTRAR" → "Escribir" → "+ Crear mi alimento". Si quieres, te cuento los planes y seguimos juntos 💪` };
   }
   if (alimento) return { pedido: alimento };
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
@@ -896,7 +898,7 @@ async function seguimiento() {
       const nombre = primerNombre(alumno.nombre) || primerNombre(chat.nombre);
       await supabase.from("whatsapp_chats").update({ username: alumno.username, nombre: alumno.nombre || chat.nombre }).eq("telefono", telefono);
       await enviarTexto(cuenta, telefono,
-        `🎉 ¡${nombre ? nombre + ", y" : "Y"}a vi que creaste tu cuenta! Bienvenido/a a Jonah Beast Fuel. Tu primer paso: en la app toca *"REGISTRAR"* y tómale una foto a tu próxima comida 📸. Cualquier duda, me escribes aquí 💪`,
+        `🎉 ¡${nombre ? nombre + ", y" : "Y"}a vi que creaste tu cuenta! Bienvenido/a a Jonah Beast Fuel, qué bueno tenerte aquí 🙌 Tu único reto de hoy: en la app toca *"REGISTRAR"* y tómale una foto a tu próxima comida 📸 (son 10 segundos). Jonah bajó de 104 a 90 kg empezando así, comida a comida. Cualquier duda, me escribes aquí 💪🦍`,
         "bienvenida");
       enviados++;
       continue;
@@ -907,7 +909,7 @@ async function seguimiento() {
     if (ahora - new Date(ultimo.creado_en).getTime() < 3 * 3600000) continue;
     const nombre = primerNombre(chat.nombre);
     await enviarTexto(cuenta, telefono,
-      `Hola${nombre ? " " + nombre : ""} 👋 ¿Pudiste crear tu cuenta en *jonahbeast.com*? Es gratis y tienes 7 días de Premium para empezar con tu plan. Si te trabaste en algún paso, cuéntame y te ayudo 💪`,
+      `Hola${nombre ? " " + nombre : ""} 👋 ¿Pudiste crear tu cuenta en *jonahbeast.com*? Es gratis y tienes 7 días de Premium para arrancar con tu plan. Dar el primer paso es lo que más cuesta, y aquí te acompañamos en cada comida. Si te trabaste en algún paso, cuéntame y lo vemos juntos 💪🦍`,
       "seguimiento");
     enviados++;
   }

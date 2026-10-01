@@ -27,6 +27,7 @@ import {
   UNIDADES_DISCRETAS,
   VAPID_PUBLIC,
   WHATSAPP_NUMBER,
+  mensajePlanWhatsApp,
   addDaysISO,
   base64ToUint8,
   btnGhost,
@@ -7193,6 +7194,35 @@ function partesDelPlato(en) {
   return partes.length ? partes : null;
 }
 
+/* Recibir su plan por WhatsApp: antes estaba en la pantalla del plan, pero
+   sacaba a la gente antes de crear su cuenta. Ahora sale en Inicio recién
+   cuando ya registró su primera comida (en su prueba), una sola vez: al
+   tocarlo o con "Ahora no" no vuelve a salir. Dentro de TikTok/Instagram no
+   sale, porque abrir WhatsApp ahí cierra la app. */
+function PlanPorWhatsApp({ username, form, kcal, proteina }) {
+  const clave = 'jb_plan_wa_' + username;
+  const [visible, setVisible] = useState(() => {
+    try { return !localStorage.getItem(clave) && !equipoDelAlumno().navegadorInterno; } catch { return false; }
+  });
+  if (!visible || !form?.objetivo || !kcal) return null;
+  const cerrar = () => { setVisible(false); try { localStorage.setItem(clave, '1'); } catch {} };
+  const texto = mensajePlanWhatsApp(
+    { objetivo: form.objetivo, peso: form.peso, pesoObjetivo: form.pesoObjetivo },
+    { kcal: Math.round(kcal / 10) * 10, proteina: Math.round(proteina || 0), semanas: null },
+    'Ya registré mi primera comida en la app. ¿Me ayudas a seguir?');
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-4">
+      <p className="jb-display text-base text-zinc-50">📲 ¿TE MANDO TU PLAN POR WHATSAPP?</p>
+      <p className="jb-body text-sm text-zinc-400 mt-1">Ya registraste tu primera comida 💪. Escríbeme con tu plan y te acompaño también por WhatsApp.</p>
+      <div className="flex gap-2 mt-3">
+        <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer"
+          onClick={cerrar} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>Recibir mi plan por WhatsApp</a>
+        <button type="button" onClick={cerrar} className={btnGhost + ' py-2.5 text-sm'}>Ahora no</button>
+      </div>
+    </div>
+  );
+}
+
 /* Recién registrado desde el navegador de TikTok, Instagram o Facebook
    (así llega casi todo el que viene de un anuncio): ahí no le llegan los
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
@@ -7202,9 +7232,17 @@ function AbrirEnNavegadorModal({ onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
   const [correo, setCorreo] = useState('');
   const [copiado, setCopiado] = useState(false);
+  const [correoCopiado, setCorreoCopiado] = useState(false);
+  const [conGoogle, setConGoogle] = useState(false);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCorreo(data?.user?.email || ''), () => {});
+    supabase.auth.getUser().then(({ data }) => {
+      setCorreo(data?.user?.email || '');
+      setConGoogle((data?.user?.app_metadata?.providers || [data?.user?.app_metadata?.provider]).includes('google'));
+    }, () => {});
   }, []);
+  async function copiarCorreo() {
+    try { await navigator.clipboard.writeText(correo); setCorreoCopiado(true); } catch {}
+  }
   const esIphone = dispositivo === 'iphone';
   const navegador = esIphone ? 'Safari' : 'Chrome';
   // Android: abre Chrome directo. iPhone (iOS 17+): abre Safari directo.
@@ -7224,7 +7262,16 @@ function AbrirEnNavegadorModal({ onCerrar }) {
           Ábrela en <b className="text-zinc-100">{navegador}</b>: tu cuenta y tu plan ya están guardados.
         </p>
         {correo && (
-          <p className="jb-body text-xs text-zinc-400 mt-3">Entra con tu correo: <b className="text-orange-400">{correo}</b></p>
+          <div className="mt-4 bg-zinc-950 border border-orange-500/30 rounded-xl p-3">
+            <p className="jb-body text-[11px] text-zinc-400 uppercase tracking-wider">{conGoogle ? 'Allá toca "Continuar con Google" con' : 'Allá entras con tu correo'}</p>
+            <p className="jb-body text-base text-orange-400 font-semibold break-all mt-0.5">{correo}</p>
+            <button type="button" onClick={copiarCorreo} className="jb-body text-[11px] text-orange-400 underline mt-1">
+              {correoCopiado ? '✅ Correo copiado' : 'Copiar mi correo'}
+            </button>
+            {!conGoogle && (
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5">¿No recuerdas tu contraseña? Allá toca <b className="text-zinc-300">"¿Olvidaste tu contraseña?"</b> y te llega un enlace a este correo.</p>
+            )}
+          </div>
         )}
         <a href={enlace} className={btnPrimary + ' w-full py-3 mt-4'}>🌐 Abrir en {navegador}</a>
         <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-left">
@@ -9021,6 +9068,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
           <InvitaMomento user={userRecord} mealPlan={mealPlan} />
+        )}
+        {tab === 'dash' && !verGuia && userRecord && alimentosHoy > 0 && targetsObjetivo
+          && (userRecord.plan === 'trial' || userRecord.plan === 'prueba') && (
+          <PlanPorWhatsApp username={username} form={form} kcal={targetsObjetivo.kcal} proteina={targetsObjetivo.protein} />
         )}
         {ajustarMeta && !verGuia && (
           <AjustaMetaModal faltanDatos={!tieneDatosBasicos(form)}

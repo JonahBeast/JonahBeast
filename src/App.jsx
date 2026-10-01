@@ -2875,11 +2875,11 @@ function planDelRecorrido(r) {
 
 // Mensaje que manda al tocar "Recibir mi plan por WhatsApp". El asistente
 // de WhatsApp reconoce el inicio ("Este es mi plan de Jonah Beast Fuel").
-function mensajePlanWhatsApp(r, plan) {
+function mensajePlanWhatsApp(r, plan, extra = '') {
   const objetivo = { 'Perder grasa': 'bajar grasa', 'Ganar músculo': 'ganar músculo', 'Mantener peso': 'mantenerme y comer mejor' }[r.objetivo] || r.objetivo;
   const meta = r.objetivo !== 'Mantener peso' && r.pesoObjetivo
     ? `, meta ${r.pesoObjetivo} kg${plan.semanas ? ` en unas ${plan.semanas} semanas` : ''}` : '';
-  return `Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}). ¿Me ayudas a empezar?`;
+  return `Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}).${extra ? ' ' + extra : ' ¿Me ayudas a empezar?'}`;
 }
 
 function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder }) {
@@ -3091,14 +3091,9 @@ function Recorrido({ onBack, onListo }) {
               <button onClick={guardarPlan} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">
                 CREAR MI CUENTA Y GUARDAR MI PLAN
               </button>
-              {/* Él le escribe a Jonah con su plan: así tenemos su número sin
-                  pedírselo, y el asistente puede responderle al toque. */}
-              <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensajePlanWhatsApp(r, plan))}`}
-                target="_blank" rel="noopener noreferrer"
-                onClick={() => { guardarRecorridoLocal(); registrarEventoEmbudo('recorrido_whatsapp'); }}
-                className="mt-2 w-full border border-orange-500/60 hover:border-orange-400 rounded-full py-3 jb-display text-base text-orange-400 tracking-wide flex items-center justify-center gap-2">
-                📲 RECIBIR MI PLAN POR WHATSAPP
-              </a>
+              {/* El botón de WhatsApp ya no va aquí: sacaba a la gente antes de
+                  crear su cuenta (sobre todo dentro de TikTok/Instagram). Ahora
+                  lo ofrece la app después de su primera comida (PlanPorWhatsApp). */}
               <p className="jb-body text-xs text-zinc-400 text-center mt-2"><span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta</p>
             </>
           ) : (
@@ -5975,6 +5970,7 @@ export {
   UNIDADES_DISCRETAS,
   VAPID_PUBLIC,
   WHATSAPP_NUMBER,
+  mensajePlanWhatsApp,
   addDaysISO,
   addMonthsISO,
   base64ToUint8,

@@ -233,13 +233,14 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     // y pavita). Va en el mensaje, no en las instrucciones, para no romper
     // la caché que comparten todas las fotos.
     const clavesOk = new Set(alimentosValidos.map((a: any) => a.key));
-    const [frecuentes, corregidos, deTodos] = await Promise.all([
+    const [frecuentes, corregidos, deTodos, porciones] = await Promise.all([
       alimentosFrecuentes(supabase, username, clavesOk),
       correccionesDelAlumno(supabase, username, clavesOk),
       correccionesDeTodos(supabase, clavesOk),
+      porcionesDelAlumno(supabase, username, clavesOk),
     ]);
 
-    const r = await reconocerPlato(supabase, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, usuarioUso: username });
+    const r = await reconocerPlato(supabase, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, porciones, usuarioUso: username });
     if (!r) {
       await devolverFoto();
       return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
@@ -264,9 +265,9 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
 
 // Reconoce los alimentos de la foto con la IA, solo dentro de la lista que
 // se le manda. Devuelve null si la IA falló (quien llama devuelve la foto).
-async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, usuarioUso }: {
+async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, porciones = [], usuarioUso }: {
   imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[];
-  deTodos: CorreccionesDeTodos; usuarioUso: string;
+  deTodos: CorreccionesDeTodos; porciones?: string[]; usuarioUso: string;
 }): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]> } | null> {
   const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
   // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
@@ -359,6 +360,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
               corregidos.length && `Correcciones que este alumno ya hizo (la IA dijo → en realidad era):\n${corregidos.join("\n")}`,
               deTodos.reglas.length && `Correcciones frecuentes de todos los alumnos (la IA dijo → en realidad era):\n${deTodos.reglas.join("\n")}`,
               frecuentes.length && `Lo que este alumno suele comer (lo que más registró en las últimas 2 semanas, de más a menos):\n${frecuentes.join("\n")}`,
+              porciones.length && `Porciones habituales de este alumno (en sus fotos anteriores corrigió los gramos que calculó la IA; es lo que de verdad suele servirse):\n${porciones.join("\n")}\nSi en esta foto aparece alguno de esos alimentos con una porción parecida a la de siempre, usa su porción habitual como punto de partida para los gramos. Si en la foto se ve claramente más o menos, calcula lo que ves.`,
               "Identifica los alimentos de esta foto. Responde solo con el JSON final, sin explicaciones antes ni después.",
             ].filter(Boolean).join("\n\n") },
           ],
@@ -773,6 +775,49 @@ async function correccionesDelAlumno(supabase: any, username: string, validas: S
       .map((p) => `${[...p.de].slice(0, 3).join(" o ")} → ${p.a} (${p.veces} ${p.veces === 1 ? "vez" : "veces"})`);
   } catch (e) {
     console.error("No se pudieron leer las correcciones:", (e as Error)?.message);
+    return [];
+  }
+}
+
+// Porciones habituales del alumno (últimos 60 días): alimentos a los que
+// les corrigió los gramos que calculó la IA en 2 fotos o más, siempre hacia
+// el mismo lado (las veces que lo dejó igual no cuentan en contra). La
+// porción habitual es la mediana de sus últimas 5 fotos de ese alimento. Ej.: alguien en déficit que sirve 110 g de arroz y la IA le calcula
+// 150 g. Va en el mensaje (no en las instrucciones) para no romper la caché.
+// Si algo falla, se sigue sin esta ayuda.
+async function porcionesDelAlumno(supabase: any, username: string, validas: Set<string>): Promise<string[]> {
+  try {
+    const desde = new Date(Date.now() - 60 * 86_400_000).toISOString();
+    const { data, error } = await supabase.from("reconocimiento_foto_feedback").select("sugeridos")
+      .eq("username", username).gte("created_at", desde).order("created_at", { ascending: false }).limit(100);
+    if (error) throw error;
+    const porClave = new Map<string, { ia: number[]; final: number[] }>();
+    for (const fila of data || []) {
+      for (const s of Array.isArray(fila?.sugeridos) ? fila.sugeridos : []) {
+        const clave = typeof s?.key === "string" ? s.key : "";
+        const ia = Number(s?.gramos_ia), fin = Number(s?.gramos_final);
+        if (!clave || s?.corregido_a || !validas.has(clave) || !(ia > 0) || !(fin > 0)) continue;
+        const p = porClave.get(clave) || { ia: [], final: [] };
+        p.ia.push(ia); p.final.push(fin);
+        porClave.set(clave, p);
+      }
+    }
+    const mediana = (v: number[]) => { const o = [...v].sort((a, b) => a - b); const m = Math.floor(o.length / 2); return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2; };
+    const lineas: { texto: string; veces: number }[] = [];
+    for (const [clave, p] of porClave) {
+      // Cuenta cuántas veces bajó o subió la porción (más de 10%); si lo
+      // movió hacia los dos lados, no hay una porción habitual clara.
+      const menos = p.final.filter((f, i) => f < p.ia[i] * 0.9).length;
+      const mas = p.final.filter((f, i) => f > p.ia[i] * 1.1).length;
+      if (!((menos >= 2 && mas === 0) || (mas >= 2 && menos === 0))) continue;
+      // Las últimas 5 fotos (vienen de la más nueva a la más vieja).
+      const fin = mediana(p.final.slice(0, 5)), ia = mediana(p.ia.slice(0, 5));
+      if (Math.abs(fin / ia - 1) < 0.1) continue;
+      lineas.push({ texto: `${clave}: suele servirse unos ${Math.round(fin / 5) * 5} g (la IA había calculado unos ${Math.round(ia / 5) * 5} g; ${p.final.length} fotos)`, veces: p.final.length });
+    }
+    return lineas.sort((a, b) => b.veces - a.veces).slice(0, 8).map((l) => l.texto);
+  } catch (e) {
+    console.error("No se pudieron leer las porciones del alumno:", (e as Error)?.message);
     return [];
   }
 }

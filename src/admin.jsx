@@ -2437,6 +2437,26 @@ const SUPUESTOS_RENTABILIDAD = {
 
 const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp'];
 
+// Partes de la app que usan IA, para comparar su costo con el mes anterior.
+const PARTES_IA = [
+  { funcion: 'reconocer-comida', label: 'Fotos de comida', uso: 'foto' },
+  { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
+  { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
+  { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
+];
+
+// El mismo momento del mes pasado (si hoy es 15 a las 10 am, el 15 del mes
+// pasado a las 10 am), para comparar "lo que va del mes" con lo mismo del
+// mes anterior. Si el mes pasado era más corto, se queda en su último día.
+function mismoMomentoMesPasado(d) {
+  const r = new Date(d);
+  const dia = r.getDate();
+  r.setDate(1);
+  r.setMonth(r.getMonth() - 1);
+  r.setDate(Math.min(dia, new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate()));
+  return r;
+}
+
 function cuotaNuevoRus(ingresos) {
   if (ingresos <= 5000) return 20;
   if (ingresos <= 8000) return 50;
@@ -2609,13 +2629,15 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
     (async () => {
       const inicio = new Date(); inicio.setDate(1);
       const inicioISO = fechaLocalISO(inicio);
+      const inicioAnterior = new Date(inicio); inicioAnterior.setMonth(inicioAnterior.getMonth() - 1);
       const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').not('periodo', 'like', 'sugerencia-%').range(0, 9999),
-        supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
-          .gte('creado_en', inicioISO).range(0, 19999),
+        // Desde el mes pasado, para comparar el costo de la IA con el mes anterior.
+        supabase.from('ia_uso').select('funcion, tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', fechaLocalISO(inicioAnterior)).range(0, 39999),
         supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
           .eq('tipo', 'gasto').range(0, 4999),
         // Todos los pagos con dinero real: sirve para saber quién pagó por
@@ -2632,8 +2654,9 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: (historialPagos || []).filter(p => !esCuentaPropia(p.username)) });
-    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], gastos: [], historialPagos: [] }); });
+      const esteMes = f => String(f.creado_en) >= inicioISO;
+      setMes({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: (ia || []).filter(esteMes), iaAnterior: (ia || []).filter(f => !esteMes(f)), gastos: gastos || [], historialPagos: (historialPagos || []).filter(p => !esCuentaPropia(p.username)) });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], iaAnterior: [], gastos: [], historialPagos: [] }); });
     return () => { cancelado = true; };
   }, []);
 
@@ -2677,6 +2700,24 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
     a.soles += f.soles;
     if (f.tipo === 'whatsapp') a.mensajes++; else if (f.tipo !== 'codigo') a.fotos++;
   });
+  // Comparación con el mes anterior: el total contra lo que se llevaba
+  // gastado a esta misma altura del mes pasado (para no comparar medio mes
+  // con un mes entero) y el costo de cada uso contra el del mes pasado completo.
+  const iaAnteriorFilas = (mes?.iaAnterior || []).map(f => ({ ...f, soles: costoUsdIA(f) * sup.tipoCambio }));
+  const corteMesPasado = mismoMomentoMesPasado(new Date());
+  const iaAnteriorMismoTramo = iaAnteriorFilas.filter(f => new Date(f.creado_en) <= corteMesPasado);
+  const comparacionIA = PARTES_IA.map(pt => {
+    const ahora = iaFilas.filter(f => f.funcion === pt.funcion);
+    const antes = iaAnteriorFilas.filter(f => f.funcion === pt.funcion);
+    const antesTramo = iaAnteriorMismoTramo.filter(f => f.funcion === pt.funcion);
+    return {
+      ...pt, total: suma(ahora), totalAntes: suma(antesTramo),
+      porUso: ahora.length ? suma(ahora) / ahora.length : null,
+      porUsoAntes: antes.length ? suma(antes) / antes.length : null,
+      usos: ahora.length, usosAntes: antes.length,
+    };
+  }).filter(c => c.usos || c.usosAntes);
+  const totalIAAntesTramo = suma(iaAnteriorMismoTramo);
   const rankingIA = Object.values(porAlumnoIA).sort((a, b) => b.soles - a.soles);
   const promedioIA = rankingIA.length ? suma(iaAlumnos.filter(f => f.username)) / rankingIA.length : null;
   const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
@@ -2885,7 +2926,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos` },
+                { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos · a esta altura del mes pasado ${fmtS(totalIAAntesTramo)}` },
                 { v: fmtS(suma(iaAlumnos)), l: 'La usan tus alumnos', sub: 'fotos, etiquetas, códigos y WhatsApp' },
                 { v: fmtS(suma(iaAdmin)), l: 'La usas tú', sub: 'Jarvis, pedidos de alimentos y tus pruebas' },
                 { v: costoFotoReal === null ? '—' : fmtS(costoFotoReal), l: 'Costo real por foto', sub: costoFotoReal === null ? `faltan fotos para medir (${fotosMedidas.length} de 5)` : `promedio de ${fotosMedidas.length} fotos` },
@@ -2897,6 +2938,42 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
                 </div>
               ))}
             </div>
+            {comparacionIA.length > 0 && (
+              <div>
+                <div className="jb-body text-xs text-zinc-400 mb-0.5">Comparado con el mes pasado</div>
+                <p className="jb-body text-[10px] text-zinc-500 mb-1.5">
+                  El gasto se compara con lo que llevabas al {corteMesPasado.getDate()} del mes pasado. El costo de cada uso, con el promedio de todo el mes pasado.
+                </p>
+                <div className="flex flex-col gap-1">
+                  {comparacionIA.map(c => {
+                    const cambio = c.porUso !== null && c.porUsoAntes ? Math.round((c.porUso / c.porUsoAntes - 1) * 100) : null;
+                    return (
+                      <div key={c.funcion} className="bg-zinc-900 rounded-lg px-3 py-2">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="jb-body text-xs text-zinc-200">{c.label}</span>
+                          <span className="jb-body text-[11px] text-zinc-500 shrink-0">
+                            <span className="jb-display text-sm text-zinc-50">{fmtS(c.total)}</span> · mes pasado {fmtS(c.totalAntes)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-baseline gap-2 mt-0.5">
+                          <span className="jb-body text-[11px] text-zinc-500">
+                            Cada {c.uso}: <span className="text-zinc-200">{c.porUso === null ? '—' : `S/${c.porUso.toFixed(3)}`}</span>
+                            {' '}· antes {c.porUsoAntes === null ? '—' : `S/${c.porUsoAntes.toFixed(3)}`}
+                          </span>
+                          {cambio === null ? (
+                            <span className="jb-body text-[11px] text-zinc-500 shrink-0">{c.usos ? 'nuevo este mes' : 'sin usos este mes'}</span>
+                          ) : (
+                            <span className={`jb-body text-[11px] shrink-0 ${cambio <= -5 ? 'text-emerald-400' : cambio >= 5 ? 'text-orange-400' : 'text-zinc-400'}`}>
+                              {cambio <= -5 ? `▼ ${Math.abs(cambio)}% más barato` : cambio >= 5 ? `▲ ${cambio}% más caro` : 'igual'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {rankingIA.length > 0 && (
               <div>
                 <div className="flex justify-between items-baseline mb-1.5">
@@ -6517,19 +6594,28 @@ function WhatsAppPanel() {
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
-  // Costo real del asistente (tabla ia_uso), en soles: este mes y hoy.
+  // Costo real del asistente (tabla ia_uso), en soles: este mes, hoy y el
+  // mes pasado (para comparar cuánto sale cada respuesta).
   async function cargarCosto() {
     try {
       const hoy = todayISO();
+      const [y, m] = hoy.split('-').map(Number);
+      const mesPasado = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
       const { data } = await supabase.from('ia_uso')
         .select('tipo, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${hoy.slice(0, 7)}-01T00:00:00-05:00`).range(0, 9999);
-      const filas = (data || []).map(f => ({ ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === hoy }));
-      const reales = filas.filter(f => f.tipo === 'whatsapp');
+        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${mesPasado}-01T00:00:00-05:00`).range(0, 19999);
+      const filas = (data || []).map(f => {
+        const dia = new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+        return { ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: dia === hoy, esteMes: dia.slice(0, 7) === hoy.slice(0, 7) };
+      });
+      const delMes = filas.filter(f => f.esteMes);
+      const reales = delMes.filter(f => f.tipo === 'whatsapp');
+      const realesAntes = filas.filter(f => !f.esteMes && f.tipo === 'whatsapp');
       const suma = l => l.reduce((a, f) => a + f.soles, 0);
       setCosto({
         mes: suma(reales), respuestas: reales.length, hoy: suma(reales.filter(f => f.hoy)),
-        prueba: suma(filas.filter(f => f.tipo === 'whatsapp_prueba')),
+        prueba: suma(delMes.filter(f => f.tipo === 'whatsapp_prueba')),
+        porRespuestaAntes: realesAntes.length ? suma(realesAntes) / realesAntes.length : null,
       });
     } catch { setCosto(null); }
   }
@@ -6664,6 +6750,16 @@ function WhatsAppPanel() {
             💰 <span className="text-zinc-200">Costo este mes: S/{costo.mes.toFixed(2)}</span> en {costo.respuestas} {costo.respuestas === 1 ? 'respuesta' : 'respuestas'}
             {costo.respuestas > 0 ? ` (S/${(costo.mes / costo.respuestas).toFixed(3)} cada una)` : ''} · hoy S/{costo.hoy.toFixed(2)}
             {costo.prueba > 0 ? ` · pruebas del simulador: S/${costo.prueba.toFixed(2)}` : ''}.
+            {costo.porRespuestaAntes !== null && (
+              <span className="block mt-0.5">
+                Mes pasado: S/{costo.porRespuestaAntes.toFixed(3)} cada respuesta
+                {costo.respuestas > 0 && (() => {
+                  const cambio = Math.round(((costo.mes / costo.respuestas) / costo.porRespuestaAntes - 1) * 100);
+                  return cambio <= -5 ? <span className="text-emerald-400"> · ▼ {Math.abs(cambio)}% más barato</span>
+                    : cambio >= 5 ? <span className="text-orange-400"> · ▲ {cambio}% más caro</span> : ' · igual';
+                })()}
+              </span>
+            )}
             <span className="block text-zinc-500 mt-0.5">Tope de seguridad: si alguien manda más de 40 mensajes en un día, el asistente deja de responderle y te pasa el chat.</span>
           </p>
         )}

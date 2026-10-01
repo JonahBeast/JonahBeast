@@ -38,6 +38,7 @@ import {
   tieneDatosBasicos,
   todayISO,
 } from './App.jsx';
+import { traerTodas } from './traerTodas.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
 
@@ -976,9 +977,9 @@ function SaldoIAPanel() {
       const p = puntoDePartidaSaldo(m || []);
       const desdeSemana = new Date(Date.now() - 7 * 864e5).toISOString();
       const desde = p && new Date(p.desde) < new Date(desdeSemana) ? p.desde : desdeSemana;
-      const { data: usos } = await supabase.from('ia_uso')
+      const { data: usos } = await traerTodas(() => supabase.from('ia_uso')
         .select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-        .gte('creado_en', desde).range(0, 19999);
+        .gte('creado_en', desde));
       const est = saldoEstimado(m || [], usos || [], regla);
       const semana = (usos || []).filter(u => new Date(u.creado_en) >= new Date(desdeSemana)).reduce((s, u) => s + costoUsdIA(u), 0);
       setCalc({ est, porDia: semana / 7 });
@@ -1932,9 +1933,9 @@ function FuncionandoPanel({ users }) {
     (async () => {
       const desde = addDaysISO(FECHA_MEJORAS, -45);
       const [{ data: hist }, { data: pagos }, { data: subs }] = await Promise.all([
-        supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', desde).range(0, 9999),
-        supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').range(0, 4999),
-        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+        traerTodas(() => supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', desde)),
+        traerTodas(() => supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado')),
+        traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)),
       ]);
       if (!cancelado) setDatos({ hist: hist || [], pagos: pagos || [], subs: subs || [] });
     })().catch(() => { if (!cancelado) setDatos({ hist: [], pagos: [], subs: [] }); });
@@ -2065,9 +2066,9 @@ function ActivacionPanel({ users }) {
       const lista = nombres.split(',');
       const [{ data: dat }, { data: hist }, { data: pagos }, { data: pasos }] = await Promise.all([
         supabase.from('datos_alumnos').select('username, form').in('username', lista),
-        supabase.from('historial').select('username, fecha').in('username', lista).gt('comidas_count', 0).range(0, 19999),
-        supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 4999),
-        supabase.from('embudo_landing_eventos').select('evento, username, detalle, creado_en').in('evento', PASOS_PAGO).gte('creado_en', INICIO_CAMINO_PAGO).range(0, 19999),
+        traerTodas(() => supabase.from('historial').select('username, fecha').in('username', lista).gt('comidas_count', 0)),
+        traerTodas(() => supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado').gt('monto', 0)),
+        traerTodas(() => supabase.from('embudo_landing_eventos').select('evento, username, detalle, creado_en').in('evento', PASOS_PAGO).gte('creado_en', INICIO_CAMINO_PAGO)),
       ]);
       if (cancelado) return;
       const cuerpo = {};
@@ -2304,10 +2305,10 @@ function TableroPanel({ users: todosLosUsuarios }) {
       const hace30 = fechaLocalISO(new Date(Date.now() - 29 * 86400000));
       const inicioMeses = new Date(); inicioMeses.setDate(1); inicioMeses.setMonth(inicioMeses.getMonth() - 5);
       const [{ data: pagos }, { data: hist }, { data: subs }] = await Promise.all([
-        supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado')
-          .gte('creado_en', fechaLocalISO(inicioMeses)).range(0, 4999),
-        supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', hace30).range(0, 9999),
-        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+        traerTodas(() => supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado')
+          .gte('creado_en', fechaLocalISO(inicioMeses))),
+        traerTodas(() => supabase.from('historial').select('username, fecha').gt('comidas_count', 0).gte('fecha', hace30)),
+        traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)),
       ]);
       if (cancelado) return;
       setDatos({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), hist: hist || [], subs: subs || [] });
@@ -2989,15 +2990,15 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
       const desde = `${mesesLista[2].slice(0, 7)}-01`;
       const desdeAnterior = (() => { const [y, m] = desde.split('-').map(Number); const n = y * 12 + (m - 1) - 1; return `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}-01`; })();
       const [{ data: gastos }, { data: alumnos }, { data: pagos }, { data: regs }] = await Promise.all([
-        supabase.from('movimientos_financieros').select('fecha, monto, categoria').eq('tipo', 'gasto').eq('negocio', 'app')
-          .in('categoria', ['publicidad', 'marketing']).gte('fecha', desdeAnterior).range(0, 4999),
-        supabase.from('alumnos').select('username, created_at').gte('created_at', desdeAnterior).range(0, 4999),
-        supabase.from('pagos').select('username, monto, metodo, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 9999),
-        supabase.from('embudo_landing_eventos').select('username, fuente').eq('evento', 'registro').gte('creado_en', desdeAnterior).range(0, 9999),
+        traerTodas(() => supabase.from('movimientos_financieros').select('fecha, monto, categoria').eq('tipo', 'gasto').eq('negocio', 'app')
+          .in('categoria', ['publicidad', 'marketing']).gte('fecha', desdeAnterior)),
+        traerTodas(() => supabase.from('alumnos').select('username, created_at').gte('created_at', desdeAnterior), 'username'),
+        traerTodas(() => supabase.from('pagos').select('username, monto, metodo, creado_en').eq('estado', 'aprobado').gt('monto', 0)),
+        traerTodas(() => supabase.from('embudo_landing_eventos').select('username, fuente').eq('evento', 'registro').gte('creado_en', desdeAnterior)),
       ]);
       const nuevos = (alumnos || []).filter(a => !esCuentaPropia(a.username)).map(a => a.username);
       const { data: hist } = nuevos.length
-        ? await supabase.from('historial').select('username').in('username', nuevos).gt('comidas_count', 0).range(0, 19999)
+        ? await traerTodas(() => supabase.from('historial').select('username').in('username', nuevos).gt('comidas_count', 0))
         : { data: [] };
       if (cancelado) return;
       setDatos({ gastos: gastos || [], alumnos: (alumnos || []).filter(a => !esCuentaPropia(a.username)), pagos: (pagos || []).filter(p => !esCuentaPropia(p.username) && !/add-on/i.test(p.metodo || '')), regs: regs || [], empezaron: new Set((hist || []).map(h => h.username)) });
@@ -3146,16 +3147,16 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
       const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
-        supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
-        supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').not('periodo', 'like', 'sugerencia-%').range(0, 9999),
+        traerTodas(() => supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO)),
+        traerTodas(() => supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').not('periodo', 'like', 'sugerencia-%'), ['username', 'periodo']),
         // Desde el mes pasado, para comparar el costo de la IA con el mes anterior.
-        supabase.from('ia_uso').select('funcion, tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-          .gte('creado_en', fechaLocalISO(inicioAnterior)).range(0, 39999),
-        supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
-          .eq('tipo', 'gasto').range(0, 4999),
+        traerTodas(() => supabase.from('ia_uso').select('funcion, tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', fechaLocalISO(inicioAnterior))),
+        traerTodas(() => supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
+          .eq('tipo', 'gasto')),
         // Todos los pagos con dinero real: sirve para saber quién pagó por
         // primera vez este mes (alumnos nuevos conseguidos).
-        supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').gt('monto', 0).range(0, 9999),
+        traerTodas(() => supabase.from('pagos').select('username, creado_en').eq('estado', 'aprobado').gt('monto', 0)),
       ]);
       if (cancelado) return;
       const p = {};
@@ -5666,7 +5667,7 @@ async function datosNegocioJarvis(users) {
   try {
     const nombresActivos = activosL.map(u => u.username);
     if (nombresActivos.length) {
-      const { data: conComida } = await supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0).range(0, 9999);
+      const { data: conComida } = await traerTodas(() => supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0));
       const comieron = new Set((conComida || []).map(r => r.username));
       const sinComida = nombresActivos.filter(n => !comieron.has(n));
       const { data: dat } = sinComida.length
@@ -5786,8 +5787,8 @@ async function sugerenciasJarvis(users, d) {
     const hoy = todayISO();
     const pagando = lista.filter(u => u.enabled && !esPrueba(u) && membershipActive(u) && u.telefono);
     if (pagando.length && sug.length < 2) {
-      const { data } = await supabase.from('historial').select('username, fecha')
-        .in('username', pagando.map(u => u.username)).gte('fecha', addDaysISO(hoy, -10)).gt('comidas_count', 0).range(0, 9999);
+      const { data } = await traerTodas(() => supabase.from('historial').select('username, fecha')
+        .in('username', pagando.map(u => u.username)).gte('fecha', addDaysISO(hoy, -10)).gt('comidas_count', 0));
       const ultima = {};
       (data || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
       const quietos = pagando
@@ -7075,9 +7076,9 @@ function WhatsAppPanel() {
       const hoy = todayISO();
       const [y, m] = hoy.split('-').map(Number);
       const mesPasado = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
-      const { data } = await supabase.from('ia_uso')
+      const { data } = await traerTodas(() => supabase.from('ia_uso')
         .select('tipo, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${mesPasado}-01T00:00:00-05:00`).range(0, 19999);
+        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${mesPasado}-01T00:00:00-05:00`));
       const filas = (data || []).map(f => {
         const dia = new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
         return { ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: dia === hoy, esteMes: dia.slice(0, 7) === hoy.slice(0, 7) };
@@ -8078,9 +8079,9 @@ function ListosParaPagarPanel() {
     (async () => {
       const desde14 = addDaysISO(hoy, -13);
       const [{ data: alumnos }, { data: hist }, { data: cfg }] = await Promise.all([
-        supabase.from('alumnos').select('username, nombre, telefono, plan, fecha_vencimiento')
-          .eq('enabled', true).neq('plan', 'pago').gte('fecha_vencimiento', addDaysISO(hoy, -30)).range(0, 4999),
-        supabase.from('historial').select('username, fecha, comidas_count, peso').gte('fecha', addDaysISO(hoy, -30)).range(0, 19999),
+        traerTodas(() => supabase.from('alumnos').select('username, nombre, telefono, plan, fecha_vencimiento')
+          .eq('enabled', true).neq('plan', 'pago').gte('fecha_vencimiento', addDaysISO(hoy, -30)), 'username'),
+        traerTodas(() => supabase.from('historial').select('username, fecha, comidas_count, peso').gte('fecha', addDaysISO(hoy, -30))),
         supabase.from('config').select('key, value').in('key', [CLAVE_ESCRITOS, PLANES[0].configKey]),
       ]);
       if (cancelado) return;
@@ -8242,8 +8243,8 @@ function SinAvisosPanel({ users }) {
     let cancelado = false;
     (async () => {
       const [{ data: est }, { data: subs }] = await Promise.all([
-        supabase.from('estado_avisos').select('*').range(0, 4999),
-        supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+        traerTodas(() => supabase.from('estado_avisos').select('*'), 'username'),
+        traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)),
       ]);
       if (cancelado) return;
       const m = {}; (est || []).forEach(e => { m[e.username] = e; });
@@ -8320,11 +8321,11 @@ function RescatePanel({ users }) {
     if (!nombres) { setUltimas({}); return; }
     let cancelado = false;
     (async () => {
-      const { data, error } = await supabase.from('historial')
+      const { data, error } = await traerTodas(() => supabase.from('historial')
         .select('username, fecha')
         .in('username', nombres.split(','))
         .gt('comidas_count', 0)
-        .range(0, 9999);
+        );
       if (cancelado) return;
       if (error) { setUltimas({}); return; }
       const m = {};
@@ -8524,11 +8525,11 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
     if (!nombresPrueba) { setActividad({}); return; }
     let cancelado = false;
     (async () => {
-      const { data, error } = await supabase.from('historial')
+      const { data, error } = await traerTodas(() => supabase.from('historial')
         .select('username, fecha')
         .in('username', nombresPrueba.split(','))
         .gt('comidas_count', 0)
-        .range(0, 4999);
+        );
       if (cancelado) return;
       if (error) { setActividad({}); return; }
       const porAlumno = {};
@@ -8815,11 +8816,11 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
     if (!nombres) { setActividad({}); return; }
     let cancelado = false;
     (async () => {
-      const { data, error } = await supabase.from('historial')
+      const { data, error } = await traerTodas(() => supabase.from('historial')
         .select('username, fecha')
         .in('username', nombres.split(','))
         .gt('comidas_count', 0)
-        .range(0, 9999);
+        );
       if (cancelado) return;
       if (error) { setActividad({}); return; }
       const m = {};

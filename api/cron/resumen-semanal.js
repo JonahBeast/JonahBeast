@@ -8,6 +8,7 @@
 // Cron en vercel.json: "0 12 * * 1" (12:00 UTC lunes = 7:00 Perú lunes)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, avisoConPresupuesto } from '../_lib/push.js';
+import { traerTodas } from '../../src/traerTodas.js';
 
 function sumarDias(iso, dias) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -33,8 +34,8 @@ export default async function handler(req, res) {
     const usernames = (alumnos || []).map(a => a.username);
     if (!usernames.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });
 
-    const { data: filas } = await supabase.from('historial').select('username, fecha')
-      .in('username', usernames).gte('fecha', lunes).lte('fecha', domingo).gt('comidas_count', 0).range(0, 9999);
+    const { data: filas } = await traerTodas(() => supabase.from('historial').select('username, fecha')
+      .in('username', usernames).gte('fecha', lunes).lte('fecha', domingo).gt('comidas_count', 0));
     const dias = {};
     (filas || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
 

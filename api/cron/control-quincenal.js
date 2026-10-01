@@ -22,6 +22,7 @@
 // no repetir el problema de timeout de Vercel con muchos alumnos.
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos } from '../_lib/push.js';
+import { traerTodas } from '../../src/traerTodas.js';
 
 const INTERVALO_DIAS = 15;
 
@@ -107,10 +108,10 @@ export default async function handler(req, res) {
     const ultimoPesoDe = {};
     const { data: datos } = await supabase.from('datos_alumnos').select('username, form').in('username', usernames);
     (datos || []).forEach(d => { if (d.form?.medidasFecha) ultimoPesoDe[d.username] = d.form.medidasFecha; });
-    const { data: grasas } = await supabase
+    const { data: grasas } = await traerTodas(() => supabase
       .from('historial').select('username, fecha, grasa_pct')
       .in('username', usernames).not('grasa_pct', 'is', null)
-      .order('fecha', { ascending: true }).range(0, 19999);
+      .order('fecha', { ascending: true }));
     const grasaAntes = {};
     (grasas || []).forEach(r => {
       const g = Number(r.grasa_pct);

@@ -1,3 +1,4 @@
+import { traerTodas } from './traerTodas.js';
 /* MENSAJES DEL DÍA: a quién le escribe Jonah hoy por WhatsApp, con el
    mensaje ya listo, ordenado de lo más urgente a lo motivador. Cada
    persona sale una sola vez, en el primer paso que le toca:
@@ -83,15 +84,15 @@ function escritoDe(escritos, username) {
 export async function cargarDatosCarino(supabase, hoyISO) {
   const desde = sumarDias(hoyISO, -120);
   const [{ data: alumnos }, { data: hist }, { data: pagos }, { data: cfg }, { data: est }, { data: subs }, { data: auto }] = await Promise.all([
-    supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, fecha_nacimiento, created_at')
-      .eq('enabled', true).gte('fecha_vencimiento', hoyISO).range(0, 4999),
-    supabase.from('historial').select('username, fecha, comidas_count, peso')
-      .gte('fecha', desde).range(0, 19999),
+    traerTodas(() => supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, fecha_nacimiento, created_at')
+      .eq('enabled', true).gte('fecha_vencimiento', hoyISO), 'username'),
+    traerTodas(() => supabase.from('historial').select('username, fecha, comidas_count, peso')
+      .gte('fecha', desde)),
     supabase.from('pagos').select('username, monto, metodo, revisado_en').eq('estado', 'aprobado')
       .gte('revisado_en', new Date(Date.now() - 36 * 3600000).toISOString()).range(0, 999),
     supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
-    supabase.from('estado_avisos').select('username, estado, navegador_interno, dispositivo').range(0, 4999),
-    supabase.from('push_subs').select('username').eq('activa', true).range(0, 4999),
+    traerTodas(() => supabase.from('estado_avisos').select('username, estado, navegador_interno, dispositivo'), 'username'),
+    traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)),
     supabase.from('whatsapp_mensajes').select('telefono').eq('tipo', 'bienvenida_auto')
       .gte('creado_en', new Date(Date.now() - 3 * 86400000).toISOString()).range(0, 999),
   ]);

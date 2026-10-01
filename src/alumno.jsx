@@ -60,6 +60,7 @@ import {
   vibrar,
   esFritoOSaltado,
 } from './App.jsx';
+import { traerTodas } from './traerTodas.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
    embajador + su carta con macros reales dentro de la app). Cada
@@ -7649,7 +7650,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     });
     if (!cambiados.length) return;
     try {
-      const { data: dias } = await supabase.from('historial').select('fecha, meal_plan').eq('username', username).range(0, 1999);
+      const { data: dias } = await traerTodas(() => supabase.from('historial').select('fecha, meal_plan').eq('username', username));
       const claves = cambiados.map(a => a.nombre + ' (mío)');
       for (const d of dias || []) {
         const texto = JSON.stringify(d.meal_plan || {});

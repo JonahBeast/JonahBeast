@@ -25,6 +25,12 @@
 - Los colores están definidos en `tailwind.config.js`: la escala `zinc` es la paleta carbón → crema (`zinc-950` carbón, `zinc-50` crema) y la escala `orange` es el naranja ají (`orange-500` `#E8590C`, `orange-400` `#FF7020`).
 - Mantén este estilo en cualquier pantalla nueva o modificada.
 
+## Tono de los mensajes
+
+- **Todo mensaje a alumnos o clientes** (WhatsApp, avisos, textos de la app, mensajes listos del panel) va en la voz de Jonah: **cercano, humano y motivador, nunca de robot**.
+- Habla como persona ("Soy Jonah", "vamos juntos", "cualquier duda me escribes aquí"), usa su historia cuando sume (bajó de 104 a 90 kg en 2 meses con su propia app) y la idea de que **el cambio llega poco a poco, comida a comida**.
+- Nada de textos fríos o de trámite. Sin prometer resultados iguales para todos.
+
 ## Datos del proyecto
 
 - App React + Vite + Tailwind, con Supabase como base de datos y publicada en Vercel.

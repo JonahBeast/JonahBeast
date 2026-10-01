@@ -5,9 +5,6 @@
 //   - un pago nuevo por revisar (Yape/Plin/transferencia) que entró en la
 //     última hora: el alumno espera su acceso;
 //   - un pago que cumplió 12 horas esperando revisión en la última hora;
-//   - un alumno nuevo que lleva 6 horas registrado sin anotar ninguna
-//     comida (si cumplió las 6 h de noche, sale a las 7am): un mensaje
-//     de Jonah a tiempo es lo que más ayuda a que arranque;
 //   - a las 7am, los alimentos que la IA dejó para revisar durante la noche
 //     (de noche no se avisa al momento y el aviso se perdía);
 //   - la conexión del WhatsApp del asistente (dura 60 días) vence en 7 días
@@ -59,33 +56,6 @@ export default async function handler(req, res) {
           : `${atrasados.length} pagos llevan más de 12 horas esperando: ${atrasados.map(nombre).join(', ')}.`,
       });
     }
-    // Nuevos que cumplieron 6 h sin registrar comidas (a las 7am se suman
-    // los que las cumplieron de noche).
-    const desde6 = new Date(ahora - 6 * HORA_MS - hueco).toISOString();
-    const hasta6 = new Date(ahora - 6 * HORA_MS).toISOString();
-    const { data: recientes } = await supabase.from('alumnos')
-      .select('username, nombre, telefono').gte('created_at', desde6).lt('created_at', hasta6)
-      .neq('username', 'martin').range(0, 49);
-    if (recientes?.length) {
-      const { data: conComida } = await supabase.from('historial').select('username')
-        .in('username', recientes.map(a => a.username)).gt('comidas_count', 0).range(0, 999);
-      const comieron = new Set((conComida || []).map(h => h.username));
-      const quietos = recientes.filter(a => !comieron.has(a.username));
-      const quien = a => String(a.nombre || '').trim().split(/\s+/)[0] || a.username;
-      if (quietos.length === 1) {
-        const a = quietos[0];
-        avisos.push({
-          title: '👋 Alumno nuevo sin arrancar',
-          body: `${quien(a)} se registró hace 6 horas y aún no anota ninguna comida. ${a.telefono ? 'Escríbele por WhatsApp: un mensaje tuyo lo ayuda a arrancar.' : 'No dejó su WhatsApp.'}`,
-        });
-      } else if (quietos.length > 1) {
-        avisos.push({
-          title: '👋 Alumnos nuevos sin arrancar',
-          body: `${quietos.map(quien).join(', ')} se registraron hace 6 horas o más y aún no anotan ninguna comida. Escríbeles por WhatsApp.`,
-        });
-      }
-    }
-
     if (hora === 7) {
       // 10pm de anoche en Perú = 03:00 UTC de hoy (a esta hora, en UTC ya es
       // el mismo día). Lo dudoso de antes de las 10pm ya se avisó al momento.

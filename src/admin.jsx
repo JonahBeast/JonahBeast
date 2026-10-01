@@ -2671,57 +2671,85 @@ function claveDeBarra(periodo, dia) {
   return dia.slice(0, 7);
 }
 
-// Barras apiladas: una barra por día/semana/mes, partida por colores (una
-// parte de la app por color). Leyenda arriba, 2px de separación entre los
-// pedazos y el detalle de cada barra al tocarla o pasar el mouse.
-function BarrasApiladas({ datos, series, formato = v => v, alto = 140, etiquetaCada = 1 }) {
+// Barras de LEDs, con el mismo estilo de pantalla de los gráficos de
+// Rentabilidad (fondo con brillo naranja, cuadrícula de puntos, títulos en
+// letra de máquina y lucecitas que se encienden). Cada barra es una columna
+// de LEDs; si hay varias partes, cada LED toma el color de la parte que
+// ocupa esa altura (de abajo hacia arriba, en el orden de la leyenda). El
+// detalle exacto sale arriba a la derecha al tocar o pasar el mouse.
+function BarrasLed({ titulo, datos, series, formato = v => v, leds = 14, etiquetaCada = 1, detalle = true }) {
   const [activo, setActivo] = useState(null);
   const total = d => series.reduce((a, s) => a + (d.partes[s.key] || 0), 0);
   const max = Math.max(1e-9, ...datos.map(total));
+  const iMax = datos.reduce((im, d, i) => (total(d) > total(datos[im]) ? i : im), 0);
   const mostrado = activo !== null ? activo : datos.length - 1;
   const d0 = datos[mostrado];
+  const colorDelLed = (d, k, encendidos) => {
+    const t = total(d);
+    const altura = (k + 0.5) / encendidos * t;
+    let acum = 0;
+    for (const s of series) { acum += d.partes[s.key] || 0; if (altura <= acum) return s.color; }
+    return series[series.length - 1].color;
+  };
   return (
-    <div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
-        {series.map(s => (
-          <span key={s.key} className="jb-body text-[11px] text-zinc-400 inline-flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />{s.label}
-          </span>
-        ))}
-      </div>
-      <div className="jb-body text-xs text-zinc-400 min-h-[2.5rem] mb-1">
+    <div className="relative rounded-lg p-3 overflow-hidden"
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(232,89,12,0.10), rgba(9,9,11,0.95) 70%)', border: '1px solid rgba(232,89,12,0.25)' }}>
+      <style>{ESTILOS_GRAFICO_HUD}</style>
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <span className="font-mono text-[10px] tracking-[0.2em] text-orange-400/80 pt-0.5">◉ {titulo}</span>
         {d0 && (
-          <>
-            <span className="text-zinc-500">{d0.etiquetaLarga}:</span> <span className="text-zinc-50 font-semibold">{formato(total(d0))}</span>
-            <span className="block text-[11px] text-zinc-500">
-              {series.filter(s => d0.partes[s.key]).map(s => `${s.label} ${formato(d0.partes[s.key])}`).join(' · ') || 'sin uso'}
-            </span>
-          </>
+          <span className="font-mono text-[11px] text-zinc-400 text-right">
+            {d0.etiquetaLarga} → <span className="text-zinc-50 font-semibold">{formato(total(d0))}</span>
+          </span>
         )}
       </div>
-      <div className="flex items-end gap-[2px] border-b border-zinc-700" style={{ height: alto }} onMouseLeave={() => setActivo(null)}>
-        {datos.map((d, i) => {
-          const t = total(d);
-          const visibles = series.filter(s => d.partes[s.key] > 0);
-          return (
-            <button key={d.clave} type="button" aria-label={`${d.etiquetaLarga}: ${formato(t)}`}
-              onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
-              className="flex-1 h-full flex flex-col justify-end min-w-0">
-              <span className={`w-full flex flex-col-reverse gap-[2px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-50'}`}
-                style={{ height: `${(t / max) * 100}%`, minHeight: t > 0 ? 2 : 0 }}>
-                {visibles.map((s, j) => (
-                  <span key={s.key} className={j === visibles.length - 1 ? 'rounded-t-[4px]' : ''}
-                    style={{ flexGrow: d.partes[s.key], flexBasis: 0, minHeight: 1, background: s.color }} />
-                ))}
-              </span>
-            </button>
-          );
-        })}
+      {series.length > 1 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+          {series.map(s => (
+            <span key={s.key} className="font-mono text-[10px] text-zinc-400 inline-flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-[2px]" style={{ background: s.color, boxShadow: `0 0 5px ${s.color}b3` }} />{s.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {detalle && series.length > 1 && d0 && (
+        <div className="font-mono text-[10px] text-zinc-500 mb-1.5 min-h-[1.25rem]">
+          {series.filter(s => d0.partes[s.key]).map(s => `${s.label} ${formato(d0.partes[s.key])}`).join(' · ') || 'sin uso'}
+        </div>
+      )}
+      <div className="relative">
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(63,63,70,0.6) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        <div className="relative flex items-end gap-[3px] pt-4" onMouseLeave={() => setActivo(null)}>
+          {datos.map((d, i) => {
+            const t = total(d);
+            const encendidos = t > 0 ? Math.max(1, Math.round((t / max) * leds)) : 0;
+            const marcado = (i === iMax || i === datos.length - 1) && t > 0;
+            return (
+              <button key={d.clave} type="button" aria-label={`${d.etiquetaLarga}: ${formato(t)}`}
+                onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
+                className={`relative flex-1 min-w-0 flex flex-col-reverse gap-[2px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-40'}`}>
+                {Array.from({ length: leds }).map((_, k) => {
+                  const c = k < encendidos ? colorDelLed(d, k, encendidos) : null;
+                  return (
+                    <span key={k} className="block w-full h-[6px] rounded-[2px] jbg-anim"
+                      style={c
+                        ? { background: c, boxShadow: `0 0 6px ${c}b3`, animation: `jbg-aparece .3s ease-out ${i * 0.02 + k * 0.03}s both` }
+                        : { background: '#27272a' }} />
+                  );
+                })}
+                {marcado && (
+                  <span className={`absolute font-mono text-[9px] text-zinc-300 whitespace-nowrap ${i === datos.length - 1 ? 'right-0' : i === 0 ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
+                    style={{ bottom: `calc(${leds * 8}px + 2px)` }}>{formato(t)}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex gap-[2px] mt-1">
+      <div className="flex gap-[3px] mt-1.5">
         {datos.map((d, i) => (
           <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
-            <span className="jb-body text-[10px] text-zinc-500 whitespace-nowrap">
+            <span className="font-mono text-[9px] text-zinc-500 whitespace-nowrap">
               {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
             </span>
           </span>
@@ -2866,22 +2894,17 @@ function AnaliticaIAPanel({ tipoCambio }) {
             En "Costo de cada uso", ▼ verde es bueno: la IA te sale más barata. En gasto y usos, subir puede ser bueno si es porque hay más alumnos usando la app.
           </p>
 
-          <div>
-            <div className="jb-body text-xs text-zinc-400 mb-1">Gasto en soles</div>
-            {parte === 'todas'
-              ? <BarrasApiladas datos={barras} series={series} formato={fmtSoles} etiquetaCada={etiquetaCada} />
-              : <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.partes[parte] || 0 }))} formato={fmtSoles} etiquetaCada={etiquetaCada} />}
-          </div>
+          <BarrasLed titulo="GASTO EN SOLES" datos={barras}
+            series={parte === 'todas' ? series : series.filter(x => x.key === parte).map(x => ({ ...x, color: '#FF7020' }))}
+            formato={fmtSoles} etiquetaCada={etiquetaCada} />
 
-          <div>
-            <div className="jb-body text-xs text-zinc-400 mb-1">Cuántas veces se usó la IA</div>
-            <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.usos }))} formato={v => `${v} ${v === 1 ? 'uso' : 'usos'}`} etiquetaCada={etiquetaCada} alto={90} />
-          </div>
+          <BarrasLed titulo="USOS DE LA IA" leds={10} detalle={false}
+            datos={barras.map(b => ({ ...b, partes: { usos: b.usos } }))} series={[{ key: 'usos', label: 'Usos', color: '#FF7020' }]}
+            formato={v => `${v} ${v === 1 ? 'uso' : 'usos'}`} etiquetaCada={etiquetaCada} />
 
-          <div>
-            <div className="jb-body text-xs text-zinc-400 mb-1">Costo de cada {nombreUso}{parteSel ? '' : ' (promedio de todas las partes)'}</div>
-            <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.usos ? soles(b.usd) / b.usos : 0 }))} formato={v => `S/${v.toFixed(3)}`} etiquetaCada={etiquetaCada} alto={90} />
-          </div>
+          <BarrasLed titulo={`COSTO POR ${nombreUso.toUpperCase()}${parteSel ? '' : ' · PROMEDIO'}`} leds={10} detalle={false}
+            datos={barras.map(b => ({ ...b, partes: { porUso: b.usos ? soles(b.usd) / b.usos : 0 } }))} series={[{ key: 'porUso', label: 'Por uso', color: '#FF7020' }]}
+            formato={v => `S/${v.toFixed(3)}`} etiquetaCada={etiquetaCada} />
 
           <button type="button" onClick={() => setVerTabla(v => !v)} className="jb-body text-[11px] text-zinc-400 underline self-start">
             {verTabla ? 'Ocultar tabla' : 'Ver los números en tabla'}

@@ -166,7 +166,7 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Indicador de guardado** (arriba a la derecha, junto a "Salir", **en todas las pestañas**): **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar. Si sale la nube, ver la sección 8.8.
 
-**Pie de la pantalla (letra pequeña):** "Política de Privacidad" · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
+**Pie de la pantalla (letra pequeña):** "Política de Privacidad" · **"🔠 Letra grande"** (o "🔠 Quitar letra grande" si ya lo tiene; ver 7.1) · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
 
 **Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan."
 
@@ -219,6 +219,22 @@ De arriba hacia abajo:
 - **"📲 ¿TE MANDO TU PLAN POR WHATSAPP?"** (solo en la prueba, desde el día en que registra su primera comida, una sola vez; no sale si usa la app dentro de TikTok, Instagram o Facebook): "Ya registraste tu primera comida 💪. Escríbeme con tu plan y te acompaño también por WhatsApp." El botón **"Recibir mi plan por WhatsApp"** abre WhatsApp con un mensaje ya escrito para Jonah ("Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo…, [kcal] y [g] de proteína al día (peso actual…, meta…). Ya registré mi primera comida en la app. ¿Me ayudas a seguir?"). **"Ahora no"** la quita para siempre.
 - **Resumen del cuerpo** (IMC o % grasa) → lleva a "Mi cuerpo".
 - **"MI OBJETIVO DE PESO":** barra de avance hacia tu peso meta.
+
+### 7.1 Modo fácil (letra grande e Inicio sencillo)
+
+Para quien la app se le hace complicada o la letra le queda pequeña.
+
+- **Qué cambia:** la **letra y los botones se ven más grandes en toda la app**, y el Inicio muestra arriba "HOLA, [NOMBRE] 👋 · ¿Qué quieres hacer?" con **3 botones grandes**:
+  - **"📸 FOTO DE MI COMIDA"** ("Le tomas una foto a tu plato y la app la anota") → abre la cámara para la comida de esa hora (ver 9).
+  - **"✍️ ESCRIBIR LO QUE COMÍ"** ("Buscas tu comida por su nombre") → abre el registro de la comida de esa hora (ver 8.2).
+  - **"⚖️ MI PESO"** ("Anota cuánto pesas hoy") → "¿CUÁNTO PESAS HOY? ⚖️" con botones − / + de 0.1 kg (o escribirlo) y **"Guardar mi peso"**. Es el mismo peso de "Mi cuerpo" → "Mis datos".
+  - Debajo sigue el Centro de mando (calorías del día) y el botón **"Ver más de mi día ▾"**, que muestra lo demás de Inicio (primeros pasos, racha, resumen, etc.).
+- **Cómo se activa:**
+  - A quien puso **40 años o más** en sus datos, Inicio le pregunta una vez **"¿TE LA PONGO MÁS FÁCIL? 🔠"** con **"Sí, actívalo"** o **"No, gracias"**.
+  - Cualquiera lo activa o lo quita cuando quiera desde el pie de la pantalla: **"🔠 Letra grande"** / **"🔠 Quitar letra grande"**.
+  - Queda guardado en su cuenta (si entra desde otro celular, sigue igual).
+
+**"¿QUÉ SE TE HACE DIFÍCIL DE LA APP? 🙋"** (solo a quien tiene 40 años o más, desde su segundo día con la app y después de elegir si quiere el Modo fácil): Jonah le pregunta, una sola vez, qué le cuesta para mejorarlo. Puede elegir varias: "Registrar mis comidas", "La foto de la comida", "Entender los números (calorías, proteína…)", "Encontrar los botones", "La letra es pequeña", "Nada, todo bien 🙌", y escribir "Otra cosa". **"Enviar"** → "¡Gracias! Con esto Jonah mejora la app para ti 💪". **"Ahora no"** la vuelve a mostrar en 3 días. La respuesta le llega a Jonah.
 
 ---
 

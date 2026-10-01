@@ -8801,6 +8801,158 @@ function AvisoGuardado({ estado, onVolverAEntrar }) {
   );
 }
 
+/* ── MODO FÁCIL ──────────────────────────────────────────────────────────
+   Para quien la app se le hace complicada (sobre todo de 40 años a más):
+   letra y botones más grandes en toda la app, y un Inicio con solo 3
+   botones grandes (foto de la comida, escribir lo que comió, su peso); lo
+   demás queda en "Ver más de mi día". Se guarda en su ficha (form.modoFacil:
+   true / false; sin valor = todavía no eligió). Se le ofrece una vez a quien
+   tiene 40 años o más, y cualquiera lo activa o lo quita desde el pie de
+   página de Inicio. */
+const ESTILOS_MODO_FACIL = `
+html.jb-facil { font-size: 112.5%; }
+html.jb-facil .text-\\[9px\\] { font-size: 11px; }
+html.jb-facil .text-\\[10px\\] { font-size: 12px; }
+html.jb-facil .text-\\[11px\\] { font-size: 13px; }
+html.jb-facil .text-\\[12px\\] { font-size: 14px; }
+html.jb-facil .text-\\[13px\\] { font-size: 15px; }
+`;
+const EDAD_MODO_FACIL = 40;
+const edadDe = form => Number(String(form?.edad ?? '').replace(/[^0-9]/g, '')) || 0;
+
+function OfertaModoFacil({ onElegir }) {
+  return (
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-4 mb-6">
+      <p className="jb-display text-lg text-zinc-50 leading-tight">¿TE LA PONGO MÁS FÁCIL? 🔠</p>
+      <p className="jb-body text-sm text-zinc-300 mt-1">
+        Puedo mostrarte la app con <b>letra más grande</b> y un Inicio más sencillo: solo 3 botones grandes para registrar tu comida y tu peso. Lo cambias cuando quieras.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2 mt-3">
+        <button onClick={() => onElegir(true)} className={btnPrimary + ' flex-1 py-3 text-base'}>Sí, actívalo</button>
+        <button onClick={() => onElegir(false)} className={btnGhost + ' flex-1 py-3'}>No, gracias</button>
+      </div>
+    </div>
+  );
+}
+
+function PesoRapidoModal({ form, setForm, onCerrar }) {
+  const pesoActual = Math.round((Number(form.peso) || 0) * 10) / 10;
+  const [valor, setValor] = useState(pesoActual || 70);
+  const mover = d => setValor(v => Math.min(250, Math.max(30, Math.round((Number(v) + d) * 10) / 10)));
+  function guardar() {
+    const nuevo = Math.round(Number(valor) * 10) / 10;
+    if (!(nuevo >= 30 && nuevo <= 250)) { showToast('Revisa tu peso: debe estar entre 30 y 250 kg.', 'error'); return; }
+    const dif = pesoActual ? Math.round((nuevo - pesoActual) * 10) / 10 : 0;
+    setForm(v => ({ ...v, peso: nuevo, pesoFecha: todayISO() }));
+    vibrar(20);
+    showToast(!pesoActual || dif === 0 ? `✅ Peso guardado: ${nuevo} kg`
+      : `✅ Peso guardado: ${nuevo} kg (${dif > 0 ? '+' : '−'}${Math.abs(dif).toFixed(1)} kg)`);
+    onCerrar();
+  }
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center p-4 z-50" onClick={onCerrar}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+        <p className="jb-display text-xl text-zinc-50">¿CUÁNTO PESAS HOY? ⚖️</p>
+        <p className="jb-body text-sm text-zinc-400 mt-1">Usa los botones − y + o escribe tu peso.</p>
+        <div className="flex items-center justify-center gap-4 mt-4">
+          <button type="button" onClick={() => mover(-0.1)} aria-label="Bajar 0.1 kg"
+            className="w-14 h-14 rounded-full bg-zinc-950 border border-zinc-700 text-3xl text-zinc-200">−</button>
+          <div className="flex items-baseline gap-1">
+            <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+              onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
+              className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none border-b border-zinc-700 focus:border-orange-500" />
+            <span className="jb-body text-base text-zinc-400">kg</span>
+          </div>
+          <button type="button" onClick={() => mover(0.1)} aria-label="Subir 0.1 kg"
+            className="w-14 h-14 rounded-full bg-zinc-950 border border-zinc-700 text-3xl text-zinc-200">+</button>
+        </div>
+        {pesoActual > 0 && <p className="jb-body text-sm text-zinc-500 text-center mt-2">La vez pasada: {pesoActual} kg</p>}
+        <button onClick={guardar} className={btnPrimary + ' w-full py-3.5 mt-4 text-base'}>Guardar mi peso</button>
+        <button onClick={onCerrar} className="block mx-auto jb-body text-sm text-zinc-500 mt-3">Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+function InicioFacil({ nombre, onFoto, onEscribir, onPeso }) {
+  const n = String(nombre || '').trim().split(/\s+/)[0];
+  const boton = (emoji, titulo, ayuda, onClick, principal) => (
+    <button onClick={onClick}
+      className={`w-full flex items-center gap-4 rounded-2xl p-5 text-left border transition-colors ${principal ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-900 border-zinc-700 text-zinc-50 hover:border-orange-500'}`}>
+      <span className="text-4xl shrink-0">{emoji}</span>
+      <span className="min-w-0">
+        <span className="jb-display text-xl block leading-tight">{titulo}</span>
+        <span className={`jb-body text-sm block mt-0.5 ${principal ? 'text-zinc-900' : 'text-zinc-400'}`}>{ayuda}</span>
+      </span>
+    </button>
+  );
+  return (
+    <div className="flex flex-col gap-3 mb-6">
+      <p className="jb-display text-2xl text-zinc-50">{n ? `HOLA, ${n.toUpperCase()} 👋` : 'HOLA 👋'}</p>
+      <p className="jb-body text-base text-zinc-400 -mt-2">¿Qué quieres hacer?</p>
+      {boton('📸', 'FOTO DE MI COMIDA', 'Le tomas una foto a tu plato y la app la anota', onFoto, true)}
+      {boton('✍️', 'ESCRIBIR LO QUE COMÍ', 'Buscas tu comida por su nombre', onEscribir, false)}
+      {boton('⚖️', 'MI PESO', 'Anota cuánto pesas hoy', onPeso, false)}
+    </div>
+  );
+}
+
+/* Pregunta, una sola vez, a quien tiene 40 años o más: "¿Qué se te hace
+   difícil de la app?". La respuesta queda en su ficha
+   (form.encuestaFacilidad) y Jonah la ve en su panel. "Ahora no" la
+   vuelve a mostrar en 3 días. */
+const OPCIONES_DIFICIL = [
+  { id: 'registrar', texto: 'Registrar mis comidas' },
+  { id: 'foto', texto: 'La foto de la comida' },
+  { id: 'numeros', texto: 'Entender los números (calorías, proteína…)' },
+  { id: 'botones', texto: 'Encontrar los botones' },
+  { id: 'letra', texto: 'La letra es pequeña' },
+  { id: 'nada', texto: 'Nada, todo bien 🙌' },
+];
+
+function EncuestaFacilidad({ username, form, setForm }) {
+  const clave = 'jb_encuesta_facil_no_' + username;
+  const [oculta, setOculta] = useState(() => {
+    try { const f = localStorage.getItem(clave); return !!f && f > addDaysISO(todayISO(), -3); } catch { return false; }
+  });
+  const [elegidas, setElegidas] = useState([]);
+  const [otro, setOtro] = useState('');
+  if (oculta) return null;
+  const cambiar = id => setElegidas(v => id === 'nada' ? (v.includes('nada') ? [] : ['nada'])
+    : v.includes(id) ? v.filter(x => x !== id) : [...v.filter(x => x !== 'nada'), id]);
+  function enviar() {
+    if (!elegidas.length && !otro.trim()) { showToast('Elige al menos una opción 🙏', 'error'); return; }
+    setForm(v => ({ ...v, encuestaFacilidad: { respuestas: elegidas, otro: otro.trim().slice(0, 200), en: todayISO(), modoFacil: v.modoFacil === true } }));
+    vibrar(20);
+    showToast('¡Gracias! Con esto Jonah mejora la app para ti 💪');
+  }
+  function ahoraNo() {
+    try { localStorage.setItem(clave, todayISO()); } catch {}
+    setOculta(true);
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6">
+      <p className="jb-display text-lg text-zinc-50 leading-tight">¿QUÉ SE TE HACE DIFÍCIL DE LA APP? 🙋</p>
+      <p className="jb-body text-sm text-zinc-400 mt-1">Soy Jonah. Quiero que la app sea fácil para ti: cuéntame qué te cuesta y lo mejoro. Puedes elegir varias.</p>
+      <div className="flex flex-col gap-2 mt-3">
+        {OPCIONES_DIFICIL.map(o => {
+          const activa = elegidas.includes(o.id);
+          return (
+            <button key={o.id} type="button" onClick={() => cambiar(o.id)}
+              className={`w-full text-left jb-body text-sm rounded-xl px-3 py-2.5 border transition-colors ${activa ? 'bg-orange-500/15 border-orange-500 text-orange-300' : 'bg-zinc-950 border-zinc-800 text-zinc-200'}`}>
+              {activa ? '✅ ' : ''}{o.texto}
+            </button>
+          );
+        })}
+        <input value={otro} onChange={e => setOtro(e.target.value)} maxLength={200} placeholder="Otra cosa (opcional)"
+          className="w-full jb-body text-sm rounded-xl px-3 py-2.5 bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-orange-500" />
+      </div>
+      <button onClick={enviar} className={btnPrimary + ' w-full py-3 mt-3'}>Enviar</button>
+      <button onClick={ahoraNo} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
+    </div>
+  );
+}
+
 function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLogout, estadoGuardado, userRecord }) {
   usarAlimentosExtra(); // se vuelve a dibujar cuando llegan los alimentos que Jonah agregó desde el panel
   const [tab, setTab] = useState('dash');
@@ -8870,6 +9022,25 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     medidasAntes.current = ahora;
     if (form.medidasFecha !== todayISO()) setForm(v => ({ ...v, medidasFecha: todayISO() }));
   }, [form.cuello, form.cintura, form.cadera]);
+
+  // Modo fácil: letra más grande en toda la app (clase en <html>) e Inicio sencillo.
+  const modoFacil = form.modoFacil === true;
+  useEffect(() => {
+    document.documentElement.classList.toggle('jb-facil', modoFacil);
+    return () => document.documentElement.classList.remove('jb-facil');
+  }, [modoFacil]);
+  const [verMasFacil, setVerMasFacil] = useState(false);
+  const [pesoFacil, setPesoFacil] = useState(false);
+  function elegirModoFacil(si) {
+    setForm(v => ({ ...v, modoFacil: si }));
+    vibrar(20);
+    showToast(si ? '✅ Listo: letra más grande y un Inicio más sencillo' : 'Listo. Si cambias de idea, está abajo en Inicio: "🔠 Letra grande"');
+    window.scrollTo({ top: 0 });
+  }
+  const mayor = edadDe(form) >= EDAD_MODO_FACIL;
+  const verOfertaFacil = mayor && form.modoFacil === undefined;
+  const verEncuesta = mayor && form.modoFacil !== undefined && !form.encuestaFacilidad
+    && !!userRecord?.fechaInicio && userRecord.fechaInicio < todayISO();
 
   const [verGuia, setVerGuia] = useState(false);
   // Abrir en Chrome/Safari si está en el navegador de TikTok, Instagram o
@@ -9053,7 +9224,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <style>{`
         @keyframes jb-tab-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .jb-tab-fade { animation: jb-tab-fade-in 0.28s ease; }
-      `}</style>
+      `}{ESTILOS_MODO_FACIL}</style>
       {pull.y > 0 && (
         <div className="fixed top-0 left-0 right-0 z-30 flex justify-center pointer-events-none" style={{ transform: `translateY(${Math.min(pull.y, 70) - 40}px)` }}>
           <div className="bg-zinc-900 border border-zinc-800 rounded-full p-2 shadow-lg mt-2">
@@ -9134,19 +9305,47 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       </div>
 
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">
-        {tab === 'dash' && (
-          <>
-            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
-              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
+        {tab === 'dash' && (() => {
+          const centro = (
             <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
               onRegistrar={irARegistrar} metaEstimada={metaEstimada}
               onAjustarMeta={() => { setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }} />
-            <ResumenSemanalCard username={username} />
-            <RachaCard username={username} />
-            <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-            <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={() => { setTab('progress'); window.scrollTo({ top: 0 }); }} />
-          </>
-        )}
+          );
+          const primeros = (
+            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
+              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
+          );
+          const resto = (
+            <>
+              <ResumenSemanalCard username={username} />
+              <RachaCard username={username} />
+              <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+              <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={() => { setTab('progress'); window.scrollTo({ top: 0 }); }} />
+            </>
+          );
+          return (
+            <>
+              {verOfertaFacil && <OfertaModoFacil onElegir={elegirModoFacil} />}
+              {verEncuesta && <EncuestaFacilidad username={username} form={form} setForm={setForm} />}
+              {modoFacil ? (
+                <>
+                  <InicioFacil nombre={userRecord?.nombre}
+                    onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
+                    onEscribir={() => irARegistrar(comidaDeAhora())}
+                    onPeso={() => setPesoFacil(true)} />
+                  {centro}
+                  <button onClick={() => setVerMasFacil(v => !v)}
+                    className={btnGhost + ' w-full py-3 mb-6 text-base'}>
+                    {verMasFacil ? 'Ocultar ▴' : 'Ver más de mi día ▾'}
+                  </button>
+                  {verMasFacil && <>{primeros}{resto}</>}
+                </>
+              ) : (
+                <>{primeros}{centro}{resto}</>
+              )}
+            </>
+          );
+        })()}
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
@@ -9161,6 +9360,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           className="jb-body text-[11px] text-zinc-700 hover:text-zinc-500 underline">
           Política de Privacidad
         </a>
+        <span className="text-zinc-800 text-[11px]">·</span>
+        <button onClick={() => elegirModoFacil(!modoFacil)}
+          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
+          {modoFacil ? '🔠 Quitar letra grande' : '🔠 Letra grande'}
+        </button>
         <span className="text-zinc-800 text-[11px]">·</span>
         <button onClick={() => setMostrarNotif(true)}
           className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
@@ -9177,6 +9381,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           Eliminar mi cuenta
         </button>
       </footer>
+      {pesoFacil && <PesoRapidoModal form={form} setForm={setForm} onCerrar={() => setPesoFacil(false)} />}
       {mostrarNotif && (
         <NotificacionesModal username={username} onClose={() => setMostrarNotif(false)} />
       )}

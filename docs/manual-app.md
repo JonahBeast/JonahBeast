@@ -226,7 +226,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 - **Qué cambia:** la **letra y los botones se ven más grandes en toda la app**, y el Inicio muestra arriba "HOLA, [NOMBRE] 👋 · ¿Qué quieres hacer?" con **3 botones grandes**:
   - **"📸 FOTO DE MI COMIDA"** ("Le tomas una foto a tu plato y la app la anota") → abre la cámara para la comida de esa hora (ver 9).
-  - **"✍️ ESCRIBIR LO QUE COMÍ"** ("Buscas tu comida por su nombre") → abre el registro de la comida de esa hora (ver 8.2).
+  - **"✍️ ESCRIBIR LO QUE COMÍ"** ("Buscas tu comida por su nombre") → abre directo "¿QUÉ COMISTE?" para la comida de esa hora (ver 8.2, A).
   - **"⚖️ MI PESO"** ("Anota cuánto pesas hoy") → "¿CUÁNTO PESAS HOY? ⚖️" con botones − / + de 0.1 kg (o escribirlo) y **"Guardar mi peso"**. Es el mismo peso de "Mi cuerpo" → "Mis datos".
   - Debajo sigue el Centro de mando (calorías del día) y el botón **"Ver más de mi día ▾"**, que muestra lo demás de Inicio (primeros pasos, racha, resumen, etc.).
 - **Cómo se activa:**
@@ -251,13 +251,18 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 ### 8.2 Cómo registrar (paso común)
 
-Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora) y luego el método: **"Foto"**, **"Código"** (código de barras de productos empacados), **"Voz"** o **"Escribir"**. Abajo están los atajos.
+Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos.
 
-**A) Escribir**
-1. Toca **"Escribir"** y escribe el nombre en "Escribe para buscar…".
-2. Toca el alimento. En la lista cada uno sale con su **nombre completo** y debajo su grupo y sus calorías por 100 g (ej. "Bebidas · 86 kcal / 100 g"), para no confundir nombres parecidos. Se agrega con una medida de casa (unidad, taza, plato…) o en gramos. Mientras escribes se esconde el botón "REGISTRAR" para que no tape la lista.
-3. Ajusta la cantidad con **−** y **+**.
-- El buscador entiende sinónimos (ej. keke/queque). Los platos preparados (ají de gallina, ceviche…) son estimaciones promedio.
+**A) Escribir (lo más usado)**
+1. Toca **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"**. Se abre una pantalla con el nombre de la comida (ej. "🍽️ ALMUERZO").
+2. **"⭐ Lo que comes siempre en tu [comida] (un toque y listo)"**: antes de escribir salen tus alimentos más frecuentes en esa comida (de las últimas semanas), cada uno con tu cantidad de siempre y sus calorías (ej. "Arroz blanco · cocido — 150 g · ≈ 195 kcal"). Tocando **+** queda anotado al instante.
+3. Si no está ahí, escribe en **"¿QUÉ COMISTE?"** ("Escríbelo aquí: arroz, pollo, pan…"). Cada resultado dice cuánto es en una medida de casa y sus calorías (ej. "1 plato ≈ 700 kcal", "1 unidad ≈ 70 kcal"). Primero salen los que sueles comer (con ⭐) y lo cocido; lo crudo va más abajo (si buscas algo crudo, escribe "crudo").
+4. Toca el alimento → **"¿Cuánto comiste?"** con botones grandes: **½ plato · 1 plato · 1½ platos · 2 platos** (o **1 · 2 · 3 · 4** unidades, o gramos, según el alimento), cada uno con sus calorías. Al tocar uno, queda anotado. **"Usar otra medida (taza, gramos…)"** cambia la medida. **"← Elegir otro"** vuelve a la búsqueda.
+   - Si es **frito o saltado**, ahí mismo sale **"🍳 ¿Cuánto aceite tenía?"** (Air fryer / poco · Normal · Bastante · Mucho; ver B, paso 5) antes de elegir la cantidad.
+5. Después de anotar, arriba sale **"Ya anotaste: ✓ …"** (con **"Quitar"**) y la caja dice **"¿ALGO MÁS EN TU [COMIDA]?"**, lista para el siguiente alimento. Al terminar, toca **"Listo ✅"**.
+6. ¿No lo encuentras? Toca **"Buscarlo de otra forma, pedírselo a Jonah o crearlo →"**: se abre el buscador de siempre en la comida, con lo que escribiste, donde puedes **"🙋 Pedirle a Jonah que lo agregue"** o **"+ Crear mi alimento"** (8.4, 8.5).
+- Después puedes ajustar la cantidad de cada alimento en la lista con **−** y **+**.
+- El buscador entiende sinónimos (ej. keke/queque, palta/aguacate). Los platos preparados (ají de gallina, ceviche…) son estimaciones promedio.
 
 **B) Foto (la inteligencia artificial reconoce el plato)**
 1. Toca **"Foto"** → **"Tomar foto"**. Si la cámara no abre (por ejemplo, porque el celular no le dio permiso a la app) o ya tomaste la foto antes, toca **"🖼️ Subir de mi galería"** y elige la foto: se analiza igual y gasta una foto igual.
@@ -361,7 +366,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 - Prueba con otra palabra, elige algo parecido o créalo (8.4).
 - **Pedirle alimentos a Jonah es Premium** (desde la app, desde la foto o por WhatsApp). En la versión gratis el botón dice "👑 Solo Premium" y al tocarlo sale "👑 Pedirle alimentos a Jonah es Premium. En la versión gratis puedes crear tu propio alimento con sus calorías.", con "Ver Premium" y "+ Crear mi alimento". Si la foto ve un plato que no está, en la versión gratis dice "Puedes crearlo tú con sus calorías." en vez de "Ya le avisamos a Jonah".
-- **Pídelo desde la app:** al tocar **"Escribir"**, debajo del buscador vacío sale "¿No encuentras tu plato? Escríbelo y toca 🙋 Pedirle a Jonah: lo agregamos y te avisamos."
+- **Pídelo desde la app:** en **"✍️ ¿QUÉ COMISTE?"** escribe el plato y toca **"Buscarlo de otra forma, pedírselo a Jonah o crearlo →"**; en el buscador que se abre toca **"🙋 Pedirle a Jonah que lo agregue"** (debajo del buscador vacío también sale "¿No encuentras tu plato? Escríbelo y toca 🙋 Pedirle a Jonah: lo agregamos y te avisamos.").
   - Si lo que escribiste no aparece, el primer botón (naranja) es **"🙋 Pedirle a Jonah que lo agregue"** ("Calculamos los macros y te avisamos cuando esté"). Debajo está **"+ Crear mi alimento"** por si prefieres poner tú los números (8.4).
   - Si aparecen resultados pero ninguno es, al final de la lista sale en naranja **"🙋 ¿No es ninguno? Pídele a Jonah que agregue "[lo que escribiste]""**.
   - Al pedirlo sale "🍽️ ¡Buen pedido! Estamos calculando los macros de [plato]. Te avisamos apenas esté en la app 💪". Máximo 10 pedidos al día.

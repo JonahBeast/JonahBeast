@@ -5826,7 +5826,7 @@ function textoPorcionFoto(food, porcion) {
    van como aceite aparte; al escribir, quedan en el mismo alimento
    (entry.aceite, ver entryMacros). */
 const OPCIONES_ACEITE = [
-  { key: 'poco', label: 'Poco', cucharadas: 0 },
+  { key: 'poco', label: 'Air fryer / poco', cucharadas: 0 },
   { key: 'normal', label: 'Normal', cucharadas: 0 },
   { key: 'bastante', label: 'Bastante', cucharadas: 1 },
   { key: 'mucho', label: 'Mucho', cucharadas: 2 },
@@ -6387,7 +6387,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               return (
                 <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
                   <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-                  <p className="jb-body text-[11px] text-zinc-500 mb-2">Los fritos y saltados ya incluyen el aceite normal. "Poco" (poco aceite o freidora de aire) le resta un 30% de grasa; "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">Los fritos y saltados ya incluyen el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
                     {OPCIONES_ACEITE.map(o => {
                       const activo = aceite === o.key;
@@ -7368,7 +7368,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         {esConAceite(food) && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">
             <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. "Poco" (poco aceite o freidora de aire) le resta un 30% de grasa; "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
               {OPCIONES_ACEITE.map(o => {
                 const activo = (en.aceite || 'normal') === o.key;

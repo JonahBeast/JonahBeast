@@ -2615,6 +2615,307 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
   );
 }
 
+// ── Analítica del costo de la IA ─────────────────────────────────────────
+// Colores de cada parte en los gráficos (validados para que se distingan
+// entre sí, también para daltónicos, sobre el fondo carbón). Fotos va en el
+// naranja ají de la marca.
+const COLORES_PARTES_IA = {
+  'reconocer-comida': '#E8590C',
+  'alimentos-pedidos': '#3987e5',
+  'jarvis-chat': '#199e70',
+  'whatsapp-webhook': '#c98500',
+};
+
+const PERIODOS_IA = [
+  { key: 'dia', label: '30 días', ultimos: 'los últimos 30 días', dias: 30 },
+  { key: 'semana', label: '12 semanas', ultimos: 'las últimas 12 semanas', dias: 84 },
+  { key: 'mes', label: '6 meses', ultimos: 'los últimos 6 meses', dias: 182 },
+];
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+const diaLima = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+
+// Lunes de la semana de una fecha "AAAA-MM-DD".
+function lunesDe(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  return addDaysISO(iso, -((d.getDay() + 6) % 7));
+}
+
+// Las barras del período elegido (de la más antigua a la más reciente).
+function barrasDelPeriodo(periodo, hoy) {
+  const fmtDia = iso => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MESES_CORTOS[m - 1]}`; };
+  if (periodo === 'dia') {
+    return Array.from({ length: 30 }, (_, i) => {
+      const iso = addDaysISO(hoy, i - 29);
+      return { clave: iso, etiqueta: String(Number(iso.slice(8))), etiquetaLarga: fmtDia(iso) };
+    });
+  }
+  if (periodo === 'semana') {
+    const lunes = lunesDe(hoy);
+    return Array.from({ length: 12 }, (_, i) => {
+      const iso = addDaysISO(lunes, (i - 11) * 7);
+      return { clave: iso, etiqueta: fmtDia(iso), etiquetaLarga: `Semana del ${fmtDia(iso)}` };
+    });
+  }
+  const [y, m] = hoy.split('-').map(Number);
+  return Array.from({ length: 6 }, (_, i) => {
+    const n = y * 12 + (m - 1) + (i - 5);
+    const yy = Math.floor(n / 12), mm = n % 12;
+    return { clave: `${yy}-${String(mm + 1).padStart(2, '0')}`, etiqueta: MESES_CORTOS[mm], etiquetaLarga: `${MESES_CORTOS[mm]} ${yy}` };
+  });
+}
+
+function claveDeBarra(periodo, dia) {
+  if (periodo === 'dia') return dia;
+  if (periodo === 'semana') return lunesDe(dia);
+  return dia.slice(0, 7);
+}
+
+// Barras apiladas: una barra por día/semana/mes, partida por colores (una
+// parte de la app por color). Leyenda arriba, 2px de separación entre los
+// pedazos y el detalle de cada barra al tocarla o pasar el mouse.
+function BarrasApiladas({ datos, series, formato = v => v, alto = 140, etiquetaCada = 1 }) {
+  const [activo, setActivo] = useState(null);
+  const total = d => series.reduce((a, s) => a + (d.partes[s.key] || 0), 0);
+  const max = Math.max(1e-9, ...datos.map(total));
+  const mostrado = activo !== null ? activo : datos.length - 1;
+  const d0 = datos[mostrado];
+  return (
+    <div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+        {series.map(s => (
+          <span key={s.key} className="jb-body text-[11px] text-zinc-400 inline-flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />{s.label}
+          </span>
+        ))}
+      </div>
+      <div className="jb-body text-xs text-zinc-400 min-h-[2.5rem] mb-1">
+        {d0 && (
+          <>
+            <span className="text-zinc-500">{d0.etiquetaLarga}:</span> <span className="text-zinc-50 font-semibold">{formato(total(d0))}</span>
+            <span className="block text-[11px] text-zinc-500">
+              {series.filter(s => d0.partes[s.key]).map(s => `${s.label} ${formato(d0.partes[s.key])}`).join(' · ') || 'sin uso'}
+            </span>
+          </>
+        )}
+      </div>
+      <div className="flex items-end gap-[2px] border-b border-zinc-700" style={{ height: alto }} onMouseLeave={() => setActivo(null)}>
+        {datos.map((d, i) => {
+          const t = total(d);
+          const visibles = series.filter(s => d.partes[s.key] > 0);
+          return (
+            <button key={d.clave} type="button" aria-label={`${d.etiquetaLarga}: ${formato(t)}`}
+              onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
+              className="flex-1 h-full flex flex-col justify-end min-w-0">
+              <span className={`w-full flex flex-col-reverse gap-[2px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-50'}`}
+                style={{ height: `${(t / max) * 100}%`, minHeight: t > 0 ? 2 : 0 }}>
+                {visibles.map((s, j) => (
+                  <span key={s.key} className={j === visibles.length - 1 ? 'rounded-t-[4px]' : ''}
+                    style={{ flexGrow: d.partes[s.key], flexBasis: 0, minHeight: 1, background: s.color }} />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex gap-[2px] mt-1">
+        {datos.map((d, i) => (
+          <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
+            <span className="jb-body text-[10px] text-zinc-500 whitespace-nowrap">
+              {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Gráficos del costo de la IA: cuánto se gasta, cuántas veces se usa y
+// cuánto sale cada uso, por día, semana o mes, por parte de la app. Con
+// comparación contra el período anterior y botón para descargar en Excel.
+function AnaliticaIAPanel({ tipoCambio }) {
+  const [filas, setFilas] = useState(null);
+  const [periodo, setPeriodo] = useState('dia');
+  const [parte, setParte] = useState('todas');
+  const [verTabla, setVerTabla] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      // Un año de datos (para comparar 6 meses con los 6 anteriores), de a
+      // 1000 filas, que es lo máximo que entrega la base por pedido.
+      const desde = new Date(Date.now() - 366 * 864e5).toISOString();
+      const todas = [];
+      for (let i = 0; ; i += 1000) {
+        const { data, error } = await supabase.from('ia_uso')
+          .select('funcion, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', desde).order('creado_en').range(i, i + 999);
+        if (error) throw error;
+        todas.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      if (!cancelado) setFilas(todas.filter(f => COLORES_PARTES_IA[f.funcion]).map(f => ({ ...f, usd: costoUsdIA(f), dia: diaLima(f.creado_en) })));
+    })().catch(() => { if (!cancelado) setFilas([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  const tarjeta = 'bg-zinc-950 border border-zinc-800 rounded-lg p-3';
+  const soles = usd => usd * tipoCambio;
+  const fmtSoles = v => `S/${v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(3)}`;
+  const series = PARTES_IA.map(p => ({ key: p.funcion, label: p.label, color: COLORES_PARTES_IA[p.funcion] }));
+  const parteSel = PARTES_IA.find(p => p.funcion === parte);
+  const filasParte = (filas || []).filter(f => parte === 'todas' || f.funcion === parte);
+
+  const hoy = todayISO();
+  const conf = PERIODOS_IA.find(p => p.key === periodo);
+  const barras = barrasDelPeriodo(periodo, hoy).map(b => ({ ...b, partes: {}, usos: 0, usd: 0 }));
+  const porClave = Object.fromEntries(barras.map(b => [b.clave, b]));
+  filasParte.forEach(f => {
+    const b = porClave[claveDeBarra(periodo, f.dia)];
+    if (!b) return;
+    b.partes[f.funcion] = (b.partes[f.funcion] || 0) + soles(f.usd);
+    b.usos++; b.usd += f.usd;
+  });
+  const etiquetaCada = periodo === 'dia' ? 5 : periodo === 'semana' ? 3 : 1;
+
+  // Ventanas móviles del mismo largo: los últimos N días contra los N anteriores.
+  const corte = Date.now() - conf.dias * 864e5, corteAntes = corte - conf.dias * 864e5;
+  const ahora = filasParte.filter(f => new Date(f.creado_en).getTime() >= corte);
+  const antes = filasParte.filter(f => { const t = new Date(f.creado_en).getTime(); return t >= corteAntes && t < corte; });
+  const sumaS = l => soles(l.reduce((a, f) => a + f.usd, 0));
+  const gasto = sumaS(ahora), gastoAntes = sumaS(antes);
+  const porUso = ahora.length ? gasto / ahora.length : null;
+  const porUsoAntes = antes.length ? gastoAntes / antes.length : null;
+  const cambio = (a, b) => (a !== null && b ? Math.round((a / b - 1) * 100) : null);
+  const flecha = c => c === null ? <span className="text-zinc-500">sin datos para comparar</span>
+    : c <= -5 ? <span className="text-emerald-400">▼ {Math.abs(c)}% vs período anterior</span>
+    : c >= 5 ? <span className="text-orange-400">▲ {c}% vs período anterior</span>
+    : <span className="text-zinc-400">igual que el período anterior</span>;
+  const nombreUso = parteSel ? parteSel.uso : 'uso';
+  const desdeMedicion = filas && filas.length ? filas[0].dia : null;
+
+  function exportar() {
+    // Una fila por día y parte, con todo lo medido.
+    const grupos = {};
+    (filas || []).forEach(f => {
+      const k = `${f.dia}|${f.funcion}`;
+      const g = grupos[k] || (grupos[k] = { fecha: f.dia, parte: PARTES_IA.find(p => p.funcion === f.funcion).label, usos: 0, usd: 0, tokens_entrada: 0, tokens_salida: 0 });
+      g.usos++; g.usd += f.usd;
+      g.tokens_entrada += Number(f.tokens_entrada) || 0; g.tokens_salida += Number(f.tokens_salida) || 0;
+    });
+    const encabezado = ['fecha', 'parte', 'usos', 'gasto_soles', 'gasto_dolares', 'costo_por_uso_soles', 'tokens_entrada', 'tokens_salida'];
+    const lineas = Object.values(grupos).sort((a, b) => a.fecha.localeCompare(b.fecha) || a.parte.localeCompare(b.parte)).map(g => [
+      g.fecha, g.parte, g.usos, soles(g.usd).toFixed(4), g.usd.toFixed(4), (soles(g.usd) / g.usos).toFixed(4), g.tokens_entrada, g.tokens_salida,
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const blob = new Blob(['﻿' + [encabezado.join(','), ...lineas].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `costo_ia_jonahbeast_${hoy}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const chip = (activa, onClick, texto, key) => (
+    <button key={key} type="button" onClick={onClick}
+      className={`jb-body text-[11px] px-2.5 py-1 rounded-full border transition-colors ${activa ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+      {texto}
+    </button>
+  );
+
+  return (
+    <div className={`${tarjeta} flex flex-col gap-3`}>
+      <div className="flex justify-between items-start gap-2">
+        <div>
+          <h3 className="jb-display text-sm text-zinc-300">📊 ANALÍTICA DE LA IA</h3>
+          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">
+            Gasto, usos y costo por uso de cada parte de la app.{desdeMedicion ? ` Se mide desde el ${desdeMedicion.split('-').reverse().join('/')}.` : ''}
+          </p>
+        </div>
+        <button type="button" onClick={exportar} disabled={!filas || !filas.length}
+          className="jb-body text-[11px] px-2.5 py-1 rounded-lg border border-zinc-700 text-zinc-200 hover:border-orange-500 disabled:opacity-40 shrink-0">
+          ⬇ Exportar a Excel
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap gap-1.5">{PERIODOS_IA.map(p => chip(periodo === p.key, () => setPeriodo(p.key), p.label, p.key))}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {chip(parte === 'todas', () => setParte('todas'), 'Todas', 'todas')}
+          {PARTES_IA.map(p => chip(parte === p.funcion, () => setParte(p.funcion), p.label, p.funcion))}
+        </div>
+      </div>
+
+      {!filas ? <Loader2 size={14} className="animate-spin text-orange-500" /> : !filas.length ? (
+        <p className="jb-body text-xs text-zinc-500">Todavía no hay usos de la IA anotados.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { v: fmtSoles(gasto), l: `Gasto en ${conf.ultimos}`, c: flecha(cambio(gasto, gastoAntes)) },
+              { v: String(ahora.length), l: `Usos (${parteSel ? `cada ${nombreUso}` : 'fotos, pedidos, consultas y respuestas'})`, c: flecha(cambio(ahora.length, antes.length)) },
+              { v: porUso === null ? '—' : `S/${porUso.toFixed(3)}`, l: `Costo de cada ${nombreUso}`, c: flecha(cambio(porUso, porUsoAntes)) },
+            ].map(t => (
+              <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-w-0">
+                <div className="jb-display text-lg text-orange-400">{t.v}</div>
+                <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+                <div className="jb-body text-[10px] leading-tight mt-0.5">{t.c}</div>
+              </div>
+            ))}
+          </div>
+          <p className="jb-body text-[10px] text-zinc-500 -mt-1">
+            En "Costo de cada uso", ▼ verde es bueno: la IA te sale más barata. En gasto y usos, subir puede ser bueno si es porque hay más alumnos usando la app.
+          </p>
+
+          <div>
+            <div className="jb-body text-xs text-zinc-400 mb-1">Gasto en soles</div>
+            {parte === 'todas'
+              ? <BarrasApiladas datos={barras} series={series} formato={fmtSoles} etiquetaCada={etiquetaCada} />
+              : <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.partes[parte] || 0 }))} formato={fmtSoles} etiquetaCada={etiquetaCada} />}
+          </div>
+
+          <div>
+            <div className="jb-body text-xs text-zinc-400 mb-1">Cuántas veces se usó la IA</div>
+            <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.usos }))} formato={v => `${v} ${v === 1 ? 'uso' : 'usos'}`} etiquetaCada={etiquetaCada} alto={90} />
+          </div>
+
+          <div>
+            <div className="jb-body text-xs text-zinc-400 mb-1">Costo de cada {nombreUso}{parteSel ? '' : ' (promedio de todas las partes)'}</div>
+            <BarrasSimples datos={barras.map(b => ({ ...b, valor: b.usos ? soles(b.usd) / b.usos : 0 }))} formato={v => `S/${v.toFixed(3)}`} etiquetaCada={etiquetaCada} alto={90} />
+          </div>
+
+          <button type="button" onClick={() => setVerTabla(v => !v)} className="jb-body text-[11px] text-zinc-400 underline self-start">
+            {verTabla ? 'Ocultar tabla' : 'Ver los números en tabla'}
+          </button>
+          {verTabla && (
+            <div className="overflow-x-auto">
+              <table className="w-full jb-body text-xs">
+                <thead>
+                  <tr className="text-zinc-500 text-[11px]">
+                    <th className="text-left font-normal py-1 pr-2">{periodo === 'dia' ? 'Día' : periodo === 'semana' ? 'Semana' : 'Mes'}</th>
+                    <th className="text-right font-normal py-1 px-2">Gasto</th>
+                    <th className="text-right font-normal py-1 px-2">Usos</th>
+                    <th className="text-right font-normal py-1 pl-2">Por uso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...barras].reverse().filter(b => b.usos).map(b => (
+                    <tr key={b.clave} className="border-t border-zinc-800 text-zinc-200">
+                      <td className="py-1 pr-2">{b.etiquetaLarga}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{fmtSoles(soles(b.usd))}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{b.usos}</td>
+                      <td className="text-right py-1 pl-2 tabular-nums">S/{(soles(b.usd) / b.usos).toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function RentabilidadPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
@@ -2995,6 +3296,8 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </>
         )}
       </div>
+
+      <AnaliticaIAPanel tipoCambio={sup.tipoCambio} />
 
       <div>
         <h3 className="jb-display text-sm text-zinc-300 mb-1">CUÁNTO TE DEJA CADA PLAN AL MES</h3>

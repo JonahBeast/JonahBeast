@@ -7633,6 +7633,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 después, lo que es trámite (pagos, alimentos, vencimientos…). */}
             <MensajesDelDiaPanel />
             <ListosParaPagarPanel />
+            <AvisoMejoras40Panel />
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
@@ -8475,6 +8476,109 @@ function ListosParaPagarPanel() {
               </button>
               {verMensaje === x.username && (
                 <p className="jb-body text-[12px] text-zinc-300 mt-1.5 leading-snug bg-zinc-900 rounded-lg p-2.5">“{mensaje}”</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* 📣 AVISO DE MEJORAS A LOS DE 40 O MÁS: los alumnos de 40 años o más
+   dijeron que la app se les hacía complicada. Cuando salieron el Modo fácil
+   y el registro escrito más simple, Jonah les escribe por WhatsApp para
+   contarles que lo hizo pensando en ellos. Lista de una sola vez: cada uno
+   sale hasta que Jonah toca "Escribirle" o "No hace falta" (se anota en
+   config → aviso_mejoras_40). Cuando ya no queda nadie, la tarjeta no sale. */
+const CLAVE_AVISO_MEJORAS_40 = 'aviso_mejoras_40';
+
+function mensajeMejoras40(nombre) {
+  const n = String(nombre || '').trim().split(/\s+/)[0];
+  const hola = n ? `Hola ${n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()}` : 'Hola';
+  return `${hola} 👋 Soy Jonah. Algunos me contaron que la app se les hacía un poco complicada, y los escuché: hice cambios pensando en ti 💪
+
+1️⃣ Ahora puedes ver la app con letra más grande y un Inicio con solo 3 botones: abajo en Inicio toca "🔠 Letra grande".
+2️⃣ Registrar tu comida es más fácil: tocas REGISTRAR → "¿Qué comiste?", escribes por ejemplo "arroz" y eliges cuánto con botones grandes (½ plato, 1 plato…). Lo que comes siempre ya te aparece listo, con un toque.
+
+Cierra y vuelve a abrir la app para ver los cambios. Si algo se te complica, escríbeme aquí y lo vemos juntos. Vamos poco a poco, comida a comida 🦍`;
+}
+
+function AvisoMejoras40Panel() {
+  const [lista, setLista] = useState(null);
+  const [hechos, setHechos] = useState({});
+  const [verMensaje, setVerMensaje] = useState(null);
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const [{ data: datos }, { data: alumnos }, { data: cfg }] = await Promise.all([
+        traerTodas(() => supabase.from('datos_alumnos').select('username, form'), 'username'),
+        traerTodas(() => supabase.from('alumnos').select('username, nombre, telefono, enabled').eq('enabled', true), 'username'),
+        supabase.from('config').select('value').eq('key', CLAVE_AVISO_MEJORAS_40).maybeSingle(),
+      ]);
+      if (cancelado) return;
+      let marcados = {};
+      try { marcados = JSON.parse(cfg?.value || '{}') || {}; } catch {}
+      const edadDe = f => Number(String(f?.edad ?? '').replace(/[^0-9]/g, '')) || 0;
+      const edades = Object.fromEntries((datos || []).map(d => [d.username, edadDe(d.form)]));
+      setHechos(marcados);
+      setLista((alumnos || [])
+        .filter(a => !esCuentaPropia(a.username) && edades[a.username] >= 40)
+        .map(a => ({ ...a, edad: edades[a.username] }))
+        .sort((a, b) => b.edad - a.edad));
+    })().catch(() => { if (!cancelado) setLista([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  async function marcar(username, como) {
+    const nuevos = { ...hechos, [username]: { f: todayISO(), c: como } };
+    setHechos(nuevos);
+    try { await supabase.from('config').upsert({ key: CLAVE_AVISO_MEJORAS_40, value: JSON.stringify(nuevos) }); } catch {}
+  }
+
+  if (!lista) return null;
+  const pendientes = lista.filter(a => !hechos[a.username]);
+  if (!pendientes.length) return null;
+  return (
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="jb-display text-lg text-zinc-50">📣 CUÉNTALES LAS MEJORAS (40 AÑOS O MÁS)</h2>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">
+            Les cuentas que hiciste la app más fácil pensando en ellos: letra grande y registrar escribiendo más simple. Mándalo cuando las mejoras ya estén publicadas.
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="jb-display text-2xl text-orange-400 tabular-nums">{lista.length - pendientes.length}/{lista.length}</p>
+          <p className="jb-body text-[10px] text-zinc-500">avisados</p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 mt-4">
+        {pendientes.map(a => {
+          const mensaje = mensajeMejoras40(a.nombre);
+          return (
+            <div key={a.username} className="rounded-xl p-3 border bg-zinc-950 border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="jb-body text-sm text-zinc-100 truncate">{a.nombre || a.username}</p>
+                  <p className="jb-body text-[11px] text-zinc-500">{a.edad} años{!a.telefono ? ' · sin WhatsApp' : ''}</p>
+                </div>
+                {a.telefono && (
+                  <a href={enlaceWhatsApp(a.telefono, mensaje)} target="_blank" rel="noreferrer" onClick={() => marcar(a.username, 'escrito')}
+                    className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
+                    <MessageCircle size={14} /> Escribirle
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center gap-3 mt-1.5">
+                <button type="button" onClick={() => setVerMensaje(v => v === a.username ? null : a.username)}
+                  className="jb-body text-[11px] text-zinc-500 underline underline-offset-2">
+                  {verMensaje === a.username ? 'Ocultar mensaje' : 'Ver mensaje'}
+                </button>
+                <button type="button" onClick={() => marcar(a.username, 'no')} className="jb-body text-[11px] text-zinc-500 underline underline-offset-2">No hace falta</button>
+              </div>
+              {verMensaje === a.username && (
+                <p className="jb-body text-[12px] text-zinc-300 mt-1.5 leading-snug bg-zinc-900 rounded-lg p-2.5 whitespace-pre-line">“{mensaje}”</p>
               )}
             </div>
           );

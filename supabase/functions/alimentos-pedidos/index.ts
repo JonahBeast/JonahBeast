@@ -212,6 +212,8 @@ Reglas:
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
 - En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
+- Alimentos SIMPLES de un solo ingrediente con valores conocidos (semillas, frutas, verduras, menestras, carnes o pescados al natural, lácteos, productos básicos): pon "alta" aunque el pedido esté mal escrito o sin tildes, SIEMPRE QUE el nombre correcto sea obvio (ej. "linasa" → Linaza, "brocoli" → Brócoli, "kiwisha" → Kiwicha) y uses valores de la Tabla Peruana o USDA. Si el nombre se presta a dos alimentos distintos, no es "alta".
+- Frituras, apanados, salteados y platos caseros cuyas calorías dependen mucho del aceite o la receta (chicharrones, jaleas, apanados, saltados): nunca "alta"; los revisa Jonah.
 - Menú del día (menu_uso): la app arma menús para bajar grasa con estos usos:
 ${USOS_MENU.map((u) => `  · ${u.valor} = ${u.texto}`).join("\n")}
   Sugiere uno SOLO si el alimento encaja de verdad en un menú saludable con porción controlada (a la plancha, sancochado, al horno, guisos caseros). Frituras, comida rápida, postres, dulces, bebidas azucaradas y alcohol → "". Es solo una sugerencia: la revisa Jonah.

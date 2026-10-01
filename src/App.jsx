@@ -850,12 +850,36 @@ function entryGrams(entry) {
   return Math.min(g, MAX_GRAMOS_ENTRADA);
 }
 
+// Aceite que el alumno marcó en un frito o saltado (entry.aceite). Los
+// datos de esos platos ya traen el aceite normal: "poco" resta un 30% de la
+// grasa del plato (poco aceite o freidora de aire); "bastante" y "mucho"
+// suman 1 o 2 cucharadas de aceite vegetal.
+const CLAVE_ACEITE_VEGETAL = 'Aceite vegetal (-)';
+const ACEITE_CUCHARADAS = { bastante: 1, mucho: 2 };
+const ACEITE_POCO_MENOS_GRASA = 0.3;
+// Fritos y saltados: los únicos a los que se les pregunta por el aceite (y
+// a los que se les aplica). Si el alumno cambia el alimento por otro que no
+// es frito, la marca de aceite deja de contar.
+function esFritoOSaltado(food) {
+  return /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
+}
+
 function entryMacros(entry) {
   const food = buscarFood(entry.foodKey);
   const g = entryGrams(entry);
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
-  return { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
+  const m = { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
+  if (!entry.aceite || !esFritoOSaltado(food)) return m;
+  if (entry.aceite === 'poco') {
+    const menos = m.fat * ACEITE_POCO_MENOS_GRASA;
+    m.fat -= menos;
+    m.kcal = Math.max(0, m.kcal - menos * 9);
+  } else if (ACEITE_CUCHARADAS[entry.aceite] && entry.foodKey !== CLAVE_ACEITE_VEGETAL) {
+    const a = entryMacros({ foodKey: CLAVE_ACEITE_VEGETAL, unit: 'cucharada', qty: ACEITE_CUCHARADAS[entry.aceite] });
+    m.kcal += a.kcal; m.protein += a.protein; m.carbs += a.carbs; m.fat += a.fat;
+  }
+  return m;
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -6002,6 +6026,7 @@ export {
   daysLeft,
   entryGrams,
   entryMacros,
+  esFritoOSaltado,
   esTWA,
   fechaLocalISO,
   fetchTrialStats,

@@ -13,7 +13,7 @@
     },
     {
       "path": "/api/cron/lista-carino-aviso",
-      "schedule": "10 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/whatsapp-seguimiento",

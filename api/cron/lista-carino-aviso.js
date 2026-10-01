@@ -1,6 +1,6 @@
 // api/cron/lista-carino-aviso.js
 //
-// Corre cada hora (de 7am a 9pm, hora Perú) y le avisa al celular de Jonah
+// Corre cada 15 minutos (de 7am a 9:45pm, hora Perú) y le avisa al celular de Jonah
 // apenas aparece alguien nuevo en "📲 Mensajes del día" (src/listaCarino.js):
 // una prueba que termina, un alumno que no arranca, uno que se frenó…, con
 // el mensaje ya listo en el panel (HOY). Jonah lo manda en el momento; no
@@ -13,7 +13,10 @@
 //     falta.
 // De noche (10pm a 7am) no avisa: lo que aparezca sale a las 7am.
 //
-// Cron en vercel.json: "10 * * * *" (a los 10 minutos de cada hora).
+// Mientras el asistente de WhatsApp no esté conectado, Jarvis hace de
+// asistente de Jonah: le avisa en el momento todo lo que hay que mandar.
+//
+// Cron en vercel.json: "*/15 * * * *" (cada 15 minutos).
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA } from '../_lib/push.js';
 import { cargarDatosCarino, armarListaCarino, ETAPAS } from '../../src/listaCarino.js';
@@ -58,8 +61,8 @@ export default async function handler(req, res) {
         body: `${enLista(nuevos.map(primer))}. Toca aquí: están en orden en Mensajes del día, cada uno con su mensaje listo.`,
       });
     }
-    // 7pm: lo que quedó sin mandar (si no hubo un aviso recién).
-    if (hora === 19 && !avisos.length && lista.length) {
+    // 7pm (solo en la primera revisión de esa hora): lo que quedó sin mandar.
+    if (hora === 19 && new Date().getUTCMinutes() < 15 && !avisos.length && lista.length) {
       avisos.push({
         title: `⏰ Te ${lista.length === 1 ? 'queda 1 mensaje' : `quedan ${lista.length} mensajes`} de hoy`,
         body: `${enLista(lista.map(primer))}. Están listos en Mensajes del día.`,

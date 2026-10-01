@@ -2440,7 +2440,7 @@ function costoPorAlumno(s, conversionPct) {
 
 // Ganancia al mes según cuántos alumnos pagan, con estilo HUD: área con
 // degradado (rojo donde pierdes, verde donde ganas), línea con brillo que
-// se dibuja al aparecer, cuadrícula de puntos, esquinas de pantalla y el
+// se dibuja al aparecer (sin cuadrícula de puntos), esquinas de pantalla y el
 // punto de "Hoy" latiendo. Marcas: hoy, equilibrio y sueldo.
 const ESTILOS_GRAFICO_HUD = `
 @keyframes jbg-dibuja { from { stroke-dashoffset: 1200; } to { stroke-dashoffset: 0; } }
@@ -2491,9 +2491,6 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
         onTouchMove={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
         onMouseLeave={() => setHover(null)}>
         <defs>
-          <pattern id="jbg-puntos" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="#3f3f46" opacity="0.6" />
-          </pattern>
           <linearGradient id="jbg-gana" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
             <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
@@ -2513,7 +2510,6 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
           </filter>
         </defs>
 
-        <rect x={pl} y={pt} width={W - pl - pr} height={H - pt - pb} fill="url(#jbg-puntos)" />
         <rect className="jbg-anim" x={pl} y={pt} width="60" height={H - pt - pb} fill="url(#jbg-barrido)"
           style={{ animation: 'jbg-barre 4.5s ease-in-out infinite', transformBox: 'fill-box' }} />
         {[[pl, pt, 1, 1], [W - pr, pt, -1, 1], [pl, H - pb, 1, -1], [W - pr, H - pb, -1, -1]].map(([cx, cy, dx, dy], k) => (

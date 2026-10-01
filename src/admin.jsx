@@ -7354,6 +7354,12 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // NEGOCIO se divide en 3 partes para no bajar tanto en el celular. Se
+  // recuerda la última que abrió (solo en este navegador).
+  const [subNegocio, setSubNegocioCrudo] = useState(() => {
+    try { return localStorage.getItem('admin_sub_negocio') || 'resumen'; } catch { return 'resumen'; }
+  });
+  const setSubNegocio = v => { setSubNegocioCrudo(v); try { localStorage.setItem('admin_sub_negocio', v); } catch {} };
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
   const [ordenAlumnos, setOrdenAlumnos] = useState('actividad');
@@ -7450,6 +7456,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <AlimentosPropiosPanel />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
+            {/* Listas de a quién escribirle (antes estaban en NEGOCIO). */}
+            <RescatePanel users={users} />
+            <SinAvisosPanel users={users} />
+            <CumpleanosPanel users={users} />
             <SaldoIAPanel />
             <EmbudoPanel />
 
@@ -7617,20 +7627,39 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'negocio' && (
           <>
-            <TableroPanel users={users} />
-            <RentabilidadPanel users={users} />
-            <FuncionandoPanel users={users} />
-            <ActivacionPanel users={users} />
-            <EmbudoResumenPanel />
-            <MetricasPanel />
-            <FinanzasPanel />
-            <ReferidosPanel users={users} onCambio={onRecargar} />
-            <LeadsPanel />
-            {/* Estadística de cómo van los alumnos (los mensajes ahora están
-                en HOY → Mensajes del día). */}
-            <RescatePanel users={users} />
-            <SinAvisosPanel users={users} />
-            <CumpleanosPanel users={users} />
+            <div className="flex gap-1.5 overflow-x-auto -mb-1">
+              {[
+                { id: 'resumen', label: '📊 Resumen' },
+                { id: 'dinero', label: '💰 Dinero' },
+                { id: 'crecimiento', label: '📣 Anuncios y embudo' },
+              ].map(t => (
+                <button key={t.id} type="button" onClick={() => setSubNegocio(t.id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${subNegocio === t.id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {subNegocio === 'resumen' && (
+              <>
+                <TableroPanel users={users} />
+                <FuncionandoPanel users={users} />
+              </>
+            )}
+            {subNegocio === 'dinero' && (
+              <>
+                <RentabilidadPanel users={users} />
+                <FinanzasPanel />
+              </>
+            )}
+            {subNegocio === 'crecimiento' && (
+              <>
+                <EmbudoResumenPanel />
+                <ActivacionPanel users={users} />
+                <MetricasPanel />
+                <LeadsPanel />
+                <ReferidosPanel users={users} onCambio={onRecargar} />
+              </>
+            )}
           </>
         )}
 
@@ -8277,7 +8306,7 @@ function SinAvisosPanel({ users }) {
 }
 
 function RescatePanel({ users }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [grupoVisible, setGrupoVisible] = useState(null); // color que se está mostrando
   // username -> última fecha con comidas registradas
   const [ultimas, setUltimas] = useState(null);

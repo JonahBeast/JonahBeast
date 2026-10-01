@@ -2642,7 +2642,7 @@ function claveDeBarra(periodo, dia) {
 // cuadrículas ni figuras repetidas: solo la línea del 0 y una guía punteada
 // con el valor más alto. Con varias partes, una línea por parte (con
 // leyenda). Al tocar o pasar el mouse se ve el dato de ese punto.
-function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true, desdeCero = true }) {
+function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true, desdeCero = true, sumar = true }) {
   const [hover, setHover] = useState(null);
   const uid = useMemo(() => 'h' + Math.random().toString(36).slice(2, 8), []);
   const W = 600, H = 190, pl = 10, pr = 10, pt = 22, pb = 14;
@@ -2678,7 +2678,7 @@ function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1,
         <span className="font-mono text-[10px] tracking-[0.2em] text-orange-400/80 pt-0.5">◉ {titulo}</span>
         {d0 && (
           <span className="font-mono text-xs text-zinc-400 text-right">
-            {d0.etiquetaLarga} → <span className="text-orange-400 font-semibold">{formato(total(d0))}</span>
+            {d0.etiquetaLarga}{sumar && <> → <span className="text-orange-400 font-semibold">{formato(total(d0))}</span></>}
           </span>
         )}
       </div>
@@ -2693,7 +2693,7 @@ function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1,
       )}
       {detalle && !unica && d0 && (
         <div className="font-mono text-[10px] text-zinc-500 mb-1 min-h-[1.25rem]">
-          {series.filter(s => valor(d0, s)).map(s => `${s.label} ${formato(valor(d0, s))}`).join(' · ') || 'sin uso'}
+          {(sumar ? series.filter(s => valor(d0, s)) : series).map(s => `${s.label} ${formato(valor(d0, s))}`).join(' · ') || 'sin uso'}
         </div>
       )}
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img"
@@ -3129,6 +3129,106 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
           <p className="jb-body text-[10px] text-zinc-500 mt-1">El canal sale de la marca del link (?utm_source=). Los que entraron sin marca quedan como "Directo".</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* 📈 CONVERSIÓN POR SEMANA: de los que se registraron cada semana, qué
+   porcentaje empezó a usar la app (anotó al menos una comida) y qué
+   porcentaje terminó pagando. Sirve para ver si las mejoras de la app y
+   los anuncios suben la conversión con el tiempo. */
+const SERIES_CONVERSION = [
+  { key: 'empezaron', label: '% que empezó', color: '#3987e5' },
+  { key: 'pagaron', label: '% que pagó', color: '#E8590C' },
+];
+
+function ConversionSemanalPanel() {
+  const [datos, setDatos] = useState(null);
+  const hoy = todayISO();
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const lunesHoy = lunesDe(hoy);
+      const desde = addDaysISO(lunesHoy, -7 * 11);
+      const [{ data: alumnos }, { data: pagos }] = await Promise.all([
+        traerTodas(() => supabase.from('alumnos').select('username, created_at').gte('created_at', desde), 'username'),
+        traerTodas(() => supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gt('monto', 0)),
+      ]);
+      const nuevos = (alumnos || []).filter(a => !esCuentaPropia(a.username));
+      const { data: hist } = nuevos.length
+        ? await traerTodas(() => supabase.from('historial').select('username').in('username', nuevos.map(a => a.username)).gt('comidas_count', 0))
+        : { data: [] };
+      if (cancelado) return;
+      const empezo = new Set((hist || []).map(h => h.username));
+      const pago = new Set((pagos || []).filter(p => !/add-on/i.test(p.metodo || '')).map(p => p.username));
+      const semanas = Array.from({ length: 12 }, (_, i) => {
+        const lunes = addDaysISO(lunesHoy, -7 * (11 - i));
+        const [, m, d] = lunes.split('-').map(Number);
+        return { clave: lunes, etiqueta: `${d} ${MESES_CORTOS[m - 1]}`, etiquetaLarga: `Semana del ${d} ${MESES_CORTOS[m - 1]}`, registros: 0, empezaron: 0, pagaron: 0 };
+      });
+      const porLunes = Object.fromEntries(semanas.map(s => [s.clave, s]));
+      nuevos.forEach(a => {
+        const s = porLunes[lunesDe(diaLima(a.created_at))];
+        if (!s) return;
+        s.registros++;
+        if (empezo.has(a.username)) s.empezaron++;
+        if (pago.has(a.username)) s.pagaron++;
+      });
+      setDatos(semanas);
+    })().catch(() => { if (!cancelado) setDatos([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  if (!datos) return null;
+  const primera = datos.findIndex(s => s.registros > 0);
+  if (primera < 0) return null;
+  const visibles = datos.slice(Math.min(primera, datos.length - 2));
+  const pct = (n, t) => (t ? Math.round((n / t) * 100) : 0);
+  const puntos = visibles.map(s => ({ ...s, partes: { empezaron: pct(s.empezaron, s.registros), pagaron: pct(s.pagaron, s.registros) } }));
+  const tot = visibles.reduce((a, s) => ({ r: a.r + s.registros, e: a.e + s.empezaron, p: a.p + s.pagaron }), { r: 0, e: 0, p: 0 });
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-3">
+      <div>
+        <h3 className="jb-display text-sm text-zinc-300">📈 CONVERSIÓN POR SEMANA</h3>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">De los que se registraron cada semana: qué porcentaje empezó a usar la app (anotó al menos una comida) y qué porcentaje terminó pagando.</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { v: String(tot.r), l: 'se registraron' },
+          { v: `${pct(tot.e, tot.r)}%`, l: `empezaron (${tot.e})` },
+          { v: `${pct(tot.p, tot.r)}%`, l: `pagaron (${tot.p})` },
+        ].map(t => (
+          <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-w-0">
+            <div className="jb-display text-lg text-orange-400">{t.v}</div>
+            <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t.l}</div>
+          </div>
+        ))}
+      </div>
+      <GraficoHud titulo="CONVERSIÓN POR SEMANA DE REGISTRO" datos={puntos} series={SERIES_CONVERSION}
+        formato={v => `${Math.round(v)}%`} sumar={false} etiquetaCada={Math.max(1, Math.ceil(puntos.length / 4))} />
+      <div className="overflow-x-auto">
+        <table className="w-full jb-body text-xs">
+          <thead>
+            <tr className="text-zinc-500 text-[11px]">
+              <th className="text-left font-normal py-1 pr-2">Semana</th>
+              <th className="text-right font-normal py-1 px-2">Registros</th>
+              <th className="text-right font-normal py-1 px-2">Empezaron</th>
+              <th className="text-right font-normal py-1 pl-2">Pagaron</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...visibles].reverse().map(s => (
+              <tr key={s.clave} className="border-t border-zinc-800 text-zinc-200">
+                <td className="py-1 pr-2">{s.etiquetaLarga}</td>
+                <td className="text-right py-1 px-2 tabular-nums">{s.registros}</td>
+                <td className="text-right py-1 px-2 tabular-nums">{s.empezaron} <span className="text-zinc-500">({pct(s.empezaron, s.registros)}%)</span></td>
+                <td className="text-right py-1 pl-2 tabular-nums">{s.pagaron} <span className="text-zinc-500">({pct(s.pagaron, s.registros)}%)</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="jb-body text-[10px] text-zinc-500 -mt-1">Las semanas más recientes todavía pueden subir: su prueba de Premium no ha terminado.</p>
     </div>
   );
 }
@@ -7659,6 +7759,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             {subNegocio === 'crecimiento' && (
               <>
                 <EmbudoResumenPanel />
+                <ConversionSemanalPanel />
                 <ActivacionPanel users={users} />
                 <MetricasPanel />
                 <LeadsPanel />
@@ -7703,7 +7804,7 @@ function HistoriaAlumno({ username }) {
     (async () => {
       const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }] = await Promise.all([
         supabase.from('alumnos').select('nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, created_at').eq('username', username).maybeSingle(),
-        supabase.from('historial').select('fecha, comidas_count, peso').eq('username', username).order('fecha').range(0, 4999),
+        traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso').eq('username', username).order('fecha')),
         supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
         supabase.from('ajustes_membresia').select('created_at, dias, motivo').eq('username', username).order('created_at').range(0, 999),
         supabase.from('embudo_landing_eventos').select('fuente').eq('evento', 'registro').eq('username', username).limit(1),

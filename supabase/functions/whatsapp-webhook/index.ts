@@ -110,6 +110,8 @@ Qué sabes:
 - Si quien escribe no es alumno, invítalo a crear su cuenta gratis en jonahbeast.com: es gratis para siempre, sin tarjeta, con 7 días de Premium incluidos.
 - Los mensajes que empiezan con "(nota de voz)" son audios que ya pasamos a texto: responde a lo que dice. Si solo dice "(nota de voz)", no se pudo escuchar: pide con amabilidad que lo escriba.
 - Si el mensaje empieza con "Hola Jonah, este es mi plan de Jonah Beast Fuel" (o la versión antigua "Hola Jonah 👋 Este es mi plan…"), viene del botón "Recibir mi plan por WhatsApp" de la web (manual, sección 3): felicítalo por dar el primer paso, repítele su plan con SUS números tal cual (no los cambies ni calcules otros), explícale en 2 o 3 líneas cómo se ve en su día con comida peruana (repartir las calorías en sus comidas, proteína en cada una, sin prohibir nada) y dile que cree su cuenta gratis en jonahbeast.com desde el mismo celular: su plan ya queda guardado y tiene 7 días de Premium. Sé breve y cálido.
+- La historia de Jonah (es real, puedes contarla): Jonah usa su propia app. El 27 de julio de 2026 pesaba 104 kg y al 30 de septiembre pesaba 90.2 kg: bajó 13.8 kg en 2 meses (unos 10 kg de grasa, es un estimado) registrando cada comida con la app, con comida peruana y sin pasar hambre. No agregues otros números ni prometas que a todos les irá igual: cada cuerpo es distinto.
+- Puedes mandar la foto del antes y después de Jonah con la herramienta mandar_antes_despues. Úsala cuando ayude a motivar: alguien que recién empieza o recién se registró, que pregunta si la app funciona o si los resultados son reales, o que duda en empezar o pagar. Escribe también tu mensaje de texto (corto) junto con la herramienta: el sistema manda primero tu texto y luego la foto. Mándala como máximo una vez por conversación: si en "Datos de esta conversación" dice que ya se la mandaste, no la vuelvas a mandar. No la uses en reclamos, temas médicos, pagos con problemas ni chats personales.
 - Si el mensaje empieza con "Hola Jonah, medí mi composición corporal en la web" (o la versión antigua "Hola Jonah 👋 Medí mi composición…"), viene de la calculadora de jonahbeast.com (manual, sección 2): felicítalo, explícale en simple qué significan SUS números tal cual (no calcules otros; el % de grasa y el IMC son estimaciones de referencia, no un diagnóstico), dale un primer paso concreto y dile que cree su cuenta gratis en jonahbeast.com para tener su plan con comida peruana, con 7 días de Premium. Sé breve y cálido.
 
 Reglas (además de las de la sección 0 del manual):
@@ -119,6 +121,11 @@ Reglas (además de las de la sección 0 del manual):
 - Si piden agregar un alimento o plato a la app: primero revisa la lista "Alimentos que ya están en la app" y los que Jonah agregó hace poco. Si ya existe (aunque se escriba distinto), dile con qué nombre buscarlo en "REGISTRAR" → "Escribir". Si no existe, usa la herramienta pedir_alimento (sin escribir texto: el sistema le responde al cliente que se están calculando los macros y le avisa cuando esté listo). No uses pasar_a_jonah para esto.
 - Este WhatsApp es también el número personal de Jonah. Si el mensaje es claramente personal (familia, pareja, amigos, planes para salir, trabajo o temas ajenos a Jonah Beast Fuel) y no pregunta nada de la app, los planes, los pagos, la alimentación ni la tienda, usa la herramienta mensaje_personal (sin escribir texto): no se responde y el chat queda para Jonah. Si hay cualquier duda (por ejemplo "hola", "información" o "precio" de un número nuevo), NO la uses: responde normalmente.
 - Usa la herramienta pasar_a_jonah cuando: haya un pago por aprobar, rechazado o con problemas; pidan descuentos o precios especiales; haya temas médicos (embarazo, diabetes, lesiones, medicamentos, trastornos de la alimentación); haya reclamos, enojo o pedidos de reembolso; no sepas la respuesta; o pidan hablar con una persona. Cuando la uses, no escribas texto: el sistema le avisa al cliente.`;
+
+// Antes y después de Jonah (está en public/ de la web). El asistente la
+// manda como máximo una vez por conversación.
+const FOTO_ANTES_DESPUES = "https://jonahbeast.com/antes-despues-jonah.jpg";
+const TEXTO_ANTES_DESPUES = "(foto) Antes y después de Jonah: 104 kg → 90.2 kg en 2 meses con su propia app";
 
 const HERRAMIENTAS = [{
   name: "pedir_alimento",
@@ -143,6 +150,16 @@ const HERRAMIENTAS = [{
       resumen: { type: "string", description: "Una línea para Jonah: quién es y qué necesita. Ej.: \"Alumna Carla pide reembolso de su plan trimestral\"." },
     },
     required: ["motivo", "resumen"],
+    additionalProperties: false,
+  },
+}, {
+  name: "mandar_antes_despues",
+  description: "Manda al cliente la imagen del antes y después de Jonah (104 kg el 27 de julio → 90.2 kg el 30 de septiembre, usando su propia app). Escribe además un texto corto: el sistema manda primero el texto y después la foto. Máximo una vez por conversación.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {},
+    required: [],
     additionalProperties: false,
   },
 }, {
@@ -384,7 +401,7 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
 
   await graph(cuenta, `/${cuenta.phone_number_id}/messages`, { messaging_product: "whatsapp", status: "read", message_id: msg.id }).catch(() => {});
 
-  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string; personal?: string };
+  let respuesta: { texto?: string; pasar?: { motivo: string; resumen: string }; pedido?: string; personal?: string; antesDespues?: boolean };
   try {
     respuesta = await preguntarAClaude(cuenta, telefono, msg, alumno, nombreWa);
   } catch (e) {
@@ -429,8 +446,9 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
   } else if (respuesta.pedido) {
     await registrarPedido(telefono, alumno, nombreWa, respuesta.pedido);
     await enviarTexto(cuenta, telefono, mensajePedido(respuesta.pedido));
-  } else if (respuesta.texto) {
-    await enviarTexto(cuenta, telefono, respuesta.texto);
+  } else if (respuesta.texto || respuesta.antesDespues) {
+    if (respuesta.texto) await enviarTexto(cuenta, telefono, respuesta.texto);
+    if (respuesta.antesDespues && !(await yaMandoAntesDespues(telefono))) await enviarAntesDespues(cuenta, telefono);
   }
 }
 
@@ -516,6 +534,12 @@ function fechaLima(d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(d);
 }
 
+async function yaMandoAntesDespues(telefono: string) {
+  const { count } = await supabase.from("whatsapp_mensajes")
+    .select("id", { count: "exact", head: true }).eq("telefono", telefono).eq("tipo", "antes_despues");
+  return (count || 0) > 0;
+}
+
 async function contexto(alumno: any, nombreWa: string | null, telefono: string) {
   const hoy = fechaLima();
   const { data: config } = await supabase.from("config").select("key, value").in("key", ["precio_1", "precio_3", "precio_6", "precio_12"]);
@@ -529,7 +553,8 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
   let t = `Datos de esta conversación (hoy es ${hoy}, hora de Lima):
 - Alimentos que Jonah agregó hace poco (también están en la app): ${agregados.length ? agregados.join(", ") : "ninguno"}.
 - Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Semestral S/${precio("precio_6")}, Anual S/${precio("precio_12")}. La captura inteligente (5 fotos de comida al día) viene incluida en todos los planes; ya no se vende aparte.
-- Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.`;
+- Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.
+- Foto del antes y después de Jonah: ${(await yaMandoAntesDespues(telefono)) ? "YA se la mandaste en esta conversación (no la vuelvas a mandar)" : "todavía no se la mandaste"}.`;
 
   if (!alumno) {
     return t + `\n- No está registrado como alumno con este número (posible cliente nuevo, o se registró con otro celular). No tienes datos de ninguna cuenta.`;
@@ -652,7 +677,8 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   }
   if (alimento) return { pedido: alimento };
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
-  return { texto };
+  const antesDespues = bloques.some((b: any) => b.type === "tool_use" && b.name === "mandar_antes_despues");
+  return antesDespues ? { texto, antesDespues } : { texto };
 }
 
 async function graph(cuenta: any, ruta: string, cuerpo: unknown) {
@@ -688,6 +714,20 @@ async function enviarTexto(cuenta: any, telefono: string, texto: string, tipo = 
       }
       return;
     }
+  }
+}
+
+async function enviarAntesDespues(cuenta: any, telefono: string) {
+  try {
+    const r = await graph(cuenta, `/${cuenta.phone_number_id}/messages`, {
+      messaging_product: "whatsapp", recipient_type: "individual", to: telefono,
+      type: "image", image: { link: FOTO_ANTES_DESPUES },
+    });
+    await supabase.from("whatsapp_mensajes").insert({
+      telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo: "antes_despues", texto: TEXTO_ANTES_DESPUES,
+    });
+  } catch (e) {
+    console.error("No se pudo enviar el antes y después:", (e as Error)?.message || "");
   }
 }
 
@@ -806,6 +846,7 @@ async function simular(req: Request) {
     if (r.pasar) return json({ texto: MENSAJE_PASO_A_JONAH, pasar: r.pasar });
     if (r.pedido) return json({ texto: mensajePedido(r.pedido), pedido: r.pedido });
     if (r.personal) return json({ personal: r.personal });
+    if (r.antesDespues) return json({ texto: `${r.texto || ""}\n\n📷 (Aquí se envía la foto del antes y después de Jonah)`.trim(), antesDespues: true });
     return json({ texto: r.texto || "" });
   } catch (e) {
     console.error("whatsapp-webhook (simulador):", (e as Error)?.message);

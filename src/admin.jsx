@@ -1894,45 +1894,21 @@ function LeadsPanel() {
   );
 }
 
-// Gráfico de barras simple (una sola serie, así que no lleva leyenda: el
-// título dice qué es). Barras naranja ají con la punta redondeada, 2px de
-// separación y el valor al tocar o pasar el mouse. Se marcan solo el último
-// valor y el más alto, para no llenar de números.
-function BarrasSimples({ datos, formato = v => v, alto = 120, etiquetaCada = 1 }) {
-  const [activo, setActivo] = useState(null);
-  const max = Math.max(1, ...datos.map(d => d.valor));
-  const iMax = datos.reduce((im, d, i) => (d.valor > datos[im].valor ? i : im), 0);
-  const mostrado = activo !== null ? activo : datos.length - 1;
+// Para usar GraficoHud con una sola serie: cada dato {clave, etiqueta, valor}
+// pasa a {partes: {valor}} y se pinta en naranja ají.
+const SERIE_LED_UNICA = [{ key: 'valor', label: 'Valor', color: '#FF7020' }];
+const ledsDeUnValor = datos => datos.map(d => ({ ...d, partes: { valor: d.valor } }));
+
+// Barra horizontal lisa con brillo naranja (sin cuadritos repetidos), con
+// el mismo brillo de la línea de la "Proyección mensual". Se llena de
+// izquierda a derecha al aparecer.
+function BarraBrillo({ pct, fila = 0, alto = 'h-2' }) {
+  const ancho = Math.min(100, Math.max(0, pct));
   return (
-    <div>
-      <div className="jb-body text-xs text-zinc-400 h-5 mb-1">
-        {datos[mostrado] && <><span className="text-zinc-500">{datos[mostrado].etiquetaLarga || datos[mostrado].etiqueta}:</span> <span className="text-zinc-50 font-semibold">{formato(datos[mostrado].valor)}</span></>}
-      </div>
-      <div className="flex items-end gap-[2px] border-b border-zinc-700" style={{ height: alto }}
-        onMouseLeave={() => setActivo(null)}>
-        {datos.map((d, i) => (
-          <button key={d.clave} type="button"
-            aria-label={`${d.etiquetaLarga || d.etiqueta}: ${formato(d.valor)}`}
-            onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
-            className="flex-1 h-full flex flex-col justify-end items-center group min-w-0">
-            {(i === iMax || i === datos.length - 1) && d.valor > 0 && (
-              <span className="jb-body text-[10px] text-zinc-300 mb-0.5 whitespace-nowrap">{formato(d.valor)}</span>
-            )}
-            <span className={`w-full rounded-t-[4px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-50'}`}
-              style={{ height: `${(d.valor / max) * 100}%`, minHeight: d.valor > 0 ? 2 : 0, background: '#E8590C', maxHeight: `calc(100% - 16px)` }} />
-          </button>
-        ))}
-      </div>
-      <div className="flex gap-[2px] mt-1">
-        {datos.map((d, i) => (
-          <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
-            <span className="jb-body text-[10px] text-zinc-500 whitespace-nowrap">
-              {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
+    <span className={`flex-1 w-full ${alto} rounded-full overflow-hidden`} style={{ background: '#27272a' }} aria-hidden="true">
+      <span className="block h-full rounded-full jbg-anim"
+        style={{ width: `${ancho}%`, background: 'linear-gradient(90deg, #C24A0A, #FF7020)', boxShadow: '0 0 8px rgba(255,112,32,0.7)', transformOrigin: 'left', animation: `jbg-crece .8s ease-out ${fila * 0.1}s both` }} />
+    </span>
   );
 }
 
@@ -2222,9 +2198,7 @@ function ActivacionPanel({ users }) {
                       <span className="jb-display text-base text-zinc-50">{p.n}</span> · {pct}%
                     </span>
                   </div>
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
-                  </div>
+                  <div className="flex"><BarraBrillo pct={p.n ? Math.max(pct, 1) : 0} fila={i} /></div>
                 </div>
               </div>
             );
@@ -2294,9 +2268,7 @@ function ActivacionPanel({ users }) {
                     )}
                     <div className="flex items-center gap-2">
                       <span className="jb-body text-xs text-zinc-300 w-36 shrink-0">{p.titulo}</span>
-                      <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-500 rounded-full transition-all duration-700" style={{ width: `${Math.max(pct, p.n ? 2 : 0)}%` }} />
-                      </div>
+                      <BarraBrillo pct={p.n ? Math.max(pct, 1) : 0} fila={i} />
                       <span className="jb-body text-xs text-zinc-400 tabular-nums w-14 text-right"><span className="jb-display text-sm text-zinc-50">{p.n}</span> · {pct}%</span>
                     </div>
                   </div>
@@ -2410,14 +2382,9 @@ function TableroPanel({ users: todosLosUsuarios }) {
         <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Cargando gráficos…</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-5">
-          <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">INGRESOS POR MES</h3>
-            <BarrasSimples datos={graficoIngresos} formato={fmtSoles} />
-          </div>
-          <div>
-            <h3 className="jb-display text-sm text-zinc-300 mb-2">ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS</h3>
-            <BarrasSimples datos={graficoUso} formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
-          </div>
+          <GraficoHud titulo="INGRESOS POR MES" datos={ledsDeUnValor(graficoIngresos)} series={SERIE_LED_UNICA} formato={fmtSoles} />
+          <GraficoHud titulo="ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS" datos={ledsDeUnValor(graficoUso)} series={SERIE_LED_UNICA}
+            formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
         </div>
       )}
     </div>
@@ -2437,6 +2404,26 @@ const SUPUESTOS_RENTABILIDAD = {
 
 const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp'];
 
+// Partes de la app que usan IA, para comparar su costo con el mes anterior.
+const PARTES_IA = [
+  { funcion: 'reconocer-comida', label: 'Fotos de comida', uso: 'foto' },
+  { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
+  { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
+  { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
+];
+
+// El mismo momento del mes pasado (si hoy es 15 a las 10 am, el 15 del mes
+// pasado a las 10 am), para comparar "lo que va del mes" con lo mismo del
+// mes anterior. Si el mes pasado era más corto, se queda en su último día.
+function mismoMomentoMesPasado(d) {
+  const r = new Date(d);
+  const dia = r.getDate();
+  r.setDate(1);
+  r.setMonth(r.getMonth() - 1);
+  r.setDate(Math.min(dia, new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate()));
+  return r;
+}
+
 function cuotaNuevoRus(ingresos) {
   if (ingresos <= 5000) return 20;
   if (ingresos <= 8000) return 50;
@@ -2453,11 +2440,12 @@ function costoPorAlumno(s, conversionPct) {
 
 // Ganancia al mes según cuántos alumnos pagan, con estilo HUD: área con
 // degradado (rojo donde pierdes, verde donde ganas), línea con brillo que
-// se dibuja al aparecer, cuadrícula de puntos, esquinas de pantalla y el
+// se dibuja al aparecer (sin cuadrícula de puntos), esquinas de pantalla y el
 // punto de "Hoy" latiendo. Marcas: hoy, equilibrio y sueldo.
 const ESTILOS_GRAFICO_HUD = `
 @keyframes jbg-dibuja { from { stroke-dashoffset: 1200; } to { stroke-dashoffset: 0; } }
 @keyframes jbg-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jbg-crece { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes jbg-barre { 0% { transform: translateX(-5%); opacity: 0; } 10% { opacity: .5; } 90% { opacity: .5; } 100% { transform: translateX(105%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .jbg-anim { animation: none !important; } }
 `;
@@ -2503,9 +2491,6 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
         onTouchMove={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
         onMouseLeave={() => setHover(null)}>
         <defs>
-          <pattern id="jbg-puntos" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="#3f3f46" opacity="0.6" />
-          </pattern>
           <linearGradient id="jbg-gana" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#34d399" stopOpacity="0.45" />
             <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
@@ -2525,7 +2510,6 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
           </filter>
         </defs>
 
-        <rect x={pl} y={pt} width={W - pl - pr} height={H - pt - pb} fill="url(#jbg-puntos)" />
         <rect className="jbg-anim" x={pl} y={pt} width="60" height={H - pt - pb} fill="url(#jbg-barrido)"
           style={{ animation: 'jbg-barre 4.5s ease-in-out infinite', transformBox: 'fill-box' }} />
         {[[pl, pt, 1, 1], [W - pr, pt, -1, 1], [pl, H - pb, 1, -1], [W - pr, H - pb, -1, -1]].map(([cx, cy, dx, dy], k) => (
@@ -2595,6 +2579,388 @@ function GraficoGanancia({ fijos, queda, hoy, equilibrio, paraSueldo, sueldo }) 
   );
 }
 
+// ── Analítica del costo de la IA ─────────────────────────────────────────
+// Colores de cada parte en los gráficos (validados para que se distingan
+// entre sí, también para daltónicos, sobre el fondo carbón). Fotos va en el
+// naranja ají de la marca.
+const COLORES_PARTES_IA = {
+  'reconocer-comida': '#E8590C',
+  'alimentos-pedidos': '#3987e5',
+  'jarvis-chat': '#199e70',
+  'whatsapp-webhook': '#c98500',
+};
+
+const PERIODOS_IA = [
+  { key: 'dia', label: '30 días', ultimos: 'los últimos 30 días', dias: 30 },
+  { key: 'semana', label: '12 semanas', ultimos: 'las últimas 12 semanas', dias: 84 },
+  { key: 'mes', label: '6 meses', ultimos: 'los últimos 6 meses', dias: 182 },
+];
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+const diaLima = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+
+// Lunes de la semana de una fecha "AAAA-MM-DD".
+function lunesDe(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  return addDaysISO(iso, -((d.getDay() + 6) % 7));
+}
+
+// Las barras del período elegido (de la más antigua a la más reciente).
+function barrasDelPeriodo(periodo, hoy) {
+  const fmtDia = iso => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MESES_CORTOS[m - 1]}`; };
+  if (periodo === 'dia') {
+    return Array.from({ length: 30 }, (_, i) => {
+      const iso = addDaysISO(hoy, i - 29);
+      return { clave: iso, etiqueta: String(Number(iso.slice(8))), etiquetaLarga: fmtDia(iso) };
+    });
+  }
+  if (periodo === 'semana') {
+    const lunes = lunesDe(hoy);
+    return Array.from({ length: 12 }, (_, i) => {
+      const iso = addDaysISO(lunes, (i - 11) * 7);
+      return { clave: iso, etiqueta: fmtDia(iso), etiquetaLarga: `Semana del ${fmtDia(iso)}` };
+    });
+  }
+  const [y, m] = hoy.split('-').map(Number);
+  return Array.from({ length: 6 }, (_, i) => {
+    const n = y * 12 + (m - 1) + (i - 5);
+    const yy = Math.floor(n / 12), mm = n % 12;
+    return { clave: `${yy}-${String(mm + 1).padStart(2, '0')}`, etiqueta: MESES_CORTOS[mm], etiquetaLarga: `${MESES_CORTOS[mm]} ${yy}` };
+  });
+}
+
+function claveDeBarra(periodo, dia) {
+  if (periodo === 'dia') return dia;
+  if (periodo === 'semana') return lunesDe(dia);
+  return dia.slice(0, 7);
+}
+
+// Gráfico de línea con el mismo estilo de la "Proyección mensual": fondo
+// con brillo naranja, esquinas de pantalla, línea que brilla y se dibuja al
+// aparecer, área con degradado debajo y el último punto latiendo. Sin
+// cuadrículas ni figuras repetidas: solo la línea del 0 y una guía punteada
+// con el valor más alto. Con varias partes, una línea por parte (con
+// leyenda). Al tocar o pasar el mouse se ve el dato de ese punto.
+function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true }) {
+  const [hover, setHover] = useState(null);
+  const uid = useMemo(() => 'h' + Math.random().toString(36).slice(2, 8), []);
+  const W = 600, H = 190, pl = 10, pr = 10, pt = 22, pb = 14;
+  const n = datos.length;
+  const valor = (d, s) => d.partes[s.key] || 0;
+  const total = d => series.reduce((a, s) => a + valor(d, s), 0);
+  const maxReal = Math.max(0, ...datos.flatMap(d => series.map(s => valor(d, s))));
+  const yMax = maxReal > 0 ? maxReal * 1.18 : 1;
+  const x = i => pl + (n <= 1 ? 0.5 : i / (n - 1)) * (W - pl - pr);
+  const y = v => pt + (1 - v / yMax) * (H - pt - pb);
+  const y0 = y(0);
+  const unica = series.length === 1;
+  const mostrado = hover !== null ? hover : n - 1;
+  const d0 = datos[mostrado];
+  const mover = (clientX, el) => {
+    const r = el.getBoundingClientRect();
+    const i = Math.round(((clientX - r.left) / r.width * W - pl) / (W - pl - pr) * (n - 1));
+    setHover(Math.max(0, Math.min(n - 1, i)));
+  };
+  const esquina = (cx, cy, dx, dy) => `M${cx + dx * 14},${cy} L${cx},${cy} L${cx},${cy + dy * 14}`;
+  const puntos = s => datos.map((d, i) => `${x(i)},${y(valor(d, s))}`).join(' ');
+  const etiquetas = datos.map((d, i) => ({ d, i })).filter(({ i }) =>
+    (i % etiquetaCada === 0 && n - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === n - 1);
+  return (
+    <div className="relative rounded-lg p-3 overflow-hidden"
+      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(232,89,12,0.10), rgba(9,9,11,0.95) 70%)', border: '1px solid rgba(232,89,12,0.25)' }}>
+      <style>{ESTILOS_GRAFICO_HUD}</style>
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <span className="font-mono text-[10px] tracking-[0.2em] text-orange-400/80 pt-0.5">◉ {titulo}</span>
+        {d0 && (
+          <span className="font-mono text-xs text-zinc-400 text-right">
+            {d0.etiquetaLarga} → <span className="text-orange-400 font-semibold">{formato(total(d0))}</span>
+          </span>
+        )}
+      </div>
+      {!unica && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1">
+          {series.map(s => (
+            <span key={s.key} className="font-mono text-[10px] text-zinc-400 inline-flex items-center gap-1.5">
+              <span className="inline-block w-3 h-[3px] rounded-full" style={{ background: s.color, boxShadow: `0 0 5px ${s.color}` }} />{s.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {detalle && !unica && d0 && (
+        <div className="font-mono text-[10px] text-zinc-500 mb-1 min-h-[1.25rem]">
+          {series.filter(s => valor(d0, s)).map(s => `${s.label} ${formato(valor(d0, s))}`).join(' · ') || 'sin uso'}
+        </div>
+      )}
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img"
+        aria-label={`${titulo}: ${datos.map(d => `${d.etiquetaLarga} ${formato(total(d))}`).join(', ')}`}
+        onMouseMove={e => mover(e.clientX, e.currentTarget)}
+        onTouchStart={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
+        onTouchMove={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
+        onMouseLeave={() => setHover(null)}>
+        <defs>
+          {series.map(s => (
+            <linearGradient key={s.key} id={`${uid}-a-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity={unica ? 0.45 : 0.12} />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+            </linearGradient>
+          ))}
+          <linearGradient id={`${uid}-barrido`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FF7020" stopOpacity="0" />
+            <stop offset="50%" stopColor="#FF7020" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#FF7020" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${uid}-brillo`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        <rect className="jbg-anim" x={pl} y={pt} width="60" height={H - pt - pb} fill={`url(#${uid}-barrido)`}
+          style={{ animation: 'jbg-barre 4.5s ease-in-out infinite', transformBox: 'fill-box' }} />
+        {[[pl, pt, 1, 1], [W - pr, pt, -1, 1], [pl, H - pb, 1, -1], [W - pr, H - pb, -1, -1]].map(([cx, cy, dx, dy], k) => (
+          <path key={k} d={esquina(cx, cy, dx, dy)} fill="none" stroke="#E8590C" strokeWidth="1.5" opacity="0.7" />
+        ))}
+
+        <line x1={pl} x2={W - pr} y1={y0} y2={y0} stroke="#52525b" strokeWidth="1" />
+        {maxReal > 0 && <>
+          <line x1={pl} x2={W - pr} y1={y(maxReal)} y2={y(maxReal)} stroke="#71717a" strokeWidth="1" strokeDasharray="3 5" opacity="0.7" />
+          <text x={W - pr - 4} y={y(maxReal) - 5} textAnchor="end" fontSize="11" fontFamily="monospace" fill="#a1a1aa">MÁX {formato(maxReal)}</text>
+        </>}
+
+        {series.map((s, k) => (
+          <polygon key={s.key} className="jbg-anim" style={{ animation: `jbg-aparece 1.2s ease-out ${k * 0.15}s both` }}
+            points={`${x(0)},${y0} ${puntos(s)} ${x(n - 1)},${y0}`} fill={`url(#${uid}-a-${s.key})`} />
+        ))}
+        <g filter={`url(#${uid}-brillo)`}>
+          {series.map((s, k) => (
+            <polyline key={s.key} className="jbg-anim" points={puntos(s)} fill="none" stroke={s.color} strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round" pathLength="1200" strokeDasharray="1200"
+              style={{ animation: `jbg-dibuja 1.4s ease-out ${k * 0.15}s both` }} />
+          ))}
+        </g>
+
+        {hover === null && n > 0 && series.map(s => {
+          const cx = x(n - 1), cy = y(valor(datos[n - 1], s));
+          return (
+            <g key={s.key}>
+              {unica && (
+                <circle cx={cx} cy={cy} r="6" fill="none" stroke={s.color} strokeWidth="1.5">
+                  <animate attributeName="r" values="5;14;5" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.9;0;0.9" dur="2s" repeatCount="indefinite" />
+                </circle>
+              )}
+              <circle cx={cx} cy={cy} r="4.5" fill={s.color} stroke="#09090b" strokeWidth="2" filter={`url(#${uid}-brillo)`} />
+            </g>
+          );
+        })}
+
+        {hover !== null && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={pt} y2={H - pb} stroke="#e4e4e7" strokeWidth="1" opacity="0.35" />
+            {series.map(s => (
+              <circle key={s.key} cx={x(hover)} cy={y(valor(datos[hover], s))} r="5" fill={s.color} stroke="#09090b" strokeWidth="2" filter={`url(#${uid}-brillo)`} />
+            ))}
+          </g>
+        )}
+      </svg>
+      <div className="relative h-4 font-mono text-[10px] text-zinc-500">
+        {etiquetas.map(({ d, i }) => (
+          <span key={d.clave} className="absolute whitespace-nowrap"
+            style={i === n - 1 ? { right: 0 } : i === 0 ? { left: 0 } : { left: `${(x(i) / W) * 100}%`, transform: 'translateX(-50%)' }}>
+            {d.etiqueta}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Gráficos del costo de la IA: cuánto se gasta, cuántas veces se usa y
+// cuánto sale cada uso, por día, semana o mes, por parte de la app. Con
+// comparación contra el período anterior y botón para descargar en Excel.
+function AnaliticaIAPanel({ tipoCambio }) {
+  const [filas, setFilas] = useState(null);
+  const [periodo, setPeriodo] = useState('dia');
+  const [parte, setParte] = useState('todas');
+  const [verTabla, setVerTabla] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      // Un año de datos (para comparar 6 meses con los 6 anteriores), de a
+      // 1000 filas, que es lo máximo que entrega la base por pedido.
+      const desde = new Date(Date.now() - 366 * 864e5).toISOString();
+      const todas = [];
+      for (let i = 0; ; i += 1000) {
+        const { data, error } = await supabase.from('ia_uso')
+          .select('funcion, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', desde).order('creado_en').range(i, i + 999);
+        if (error) throw error;
+        todas.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      if (!cancelado) setFilas(todas.filter(f => COLORES_PARTES_IA[f.funcion]).map(f => ({ ...f, usd: costoUsdIA(f), dia: diaLima(f.creado_en) })));
+    })().catch(() => { if (!cancelado) setFilas([]); });
+    return () => { cancelado = true; };
+  }, []);
+
+  const tarjeta = 'bg-zinc-950 border border-zinc-800 rounded-lg p-3';
+  const soles = usd => usd * tipoCambio;
+  const fmtSoles = v => `S/${v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(3)}`;
+  const series = PARTES_IA.map(p => ({ key: p.funcion, label: p.label, color: COLORES_PARTES_IA[p.funcion] }));
+  const parteSel = PARTES_IA.find(p => p.funcion === parte);
+  const filasParte = (filas || []).filter(f => parte === 'todas' || f.funcion === parte);
+
+  const hoy = todayISO();
+  const conf = PERIODOS_IA.find(p => p.key === periodo);
+  const barras = barrasDelPeriodo(periodo, hoy).map(b => ({ ...b, partes: {}, usos: 0, usd: 0 }));
+  const porClave = Object.fromEntries(barras.map(b => [b.clave, b]));
+  filasParte.forEach(f => {
+    const b = porClave[claveDeBarra(periodo, f.dia)];
+    if (!b) return;
+    b.partes[f.funcion] = (b.partes[f.funcion] || 0) + soles(f.usd);
+    b.usos++; b.usd += f.usd;
+  });
+  const etiquetaCada = periodo === 'dia' ? 5 : periodo === 'semana' ? 3 : 1;
+  // Los gráficos empiezan donde hay datos: antes la IA no se medía, y una
+  // línea en 0 haría pensar que no costó nada. El costo por uso solo se
+  // dibuja donde hubo usos.
+  const primera = barras.findIndex(b => b.usos > 0);
+  const barrasG = primera < 0 ? barras : barras.slice(Math.min(primera, barras.length - 2));
+  const barrasConUso = barrasG.filter(b => b.usos > 0);
+
+  // Ventanas móviles del mismo largo: los últimos N días contra los N anteriores.
+  const corte = Date.now() - conf.dias * 864e5, corteAntes = corte - conf.dias * 864e5;
+  const ahora = filasParte.filter(f => new Date(f.creado_en).getTime() >= corte);
+  const antes = filasParte.filter(f => { const t = new Date(f.creado_en).getTime(); return t >= corteAntes && t < corte; });
+  const sumaS = l => soles(l.reduce((a, f) => a + f.usd, 0));
+  const gasto = sumaS(ahora), gastoAntes = sumaS(antes);
+  const porUso = ahora.length ? gasto / ahora.length : null;
+  const porUsoAntes = antes.length ? gastoAntes / antes.length : null;
+  const cambio = (a, b) => (a !== null && b ? Math.round((a / b - 1) * 100) : null);
+  const flecha = c => c === null ? <span className="text-zinc-500">sin datos para comparar</span>
+    : c <= -5 ? <span className="text-emerald-400">▼ {Math.abs(c)}% vs período anterior</span>
+    : c >= 5 ? <span className="text-orange-400">▲ {c}% vs período anterior</span>
+    : <span className="text-zinc-400">igual que el período anterior</span>;
+  const nombreUso = parteSel ? parteSel.uso : 'uso';
+  const desdeMedicion = filas && filas.length ? filas[0].dia : null;
+
+  function exportar() {
+    // Una fila por día y parte, con todo lo medido.
+    const grupos = {};
+    (filas || []).forEach(f => {
+      const k = `${f.dia}|${f.funcion}`;
+      const g = grupos[k] || (grupos[k] = { fecha: f.dia, parte: PARTES_IA.find(p => p.funcion === f.funcion).label, usos: 0, usd: 0, tokens_entrada: 0, tokens_salida: 0 });
+      g.usos++; g.usd += f.usd;
+      g.tokens_entrada += Number(f.tokens_entrada) || 0; g.tokens_salida += Number(f.tokens_salida) || 0;
+    });
+    const encabezado = ['fecha', 'parte', 'usos', 'gasto_soles', 'gasto_dolares', 'costo_por_uso_soles', 'tokens_entrada', 'tokens_salida'];
+    const lineas = Object.values(grupos).sort((a, b) => a.fecha.localeCompare(b.fecha) || a.parte.localeCompare(b.parte)).map(g => [
+      g.fecha, g.parte, g.usos, soles(g.usd).toFixed(4), g.usd.toFixed(4), (soles(g.usd) / g.usos).toFixed(4), g.tokens_entrada, g.tokens_salida,
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const blob = new Blob(['﻿' + [encabezado.join(','), ...lineas].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `costo_ia_jonahbeast_${hoy}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const chip = (activa, onClick, texto, key) => (
+    <button key={key} type="button" onClick={onClick}
+      className={`jb-body text-[11px] px-2.5 py-1 rounded-full border transition-colors ${activa ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+      {texto}
+    </button>
+  );
+
+  return (
+    <div className={`${tarjeta} flex flex-col gap-3`}>
+      <div className="flex justify-between items-start gap-2">
+        <div>
+          <h3 className="jb-display text-sm text-zinc-300">📊 ANALÍTICA DE LA IA</h3>
+          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">
+            Gasto, usos y costo por uso de cada parte de la app.{desdeMedicion ? ` Se mide desde el ${desdeMedicion.split('-').reverse().join('/')}.` : ''}
+          </p>
+        </div>
+        <button type="button" onClick={exportar} disabled={!filas || !filas.length}
+          className="jb-body text-[11px] px-2.5 py-1 rounded-lg border border-zinc-700 text-zinc-200 hover:border-orange-500 disabled:opacity-40 shrink-0">
+          ⬇ Exportar a Excel
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap gap-1.5">{PERIODOS_IA.map(p => chip(periodo === p.key, () => setPeriodo(p.key), p.label, p.key))}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {chip(parte === 'todas', () => setParte('todas'), 'Todas', 'todas')}
+          {PARTES_IA.map(p => chip(parte === p.funcion, () => setParte(p.funcion), p.label, p.funcion))}
+        </div>
+      </div>
+
+      {!filas ? <Loader2 size={14} className="animate-spin text-orange-500" /> : !filas.length ? (
+        <p className="jb-body text-xs text-zinc-500">Todavía no hay usos de la IA anotados.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { v: fmtSoles(gasto), l: `Gasto en ${conf.ultimos}`, c: flecha(cambio(gasto, gastoAntes)) },
+              { v: String(ahora.length), l: `Usos (${parteSel ? `cada ${nombreUso}` : 'fotos, pedidos, consultas y respuestas'})`, c: flecha(cambio(ahora.length, antes.length)) },
+              { v: porUso === null ? '—' : `S/${porUso.toFixed(3)}`, l: `Costo de cada ${nombreUso}`, c: flecha(cambio(porUso, porUsoAntes)) },
+            ].map(t => (
+              <div key={t.l} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2 min-w-0">
+                <div className="jb-display text-lg text-orange-400">{t.v}</div>
+                <div className="jb-body text-[11px] text-zinc-300 leading-tight mt-0.5">{t.l}</div>
+                <div className="jb-body text-[10px] leading-tight mt-0.5">{t.c}</div>
+              </div>
+            ))}
+          </div>
+          <p className="jb-body text-[10px] text-zinc-500 -mt-1">
+            En "Costo de cada uso", ▼ verde es bueno: la IA te sale más barata. En gasto y usos, subir puede ser bueno si es porque hay más alumnos usando la app.
+          </p>
+
+          <GraficoHud titulo="GASTO EN SOLES" datos={barrasG}
+            series={parte === 'todas' ? series : series.filter(x => x.key === parte).map(x => ({ ...x, color: '#FF7020' }))}
+            formato={fmtSoles} etiquetaCada={etiquetaCada} />
+
+          <GraficoHud titulo="USOS DE LA IA" detalle={false}
+            datos={barrasG.map(b => ({ ...b, partes: { usos: b.usos } }))} series={[{ key: 'usos', label: 'Usos', color: '#FF7020' }]}
+            formato={v => `${v} ${v === 1 ? 'uso' : 'usos'}`} etiquetaCada={etiquetaCada} />
+
+          <GraficoHud titulo={`COSTO POR ${nombreUso.toUpperCase()}${parteSel ? '' : ' · PROMEDIO'}`} detalle={false}
+            datos={(barrasConUso.length >= 2 ? barrasConUso : barrasG).map(b => ({ ...b, partes: { porUso: b.usos ? soles(b.usd) / b.usos : 0 } }))} series={[{ key: 'porUso', label: 'Por uso', color: '#FF7020' }]}
+            formato={v => `S/${v.toFixed(3)}`} etiquetaCada={etiquetaCada} />
+
+          <button type="button" onClick={() => setVerTabla(v => !v)} className="jb-body text-[11px] text-zinc-400 underline self-start">
+            {verTabla ? 'Ocultar tabla' : 'Ver los números en tabla'}
+          </button>
+          {verTabla && (
+            <div className="overflow-x-auto">
+              <table className="w-full jb-body text-xs">
+                <thead>
+                  <tr className="text-zinc-500 text-[11px]">
+                    <th className="text-left font-normal py-1 pr-2">{periodo === 'dia' ? 'Día' : periodo === 'semana' ? 'Semana' : 'Mes'}</th>
+                    <th className="text-right font-normal py-1 px-2">Gasto</th>
+                    <th className="text-right font-normal py-1 px-2">Usos</th>
+                    <th className="text-right font-normal py-1 pl-2">Por uso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...barras].reverse().filter(b => b.usos).map(b => (
+                    <tr key={b.clave} className="border-t border-zinc-800 text-zinc-200">
+                      <td className="py-1 pr-2">{b.etiquetaLarga}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{fmtSoles(soles(b.usd))}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{b.usos}</td>
+                      <td className="text-right py-1 pl-2 tabular-nums">S/{(soles(b.usd) / b.usos).toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function RentabilidadPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
   const [sup, setSup] = useState(SUPUESTOS_RENTABILIDAD);
@@ -2609,13 +2975,15 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
     (async () => {
       const inicio = new Date(); inicio.setDate(1);
       const inicioISO = fechaLocalISO(inicio);
+      const inicioAnterior = new Date(inicio); inicioAnterior.setMonth(inicioAnterior.getMonth() - 1);
       const [{ data: cfg }, { data: pagos }, { data: fotos }, { data: ia }, { data: gastos }, { data: historialPagos }] = await Promise.all([
         supabase.from('config').select('key, value')
           .in('key', ['rentabilidad_supuestos', ...PLANES.map(p => p.configKey)]),
         supabase.from('pagos').select('username, monto, metodo').eq('estado', 'aprobado').gte('creado_en', inicioISO).range(0, 4999),
         supabase.from('fotos_reconocimiento_uso').select('usadas').gte('updated_at', inicioISO).not('username', 'like', 'demo:%').not('periodo', 'like', 'sugerencia-%').range(0, 9999),
-        supabase.from('ia_uso').select('tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
-          .gte('creado_en', inicioISO).range(0, 19999),
+        // Desde el mes pasado, para comparar el costo de la IA con el mes anterior.
+        supabase.from('ia_uso').select('funcion, tipo, username, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
+          .gte('creado_en', fechaLocalISO(inicioAnterior)).range(0, 39999),
         supabase.from('movimientos_financieros').select('fecha, monto, negocio, categoria, meses_a_repartir')
           .eq('tipo', 'gasto').range(0, 4999),
         // Todos los pagos con dinero real: sirve para saber quién pagó por
@@ -2632,8 +3000,9 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
         if (plan && Number(c.value) > 0) p[plan.meses] = Number(c.value);
       });
       setPrecios(prev => ({ ...prev, ...p }));
-      setMes({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: ia || [], gastos: gastos || [], historialPagos: (historialPagos || []).filter(p => !esCuentaPropia(p.username)) });
-    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], gastos: [], historialPagos: [] }); });
+      const esteMes = f => String(f.creado_en) >= inicioISO;
+      setMes({ pagos: (pagos || []).filter(p => !esCuentaPropia(p.username)), fotos: (fotos || []).reduce((a, f) => a + (Number(f.usadas) || 0), 0), ia: (ia || []).filter(esteMes), iaAnterior: (ia || []).filter(f => !esteMes(f)), gastos: gastos || [], historialPagos: (historialPagos || []).filter(p => !esCuentaPropia(p.username)) });
+    })().catch(() => { if (!cancelado) setMes({ pagos: [], fotos: 0, ia: [], iaAnterior: [], gastos: [], historialPagos: [] }); });
     return () => { cancelado = true; };
   }, []);
 
@@ -2677,6 +3046,24 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
     a.soles += f.soles;
     if (f.tipo === 'whatsapp') a.mensajes++; else if (f.tipo !== 'codigo') a.fotos++;
   });
+  // Comparación con el mes anterior: el total contra lo que se llevaba
+  // gastado a esta misma altura del mes pasado (para no comparar medio mes
+  // con un mes entero) y el costo de cada uso contra el del mes pasado completo.
+  const iaAnteriorFilas = (mes?.iaAnterior || []).map(f => ({ ...f, soles: costoUsdIA(f) * sup.tipoCambio }));
+  const corteMesPasado = mismoMomentoMesPasado(new Date());
+  const iaAnteriorMismoTramo = iaAnteriorFilas.filter(f => new Date(f.creado_en) <= corteMesPasado);
+  const comparacionIA = PARTES_IA.map(pt => {
+    const ahora = iaFilas.filter(f => f.funcion === pt.funcion);
+    const antes = iaAnteriorFilas.filter(f => f.funcion === pt.funcion);
+    const antesTramo = iaAnteriorMismoTramo.filter(f => f.funcion === pt.funcion);
+    return {
+      ...pt, total: suma(ahora), totalAntes: suma(antesTramo),
+      porUso: ahora.length ? suma(ahora) / ahora.length : null,
+      porUsoAntes: antes.length ? suma(antes) / antes.length : null,
+      usos: ahora.length, usosAntes: antes.length,
+    };
+  }).filter(c => c.usos || c.usosAntes);
+  const totalIAAntesTramo = suma(iaAnteriorMismoTramo);
   const rankingIA = Object.values(porAlumnoIA).sort((a, b) => b.soles - a.soles);
   const promedioIA = rankingIA.length ? suma(iaAlumnos.filter(f => f.username)) / rankingIA.length : null;
   const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
@@ -2832,9 +3219,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
             <span>Alumnos pagando: <span className="text-zinc-50 font-semibold">{pagando}</span></span>
             <span>Para no perder: <span className="text-zinc-50 font-semibold">{equilibrio ?? '—'}</span> · Para tu sueldo: <span className="text-zinc-50 font-semibold">{paraSueldo ?? '—'}</span></span>
           </div>
-          <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${avance}%` }} />
-          </div>
+          <div className="flex"><BarraBrillo pct={avance} /></div>
         </div>
       </div>
 
@@ -2885,7 +3270,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos` },
+                { v: fmtS(suma(iaFilas)), l: 'IA total del mes', sub: `${iaFilas.length} usos · a esta altura del mes pasado ${fmtS(totalIAAntesTramo)}` },
                 { v: fmtS(suma(iaAlumnos)), l: 'La usan tus alumnos', sub: 'fotos, etiquetas, códigos y WhatsApp' },
                 { v: fmtS(suma(iaAdmin)), l: 'La usas tú', sub: 'Jarvis, pedidos de alimentos y tus pruebas' },
                 { v: costoFotoReal === null ? '—' : fmtS(costoFotoReal), l: 'Costo real por foto', sub: costoFotoReal === null ? `faltan fotos para medir (${fotosMedidas.length} de 5)` : `promedio de ${fotosMedidas.length} fotos` },
@@ -2897,6 +3282,42 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
                 </div>
               ))}
             </div>
+            {comparacionIA.length > 0 && (
+              <div>
+                <div className="jb-body text-xs text-zinc-400 mb-0.5">Comparado con el mes pasado</div>
+                <p className="jb-body text-[10px] text-zinc-500 mb-1.5">
+                  El gasto se compara con lo que llevabas al {corteMesPasado.getDate()} del mes pasado. El costo de cada uso, con el promedio de todo el mes pasado.
+                </p>
+                <div className="flex flex-col gap-1">
+                  {comparacionIA.map(c => {
+                    const cambio = c.porUso !== null && c.porUsoAntes ? Math.round((c.porUso / c.porUsoAntes - 1) * 100) : null;
+                    return (
+                      <div key={c.funcion} className="bg-zinc-900 rounded-lg px-3 py-2">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="jb-body text-xs text-zinc-200">{c.label}</span>
+                          <span className="jb-body text-[11px] text-zinc-500 shrink-0">
+                            <span className="jb-display text-sm text-zinc-50">{fmtS(c.total)}</span> · mes pasado {fmtS(c.totalAntes)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-baseline gap-2 mt-0.5">
+                          <span className="jb-body text-[11px] text-zinc-500">
+                            Cada {c.uso}: <span className="text-zinc-200">{c.porUso === null ? '—' : `S/${c.porUso.toFixed(3)}`}</span>
+                            {' '}· antes {c.porUsoAntes === null ? '—' : `S/${c.porUsoAntes.toFixed(3)}`}
+                          </span>
+                          {cambio === null ? (
+                            <span className="jb-body text-[11px] text-zinc-500 shrink-0">{c.usos ? 'nuevo este mes' : 'sin usos este mes'}</span>
+                          ) : (
+                            <span className={`jb-body text-[11px] shrink-0 ${cambio <= -5 ? 'text-emerald-400' : cambio >= 5 ? 'text-orange-400' : 'text-zinc-400'}`}>
+                              {cambio <= -5 ? `▼ ${Math.abs(cambio)}% más barato` : cambio >= 5 ? `▲ ${cambio}% más caro` : 'igual'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {rankingIA.length > 0 && (
               <div>
                 <div className="flex justify-between items-baseline mb-1.5">
@@ -2918,6 +3339,8 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </>
         )}
       </div>
+
+      <AnaliticaIAPanel tipoCambio={sup.tipoCambio} />
 
       <div>
         <h3 className="jb-display text-sm text-zinc-300 mb-1">CUÁNTO TE DEJA CADA PLAN AL MES</h3>
@@ -3033,19 +3456,10 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           <div className="flex flex-col gap-1.5">
             {desglose.map((d, fila) => {
               const total = desglose.reduce((a, x) => a + x.v, 0) || 1;
-              const LEDS = 20;
-              const encendidos = Math.max(d.v > 0 ? 1 : 0, Math.round((d.v / total) * LEDS));
               return (
                 <div key={d.l} className="flex items-center gap-2">
                   <span className="jb-body text-[11px] text-zinc-400 w-44 sm:w-56 shrink-0 truncate">{d.l}</span>
-                  <span className="flex-1 flex gap-[2px]" aria-hidden="true">
-                    {Array.from({ length: LEDS }).map((_, k) => (
-                      <span key={k} className="flex-1 h-2.5 rounded-[2px]"
-                        style={k < encendidos
-                          ? { background: '#FF7020', boxShadow: '0 0 6px rgba(255,112,32,0.7)', animation: `jbg-aparece .3s ease-out ${fila * 0.1 + k * 0.03}s both` }
-                          : { background: '#27272a' }} />
-                    ))}
-                  </span>
+                  <BarraBrillo pct={d.v > 0 ? Math.max(3, (d.v / total) * 100) : 0} fila={fila} />
                   <span className="font-mono text-[11px] text-zinc-200 w-14 text-right shrink-0">{fmtS(d.v)}</span>
                 </div>
               );
@@ -3590,9 +4004,7 @@ function FinanzasPanel() {
               {regimen === 'rmt' && (
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
-                  <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500" style={{ width: `${pctTope}%` }} />
-                  </div>
+                  <div className="flex"><BarraBrillo pct={pctTope} /></div>
                   <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
                 </div>
               )}
@@ -6517,19 +6929,28 @@ function WhatsAppPanel() {
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
-  // Costo real del asistente (tabla ia_uso), en soles: este mes y hoy.
+  // Costo real del asistente (tabla ia_uso), en soles: este mes, hoy y el
+  // mes pasado (para comparar cuánto sale cada respuesta).
   async function cargarCosto() {
     try {
       const hoy = todayISO();
+      const [y, m] = hoy.split('-').map(Number);
+      const mesPasado = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
       const { data } = await supabase.from('ia_uso')
         .select('tipo, modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura, creado_en')
-        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${hoy.slice(0, 7)}-01T00:00:00-05:00`).range(0, 9999);
-      const filas = (data || []).map(f => ({ ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' }) === hoy }));
-      const reales = filas.filter(f => f.tipo === 'whatsapp');
+        .eq('funcion', 'whatsapp-webhook').gte('creado_en', `${mesPasado}-01T00:00:00-05:00`).range(0, 19999);
+      const filas = (data || []).map(f => {
+        const dia = new Date(f.creado_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+        return { ...f, soles: costoUsdIA(f) * SUPUESTOS_RENTABILIDAD.tipoCambio, hoy: dia === hoy, esteMes: dia.slice(0, 7) === hoy.slice(0, 7) };
+      });
+      const delMes = filas.filter(f => f.esteMes);
+      const reales = delMes.filter(f => f.tipo === 'whatsapp');
+      const realesAntes = filas.filter(f => !f.esteMes && f.tipo === 'whatsapp');
       const suma = l => l.reduce((a, f) => a + f.soles, 0);
       setCosto({
         mes: suma(reales), respuestas: reales.length, hoy: suma(reales.filter(f => f.hoy)),
-        prueba: suma(filas.filter(f => f.tipo === 'whatsapp_prueba')),
+        prueba: suma(delMes.filter(f => f.tipo === 'whatsapp_prueba')),
+        porRespuestaAntes: realesAntes.length ? suma(realesAntes) / realesAntes.length : null,
       });
     } catch { setCosto(null); }
   }
@@ -6664,6 +7085,16 @@ function WhatsAppPanel() {
             💰 <span className="text-zinc-200">Costo este mes: S/{costo.mes.toFixed(2)}</span> en {costo.respuestas} {costo.respuestas === 1 ? 'respuesta' : 'respuestas'}
             {costo.respuestas > 0 ? ` (S/${(costo.mes / costo.respuestas).toFixed(3)} cada una)` : ''} · hoy S/{costo.hoy.toFixed(2)}
             {costo.prueba > 0 ? ` · pruebas del simulador: S/${costo.prueba.toFixed(2)}` : ''}.
+            {costo.porRespuestaAntes !== null && (
+              <span className="block mt-0.5">
+                Mes pasado: S/{costo.porRespuestaAntes.toFixed(3)} cada respuesta
+                {costo.respuestas > 0 && (() => {
+                  const cambio = Math.round(((costo.mes / costo.respuestas) / costo.porRespuestaAntes - 1) * 100);
+                  return cambio <= -5 ? <span className="text-emerald-400"> · ▼ {Math.abs(cambio)}% más barato</span>
+                    : cambio >= 5 ? <span className="text-orange-400"> · ▲ {cambio}% más caro</span> : ' · igual';
+                })()}
+              </span>
+            )}
             <span className="block text-zinc-500 mt-0.5">Tope de seguridad: si alguien manda más de 40 mensajes en un día, el asistente deja de responderle y te pasa el chat.</span>
           </p>
         )}
@@ -7373,9 +7804,7 @@ function MensajesDelDiaPanel() {
         )}
       </div>
       {lista.length > 0 && (
-        <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden mt-3">
-          <div className="h-full bg-orange-500 transition-all" style={{ width: `${(hechos / lista.length) * 100}%` }} />
-        </div>
+        <div className="flex mt-3"><BarraBrillo pct={(hechos / lista.length) * 100} alto="h-1.5" /></div>
       )}
       <div className="flex flex-col gap-5 mt-4">
         {NIVELES.map(nivel => {

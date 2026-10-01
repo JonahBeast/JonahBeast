@@ -1894,23 +1894,20 @@ function LeadsPanel() {
   );
 }
 
-// Para usar BarrasLed con una sola serie: cada dato {clave, etiqueta, valor}
+// Para usar GraficoHud con una sola serie: cada dato {clave, etiqueta, valor}
 // pasa a {partes: {valor}} y se pinta en naranja ají.
 const SERIE_LED_UNICA = [{ key: 'valor', label: 'Valor', color: '#FF7020' }];
 const ledsDeUnValor = datos => datos.map(d => ({ ...d, partes: { valor: d.valor } }));
 
-// Barra horizontal de LEDs (mismo estilo que "Cada alumno te cuesta…"):
-// se encienden de izquierda a derecha con brillo naranja.
-function BarraLed({ pct, leds = 20, fila = 0, alto = 'h-2.5' }) {
-  const encendidos = Math.min(leds, Math.max(pct > 0 ? 1 : 0, Math.round((pct / 100) * leds)));
+// Barra horizontal lisa con brillo naranja (sin cuadritos repetidos), con
+// el mismo brillo de la línea de la "Proyección mensual". Se llena de
+// izquierda a derecha al aparecer.
+function BarraBrillo({ pct, fila = 0, alto = 'h-2' }) {
+  const ancho = Math.min(100, Math.max(0, pct));
   return (
-    <span className="flex-1 flex gap-[2px] w-full" aria-hidden="true">
-      {Array.from({ length: leds }).map((_, k) => (
-        <span key={k} className={`flex-1 ${alto} rounded-[2px] jbg-anim`}
-          style={k < encendidos
-            ? { background: '#FF7020', boxShadow: '0 0 6px rgba(255,112,32,0.7)', animation: `jbg-aparece .3s ease-out ${fila * 0.1 + k * 0.03}s both` }
-            : { background: '#27272a' }} />
-      ))}
+    <span className={`flex-1 w-full ${alto} rounded-full overflow-hidden`} style={{ background: '#27272a' }} aria-hidden="true">
+      <span className="block h-full rounded-full jbg-anim"
+        style={{ width: `${ancho}%`, background: 'linear-gradient(90deg, #C24A0A, #FF7020)', boxShadow: '0 0 8px rgba(255,112,32,0.7)', transformOrigin: 'left', animation: `jbg-crece .8s ease-out ${fila * 0.1}s both` }} />
     </span>
   );
 }
@@ -2201,7 +2198,7 @@ function ActivacionPanel({ users }) {
                       <span className="jb-display text-base text-zinc-50">{p.n}</span> · {pct}%
                     </span>
                   </div>
-                  <div className="flex"><BarraLed pct={p.n ? Math.max(pct, 1) : 0} fila={i} /></div>
+                  <div className="flex"><BarraBrillo pct={p.n ? Math.max(pct, 1) : 0} fila={i} /></div>
                 </div>
               </div>
             );
@@ -2271,7 +2268,7 @@ function ActivacionPanel({ users }) {
                     )}
                     <div className="flex items-center gap-2">
                       <span className="jb-body text-xs text-zinc-300 w-36 shrink-0">{p.titulo}</span>
-                      <BarraLed pct={p.n ? Math.max(pct, 1) : 0} fila={i} />
+                      <BarraBrillo pct={p.n ? Math.max(pct, 1) : 0} fila={i} />
                       <span className="jb-body text-xs text-zinc-400 tabular-nums w-14 text-right"><span className="jb-display text-sm text-zinc-50">{p.n}</span> · {pct}%</span>
                     </div>
                   </div>
@@ -2385,8 +2382,8 @@ function TableroPanel({ users: todosLosUsuarios }) {
         <div className="flex items-center gap-2 text-zinc-500 text-xs jb-body"><Loader2 size={14} className="animate-spin" /> Cargando gráficos…</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-5">
-          <BarrasLed titulo="INGRESOS POR MES" datos={ledsDeUnValor(graficoIngresos)} series={SERIE_LED_UNICA} formato={fmtSoles} />
-          <BarrasLed titulo="ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS" datos={ledsDeUnValor(graficoUso)} series={SERIE_LED_UNICA}
+          <GraficoHud titulo="INGRESOS POR MES" datos={ledsDeUnValor(graficoIngresos)} series={SERIE_LED_UNICA} formato={fmtSoles} />
+          <GraficoHud titulo="ALUMNOS QUE REGISTRARON COMIDAS · 30 DÍAS" datos={ledsDeUnValor(graficoUso)} series={SERIE_LED_UNICA}
             formato={v => `${v} alumno${v === 1 ? '' : 's'}`} etiquetaCada={5} />
         </div>
       )}
@@ -2448,6 +2445,7 @@ function costoPorAlumno(s, conversionPct) {
 const ESTILOS_GRAFICO_HUD = `
 @keyframes jbg-dibuja { from { stroke-dashoffset: 1200; } to { stroke-dashoffset: 0; } }
 @keyframes jbg-aparece { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jbg-crece { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes jbg-barre { 0% { transform: translateX(-5%); opacity: 0; } 10% { opacity: .5; } 90% { opacity: .5; } 100% { transform: translateX(105%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .jbg-anim { animation: none !important; } }
 `;
@@ -2641,87 +2639,139 @@ function claveDeBarra(periodo, dia) {
   return dia.slice(0, 7);
 }
 
-// Barras de LEDs, con el mismo estilo de pantalla de los gráficos de
-// Rentabilidad (fondo con brillo naranja, cuadrícula de puntos, títulos en
-// letra de máquina y lucecitas que se encienden). Cada barra es una columna
-// de LEDs; si hay varias partes, cada LED toma el color de la parte que
-// ocupa esa altura (de abajo hacia arriba, en el orden de la leyenda). El
-// detalle exacto sale arriba a la derecha al tocar o pasar el mouse.
-function BarrasLed({ titulo, datos, series, formato = v => v, leds = 14, etiquetaCada = 1, detalle = true }) {
-  const [activo, setActivo] = useState(null);
-  const total = d => series.reduce((a, s) => a + (d.partes[s.key] || 0), 0);
-  const max = Math.max(1e-9, ...datos.map(total));
-  const iMax = datos.reduce((im, d, i) => (total(d) > total(datos[im]) ? i : im), 0);
-  const mostrado = activo !== null ? activo : datos.length - 1;
+// Gráfico de línea con el mismo estilo de la "Proyección mensual": fondo
+// con brillo naranja, esquinas de pantalla, línea que brilla y se dibuja al
+// aparecer, área con degradado debajo y el último punto latiendo. Sin
+// cuadrículas ni figuras repetidas: solo la línea del 0 y una guía punteada
+// con el valor más alto. Con varias partes, una línea por parte (con
+// leyenda). Al tocar o pasar el mouse se ve el dato de ese punto.
+function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1, detalle = true }) {
+  const [hover, setHover] = useState(null);
+  const uid = useMemo(() => 'h' + Math.random().toString(36).slice(2, 8), []);
+  const W = 600, H = 190, pl = 10, pr = 10, pt = 22, pb = 14;
+  const n = datos.length;
+  const valor = (d, s) => d.partes[s.key] || 0;
+  const total = d => series.reduce((a, s) => a + valor(d, s), 0);
+  const maxReal = Math.max(0, ...datos.flatMap(d => series.map(s => valor(d, s))));
+  const yMax = maxReal > 0 ? maxReal * 1.18 : 1;
+  const x = i => pl + (n <= 1 ? 0.5 : i / (n - 1)) * (W - pl - pr);
+  const y = v => pt + (1 - v / yMax) * (H - pt - pb);
+  const y0 = y(0);
+  const unica = series.length === 1;
+  const mostrado = hover !== null ? hover : n - 1;
   const d0 = datos[mostrado];
-  const colorDelLed = (d, k, encendidos) => {
-    const t = total(d);
-    const altura = (k + 0.5) / encendidos * t;
-    let acum = 0;
-    for (const s of series) { acum += d.partes[s.key] || 0; if (altura <= acum) return s.color; }
-    return series[series.length - 1].color;
+  const mover = (clientX, el) => {
+    const r = el.getBoundingClientRect();
+    const i = Math.round(((clientX - r.left) / r.width * W - pl) / (W - pl - pr) * (n - 1));
+    setHover(Math.max(0, Math.min(n - 1, i)));
   };
+  const esquina = (cx, cy, dx, dy) => `M${cx + dx * 14},${cy} L${cx},${cy} L${cx},${cy + dy * 14}`;
+  const puntos = s => datos.map((d, i) => `${x(i)},${y(valor(d, s))}`).join(' ');
+  const etiquetas = datos.map((d, i) => ({ d, i })).filter(({ i }) =>
+    (i % etiquetaCada === 0 && n - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === n - 1);
   return (
     <div className="relative rounded-lg p-3 overflow-hidden"
       style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(232,89,12,0.10), rgba(9,9,11,0.95) 70%)', border: '1px solid rgba(232,89,12,0.25)' }}>
       <style>{ESTILOS_GRAFICO_HUD}</style>
-      <div className="flex items-start justify-between gap-2 mb-1.5">
+      <div className="flex items-start justify-between gap-2 mb-1">
         <span className="font-mono text-[10px] tracking-[0.2em] text-orange-400/80 pt-0.5">◉ {titulo}</span>
         {d0 && (
-          <span className="font-mono text-[11px] text-zinc-400 text-right">
-            {d0.etiquetaLarga} → <span className="text-zinc-50 font-semibold">{formato(total(d0))}</span>
+          <span className="font-mono text-xs text-zinc-400 text-right">
+            {d0.etiquetaLarga} → <span className="text-orange-400 font-semibold">{formato(total(d0))}</span>
           </span>
         )}
       </div>
-      {series.length > 1 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+      {!unica && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1">
           {series.map(s => (
-            <span key={s.key} className="font-mono text-[10px] text-zinc-400 inline-flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-[2px]" style={{ background: s.color, boxShadow: `0 0 5px ${s.color}b3` }} />{s.label}
+            <span key={s.key} className="font-mono text-[10px] text-zinc-400 inline-flex items-center gap-1.5">
+              <span className="inline-block w-3 h-[3px] rounded-full" style={{ background: s.color, boxShadow: `0 0 5px ${s.color}` }} />{s.label}
             </span>
           ))}
         </div>
       )}
-      {detalle && series.length > 1 && d0 && (
-        <div className="font-mono text-[10px] text-zinc-500 mb-1.5 min-h-[1.25rem]">
-          {series.filter(s => d0.partes[s.key]).map(s => `${s.label} ${formato(d0.partes[s.key])}`).join(' · ') || 'sin uso'}
+      {detalle && !unica && d0 && (
+        <div className="font-mono text-[10px] text-zinc-500 mb-1 min-h-[1.25rem]">
+          {series.filter(s => valor(d0, s)).map(s => `${s.label} ${formato(valor(d0, s))}`).join(' · ') || 'sin uso'}
         </div>
       )}
-      <div className="relative">
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(rgba(63,63,70,0.6) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <div className="relative flex items-end gap-[3px] pt-4" onMouseLeave={() => setActivo(null)}>
-          {datos.map((d, i) => {
-            const t = total(d);
-            const encendidos = t > 0 ? Math.max(1, Math.round((t / max) * leds)) : 0;
-            const marcado = (i === iMax || i === datos.length - 1) && t > 0;
-            return (
-              <button key={d.clave} type="button" aria-label={`${d.etiquetaLarga}: ${formato(t)}`}
-                onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} onClick={() => setActivo(i)}
-                className={`relative flex-1 min-w-0 flex flex-col-reverse gap-[2px] transition-opacity ${activo === null || activo === i ? 'opacity-100' : 'opacity-40'}`}>
-                {Array.from({ length: leds }).map((_, k) => {
-                  const c = k < encendidos ? colorDelLed(d, k, encendidos) : null;
-                  return (
-                    <span key={k} className="block w-full h-[6px] rounded-[2px] jbg-anim"
-                      style={c
-                        ? { background: c, boxShadow: `0 0 6px ${c}b3`, animation: `jbg-aparece .3s ease-out ${i * 0.02 + k * 0.03}s both` }
-                        : { background: '#27272a' }} />
-                  );
-                })}
-                {marcado && (
-                  <span className={`absolute font-mono text-[9px] text-zinc-300 whitespace-nowrap ${i === datos.length - 1 ? 'right-0' : i === 0 ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
-                    style={{ bottom: `calc(${leds * 8}px + 2px)` }}>{formato(t)}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="flex gap-[3px] mt-1.5">
-        {datos.map((d, i) => (
-          <span key={d.clave} className="flex-1 min-w-0 flex justify-center">
-            <span className="font-mono text-[9px] text-zinc-500 whitespace-nowrap">
-              {(i % etiquetaCada === 0 && datos.length - 1 - i >= Math.ceil(etiquetaCada / 2)) || i === datos.length - 1 ? d.etiqueta : ''}
-            </span>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img"
+        aria-label={`${titulo}: ${datos.map(d => `${d.etiquetaLarga} ${formato(total(d))}`).join(', ')}`}
+        onMouseMove={e => mover(e.clientX, e.currentTarget)}
+        onTouchStart={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
+        onTouchMove={e => e.touches[0] && mover(e.touches[0].clientX, e.currentTarget)}
+        onMouseLeave={() => setHover(null)}>
+        <defs>
+          {series.map(s => (
+            <linearGradient key={s.key} id={`${uid}-a-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity={unica ? 0.45 : 0.12} />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+            </linearGradient>
+          ))}
+          <linearGradient id={`${uid}-barrido`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FF7020" stopOpacity="0" />
+            <stop offset="50%" stopColor="#FF7020" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#FF7020" stopOpacity="0" />
+          </linearGradient>
+          <filter id={`${uid}-brillo`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        <rect className="jbg-anim" x={pl} y={pt} width="60" height={H - pt - pb} fill={`url(#${uid}-barrido)`}
+          style={{ animation: 'jbg-barre 4.5s ease-in-out infinite', transformBox: 'fill-box' }} />
+        {[[pl, pt, 1, 1], [W - pr, pt, -1, 1], [pl, H - pb, 1, -1], [W - pr, H - pb, -1, -1]].map(([cx, cy, dx, dy], k) => (
+          <path key={k} d={esquina(cx, cy, dx, dy)} fill="none" stroke="#E8590C" strokeWidth="1.5" opacity="0.7" />
+        ))}
+
+        <line x1={pl} x2={W - pr} y1={y0} y2={y0} stroke="#52525b" strokeWidth="1" />
+        {maxReal > 0 && <>
+          <line x1={pl} x2={W - pr} y1={y(maxReal)} y2={y(maxReal)} stroke="#71717a" strokeWidth="1" strokeDasharray="3 5" opacity="0.7" />
+          <text x={W - pr - 4} y={y(maxReal) - 5} textAnchor="end" fontSize="11" fontFamily="monospace" fill="#a1a1aa">MÁX {formato(maxReal)}</text>
+        </>}
+
+        {series.map((s, k) => (
+          <polygon key={s.key} className="jbg-anim" style={{ animation: `jbg-aparece 1.2s ease-out ${k * 0.15}s both` }}
+            points={`${x(0)},${y0} ${puntos(s)} ${x(n - 1)},${y0}`} fill={`url(#${uid}-a-${s.key})`} />
+        ))}
+        <g filter={`url(#${uid}-brillo)`}>
+          {series.map((s, k) => (
+            <polyline key={s.key} className="jbg-anim" points={puntos(s)} fill="none" stroke={s.color} strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round" pathLength="1200" strokeDasharray="1200"
+              style={{ animation: `jbg-dibuja 1.4s ease-out ${k * 0.15}s both` }} />
+          ))}
+        </g>
+
+        {hover === null && n > 0 && series.map(s => {
+          const cx = x(n - 1), cy = y(valor(datos[n - 1], s));
+          return (
+            <g key={s.key}>
+              {unica && (
+                <circle cx={cx} cy={cy} r="6" fill="none" stroke={s.color} strokeWidth="1.5">
+                  <animate attributeName="r" values="5;14;5" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.9;0;0.9" dur="2s" repeatCount="indefinite" />
+                </circle>
+              )}
+              <circle cx={cx} cy={cy} r="4.5" fill={s.color} stroke="#09090b" strokeWidth="2" filter={`url(#${uid}-brillo)`} />
+            </g>
+          );
+        })}
+
+        {hover !== null && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={pt} y2={H - pb} stroke="#e4e4e7" strokeWidth="1" opacity="0.35" />
+            {series.map(s => (
+              <circle key={s.key} cx={x(hover)} cy={y(valor(datos[hover], s))} r="5" fill={s.color} stroke="#09090b" strokeWidth="2" filter={`url(#${uid}-brillo)`} />
+            ))}
+          </g>
+        )}
+      </svg>
+      <div className="relative h-4 font-mono text-[10px] text-zinc-500">
+        {etiquetas.map(({ d, i }) => (
+          <span key={d.clave} className="absolute whitespace-nowrap"
+            style={i === n - 1 ? { right: 0 } : i === 0 ? { left: 0 } : { left: `${(x(i) / W) * 100}%`, transform: 'translateX(-50%)' }}>
+            {d.etiqueta}
           </span>
         ))}
       </div>
@@ -2776,6 +2826,12 @@ function AnaliticaIAPanel({ tipoCambio }) {
     b.usos++; b.usd += f.usd;
   });
   const etiquetaCada = periodo === 'dia' ? 5 : periodo === 'semana' ? 3 : 1;
+  // Los gráficos empiezan donde hay datos: antes la IA no se medía, y una
+  // línea en 0 haría pensar que no costó nada. El costo por uso solo se
+  // dibuja donde hubo usos.
+  const primera = barras.findIndex(b => b.usos > 0);
+  const barrasG = primera < 0 ? barras : barras.slice(Math.min(primera, barras.length - 2));
+  const barrasConUso = barrasG.filter(b => b.usos > 0);
 
   // Ventanas móviles del mismo largo: los últimos N días contra los N anteriores.
   const corte = Date.now() - conf.dias * 864e5, corteAntes = corte - conf.dias * 864e5;
@@ -2864,16 +2920,16 @@ function AnaliticaIAPanel({ tipoCambio }) {
             En "Costo de cada uso", ▼ verde es bueno: la IA te sale más barata. En gasto y usos, subir puede ser bueno si es porque hay más alumnos usando la app.
           </p>
 
-          <BarrasLed titulo="GASTO EN SOLES" datos={barras}
+          <GraficoHud titulo="GASTO EN SOLES" datos={barrasG}
             series={parte === 'todas' ? series : series.filter(x => x.key === parte).map(x => ({ ...x, color: '#FF7020' }))}
             formato={fmtSoles} etiquetaCada={etiquetaCada} />
 
-          <BarrasLed titulo="USOS DE LA IA" leds={10} detalle={false}
-            datos={barras.map(b => ({ ...b, partes: { usos: b.usos } }))} series={[{ key: 'usos', label: 'Usos', color: '#FF7020' }]}
+          <GraficoHud titulo="USOS DE LA IA" detalle={false}
+            datos={barrasG.map(b => ({ ...b, partes: { usos: b.usos } }))} series={[{ key: 'usos', label: 'Usos', color: '#FF7020' }]}
             formato={v => `${v} ${v === 1 ? 'uso' : 'usos'}`} etiquetaCada={etiquetaCada} />
 
-          <BarrasLed titulo={`COSTO POR ${nombreUso.toUpperCase()}${parteSel ? '' : ' · PROMEDIO'}`} leds={10} detalle={false}
-            datos={barras.map(b => ({ ...b, partes: { porUso: b.usos ? soles(b.usd) / b.usos : 0 } }))} series={[{ key: 'porUso', label: 'Por uso', color: '#FF7020' }]}
+          <GraficoHud titulo={`COSTO POR ${nombreUso.toUpperCase()}${parteSel ? '' : ' · PROMEDIO'}`} detalle={false}
+            datos={(barrasConUso.length >= 2 ? barrasConUso : barrasG).map(b => ({ ...b, partes: { porUso: b.usos ? soles(b.usd) / b.usos : 0 } }))} series={[{ key: 'porUso', label: 'Por uso', color: '#FF7020' }]}
             formato={v => `S/${v.toFixed(3)}`} etiquetaCada={etiquetaCada} />
 
           <button type="button" onClick={() => setVerTabla(v => !v)} className="jb-body text-[11px] text-zinc-400 underline self-start">
@@ -3167,7 +3223,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
             <span>Alumnos pagando: <span className="text-zinc-50 font-semibold">{pagando}</span></span>
             <span>Para no perder: <span className="text-zinc-50 font-semibold">{equilibrio ?? '—'}</span> · Para tu sueldo: <span className="text-zinc-50 font-semibold">{paraSueldo ?? '—'}</span></span>
           </div>
-          <div className="flex"><BarraLed pct={avance} leds={30} /></div>
+          <div className="flex"><BarraBrillo pct={avance} /></div>
         </div>
       </div>
 
@@ -3404,19 +3460,10 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           <div className="flex flex-col gap-1.5">
             {desglose.map((d, fila) => {
               const total = desglose.reduce((a, x) => a + x.v, 0) || 1;
-              const LEDS = 20;
-              const encendidos = Math.max(d.v > 0 ? 1 : 0, Math.round((d.v / total) * LEDS));
               return (
                 <div key={d.l} className="flex items-center gap-2">
                   <span className="jb-body text-[11px] text-zinc-400 w-44 sm:w-56 shrink-0 truncate">{d.l}</span>
-                  <span className="flex-1 flex gap-[2px]" aria-hidden="true">
-                    {Array.from({ length: LEDS }).map((_, k) => (
-                      <span key={k} className="flex-1 h-2.5 rounded-[2px]"
-                        style={k < encendidos
-                          ? { background: '#FF7020', boxShadow: '0 0 6px rgba(255,112,32,0.7)', animation: `jbg-aparece .3s ease-out ${fila * 0.1 + k * 0.03}s both` }
-                          : { background: '#27272a' }} />
-                    ))}
-                  </span>
+                  <BarraBrillo pct={d.v > 0 ? Math.max(3, (d.v / total) * 100) : 0} fila={fila} />
                   <span className="font-mono text-[11px] text-zinc-200 w-14 text-right shrink-0">{fmtS(d.v)}</span>
                 </div>
               );
@@ -3961,7 +4008,7 @@ function FinanzasPanel() {
               {regimen === 'rmt' && (
                 <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
                   <div className="text-[11px] text-zinc-500 mb-1">Acumulado {anio} · tope de 300 UIT (S/ {TOPE_300_UIT.toLocaleString('es-PE')})</div>
-                  <div className="flex"><BarraLed pct={pctTope} leds={30} /></div>
+                  <div className="flex"><BarraBrillo pct={pctTope} /></div>
                   <div className="text-[11px] text-zinc-500 mt-1">S/ {ventasAnio.toFixed(2)} vendidos · {pctTope.toFixed(2)}% del tope</div>
                 </div>
               )}
@@ -7761,7 +7808,7 @@ function MensajesDelDiaPanel() {
         )}
       </div>
       {lista.length > 0 && (
-        <div className="flex mt-3"><BarraLed pct={(hechos / lista.length) * 100} leds={30} alto="h-1.5" /></div>
+        <div className="flex mt-3"><BarraBrillo pct={(hechos / lista.length) * 100} alto="h-1.5" /></div>
       )}
       <div className="flex flex-col gap-5 mt-4">
         {NIVELES.map(nivel => {

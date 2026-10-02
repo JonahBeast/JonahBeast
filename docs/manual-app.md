@@ -162,11 +162,11 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 **Barra de abajo (4 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**.
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
 
-**Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
+**Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros; **en el celular está abajo, en el pie de la pantalla**: "🔊 Quitar sonidos" / "🔇 Activar sonidos"), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
 
 **Indicador de guardado** (arriba a la derecha, junto a "Salir", **en todas las pestañas**): **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar. Si sale la nube, ver la sección 8.8.
 
-**Pie de la pantalla (letra pequeña):** "Política de Privacidad" · **"🔠 Letra grande"** (o "🔠 Quitar letra grande" si ya lo tiene; ver 7.1) · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
+**Pie de la pantalla (letra pequeña):** "Política de Privacidad" · (en el celular) "🔊 Quitar sonidos" / "🔇 Activar sonidos" · **"🔠 Letra grande"** (o "🔠 Quitar letra grande" si ya lo tiene; ver 7.1) · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
 
 **Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan."
 

@@ -62,7 +62,7 @@ La portada web se ve igual que la bienvenida de la app instalada:
 3. Sale "⚡ DETECTADO" con cada alimento, sus gramos y calorías, el **TOTAL** en kcal y la proteína, carbos y grasa. Son aproximados.
 4. Debajo: **"¿Y CUÁNTO TE TOCA A TI?"** y el botón **"CREAR MI CUENTA GRATIS"** ("Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta."), que lleva al registro.
 - Es **1 foto de prueba al día** por persona. Si ya la usó sale "Ya usaste tu foto de prueba de hoy" con el botón para crear la cuenta. Si la foto no tenía comida reconocible, no cuenta: sale "No reconocí comida en esta foto" y puede probar con otra.
-- Lo que sale en la prueba no se guarda: para registrar comidas hay que crear la cuenta.
+- Si crea su cuenta **ese mismo día y en el mismo celular**, el plato de la prueba se registra solo como **su primera comida**, en la comida de la hora en que tomó la foto (desayuno, almuerzo, cena…). Al entrar sale "📸 El plato de tu prueba ya quedó registrado en tu [comida]", y la cantidad se ajusta después con − / +. Si crea la cuenta otro día o en otro celular, la prueba no se guarda.
 
 ### 2.1 Calculadora gratis ("MIDE TU COMPOSICIÓN CORPORAL")
 
@@ -187,7 +187,7 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 
 ### 6.2 "¡TU PLAN ESTÁ LISTO!" (primera comida en 1 toque)
 
-- Aparece a quien **nunca registró una comida**, apenas tiene sus datos del cuerpo y su objetivo (o sea, su meta ya está calculada).
+- Aparece a quien **nunca registró una comida**, apenas tiene sus datos del cuerpo y su objetivo (o sea, su meta ya está calculada). Si llegó con el plato de la prueba de la portada (sección anterior), ese plato ya cuenta como su primera comida y esta pantalla no aparece.
 - Muestra **"Te tocan X kcal al día"** y la pregunta según la hora (**"¿QUÉ DESAYUNASTE HOY?"**, **"¿QUÉ ALMORZASTE HOY?"**, **"¿QUÉ CENASTE HOY?"**…).
 - Lo primero es el botón naranja **"📷 Tómale foto a lo que vas a comer"** ("La IA reconoce tu plato y te dice sus calorías"): abre la cámara directo para la comida de la hora (sección 9).
 - Debajo, "O toca uno de estos…" con 6 platos comunes de esa comida, cada uno con su porción y calorías.

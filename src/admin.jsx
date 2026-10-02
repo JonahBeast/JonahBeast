@@ -2053,6 +2053,32 @@ function FuncionandoPanel({ users }) {
 // Día en que se empezó a medir el camino al pago (antes no hay datos).
 const INICIO_CAMINO_PAGO = '2026-09-25';
 const PASOS_PAGO = ['vio_planes', 'eligio_plan', 'eligio_metodo', 'pago_enviado'];
+// Qué hacen los nuevos en "¡TU PLAN ESTÁ LISTO!", con la foto y con el
+// aviso de abrir en Chrome/Safari. Se mide desde este día.
+const INICIO_PRIMERA_COMIDA = '2026-10-02';
+const EVENTOS_PRIMERA = ['primera_comida', 'foto_comida', 'abrir_navegador'];
+const FILAS_PRIMERA = [
+  { titulo: 'Primera comida', filas: [
+    ['primera_comida', 'vio', 'Vieron "¡Tu plan está listo!"'],
+    ['primera_comida', 'foto', 'Tocaron "Tómale foto"'],
+    ['primera_comida', 'plato', 'Eligieron un plato con 1 toque'],
+    ['primera_comida', 'buscar', 'Tocaron "Buscar otro plato"'],
+    ['primera_comida', 'ahora_no', 'Tocaron "Ahora no"'],
+    ['primera_comida', 'demo', 'Llegaron con el plato de la prueba'],
+  ] },
+  { titulo: 'Foto de la comida', filas: [
+    ['foto_comida', 'resultado', 'La foto reconoció su comida'],
+    ['foto_comida', 'vacio', 'No reconoció comida en la foto'],
+    ['foto_comida', 'error', 'La foto falló'],
+    ['foto_comida', 'limite', 'Se quedaron sin fotos'],
+    ['foto_comida', 'agrego', 'Agregaron lo de la foto a su día'],
+  ] },
+  { titulo: 'Aviso "Abrir en Chrome/Safari"', filas: [
+    ['abrir_navegador', 'vio', 'Vieron el aviso'],
+    ['abrir_navegador', 'toco', 'Tocaron "Abrir en…"'],
+    ['abrir_navegador', 'seguir', 'Tocaron "Seguir aquí por ahora"'],
+  ] },
+];
 
 function ActivacionPanel({ users }) {
   const [rango, setRango] = useState(30); // días; 0 = desde siempre
@@ -2061,23 +2087,27 @@ function ActivacionPanel({ users }) {
   const nombres = todos.map(u => u.username).sort().join(',');
 
   useEffect(() => {
-    if (!nombres) { setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pasos: [] }); return; }
+    if (!nombres) { setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pasos: [], primera: [], interno: {} }); return; }
     let cancelado = false;
     (async () => {
       const lista = nombres.split(',');
-      const [{ data: dat }, { data: hist }, { data: pagos }, { data: pasos }] = await Promise.all([
+      const [{ data: dat }, { data: hist }, { data: pagos }, { data: pasos }, { data: primera }, { data: avisos }] = await Promise.all([
         supabase.from('datos_alumnos').select('username, form').in('username', lista),
         traerTodas(() => supabase.from('historial').select('username, fecha').in('username', lista).gt('comidas_count', 0)),
         traerTodas(() => supabase.from('pagos').select('username, monto, creado_en').eq('estado', 'aprobado').gt('monto', 0)),
         traerTodas(() => supabase.from('embudo_landing_eventos').select('evento, username, detalle, creado_en').in('evento', PASOS_PAGO).gte('creado_en', INICIO_CAMINO_PAGO)),
+        traerTodas(() => supabase.from('embudo_landing_eventos').select('evento, username, detalle, creado_en').in('evento', EVENTOS_PRIMERA).gte('creado_en', INICIO_PRIMERA_COMIDA)),
+        traerTodas(() => supabase.from('estado_avisos').select('username, navegador_interno').in('username', lista), 'username'),
       ]);
       if (cancelado) return;
       const cuerpo = {};
       (dat || []).forEach(d => { cuerpo[d.username] = tieneDatosBasicos(d.form || {}); });
       const dias = {};
       (hist || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
-      setDatos({ cuerpo, dias, pagaron: new Set((pagos || []).map(p => p.username)), pagosAprobados: pagos || [], pasos: pasos || [] });
-    })().catch(() => { if (!cancelado) setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pagosAprobados: [], pasos: [] }); });
+      const interno = {};
+      (avisos || []).forEach(a => { interno[a.username] = !!a.navegador_interno; });
+      setDatos({ cuerpo, dias, pagaron: new Set((pagos || []).map(p => p.username)), pagosAprobados: pagos || [], pasos: pasos || [], primera: primera || [], interno });
+    })().catch(() => { if (!cancelado) setDatos({ cuerpo: {}, dias: {}, pagaron: new Set(), pagosAprobados: [], pasos: [], primera: [], interno: {} }); });
     return () => { cancelado = true; };
   }, [nombres]);
 
@@ -2130,6 +2160,20 @@ function ActivacionPanel({ users }) {
     pasosPeriodo.filter(e => e.evento === evento && e.detalle).forEach(e => { (m[e.detalle] = m[e.detalle] || new Set()).add(e.username); });
     return Object.entries(m).map(([k, v]) => [k, v.size]).sort((a, b) => b[1] - a[1]);
   };
+  // Primera comida según dónde abrieron la app: dentro de Instagram/Facebook/
+  // TikTok o en Chrome/Safari (lo anota la app en estado_avisos).
+  const porNavegador = interno => {
+    const grupo = cohorte.filter(u => datos.interno[u.username] === interno);
+    return { total: grupo.length, comieron: grupo.filter(u => nDias(u) >= 1).length };
+  };
+  const enApp = porNavegador(true), enNavegador = porNavegador(false);
+  const desdePrimera = desde > INICIO_PRIMERA_COMIDA ? desde : INICIO_PRIMERA_COMIDA;
+  const enCohorte = new Set(cohorte.map(u => u.username));
+  // Solo los nuevos del periodo (la foto la usan también los alumnos antiguos).
+  const primeraPeriodo = (datos.primera || []).filter(e => String(e.creado_en).slice(0, 10) >= desdePrimera && enCohorte.has(e.username));
+  const personas = (evento, detalle, interno) => new Set(primeraPeriodo
+    .filter(e => e.evento === evento && e.detalle === detalle && (interno === undefined || datos.interno[e.username] === interno))
+    .map(e => e.username)).size;
   const medios = conteoDetalle('eligio_metodo');
   const planesElegidos = conteoDetalle('eligio_plan');
   const hoyISO = todayISO();
@@ -2247,6 +2291,53 @@ function ActivacionPanel({ users }) {
           </div>
         )}
         <p className="jb-body text-[11px] text-zinc-600 mt-2">Cuenta solo a quien registró al menos una comida ese tramo; abrir la app sin registrar no cuenta.</p>
+      </div>
+
+      <div className="border-t border-zinc-800 mt-5 pt-4">
+        <h3 className="jb-display text-sm text-zinc-200 mb-1">🍽️ ¿QUÉ PASA CON SU PRIMERA COMIDA?</h3>
+        <p className="jb-body text-xs text-zinc-500 mb-3">
+          Dónde se quedan los nuevos antes de registrar su primera comida. "Dentro de Instagram/Facebook" es quien abrió la app desde el navegador de esas apps (sin avisos ni instalación).
+        </p>
+        {(enApp.total > 0 || enNavegador.total > 0) && (
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {[['Dentro de Instagram/Facebook', enApp], ['En Chrome/Safari', enNavegador]].map(([t, g]) => (
+              <div key={t} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                <div className="jb-display text-lg text-orange-400 tabular-nums">{g.comieron} de {g.total}</div>
+                <div className="jb-body text-[11px] text-zinc-300 leading-tight">registraron su primera comida</div>
+                <div className="jb-body text-[10px] text-zinc-500 leading-tight mt-0.5">{t}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!primeraPeriodo.length ? (
+          <p className="jb-body text-xs text-zinc-500">El detalle de cada paso se empezó a medir el {new Date(INICIO_PRIMERA_COMIDA + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}. Aparecerá aquí cuando entren los próximos alumnos nuevos.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full jb-body text-xs">
+              <thead>
+                <tr className="text-zinc-500 text-[11px]">
+                  <th className="text-left font-normal py-1 pr-2">Personas que…</th>
+                  <th className="text-right font-normal py-1 px-2">Total</th>
+                  <th className="text-right font-normal py-1 px-2">Insta/Face</th>
+                  <th className="text-right font-normal py-1 pl-2">Chrome/Safari</th>
+                </tr>
+              </thead>
+              {FILAS_PRIMERA.map(g => (
+                <tbody key={g.titulo}>
+                  <tr><td colSpan={4} className="jb-display text-[11px] text-orange-300 pt-2 pb-0.5">{g.titulo.toUpperCase()}</td></tr>
+                  {g.filas.map(([ev, det, t]) => (
+                    <tr key={ev + det} className="border-t border-zinc-800 text-zinc-200">
+                      <td className="py-1 pr-2">{t}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det)}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det, true)}</td>
+                      <td className="text-right py-1 pl-2 tabular-nums">{personas(ev, det, false)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-zinc-800 mt-5 pt-4">

@@ -2411,6 +2411,30 @@ function visitanteDemo() {
   return window.__jbVisitante;
 }
 
+/* El plato de la prueba queda guardado en este celular: si la persona
+   crea su cuenta ese mismo día, la app lo registra solo como su primera
+   comida (ver alumno.jsx → leerPlatoDemo). Así no entra con la pantalla
+   vacía. */
+const CLAVE_PLATO_DEMO = 'jb-plato-demo';
+function guardarPlatoDemo(lista) {
+  try {
+    localStorage.setItem(CLAVE_PLATO_DEMO, JSON.stringify({
+      fecha: todayISO(), hora: new Date().toISOString(),
+      items: lista.map(i => ({ foodKey: i.food.key, gramos: i.gramos })),
+    }));
+  } catch {}
+}
+function leerPlatoDemo() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CLAVE_PLATO_DEMO) || 'null');
+    if (!d || d.fecha !== todayISO() || !Array.isArray(d.items) || !d.items.length) return null;
+    return d;
+  } catch { return null; }
+}
+function borrarPlatoDemo() {
+  try { localStorage.removeItem(CLAVE_PLATO_DEMO); } catch {}
+}
+
 function DemoFotoPlato({ onCerrar, onRegistrar }) {
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultado | vacio | limite | error
   const [preview, setPreview] = useState(null);
@@ -2455,6 +2479,7 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
       if (!lista.length) { setEstado('vacio'); return; }
       setItems(lista);
       setEstado('resultado');
+      guardarPlatoDemo(lista);
       registrarEventoEmbudo('demo_resultado', { detalle: String(lista.length) });
     } catch {
       setEstado('error');
@@ -6184,6 +6209,9 @@ export default function App() {
 }
 
 export {
+  registrarPasoPago,
+  leerPlatoDemo,
+  borrarPlatoDemo,
   ACTIVITY_DESC,
   BONO_DIAS,
   RelojBono,

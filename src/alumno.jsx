@@ -6,6 +6,9 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
 import {
+  registrarPasoPago,
+  leerPlatoDemo,
+  borrarPlatoDemo,
   ACTIVITY_DESC,
   cargarAlimentosExtra,
   ACTIVITY_FACTORS,
@@ -6127,6 +6130,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
         setInfoLimite(data);
         anotarCupo(data);
         setEstado('limite');
+        registrarPasoPago('foto_comida', username, 'limite');
         return;
       }
       if (data?.error) throw new Error(data.error);
@@ -6148,7 +6152,8 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);
-      if (!encontrados.length) { setEstado('vacio'); return; }
+      if (!encontrados.length) { setEstado('vacio'); registrarPasoPago('foto_comida', username, 'vacio'); return; }
+      registrarPasoPago('foto_comida', username, 'resultado');
 
       setItems(encontrados);
       // Solo se pre-marca lo que la IA identificó con confianza alta.
@@ -6167,6 +6172,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
     } catch (e) {
       setMensajeError(e?.message || '');
       setEstado('error');
+      registrarPasoPago('foto_comida', username, 'error');
     }
   }
 
@@ -6223,6 +6229,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
 
   function confirmar() {
     const elegidos = elegidosConPorcion();
+    registrarPasoPago('foto_comida', username, elegidos.length ? 'agrego' : 'agrego_nada');
     elegidos.forEach(({ item, food, porcion, corregido }) => {
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
@@ -7620,8 +7627,9 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
    al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
    entra con su correo. */
-function AbrirEnNavegadorModal({ onCerrar }) {
+function AbrirEnNavegadorModal({ username, onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
+  useEffect(() => { registrarPasoPago('abrir_navegador', username, 'vio'); }, [username]);
   const [correo, setCorreo] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [correoCopiado, setCorreoCopiado] = useState(false);
@@ -7665,7 +7673,7 @@ function AbrirEnNavegadorModal({ onCerrar }) {
             )}
           </div>
         )}
-        <a href={enlace} className={btnPrimary + ' w-full py-3 mt-4'}>🌐 Abrir en {navegador}</a>
+        <a href={enlace} onClick={() => registrarPasoPago('abrir_navegador', username, 'toco')} className={btnPrimary + ' w-full py-3 mt-4'}>🌐 Abrir en {navegador}</a>
         <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-left">
           <p className="jb-body text-[11px] text-zinc-400">
             Si no se abre: toca los <b className="text-zinc-200">tres puntos</b> (arriba a la derecha) → <b className="text-zinc-200">"Abrir en {esIphone ? 'Safari' : 'el navegador'}"</b>. O escribe <b className="text-zinc-200">jonahbeast.com</b> en {navegador}.
@@ -9525,6 +9533,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     return () => { vivo = false; };
   }, [username]);
   function registrarPrimeraComida(meal, p) {
+    registrarPasoPago('primera_comida', username, 'plato');
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
     setNuncaRegistro(false);
     vibrar(30);
@@ -9532,6 +9541,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setRegistrarAl(null); setTab('meal'); window.scrollTo({ top: 0 });
   }
   function descartarPrimeraComida() {
+    registrarPasoPago('primera_comida', username, 'ahora_no');
     try { localStorage.setItem('jb_primera_comida_no_' + username, todayISO()); } catch {}
     setPrimeraDescartada(true);
   }
@@ -9617,6 +9627,33 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const metaListaPrimera = targetsObjetivo?.kcal || 0;
   const verPrimeraComida = nuncaRegistro === true && !primeraDescartada && alimentosHoy === 0
     && tieneDatosBasicos(form) && !!form.objetivo && metaListaPrimera > 0;
+  // Medición: cuántos nuevos ven "¡TU PLAN ESTÁ LISTO!" y qué tocan ahí
+  // (foto, un plato, buscar o "Ahora no"). Se ve en el panel, en el
+  // embudo de activación.
+  useEffect(() => {
+    if (verPrimeraComida && !verGuia) registrarPasoPago('primera_comida', username, 'vio');
+  }, [verPrimeraComida, verGuia, username]);
+  // El plato que fotografió en la prueba de la portada (sin cuenta) pasa
+  // a ser su primera comida, si creó la cuenta ese mismo día en este
+  // celular. Se registra en la comida de la hora en que tomó la foto.
+  useEffect(() => {
+    if (nuncaRegistro !== true || alimentosHoy > 0 || verGuia) return;
+    const demo = leerPlatoDemo();
+    if (!demo) return;
+    borrarPlatoDemo();
+    const entradas = demo.items.map(it => {
+      const food = buscarFood(it.foodKey);
+      if (!food) return null;
+      const porcion = porcionDeFoto(food, 1, it.gramos);
+      return { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, fotoIA: food.key };
+    }).filter(Boolean);
+    if (!entradas.length) return;
+    const meal = comidaDeAhora(new Date(demo.hora));
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), ...entradas] } }));
+    setNuncaRegistro(false);
+    registrarPasoPago('primera_comida', username, 'demo');
+    showToast(`📸 El plato de tu prueba ya quedó registrado en tu ${meal.toLowerCase()}`);
+  }, [nuncaRegistro, alimentosHoy, verGuia, username]);
   const firmaObjetivo = targetsObjetivo
     ? [targetsObjetivo.kcal, targetsObjetivo.protein, targetsObjetivo.fat].map(Math.round).join('|') : '';
   const firmaAntes = useRef(null);
@@ -9677,13 +9714,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {/* Primero su primera comida (está motivado y ya está adentro); recién
             después se le pide abrir la app en Chrome/Safari, donde tiene que
             volver a entrar con su correo. */}
-        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal onCerrar={cerrarAbrirEnNavegador} />}
+        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
-            onFoto={(meal) => { setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
-            onOtro={(meal) => { setNuncaRegistro(false); irARegistrar(meal); }}
+            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
+            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (

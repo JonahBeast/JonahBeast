@@ -330,7 +330,7 @@ function textoDe(msg: any): { tipo: string; texto: string } {
 }
 
 // Mensajes de grupos o comunidades de WhatsApp (por ejemplo la comunidad
-// del Equipo Beast): el asistente nunca responde ahí. Hoy Meta no los manda
+// del Team Beast): el asistente nunca responde ahí. Hoy Meta no los manda
 // al asistente, pero si algún día lo hace, se ignoran.
 function esDeGrupo(valor: any, msg: any) {
   return !!(msg?.group_id || msg?.context?.group_id || valor?.metadata?.group_id

@@ -2084,7 +2084,7 @@ const FILAS_PRIMERA = [
    ver src/equipo.jsx). Jonah ve cada equipo con su capitán, cuántos
    registraron comida esta semana, a quién trajeron con la invitación y los
    que se apagaron. Puede poner el enlace de la comunidad de WhatsApp del
-   Equipo Beast y cerrar un equipo que no va (nombre feo, mal uso). */
+   Team Beast y cerrar un equipo que no va (nombre feo, mal uso). */
 function EquiposPanel({ users }) {
   const [datos, setDatos] = useState(null);
   const [abierto, setAbierto] = useState(null);

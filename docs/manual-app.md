@@ -553,20 +553,22 @@ Problemas:
 
 Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y versión gratis.
 
-**Equipo Beast (el oficial):** el reto del mes con Jonah de capitán (ej. "Reto de octubre con Jonah"). Empieza el día 1 y termina el último día de cada mes; el siguiente arranca solo. Para entrar: pestaña **"Equipo"** → **"Unirme al Equipo Beast"**.
+**Team Beast (el oficial):** el reto del mes con Jonah de capitán (ej. "Reto de octubre con Jonah"). Empieza el día 1 y termina el último día de cada mes; el siguiente arranca solo. Para entrar: pestaña **"Equipo"** → **"Unirme al Team Beast"**.
+
+**Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). El nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán.
 
 **Crear un equipo propio:**
 1. Pestaña **"Equipo"** → **"Crear mi equipo"**.
-2. Pon el **nombre del equipo** (de 3 a 40 letras; no se aceptan groserías ni promesas de kilos), la **duración del reto** (**14, 28 o 56 días**) y **cuándo empiezan** (**"Hoy"** o el próximo **lunes**).
+2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Elige la **duración del reto** (**14, 28 o 56 días**) y **cuándo empiezan** (**"Hoy"** o el próximo **lunes**).
 3. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
-4. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍).
+4. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍). Cada persona puede ser capitán de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
 
 **Invitar:** dentro del equipo, tarjeta **"INVITA A TU GENTE"** → **"WhatsApp"** (manda un mensaje listo con el enlace) o **"Copiar enlace"**. También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
 
 **Unirse con un enlace o código:**
 - Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**.
 - Con el **código**: pestaña **"Equipo"** → **"Tengo un código"** → escribirlo → **"Entrar"**.
-- Máximo **30 integrantes** por equipo y **3 equipos** por persona (contando el Equipo Beast).
+- Máximo **30 integrantes** por equipo y **3 equipos** por persona (contando el Team Beast).
 
 **Qué se ve dentro del equipo:**
 - **"DÍA X DE Y"** del reto y la fecha en que termina (o "EMPIEZA EL…" si aún no empieza, o "¡RETO TERMINADO! 🏆").
@@ -577,8 +579,8 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - **✗ = 0 puntos:** no registró. Hoy, mientras no registre, sale un punto con borde de rayas.
 - **Gana el más constante, no el que más baja.** Los compañeros **no ven el peso, las medidas ni lo que come cada uno**: solo su nombre corto (ej. "Rosa M."), sus casillas y sus puntos.
 - **Dar ánimo:** tocar el nombre de un compañero → **"💪 ¡Vamos!"**, **"🔥 ¡Sigue así!"** o **"👏 ¡Bien ahí!"**. Le llega como notificación ("[Nombre] te mandó ánimo: 💪 ¡Vamos!"). Uno por compañero al día. Los ánimos recibidos se ven arriba al abrir el equipo.
-- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Equipo Beast es la comunidad de WhatsApp de Jonah. La conversación del equipo es en WhatsApp; dentro de la app no hay chat.
-- El **capitán** puede cambiar el nombre y el enlace de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
+- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. La conversación del equipo es en WhatsApp; dentro de la app no hay chat.
+- El **capitán** puede poner o cambiar el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
 - **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 
 Problemas:

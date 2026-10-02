@@ -9830,7 +9830,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
-        {tab === 'equipo' && <EquipoTab username={username} onAnimosVistos={revisarAvisoEquipo} />}
+        {tab === 'equipo' && <EquipoTab username={username} nombre={userRecord?.nombre} onAnimosVistos={revisarAvisoEquipo} />}
       </main>
       <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"

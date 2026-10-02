@@ -1,7 +1,8 @@
 // EQUIPOS: retos en grupo (pestaña "Equipo" de la app del alumno).
 //
-// - El Equipo Beast oficial: el reto del mes con Jonah de capitán.
-// - Equipos propios: los arma un alumno, invita por WhatsApp con un
+// - El Team Beast oficial: el reto del mes con Jonah de capitán.
+// - Equipos propios: "Team Beast de [capitán]" (el nombre lo pone la base,
+//   no se elige). Los arma un alumno, invita por WhatsApp con un
 //   código o un enlace (jonahbeast.com/?equipo=CODIGO), máximo 30.
 // - Cada día cuenta: ✓ = 3 o más comidas registradas (10 puntos),
 //   – = 1 o 2 comidas (5 puntos), ✗ = ninguna. El ranking premia la
@@ -55,9 +56,9 @@ const linkEquipo = (codigo, ref) =>
 function textoInvitacionEquipo(eq, ref) {
   const link = linkEquipo(eq.codigo, ref);
   if (eq.oficial) {
-    return `Únete conmigo al Equipo Beast 🦍, el reto del mes con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
+    return `Únete conmigo al Team Beast 🦍, el reto del mes con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
   }
-  return `¡Únete a mi equipo "${eq.nombre}" en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
+  return `¡Únete a mi equipo, el ${eq.nombre}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
 }
 
 const ERRORES = {
@@ -67,6 +68,7 @@ const ERRORES = {
   lleno: 'Ese equipo ya está completo.',
   no_existe: 'No encontramos un equipo con ese código. Revísalo y prueba otra vez.',
   datos: 'Revisa los datos e intenta de nuevo.',
+  ya_capitan: 'Ya eres capitán de un equipo. En otros equipos puedes estar como integrante.',
   en_curso: 'El reto todavía no termina.',
 };
 const mensajeError = (r, error) => (error ? 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' : ERRORES[r?.error] || 'Algo falló. Intenta de nuevo.');
@@ -80,7 +82,7 @@ function Tarjeta({ children, className = '' }) {
   return <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 ${className}`}>{children}</div>;
 }
 
-export function EquipoTab({ username, onAnimosVistos }) {
+export function EquipoTab({ username, nombre, onAnimosVistos }) {
   const [mis, setMis] = useState(null);
   const [abierto, setAbierto] = useState(null); // id del equipo abierto
   const [vista, setVista] = useState('lista'); // lista | crear | codigo
@@ -128,12 +130,13 @@ export function EquipoTab({ username, onAnimosVistos }) {
       onAnimosVistos={onAnimosVistos} />;
   }
   if (vista === 'crear') {
-    return <CrearEquipo onCancelar={() => setVista('lista')}
+    return <CrearEquipo nombre={nombre} onCancelar={() => setVista('lista')}
       onCreado={async id => { await cargar(); setVista('lista'); setAbierto(id); }} />;
   }
 
   const enOficial = !!mis?.equipos?.some(e => e.oficial);
   const puedeMas = (mis?.equipos?.length || 0) < 3;
+  const yaCapitan = !!mis?.equipos?.some(e => e.capitan && !e.oficial);
 
   return (
     <div className="pt-2">
@@ -165,13 +168,13 @@ export function EquipoTab({ username, onAnimosVistos }) {
               <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
                 style={{ background: 'radial-gradient(circle, rgba(232,89,12,.22), transparent 70%)' }} />
               <p className="relative jb-body text-[11px] text-orange-300 uppercase tracking-wider">El equipo oficial</p>
-              <p className="relative jb-display text-2xl text-zinc-50 mb-1">EQUIPO BEAST 🦍</p>
+              <p className="relative jb-display text-2xl text-zinc-50 mb-1">TEAM BEAST 🦍</p>
               <p className="relative jb-body text-sm text-zinc-300 mb-1">
                 El reto de {MESES[new Date().getMonth()]} con Jonah de capitán. Registra tus comidas, suma puntos y recibe ánimo del equipo.
               </p>
               <p className="relative jb-body text-xs text-zinc-500 mb-4">{mis.oficial.miembros} {mis.oficial.miembros === 1 ? 'integrante' : 'integrantes'}</p>
               <button onClick={() => unirse(mis.oficial.codigo)} disabled={ocupado || !puedeMas} className={btnPrimary + ' relative w-full py-3'}>
-                {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Unirme al Equipo Beast'}
+                {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Unirme al Team Beast'}
               </button>
             </div>
           )}
@@ -198,8 +201,8 @@ export function EquipoTab({ username, onAnimosVistos }) {
           )}
 
           {puedeMas ? (
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setVista('crear')} className={btnGhost + ' py-3'}><Plus size={16} /> Crear mi equipo</button>
+            <div className={`grid gap-2 ${yaCapitan ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              {!yaCapitan && <button onClick={() => setVista('crear')} className={btnGhost + ' py-3'}><Plus size={16} /> Crear mi equipo</button>}
               <button onClick={() => setVista(vista === 'codigo' ? 'lista' : 'codigo')} className={btnGhost + ' py-3'}><KeyRound size={16} /> Tengo un código</button>
             </div>
           ) : (
@@ -265,8 +268,9 @@ function AyudaWhatsApp() {
   );
 }
 
-function CrearEquipo({ onCancelar, onCreado }) {
-  const [nombre, setNombre] = useState('');
+function CrearEquipo({ nombre, onCancelar, onCreado }) {
+  const primero = String(nombre || '').trim().split(/\s+/)[0];
+  const titulo = `Team Beast de ${primero.length >= 2 ? primero.charAt(0).toUpperCase() + primero.slice(1).toLowerCase() : 'tu nombre'}`;
   const [dias, setDias] = useState(28);
   const [inicio, setInicio] = useState(proximoLunes());
   const [whatsapp, setWhatsapp] = useState('');
@@ -276,7 +280,7 @@ function CrearEquipo({ onCancelar, onCreado }) {
   async function crear() {
     setError('');
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_crear', { p_nombre: nombre.trim(), p_dias: dias, p_inicio: inicio, p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_crear', { p_nombre: titulo, p_dias: dias, p_inicio: inicio, p_whatsapp: whatsapp.trim() || null });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     vibrar(30);
@@ -290,16 +294,15 @@ function CrearEquipo({ onCancelar, onCreado }) {
       <h1 className="jb-display text-3xl text-zinc-50 mb-1">CREA TU EQUIPO</h1>
       <p className="jb-body text-sm text-zinc-400 mb-5">Invita a tu pareja, tu familia o tus compañeros del trabajo. Hasta 30 personas.</p>
       <Tarjeta>
-        <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Nombre del equipo</p>
-        <input value={nombre} onChange={e => setNombre(e.target.value.slice(0, 40))} placeholder="Ej. Los Imparables"
-          className={inputCls + ' w-full rounded-xl mb-4'} />
+        <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Tu equipo se llamará</p>
+        <p className="jb-display text-2xl text-orange-400 mb-4">{titulo.toUpperCase()} 🦍</p>
         <ElegirReto dias={dias} setDias={setDias} inicio={inicio} setInicio={setInicio} />
         <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Enlace de su grupo de WhatsApp (opcional)</p>
         <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
           inputMode="url" className={inputCls + ' w-full rounded-xl'} />
         <AyudaWhatsApp />
         {error && <p className="jb-body text-sm text-red-400 mt-3">{error}</p>}
-        <button onClick={crear} disabled={ocupado || nombre.trim().length < 3} className={btnPrimary + ' w-full py-3 mt-5'}>
+        <button onClick={crear} disabled={ocupado} className={btnPrimary + ' w-full py-3 mt-5'}>
           {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Crear equipo'}
         </button>
       </Tarjeta>
@@ -350,7 +353,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   }
 
   async function salir() {
-    if (!window.confirm(eq.oficial ? '¿Seguro que quieres salir del Equipo Beast?' : `¿Seguro que quieres salir de ${eq.nombre}?`)) return;
+    if (!window.confirm(eq.oficial ? '¿Seguro que quieres salir del Team Beast?' : `¿Seguro que quieres salir de ${eq.nombre}?`)) return;
     const { ok, r, error: e } = await llamar('equipo_salir', { p_id: id });
     if (!ok) { showToast(mensajeError(r, e), 'error'); return; }
     showToast('Saliste del equipo. Cuando quieras, vuelves 🦍');
@@ -386,7 +389,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
       <div className="flex items-start justify-between gap-3 mb-1">
         <h1 className="jb-display text-3xl text-zinc-50 leading-tight break-words min-w-0">{eq.nombre.toUpperCase()}{eq.oficial ? ' 🦍' : ''}</h1>
         {eq.soy_capitan && !eq.oficial && (
-          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Editar equipo"><Pencil size={16} /></button>
+          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Grupo de WhatsApp del equipo"><Pencil size={16} /></button>
         )}
       </div>
       <p className="jb-body text-sm text-orange-300 mb-3">{subtitulo} · {eq.miembros.length} {eq.miembros.length === 1 ? 'integrante' : 'integrantes'}</p>
@@ -520,14 +523,13 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
 }
 
 function EditarEquipo({ eq, onListo }) {
-  const [nombre, setNombre] = useState(eq.nombre);
   const [whatsapp, setWhatsapp] = useState(eq.whatsapp || '');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   async function guardar() {
     setError('');
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: nombre.trim(), p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: eq.nombre, p_whatsapp: whatsapp.trim() || null });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     showToast('✅ Equipo actualizado');
@@ -535,12 +537,6 @@ function EditarEquipo({ eq, onListo }) {
   }
   return (
     <Tarjeta className="mb-3">
-      {!eq.oficial && (
-        <>
-          <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Nombre del equipo</p>
-          <input value={nombre} onChange={e => setNombre(e.target.value.slice(0, 40))} className={inputCls + ' w-full rounded-xl mb-3'} />
-        </>
-      )}
       <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Enlace del grupo de WhatsApp</p>
       <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
         inputMode="url" className={inputCls + ' w-full rounded-xl'} />

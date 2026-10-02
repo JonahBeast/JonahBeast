@@ -2253,9 +2253,29 @@ function fuenteEmbudo() {
   try {
     const params = new URLSearchParams(window.location.search);
     const deUrl = params.get('utm_source') || params.get('fuente');
+    campanaEmbudo();
     if (deUrl) { sessionStorage.setItem('jb-fuente', deUrl.toLowerCase()); return deUrl.toLowerCase(); }
     return sessionStorage.getItem('jb-fuente') || 'directo';
   } catch { return 'directo'; }
+}
+
+/* Campaña y anuncio del que vino la visita: en Meta, los parámetros del
+   link de cada anuncio llevan utm_campaign={{campaign.name}} y
+   utm_content={{ad.name}}, y Meta pone ahí los nombres reales. Se recuerda
+   en la pestaña igual que la fuente. Devuelve "Campaña · Anuncio" o null. */
+function campanaEmbudo() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const limpiar = v => String(v || '').trim().slice(0, 120);
+    const campana = limpiar(params.get('utm_campaign'));
+    const anuncio = limpiar(params.get('utm_content'));
+    if (campana || anuncio) {
+      const texto = [campana || 'Sin campaña', anuncio].filter(Boolean).join(' · ');
+      sessionStorage.setItem('jb-campana', texto);
+      return texto;
+    }
+    return sessionStorage.getItem('jb-campana') || null;
+  } catch { return null; }
 }
 
 /* Guarda un paso del embudo: 'vista', 'clic_cta' o 'registro'. Falla en
@@ -2287,6 +2307,15 @@ function registrarEventoEmbudo(evento, extra = {}) {
   supabase.from('embudo_landing_eventos')
     .insert({ evento, fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo(), ...extra })
     .then(() => {}, () => {});
+}
+
+/* Al registrarse: si llegó desde un anuncio con campaña marcada, guarda una
+   fila aparte ('campana') con "Campaña · Anuncio" en el detalle. Así el
+   panel sabe qué campaña trajo a cada alumno sin cambiar la tabla. */
+function registrarRegistroEmbudo(username, detalle = null) {
+  registrarEventoEmbudo('registro', detalle ? { username, detalle } : { username });
+  const campana = campanaEmbudo();
+  if (campana) registrarEventoEmbudo('campana', { username, detalle: campana });
 }
 
 /* Último día gratis si la persona se registra hoy, ej. "8 de octubre".
@@ -3543,7 +3572,7 @@ function TrialSignup({ onBack, onCreated }) {
 
     // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el
     // usuario para poder seguir a esta persona hasta la prueba y el pago.
-    registrarEventoEmbudo('registro', { username: user });
+    registrarRegistroEmbudo(user);
 
     if (data.session) {
       for (let intento = 0; intento < 4; intento++) {
@@ -5609,7 +5638,7 @@ export default function App() {
     const nueva = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 15 * 60 * 1000;
     if (nueva && perfil.role !== 'admin') {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
-      registrarEventoEmbudo('registro', { username: perfil.username, detalle: 'google' });
+      registrarRegistroEmbudo(perfil.username, 'google');
       avisarRegistroTikTok(user?.id);
       try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
     }

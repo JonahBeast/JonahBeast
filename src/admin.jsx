@@ -2999,7 +2999,7 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
           .in('categoria', ['publicidad', 'marketing']).gte('fecha', desdeAnterior)),
         traerTodas(() => supabase.from('alumnos').select('username, created_at').gte('created_at', desdeAnterior), 'username'),
         traerTodas(() => supabase.from('pagos').select('username, monto, metodo, creado_en').eq('estado', 'aprobado').gt('monto', 0)),
-        traerTodas(() => supabase.from('embudo_landing_eventos').select('username, fuente').eq('evento', 'registro').gte('creado_en', desdeAnterior)),
+        traerTodas(() => supabase.from('embudo_landing_eventos').select('username, fuente, evento, detalle').in('evento', ['registro', 'campana']).gte('creado_en', desdeAnterior)),
       ]);
       const nuevos = (alumnos || []).filter(a => !esCuentaPropia(a.username)).map(a => a.username);
       const { data: hist } = nuevos.length
@@ -3016,14 +3016,23 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
   // Primer pago con dinero real de cada alumno (así "pagaron" = alumnos nuevos que pagaron ese mes).
   const primerPago = {};
   datos.pagos.forEach(p => { const f = mesDe(p.creado_en); if (!primerPago[p.username] || f < primerPago[p.username]) primerPago[p.username] = f; });
-  const fuenteDe = Object.fromEntries(datos.regs.filter(r => r.username).map(r => [r.username, r.fuente || 'directo']));
+  const fuenteDe = Object.fromEntries(datos.regs.filter(r => r.username && r.evento === 'registro').map(r => [r.username, r.fuente || 'directo']));
+  // Campaña de Meta de cada registro (solo los que llegaron con el link marcado).
+  const campanaDe = Object.fromEntries(datos.regs.filter(r => r.username && r.evento === 'campana' && r.detalle).map(r => [r.username, r.detalle.split(' · ')[0]]));
   const resumen = ym => {
     const inversion = datos.gastos.filter(g => mesDe(g.fecha) === ym).reduce((a, g) => a + (Number(g.monto) || 0), 0);
     const registrados = datos.alumnos.filter(a => mesDe(a.created_at) === ym);
     const empezaron = registrados.filter(a => datos.empezaron.has(a.username)).length;
     const pagaron = Object.values(primerPago).filter(f => f === ym).length;
-    const porFuente = {};
+    const porFuente = {}, porCampana = {};
     registrados.forEach(a => {
+      const c = campanaDe[a.username];
+      if (c) {
+        const gc = porCampana[c] || (porCampana[c] = { registros: 0, empezaron: 0, pagaron: 0 });
+        gc.registros++;
+        if (datos.empezaron.has(a.username)) gc.empezaron++;
+        if (primerPago[a.username]) gc.pagaron++;
+      }
       const f = fuenteDe[a.username] || 'sin_dato';
       const g = porFuente[f] || (porFuente[f] = { registros: 0, empezaron: 0, pagaron: 0 });
       g.registros++;
@@ -3031,7 +3040,7 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
       if (primerPago[a.username]) g.pagaron++;
     });
     const costo = n => (inversion > 0 && n > 0 ? inversion / n : null);
-    return { inversion, registros: registrados.length, empezaron, pagaron, porRegistro: costo(registrados.length), porEmpezo: costo(empezaron), porPago: costo(pagaron), porFuente };
+    return { inversion, registros: registrados.length, empezaron, pagaron, porRegistro: costo(registrados.length), porEmpezo: costo(empezaron), porPago: costo(pagaron), porFuente, porCampana };
   };
   const anteriorDe = ym => { const [y, m] = ym.split('-').map(Number); const n = y * 12 + (m - 1) - 1; return `${Math.floor(n / 12)}-${String(n % 12 + 1).padStart(2, '0')}`; };
   const r = resumen(mesSel);
@@ -3051,6 +3060,7 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
     { v: r.porPago, l: 'Cada alumno que pagó', sub: `${r.pagaron} ${r.pagaron === 1 ? 'pagó' : 'pagaron'} por primera vez`, c: comparar(r.porPago, ra.porPago) },
   ];
   const fuentes = Object.entries(r.porFuente).sort((a, b) => b[1].registros - a[1].registros);
+  const campanas = Object.entries(r.porCampana).sort((a, b) => b[1].registros - a[1].registros);
   const chip = (activa, onClick, texto) => (
     <button type="button" onClick={onClick}
       className={`jb-body text-[11px] px-2.5 py-1 rounded-full border transition-colors ${activa ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
@@ -3128,6 +3138,34 @@ function CostoPorAlumnoPanel({ valorAlumno = null, explicacionValor = '' }) {
             </table>
           </div>
           <p className="jb-body text-[10px] text-zinc-500 mt-1">El canal sale de la marca del link (?utm_source=). Los que entraron sin marca quedan como "Directo".</p>
+        </div>
+      )}
+      {campanas.length > 0 && (
+        <div>
+          <div className="jb-body text-xs text-zinc-400 mb-1">Qué campaña de Meta los trajo</div>
+          <div className="overflow-x-auto">
+            <table className="w-full jb-body text-xs">
+              <thead>
+                <tr className="text-zinc-500 text-[11px]">
+                  <th className="text-left font-normal py-1 pr-2">Campaña</th>
+                  <th className="text-right font-normal py-1 px-2">Registros</th>
+                  <th className="text-right font-normal py-1 px-2">Empezaron</th>
+                  <th className="text-right font-normal py-1 pl-2">Pagaron</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campanas.map(([c, g]) => (
+                  <tr key={c} className="border-t border-zinc-800 text-zinc-200">
+                    <td className="py-1 pr-2">{c}</td>
+                    <td className="text-right py-1 px-2 tabular-nums">{g.registros}</td>
+                    <td className="text-right py-1 px-2 tabular-nums">{g.empezaron}</td>
+                    <td className="text-right py-1 pl-2 tabular-nums">{g.pagaron}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="jb-body text-[10px] text-zinc-500 mt-1">Sale del nombre de la campaña que Meta pone en el link del anuncio. Cuánto gastó cada campaña lo ves en Meta o preguntándole a Jarvis.</p>
         </div>
       )}
     </div>
@@ -7946,7 +7984,7 @@ function HistoriaAlumno({ username }) {
         traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso, kcal_consumidas, kcal_objetivo, grasa_pct, masa_muscular').eq('username', username).order('fecha')),
         supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
         supabase.from('ajustes_membresia').select('created_at, dias, motivo').eq('username', username).order('created_at').range(0, 999),
-        supabase.from('embudo_landing_eventos').select('fuente').eq('evento', 'registro').eq('username', username).limit(1),
+        supabase.from('embudo_landing_eventos').select('fuente, evento, detalle').in('evento', ['registro', 'campana']).eq('username', username).limit(5),
         supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
         supabase.from('push_subs').select('username').eq('username', username).eq('activa', true).limit(1),
         supabase.from('pedidos_alimentos').select('creado_en, nombre, estado, solicitantes').order('creado_en', { ascending: false }).range(0, 499),
@@ -7956,7 +7994,8 @@ function HistoriaAlumno({ username }) {
       const escrito = leerEscritos(cfg?.value)[username];
       setD({
         al, hist: hist || [], pagos: pagos || [], ajustes: ajustes || [], form: datos?.form || {},
-        fuente: reg?.[0]?.fuente || null, escrito: typeof escrito === 'string' ? { f: escrito } : escrito || null,
+        fuente: (reg || []).find(r => r.evento === 'registro')?.fuente || null,
+        campana: (reg || []).find(r => r.evento === 'campana')?.detalle || null, escrito: typeof escrito === 'string' ? { f: escrito } : escrito || null,
         conAvisos: (subs || []).length > 0,
         pedidos: (pedidos || []).filter(p => (p.solicitantes || []).some(x => x?.username === username)),
       });
@@ -8002,7 +8041,7 @@ function HistoriaAlumno({ username }) {
   });
   const datosPeso = pesos.map(p => ({ clave: p.f, etiqueta: fechaCorta(p.f), etiquetaLarga: `${fechaCorta(p.f)}${p.inicial ? ' · peso inicial' : ''}`, partes: { valor: p.kg } }));
   const eventos = [
-    d.al?.created_at && { f: d.al.created_at, t: `🎉 Se registró${d.fuente ? ` (llegó por ${NOMBRE_FUENTE[d.fuente] || d.fuente})` : ''}` },
+    d.al?.created_at && { f: d.al.created_at, t: `🎉 Se registró${d.fuente ? ` (llegó por ${NOMBRE_FUENTE[d.fuente] || d.fuente})` : ''}${d.campana ? ` · anuncio: ${d.campana}` : ''}` },
     conComida.size > 0 && { f: [...conComida].sort()[0], t: '🌱 Registró su primera comida' },
     ...d.pagos.map(p => ({ f: p.creado_en, t: `💳 Pago de ${fmtS(Number(p.monto) || 0)}${p.plan_meses ? ` · plan de ${p.plan_meses} ${Number(p.plan_meses) === 1 ? 'mes' : 'meses'}` : ''}${p.metodo ? ` · ${p.metodo}` : ''}`, extra: p.estado === 'aprobado' ? null : p.estado })),
     ...d.ajustes.map(a => ({ f: a.created_at, t: `${Number(a.dias) >= 0 ? '🎁' : '➖'} ${Number(a.dias) >= 0 ? '+' : ''}${a.dias} días de Premium${a.motivo ? ` · ${a.motivo}` : ''}` })),

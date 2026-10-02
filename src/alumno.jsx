@@ -9425,7 +9425,20 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const ahora = [form.cuello, form.cintura, form.cadera].join('|');
     if (ahora === medidasAntes.current) return;
     medidasAntes.current = ahora;
-    if (form.medidasFecha !== todayISO()) setForm(v => ({ ...v, medidasFecha: todayISO() }));
+    // Además queda en su lista de mediciones (una por día, la última del
+    // día) con su % de grasa y de masa muscular, para que Jonah vea en el
+    // panel cómo cambian, igual que con el peso.
+    setForm(v => {
+      const hoy = todayISO();
+      const r = calcAll({
+        ...v, edad: Number(v.edad) || 0, estatura: Number(v.estatura) || 1, peso: Number(v.peso) || 0,
+        cuello: Number(v.cuello) || 1, cintura: Number(v.cintura) || 1, cadera: Number(v.cadera) || 1,
+      });
+      if (!r.cinta || !(Number(v.peso) > 0) || !Number.isFinite(r.bf)) return v.medidasFecha === hoy ? v : { ...v, medidasFecha: hoy };
+      const antes = (Array.isArray(v.mediciones) ? v.mediciones : []).filter(m => m && m.f !== hoy);
+      const medicion = { f: hoy, grasa: Math.round(r.bf * 10) / 10, musculo: Math.round(r.muscleKg / Number(v.peso) * 1000) / 10 };
+      return { ...v, medidasFecha: hoy, mediciones: [...antes, medicion].slice(-300) };
+    });
   }, [form.cuello, form.cintura, form.cadera]);
 
   // Modo fácil: letra más grande en toda la app (clase en <html>) e Inicio sencillo.

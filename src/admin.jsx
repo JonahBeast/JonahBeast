@@ -7973,13 +7973,16 @@ function HistoriaAlumno({ username }) {
   const ultima = [...conComida].sort().pop() || null;
   const pesos = historialDePeso(d.form, d.hist, d.al);
   // % de grasa y % de masa muscular (estimados con sus medidas con cinta).
-  const comp = historialComposicion(d.hist, d.al);
+  const f = d.form || {};
+  const rAct = (() => { try { return calcAll({ ...f, edad: Number(f.edad) || 0, estatura: Number(f.estatura) || 1, peso: Number(f.peso) || 0, cuello: Number(f.cuello) || 1, cintura: Number(f.cintura) || 1, cadera: Number(f.cadera) || 1 }); } catch { return null; } })();
+  const actualComp = rAct?.cinta && Number(f.peso) > 0 ? { grasa: Math.round(rAct.bf * 10) / 10, musculo: Math.round(rAct.muscleKg / Number(f.peso) * 1000) / 10 } : null;
+  const comp = historialComposicion(d.hist, d.al, f, actualComp);
   const aDatos = (lista, nota) => lista.map(p => ({ clave: p.f, etiqueta: fechaCorta(p.f), etiquetaLarga: `${fechaCorta(p.f)}${nota}`, partes: { valor: p.v } }));
   const resumenComp = (lista, menosEsBueno) => {
     if (!lista.length) return null;
     const ini = lista[0].v, fin = lista[lista.length - 1].v, dif = Math.round((fin - ini) * 10) / 10;
     const bueno = menosEsBueno ? dif < 0 : dif > 0;
-    return { ini, fin, dif, color: dif === 0 ? 'text-zinc-400' : bueno ? 'text-emerald-400' : 'text-amber-400' };
+    return { ini, fin, dif, n: lista.length, color: dif === 0 ? 'text-zinc-400' : bueno ? 'text-emerald-400' : 'text-amber-400' };
   };
   const rGrasa = resumenComp(comp.grasa, true), rMusculo = resumenComp(comp.musculo, false);
   // Lo mismo que le dice la app en su pestaña Progreso (últimos 30 días).
@@ -8060,10 +8063,14 @@ function HistoriaAlumno({ username }) {
               <div key={t} className="bg-zinc-900 rounded-lg p-2">
                 <div className="text-zinc-500 text-[10px]">{t}</div>
                 {r ? (
-                  <div className="text-zinc-200">
-                    {r.ini === r.fin ? `${r.fin}%` : `${r.ini}% → ${r.fin}%`}
-                    {r.dif !== 0 && <span className={`ml-1 ${r.color}`}>({r.dif > 0 ? '+' : '−'}{Math.abs(r.dif)})</span>}
-                  </div>
+                  <>
+                    <div className={`jb-display text-base leading-tight ${r.dif === 0 ? 'text-orange-400' : r.color}`}>
+                      {r.dif === 0 ? `${r.fin}%` : `${r.dif > 0 ? '+' : '−'}${Math.abs(r.dif)} pts`}
+                    </div>
+                    <div className="text-zinc-500 text-[10px]">
+                      {r.n >= 2 ? `desde ${r.ini}% · ahora ${r.fin}% · ${r.n - 1} ${r.n === 2 ? 'cambio' : 'cambios'}` : `${r.fin}% · aún sin volver a medirse`}
+                    </div>
+                  </>
                 ) : <div className="text-zinc-500">sin medida</div>}
               </div>
             ))}

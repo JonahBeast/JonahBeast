@@ -68,8 +68,14 @@ function sumarDias(iso, dias) {
 function diasEntre(desde, hasta) {
   return Math.round((Date.parse(hasta + 'T00:00:00Z') - Date.parse(desde + 'T00:00:00Z')) / 86400000);
 }
+// Si el nombre es una sola letra o está vacío (ej. "F"), se usa la parte
+// del usuario antes del primer punto o número (frank.alvah → Frank).
 const primerNombre = (a) => {
-  const n = String(a.nombre || '').trim().split(/\s+/)[0];
+  let n = String(a.nombre || '').trim().split(/\s+/)[0];
+  if (n.length < 2) {
+    const delUsuario = (String(a.username || '').match(/^[a-záéíóúñ]+/i) || [''])[0];
+    n = delUsuario.length >= 3 ? delUsuario : n;
+  }
   return n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
 };
 const nueve = t => String(t || '').replace(/\D/g, '').slice(-9);

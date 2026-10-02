@@ -8505,19 +8505,33 @@ function MensajesDelDiaPanel() {
   const [verMensaje, setVerMensaje] = useState(null); // username con el mensaje abierto
   const hoy = todayISO();
 
+  // Se arma al abrir el panel y se vuelve a armar sola cada vez que Jonah
+  // vuelve a la app (ej. al tocar el aviso "Nuevo alumno") y cada 5
+  // minutos: así un alumno que se acaba de inscribir aparece sin cerrar
+  // y abrir la app.
   useEffect(() => {
     let cancelado = false;
-    cargarDatosCarino(supabase, hoy)
+    const cargar = () => cargarDatosCarino(supabase, todayISO())
       .then(async d => {
         // A quien se registró dentro de Instagram/Facebook/TikTok el mensaje
         // le dice con qué correo entrar a la app: se piden esos correos.
         const internos = d.estados.filter(e => e.navegador_interno).map(e => e.username)
           .filter(u => d.alumnos.some(a => a.username === u));
         const correos = await traerCorreosAlumnos(internos);
-        if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, correos, hoyISO: hoy, incluirHechos: true })); }
+        if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, correos, hoyISO: todayISO(), incluirHechos: true })); }
       })
-      .catch(() => { if (!cancelado) setLista([]); });
-    return () => { cancelado = true; };
+      .catch(() => { if (!cancelado) setLista(l => l || []); });
+    cargar();
+    const alVolver = () => { if (document.visibilityState === 'visible') cargar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    window.addEventListener('focus', alVolver);
+    const cada5 = setInterval(cargar, 5 * 60 * 1000);
+    return () => {
+      cancelado = true;
+      document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener('focus', alVolver);
+      clearInterval(cada5);
+    };
   }, []);
 
   async function anotar(x) {
@@ -8573,7 +8587,7 @@ function MensajesDelDiaPanel() {
                         <div key={x.username} className={`rounded-xl p-3 border ${x.hecho ? 'bg-zinc-950/50 border-zinc-800/60 opacity-70' : 'bg-zinc-950 border-zinc-800'}`}>
                           <div className="flex items-center gap-3">
                             <div className="flex-1 min-w-0">
-                              <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}</p>
+                              <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}{String(x.nombre || '').trim().length < 3 && <span className="text-zinc-500"> · @{x.username}</span>}</p>
                               <p className="jb-body text-[11px] text-orange-300">{x.motivo}{!x.telefono ? ' · sin WhatsApp' : ''}</p>
                             </div>
                             {x.hecho ? (

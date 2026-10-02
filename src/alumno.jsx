@@ -3427,7 +3427,7 @@ function PhotosTab({ username, pesoActual, nombre }) {
       const datos = [];
       if (Number(fa.peso) > 0 && Number(fd.peso) > 0) {
         const d = Number(fd.peso) - Number(fa.peso);
-        if (Math.abs(d) >= 0.1) datos.push({ valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg', etiqueta: 'desde mi primera foto', color: d < 0 ? '#34D399' : '#FBBF24' });
+        if (Math.abs(d) >= 0.1) datos.push({ valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg', etiqueta: 'desde mi primera foto', color: d < 0 ? '#34D399' : '#FBBF24', peso: true });
       }
       const dias = Math.round((new Date(fd.fecha + 'T00:00:00') - new Date(fa.fecha + 'T00:00:00')) / 86400000);
       if (dias > 0) datos.push({ valor: dias >= 14 ? `${Math.round(dias / 7)} sem` : `${dias} días`, etiqueta: 'entre una foto y otra', color: '#F97316' });
@@ -3892,99 +3892,123 @@ function dibujarRecortada(ctx, img, x, y, w, h) {
 }
 
 async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = null }) {
-  // Con fotos, formato de historia (9:16) para que entren las fotos enteras
-  // y los datos sin chocar con el pie.
-  const W = 1080, H = fotoAntes && fotoDespues ? 1920 : 1350;
+  try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
+  const CARBON = '#16110D', CREMA = '#FAF6F0', NARANJA = '#E8590C', NARANJA2 = '#FF7020', GRIS = '#A8A29E', CAJA = '#231B15';
+  const titulo = t => `${t}px Anton, Impact, Arial Black, sans-serif`;
+  const cuerpo = (t, w = 500) => `${w} ${t}px "Work Sans", Arial, sans-serif`;
+  const caja = (x, y, w, h, r) => { ctx.beginPath(); if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); };
+
+  let imgA = null, imgB = null, gorila = null;
+  try {
+    [imgA, imgB, gorila] = await Promise.all([
+      fotoAntes ? cargarImagen(fotoAntes) : null,
+      fotoDespues ? cargarImagen(fotoDespues) : null,
+      cargarImagen('/logo-marca.webp'),
+    ]);
+  } catch {}
+  const conFotos = !!(imgA && imgB);
+  // Con fotos, formato de historia (9:16) para que entren las fotos enteras.
+  const W = 1080, H = conFotos ? 1920 : 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Fondo
-  ctx.fillStyle = '#0D0D0F';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#2A1508';
-  ctx.beginPath();
-  ctx.arc(W - 60, -80, 320, 0, Math.PI * 2);
-  ctx.fill();
+  // Fondo carbón con brillos de fuego (sin patrones repetidos).
+  ctx.fillStyle = CARBON; ctx.fillRect(0, 0, W, H);
+  const brillo1 = ctx.createRadialGradient(140, 120, 20, 140, 120, 700);
+  brillo1.addColorStop(0, 'rgba(232,89,12,0.32)'); brillo1.addColorStop(1, 'rgba(232,89,12,0)');
+  ctx.fillStyle = brillo1; ctx.fillRect(0, 0, W, H);
+  const brillo2 = ctx.createRadialGradient(W - 160, H - 380, 20, W - 160, H - 380, 620);
+  brillo2.addColorStop(0, 'rgba(255,112,32,0.28)'); brillo2.addColorStop(1, 'rgba(255,112,32,0)');
+  ctx.fillStyle = brillo2; ctx.fillRect(0, 0, W, H);
 
-  // Marca
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 52px Arial';
-  ctx.fillText('JONAH BEAST', 70, 120);
-  ctx.fillStyle = '#F97316';
-  ctx.font = 'bold 52px Arial';
-  ctx.fillText('FUEL', 70, 185);
+  // Marca y título
+  ctx.textAlign = 'left';
+  ctx.font = titulo(46);
+  ctx.fillStyle = CREMA; ctx.fillText('JONAH BEAST ', 70, 110);
+  ctx.fillStyle = NARANJA; ctx.fillText('FUEL', 70 + ctx.measureText('JONAH BEAST ').width, 110);
+  ctx.font = titulo(130); ctx.fillStyle = CREMA; ctx.fillText(conFotos ? 'MI CAMBIO' : 'MI PROGRESO', 66, 255);
+  ctx.font = cuerpo(36); ctx.fillStyle = GRIS;
+  ctx.fillText(`${nombre ? nombre.split(' ')[0] + ' · ' : ''}comida a comida`, 70, 310);
 
-  // Título
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 76px Arial';
-  ctx.fillText('MI PROGRESO', 70, 315);
-  if (nombre) {
-    ctx.fillStyle = '#9CA3AF';
-    ctx.font = '34px Arial';
-    ctx.fillText(nombre.split(' ')[0], 70, 365);
+  let yDatos = 400;
+  if (conFotos) {
+    const fw = 450, fh = 600, y = 360, xs = [60, 570];
+    [[imgA, 'ANTES'], [imgB, 'AHORA']].forEach(([img, etiqueta], i) => {
+      const x = xs[i], ahora = i === 1;
+      ctx.save();
+      if (ahora) { ctx.shadowColor = 'rgba(255,112,32,0.7)'; ctx.shadowBlur = 40; }
+      caja(x, y, fw, fh, 28); ctx.fillStyle = CAJA; ctx.fill();
+      ctx.restore();
+      ctx.save(); caja(x, y, fw, fh, 28); ctx.clip();
+      dibujarRecortada(ctx, img, x, y, fw, fh);
+      const sombra = ctx.createLinearGradient(0, y + fh - 160, 0, y + fh);
+      sombra.addColorStop(0, 'rgba(22,17,13,0)'); sombra.addColorStop(1, 'rgba(22,17,13,0.85)');
+      ctx.fillStyle = sombra; ctx.fillRect(x, y + fh - 160, fw, 160);
+      ctx.restore();
+      caja(x, y, fw, fh, 28); ctx.lineWidth = ahora ? 6 : 3; ctx.strokeStyle = ahora ? NARANJA2 : '#3A2F27'; ctx.stroke();
+      ctx.font = titulo(40);
+      const pw = ctx.measureText(etiqueta).width + 48;
+      caja(x + 24, y + fh - 84, pw, 60, 30); ctx.fillStyle = ahora ? NARANJA : 'rgba(250,246,240,0.9)'; ctx.fill();
+      ctx.fillStyle = ahora ? CREMA : CARBON; ctx.fillText(etiqueta, x + 48, y + fh - 38);
+    });
+    // Flecha entre el antes y el ahora
+    ctx.beginPath(); ctx.arc(540, y + fh / 2, 44, 0, Math.PI * 2); ctx.fillStyle = NARANJA; ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = CARBON; ctx.stroke();
+    const cy = y + fh / 2;
+    ctx.strokeStyle = CREMA; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(522, cy); ctx.lineTo(558, cy); ctx.moveTo(544, cy - 15); ctx.lineTo(560, cy); ctx.lineTo(544, cy + 15); ctx.stroke();
+    yDatos = y + fh + 90;
   }
 
-  // Fotos antes / después
-  let yStats = 430;
-  let imgA = null, imgB = null;
-  try {
-    if (fotoAntes) imgA = await cargarImagen(fotoAntes);
-    if (fotoDespues) imgB = await cargarImagen(fotoDespues);
-  } catch {}
-
-  if (imgA && imgB) {
-    const fw = 440, fh = 587, y = 420;
-    dibujarRecortada(ctx, imgA, 70, y, fw, fh);
-    dibujarRecortada(ctx, imgB, 570, y, fw, fh);
-    ctx.strokeStyle = '#2E2E33'; ctx.lineWidth = 3;
-    ctx.strokeRect(70, y, fw, fh);
-    ctx.strokeRect(570, y, fw, fh);
-    ctx.fillStyle = '#9CA3AF'; ctx.font = 'bold 30px Arial';
-    ctx.fillText('ANTES', 70, y + fh + 46);
-    ctx.fillStyle = '#F97316';
-    ctx.fillText('AHORA', 570, y + fh + 46);
-    yStats = y + fh + 110;
+  // Dato principal (el cambio de peso) en grande; el resto en cajas.
+  const principal = datos.find(d => d.peso) || datos[0];
+  const otros = datos.filter(d => d !== principal).slice(0, 3);
+  const anchoIzq = 470;
+  if (principal) {
+    let tam = 190;
+    ctx.font = titulo(tam);
+    while (tam > 70 && ctx.measureText(principal.valor).width > anchoIzq) { tam -= 6; ctx.font = titulo(tam); }
+    const grad = ctx.createLinearGradient(70, yDatos - tam, 70 + anchoIzq, yDatos);
+    grad.addColorStop(0, NARANJA2); grad.addColorStop(1, NARANJA);
+    ctx.fillStyle = principal.peso ? grad : CREMA;
+    ctx.fillText(principal.valor, 70, yDatos + 60);
+    ctx.font = cuerpo(38, 600); ctx.fillStyle = CREMA; ctx.fillText(principal.etiqueta, 74, yDatos + 115);
   }
-
-  // Bloques de datos
-  const cajas = datos.slice(0, 4);
-  const cols = cajas.length <= 2 ? cajas.length : 2;
-  const bw = cols === 2 ? 440 : 940;
-  const bh = 190;
-  cajas.forEach((d, i) => {
-    const cx = 70 + (i % cols) * (bw + 60);
-    const cy = yStats + Math.floor(i / cols) * (bh + 30);
-    ctx.fillStyle = '#1A1A1D';
-    if (typeof ctx.roundRect === 'function') {
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, bw, bh, 20);
-      ctx.fill();
-    } else {
-      ctx.fillRect(cx, cy, bw, bh);
-    }
-    ctx.fillStyle = d.color || '#FFFFFF';
-    ctx.font = 'bold 72px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(d.valor, cx + bw / 2, cy + 100);
-    ctx.fillStyle = '#9CA3AF';
-    ctx.font = '28px Arial';
-    ctx.fillText(d.etiqueta, cx + bw / 2, cy + 150);
-    ctx.textAlign = 'left';
+  let yc = yDatos + 170;
+  otros.forEach(d => {
+    caja(70, yc, anchoIzq, 118, 24); ctx.fillStyle = CAJA; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(232,89,12,0.45)'; ctx.stroke();
+    let tam = 64; ctx.font = titulo(tam);
+    while (tam > 36 && ctx.measureText(d.valor).width > 210) { tam -= 4; ctx.font = titulo(tam); }
+    ctx.fillStyle = d.color || CREMA; ctx.fillText(d.valor, 100, yc + 82);
+    ctx.font = cuerpo(28); ctx.fillStyle = GRIS; ctx.fillText(d.etiqueta, 300, yc + 70, anchoIzq - 250);
+    yc += 138;
   });
 
-  // En el formato de historia sobra espacio: va la frase de Jonah.
-  if (H > 1350) {
-    ctx.fillStyle = '#E7E5E4';
-    ctx.font = 'bold 40px Arial';
-    ctx.fillText('El cambio llega poco a poco,', 70, H - 230);
-    ctx.fillText('comida a comida 🦍', 70, H - 178);
+  // Jonah el gorila dando su toque, con su globo de diálogo.
+  if (gorila) {
+    const gh = conFotos ? 560 : 520, gw = gh * (gorila.width / gorila.height);
+    const gx = W - gw - 30, gy = conFotos ? yDatos + 110 : yDatos + 130;
+    ctx.save(); ctx.shadowColor = 'rgba(255,112,32,0.55)'; ctx.shadowBlur = 50;
+    ctx.drawImage(gorila, gx, gy, gw, gh); ctx.restore();
+    const baja = principal && principal.peso && String(principal.valor).startsWith('−');
+    const frase = baja ? '¡ASÍ SE HACE!' : '¡VAMOS CON TODO!';
+    ctx.font = titulo(46);
+    const bw = ctx.measureText(frase).width + 60, bh = 86;
+    const bx = Math.min(W - bw - 30, gx + gw / 2 - bw / 2 + 10), by = gy - bh - 30;
+    caja(bx, by, bw, bh, 40); ctx.fillStyle = CREMA; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx + bw / 2 - 18, by + bh - 2); ctx.lineTo(bx + bw / 2 + 18, by + bh - 2); ctx.lineTo(bx + bw / 2 + 4, by + bh + 30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = CARBON; ctx.fillText(frase, bx + 30, by + 62);
   }
 
-  // Pie (con el código de invitación, si lo hay)
-  ctx.fillStyle = '#F97316';
-  ctx.font = 'bold 36px Arial';
-  ctx.fillText(codigo ? `jonahbeast.com · Mi código: ${codigo} (10% dcto)` : 'jonahbeast.com', 70, H - 70);
+  // Pie: la frase de Jonah y el código de invitación.
+  ctx.font = cuerpo(34, 600); ctx.fillStyle = CREMA;
+  ctx.fillText('El cambio llega poco a poco, comida a comida 🦍', 70, H - 130, W - 140);
+  const pie = codigo ? `JONAHBEAST.COM · MI CÓDIGO: ${codigo} (10% DCTO)` : 'JONAHBEAST.COM';
+  let tamPie = 44; ctx.font = titulo(tamPie);
+  while (tamPie > 26 && ctx.measureText(pie).width > W - 140) { tamPie -= 2; ctx.font = titulo(tamPie); }
+  ctx.fillStyle = NARANJA2; ctx.fillText(pie, 70, H - 66);
 
   return new Promise((resolve, reject) => {
     try {
@@ -4045,8 +4069,13 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
       if (stats && stats.diasRegistrados) {
         datos.push({ valor: String(stats.diasRegistrados), etiqueta: 'días registrados' });
       }
-      if (stats && stats.adherencia !== null && stats.adherencia !== undefined) {
+      // "Días en mi objetivo" solo si es un buen número (60% o más); si no,
+      // va el tiempo que lleva usando la app, que siempre suma.
+      if (stats && stats.adherencia !== null && stats.adherencia !== undefined && stats.adherencia >= 60) {
         datos.push({ valor: Math.round(stats.adherencia) + '%', etiqueta: 'de días en mi objetivo', color: '#F97316' });
+      } else if (rows.length) {
+        const dias = Math.round((new Date(todayISO() + 'T00:00:00') - new Date(String(rows[0].fecha).slice(0, 10) + 'T00:00:00')) / 86400000) + 1;
+        if (dias >= 7) datos.push({ valor: `${Math.floor(dias / 7)} sem`, etiqueta: 'usando la app', color: '#F97316' });
       }
       // Racha actual de días seguidos (calculada a partir de los mismos registros)
       try {

@@ -22,7 +22,7 @@ import { traerTodas } from './traerTodas.js';
    repite a mano.
 
    El tono es el de Jonah: cercano, humano, motivador, nunca de robot. Su
-   historia (bajó de 104 a 90 kg en 2 meses con su propia app, entrenamiento y
+   historia (bajó de 104 a 90 kg en 2 meses y medio con su propia app, entrenamiento y
    disciplina; hace unos 4 años ya había bajado 37 kg) y la idea de
    que el cambio llega poco a poco, comida a comida.
 
@@ -204,7 +204,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       // 6. Celebrar.
       if (pagaron.has(a.username)) {
         return { etapa: 'celebrar', motivo: 'Acaba de pagar su plan',
-          mensaje: `¡${n || 'Hola'}, gracias por confiar en mí! 🙌 Ya tienes tu plan activo y desde hoy vamos juntos. Yo bajé de 104 a 90 kg en 2 meses con esta misma app, entrenamiento y disciplina, comida a comida, y sé que tú también puedes avanzar a tu ritmo. Cualquier duda, escríbeme por aquí. ¡Vamos con todo! 🦍` };
+          mensaje: `¡${n || 'Hola'}, gracias por confiar en mí! 🙌 Ya tienes tu plan activo y desde hoy vamos juntos. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, entrenamiento y disciplina, comida a comida, y sé que tú también puedes avanzar a tu ritmo. Cualquier duda, escríbeme por aquí. ¡Vamos con todo! 🦍` };
       }
       let racha = 0;
       for (let d = ayer; conComida.has(d); d = sumarDias(d, -1)) racha++;

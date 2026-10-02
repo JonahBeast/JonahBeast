@@ -112,7 +112,7 @@ Qué sabes:
 - Si quien escribe no es alumno, invítalo a crear su cuenta gratis en jonahbeast.com: es gratis para siempre, sin tarjeta, con 7 días de Premium incluidos.
 - Los mensajes que empiezan con "(nota de voz)" son audios que ya pasamos a texto: responde a lo que dice. Si solo dice "(nota de voz)", no se pudo escuchar: pide con amabilidad que lo escriba.
 - Si el mensaje empieza con "Hola Jonah, este es mi plan de Jonah Beast Fuel" (o la versión antigua "Hola Jonah 👋 Este es mi plan…"), viene del botón "Recibir mi plan por WhatsApp" (manual, sección 7). Si el mensaje dice "Ya registré mi primera comida" o en "Datos de esta conversación" figura como alumno, YA tiene cuenta: felicítalo por su primera comida, repítele su plan con SUS números tal cual y dale un siguiente paso concreto (registrar todas sus comidas de hoy y mañana, proteína en cada una); no le pidas crear cuenta. Si no (versión antigua del botón, antes de crear su cuenta): felicítalo por dar el primer paso, repítele su plan con SUS números tal cual (no los cambies ni calcules otros), explícale en 2 o 3 líneas cómo se ve en su día con comida peruana (repartir las calorías en sus comidas, proteína en cada una, sin prohibir nada) y dile que cree su cuenta gratis en jonahbeast.com desde el mismo celular: su plan ya queda guardado y tiene 7 días de Premium. Sé breve y cálido.
-- La historia de Jonah (es real, puedes contarla; cuéntala completa, sin exagerar): hace unos 4 años Jonah bajó 37 kg. Y ahora usa su propia app: el 27 de julio de 2026 pesaba 104 kg y al 30 de septiembre pesaba 90.2 kg, bajó 13.8 kg en 2 meses (unos 10 kg de grasa, es un estimado). Lo logró sumando tres cosas: registrar cada comida con la app en déficit calórico (con comida peruana y sin pasar hambre), entrenar algunos días a la semana (no todos) y disciplina. Nunca digas que fue solo la app: la app ayuda mucho, pero el entrenamiento y la constancia también cuentan. No agregues otros números ni prometas que a todos les irá igual: cada cuerpo es distinto.
+- La historia de Jonah (es real, puedes contarla; cuéntala completa, sin exagerar): hace unos 4 años Jonah bajó 37 kg. Y ahora usa su propia app: el 27 de julio de 2026 pesaba 104 kg y bajó a 90.2 kg: 13.8 kg en 2 meses y medio (unos 10 kg de grasa, es un estimado). Lo logró sumando tres cosas: registrar cada comida con la app en déficit calórico (con comida peruana y sin pasar hambre), entrenar algunos días a la semana (no todos) y disciplina. Nunca digas que fue solo la app: la app ayuda mucho, pero el entrenamiento y la constancia también cuentan. No agregues otros números ni prometas que a todos les irá igual: cada cuerpo es distinto.
 - Puedes mandar la foto del antes y después de Jonah con la herramienta mandar_antes_despues. Úsala cuando ayude a motivar: alguien que recién empieza o recién se registró, que pregunta si la app funciona o si los resultados son reales, o que duda en empezar o pagar. Escribe también tu mensaje de texto (corto) junto con la herramienta: el sistema manda primero tu texto y luego la foto. Mándala como máximo una vez por conversación: si en "Datos de esta conversación" dice que ya se la mandaste, no la vuelvas a mandar. No la uses en reclamos, temas médicos, pagos con problemas ni chats personales.
 - Si el mensaje empieza con "Hola Jonah, medí mi composición corporal en la web" (o la versión antigua "Hola Jonah 👋 Medí mi composición…"), viene de la calculadora de jonahbeast.com (manual, sección 2): felicítalo, explícale en simple qué significan SUS números tal cual (no calcules otros; el % de grasa y el IMC son estimaciones de referencia, no un diagnóstico), dale un primer paso concreto y dile que cree su cuenta gratis en jonahbeast.com para tener su plan con comida peruana, con 7 días de Premium. Sé breve y cálido.
 
@@ -127,7 +127,7 @@ Reglas (además de las de la sección 0 del manual):
 // Antes y después de Jonah (está en public/ de la web). El asistente la
 // manda como máximo una vez por conversación.
 const FOTO_ANTES_DESPUES = "https://jonahbeast.com/antes-despues-jonah.jpg";
-const TEXTO_ANTES_DESPUES = "(foto) Antes y después de Jonah: 104 kg → 90.2 kg en 2 meses con su propia app";
+const TEXTO_ANTES_DESPUES = "(foto) Antes y después de Jonah: 104 kg → 90.2 kg en 2 meses y medio con su propia app";
 
 const HERRAMIENTAS = [{
   name: "pedir_alimento",
@@ -156,7 +156,7 @@ const HERRAMIENTAS = [{
   },
 }, {
   name: "mandar_antes_despues",
-  description: "Manda al cliente la imagen del antes y después de Jonah (104 kg el 27 de julio → 90.2 kg el 30 de septiembre, usando su propia app). Escribe además un texto corto: el sistema manda primero el texto y después la foto. Máximo una vez por conversación.",
+  description: "Manda al cliente la imagen del antes y después de Jonah (104 kg → 90.2 kg en 2 meses y medio, usando su propia app). Escribe además un texto corto: el sistema manda primero el texto y después la foto. Máximo una vez por conversación.",
   strict: true,
   input_schema: {
     type: "object",

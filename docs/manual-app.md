@@ -477,7 +477,11 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 - **Versión gratis:** ve sus tendencias de **7 días**. Los demás periodos tienen 👑 y al tocarlos sale "Tus tendencias de 30 días a 1 año son Premium". También son Premium la constancia, el coach y los gráficos de % de grasa y masa muscular (sale "Tu constancia del mes y tu coach son Premium" y "Tu historial de … es Premium"). El gráfico de calorías diarias y compartir su progreso siguen gratis.
 - **"TU PESO":** gráfico (necesita al menos 2 pesos en días distintos).
 - **"TU CONSTANCIA · 4 SEMANAS":** calendario con ✓ en los días registrados.
-- **Coach automático:** analiza tu avance y te dice "Qué hacer ahora". Si dice "ESTAMOS CONOCIENDO TU CUERPO", necesita unos 10 días de registros y al menos 4 pesos.
+- **Coach automático:** analiza tu avance y te dice "Qué hacer ahora". Usa **tus pesajes reales** (tu peso inicial y cada vez que anotas tu peso), no el peso que se repite cada día.
+  - "ESTAMOS CONOCIENDO TU CUERPO": necesita unos 10 días de registros.
+  - **"TE FALTA PESARTE"**: no anotaste un peso nuevo en el periodo que mira, o hace más de 2 semanas. Te muestra tu último peso y su fecha y te pide pesarte en ayunas (ideal el domingo) y anotarlo en "Mi cuerpo" → "Mis datos". No te dice "estancado" solo porque no te pesaste.
+  - "VAS PROGRESANDO CORRECTAMENTE", "ESTÁS BAJANDO MUY RÁPIDO", "NECESITO MÁS REGISTROS", "TU PROGRESO SE ESTANCÓ" o "VAS EN DIRECCIÓN CONTRARIA": según cuánto cambió tu peso por semana desde el inicio del periodo hasta tu último pesaje, tu objetivo y cuántos días registras y cumples tus calorías.
+  - Si tu objetivo es **mantener tu peso** y te mantienes: **"TE ESTÁS MANTENIENDO"**.
 - **"📤 Compartir mi progreso":** arma una imagen con tu avance (y un antes/después si tienes 2 fotos del mismo ángulo). Abajo lleva "jonahbeast.com · Mi código: [tu código] (10% dcto)", y en WhatsApp va también tu link de invitación (sección 12). Además copia tu link de invitación y te recuerda pegarlo en Instagram con el sticker "Enlace", para que se pueda tocar. Necesita al menos 2 días de historial.
 - **"MI OBJETIVO DE PESO":** escribe "Peso inicial (kg)" y "Peso objetivo (kg)"; se guarda solo.
 

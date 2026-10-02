@@ -329,9 +329,18 @@ function textoDe(msg: any): { tipo: string; texto: string } {
   }
 }
 
+// Mensajes de grupos o comunidades de WhatsApp (por ejemplo la comunidad
+// del Equipo Beast): el asistente nunca responde ahí. Hoy Meta no los manda
+// al asistente, pero si algún día lo hace, se ignoran.
+function esDeGrupo(valor: any, msg: any) {
+  return !!(msg?.group_id || msg?.context?.group_id || valor?.metadata?.group_id
+    || String(msg?.from || "").includes("@g.us") || String(msg?.from || "").includes("-"));
+}
+
 async function atenderMensaje(cuenta: any, valor: any, msg: any) {
   const telefono = String(msg?.from || "");
   if (!telefono || !msg?.id) return;
+  if (esDeGrupo(valor, msg)) return;
   // Reglas 1 y 2: chat personal de Jonah. Ni se guarda ni se responde.
   if (await esPersonal(telefono)) return;
   if (TIPOS_SIN_RESPUESTA.includes(msg?.type)) return;
@@ -481,6 +490,7 @@ async function registrarPedido(telefono: string, alumno: any, nombreWa: string |
 async function registrarRespuestaDeJonah(eco: any) {
   const telefono = String(eco?.to || "");
   if (!telefono || !eco?.id) return;
+  if (esDeGrupo({}, { ...eco, from: telefono })) return; // lo que Jonah escribe en grupos no se guarda
   if (await esPersonal(telefono)) return; // chat personal: no se guarda
   // Solo chats que ya existen (un cliente que escribió antes): lo que Jonah
   // conversa con otros números desde su celular no se guarda.

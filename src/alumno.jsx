@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
@@ -66,6 +66,7 @@ import {
   esFritoOSaltado,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
+import { EquipoTab, leerInvitacionEquipo } from './equipo.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -9393,17 +9394,21 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setTab(tieneDatosBasicos(formRef.current) ? 'goal' : 'calc'); window.scrollTo({ top: 0 });
         return true;
       }
+      if (ir === 'equipo') {
+        setRegistrarAl(null); setTab('equipo'); window.scrollTo({ top: 0 });
+        return true;
+      }
     } catch {}
     return false;
   }
   useEffect(() => {
     const deUrl = leerRegistrarDeUrl(window.location.href);
     if (deUrl) irARegistrar(deUrl, { foto: pideFotoEnUrl(window.location.href) });
-    else irAPlanesSiPide(window.location.href);
+    else if (!irAPlanesSiPide(window.location.href) && leerInvitacionEquipo()) setTab('equipo');
     try {
       const u = new URL(window.location.href);
-      if (u.searchParams.has('registrar') || u.searchParams.has('ir')) {
-        u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto');
+      if (u.searchParams.has('registrar') || u.searchParams.has('ir') || u.searchParams.has('equipo')) {
+        u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto'); u.searchParams.delete('equipo');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch {}
@@ -9489,6 +9494,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     try { localStorage.setItem('jb-abrir-navegador', fechaLocalISO(new Date())); } catch {}
   }
   const [tieneFotos, setTieneFotos] = useState(false);
+  // Punto en la pestaña Equipo: ánimos sin ver o una invitación pendiente.
+  const [avisoEquipo, setAvisoEquipo] = useState(false);
+  function revisarAvisoEquipo() {
+    supabase.rpc('equipo_mis').then(({ data }) => setAvisoEquipo((data?.animos || 0) > 0 || !!leerInvitacionEquipo()), () => {});
+  }
+  useEffect(() => { revisarAvisoEquipo(); }, [username]);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
@@ -9819,6 +9830,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
+        {tab === 'equipo' && <EquipoTab username={username} onAnimosVistos={revisarAvisoEquipo} />}
       </main>
       <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
@@ -9866,8 +9878,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'meal', icon: Salad, label: 'Comidas', activo: tab === 'meal' },
           { id: 'calc', icon: Flame, label: 'Mi cuerpo', activo: tab === 'calc' || tab === 'goal' },
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
+          { id: 'equipo', icon: Users, label: 'Equipo', activo: tab === 'equipo', aviso: avisoEquipo && tab !== 'equipo' },
         ].map(item => (
-          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); }}
+          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); if (item.id === 'equipo') revisarAvisoEquipo(); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
             <span className="relative">
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />

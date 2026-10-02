@@ -2080,6 +2080,144 @@ const FILAS_PRIMERA = [
   ] },
 ];
 
+/* EQUIPOS: los retos en grupo de los alumnos (pestaña Equipo de la app,
+   ver src/equipo.jsx). Jonah ve cada equipo con su capitán, cuántos
+   registraron comida esta semana, a quién trajeron con la invitación y los
+   que se apagaron. Puede poner el enlace de la comunidad de WhatsApp del
+   Equipo Beast y cerrar un equipo que no va (nombre feo, mal uso). */
+function EquiposPanel({ users }) {
+  const [datos, setDatos] = useState(null);
+  const [abierto, setAbierto] = useState(null);
+  const [enlace, setEnlace] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  async function cargar() {
+    const desde = addDaysISO(todayISO(), -6);
+    const [{ data: equipos }, { data: miembros }] = await Promise.all([
+      supabase.from('equipos').select('*').eq('cerrado', false).order('created_at'),
+      traerTodas(() => supabase.from('equipo_miembros').select('equipo_id, username, unido_en, por_enlace').eq('activo', true)),
+    ]);
+    const nombres = [...new Set((miembros || []).map(m => m.username))];
+    const { data: hist } = nombres.length
+      ? await traerTodas(() => supabase.from('historial').select('username, fecha, comidas_count').in('username', nombres).gte('fecha', desde).gt('comidas_count', 0))
+      : { data: [] };
+    const semana = {};
+    (hist || []).forEach(h => {
+      const s = (semana[h.username] = semana[h.username] || { dias: new Set(), comidas: 0 });
+      s.dias.add(h.fecha); s.comidas += Number(h.comidas_count) || 0;
+    });
+    setDatos({ equipos: equipos || [], miembros: miembros || [], semana });
+    const oficial = (equipos || []).find(e => e.oficial);
+    setEnlace(oficial?.whatsapp || '');
+  }
+  useEffect(() => { cargar().catch(() => setDatos({ equipos: [], miembros: [], semana: {}, error: true })); }, []);
+
+  if (!datos) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex items-center gap-2 text-zinc-500 text-xs jb-body">
+        <Loader2 size={14} className="animate-spin" /> Cargando equipos…
+      </div>
+    );
+  }
+
+  const nombreDe = u => (users || []).find(x => x.username === u)?.nombre || u;
+  const hace3 = addDaysISO(todayISO(), -2);
+  const filas = datos.equipos.map(e => {
+    const ms = datos.miembros.filter(m => m.equipo_id === e.id);
+    const activos = ms.filter(m => datos.semana[m.username]);
+    const recientes = ms.filter(m => [...(datos.semana[m.username]?.dias || [])].some(f => f >= hace3));
+    return {
+      e, ms, activos: activos.length,
+      comidas: ms.reduce((n, m) => n + (datos.semana[m.username]?.comidas || 0), 0),
+      invitados: ms.filter(m => m.por_enlace).length,
+      apagado: ms.length > 1 && recientes.length === 0,
+    };
+  }).sort((a, b) => (b.e.oficial - a.e.oficial) || (b.ms.length - a.ms.length));
+  const personas = new Set(datos.miembros.map(m => m.username)).size;
+  const invitados = datos.miembros.filter(m => m.por_enlace).length;
+
+  async function guardarEnlace(e) {
+    const v = enlace.trim();
+    if (v && !/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(v)) { showToast('El enlace debe empezar con https://chat.whatsapp.com/', 'error'); return; }
+    setGuardando(true);
+    const { error } = await supabase.from('equipos').update({ whatsapp: v || null }).eq('id', e.id);
+    setGuardando(false);
+    if (error) { showToast('No se pudo guardar: ' + error.message, 'error'); return; }
+    showToast('✅ Enlace de la comunidad guardado');
+    cargar();
+  }
+  async function cerrar(e) {
+    if (!window.confirm(`¿Cerrar el equipo "${e.nombre}"? Sus integrantes dejan de verlo (sus comidas no se tocan).`)) return;
+    const { error } = await supabase.from('equipos').update({ cerrado: true }).eq('id', e.id);
+    if (error) { showToast('No se pudo cerrar: ' + error.message, 'error'); return; }
+    showToast('Equipo cerrado');
+    cargar();
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <p className="jb-display text-lg text-zinc-50 mb-1">👥 EQUIPOS</p>
+      <p className="jb-body text-xs text-zinc-500 mb-4">Retos en grupo. "Activos" = registraron comida en los últimos 7 días.</p>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[[datos.equipos.length, 'equipos'], [personas, 'personas en equipos'], [invitados, 'nuevos por invitación']].map(([n, t]) => (
+          <div key={t} className="bg-zinc-950/60 rounded-xl p-3 text-center">
+            <p className="jb-display text-2xl text-orange-400 tabular-nums">{n}</p>
+            <p className="jb-body text-[10px] text-zinc-500 leading-tight">{t}</p>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2">
+        {filas.map(({ e, ms, activos, comidas, invitados: inv, apagado }) => (
+          <div key={e.id} className="bg-zinc-950/60 border border-zinc-800 rounded-xl">
+            <button onClick={() => setAbierto(abierto === e.id ? null : e.id)} className="w-full text-left p-3 flex items-center gap-3">
+              <span className="flex-1 min-w-0">
+                <span className="block jb-body text-sm text-zinc-100 font-semibold truncate">
+                  {e.oficial ? '🦍 ' : ''}{e.nombre}{apagado ? <span className="ml-2 text-[10px] text-amber-400 font-normal">💤 se apagó</span> : null}
+                </span>
+                <span className="block jb-body text-[11px] text-zinc-500">
+                  Capitán: {e.oficial ? 'Jonah' : nombreDe(e.capitan)} · {ms.length} integrantes · {activos} activos · {comidas} comidas esta semana{inv ? ` · ${inv} por invitación` : ''}
+                </span>
+              </span>
+              <ChevronRight size={16} className={`text-zinc-600 shrink-0 transition-transform ${abierto === e.id ? 'rotate-90' : ''}`} />
+            </button>
+            {abierto === e.id && (
+              <div className="px-3 pb-3 border-t border-zinc-800 pt-3">
+                {e.oficial && (
+                  <div className="mb-3">
+                    <p className="jb-body text-[11px] text-zinc-500 mb-1">Enlace de tu comunidad de WhatsApp (sale como botón "Ir al chat del equipo")</p>
+                    <div className="flex gap-2">
+                      <input value={enlace} onChange={ev => setEnlace(ev.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
+                        className={inputCls + ' flex-1 rounded-lg text-sm'} />
+                      <button onClick={() => guardarEnlace(e)} disabled={guardando} className={btnPrimary + ' rounded-lg text-sm'}>
+                        {guardando ? <Loader2 size={14} className="animate-spin" /> : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!e.oficial && <p className="jb-body text-[11px] text-zinc-500 mb-2">Código: <span className="text-orange-400 tracking-widest">{e.codigo}</span> · reto de {e.dias} días desde el {e.inicio}</p>}
+                <ul className="space-y-1 mb-3">
+                  {ms.map(m => {
+                    const s = datos.semana[m.username];
+                    return (
+                      <li key={m.username} className="jb-body text-xs text-zinc-300 flex justify-between gap-2">
+                        <span className="truncate">{nombreDe(m.username)} <span className="text-zinc-600">@{m.username}</span>{m.por_enlace ? <span className="text-orange-400"> · llegó por invitación</span> : ''}</span>
+                        <span className={`shrink-0 tabular-nums ${s ? 'text-zinc-400' : 'text-zinc-600'}`}>{s ? `${s.dias.size}/7 días` : 'sin registro'}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {!e.oficial && (
+                  <button onClick={() => cerrar(e)} className="jb-body text-xs text-zinc-500 hover:text-red-400">Cerrar equipo</button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ActivacionPanel({ users }) {
   const [rango, setRango] = useState(30); // días; 0 = desde siempre
   const [datos, setDatos] = useState(null);
@@ -8032,6 +8170,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <MetricasPanel />
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
+                <EquiposPanel users={users} />
               </>
             )}
           </>

@@ -159,8 +159,9 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 ## 6. Cómo se organiza la app del alumno
 
-**Barra de abajo (4 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**.
+**Barra de abajo (5 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**, **"Equipo"**.
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
+- Un **punto naranja sobre "Equipo"** significa que un compañero le mandó ánimo o que tiene una invitación a un equipo por aceptar (ver 12.2).
 
 **Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros; **en el celular está abajo, en el pie de la pantalla**: "🔊 Quitar sonidos" / "🔇 Activar sonidos"), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
 
@@ -548,6 +549,44 @@ Problemas:
 - "¿Hay premio a la mejor transformación o creatina?" → No, el único premio es 1 mes gratis por completar el reto.
 - Entrega del mes gratis → la coordina Jonah al terminar el reto.
 
+### 12.2 Pestaña "Equipo" (retos en grupo)
+
+Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y versión gratis.
+
+**Equipo Beast (el oficial):** el reto del mes con Jonah de capitán (ej. "Reto de octubre con Jonah"). Empieza el día 1 y termina el último día de cada mes; el siguiente arranca solo. Para entrar: pestaña **"Equipo"** → **"Unirme al Equipo Beast"**.
+
+**Crear un equipo propio:**
+1. Pestaña **"Equipo"** → **"Crear mi equipo"**.
+2. Pon el **nombre del equipo** (de 3 a 40 letras; no se aceptan groserías ni promesas de kilos), la **duración del reto** (**14, 28 o 56 días**) y **cuándo empiezan** (**"Hoy"** o el próximo **lunes**).
+3. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
+4. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍).
+
+**Invitar:** dentro del equipo, tarjeta **"INVITA A TU GENTE"** → **"WhatsApp"** (manda un mensaje listo con el enlace) o **"Copiar enlace"**. También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
+
+**Unirse con un enlace o código:**
+- Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**.
+- Con el **código**: pestaña **"Equipo"** → **"Tengo un código"** → escribirlo → **"Entrar"**.
+- Máximo **30 integrantes** por equipo y **3 equipos** por persona (contando el Equipo Beast).
+
+**Qué se ve dentro del equipo:**
+- **"DÍA X DE Y"** del reto y la fecha en que termina (o "EMPIEZA EL…" si aún no empieza, o "¡RETO TERMINADO! 🏆").
+- **Comidas registradas por el equipo** esta semana y en todo el reto.
+- La **semana** (con flechas para ver semanas anteriores) con una casilla por día para cada integrante y sus **puntos** de todo el reto, ordenados de mayor a menor:
+  - **✓ (naranja) = 10 puntos:** registró **3 comidas o más** ese día.
+  - **– = 5 puntos:** registró 1 o 2 comidas.
+  - **✗ = 0 puntos:** no registró. Hoy, mientras no registre, sale un punto con borde de rayas.
+- **Gana el más constante, no el que más baja.** Los compañeros **no ven el peso, las medidas ni lo que come cada uno**: solo su nombre corto (ej. "Rosa M."), sus casillas y sus puntos.
+- **Dar ánimo:** tocar el nombre de un compañero → **"💪 ¡Vamos!"**, **"🔥 ¡Sigue así!"** o **"👏 ¡Bien ahí!"**. Le llega como notificación ("[Nombre] te mandó ánimo: 💪 ¡Vamos!"). Uno por compañero al día. Los ánimos recibidos se ven arriba al abrir el equipo.
+- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Equipo Beast es la comunidad de WhatsApp de Jonah. La conversación del equipo es en WhatsApp; dentro de la app no hay chat.
+- El **capitán** puede cambiar el nombre y el enlace de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
+- **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
+
+Problemas:
+- "No encontramos un equipo con ese código" → revisar que esté bien escrito; si el equipo se cerró, ya no se puede entrar.
+- "Ese equipo ya está completo" → llegó a 30 integrantes.
+- "Ya estás en 3 equipos" → salir de uno para entrar a otro.
+- "Registré y no me sale el ✓" → el ✓ es con 3 comidas o más del día (desayuno, media mañana, almuerzo, media tarde y cena cuentan por separado); con 1 o 2 sale "–". Se actualiza al volver a abrir el equipo.
+
 ---
 
 ## 13. Planes, pagos y renovación
@@ -680,7 +719,7 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
-**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos) llegan siempre.
+**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo) llegan siempre; los ánimos, como mucho 3 con aviso al día.
 
 | Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
 |---|---|---|

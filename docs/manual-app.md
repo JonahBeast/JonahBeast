@@ -563,7 +563,9 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 3. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
 4. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍). Cada persona puede ser capitán de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
 
-**Invitar:** dentro del equipo, tarjeta **"INVITA A TU GENTE"** → **"WhatsApp"** (manda un mensaje listo con el enlace) o **"Copiar enlace"**. También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
+**Invitar:** dentro del equipo, tarjeta **"INVITA A TU GENTE"**:
+- **"Invitar por WhatsApp"**: abre WhatsApp con el mensaje y el enlace ya escritos; solo hay que elegir a quién (persona o grupo) y enviar. No hay que pegar nada.
+- **"Copiar enlace"**: copia solo el enlace, para pegarlo en otra red (Instagram, Facebook, Messenger, un estado). También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
 
 **Unirse con un enlace o código:**
 - Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**.

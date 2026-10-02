@@ -524,7 +524,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
         <Tarjeta className="mb-3">
           <p className="jb-display text-base text-zinc-100 mb-1">INVITA A TU GENTE</p>
           <p className="jb-body text-xs text-zinc-400 mb-3">
-            Mándales el enlace por WhatsApp. {ref ? 'Con tu enlace tienen además 10% de descuento en su primer plan.' : ''}
+            <b className="text-zinc-300">Invitar por WhatsApp</b> abre tu WhatsApp con el mensaje y el enlace ya escritos: solo elige a quién mandárselo. <b className="text-zinc-300">Copiar enlace</b> es para pegarlo en Instagram, Facebook u otra red. {ref ? 'Con tu enlace tienen además 10% de descuento en su primer plan.' : ''}
           </p>
           {!eq.oficial && (
             <p className="jb-body text-xs text-zinc-500 mb-3">Código del equipo: <span className="jb-display text-lg text-orange-400 tracking-widest ml-1">{eq.codigo}</span></p>
@@ -532,7 +532,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
           <div className="grid grid-cols-2 gap-2">
             <a href={`https://wa.me/?text=${encodeURIComponent(textoInvitacionEquipo(eq, ref))}`} target="_blank" rel="noopener noreferrer"
               className={btnPrimary + ' py-2.5 rounded-xl text-sm'}>
-              <MessageCircle size={15} /> WhatsApp
+              <MessageCircle size={15} /> Invitar por WhatsApp
             </a>
             <button onClick={copiarEnlace} className={btnGhost + ' py-2.5 rounded-xl text-sm'}><Copy size={15} /> Copiar enlace</button>
           </div>

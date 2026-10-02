@@ -1866,14 +1866,16 @@ const btnPrimary = "bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold jb
 const btnGhost = "bg-transparent border border-zinc-700 hover:border-orange-500 text-zinc-100 jb-body rounded px-4 py-2.5 transition-colors flex items-center justify-center gap-2";
 
 
-function Logo({ size = 'md' }) {
+function Logo({ size = 'md', compacto = false }) {
   const big = size === 'lg';
   return (
     <div className="flex items-center gap-2">
       <div className="bg-orange-500 rounded-md p-1.5">
         <Flame className="jb-flame-live text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} fill="currentColor" />
       </div>
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
+      {/* compacto (barra de arriba de la app): en celulares angostos la letra se
+          achica sola para que "FUEL" no quede tapado por los botones. */}
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(13px,4.1vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }

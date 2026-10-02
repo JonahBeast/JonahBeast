@@ -1244,6 +1244,17 @@ function SoundToggleButton() {
   );
 }
 
+// El mismo interruptor de sonidos, como enlace del pie de la pantalla (en el celular).
+function SonidoPie() {
+  const [activo, setActivo] = useState(sonidoActivo);
+  return (
+    <button onClick={() => setActivo(alternarSonido())}
+      className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
+      {activo ? '🔊 Quitar sonidos' : '🔇 Activar sonidos'}
+    </button>
+  );
+}
+
 const RACHA_HITOS = [
   { dias: 3, nombre: 'Cebiche Starter', emoji: '🐟' },
   { dias: 7, nombre: 'Ají de Gallina Warrior', emoji: '🌶️' },
@@ -9484,12 +9495,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
       )}
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Logo />
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+          <Logo compacto />
           <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <SoundToggleButton />
+          {/* En el celular no entra junto al logo (tapaba "FUEL"): ahí está en el pie de la pantalla. */}
+          <span className="hidden sm:inline-flex"><SoundToggleButton /></span>
           <button onClick={() => setTab('planes')}
             className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi plan">
@@ -9610,6 +9622,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           Política de Privacidad
         </a>
         <span className="text-zinc-800 text-[11px]">·</span>
+        <span className="sm:hidden"><SonidoPie /></span>
+        <span className="text-zinc-800 text-[11px] sm:hidden">·</span>
         <button onClick={() => elegirModoFacil(!modoFacil)}
           className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
           {modoFacil ? '🔠 Quitar letra grande' : '🔠 Letra grande'}

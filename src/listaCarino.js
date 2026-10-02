@@ -108,11 +108,11 @@ export async function cargarDatosCarino(supabase, hoyISO) {
    WhatsApp se abre en el navegador normal, así que el mensaje le da el
    camino para tener la app de verdad y con qué correo entrar.
    correo = { correo, google } (de api/correos-alumnos) o null. */
-export const URL_PLAY_STORE = 'https://play.google.com/store/apps/details?id=com.jonahbeast.twa';
 const CIERRE_JUNTOS = 'Vamos juntos por esos resultados. No estás solo/a, yo te acompaño 🦍';
 
-/* Pasos numerados para tener la app instalada y entrar a su cuenta.
-   Android: la app de Play Store. iPhone: Safari → pantalla de inicio. */
+/* Pasos numerados para tener la app instalada y entrar a su cuenta. La
+   app todavía no está abierta a todos en Play Store, así que se instala
+   desde el navegador: Android con Chrome, iPhone con Safari. */
 export function pasosInstalarApp(dispositivo, correo) {
   const entrar = correo?.google
     ? `toca "¿Ya tienes cuenta? ENTRAR" y luego "Continuar con Google" con tu correo ${correo.correo}`
@@ -128,10 +128,10 @@ export function pasosInstalarApp(dispositivo, correo) {
         'Tómale foto a tu próxima comida 📸',
       ]
     : [
-        `Toca este enlace: ${URL_PLAY_STORE}`,
-        'Toca "Instalar"',
-        `Abre la app, ${entrar}`,
-        'Toca "Activar avisos" para que te recuerde tus comidas',
+        'Abre este enlace en Chrome: https://jonahbeast.com',
+        `Ahí ${entrar}`,
+        'Toca los tres puntitos ⋮ (arriba a la derecha) → "Agregar a la pantalla principal" (o "Instalar app") → "Instalar"',
+        'Abre la app desde el ícono nuevo y toca "Activar avisos" para que te recuerde tus comidas',
         'Tómale foto a tu próxima comida 📸',
       ];
   const numeros = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
@@ -155,9 +155,7 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
       ? 'Vi que creaste tu cuenta y quiero ayudarte a arrancar. Ya diste el primer paso, que es el que más cuesta 💪'
       : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
   const historia = 'Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
-  const porQue = dispositivo === 'iphone'
-    ? 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):'
-    : 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Descárgala así (1 minuto):';
+  const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
   return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${CIERRE_JUNTOS}`;
 }
 

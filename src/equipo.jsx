@@ -1072,3 +1072,230 @@ function MisMedallas({ medallas }) {
     </Tarjeta>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* MEDALLA NUEVA: Jonah el gorila le entrega su medalla al ganador.     */
+/* ------------------------------------------------------------------ */
+// Sale una sola vez por medalla (se recuerda en el celular), en los 14
+// días siguientes a la entrega. Si ganó varias, muestra la más importante
+// y menciona las demás. Con "Compartir mi medalla" se arma una imagen con
+// el estilo de la tarjeta "MI CAMBIO" (sin kilos: solo el logro).
+const CLAVE_MEDALLAS_VISTAS = 'jb-medallas-vistas';
+const ORDEN_MEDALLAS = ['carrera', 'oro', 'meta_personal', 'meta', 'plata', 'bronce'];
+const LOGRO = {
+  oro: { titulo: '¡CAMPEÓN!', linea: 'Primer lugar en constancia', globo: '¡ASÍ SE HACE!' },
+  plata: { titulo: '¡SEGUNDO LUGAR!', linea: 'Segundo lugar en constancia', globo: '¡ORGULLOSO DE TI!' },
+  bronce: { titulo: '¡TERCER LUGAR!', linea: 'Tercer lugar en constancia', globo: '¡ORGULLOSO DE TI!' },
+  carrera: { titulo: '¡GANASTE LA CARRERA!', linea: 'Llegaste primero a la meta', globo: '¡ASÍ SE HACE!' },
+  meta: { titulo: '¡META CUMPLIDA!', linea: 'Todo el equipo llegó a la meta', globo: '¡EN EQUIPO!' },
+  meta_personal: { titulo: '¡LLEGASTE A TU META!', linea: 'Cumpliste tu meta del reto', globo: '¡ASÍ SE HACE!' },
+};
+
+function leerVistas() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_MEDALLAS_VISTAS) || '[]'); } catch { return []; }
+}
+function marcarVistas(ids) {
+  try { localStorage.setItem(CLAVE_MEDALLAS_VISTAS, JSON.stringify([...new Set([...leerVistas(), ...ids])].slice(-200))); } catch {}
+}
+
+function cargarImagenEquipo(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// La medalla dibujada: círculo con el color del metal y su emoji.
+function dibujarMedalla(ctx, cx, cy, r, tipo) {
+  const metal = { oro: ['#FFE08A', '#E8A317'], plata: ['#F1F1F1', '#9CA3AF'], bronce: ['#F4B183', '#B4652A'] }[tipo] || ['#FF9A4D', '#E8590C'];
+  // Cintas
+  ctx.fillStyle = '#E8590C';
+  ctx.beginPath(); ctx.moveTo(cx - r * 0.75, cy - r * 2.1); ctx.lineTo(cx - r * 0.15, cy - r * 2.1); ctx.lineTo(cx + r * 0.25, cy - r * 0.8); ctx.lineTo(cx - r * 0.35, cy - r * 0.8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#FF7020';
+  ctx.beginPath(); ctx.moveTo(cx + r * 0.75, cy - r * 2.1); ctx.lineTo(cx + r * 0.15, cy - r * 2.1); ctx.lineTo(cx - r * 0.25, cy - r * 0.8); ctx.lineTo(cx + r * 0.35, cy - r * 0.8); ctx.closePath(); ctx.fill();
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,112,32,0.7)'; ctx.shadowBlur = 50;
+  const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+  g.addColorStop(0, metal[0]); g.addColorStop(1, metal[1]);
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2); ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(22,17,13,0.25)'; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // Podio: el número del puesto; las demás, su emoji.
+  const puesto = { oro: '1', plata: '2', bronce: '3' }[tipo];
+  if (puesto) {
+    ctx.font = `${Math.round(r * 1.1)}px Anton, Impact, Arial Black, sans-serif`;
+    ctx.fillStyle = 'rgba(22,17,13,0.8)';
+    ctx.fillText(puesto, cx, cy + r * 0.08);
+  } else {
+    ctx.font = `${Math.round(r * 0.95)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.fillText(MEDALLAS[tipo]?.emoji || '🏆', cx, cy + r * 0.05);
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+}
+
+async function generarTarjetaMedalla({ nombre, m, codigo }) {
+  try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
+  const CARBON = '#16110D', CREMA = '#FAF6F0', NARANJA = '#E8590C', NARANJA2 = '#FF7020', GRIS = '#A8A29E';
+  const titulo = t => `${t}px Anton, Impact, Arial Black, sans-serif`;
+  const cuerpo = (t, w = 500) => `${w} ${t}px "Work Sans", Arial, sans-serif`;
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const caja = (x, y, w, h, r) => { ctx.beginPath(); if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); };
+  const logro = LOGRO[m.medalla] || LOGRO.oro;
+  const gorila = await cargarImagenEquipo('/logo-marca.webp');
+
+  ctx.fillStyle = CARBON; ctx.fillRect(0, 0, W, H);
+  const b1 = ctx.createRadialGradient(W / 2, 430, 20, W / 2, 430, 620);
+  b1.addColorStop(0, 'rgba(232,89,12,0.35)'); b1.addColorStop(1, 'rgba(232,89,12,0)');
+  ctx.fillStyle = b1; ctx.fillRect(0, 0, W, H);
+  const b2 = ctx.createRadialGradient(W - 160, H - 300, 20, W - 160, H - 300, 560);
+  b2.addColorStop(0, 'rgba(255,112,32,0.25)'); b2.addColorStop(1, 'rgba(255,112,32,0)');
+  ctx.fillStyle = b2; ctx.fillRect(0, 0, W, H);
+
+  ctx.font = titulo(46);
+  ctx.fillStyle = CREMA; ctx.fillText('JONAH BEAST ', 70, 110);
+  ctx.fillStyle = NARANJA; ctx.fillText('FUEL', 70 + ctx.measureText('JONAH BEAST ').width, 110);
+
+  dibujarMedalla(ctx, W / 2, 450, 150, m.medalla);
+
+  // El título va a la izquierda del gorila: si no entra, en dos líneas.
+  const ANCHO = 540;
+  const enLineas = tam => {
+    ctx.font = titulo(tam);
+    const lineas = [];
+    logro.titulo.split(' ').forEach(p => {
+      const prueba = lineas.length ? `${lineas[lineas.length - 1]} ${p}` : p;
+      if (lineas.length && ctx.measureText(prueba).width <= ANCHO) lineas[lineas.length - 1] = prueba;
+      else lineas.push(p);
+    });
+    return lineas;
+  };
+  let tam = 120, lineas = enLineas(tam);
+  while (tam > 64 && (lineas.length > 2 || lineas.some(l => ctx.measureText(l).width > ANCHO))) { tam -= 6; lineas = enLineas(tam); }
+  let y = 700;
+  ctx.fillStyle = CREMA;
+  lineas.forEach((l, i) => { ctx.fillText(l, 70, y + i * tam * 1.02, ANCHO); });
+  y += (lineas.length - 1) * tam * 1.02;
+  ctx.font = cuerpo(40, 600); ctx.fillStyle = NARANJA2; ctx.fillText(logro.linea, 74, y + 60, ANCHO);
+  const equipo = m.apodo ? `${m.equipo} · ${m.apodo}` : m.equipo;
+  ctx.font = cuerpo(36); ctx.fillStyle = CREMA; ctx.fillText(equipo, 74, y + 130, ANCHO);
+  ctx.font = cuerpo(30); ctx.fillStyle = GRIS;
+  ctx.fillText(`${nombre ? nombre + ' · ' : ''}reto del ${fechaCorta(m.reto_inicio)}`, 74, y + 180, ANCHO);
+
+  if (gorila) {
+    const gh = 560, gw = gh * (gorila.width / gorila.height);
+    const gx = W - gw - 20, gy = 640;
+    ctx.save(); ctx.shadowColor = 'rgba(255,112,32,0.55)'; ctx.shadowBlur = 50;
+    ctx.drawImage(gorila, gx, gy, gw, gh); ctx.restore();
+    ctx.font = titulo(46);
+    const bw = ctx.measureText(logro.globo).width + 60, bh = 86;
+    const bx = Math.min(W - bw - 30, gx + gw / 2 - bw / 2), by = gy - bh - 26;
+    caja(bx, by, bw, bh, 40); ctx.fillStyle = CREMA; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx + bw / 2 - 18, by + bh - 2); ctx.lineTo(bx + bw / 2 + 18, by + bh - 2); ctx.lineTo(bx + bw / 2 + 4, by + bh + 30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = CARBON; ctx.fillText(logro.globo, bx + 30, by + 62);
+  }
+
+  ctx.font = cuerpo(34, 600); ctx.fillStyle = CREMA;
+  ctx.fillText('El cambio llega poco a poco, comida a comida 🦍', 70, H - 130, W - 140);
+  const pie = codigo ? `JONAHBEAST.COM · MI CÓDIGO: ${codigo} (10% DCTO)` : 'JONAHBEAST.COM';
+  let tamPie = 44; ctx.font = titulo(tamPie);
+  while (tamPie > 26 && ctx.measureText(pie).width > W - 140) { tamPie -= 2; ctx.font = titulo(tamPie); }
+  ctx.fillStyle = NARANJA2; ctx.fillText(pie, 70, H - 66);
+
+  return new Promise((resolve, reject) => {
+    try { canvas.toBlob(b => (b ? resolve(b) : reject(new Error('sin imagen'))), 'image/png'); } catch (e) { reject(e); }
+  });
+}
+
+export function MedallaNueva({ username, nombre, onVerEquipo }) {
+  const [nuevas, setNuevas] = useState([]);
+  const [compartiendo, setCompartiendo] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    llamar('equipo_mis').then(({ r, ok }) => {
+      if (!vivo || !ok) return;
+      const vistas = new Set(leerVistas());
+      const limite = Date.now() - 14 * 86400000;
+      const lista = (r.medallas || []).filter(m => !vistas.has(m.id) && Date.parse(m.entregada) >= limite);
+      lista.sort((a, b) => ORDEN_MEDALLAS.indexOf(a.medalla) - ORDEN_MEDALLAS.indexOf(b.medalla));
+      setNuevas(lista);
+    });
+    return () => { vivo = false; };
+  }, [username]);
+
+  if (!nuevas.length) return null;
+  const m = nuevas[0];
+  const logro = LOGRO[m.medalla] || LOGRO.oro;
+  const n = String(nombre || '').trim().split(/\s+/)[0];
+  const otras = nuevas.slice(1);
+  const cerrar = () => { marcarVistas(nuevas.map(x => x.id)); setNuevas([]); };
+
+  async function compartir() {
+    setCompartiendo(true);
+    try {
+      const { data } = await supabase.rpc('mi_codigo_invitacion');
+      const codigo = data?.codigo || null;
+      const blob = await generarTarjetaMedalla({ nombre: n, m, codigo });
+      const archivo = new File([blob], 'mi-medalla-jonah-beast.png', { type: 'image/png' });
+      const texto = `¡Gané ${MEDALLAS[m.medalla]?.emoji} en el reto de mi equipo en Jonah Beast Fuel! 🦍 Comida a comida.${codigo ? ` Únete con mi link y tienes 10% de descuento: https://jonahbeast.com/?ref=${encodeURIComponent(codigo)}&fuente=medalla` : ' https://jonahbeast.com'}`;
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        await navigator.share({ files: [archivo], title: 'Mi medalla en Jonah Beast Fuel', text: texto });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'mi-medalla-jonah-beast.png'; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError') showToast('No se pudo armar la imagen. Intenta de nuevo.', 'error');
+    }
+    setCompartiendo(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50" onClick={cerrar}>
+      <style>{`
+        @keyframes jb-medalla-entra { 0% { transform: scale(.3) rotate(-25deg); opacity: 0 } 60% { transform: scale(1.12) rotate(6deg); opacity: 1 } 100% { transform: scale(1) rotate(0) } }
+        @keyframes jb-gorila-entra { from { transform: translateY(40px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+      `}</style>
+      <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl max-w-sm w-full p-6 text-center overflow-hidden"
+        style={{ boxShadow: '0 0 60px -12px rgba(232,89,12,.65)' }} onClick={e => e.stopPropagation()}>
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(232,89,12,.3), transparent 70%)' }} />
+        <div className="relative flex items-end justify-center gap-2 mb-3">
+          <img src="/logo-marca.webp" alt="Jonah" className="w-28 h-auto" style={{ animation: 'jb-gorila-entra .6s ease both' }} />
+          <div className="relative mb-6">
+            <div className="absolute -top-12 -left-6 whitespace-nowrap bg-zinc-50 text-zinc-950 jb-display text-sm px-3 py-1.5 rounded-2xl">{logro.globo}</div>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center text-6xl"
+              style={{ animation: 'jb-medalla-entra .9s .35s cubic-bezier(.2,.9,.3,1.3) both', background: 'radial-gradient(circle at 35% 30%, rgba(255,224,138,.35), rgba(232,89,12,.15))', boxShadow: '0 0 40px rgba(255,112,32,.6)' }}>
+              {MEDALLAS[m.medalla]?.emoji || '🏆'}
+            </div>
+          </div>
+        </div>
+        <p className="relative jb-body text-[11px] text-orange-300 uppercase tracking-wider">{m.apodo ? `${m.equipo} · ${m.apodo}` : m.equipo}</p>
+        <h2 className="relative jb-display text-3xl text-zinc-50 leading-tight mb-1">{logro.titulo}</h2>
+        <p className="relative jb-body text-sm text-orange-200 mb-3">{logro.linea}</p>
+        <p className="relative jb-body text-sm text-zinc-300 mb-3">
+          ¡Lo lograste{n ? `, ${n}` : ''}! Esta medalla te la ganaste comida a comida, con constancia. Estoy orgulloso de ti. ¡Vamos por el siguiente reto! — Jonah 🦍
+        </p>
+        {m.premio && ['oro', 'carrera', 'meta', 'meta_personal'].includes(m.medalla) && (
+          <p className="relative jb-body text-sm text-zinc-100 bg-zinc-950/70 border border-zinc-800 rounded-xl p-2.5 mb-3">🎁 Premio del reto: {m.premio}</p>
+        )}
+        {otras.length > 0 && (
+          <p className="relative jb-body text-xs text-zinc-400 mb-3">Además ganaste: {otras.map(o => `${MEDALLAS[o.medalla]?.emoji} ${MEDALLAS[o.medalla]?.texto}`).join(' · ')}</p>
+        )}
+        <button onClick={compartir} disabled={compartiendo} className={btnPrimary + ' relative w-full py-3 mb-2'}>
+          {compartiendo ? <Loader2 className="animate-spin" size={16} /> : '📲 Compartir mi medalla'}
+        </button>
+        <button onClick={() => { cerrar(); onVerEquipo?.(); }} className={btnGhost + ' relative w-full py-2.5 mb-1 text-sm'}>Ver el podio</button>
+        <button onClick={cerrar} className="relative jb-body text-sm text-zinc-500 hover:text-zinc-300 w-full py-2">Cerrar</button>
+      </div>
+    </div>
+  );
+}

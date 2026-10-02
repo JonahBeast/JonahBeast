@@ -21,7 +21,7 @@
 const ALCOHOL = /cerveza|vino|pisco|chilcano|sangr[ií]a|\bron\b|whisky|vodka|licor|cuba libre|sour/i;
 const SIN_ENERGIA = /agua|\bté\b|infusi|café|cafe|\bsal\b|stevia|edulcor|zero|light|diet/i;
 
-export function revisarAlimento(a) {
+export function revisarAlimento(a, { porPlato = false } = {}) {
   const n = Number;
   const kcal = n(a.kcal), p = n(a.proteina), c = n(a.carbos), g = n(a.grasa), f = n(a.fibra ?? 0);
   const problemas = [];
@@ -37,7 +37,7 @@ export function revisarAlimento(a) {
   } else if (diferencia > margen) {
     problemas.push(`tiene ${kcal} kcal pero sus macros suman ${Math.round(segunMacros)} kcal`);
   }
-  if (p + c + g > 100.5) problemas.push(`proteína, carbohidrato y grasa suman ${(p + c + g).toFixed(1)} g en 100 g (seguro son los números de una porción)`);
+  if (!porPlato && p + c + g > 100.5) problemas.push(`proteína, carbohidrato y grasa suman ${(p + c + g).toFixed(1)} g en 100 g (seguro son los números de una porción)`);
   if (f > c + 0.5) problemas.push(`tiene más fibra (${f} g) que carbohidratos (${c} g)`);
   if (kcal === 0 && !SIN_ENERGIA.test(a.nombre || '')) problemas.push('tiene 0 kcal');
   if (a.unidad && !(n(a.gramos_unidad) > 0)) problemas.push(`la medida "${a.unidad}" no dice cuántos gramos pesa`);

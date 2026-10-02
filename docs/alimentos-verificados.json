@@ -1723,97 +1723,116 @@
   },
   "Sandwich de pollo (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Sandwich de atún (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Omelette (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Bowl de avena (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Waffles de avena y plátano (PECAFIT) (-)": {
-   "estado": "pendiente",
-   "nota": "Calorías por plato = tabla \"Resumen de Macros Validados\" (correctas). Falta el peso real de la porción: sus nutrientes pesan más que la porción cargada.",
-   "revisado_en": "2026-10-02"
+   "estado": "verificado",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
+   "verificado_en": "2026-10-02"
   },
   "Waffle de beterraga y mango (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Filete de pollo (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Quinua chaufa (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Bowl andino (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Bowl Super Power (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Trucha (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Peca Power Meat (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Wrap proteico (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Wrap filete de pollo (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Wrap crocante (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Cake de plátano (PECAFIT) (-)": {
-   "estado": "pendiente",
-   "nota": "Calorías por plato = tabla \"Resumen de Macros Validados\" (correctas). Falta el peso real de la porción: sus nutrientes pesan más que la porción cargada.",
-   "revisado_en": "2026-10-02"
+   "estado": "verificado",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
+   "verificado_en": "2026-10-02"
   },
   "Torta de cacao (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Cheesecake (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   },
   "Parfait (PECAFIT) (-)": {
    "estado": "verificado",
-   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Calorías por plato idénticas a la tabla.",
+   "por_plato": true,
+   "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
   }
  }

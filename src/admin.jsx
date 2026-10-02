@@ -8638,6 +8638,152 @@ async function traerCorreosAlumnos(usernames) {
   } catch { return {}; }
 }
 
+/* 🦍 LANZAMIENTO DEL TEAM BEAST: los mensajes listos para copiar (o mandar
+   por WhatsApp) que Jonah usa para invitar a sus alumnos al Team Beast.
+   Si ya guardó el enlace de su comunidad de WhatsApp (panel → Equipos), se
+   agrega solo al mensaje para los alumnos. "Ya los mandé" los esconde (queda
+   un enlace pequeño para volver a verlos); se guarda en config para que
+   valga en todos sus dispositivos. */
+const CLAVE_LANZAMIENTO_OCULTO = 'team_beast_lanzamiento_oculto';
+const LINK_TEAM_BEAST = 'https://jonahbeast.com/?equipo=BEAST';
+
+// "lunes 5 de octubre" (fecha ISO → texto).
+const DIAS_TEXTO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function fechaEnTexto(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const f = new Date(y, m - 1, d);
+  return `${DIAS_TEXTO[f.getDay()]} ${d} de ${MESES_LARGOS[m - 1]}`;
+}
+
+// reto = { inicio, dias } del Team Beast (puede faltar mientras carga).
+function mensajesLanzamiento(comunidad, reto) {
+  const hoy = todayISO();
+  const fin = reto ? addDaysISO(reto.inicio, reto.dias - 1) : null;
+  const porEmpezar = !!reto && reto.inicio > hoy;
+  const enMarcha = !!reto && reto.inicio <= hoy && fin >= hoy;
+  const cuandoAlumnos = porEmpezar
+    ? `Arrancamos el *${fechaEnTexto(reto.inicio)}*: son ${reto.dias} días. Únete desde ya para empezar juntos desde el primer día 🔥`
+    : enMarcha
+      ? `El reto ya está en marcha (termina el ${fechaEnTexto(fin)}) y todavía estás a tiempo: cada comida que registres suma. Ahí te veo en el ranking 🔥`
+      : 'Únete desde ya y arrancamos juntos 🔥';
+  const cuandoComunidad = porEmpezar
+    ? `Arrancamos el ${fechaEnTexto(reto.inicio)}: ${reto.dias} días juntos. ¡Prepárense! 🔥`
+    : enMarcha ? `¡Reto en marcha hasta el ${fechaEnTexto(fin)}!` : '¡Ya viene el próximo reto!';
+  return [
+    {
+      id: 'alumnos', titulo: '1. Para tus alumnos', ayuda: 'Por WhatsApp, uno a uno o por lista de difusión.',
+      texto: `¡Hola! Soy Jonah 🦍
+
+Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, un reto en grupo dentro de la app, y yo soy el capitán 💪
+
+¿Cómo funciona? Simple: cada día que registras tus comidas sumas puntos. Con 3 comidas o más, el día queda con ✓. Aquí *no gana el que más baja, gana el más constante*. Y nadie ve tu peso ni lo que comes, solo tus días cumplidos.
+
+Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
+
+👉 Para unirte:
+1. Abre la app.
+2. Toca la pestaña *"Equipo"* (abajo).
+3. Toca *"Unirme al Team Beast"*.
+
+O entra directo aquí: ${LINK_TEAM_BEAST}
+${comunidad ? `\nY únete a nuestra comunidad de WhatsApp: ${comunidad}\n` : ''}
+${cuandoAlumnos} Cualquier duda, me escribes aquí.
+
+Vamos juntos. No estás solo/a, yo te acompaño 🦍`,
+    },
+    {
+      id: 'comunidad', titulo: '2. Primer mensaje en la comunidad', ayuda: 'Para el canal de avisos de tu comunidad de WhatsApp.',
+      texto: `🦍 ¡Bienvenidos al Team Beast!
+
+Este es nuestro espacio. Aquí les voy a escribir yo: el arranque de cada reto, tips, mis comidas del día y las felicitaciones a los más constantes de la semana.
+
+📲 Recuerden: el reto se juega en la app, en la pestaña *"Equipo"*:
+✓ = 3 o más comidas registradas en el día (10 puntos)
+– = 1 o 2 comidas (5 puntos)
+Y pueden mandarse ánimo con un toque 💪🔥👏
+
+Yo también registro mis comidas todos los días, como uno más del equipo. No se trata de ser perfectos, se trata de no soltar. El cambio llega poco a poco, comida a comida.
+
+${cuandoComunidad} Si tienen dudas, me escriben por privado 💪`,
+    },
+    {
+      id: 'historia', titulo: '3. Historia de Instagram o estado', ayuda: 'Sin números de peso, para cuidar las reglas de Instagram y Facebook.',
+      texto: `🦍 TEAM BEAST
+El reto en grupo de la app, conmigo de capitán.
+Registra tus comidas, suma puntos y recibe ánimo del equipo.
+Aquí gana el más constante 💪
+👉 jonahbeast.com/?equipo=BEAST`,
+    },
+  ];
+}
+
+function TeamBeastLanzamiento() {
+  const [oculto, setOculto] = useState(null);
+  const [comunidad, setComunidad] = useState('');
+  const [reto, setReto] = useState(null);
+  const [abierto, setAbierto] = useState(null);
+
+  useEffect(() => {
+    supabase.from('config').select('value').eq('key', CLAVE_LANZAMIENTO_OCULTO).maybeSingle()
+      .then(({ data }) => setOculto(data?.value === '1'), () => setOculto(false));
+    supabase.from('equipos').select('whatsapp, inicio, dias').eq('oficial', true).eq('cerrado', false).maybeSingle()
+      .then(({ data }) => { setComunidad(data?.whatsapp || ''); if (data?.inicio) setReto({ inicio: data.inicio, dias: data.dias }); }, () => {});
+  }, []);
+
+  async function cambiarOculto(valor) {
+    setOculto(valor);
+    try { await supabase.from('config').upsert({ key: CLAVE_LANZAMIENTO_OCULTO, value: valor ? '1' : '0' }); } catch {}
+  }
+  async function copiar(texto) {
+    try { await navigator.clipboard.writeText(texto); showToast('📋 Mensaje copiado'); }
+    catch { showToast('No se pudo copiar. Mantén presionado el texto para copiarlo.', 'error'); }
+  }
+
+  if (oculto === null) return null;
+  if (oculto) {
+    return (
+      <button type="button" onClick={() => cambiarOculto(false)}
+        className="jb-body text-[11px] text-zinc-500 hover:text-orange-400 underline underline-offset-2 mt-3">
+        🦍 Ver los mensajes de lanzamiento del Team Beast
+      </button>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-orange-500/40 bg-zinc-950 p-4">
+      <p className="jb-display text-base text-zinc-50">🦍 LANZAMIENTO DEL TEAM BEAST</p>
+      <p className="jb-body text-[11px] text-zinc-400 mt-0.5 mb-3">
+        Mensajes listos con tu voz. Toca "Copiar" o "Enviar por WhatsApp" (eliges a quién o a tu lista de difusión).
+        {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → Crecimiento → Equipos), se agrega solo al mensaje 1.'}
+        {' '}La fecha del reto sale de lo que programaste en la app (pestaña "Equipo" → "📅 Cambiar cuándo empieza y cuánto dura").
+      </p>
+      <div className="flex flex-col gap-2">
+        {mensajesLanzamiento(comunidad, reto).map(m => (
+          <div key={m.id} className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+            <p className="jb-body text-sm text-zinc-100">{m.titulo}</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">{m.ayuda}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => copiar(m.texto)} className={btnPrimary + ' text-xs py-1.5 px-3'}>📋 Copiar</button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(m.texto)}`} target="_blank" rel="noreferrer"
+                className={btnGhost + ' text-xs py-1.5 px-3'}><MessageCircle size={14} /> Enviar por WhatsApp</a>
+              <button type="button" onClick={() => setAbierto(a => (a === m.id ? null : m.id))}
+                className="jb-body text-[11px] text-zinc-500 underline underline-offset-2 px-1">
+                {abierto === m.id ? 'Ocultar mensaje' : 'Ver mensaje'}
+              </button>
+            </div>
+            {abierto === m.id && (
+              <p className="jb-body text-[12px] text-zinc-300 mt-2 leading-snug bg-zinc-950 rounded-lg p-2.5 whitespace-pre-line">{m.texto}</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={() => cambiarOculto(true)}
+        className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline underline-offset-2 mt-3">
+        Ya los mandé, ocultar
+      </button>
+    </div>
+  );
+}
+
 function MensajesDelDiaPanel() {
   const [lista, setLista] = useState(null);
   const [escritos, setEscritos] = useState({});
@@ -8704,6 +8850,7 @@ function MensajesDelDiaPanel() {
       {lista.length > 0 && (
         <div className="flex mt-3"><BarraBrillo pct={(hechos / lista.length) * 100} alto="h-1.5" /></div>
       )}
+      <TeamBeastLanzamiento />
       <div className="flex flex-col gap-5 mt-4">
         {NIVELES.map(nivel => {
           const etapas = ETAPAS.filter(e => e.nivel === nivel.id && lista.some(x => x.etapa === e.id));

@@ -553,7 +553,7 @@ Problemas:
 
 Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y versión gratis.
 
-**Team Beast (el oficial):** el reto del mes con Jonah de capitán (ej. "Reto de octubre con Jonah"). Empieza el día 1 y termina el último día de cada mes; el siguiente arranca solo. Para entrar: pestaña **"Equipo"** → **"Unirme al Team Beast"**.
+**Team Beast (el oficial):** el reto en grupo con Jonah de capitán. Jonah elige cuándo empieza y cuánto dura (14, 28 o 56 días): antes de empezar, el equipo muestra "EMPIEZA EL [fecha]" y ya se puede entrar e invitar; durante el reto dice, por ejemplo, "Reto de 28 días con Jonah". Para entrar: pestaña **"Equipo"** → **"Unirme al Team Beast"**.
 
 **Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). Ese nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán. Además, el capitán puede ponerle un **apodo** opcional (de 2 a 24 letras, sin groserías ni promesas de kilos), y se ve como **"Team Beast de Pedro · Los Imparables"**. El Team Beast oficial no lleva apodo.
 
@@ -588,7 +588,7 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - "🔥 [Nombre] le mandó ánimo a [Nombre]"
   Junto a los logros de los compañeros hay un botón (👏 ¡Bien ahí!, 🔥 ¡Sigue así! o 💪 ¡Vamos!) para mandarle ánimo ahí mismo (cuenta como el ánimo del día para esa persona). Solo cuenta lo que pasó desde que cada uno entró al equipo. Al principio sale vacía ("Todavía no hay movimiento…").
 - **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos y la actividad; la conversación libre es en WhatsApp. En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
-- El **capitán** puede poner o cambiar el **apodo** y el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
+- El **capitán** puede poner o cambiar el **apodo** y el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha). Mientras el reto no empieza, puede cambiar la fecha y la duración con **"📅 Cambiar cuándo empieza y cuánto dura"** (inicio: hoy, el próximo lunes o el siguiente). Cuando el reto termina, le sale **"ARRANCA OTRO RETO"**.
 - **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 
 Problemas:

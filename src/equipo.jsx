@@ -340,6 +340,11 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
     }
   }
   useEffect(() => { cargar(semana); }, [id, semana]);
+  const [actividad, setActividad] = useState(null);
+  function cargarActividad() {
+    llamar('equipo_actividad', { p_id: id }).then(({ r, ok }) => setActividad(ok ? r.eventos || [] : []));
+  }
+  useEffect(() => { cargarActividad(); }, [id]);
   useEffect(() => {
     supabase.rpc('mi_codigo_invitacion').then(({ data, error: e }) => { if (!e && data?.codigo) setRef(data.codigo); });
   }, [username]);
@@ -348,7 +353,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
     setAbiertoRef(null);
     setEq(v => ({ ...v, miembros: v.miembros.map(x => (x.ref === m.ref ? { ...x, animado_hoy: true } : x)) }));
     const { r, ok, error: e } = await llamar('equipo_animar', { p_id: id, p_ref: m.ref, p_tipo: tipo.tipo });
-    if (ok || r?.ya) { vibrar(20); showToast(`${tipo.emoji} Ánimo enviado a ${m.nombre}`); }
+    if (ok || r?.ya) { vibrar(20); showToast(`${tipo.emoji} Ánimo enviado a ${m.nombre}`); cargarActividad(); }
     else { showToast(mensajeError(r, e), 'error'); cargar(); }
   }
 
@@ -486,6 +491,12 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
         </p>
       </Tarjeta>
 
+      <ActividadEquipo eventos={actividad} miembros={eq.miembros}
+        onAnimar={(ev, tipo) => {
+          const m = eq.miembros.find(x => x.ref === ev.quien_ref);
+          if (m) animar(m, tipo);
+        }} />
+
       {eq.whatsapp ? (
         <a href={eq.whatsapp} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' w-full py-3 mb-3 rounded-xl'}>
           <MessageCircle size={16} /> Ir al chat del equipo
@@ -568,6 +579,76 @@ function NuevoReto({ id, onListo }) {
       <button onClick={empezar} disabled={ocupado} className={btnPrimary + ' w-full py-3 rounded-xl'}>
         {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Empezar nuevo reto'}
       </button>
+    </Tarjeta>
+  );
+}
+
+// "hace 5 min", "hace 2 h", "ayer", "hace 3 días".
+function haceCuanto(iso) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return 'ahora';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  const dias = Math.round((aFecha(hoyISO()) - aFecha(aISO(new Date(iso)))) / 86400000);
+  if (dias <= 0) return `hace ${h} h`;
+  if (dias === 1) return 'ayer';
+  return `hace ${dias} días`;
+}
+
+function textoEvento(ev) {
+  const quien = ev.quien_yo ? 'Tú' : ev.quien;
+  if (ev.tipo === 'animo') {
+    const t = ANIMOS.find(x => x.tipo === ev.detalle) || ANIMOS[0];
+    const para = ev.para_yo ? 'ti' : ev.para;
+    return { emoji: t.emoji, texto: <><b>{quien}</b> {ev.quien_yo ? 'le mandaste' : 'le mandó'} ánimo a <b>{para}</b>: {t.texto}</> };
+  }
+  if (ev.tipo === 'dia') return { emoji: '✅', texto: <><b>{quien}</b> {ev.quien_yo ? 'cumpliste tu' : 'cumplió su'} día: {ev.detalle} comidas registradas</>, animo: ANIMOS[2] };
+  if (ev.tipo === 'racha') return { emoji: '🏆', texto: <><b>{quien}</b> {ev.quien_yo ? 'llevas' : 'lleva'} {ev.detalle} días seguidos registrando</>, animo: ANIMOS[1] };
+  return { emoji: '👋', texto: <><b>{quien}</b> {ev.quien_yo ? 'te uniste' : 'se unió'} al equipo</>, animo: ANIMOS[0] };
+}
+
+// ACTIVIDAD DEL EQUIPO: lo que pasa en el equipo, sin escribir. En cada
+// logro de un compañero hay un botón para mandarle ánimo ahí mismo.
+function ActividadEquipo({ eventos, miembros, onAnimar }) {
+  const [verTodo, setVerTodo] = useState(false);
+  if (!eventos) return null;
+  const animado = ref => miembros.find(m => m.ref === ref)?.animado_hoy;
+  const lista = verTodo ? eventos : eventos.slice(0, 8);
+  return (
+    <Tarjeta className="mb-3">
+      <p className="jb-display text-base text-zinc-100 mb-1">ACTIVIDAD DEL EQUIPO</p>
+      <p className="jb-body text-[11px] text-zinc-500 mb-3">Lo que pasa en el equipo esta semana. Toca 🔥 para darle ánimo a quien lo está logrando.</p>
+      {eventos.length === 0 ? (
+        <p className="jb-body text-sm text-zinc-400">Todavía no hay movimiento. Registra tus comidas y dale ánimo a un compañero: aquí lo verá todo el equipo 🦍</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {lista.map((ev, i) => {
+            const { emoji, texto, animo } = textoEvento(ev);
+            const puede = animo && !ev.quien_yo;
+            const ya = puede && animado(ev.quien_ref);
+            return (
+              <li key={i} className="flex items-start gap-2.5">
+                <span className="w-8 h-8 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center text-sm shrink-0">{emoji}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block jb-body text-sm text-zinc-200 leading-snug">{texto}</span>
+                  <span className="block jb-body text-[10px] text-zinc-500">{haceCuanto(ev.cuando)}</span>
+                </span>
+                {puede && (
+                  <button onClick={() => !ya && onAnimar(ev, animo)} disabled={ya}
+                    className={`shrink-0 jb-body text-xs px-2.5 py-1.5 rounded-full border ${ya ? 'border-zinc-800 text-zinc-600' : 'border-orange-500/50 text-orange-300 hover:bg-orange-500/10'}`}>
+                    {ya ? '✓' : `${animo.emoji} ${animo.texto}`}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {eventos.length > 8 && (
+        <button onClick={() => setVerTodo(v => !v)} className="mt-3 jb-body text-xs text-orange-400">
+          {verTodo ? 'Ver menos' : `Ver todo (${eventos.length})`}
+        </button>
+      )}
     </Tarjeta>
   );
 }

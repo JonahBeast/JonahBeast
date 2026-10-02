@@ -579,7 +579,13 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - **✗ = 0 puntos:** no registró. Hoy, mientras no registre, sale un punto con borde de rayas.
 - **Gana el más constante, no el que más baja.** Los compañeros **no ven el peso, las medidas ni lo que come cada uno**: solo su nombre corto (ej. "Rosa M."), sus casillas y sus puntos.
 - **Dar ánimo:** tocar el nombre de un compañero → **"💪 ¡Vamos!"**, **"🔥 ¡Sigue así!"** o **"👏 ¡Bien ahí!"**. Le llega como notificación ("[Nombre] te mandó ánimo: 💪 ¡Vamos!"). Uno por compañero al día. Los ánimos recibidos se ven arriba al abrir el equipo.
-- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. La conversación del equipo es en WhatsApp; dentro de la app no hay chat.
+- **"ACTIVIDAD DEL EQUIPO"**: lo que pasa en el equipo en los últimos 7 días, para que todos lo vean, sin escribir nada:
+  - "👋 [Nombre] se unió al equipo"
+  - "✅ [Nombre] cumplió su día: 3 comidas registradas" (3 o más en el día)
+  - "🏆 [Nombre] lleva 7 días seguidos registrando" (a los 3, 7, 14, 21 y 30 días)
+  - "🔥 [Nombre] le mandó ánimo a [Nombre]"
+  Junto a los logros de los compañeros hay un botón (👏 ¡Bien ahí!, 🔥 ¡Sigue así! o 💪 ¡Vamos!) para mandarle ánimo ahí mismo (cuenta como el ánimo del día para esa persona). Solo cuenta lo que pasó desde que cada uno entró al equipo. Al principio sale vacía ("Todavía no hay movimiento…").
+- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos y la actividad; la conversación libre es en WhatsApp. En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
 - El **capitán** puede poner o cambiar el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
 - **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 

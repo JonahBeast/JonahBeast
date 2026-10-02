@@ -34,7 +34,12 @@ export function historialDePeso(form = {}, hist = [], al = null) {
   const conPeso = hist.filter(h => Number(h.peso) > 0 && (!inicio || h.fecha >= sumarDias(inicio, -1)));
   const real = conPeso.findIndex(h => r1(h.peso) !== 70);
   const desde = real > 0 && r1(form.pesoInicial) !== 70 ? real : 0;
+  // Un peso aislado muy lejos del resto (más de 15% de la mediana) es un
+  // error de tipeo (ej. 110 en vez de 101): no se cuenta.
+  const valores = conPeso.slice(desde).map(h => r1(h.peso)).sort((a, b) => a - b);
+  const mediana = valores.length ? valores[Math.floor(valores.length / 2)] : 0;
   conPeso.slice(desde).forEach(h => {
+    if (valores.length >= 3 && mediana > 0 && Math.abs(r1(h.peso) - mediana) / mediana > 0.15) return;
     const kg = r1(h.peso);
     if (kg === actual) return;
     if (fechaActual && h.fecha > fechaActual) return;
@@ -50,6 +55,12 @@ export function historialDePeso(form = {}, hist = [], al = null) {
     if (ult && ult.f === p.f && !ult.inicial) { salida[salida.length - 1] = p; return; }
     salida.push(p);
   });
+  // Cambios imposibles (más de 20% del peso entre un punto y otro, ej. un
+  // peso de ejemplo o un error de tipeo que quedó en el perfil): no se
+  // muestra un cambio que no es real; se deja solo el último peso.
+  for (let i = 1; i < salida.length; i++) {
+    if (Math.abs(salida[i].kg - salida[i - 1].kg) / salida[i - 1].kg > 0.2) return salida.slice(-1);
+  }
   return salida;
 }
 

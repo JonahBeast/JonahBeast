@@ -8482,6 +8482,23 @@ function ordenMedias(h) {
    terminar, primera comida · 🟠 retomar, avisos · 🟢 celebrar), con el mensaje listo
    en la voz de Jonah (reglas en src/listaCarino.js). Al tocar "Escribirle"
    queda ✅ y ese paso no se repite en 7 días. */
+/* Correo con el que entra cada alumno ({ username: { correo, google } }),
+   desde api/correos-alumnos (solo admin). Si falla, el mensaje dice "con
+   el correo con que te registraste". */
+async function traerCorreosAlumnos(usernames) {
+  if (!usernames.length) return {};
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch('/api/correos-alumnos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ usernames: usernames.slice(0, 50) }),
+    });
+    const j = await r.json().catch(() => ({}));
+    return r.ok && j.correos ? j.correos : {};
+  } catch { return {}; }
+}
+
 function MensajesDelDiaPanel() {
   const [lista, setLista] = useState(null);
   const [escritos, setEscritos] = useState({});
@@ -8491,7 +8508,14 @@ function MensajesDelDiaPanel() {
   useEffect(() => {
     let cancelado = false;
     cargarDatosCarino(supabase, hoy)
-      .then(d => { if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, hoyISO: hoy, incluirHechos: true })); } })
+      .then(async d => {
+        // A quien se registró dentro de Instagram/Facebook/TikTok el mensaje
+        // le dice con qué correo entrar a la app: se piden esos correos.
+        const internos = d.estados.filter(e => e.navegador_interno).map(e => e.username)
+          .filter(u => d.alumnos.some(a => a.username === u));
+        const correos = await traerCorreosAlumnos(internos);
+        if (!cancelado) { setEscritos(d.escritos); setLista(armarListaCarino({ ...d, correos, hoyISO: hoy, incluirHechos: true })); }
+      })
       .catch(() => { if (!cancelado) setLista([]); });
     return () => { cancelado = true; };
   }, []);

@@ -103,13 +103,69 @@ export async function cargarDatosCarino(supabase, hoyISO) {
   };
 }
 
+/* Quien se registró dentro de Facebook/Instagram/TikTok: ahí la app no
+   queda guardada ni le llegan los avisos. El enlace que Jonah manda por
+   WhatsApp se abre en el navegador normal, así que el mensaje le da el
+   camino para tener la app de verdad y con qué correo entrar.
+   correo = { correo, google } (de api/correos-alumnos) o null. */
+const CIERRE_JUNTOS = 'Vamos juntos por esos resultados. No estás solo/a, yo te acompaño 🦍';
+
+/* Pasos numerados para tener la app instalada y entrar a su cuenta. La
+   app todavía no está abierta a todos en Play Store, así que se instala
+   desde el navegador: Android con Chrome, iPhone con Safari. */
+export function pasosInstalarApp(dispositivo, correo) {
+  const entrar = correo?.google
+    ? `toca "¿Ya tienes cuenta? ENTRAR" y luego "Continuar con Google" con tu correo ${correo.correo}`
+    : correo?.correo
+      ? `toca "¿Ya tienes cuenta? ENTRAR" y entra con tu correo ${correo.correo} y tu contraseña`
+      : 'toca "¿Ya tienes cuenta? ENTRAR" y entra con el correo y la contraseña con que te registraste';
+  const pasos = dispositivo === 'iphone'
+    ? [
+        'Abre este enlace en Safari: https://jonahbeast.com',
+        `Ahí ${entrar}`,
+        'Toca el botón Compartir (el cuadrado con la flecha ↑) → "Agregar a pantalla de inicio" → "Agregar"',
+        'Abre la app desde el ícono nuevo y toca "Activar avisos" para que te recuerde tus comidas',
+        'Tómale foto a tu próxima comida 📸',
+      ]
+    : [
+        'Abre este enlace en Chrome: https://jonahbeast.com',
+        `Ahí ${entrar}`,
+        'Toca los tres puntitos ⋮ (arriba a la derecha) → "Agregar a la pantalla principal" (o "Instalar app") → "Instalar"',
+        'Abre la app desde el ícono nuevo y toca "Activar avisos" para que te recuerde tus comidas',
+        'Tómale foto a tu próxima comida 📸',
+      ];
+  const numeros = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+  return pasos.map((t, i) => `${numeros[i]} ${t}`).join('\n');
+}
+
+/* Mensaje completo para quien se registró dentro de Facebook/Instagram/
+   TikTok: ahí la app no queda guardada ni le llegan los avisos. El enlace
+   que Jonah manda por WhatsApp se abre en el navegador normal, así que es
+   el camino para tener la app de verdad. etapa: bienvenida | primera |
+   avisos. correo = { correo, google } (de api/correos-alumnos) o null. */
+export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida', yaComio = false } = {}) {
+  const hola = etapa === 'bienvenida'
+    ? `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel.`
+    : `¡Hola${n ? ' ' + n : ''}! 👋 Soy Jonah.`;
+  const animo = etapa === 'avisos'
+    ? '¡Qué bueno verte registrando tus comidas! Así se avanza 💪'
+    : yaComio
+    ? 'Ya registraste tu primera comida, ¡así se empieza! 💪'
+    : etapa === 'primera'
+      ? 'Vi que creaste tu cuenta y quiero ayudarte a arrancar. Ya diste el primer paso, que es el que más cuesta 💪'
+      : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
+  const historia = 'Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
+  const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
+  return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${CIERRE_JUNTOS}`;
+}
+
 /* Mensaje para activar los avisos, según por qué no le llegan. */
-export function mensajeAvisos(n, motivo, dispositivo) {
+export function mensajeAvisos(n, motivo, dispositivo, correo = null) {
   const hola = `Hola${n ? ' ' + n : ''} 👋 Soy Jonah.`;
   const cierre = 'Así te acompaño todos los días y no se te pasa ninguna comida 💪🦍';
   const nav = dispositivo === 'iphone' ? 'Safari' : 'Chrome';
   if (motivo === 'navegador') {
-    return `${hola} ¡Qué bueno verte usando la app! Una cosita: la estás abriendo dentro de Facebook/Instagram/TikTok, y ahí no te llegan mis avisos. Ábrela en ${nav}: entra a jonahbeast.com con tu correo y toca "Activar avisos". ${cierre}`;
+    return mensajeInstalarApp(n, dispositivo, correo, { etapa: 'avisos', yaComio: true });
   }
   if (motivo === 'ios_sin_instalar') {
     return `${hola} Para que te lleguen mis avisos en tu iPhone, instala la app (1 minuto): abre jonahbeast.com en Safari → botón Compartir (el cuadrado con la flecha ↑) → "Agregar a pantalla de inicio". Entra desde el ícono nuevo y toca "Activar avisos". ${cierre}`;
@@ -134,7 +190,7 @@ export const MOTIVO_AVISOS = {
   sin_activar: 'Nunca activó los avisos',
 };
 
-export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [], conAvisos = [], bienvenidaAuto = [], hoyISO, ahora = Date.now(), incluirHechos = false }) {
+export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [], conAvisos = [], bienvenidaAuto = [], correos = {}, hoyISO, ahora = Date.now(), incluirHechos = false }) {
   const ayer = sumarDias(hoyISO, -1);
   const porUsuario = {};
   (hist || []).forEach(h => { (porUsuario[h.username] = porUsuario[h.username] || []).push(h); });
@@ -155,6 +211,10 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
     const diasDesdeInicio = a.fecha_inicio ? diasEntre(a.fecha_inicio, hoyISO) : null;
     const horas = a.created_at ? (ahora - Date.parse(a.created_at)) / 3600000 : (diasDesdeInicio ?? 99) * 24;
     const est = estadoDe[a.username];
+    // Se registró dentro de Facebook/Instagram/TikTok: el mensaje le da el
+    // enlace para descargar la app y con qué correo entrar.
+    const interno = !!est?.navegador_interno;
+    const instalar = (etapa, yaComio) => mensajeInstalarApp(n, est?.dispositivo, correos[a.username], { etapa, yaComio });
 
     // El primer paso del camino que le toca a esta persona.
     const caso = (() => {
@@ -162,10 +222,10 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       if (horas < 24) {
         if (a.telefono && yaBienvenida.has(nueve(a.telefono))) return null;
         return ultimaComida
-          ? { etapa: 'bienvenida', motivo: 'Se registró hoy y ya anotó su primera comida 🔥',
-              mensaje: `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. Vamos a ir juntos. Cualquier duda me escribes aquí, ¿ya? 🦍` }
-          : { etapa: 'bienvenida', motivo: 'Se registró hoy',
-              mensaje: `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
+          ? { etapa: 'bienvenida', motivo: `Se registró hoy${interno ? ' desde Instagram/Facebook' : ''} y ya anotó su primera comida 🔥`,
+              mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. Vamos a ir juntos. Cualquier duda me escribes aquí, ¿ya? 🦍` }
+          : { etapa: 'bienvenida', motivo: interno ? 'Se registró hoy desde Instagram/Facebook' : 'Se registró hoy',
+              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
       }
       // 2. Prueba por terminar (hoy o mañana).
       if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {
@@ -179,8 +239,8 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       // 3. Primera comida: más de un día sin anotar nada (hasta 7).
       if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 7)) {
         const cuando = diasDesdeInicio === 1 ? 'ayer' : `hace ${diasDesdeInicio ?? 'unos'} días`;
-        return { etapa: 'primera', motivo: `Se registró ${cuando} y aún no anota ninguna comida`,
-          mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
+        return { etapa: 'primera', motivo: `Se registró ${cuando}${interno ? ' desde Instagram/Facebook' : ''} y aún no anota ninguna comida`,
+          mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
       }
       // 4. Retomar.
       if (ultimaComida) {
@@ -198,7 +258,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       if (!tieneAvisos.has(a.username) && diasDesdeInicio !== null && diasDesdeInicio <= 14 && est) {
         const motivo = est.navegador_interno ? 'navegador' : est.estado;
         if (MOTIVO_AVISOS[motivo]) {
-          return { etapa: 'avisos', motivo: MOTIVO_AVISOS[motivo], mensaje: mensajeAvisos(n, motivo, est.dispositivo) };
+          return { etapa: 'avisos', motivo: MOTIVO_AVISOS[motivo], mensaje: mensajeAvisos(n, motivo, est.dispositivo, correos[a.username]) };
         }
       }
       // 6. Celebrar.
@@ -247,7 +307,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
     const hecho = escrito?.f === hoyISO;
     if (!hecho && escrito && diasEntre(escrito.f, hoyISO) < 7 && (escrito.e === caso.etapa || escrito.e === null)) continue;
     if (hecho && !incluirHechos) continue;
-    lista.push({ username: a.username, nombre: a.nombre || a.username, telefono: a.telefono || '', ...caso, hecho });
+    lista.push({ username: a.username, nombre: a.nombre || a.username, telefono: a.telefono || '', interno, ...caso, hecho });
   }
   return lista.sort((x, y) => ORDEN[x.etapa] - ORDEN[y.etapa]).slice(0, MAX_LISTA);
 }

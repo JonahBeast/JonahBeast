@@ -1,4 +1,5 @@
-// EQUIPOS: retos en grupo (pestaña "Equipo" de la app del alumno).
+// EQUIPOS: retos en grupo (pestaña "Comunidad" → "Mis equipos" de la app
+// del alumno; el muro está en src/comunidad.jsx).
 //
 // - El Team Beast oficial: el reto con Jonah de capitán (Jonah elige
 //   cuándo empieza y cuánto dura).
@@ -98,7 +99,7 @@ function textoInvitacionEquipo(eq, ref) {
   if (eq.oficial) {
     return `Únete conmigo al Team Beast 🦍, el reto en grupo con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
   }
-  return `¡Únete a mi equipo, el ${nombreCompleto(eq)}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
+  return `¡Únete a mi equipo, el ${nombreCompleto(eq)}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en Comunidad → Mis equipos)`;
 }
 
 const ERRORES = {
@@ -118,16 +119,16 @@ const ERRORES = {
 };
 const mensajeError = (r, error) => (error ? 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' : ERRORES[r?.error] || 'Algo falló. Intenta de nuevo.');
 
-async function llamar(fn, args) {
+export async function llamar(fn, args) {
   const { data, error } = await supabase.rpc(fn, args);
   return { r: data, ok: !error && data && !data.error, error };
 }
 
-function Tarjeta({ children, className = '' }) {
+export function Tarjeta({ children, className = '' }) {
   return <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 ${className}`}>{children}</div>;
 }
 
-export function EquipoTab({ username, nombre, onAnimosVistos }) {
+export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false }) {
   const [mis, setMis] = useState(null);
   const [abierto, setAbierto] = useState(null); // id del equipo abierto
   const [vista, setVista] = useState('lista'); // lista | crear | codigo
@@ -185,10 +186,14 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
 
   return (
     <div className="pt-2">
-      <h1 className="jb-display text-3xl text-zinc-50 mb-1">EQUIPO</h1>
-      <p className="jb-body text-sm text-zinc-400 mb-5">
-        El cambio llega poco a poco, comida a comida. Y con tu gente al lado, se hace más fácil. 🦍
-      </p>
+      {!sinTitulo && (
+        <>
+          <h1 className="jb-display text-3xl text-zinc-50 mb-1">EQUIPO</h1>
+          <p className="jb-body text-sm text-zinc-400 mb-5">
+            El cambio llega poco a poco, comida a comida. Y con tu gente al lado, se hace más fácil. 🦍
+          </p>
+        </>
+      )}
 
       {invitacion && (
         <Tarjeta className="border-orange-500/60 mb-4">
@@ -837,7 +842,7 @@ function NuevoReto({ eq, titulo, boton, ayuda, onListo, onCancelar }) {
 }
 
 // "hace 5 min", "hace 2 h", "ayer", "hace 3 días".
-function haceCuanto(iso) {
+export function haceCuanto(iso) {
   const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
   if (min < 1) return 'ahora';
   if (min < 60) return `hace ${min} min`;

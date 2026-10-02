@@ -66,7 +66,8 @@ import {
   esFritoOSaltado,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { EquipoTab, MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
+import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
+import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo } from './comunidad.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -9394,8 +9395,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setTab(tieneDatosBasicos(formRef.current) ? 'goal' : 'calc'); window.scrollTo({ top: 0 });
         return true;
       }
-      if (ir === 'equipo') {
-        setRegistrarAl(null); setTab('equipo'); window.scrollTo({ top: 0 });
+      if (ir === 'equipo' || ir === 'comunidad') {
+        setRegistrarAl(null); setVistaComunidad(ir === 'equipo' ? 'equipos' : 'muro'); setTab('equipo'); window.scrollTo({ top: 0 });
         return true;
       }
     } catch {}
@@ -9404,7 +9405,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   useEffect(() => {
     const deUrl = leerRegistrarDeUrl(window.location.href);
     if (deUrl) irARegistrar(deUrl, { foto: pideFotoEnUrl(window.location.href) });
-    else if (!irAPlanesSiPide(window.location.href) && leerInvitacionEquipo()) setTab('equipo');
+    else if (!irAPlanesSiPide(window.location.href) && leerInvitacionEquipo()) { setVistaComunidad('equipos'); setTab('equipo'); }
     try {
       const u = new URL(window.location.href);
       if (u.searchParams.has('registrar') || u.searchParams.has('ir') || u.searchParams.has('equipo')) {
@@ -9494,12 +9495,18 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     try { localStorage.setItem('jb-abrir-navegador', fechaLocalISO(new Date())); } catch {}
   }
   const [tieneFotos, setTieneFotos] = useState(false);
-  // Punto en la pestaña Equipo: ánimos sin ver o una invitación pendiente.
+  // Punto en la pestaña Comunidad: ánimos sin ver o una invitación
+  // pendiente (en "Mis equipos") o un anuncio nuevo de Jonah (en "Muro").
   const [avisoEquipo, setAvisoEquipo] = useState(false);
+  const [avisoMuro, setAvisoMuro] = useState(false);
+  const [vistaComunidad, setVistaComunidad] = useState(leerVistaComunidad);
   function revisarAvisoEquipo() {
     supabase.rpc('equipo_mis').then(({ data }) => setAvisoEquipo((data?.animos || 0) > 0 || !!leerInvitacionEquipo()), () => {});
   }
-  useEffect(() => { revisarAvisoEquipo(); }, [username]);
+  useEffect(() => {
+    revisarAvisoEquipo();
+    hayAnuncioNuevo().then(setAvisoMuro, () => {});
+  }, [username]);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
@@ -9734,7 +9741,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             volver a entrar con su correo. */}
         {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
-        {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
+        {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
@@ -9832,7 +9839,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
-        {tab === 'equipo' && <EquipoTab username={username} nombre={userRecord?.nombre} onAnimosVistos={revisarAvisoEquipo} />}
+        {tab === 'equipo' && <ComunidadTab username={username} nombre={userRecord?.nombre} vista={vistaComunidad} onVista={setVistaComunidad}
+          avisoEquipos={avisoEquipo} onAnimosVistos={revisarAvisoEquipo} onMuroVisto={() => setAvisoMuro(false)} />}
       </main>
       <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
@@ -9880,7 +9888,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'meal', icon: Salad, label: 'Comidas', activo: tab === 'meal' },
           { id: 'calc', icon: Flame, label: 'Mi cuerpo', activo: tab === 'calc' || tab === 'goal' },
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
-          { id: 'equipo', icon: Users, label: 'Equipo', activo: tab === 'equipo', aviso: avisoEquipo && tab !== 'equipo' },
+          { id: 'equipo', icon: Users, label: 'Comunidad', activo: tab === 'equipo', aviso: (avisoEquipo || avisoMuro) && tab !== 'equipo' },
         ].map(item => (
           <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); if (item.id === 'equipo') revisarAvisoEquipo(); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>

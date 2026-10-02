@@ -2080,7 +2080,7 @@ const FILAS_PRIMERA = [
   ] },
 ];
 
-/* EQUIPOS: los retos en grupo de los alumnos (pestaña Equipo de la app,
+/* EQUIPOS: los retos en grupo de los alumnos (pestaña Comunidad → Mis equipos de la app,
    ver src/equipo.jsx). Jonah ve cada equipo con su capitán, cuántos
    registraron comida esta semana, a quién trajeron con la invitación y los
    que se apagaron. Puede poner el enlace de la comunidad de WhatsApp del
@@ -2220,6 +2220,120 @@ function EquiposPanel({ users }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* COMUNIDAD (muro de la app, ver src/comunidad.jsx): Jonah publica
+   anuncios con un botón opcional "Únete al reto", los fija arriba o los
+   oculta, y ve cuántos aparecen en el muro y cuántas reacciones hubo. Los
+   logros del muro salen solos de los retos. */
+function ComunidadPanel() {
+  const [datos, setDatos] = useState(null);
+  const [texto, setTexto] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [fijado, setFijado] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  async function cargar() {
+    const desde = new Date(Date.now() - 7 * 86400000).toISOString();
+    const [{ data: anuncios }, { data: equipos }, { count: visibles }, { data: reacciones }] = await Promise.all([
+      supabase.from('comunidad_anuncios').select('*').eq('activo', true).order('fijado', { ascending: false }).order('created_at', { ascending: false }).limit(20),
+      supabase.from('equipos').select('codigo, nombre, apodo, oficial').eq('cerrado', false).order('oficial', { ascending: false }).order('created_at'),
+      supabase.from('comunidad_perfil').select('username', { count: 'exact', head: true }).eq('visible', true),
+      traerTodas(() => supabase.from('comunidad_reacciones').select('evento, username, created_at').eq('activo', true).gte('created_at', desde), ['evento', 'username', 'tipo']),
+    ]);
+    setDatos({ anuncios: anuncios || [], equipos: equipos || [], visibles: visibles || 0, reacciones: reacciones || [] });
+  }
+  useEffect(() => { cargar().catch(() => setDatos({ anuncios: [], equipos: [], visibles: 0, reacciones: [], error: true })); }, []);
+
+  async function publicar() {
+    const t = texto.trim();
+    if (t.length < 3) { showToast('Escribe el anuncio', 'error'); return; }
+    setGuardando(true);
+    const { error } = await supabase.from('comunidad_anuncios').insert({ texto: t.slice(0, 500), codigo: codigo || null, fijado });
+    setGuardando(false);
+    if (error) { showToast('No se pudo publicar: ' + error.message, 'error'); return; }
+    showToast('✅ Anuncio publicado en el muro');
+    setTexto(''); setCodigo(''); setFijado(false);
+    cargar();
+  }
+  async function cambiar(a, campos, aviso) {
+    const { error } = await supabase.from('comunidad_anuncios').update(campos).eq('id', a.id);
+    if (error) { showToast('No se pudo guardar: ' + error.message, 'error'); return; }
+    showToast(aviso);
+    cargar();
+  }
+
+  if (!datos) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex items-center gap-2 text-zinc-500 text-xs jb-body">
+        <Loader2 size={14} className="animate-spin" /> Cargando comunidad…
+      </div>
+    );
+  }
+  const nombreEquipo = e => (e.oficial ? '🦍 Team Beast' : e.nombre + (e.apodo ? ` · ${e.apodo}` : ''));
+  const reaccionesDe = id => datos.reacciones.filter(r => r.evento === 'a:' + id).length;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <p className="jb-display text-lg text-zinc-50 mb-1">🦍 COMUNIDAD (MURO)</p>
+      <p className="jb-body text-xs text-zinc-500 mb-4">Los logros de los retos salen solos en el muro. Aquí publicas tus anuncios.</p>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {[[datos.visibles, 'aparecen en el muro'], [datos.reacciones.length, 'reacciones en 7 días']].map(([n, t]) => (
+          <div key={t} className="bg-zinc-950/60 rounded-xl p-3 text-center">
+            <p className="jb-display text-2xl text-orange-400 tabular-nums">{n}</p>
+            <p className="jb-body text-[10px] text-zinc-500 leading-tight">{t}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 mb-4">
+        <p className="jb-body text-[11px] text-zinc-500 mb-1">Nuevo anuncio (en tu voz: cercano y motivador)</p>
+        <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, 500))} rows={4}
+          placeholder="Ej. ¡Arranca un nuevo reto del Team Beast el lunes! Vamos juntos, comida a comida 🦍"
+          className={inputCls + ' w-full rounded-lg text-sm mb-2'} />
+        <p className="jb-body text-[11px] text-zinc-500 mb-1">Botón "Únete al reto" (opcional)</p>
+        <select value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' w-full rounded-lg text-sm mb-2'}>
+          <option value="">Sin botón</option>
+          {datos.equipos.map(e => <option key={e.codigo} value={e.codigo}>{nombreEquipo(e)}</option>)}
+        </select>
+        <label className="flex items-center gap-2 jb-body text-xs text-zinc-300 mb-3">
+          <input type="checkbox" checked={fijado} onChange={e => setFijado(e.target.checked)} className="accent-orange-500" />
+          📌 Fijarlo arriba del muro
+        </label>
+        <div className="flex items-center gap-2">
+          <button onClick={publicar} disabled={guardando || texto.trim().length < 3} className={btnPrimary + ' rounded-lg text-sm'}>
+            {guardando ? <Loader2 size={14} className="animate-spin" /> : 'Publicar en el muro'}
+          </button>
+          <span className="jb-body text-[10px] text-zinc-600 tabular-nums">{texto.length}/500</span>
+        </div>
+      </div>
+
+      {datos.anuncios.length === 0 ? (
+        <p className="jb-body text-xs text-zinc-500">Todavía no publicaste anuncios.</p>
+      ) : (
+        <ul className="space-y-2">
+          {datos.anuncios.map(a => {
+            const eq = datos.equipos.find(e => e.codigo === a.codigo);
+            return (
+              <li key={a.id} className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-3">
+                <p className="jb-body text-sm text-zinc-200 whitespace-pre-line">{a.texto}</p>
+                <p className="jb-body text-[11px] text-zinc-500 mt-1">
+                  {a.fijado ? '📌 Fijado · ' : ''}{new Date(a.created_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}
+                  {eq ? ` · botón: ${nombreEquipo(eq)}` : ''} · {reaccionesDe(a.id)} reacciones en 7 días
+                </p>
+                <div className="flex gap-3 mt-2">
+                  <button onClick={() => cambiar(a, { fijado: !a.fijado }, a.fijado ? 'Ya no está fijado' : '📌 Fijado arriba')}
+                    className="jb-body text-xs text-orange-400 hover:text-orange-300">{a.fijado ? 'Desfijar' : 'Fijar arriba'}</button>
+                  <button onClick={() => window.confirm('¿Quitar este anuncio del muro?') && cambiar(a, { activo: false }, 'Anuncio quitado del muro')}
+                    className="jb-body text-xs text-zinc-500 hover:text-red-400">Quitar del muro</button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -8177,6 +8291,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
                 <EquiposPanel users={users} />
+                <ComunidadPanel />
               </>
             )}
           </>

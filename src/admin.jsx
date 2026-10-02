@@ -5599,7 +5599,7 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
             <button onClick={() => onToggleUser(u.username)} className={(u.enabled ? btnDanger : btnGhost) + ' py-1.5 px-3 text-xs'}>
               {u.enabled ? 'Deshabilitar' : 'Habilitar'}
             </button>
-            <button onClick={() => { if (window.confirm(`¿Eliminar a "${u.nombre || u.username}" (@${u.username}) para siempre?\n\nSe borran su plan, medidas, comidas registradas, fotos y ajustes — no se puede deshacer. Si vuelve a entrar, verá un aviso pidiéndole que escriba por WhatsApp, como si fuera nuevo. Sus pagos anteriores se conservan.\n\nSi solo quieres pausar su acceso (y que pueda recuperarlo después), usa "Deshabilitar" en vez de esto.`)) onDeleteUser(u.username); }}
+            <button onClick={() => { if (window.confirm(`¿Eliminar a "${u.nombre || u.username}" (@${u.username}) para siempre?\n\nSe borran su plan, medidas, comidas registradas, fotos, ajustes y también su acceso (correo y contraseña) — no se puede deshacer. Si quiere volver, tendrá que registrarse de nuevo. Sus pagos anteriores se conservan.\n\nSi solo quieres pausar su acceso (y que pueda recuperarlo después), usa "Deshabilitar" en vez de esto.`)) onDeleteUser(u.username); }}
               className="text-zinc-600 hover:text-red-400 transition-colors text-xs flex items-center gap-1 py-1.5 px-2">
               <Trash2 size={13} /> Eliminar
             </button>

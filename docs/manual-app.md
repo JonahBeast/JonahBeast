@@ -698,7 +698,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 
 **Eliminar la cuenta:**
 1. Pie de la pantalla → **"Eliminar mi cuenta"**.
-2. "¿Eliminar tu cuenta?" → **"Sí, continuar"**. Se borran historial, plan de comidas, fotos y notificaciones. **No se puede deshacer.**
+2. "¿Eliminar tu cuenta?" → **"Sí, continuar"**. Se borran historial, plan de comidas, fotos y notificaciones, y también el acceso (correo y contraseña): para volver tendría que registrarse de nuevo. Los pagos anteriores quedan como registro. **No se puede deshacer.**
 3. Escribe **ELIMINAR** (en mayúsculas) y toca **"Eliminar mi cuenta"**.
 - Si solo quiere pausar, **no hace falta eliminar**: basta con no renovar; el historial se conserva.
 

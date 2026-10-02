@@ -8754,13 +8754,16 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
     setBorrando(true);
     setError('');
     try {
-      await supabase.from('historial').delete().eq('username', username);
-      await supabase.from('fotos_progreso').delete().eq('username', username);
-      await supabase.from('push_subs').delete().eq('username', username);
-      await supabase.from('datos_alumnos').delete().eq('username', username);
-      const { error: errAlumno } = await supabase.from('alumnos').delete().eq('username', username);
-      if (errAlumno) throw errAlumno;
-      await supabase.auth.signOut();
+      // El servidor borra sus datos y también su acceso (correo y contraseña).
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/eliminar-cuenta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ username }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || '');
+      await supabase.auth.signOut().catch(() => {});
       onEliminado();
     } catch (e) {
       setError('No se pudo eliminar la cuenta. Intenta de nuevo o escríbenos por WhatsApp: ' + (e.message || ''));

@@ -239,3 +239,38 @@ export function resumenProgreso(a) {
     default: return { grupo: 'datos', emoji: '🌱', texto: 'Conociéndolo (menos de 2 semanas)' };
   }
 }
+
+/* Historia real de la composición corporal (% de grasa y % de masa
+   muscular) para el panel: [{ f, v }] por cada una, solo donde cambia.
+   Las medidas con cinta se guardan cada día como copia (igual que el
+   peso), y en los datos viejos hay valores de ejemplo (perfil de 70 kg con
+   17.8% de grasa) y números imposibles (ej. 389% de grasa por una medida
+   mal escrita). Se descartan: fuera de rango, los días con el peso de
+   ejemplo del principio, los muy lejos del resto y los saltos imposibles. */
+export function historialComposicion(hist = [], al = null) {
+  const inicio = String(al?.fecha_inicio || al?.created_at || (hist[0] && hist[0].fecha) || '').slice(0, 10);
+  const filas = hist.filter(h => !inicio || h.fecha >= sumarDias(inicio, -1));
+  const real = filas.findIndex(h => Number(h.peso) > 0 && r1(h.peso) !== 70);
+  const desdeReal = real > 0 ? filas.slice(real) : filas;
+  const grasaDe = h => Number(h.grasa_pct);
+  const musculoDe = h => (Number(h.peso) > 0 && Number(h.masa_muscular) > 0 ? Number(h.masa_muscular) / Number(h.peso) * 100 : NaN);
+  const mediana = vals => { const o = vals.filter(Number.isFinite).sort((a, b) => a - b); return o.length ? o[Math.floor(o.length / 2)] : NaN; };
+  // Días válidos: con su peso real (no uno de tipeo, más de 15% lejos de
+  // la mediana), y con grasa y músculo en rango y cerca del resto. Si un
+  // valor del día está mal, se descarta el día entero (la medida falló).
+  const enRango = desdeReal.filter(h => grasaDe(h) >= 3 && grasaDe(h) <= 60 && musculoDe(h) >= 15 && musculoDe(h) <= 65);
+  const mPeso = mediana(enRango.map(h => Number(h.peso)));
+  const mGrasa = mediana(enRango.map(grasaDe)), mMusculo = mediana(enRango.map(musculoDe));
+  const muchos = enRango.length >= 3;
+  const utiles = enRango.filter(h => !muchos || (Math.abs(Number(h.peso) - mPeso) / mPeso <= 0.15
+    && Math.abs(grasaDe(h) - mGrasa) <= 8 && Math.abs(musculoDe(h) - mMusculo) <= 8));
+  const serie = (valor, saltoMax) => {
+    const salida = [];
+    utiles.forEach(h => { const v = r1(valor(h)); if (!salida.length || salida[salida.length - 1].v !== v) salida.push({ f: h.fecha, v }); });
+    for (let i = 1; i < salida.length; i++) {
+      if (Math.abs(salida[i].v - salida[i - 1].v) > saltoMax) return salida.slice(-1);
+    }
+    return salida;
+  };
+  return { grasa: serie(grasaDe, 8), musculo: serie(musculoDe, 8) };
+}

@@ -898,7 +898,7 @@ async function seguimiento() {
       const nombre = primerNombre(alumno.nombre) || primerNombre(chat.nombre);
       await supabase.from("whatsapp_chats").update({ username: alumno.username, nombre: alumno.nombre || chat.nombre }).eq("telefono", telefono);
       await enviarTexto(cuenta, telefono,
-        `🎉 ¡${nombre ? nombre + ", y" : "Y"}a vi que creaste tu cuenta! Bienvenido/a a Jonah Beast Fuel, qué bueno tenerte aquí 🙌 Tu único reto de hoy: en la app toca *"REGISTRAR"* y tómale una foto a tu próxima comida 📸 (son 10 segundos). Jonah bajó de 104 a 90 kg en 2 meses empezando así, con la app, entrenamiento y disciplina, comida a comida. Cualquier duda, me escribes aquí 💪🦍`,
+        `🎉 ¡${nombre ? nombre + ", y" : "Y"}a vi que creaste tu cuenta! Bienvenido/a a Jonah Beast Fuel, qué bueno tenerte aquí 🙌 Tu único reto de hoy: en la app toca *"REGISTRAR"* y tómale una foto a tu próxima comida 📸 (son 10 segundos). Jonah bajó de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. Cualquier duda, me escribes aquí 💪🦍`,
         "bienvenida");
       enviados++;
       continue;

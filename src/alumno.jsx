@@ -3885,12 +3885,16 @@ function dibujarRecortada(ctx, img, x, y, w, h) {
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
-  ctx.drawImage(img, x + (w - nw) / 2, y + (h - nh) / 2, nw, nh);
+  // Si sobra alto, se recorta casi todo de abajo: así nunca se corta la
+  // cabeza en las fotos de cuerpo completo.
+  ctx.drawImage(img, x + (w - nw) / 2, y + (h - nh) * 0.1, nw, nh);
   ctx.restore();
 }
 
 async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = null }) {
-  const W = 1080, H = 1350;
+  // Con fotos, formato de historia (9:16) para que entren las fotos enteras
+  // y los datos sin chocar con el pie.
+  const W = 1080, H = fotoAntes && fotoDespues ? 1920 : 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
@@ -3930,7 +3934,7 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
   } catch {}
 
   if (imgA && imgB) {
-    const fw = 440, fh = 520, y = 420;
+    const fw = 440, fh = 587, y = 420;
     dibujarRecortada(ctx, imgA, 70, y, fw, fh);
     dibujarRecortada(ctx, imgB, 570, y, fw, fh);
     ctx.strokeStyle = '#2E2E33'; ctx.lineWidth = 3;
@@ -3969,6 +3973,14 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
     ctx.textAlign = 'left';
   });
 
+  // En el formato de historia sobra espacio: va la frase de Jonah.
+  if (H > 1350) {
+    ctx.fillStyle = '#E7E5E4';
+    ctx.font = 'bold 40px Arial';
+    ctx.fillText('El cambio llega poco a poco,', 70, H - 230);
+    ctx.fillText('comida a comida 🦍', 70, H - 178);
+  }
+
   // Pie (con el código de invitación, si lo hay)
   ctx.fillStyle = '#F97316';
   ctx.font = 'bold 36px Arial';
@@ -3996,25 +4008,36 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
       // Datos a mostrar
       // Peso: sus pesajes reales (no la copia que se guarda cada día).
       const pesos = historialDePeso(form || {}, rows);
-      const conGrasa = rows.filter(r => Number(r.grasa_pct) > 0);
       const datos = [];
 
-      if (pesos.length >= 2) {
-        const d = pesos[pesos.length - 1].kg - pesos[0].kg;
-        if (Math.abs(d) >= 0.1) {
-          datos.push({
-            valor: (d > 0 ? '+' : '') + d.toFixed(1) + ' kg',
-            etiqueta: 'de cambio en tu peso',
-            color: d < 0 ? '#34D399' : '#FBBF24',
-          });
+      // Fotos: primera y última del mismo ángulo (de frente, si hay). Si
+      // las dos tienen su peso, el cambio de peso sale de ellas: es el
+      // "antes" real (puede ser de antes de usar la app).
+      let fotoAntes = null, fotoDespues = null, pesoFotos = null;
+      try {
+        const { data: fotos } = await supabase.from('fotos_progreso')
+          .select('*').eq('username', username).order('fecha', { ascending: true }).limit(600);
+        for (const ang of ['frente', 'perfil', 'espalda', 'relajado']) {
+          const delAngulo = (fotos || []).filter(f => f.angulo === ang);
+          if (delAngulo.length >= 2 && delAngulo[0].fecha !== delAngulo[delAngulo.length - 1].fecha) {
+            const a = delAngulo[0], b = delAngulo[delAngulo.length - 1];
+            const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls([a.ruta, b.ruta], 600);
+            if (signed && signed.length === 2) {
+              fotoAntes = signed[0].signedUrl; fotoDespues = signed[1].signedUrl;
+              if (Number(a.peso) > 0 && Number(b.peso) > 0) pesoFotos = Number(b.peso) - Number(a.peso);
+            }
+            break;
+          }
         }
-      }
-      if (conGrasa.length >= 2) {
-        const d = Number(conGrasa[conGrasa.length - 1].grasa_pct) - Number(conGrasa[0].grasa_pct);
+      } catch {}
+
+      if (pesoFotos !== null || pesos.length >= 2) {
+        const d = pesoFotos !== null ? pesoFotos : pesos[pesos.length - 1].kg - pesos[0].kg;
         if (Math.abs(d) >= 0.1) {
           datos.push({
-            valor: (d > 0 ? '+' : '') + d.toFixed(1) + '%',
-            etiqueta: 'de grasa corporal',
+            valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg',
+            etiqueta: pesoFotos !== null ? 'desde mi primera foto' : 'de cambio en mi peso',
+            peso: true,
             color: d < 0 ? '#34D399' : '#FBBF24',
           });
         }
@@ -4023,7 +4046,7 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
         datos.push({ valor: String(stats.diasRegistrados), etiqueta: 'días registrados' });
       }
       if (stats && stats.adherencia !== null && stats.adherencia !== undefined) {
-        datos.push({ valor: Math.round(stats.adherencia) + '%', etiqueta: 'cumpliste tu objetivo', color: '#F97316' });
+        datos.push({ valor: Math.round(stats.adherencia) + '%', etiqueta: 'de días en mi objetivo', color: '#F97316' });
       }
       // Racha actual de días seguidos (calculada a partir de los mismos registros)
       try {
@@ -4038,30 +4061,12 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
           datos.unshift({ valor: `🔥 ${racha}`, etiqueta: racha === 1 ? 'día seguido' : 'días seguidos', color: '#F97316' });
         }
       } catch {}
+      // El cambio de peso va primero: es lo que más se mira.
+      datos.sort((a, b) => (b.peso ? 1 : 0) - (a.peso ? 1 : 0));
       if (datos.length === 0) {
         setGenerando(false);
         return setErr('Aún no hay suficientes datos para armar tu tarjeta.');
       }
-
-      // Fotos: primera y última del mismo ángulo
-      let fotoAntes = null, fotoDespues = null;
-      try {
-        const { data: fotos } = await supabase.from('fotos_progreso')
-          .select('*').eq('username', username).order('fecha', { ascending: true }).limit(200);
-        if (fotos && fotos.length >= 2) {
-          for (const ang of ['frente', 'perfil', 'espalda', 'relajado']) {
-            const delAngulo = fotos.filter(f => f.angulo === ang);
-            if (delAngulo.length >= 2) {
-              const rutas = [delAngulo[0].ruta, delAngulo[delAngulo.length - 1].ruta];
-              const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls(rutas, 600);
-              if (signed && signed.length === 2) {
-                fotoAntes = signed[0].signedUrl; fotoDespues = signed[1].signedUrl;
-              }
-              break;
-            }
-          }
-        }
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
 
       let blob;
       try {

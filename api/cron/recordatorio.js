@@ -21,10 +21,31 @@
 // Vercel la cortaba a los 300s sin terminar de enviar — así nadie
 // recibía nada. Este cambio soluciona eso de raíz.
 //
-// Solo se envía a alumnos con acceso vigente (enabled=true y su plan
-// o prueba gratis no vencidos).
+// Premium (plan o prueba vigentes) recibe los 3. La VERSIÓN GRATIS (prueba
+// o plan vencidos) recibe solo el del almuerzo, y solo si registró alguna
+// comida en los últimos 14 días: le dice cuántas fotos gratis le quedan
+// esta semana (ver alumnosGratis en api/_lib/push.js).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO } from '../_lib/push.js';
+
+const FOTOS_GRATIS_SEMANA = 3;
+
+// Almuerzo de la versión gratis: con las fotos que le quedan esta semana.
+function mensajeAlmuerzoGratis(quedan) {
+  if (quedan > 0) {
+    const fotos = quedan === 1 ? 'te queda 1 foto gratis' : `te quedan ${quedan} fotos gratis`;
+    const variantes = [
+      `¿Ya almorzaste? 🍽️ Tómale foto a tu plato y te digo sus calorías: ${fotos} esta semana 📸`,
+      `Hora del almuerzo 🦍 Esta semana ${fotos}. Úsala en tu almuerzo y seguimos sumando 💪`,
+    ];
+    return { title: 'Jonah 🦍', body: variantes[Math.floor(Math.random() * variantes.length)] };
+  }
+  const variantes = [
+    '¿Ya almorzaste? 🍽️ Regístralo escribiendo, toma menos de un minuto. Comida a comida se llega 💪',
+    'No olvides registrar tu almuerzo 🦍 Así sigues viendo cómo vas con tu meta.',
+  ];
+  return { title: 'Jonah 🦍', body: variantes[Math.floor(Math.random() * variantes.length)] };
+}
 
 // Hora de Perú → momento del día y comida que se revisa.
 const RUTINA = {
@@ -131,6 +152,27 @@ async function enviarLote(supabase, targets) {
   return { enviados, fallidos: detalleFallos.length, detalleFallos, usuariosOk: [...usuariosOk] };
 }
 
+async function targetsGratis(supabase, hoyISO, comida, url) {
+  const gratis = (await alumnosGratis(supabase, hoyISO))
+    .filter(g => g.ultimaComida && g.ultimaComida >= addDaysISO(hoyISO, -14))
+    .map(g => g.username);
+  if (!gratis.length) return [];
+  const { data: datos } = await supabase.from('datos_alumnos').select('username, meal_plan, meal_plan_fecha').in('username', gratis);
+  const yaRegistro = new Set((datos || [])
+    .filter(d => d.meal_plan_fecha === hoyISO && (d.meal_plan?.meals?.[comida] || []).length)
+    .map(d => d.username));
+  const pendientes = await conPresupuesto(supabase, gratis.filter(u => !yaRegistro.has(u)), { momento: 'mediodia', hoyISO });
+  if (!pendientes.length) return [];
+  const { data: uso } = await supabase.from('fotos_reconocimiento_uso').select('username, usadas')
+    .in('username', pendientes).eq('periodo', lunesDeSemana(hoyISO));
+  const usadas = {}; (uso || []).forEach(f => { usadas[f.username] = Number(f.usadas) || 0; });
+  return pendientes.map(u => {
+    const quedan = Math.max(0, FOTOS_GRATIS_SEMANA - (usadas[u] || 0));
+    // Si le quedan fotos, al tocar el aviso se abre la cámara directo.
+    return { username: u, mensaje: { ...mensajeAlmuerzoGratis(quedan), url: quedan > 0 ? `${url}&foto=1` : url } };
+  });
+}
+
 export default async function handler(req, res) {
   if (!verificarCronSecret(req)) return res.status(401).json({ error: 'No autorizado' });
 
@@ -143,17 +185,15 @@ export default async function handler(req, res) {
       .from('alumnos').select('username')
       .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
-    if (!alumnos || alumnos.length === 0) {
-      return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos con acceso vigente' });
-    }
-    const usernames = alumnos.map(a => a.username);
+    const usernames = (alumnos || []).map(a => a.username);
 
     const rutina = RUTINA[horaPeru];
     if (!rutina) return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de avisos' });
     const { momento, comida, tipo } = rutina;
 
-    const { data: datos } = await supabase
-      .from('datos_alumnos').select('username, meal_plan, meal_plan_fecha, form').in('username', usernames);
+    const { data: datos } = usernames.length
+      ? await supabase.from('datos_alumnos').select('username, meal_plan, meal_plan_fecha, form').in('username', usernames)
+      : { data: [] };
     const objetivoDe = {};
     const yaRegistro = new Set();
     (datos || []).forEach(d => {
@@ -162,11 +202,12 @@ export default async function handler(req, res) {
       if (items.length) yaRegistro.add(d.username);
     });
     const pendientes = await conPresupuesto(supabase, usernames.filter(u => !yaRegistro.has(u)), { momento, hoyISO });
-    if (!pendientes.length) return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'nadie pendiente o sin presupuesto' });
 
     const url = `/?registrar=${encodeURIComponent(comida)}`;
     let targets;
-    if (tipo === 'buenos_dias') {
+    if (!pendientes.length) {
+      targets = [];
+    } else if (tipo === 'buenos_dias') {
       const { data: fechas } = await supabase.from('alumnos').select('username, fecha_inicio').in('username', pendientes);
       const inicioDe = {}; (fechas || []).forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
       const esLunes = diaSemanaPeru(hoyISO) === 1;
@@ -177,6 +218,9 @@ export default async function handler(req, res) {
     } else {
       targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url } }));
     }
+    // Versión gratis: solo el almuerzo, a quien registró en los últimos 14 días.
+    if (tipo === 'almuerzo') targets.push(...await targetsGratis(supabase, hoyISO, comida, url));
+    if (!targets.length) return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'nadie pendiente o sin presupuesto' });
     const r = await enviarLote(supabase, targets);
     await anotarAvisos(supabase, r.usuariosOk || [], { tipo, momento, hoyISO });
     return res.status(200).json({ ok: true, enviados: r.enviados, fallidos: r.fallidos, comida, alumnos: (r.usuariosOk || []).length });

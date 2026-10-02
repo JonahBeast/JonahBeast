@@ -13,8 +13,13 @@ import { traerTodas } from './traerTodas.js';
      5. 🔔 Activar avisos  — no le llegan los avisos (usa la app dentro de
                              Facebook/Instagram/TikTok, iPhone sin instalar,
                              los bloqueó…). Solo los de los últimos 14 días.
+     6. 🔁 Volver (gratis) — su prueba o plan venció (versión gratis) y se
+                             está alejando: lleva 3 a 10 días sin registrar,
+                             o su prueba terminó hace 1 a 7 días sin que
+                             llegara a registrar nada. Solo los vencidos en
+                             los últimos 60 días.
    🟢 ACOMPAÑAMIENTO
-     6. 🙌 Celebrar        — acaba de pagar, cumplió una racha (7, 14, 21,
+     7. 🙌 Celebrar        — acaba de pagar, cumplió una racha (7, 14, 21,
                              30, 60, 90 días), bajó un kilo más, cumple
                              meses con la app o cumpleaños.
 
@@ -51,6 +56,7 @@ export const ETAPAS = [
   { id: 'primera', nivel: 'urgente', titulo: '🌱 Primera comida', ayuda: 'Ya tienen cuenta, pero todavía no anotan nada.' },
   { id: 'retomar', nivel: 'importante', titulo: '💪 Retomar', ayuda: 'Venían registrando y se frenaron unos días.' },
   { id: 'avisos', nivel: 'importante', titulo: '🔔 Activar avisos', ayuda: 'No les llegan tus recordatorios. Les explicas cómo, en su celular.' },
+  { id: 'volver', nivel: 'importante', titulo: '🔁 Volver (versión gratis)', ayuda: 'Su prueba o plan terminó y se están alejando. Un mensaje tuyo los trae de vuelta.' },
   { id: 'celebrar', nivel: 'acompanamiento', titulo: '🙌 Celebrar', ayuda: 'Logros y buenas noticias: celébralos con ellos.' },
 ];
 const ORDEN = Object.fromEntries(ETAPAS.map((e, i) => [e.id, i]));
@@ -85,7 +91,7 @@ export async function cargarDatosCarino(supabase, hoyISO) {
   const desde = sumarDias(hoyISO, -120);
   const [{ data: alumnos }, { data: hist }, { data: pagos }, { data: cfg }, { data: est }, { data: subs }, { data: auto }] = await Promise.all([
     traerTodas(() => supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, fecha_nacimiento, created_at')
-      .eq('enabled', true).gte('fecha_vencimiento', hoyISO), 'username'),
+      .eq('enabled', true).gte('fecha_vencimiento', sumarDias(hoyISO, -60)), 'username'),
     traerTodas(() => supabase.from('historial').select('username, fecha, comidas_count, peso')
       .gte('fecha', desde)),
     supabase.from('pagos').select('username, monto, metodo, revisado_en').eq('estado', 'aprobado')
@@ -218,6 +224,19 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
 
     // El primer paso del camino que le toca a esta persona.
     const caso = (() => {
+      // Versión gratis (venció su prueba o su plan): solo "Volver".
+      if (a.fecha_vencimiento && a.fecha_vencimiento < hoyISO) {
+        const vencio = diasEntre(a.fecha_vencimiento, hoyISO);
+        if (ultimaComida) {
+          const sin = diasEntre(ultimaComida, hoyISO);
+          if (sin < 3 || sin > 10) return null;
+          return { etapa: 'volver', motivo: `Versión gratis · lleva ${sin} días sin registrar`,
+            mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Hace ${sin} días que no te veo registrar y quería saber cómo vas. Tu cuenta sigue activa y gratis: registra hoy aunque sea una comida y retomamos juntos 💪 Y si quieres que te acompañe con todo (foto en todas tus comidas, tu menú del día y yo por WhatsApp), te cuento de Premium. El cambio llega poco a poco, comida a comida. Vamos juntos por esos resultados, no estás solo/a, yo te acompaño 🦍` };
+        }
+        if (vencio < 1 || vencio > 7) return null;
+        return { etapa: 'volver', motivo: `Versión gratis · su prueba terminó hace ${vencio} ${vencio === 1 ? 'día' : 'días'} sin registrar nada`,
+          mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu prueba de Premium terminó y no llegamos a empezar, pero tu cuenta sigue activa y es gratis para siempre. Hoy tómale foto a tu almuerzo (tienes 3 fotos gratis cada semana) y arrancamos de a poquito 📸 ¿Qué te frenó? Cuéntame y lo vemos juntos. Vamos juntos por esos resultados, no estás solo/a, yo te acompaño 🦍` };
+      }
       // 1. Bienvenida (últimas 24 h), salvo que ya le llegó la automática.
       if (horas < 24) {
         if (a.telefono && yaBienvenida.has(nueve(a.telefono))) return null;

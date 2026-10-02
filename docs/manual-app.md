@@ -650,6 +650,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | % de grasa | Se mide 1 vez | Cuando quiera, con historial y masa muscular |
 | Fotos de progreso | — | ✓ |
 | Asistente de WhatsApp para nutrición | — | ✓ (a todos se les responde sobre planes, pagos, cuenta y problemas de la app) |
+| Avisos al celular | Almuerzo, "Tu semana", pesaje y "te extrañé" (14.4) | Todos (14.4) |
 
 ---
 
@@ -675,7 +676,7 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 ### 14.4 Qué avisos llegan (hora de Perú)
 
-Solo llegan con prueba o plan vigente y notificaciones activadas.
+Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
 **Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos) llegan siempre.
 
@@ -687,6 +688,14 @@ Solo llegan con prueba o plan vigente y notificaciones activadas.
 
 Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm ni buenas noches.
 
+**Versión gratis** (venció su prueba o su plan): solo estos, dentro del mismo máximo de 3 al día:
+- **2:00 pm · Almuerzo** (si falta), solo si registró alguna comida en los últimos 14 días. Le dice cuántas fotos gratis le quedan esa semana ("¿Ya almorzaste? 🍽️ Tómale foto a tu plato y te digo sus calorías: te quedan 2 fotos gratis esta semana 📸"); al tocarlo se abre la cámara directo. Si ya no le quedan fotos, lo invita a registrarlo escribiendo.
+- **Lunes 7:00 am · "Tu semana"** lista, si registró algo la semana pasada.
+- **Domingo 7:00 am · Pesaje** de la semana, si tiene un peso anotado y registró alguna comida en los últimos 30 días.
+- **8:00 pm · "Te extrañé"**, solo a los 3, 7, 14 y 30 días sin registrar (no todos los días).
+
+No le llegan el buenos días, la cena, la racha en riesgo, los hitos de racha, el control quincenal ni el reto semanal (son de Premium).
+
 Tocar un aviso de comida abre la app directo en esa comida.
 
 ### 14.5 Problemas
@@ -694,7 +703,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 - "Parece que ya las bloqueaste antes…" / "ESTÁN BLOQUEADAS" / tarjeta **"TUS AVISOS ESTÁN BLOQUEADOS"** → activarlas a mano: en Chrome, candado o tres puntos junto a la dirección → Permisos / Configuración del sitio → Notificaciones → Permitir; con la app instalada, Ajustes del celular → Apps → JB Fuel (o Chrome) → Notificaciones → Activar. Luego volver a abrir la app.
 - "En iPhone, primero instala la app en tu pantalla de inicio…" → ver 14.3.
 - "Tu navegador actual no soporta notificaciones." → usar Chrome (Android) o la app instalada (iPhone).
-- "No me llegan" → revisar permisos, batería "Sin restricciones" (Android) y que el plan esté vigente.
+- "No me llegan" → revisar permisos y batería "Sin restricciones" (Android). En la versión gratis llegan menos avisos (14.4).
 - "Toco 'Tomar foto' y la cámara no abre / no me deja" → es el permiso de cámara del celular. Android: Ajustes → Aplicaciones → Jonah Beast Fuel (o Chrome, si la usa desde el navegador) → Permisos → Cámara → Permitir. iPhone: Ajustes → Safari (o Chrome) → Cámara → Permitir. Luego cerrar la app y volver a abrirla. Mientras tanto puede tomar la foto con la cámara normal y usar "🖼️ Subir de mi galería".
 
 ---

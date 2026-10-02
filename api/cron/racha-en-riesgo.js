@@ -9,10 +9,15 @@
 // 3. Celebración de hito: quien SÍ registró hoy y su racha cruzó un
 //    hito nuevo (3, 7, 14, 30, 60, 90 días) recibe un push especial de
 //    felicitación — no solo el confeti que ve dentro de la app.
+// 4. Versión gratis (prueba o plan vencidos): solo el "te extrañé", y
+//    solo a los 3, 7, 14 y 30 días sin registrar (no todos los días).
+//    La racha y los hitos son de Premium.
 //
 // Cron sugerido en vercel.json: "0 1 * * *" (01:00 UTC = 20:00 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos, alumnosGratis, diasDesde } from '../_lib/push.js';
+
+const DIAS_TE_EXTRANE_GRATIS = [3, 7, 14, 30];
 
 const RACHA_MINIMA = 3;
 const HITOS = [3, 7, 14, 30, 60, 90];
@@ -29,13 +34,10 @@ export default async function handler(req, res) {
       .from('alumnos').select('username, ultimo_hito_racha')
       .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
-    if (!alumnos || alumnos.length === 0) {
-      return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });
-    }
 
-    const usernames = alumnos.map(a => a.username);
+    const usernames = (alumnos || []).map(a => a.username);
     const hitoDe = {};
-    alumnos.forEach(a => { hitoDe[a.username] = Number(a.ultimo_hito_racha || 0); });
+    (alumnos || []).forEach(a => { hitoDe[a.username] = Number(a.ultimo_hito_racha || 0); });
     const rachas = await calcularRachas(supabase, usernames, hoyISO);
 
     let totalEnviados = 0;
@@ -43,7 +45,11 @@ export default async function handler(req, res) {
     // Presupuesto de avisos: este es el aviso de la noche. Si la noche ya la
     // usó otro aviso (avance de la prueba, reto del sábado) o ya recibió 3
     // hoy, no se le manda nada más (ver conPresupuesto en _lib/push.js).
-    const libres = new Set(await conPresupuesto(supabase, usernames, { momento: 'noche', hoyISO }));
+    // Versión gratis: "te extrañé" solo a los 3, 7, 14 y 30 días sin registrar.
+    const gratis = (await alumnosGratis(supabase, hoyISO))
+      .filter(g => g.ultimaComida && DIAS_TE_EXTRANE_GRATIS.includes(diasDesde(g.ultimaComida, hoyISO)))
+      .map(g => g.username);
+    const libres = new Set(await conPresupuesto(supabase, [...usernames, ...gratis], { momento: 'noche', hoyISO }));
     const enviar = async (u, mensaje, tipo) => {
       const r = await enviarPushA(supabase, [u], mensaje);
       totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
@@ -61,7 +67,10 @@ export default async function handler(req, res) {
 
     // 2. Silencio 24h+: sin racha activa y sin registrar hoy — un
     // mensaje más cercano que un recordatorio, para el que lleva rato sin volver.
-    const sinRegistro = usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha < RACHA_MINIMA && !rachas[u].registroHoy);
+    const sinRegistro = [
+      ...usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha < RACHA_MINIMA && !rachas[u].registroHoy),
+      ...gratis.filter(u => libres.has(u)),
+    ];
     if (sinRegistro.length) {
       const variantes = [
         'Te extrañé hoy. Cuando quieras volver, aquí sigo — sin juicios, solo acompañándote 🦍',

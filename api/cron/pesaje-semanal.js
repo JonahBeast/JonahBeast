@@ -4,10 +4,12 @@
 // tiene un peso anotado le recuerda pesarse hoy en ayunas y anotarlo
 // (en Inicio sale la tarjeta "¿CUÁNTO PESAS HOY?"). Así el lunes su
 // resumen "Tu semana" muestra el cambio de peso real.
+// También a la versión gratis, si registró alguna comida en los últimos
+// 30 días.
 //
 // Cron en vercel.json: "0 12 * * 0" (12:00 UTC domingo = 7:00 Perú domingo)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos, alumnosGratis, addDaysISO } from '../_lib/push.js';
 
 const MENSAJES = [
   'Buenos días 🦍 Hoy toca pesaje: pésate en ayunas, después del baño, y anótalo en la app. Toma 10 segundos ⚖️',
@@ -26,7 +28,9 @@ export default async function handler(req, res) {
     const { data: alumnos, error } = await supabase
       .from('alumnos').select('username').eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
-    const usernames = (alumnos || []).map(a => a.username);
+    const gratis = (await alumnosGratis(supabase, hoyISO))
+      .filter(g => g.ultimaComida && g.ultimaComida >= addDaysISO(hoyISO, -30)).map(g => g.username);
+    const usernames = [...(alumnos || []).map(a => a.username), ...gratis];
     if (!usernames.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });
 
     const { data: datos } = await supabase.from('datos_alumnos').select('username, form').in('username', usernames);

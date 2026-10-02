@@ -239,3 +239,56 @@ export function resumenProgreso(a) {
     default: return { grupo: 'datos', emoji: '🌱', texto: 'Conociéndolo (menos de 2 semanas)' };
   }
 }
+
+/* Historia real de la composición corporal (% de grasa y % de masa
+   muscular) para el panel: [{ f, v }] por cada una, solo donde cambia.
+   Las medidas con cinta se guardan cada día como copia (igual que el
+   peso), y en los datos viejos hay valores de ejemplo (perfil de 70 kg con
+   17.8% de grasa) y números imposibles (ej. 389% de grasa por una medida
+   mal escrita). Se descartan: fuera de rango, los días con el peso de
+   ejemplo del principio, los muy lejos del resto y los saltos imposibles. */
+export function historialComposicion(hist = [], al = null, form = {}, actual = null) {
+  const inicio = String(al?.fecha_inicio || al?.created_at || (hist[0] && hist[0].fecha) || '').slice(0, 10);
+  const filas = hist.filter(h => !inicio || h.fecha >= sumarDias(inicio, -1));
+  const real = filas.findIndex(h => Number(h.peso) > 0 && r1(h.peso) !== 70);
+  const desdeReal = real > 0 ? filas.slice(real) : filas;
+  const grasaDe = h => Number(h.grasa_pct);
+  const musculoDe = h => (Number(h.peso) > 0 && Number(h.masa_muscular) > 0 ? Number(h.masa_muscular) / Number(h.peso) * 100 : NaN);
+  const mediana = vals => { const o = vals.filter(Number.isFinite).sort((a, b) => a - b); return o.length ? o[Math.floor(o.length / 2)] : NaN; };
+  // Días válidos: con su peso real (no uno de tipeo, más de 15% lejos de
+  // la mediana), y con grasa y músculo en rango y cerca del resto. Si un
+  // valor del día está mal, se descarta el día entero (la medida falló).
+  const enRango = desdeReal.filter(h => grasaDe(h) >= 3 && grasaDe(h) <= 60 && musculoDe(h) >= 15 && musculoDe(h) <= 65);
+  const mPeso = mediana(enRango.map(h => Number(h.peso)));
+  const mGrasa = mediana(enRango.map(grasaDe)), mMusculo = mediana(enRango.map(musculoDe));
+  const muchos = enRango.length >= 3;
+  const utiles = enRango.filter(h => !muchos || (Math.abs(Number(h.peso) - mPeso) / mPeso <= 0.15
+    && Math.abs(grasaDe(h) - mGrasa) <= 8 && Math.abs(musculoDe(h) - mMusculo) <= 8));
+  // Igual que con el peso: además del historial, las mediciones anotadas
+  // en la app (form.mediciones, exactas, desde oct 2026) y la medida
+  // actual del perfil en la fecha en que se midió (form.medidasFecha).
+  const extra = (Array.isArray(form.mediciones) ? form.mediciones : [])
+    .filter(m => m?.f && m.grasa >= 3 && m.grasa <= 60 && m.musculo >= 15 && m.musculo <= 65)
+    .map(m => ({ f: m.f, grasa: m.grasa, musculo: m.musculo }));
+  if (actual && form.medidasFecha && actual.grasa >= 3 && actual.grasa <= 60 && actual.musculo >= 15 && actual.musculo <= 65) {
+    extra.push({ f: form.medidasFecha, grasa: actual.grasa, musculo: actual.musculo });
+  }
+  const serie = (valor, saltoMax, clave) => {
+    const puntos = [
+      ...utiles.filter(h => !form.medidasFecha || h.fecha <= form.medidasFecha).map(h => ({ f: h.fecha, v: r1(valor(h)) })),
+      ...extra.map(m => ({ f: m.f, v: r1(m[clave]) })),
+    ].sort((a, b) => a.f.localeCompare(b.f));
+    const salida = [];
+    puntos.forEach(p => {
+      const ult = salida[salida.length - 1];
+      if (ult && ult.v === p.v) return;
+      if (ult && ult.f === p.f) { salida[salida.length - 1] = p; return; }
+      salida.push(p);
+    });
+    for (let i = 1; i < salida.length; i++) {
+      if (Math.abs(salida[i].v - salida[i - 1].v) > saltoMax) return salida.slice(-1);
+    }
+    return salida;
+  };
+  return { grasa: serie(grasaDe, 8, 'grasa'), musculo: serie(musculoDe, 8, 'musculo') };
+}

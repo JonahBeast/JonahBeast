@@ -39,7 +39,7 @@ import {
   todayISO,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { analizarProgreso, resumenProgreso, historialDePeso } from './progreso.js';
+import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
 
@@ -7943,7 +7943,7 @@ function HistoriaAlumno({ username }) {
     (async () => {
       const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }, { data: datos }] = await Promise.all([
         supabase.from('alumnos').select('nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, created_at').eq('username', username).maybeSingle(),
-        traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso, kcal_consumidas, kcal_objetivo').eq('username', username).order('fecha')),
+        traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso, kcal_consumidas, kcal_objetivo, grasa_pct, masa_muscular').eq('username', username).order('fecha')),
         supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
         supabase.from('ajustes_membresia').select('created_at, dias, motivo').eq('username', username).order('created_at').range(0, 999),
         supabase.from('embudo_landing_eventos').select('fuente').eq('evento', 'registro').eq('username', username).limit(1),
@@ -7972,6 +7972,19 @@ function HistoriaAlumno({ username }) {
   for (let f = conComida.has(hoy) ? hoy : addDaysISO(hoy, -1); conComida.has(f); f = addDaysISO(f, -1)) racha++;
   const ultima = [...conComida].sort().pop() || null;
   const pesos = historialDePeso(d.form, d.hist, d.al);
+  // % de grasa y % de masa muscular (estimados con sus medidas con cinta).
+  const f = d.form || {};
+  const rAct = (() => { try { return calcAll({ ...f, edad: Number(f.edad) || 0, estatura: Number(f.estatura) || 1, peso: Number(f.peso) || 0, cuello: Number(f.cuello) || 1, cintura: Number(f.cintura) || 1, cadera: Number(f.cadera) || 1 }); } catch { return null; } })();
+  const actualComp = rAct?.cinta && Number(f.peso) > 0 ? { grasa: Math.round(rAct.bf * 10) / 10, musculo: Math.round(rAct.muscleKg / Number(f.peso) * 1000) / 10 } : null;
+  const comp = historialComposicion(d.hist, d.al, f, actualComp);
+  const aDatos = (lista, nota) => lista.map(p => ({ clave: p.f, etiqueta: fechaCorta(p.f), etiquetaLarga: `${fechaCorta(p.f)}${nota}`, partes: { valor: p.v } }));
+  const resumenComp = (lista, menosEsBueno) => {
+    if (!lista.length) return null;
+    const ini = lista[0].v, fin = lista[lista.length - 1].v, dif = Math.round((fin - ini) * 10) / 10;
+    const bueno = menosEsBueno ? dif < 0 : dif > 0;
+    return { ini, fin, dif, n: lista.length, color: dif === 0 ? 'text-zinc-400' : bueno ? 'text-emerald-400' : 'text-amber-400' };
+  };
+  const rGrasa = resumenComp(comp.grasa, true), rMusculo = resumenComp(comp.musculo, false);
   // Lo mismo que le dice la app en su pestaña Progreso (últimos 30 días).
   let coach = null;
   try { coach = analizarProgreso(d.hist.filter(h => h.fecha >= addDaysISO(hoy, -30)), d.form || {}, { todas: d.hist, inicio: d.al?.fecha_inicio }); } catch { coach = null; }
@@ -8041,6 +8054,39 @@ function HistoriaAlumno({ username }) {
       {datosPeso.length >= 2 && (
         <GraficoHud titulo="PESO" datos={datosPeso} series={SERIE_LED_UNICA} desdeCero={false}
           formato={v => `${Number(v).toFixed(1)} kg`} etiquetaCada={Math.max(1, Math.ceil(datosPeso.length / 5))} />
+      )}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+        <h3 className="jb-display text-sm text-zinc-300 mb-1">🧬 COMPOSICIÓN CORPORAL</h3>
+        {rGrasa || rMusculo ? (
+          <div className="grid grid-cols-2 gap-2 jb-body text-xs">
+            {[['% de grasa', rGrasa], ['% de masa muscular', rMusculo]].map(([t, r]) => (
+              <div key={t} className="bg-zinc-900 rounded-lg p-2">
+                <div className="text-zinc-500 text-[10px]">{t}</div>
+                {r ? (
+                  <>
+                    <div className={`jb-display text-base leading-tight ${r.dif === 0 ? 'text-orange-400' : r.color}`}>
+                      {r.dif === 0 ? `${r.fin}%` : `${r.dif > 0 ? '+' : '−'}${Math.abs(r.dif)} pts`}
+                    </div>
+                    <div className="text-zinc-500 text-[10px]">
+                      {r.n >= 2 ? `desde ${r.ini}% · ahora ${r.fin}% · ${r.n - 1} ${r.n === 2 ? 'cambio' : 'cambios'}` : `${r.fin}% · aún sin volver a medirse`}
+                    </div>
+                  </>
+                ) : <div className="text-zinc-500">sin medida</div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="jb-body text-xs text-zinc-500">Aún no tiene medidas con cinta (cuello, cintura, cadera) válidas.</p>
+        )}
+        <p className="jb-body text-[10px] text-zinc-600 mt-1.5">Estimado con sus medidas con cinta. Solo cuenta las medidas reales (sin valores de ejemplo ni errores de tipeo).</p>
+      </div>
+      {comp.grasa.length >= 2 && (
+        <GraficoHud titulo="% DE GRASA" datos={aDatos(comp.grasa, ' · % de grasa')} series={SERIE_LED_UNICA} desdeCero={false}
+          formato={v => `${Number(v).toFixed(1)}%`} etiquetaCada={Math.max(1, Math.ceil(comp.grasa.length / 5))} />
+      )}
+      {comp.musculo.length >= 2 && (
+        <GraficoHud titulo="% DE MASA MUSCULAR" datos={aDatos(comp.musculo, ' · % de masa muscular')} series={SERIE_LED_UNICA} desdeCero={false}
+          formato={v => `${Number(v).toFixed(1)}%`} etiquetaCada={Math.max(1, Math.ceil(comp.musculo.length / 5))} />
       )}
       {eventos.length > 0 && (
         <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">

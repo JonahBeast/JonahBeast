@@ -1,6 +1,7 @@
 // api/cron/resumen-semanal.js
 //
-// Corre los lunes a las 7am hora Perú (antes del buenos días de las 8am). A cada alumno activo que registró
+// Corre los lunes a las 7am hora Perú (antes del buenos días de las 8am). A cada alumno habilitado
+// (Premium o versión gratis) que registró
 // comidas la semana pasada (lunes a domingo) le avisa que su resumen
 // "Tu semana" está listo en la app (tarjeta de Inicio, con botón para
 // compartirlo en historias).
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
 
   try {
     const { data: alumnos, error } = await supabase
-      .from('alumnos').select('username').eq('enabled', true).gte('fecha_vencimiento', hoyISO);
+      .from('alumnos').select('username').eq('enabled', true);
     if (error) throw error;
     const usernames = (alumnos || []).map(a => a.username);
     if (!usernames.length) return res.status(200).json({ ok: true, enviados: 0, motivo: 'sin alumnos activos' });

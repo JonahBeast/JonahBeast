@@ -56,6 +56,35 @@ export function diasDesde(fechaISO, hoyISO) {
   return Math.round((b - a) / 86400000);
 }
 
+/* VERSIÓN GRATIS (la prueba o el plan venció; la cuenta sigue activa).
+   Reciben menos avisos que Premium, para que sigan usando la app sin
+   cansarlos: el almuerzo (solo si registraron en los últimos 14 días), el
+   resumen del lunes, el pesaje del domingo (si registraron en los últimos
+   30 días) y "te extrañé" a los 3, 7, 14 y 30 días sin registrar.
+   Devuelve [{ username, ultimaComida }] de los gratis habilitados. */
+export async function alumnosGratis(supabase, hoyISO) {
+  const { data: alumnos, error } = await supabase
+    .from('alumnos').select('username').eq('enabled', true).lt('fecha_vencimiento', hoyISO);
+  if (error) throw error;
+  const usernames = (alumnos || []).map(a => a.username);
+  if (!usernames.length) return [];
+  const ultima = {};
+  for (let i = 0; i < usernames.length; i += 200) {
+    const { data } = await supabase.from('historial').select('username, fecha')
+      .in('username', usernames.slice(i, i + 200)).gt('comidas_count', 0)
+      .gte('fecha', addDaysISO(hoyISO, -45)).order('fecha', { ascending: false }).range(0, 4999);
+    (data || []).forEach(r => { if (!ultima[r.username] || r.fecha > ultima[r.username]) ultima[r.username] = r.fecha; });
+  }
+  return usernames.map(u => ({ username: u, ultimaComida: ultima[u] || null }));
+}
+
+/* Lunes de la semana (fecha de Perú), igual que el periodo de las 3 fotos
+   gratis por semana en la función reconocer-comida. */
+export function lunesDeSemana(hoyISO) {
+  const dia = diaSemanaPeru(hoyISO);
+  return addDaysISO(hoyISO, -(dia === 0 ? 6 : dia - 1));
+}
+
 /* Mismo cálculo de "número de semana del año" que usa el frontend
    (App.jsx → numeroDeSemana), para que ambos coincidan en qué semana es. */
 export function numeroDeSemana(hoyISO) {

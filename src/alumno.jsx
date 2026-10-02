@@ -9336,7 +9336,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   useEffect(() => {
     if (String(form.peso ?? '') === String(pesoAntes.current ?? '')) return;
     pesoAntes.current = form.peso;
-    if (Number(form.peso) > 0 && form.pesoFecha !== todayISO()) setForm(v => ({ ...v, pesoFecha: todayISO() }));
+    if (!(Number(form.peso) > 0)) return;
+    // Además queda en su lista de pesajes (uno por día, el último del día),
+    // para que Jonah vea en el panel cómo va bajando o subiendo.
+    setForm(v => {
+      const hoy = todayISO();
+      const kg = Math.round(Number(v.peso) * 10) / 10;
+      const antes = (Array.isArray(v.pesajes) ? v.pesajes : []).filter(p => p && p.f !== hoy);
+      return { ...v, pesoFecha: hoy, pesajes: [...antes, { f: hoy, kg }].slice(-300) };
+    });
   }, [form.peso]);
   useEffect(() => {
     const ahora = [form.cuello, form.cintura, form.cadera].join('|');

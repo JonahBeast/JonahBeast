@@ -7875,6 +7875,47 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
    qué canal llegó, su plan, su constancia (comidas por día de los últimos
    30 días), sus pesos, y la línea de tiempo: pagos, días regalados,
    pedidos de alimentos y el último mensaje que le mandó Jonah desde el panel. */
+/* Historia real del peso de un alumno, para el gráfico del panel.
+   La tabla historial guarda cada día una copia del peso del perfil aunque
+   ese día no se haya pesado (y si un día se vuelve a guardar, con el peso
+   de ese momento), así que no sirve tal cual. Se arma con:
+   - el peso inicial (form.pesoInicial), en la fecha en que empezó;
+   - los pesajes anotados en la app (form.pesajes, desde oct 2026);
+   - los cambios de peso que se ven en historial (pesos distintos al
+     actual: el actual se fecha con form.pesoFecha, que es cuando se pesó);
+   - el peso actual (form.peso) en form.pesoFecha.
+   Solo quedan los puntos donde el peso cambia. */
+function historialDePeso(form = {}, hist = [], al = null) {
+  const r1 = v => Math.round(Number(v) * 10) / 10;
+  const actual = r1(form.peso);
+  const fechaActual = form.pesoFecha || (hist.length ? hist[hist.length - 1].fecha : null);
+  const inicio = String(al?.fecha_inicio || al?.created_at || (hist[0] && hist[0].fecha) || '').slice(0, 10);
+  const puntos = [];
+  if (Number(form.pesoInicial) > 0 && inicio) puntos.push({ f: inicio, kg: r1(form.pesoInicial), inicial: true });
+  // Antes de llenar sus datos, el perfil trae 70 kg de ejemplo: esos días
+  // del principio no son un peso real.
+  const conPeso = hist.filter(h => Number(h.peso) > 0 && (!inicio || h.fecha >= addDaysISO(inicio, -1)));
+  const real = conPeso.findIndex(h => r1(h.peso) !== 70);
+  const desde = real > 0 && r1(form.pesoInicial) !== 70 ? real : 0;
+  conPeso.slice(desde).forEach(h => {
+    const kg = r1(h.peso);
+    if (kg === actual) return;
+    if (fechaActual && h.fecha > fechaActual) return;
+    puntos.push({ f: h.fecha, kg });
+  });
+  (Array.isArray(form.pesajes) ? form.pesajes : []).forEach(p => { if (p?.f && Number(p.kg) > 0) puntos.push({ f: p.f, kg: r1(p.kg) }); });
+  if (actual > 0 && fechaActual) puntos.push({ f: fechaActual, kg: actual });
+  puntos.sort((a, b) => a.f.localeCompare(b.f) || (b.inicial ? 1 : 0) - (a.inicial ? 1 : 0));
+  const salida = [];
+  puntos.forEach(p => {
+    const ult = salida[salida.length - 1];
+    if (ult && ult.kg === p.kg) return;
+    if (ult && ult.f === p.f && !ult.inicial) { salida[salida.length - 1] = p; return; }
+    salida.push(p);
+  });
+  return salida;
+}
+
 function HistoriaAlumno({ username }) {
   const [d, setD] = useState(null);
   const hoy = todayISO();
@@ -7882,7 +7923,7 @@ function HistoriaAlumno({ username }) {
   useEffect(() => {
     let cancelado = false;
     (async () => {
-      const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }] = await Promise.all([
+      const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }, { data: datos }] = await Promise.all([
         supabase.from('alumnos').select('nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, created_at').eq('username', username).maybeSingle(),
         traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso').eq('username', username).order('fecha')),
         supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
@@ -7891,16 +7932,17 @@ function HistoriaAlumno({ username }) {
         supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
         supabase.from('push_subs').select('username').eq('username', username).eq('activa', true).limit(1),
         supabase.from('pedidos_alimentos').select('creado_en, nombre, estado, solicitantes').order('creado_en', { ascending: false }).range(0, 499),
+        supabase.from('datos_alumnos').select('form').eq('username', username).maybeSingle(),
       ]);
       if (cancelado) return;
       const escrito = leerEscritos(cfg?.value)[username];
       setD({
-        al, hist: hist || [], pagos: pagos || [], ajustes: ajustes || [],
+        al, hist: hist || [], pagos: pagos || [], ajustes: ajustes || [], form: datos?.form || {},
         fuente: reg?.[0]?.fuente || null, escrito: typeof escrito === 'string' ? { f: escrito } : escrito || null,
         conAvisos: (subs || []).length > 0,
         pedidos: (pedidos || []).filter(p => (p.solicitantes || []).some(x => x?.username === username)),
       });
-    })().catch(() => { if (!cancelado) setD({ al: null, hist: [], pagos: [], ajustes: [], pedidos: [] }); });
+    })().catch(() => { if (!cancelado) setD({ al: null, hist: [], pagos: [], ajustes: [], pedidos: [], form: {} }); });
     return () => { cancelado = true; };
   }, [username]);
 
@@ -7911,8 +7953,8 @@ function HistoriaAlumno({ username }) {
   let racha = 0;
   for (let f = conComida.has(hoy) ? hoy : addDaysISO(hoy, -1); conComida.has(f); f = addDaysISO(f, -1)) racha++;
   const ultima = [...conComida].sort().pop() || null;
-  const pesos = d.hist.filter(h => Number(h.peso) > 0);
-  const kg = pesos.length >= 2 ? Number(pesos[0].peso) - Number(pesos[pesos.length - 1].peso) : null;
+  const pesos = historialDePeso(d.form, d.hist, d.al);
+  const kg = pesos.length >= 2 ? pesos[0].kg - pesos[pesos.length - 1].kg : null;
   const esPrueba = d.al?.plan === 'trial' || d.al?.plan === 'prueba';
   const vence = d.al?.fecha_vencimiento;
   const estadoPlan = !d.al ? '—' : d.al.plan === 'pago'
@@ -7923,7 +7965,7 @@ function HistoriaAlumno({ username }) {
     const h = d.hist.find(x => x.fecha === f);
     return { clave: f, etiqueta: String(Number(f.slice(8))), etiquetaLarga: fechaCorta(f), partes: { valor: Number(h?.comidas_count) || 0 } };
   });
-  const datosPeso = pesos.map(h => ({ clave: h.fecha, etiqueta: fechaCorta(h.fecha), etiquetaLarga: fechaCorta(h.fecha), partes: { valor: Number(h.peso) } }));
+  const datosPeso = pesos.map(p => ({ clave: p.f, etiqueta: fechaCorta(p.f), etiquetaLarga: `${fechaCorta(p.f)}${p.inicial ? ' · peso inicial' : ''}`, partes: { valor: p.kg } }));
   const eventos = [
     d.al?.created_at && { f: d.al.created_at, t: `🎉 Se registró${d.fuente ? ` (llegó por ${NOMBRE_FUENTE[d.fuente] || d.fuente})` : ''}` },
     conComida.size > 0 && { f: [...conComida].sort()[0], t: '🌱 Registró su primera comida' },
@@ -7936,7 +7978,7 @@ function HistoriaAlumno({ username }) {
     { v: estadoPlan, l: vence ? `${d.al?.plan === 'pago' || esPrueba ? 'Vence' : 'Venció'} el ${fechaCorta(vence)}` : 'Plan' },
     { v: `${dias30} de 30`, l: 'días registrando' },
     { v: racha ? `${racha} ${racha === 1 ? 'día' : 'días'}` : '—', l: ultima ? `racha · último registro ${ultima === hoy ? 'hoy' : fechaCorta(ultima)}` : 'nunca registró' },
-    { v: kg === null ? '—' : `${kg > 0 ? '−' : kg < 0 ? '+' : ''}${Math.abs(kg).toFixed(1)} kg`, l: pesos.length ? `${pesos.length} ${pesos.length === 1 ? 'peso' : 'pesos'} anotados` : 'sin pesos' },
+    { v: kg === null ? '—' : `${kg > 0 ? '−' : kg < 0 ? '+' : ''}${Math.abs(kg).toFixed(1)} kg`, l: pesos.length >= 2 ? `desde ${pesos[0].kg.toFixed(1)} kg · ${pesos.length - 1} ${pesos.length === 2 ? 'cambio' : 'cambios'} de peso` : pesos.length ? `${pesos[0].kg.toFixed(1)} kg · aún sin volver a pesarse` : 'sin peso' },
   ];
   return (
     <div className="flex flex-col gap-3 mb-5">

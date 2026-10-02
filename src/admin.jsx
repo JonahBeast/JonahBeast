@@ -39,7 +39,7 @@ import {
   todayISO,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { analizarProgreso, resumenProgreso } from './progreso.js';
+import { analizarProgreso, resumenProgreso, historialDePeso } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
 
@@ -7563,27 +7563,26 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
       const desde = addDaysISO(todayISO(), -30);
       const [{ data: hist }, { data: datos }] = await Promise.all([
         traerTodas(() => supabase.from('historial').select('username, fecha, peso, kcal_consumidas, kcal_objetivo').gte('fecha', desde).order('fecha'), 'id'),
-        traerTodas(() => supabase.from('datos_alumnos').select('username, objetivo:form->>objetivo, pesoFecha:form->>pesoFecha'), 'username'),
+        traerTodas(() => supabase.from('datos_alumnos').select('username, objetivo:form->>objetivo, peso:form->>peso, pesoFecha:form->>pesoFecha, pesoInicial:form->>pesoInicial, pesajes:form->pesajes'), 'username'),
       ]);
       if (cancelado) return;
       const porAlumno = {};
       (hist || []).forEach(r => { (porAlumno[r.username] = porAlumno[r.username] || []).push(r); });
-      const objetivo = {}, pesoFecha = {};
-      (datos || []).forEach(x => { objetivo[x.username] = x.objetivo || ''; pesoFecha[x.username] = x.pesoFecha || ''; });
+      const perfil = {};
+      (datos || []).forEach(x => { perfil[x.username] = x; });
+      const inicioDe = {};
+      users.forEach(x => { inicioDe[x.username] = x.fechaInicio; });
       const res = {};
       Object.entries(porAlumno).forEach(([u, filas]) => {
         let a = null;
-        try { a = analizarProgreso(filas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha))), { objetivo: objetivo[u] || '' }); } catch { a = null; }
-        const r = resumenProgreso(a);
-        // "Estancado" sin haberse vuelto a pesar en 2 semanas: la app lee el
-        // mismo peso de siempre, así que lo que falta es que se pese.
-        if (String(a?.estado || '').startsWith('estancado') && !(pesoFecha[u] >= addDaysISO(todayISO(), -14))) r.texto += ' · no se pesa hace +2 semanas';
-        res[u] = r;
+        const ordenadas = filas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+        try { a = analizarProgreso(ordenadas, perfil[u] || {}, { todas: ordenadas, inicio: inicioDe[u] }); } catch { a = null; }
+        res[u] = resumenProgreso(a);
       });
       setProgreso(res);
     })().catch(() => {});
     return () => { cancelado = true; };
-  }, [users.length]);
+  }, [users]);
   const progresoDe = u => progreso[u.username] || resumenProgreso(null);
 
   function submitNew(e) {
@@ -7935,47 +7934,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
    qué canal llegó, su plan, su constancia (comidas por día de los últimos
    30 días), sus pesos, y la línea de tiempo: pagos, días regalados,
    pedidos de alimentos y el último mensaje que le mandó Jonah desde el panel. */
-/* Historia real del peso de un alumno, para el gráfico del panel.
-   La tabla historial guarda cada día una copia del peso del perfil aunque
-   ese día no se haya pesado (y si un día se vuelve a guardar, con el peso
-   de ese momento), así que no sirve tal cual. Se arma con:
-   - el peso inicial (form.pesoInicial), en la fecha en que empezó;
-   - los pesajes anotados en la app (form.pesajes, desde oct 2026);
-   - los cambios de peso que se ven en historial (pesos distintos al
-     actual: el actual se fecha con form.pesoFecha, que es cuando se pesó);
-   - el peso actual (form.peso) en form.pesoFecha.
-   Solo quedan los puntos donde el peso cambia. */
-function historialDePeso(form = {}, hist = [], al = null) {
-  const r1 = v => Math.round(Number(v) * 10) / 10;
-  const actual = r1(form.peso);
-  const fechaActual = form.pesoFecha || (hist.length ? hist[hist.length - 1].fecha : null);
-  const inicio = String(al?.fecha_inicio || al?.created_at || (hist[0] && hist[0].fecha) || '').slice(0, 10);
-  const puntos = [];
-  if (Number(form.pesoInicial) > 0 && inicio) puntos.push({ f: inicio, kg: r1(form.pesoInicial), inicial: true });
-  // Antes de llenar sus datos, el perfil trae 70 kg de ejemplo: esos días
-  // del principio no son un peso real.
-  const conPeso = hist.filter(h => Number(h.peso) > 0 && (!inicio || h.fecha >= addDaysISO(inicio, -1)));
-  const real = conPeso.findIndex(h => r1(h.peso) !== 70);
-  const desde = real > 0 && r1(form.pesoInicial) !== 70 ? real : 0;
-  conPeso.slice(desde).forEach(h => {
-    const kg = r1(h.peso);
-    if (kg === actual) return;
-    if (fechaActual && h.fecha > fechaActual) return;
-    puntos.push({ f: h.fecha, kg });
-  });
-  (Array.isArray(form.pesajes) ? form.pesajes : []).forEach(p => { if (p?.f && Number(p.kg) > 0) puntos.push({ f: p.f, kg: r1(p.kg) }); });
-  if (actual > 0 && fechaActual) puntos.push({ f: fechaActual, kg: actual });
-  puntos.sort((a, b) => a.f.localeCompare(b.f) || (b.inicial ? 1 : 0) - (a.inicial ? 1 : 0));
-  const salida = [];
-  puntos.forEach(p => {
-    const ult = salida[salida.length - 1];
-    if (ult && ult.kg === p.kg) return;
-    if (ult && ult.f === p.f && !ult.inicial) { salida[salida.length - 1] = p; return; }
-    salida.push(p);
-  });
-  return salida;
-}
-
 function HistoriaAlumno({ username }) {
   const [d, setD] = useState(null);
   const hoy = todayISO();
@@ -8016,7 +7974,7 @@ function HistoriaAlumno({ username }) {
   const pesos = historialDePeso(d.form, d.hist, d.al);
   // Lo mismo que le dice la app en su pestaña Progreso (últimos 30 días).
   let coach = null;
-  try { coach = analizarProgreso(d.hist.filter(h => h.fecha >= addDaysISO(hoy, -30)), { objetivo: d.form?.objetivo || '' }); } catch { coach = null; }
+  try { coach = analizarProgreso(d.hist.filter(h => h.fecha >= addDaysISO(hoy, -30)), d.form || {}, { todas: d.hist, inicio: d.al?.fecha_inicio }); } catch { coach = null; }
   const coachResumen = resumenProgreso(coach);
   const kg = pesos.length >= 2 ? pesos[0].kg - pesos[pesos.length - 1].kg : null;
   const esPrueba = d.al?.plan === 'trial' || d.al?.plan === 'prueba';

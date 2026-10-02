@@ -3661,6 +3661,10 @@ const COACH_VOZ = {
     'Ajustar a tiempo es lo que hace la diferencia.',
     'Un pequeño cambio hoy evita un gran retroceso mañana.',
   ],
+  pesate: [
+    'Un minuto en la balanza y te digo cómo vas 💪',
+    'Tu peso de esta semana es la pieza que me falta.',
+  ],
   inicial: [
     'Cada día que registras es un ladrillo más de tu resultado.',
     'Ya diste el paso más difícil: empezar.',
@@ -4204,12 +4208,12 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
 
   const analisis = useMemo(() => {
     try {
-      return filtrados.length ? analizarProgreso(filtrados, form || {}) : null;
+      return filtrados.length ? analizarProgreso(filtrados, form || {}, { todas: rows }) : null;
     } catch (e) {
       console.error('Error al analizar el progreso:', e);
       return null;
     }
-  }, [filtrados, form]);
+  }, [filtrados, form, rows]);
 
   // Mismo criterio que usa el coach (analizarProgreso): en los campos de
   // composición corporal, descarta valores atípicos aislados (ej. un

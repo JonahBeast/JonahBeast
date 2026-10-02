@@ -63,7 +63,7 @@ import {
   esFritoOSaltado,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { analizarProgreso } from './progreso.js';
+import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
    embajador + su carta con macros reales dentro de la app). Cada
@@ -3344,7 +3344,7 @@ function TuSemanaCard({ username, nombre }) {
   );
 }
 
-function PhotosTab({ username, pesoActual }) {
+function PhotosTab({ username, pesoActual, nombre }) {
   const [fotos, setFotos] = useState([]);
   const [urls, setUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -3352,6 +3352,16 @@ function PhotosTab({ username, pesoActual }) {
   const [err, setErr] = useState('');
   const [verGrande, setVerGrande] = useState(null);
   const [comparar, setComparar] = useState(false);
+  // Fotos de antes de empezar: el alumno elige la fecha (y su peso de ese
+  // momento) y quedan como sus primeras fotos.
+  const [verAntes, setVerAntes] = useState(false);
+  const [fechaAntes, setFechaAntes] = useState('');
+  const [pesoAntes, setPesoAntes] = useState('');
+  // Recién subió una foto y ya tiene otra más antigua del mismo ángulo:
+  // se le invita a ver (y compartir) su antes y después.
+  const [verCambio, setVerCambio] = useState(false);
+  const [compartiendo, setCompartiendo] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   useEffect(() => { cargar(); }, [username]);
 
@@ -3373,28 +3383,69 @@ function PhotosTab({ username, pesoActual }) {
     setLoading(false);
   }
 
-  async function subir(angulo, file) {
+  async function subir(angulo, file, antes = null) {
     if (!file) return;
-    setErr(''); setSubiendo(angulo);
+    setErr('');
+    const hoy = antes ? antes.fecha : todayISO();
+    if (antes) {
+      if (!hoy || hoy >= todayISO()) { setErr('Elige la fecha en que te tomaste esas fotos (antes de hoy).'); return; }
+      if (antes.peso && !(Number(antes.peso) >= 30 && Number(antes.peso) <= 250)) { setErr('Revisa el peso: debe estar entre 30 y 250 kg.'); return; }
+    }
+    setSubiendo((antes ? 'antes_' : '') + angulo);
     try {
       const blob = await comprimirImagen(file);
-      const hoy = todayISO();
       const ruta = `${username}/${hoy}_${angulo}_${Date.now()}.jpg`;
       const { error: upErr } = await supabase.storage.from('fotos-progreso')
         .upload(ruta, blob, { contentType: 'image/jpeg', upsert: false });
       if (upErr) throw new Error('Al subir: ' + upErr.message);
       const { error: dbErr } = await supabase.from('fotos_progreso').insert({
-        username, fecha: hoy, angulo, ruta, peso: Number(pesoActual) || null,
+        username, fecha: hoy, angulo, ruta, peso: antes ? (Number(antes.peso) || null) : (Number(pesoActual) || null),
       });
       if (dbErr) {
         await supabase.storage.from('fotos-progreso').remove([ruta]);
         throw new Error('Al guardar: ' + dbErr.message);
       }
       await cargar();
+      if (!antes && fotos.some(f => f.angulo === angulo && f.fecha < hoy)) setVerCambio(true);
     } catch (e) {
       setErr(e.message || 'No se pudo subir la foto. Revisa tu conexión e intenta de nuevo.');
     }
     setSubiendo(null);
+  }
+
+  // Imagen de antes y después (primera foto vs. última del mismo ángulo)
+  // para compartir en historias, con su código de invitación.
+  async function compartirCambio() {
+    if (porFecha.length < 2) return;
+    setCompartiendo(true); setErr('');
+    copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
+    try {
+      const primeras = porFecha[porFecha.length - 1][1], ultimas = porFecha[0][1];
+      const ang = ANGULOS.find(a => primeras.some(f => f.angulo === a.id) && ultimas.some(f => f.angulo === a.id));
+      if (!ang) throw new Error('sin par');
+      const fa = primeras.find(f => f.angulo === ang.id), fd = ultimas.find(f => f.angulo === ang.id);
+      const datos = [];
+      if (Number(fa.peso) > 0 && Number(fd.peso) > 0) {
+        const d = Number(fd.peso) - Number(fa.peso);
+        if (Math.abs(d) >= 0.1) datos.push({ valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg', etiqueta: 'desde mi primera foto', color: d < 0 ? '#34D399' : '#FBBF24' });
+      }
+      const dias = Math.round((new Date(fd.fecha + 'T00:00:00') - new Date(fa.fecha + 'T00:00:00')) / 86400000);
+      if (dias > 0) datos.push({ valor: dias >= 14 ? `${Math.round(dias / 7)} sem` : `${dias} días`, etiqueta: 'entre una foto y otra', color: '#F97316' });
+      const codigo = await codigoInvitacion();
+      const blob = await generarTarjeta({ nombre, datos, fotoAntes: urls[fa.ruta], fotoDespues: urls[fd.ruta], codigo });
+      const archivo = new File([blob], 'mi-cambio-jonah-beast.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+        await navigator.share({ files: [archivo], title: 'Mi cambio en Jonah Beast Fuel', text: textoInvitacion(codigo) });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'mi-cambio-jonah-beast.png'; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+    } catch (e) {
+      if (!(e && e.name === 'AbortError')) setErr('No se pudo armar tu imagen. Intenta de nuevo.');
+    }
+    setCompartiendo(false);
   }
 
   async function borrar(foto) {
@@ -3490,6 +3541,63 @@ function PhotosTab({ username, pesoActual }) {
         )}
       </div>
 
+      {verCambio && porFecha.length > 1 && !comparar && (
+        <div className="bg-orange-500/10 border border-orange-500/50 rounded-2xl p-5 text-center">
+          <p className="jb-display text-lg text-orange-400 mb-1">🔥 MIRA TU CAMBIO</p>
+          <p className="jb-body text-sm text-zinc-300 mb-4">
+            Ya tienes tu foto de hoy al lado de la primera. Nada motiva más que verte tú mismo: el cambio llega poco a poco, comida a comida.
+          </p>
+          <button onClick={() => { setComparar(true); setVerCambio(false); }} className={btnPrimary + ' w-full py-3'}>
+            Ver mi antes y después
+          </button>
+        </div>
+      )}
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+        <button onClick={() => setVerAntes(v => !v)} className="w-full flex items-center justify-between text-left">
+          <span className="jb-display text-sm text-zinc-200">🕰️ ¿TIENES FOTOS DE ANTES DE EMPEZAR?</span>
+          <span className="text-zinc-500 text-xs">{verAntes ? '▴' : '▾'}</span>
+        </button>
+        {verAntes && (
+          <div className="mt-3">
+            <p className="jb-body text-xs text-zinc-500 mb-3">
+              Si te tomaste fotos antes de usar la app, súbelas con la fecha en que te las tomaste. Quedan como tus primeras fotos y así no pierdes tu "antes".
+            </p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <label className="jb-body text-[11px] text-zinc-400">
+                Fecha de esas fotos
+                <input type="date" value={fechaAntes} max={addDaysISO(hoy, -1)} onChange={e => setFechaAntes(e.target.value)}
+                  className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200" />
+              </label>
+              <label className="jb-body text-[11px] text-zinc-400">
+                Tu peso de ese día (opcional)
+                <input type="number" inputMode="decimal" step="0.1" placeholder="kg" value={pesoAntes} onChange={e => setPesoAntes(e.target.value)}
+                  className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {ANGULOS.map(a => {
+                const ya = fechaAntes && fotos.find(f => f.fecha === fechaAntes && f.angulo === a.id);
+                const cargando = subiendo === 'antes_' + a.id;
+                return (
+                  <label key={a.id} className={`rounded-xl border-2 border-dashed p-3 text-center cursor-pointer ${ya ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'} ${!fechaAntes ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input type="file" accept="image/*" className="hidden" disabled={!fechaAntes}
+                      onChange={e => { subir(a.id, e.target.files[0], { fecha: fechaAntes, peso: pesoAntes }); e.target.value = ''; }} />
+                    {cargando ? <Loader2 className="animate-spin text-orange-500 mx-auto" size={20} /> : (
+                      <>
+                        <span className="text-xl block">{ya ? '✓' : a.emoji}</span>
+                        <span className="jb-body text-[11px] text-zinc-300">{a.label}</span>
+                      </>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+            {!fechaAntes && <p className="jb-body text-[11px] text-zinc-500 mt-2">Primero elige la fecha.</p>}
+          </div>
+        )}
+      </div>
+
       {porFecha.length > 1 && (
         <button onClick={() => setComparar(v => !v)} className={btnGhost + ' w-full py-3'}>
           {comparar ? 'Ver todas mis fotos' : '🔄 Comparar primera vs. última'}
@@ -3499,6 +3607,11 @@ function PhotosTab({ username, pesoActual }) {
       {comparar && porFecha.length > 1 ? (
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4">TU CAMBIO</h2>
+          <button onClick={compartirCambio} disabled={compartiendo} className={btnPrimary + ' w-full py-3 mb-2'}>
+            {compartiendo ? <Loader2 className="animate-spin" size={18} /> : '📲 Compartir mi antes y después'}
+          </button>
+          {linkCopiado && <AvisoLinkCopiado />}
+          <div className="mb-4" />
           {ANGULOS.map(a => {
             const primera = porFecha[porFecha.length - 1][1].find(f => f.angulo === a.id);
             const ultima = porFecha[0][1].find(f => f.angulo === a.id);
@@ -3868,7 +3981,7 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
   });
 }
 
-function BotonCompartir({ username, nombre, rows, stats }) {
+function BotonCompartir({ username, nombre, rows, stats, form }) {
   const [generando, setGenerando] = useState(false);
   const [err, setErr] = useState('');
   const [linkCopiado, setLinkCopiado] = useState(false);
@@ -3881,12 +3994,13 @@ function BotonCompartir({ username, nombre, rows, stats }) {
     try {
       const codigo = await codigoInvitacion();
       // Datos a mostrar
-      const conPeso = rows.filter(r => Number(r.peso) > 0);
+      // Peso: sus pesajes reales (no la copia que se guarda cada día).
+      const pesos = historialDePeso(form || {}, rows);
       const conGrasa = rows.filter(r => Number(r.grasa_pct) > 0);
       const datos = [];
 
-      if (conPeso.length >= 2) {
-        const d = Number(conPeso[conPeso.length - 1].peso) - Number(conPeso[0].peso);
+      if (pesos.length >= 2) {
+        const d = pesos[pesos.length - 1].kg - pesos[0].kg;
         if (Math.abs(d) >= 0.1) {
           datos.push({
             valor: (d > 0 ? '+' : '') + d.toFixed(1) + ' kg',
@@ -4251,7 +4365,7 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
     return (
       <div className="flex flex-col gap-6 min-w-0">
         {subNav}
-        {premium ? <PhotosTab username={username} pesoActual={form?.peso} /> : (
+        {premium ? <PhotosTab username={username} pesoActual={form?.peso} nombre={nombre} /> : (
           <BloqueoPremium titulo="Tus fotos de progreso son Premium"
             texto="Guarda tus fotos de frente, perfil y espalda cada 2 semanas y compáralas lado a lado para ver el cambio real." />
         )}
@@ -4386,7 +4500,7 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
           texto="Mira qué días cumpliste en el mes y recibe el análisis de tu avance con consejos para tu semana." />
       )}
 
-      <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} />
+      <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} form={form} />
 
       <div className="grid sm:grid-cols-3 gap-3">
         {[
@@ -4695,6 +4809,30 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
             Saltar y empezar
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* "Tu foto del día 1": en sus primeras 3 semanas, mientras no tenga
+   ninguna foto de progreso, se le invita a tomarse sus fotos de inicio.
+   "Hoy no" la oculta hasta mañana. Las fotos son Premium (incluye la
+   prueba de 7 días), así que solo sale a quien puede usarlas. */
+function FotoDia1Card({ tieneFotos, fechaInicio, onIr }) {
+  const { premium } = usePremium();
+  const hoy = todayISO();
+  const clave = 'jb_foto1_no_' + hoy;
+  const [oculto, setOculto] = useState(() => { try { return localStorage.getItem(clave) === '1'; } catch { return false; } });
+  if (tieneFotos || oculto || !premium || !fechaInicio || fechaInicio < addDaysISO(hoy, -21)) return null;
+  return (
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5 mb-6">
+      <h2 className="jb-display text-lg text-orange-400 mb-1">📸 TU FOTO DEL DÍA 1</h2>
+      <p className="jb-body text-sm text-zinc-300 mb-4">
+        Soy Jonah. Nada me motiva más que verme en el espejo y en mis fotos y notar el cambio. Tómate hoy tus fotos de inicio: son tu punto de partida, y en unas semanas vas a querer ponerlas al lado de las nuevas. Son privadas, solo las ves tú.
+      </p>
+      <div className="flex gap-2">
+        <button onClick={onIr} className={btnPrimary + ' flex-1 py-3'}>📸 Tomar mis fotos</button>
+        <button onClick={() => { try { localStorage.setItem(clave, '1'); } catch {} setOculto(true); }} className={btnGhost + ' py-3 px-4'}>Hoy no</button>
       </div>
     </div>
   );
@@ -9506,6 +9644,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
           );
+          const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;
           const resto = (
             <>
               <ResumenSemanalCard username={username} />
@@ -9524,6 +9663,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  {fotoDia1}
                   {centro}
                   <button onClick={() => setVerMasFacil(v => !v)}
                     className={btnGhost + ' w-full py-3 mb-6 text-base'}>
@@ -9532,7 +9672,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                   {verMasFacil && <>{primeros}{resto}</>}
                 </>
               ) : (
-                <>{primeros}{centro}{resto}</>
+                <>{fotoDia1}{primeros}{centro}{resto}</>
               )}
             </>
           );

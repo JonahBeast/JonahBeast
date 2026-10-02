@@ -4,6 +4,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/verificar-alimentos",
+      "schedule": "5 14 * * 1"
+    },
+    {
       "path": "/api/cron/recordatorio",
       "schedule": "0 * * * *"
     },

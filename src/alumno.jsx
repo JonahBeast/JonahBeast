@@ -243,7 +243,7 @@ function buscarAlimentos(lista, texto, limite = 40) {
 // plato peruano se pesa en gramos, no se sirve por tazas).
 const GRAMOS_DEFAULT_POR_NOMBRE = {
   'Cereal cornflakes sin gluten': 100,
-  'Chicharrón de chancho': 220,
+  'Chicharrón de chancho': 180,
   // Cereales de plato (arroz, quinua, etc.) se pesan en gramos en la
   // práctica — nadie mide un plato de arroz peruano en tazas.
   'Quinua': 150,

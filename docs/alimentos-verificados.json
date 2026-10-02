@@ -1,0 +1,1820 @@
+{
+ "descripcion": "Alimentos de la app (RAW_FOODS en src/App.jsx) verificados contra una fuente. Valores por 100 g. Todo alimento nuevo se agrega aquí con su fuente; si no, npm run build falla (scripts/verificar-alimentos.mjs).",
+ "alimentos": {
+  "Arroz blanco (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz blanco (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz verde (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz amarillo (a la jardinera) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz aderezado (con ají panca) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz chaufa (solo el arroz) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Quinua (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Quinua (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Avena en hojuelas (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Avena (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Kiwicha (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Kiwicha (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cañihua (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cañihua (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Choclo (maíz) (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Choclo (maíz) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cereal cornflakes sin gluten (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Lenteja (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Lenteja (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol canario (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol canario (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Garbanzo (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Garbanzo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pallar (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pallar (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Haba seca (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Haba (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papa (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papa (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Camote (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Camote (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yuca (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yuca (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Olluco (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Olluco (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Plátano bellaco (Sancochado)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pechuga (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pechuga (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Carne de res (bistec) (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Carne de res (bistec) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Churrasco (Cruda (sin hueso))": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Churrasco (Cocida (sin hueso))": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Churrasco (Cruda (con hueso))": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Churrasco (Cocida (con hueso))": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cerdo (lomo) (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cerdo (lomo) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chuleta de cerdo (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mollejitas de pollo (Cocidas)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC SR Legacy #171063 (Chicken, gizzard, all classes, cooked, simmered)",
+   "verificado_en": "2026-10-02"
+  },
+  "Bonito (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Bonito (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Atún (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Atún (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Huevo de gallina (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Huevo de gallina (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Huevo de gallina (Frito)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Huevo de codorniz (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Huevo de codorniz (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche entera (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche descremada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche sin lactosa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yogur natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Queso fresco (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Plátano de seda (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Manzana (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Palta (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papaya (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mango (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mandarina (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ensalada de frutas (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Naranja (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Durazno (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Piña (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Uva (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Fresa (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tomate (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Lechuga (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zanahoria (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zanahoria (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Brócoli (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Brócoli (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Espinaca (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Espinaca (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zapallo (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zapallo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Vainita (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Vainita (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Aceite vegetal (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mantequilla (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Maní (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC SR Legacy #172430 (peanuts, raw; 1 tbsp chopped = 9 g)",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan francés (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: TPCA Perú 2017 (pan francés ~270 kcal/100 g); pesos típicos de pan francés en Lima",
+   "verificado_en": "2026-10-02"
+  },
+  "Rapiditas Clásicas (Bimbo) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Rapiditas Integrales (Bimbo) (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC (tortillas, whole wheat ~300 kcal/100 g); comparación con Rapiditas Clásicas",
+   "verificado_en": "2026-10-02"
+  },
+  "Rapiditas XL (Bimbo) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan integral (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan árabe (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan árabe integral (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jamonada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Salchicha (hot dog) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tostadas (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan con jamonada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan con pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pan con chicharrón (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Butifarra (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Hot dog (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Hamburguesa de carretilla (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pizza americana (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo broaster (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Salchipollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sopa wantán (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Humita (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Picarones con miel (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cancha serrana (Tostada)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Granola (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mantequilla de maní (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Refresco de cebada (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cerveza (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cachanga (Frita)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chía (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pierna (con piel) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pato (sin piel) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cerdo (costilla) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC SR Legacy: Pork, fresh, spareribs, separable lean and fat, cooked, braised (397 kcal, P 29, G 30); backribs roasted (361 kcal, P 24, G 29)",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pierna (sin piel) (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo encuentro (con piel) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo encuentro (sin piel) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo entrepierna (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo ala (con piel) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pechuga (con piel) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo molido (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo menudencia (hígado) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Gallina (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Carne de res (lomo fino) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Carne molida de res (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Hígado de res (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arveja verde (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arveja partida (seca) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol negro (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol panamito (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol castilla (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejol bayo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Lenteja bebé (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tarwi (chocho) (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Soya (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zapallo macre (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Caigua (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Zapallito italiano (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Coliflor (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Col / repollo (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Betarraga (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Poro (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Nabo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alcachofa (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Champiñón (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Choclo desgranado (Cocido)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Locro de zapallo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz con pato (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Carapulcra (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Olluquito con charqui (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Adobo de cerdo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ají de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo al sillao (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papa dorada al sillao (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Frejolada (frejol con arroz) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Menestra de lentejas con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chanfainita (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papa rellena (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Empanada de carne (Horneada)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Pesos típicos de empanadas de panadería en Lima; USDA FDC empanada de carne horneada como referencia de densidad",
+   "verificado_en": "2026-10-02"
+  },
+  "Empanada de pollo (Horneada)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Pesos típicos de empanadas de panadería en Lima; USDA FDC empanada de carne horneada como referencia de densidad",
+   "verificado_en": "2026-10-02"
+  },
+  "Empanada mixta (carne y pollo) (Horneada)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Pesos típicos de empanadas de panadería en Lima; USDA FDC empanada de carne horneada como referencia de densidad",
+   "verificado_en": "2026-10-02"
+  },
+  "Tamal (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Juane (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Morocha (bañada en chocolate) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta de soda (salada) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta de vainilla (dulce, tipo Casino/Margarita) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Casino (vainilla rellena) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Margarita (vainilla rellena) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Chomp (chispas de chocolate) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Cua Cua (wafer con chocolate) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta Club Social (cracker) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pachamanca (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sopa de pollo con fideos (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chupe de camarones (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Parihuela (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Receta típica de parihuela (pescado + mariscos + caldo); TPCA Perú 2017 para pescado y mariscos",
+   "verificado_en": "2026-10-02"
+  },
+  "Café negro (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Café con leche (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Té / infusión (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de papaya (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de piña (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de naranja (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de maracuyá (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo surtido (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Limonada (Sin azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Emoliente (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Avena / quinua de bebida (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chicha morada (Sin azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Atún en lata en agua (escurrido) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Atún en lata en aceite (escurrido) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Atún en lata en aceite (sin escurrir) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Clara de huevo (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yema de huevo (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ají de gallina (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz con pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo a la brasa (solo la presa) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo a la brasa con papas y ensalada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollada (pollo frito) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ceviche de pescado (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Lomo saltado (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz chaufa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz chaufa de carne (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz chaufa de chancho (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz chaufa especial (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz a la jardinera (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz con chancho (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ensalada rusa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tallarines rojos con pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tallarines rojos con carne molida (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tallarines verdes (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Causa limeña (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papa a la huancaína (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ocopa arequipeña (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Seco de res con frejoles (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cau cau (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tacu tacu (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Rocoto relleno (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Anticucho de corazón (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chicharrón de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chicharrón de chancho (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Porción típica peruana / USDA FDC pork belly fried",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz con mariscos (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Hamburguesa clásica (Bembos) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas broaster (Bembos) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas crocantes (carrito) (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas BBQ (carrito) (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas acevichadas (carrito) (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas búfalo (carrito) (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Papas fritas (comida rápida) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Hamburguesa clásica (McDonald's) (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC McDONALD'S Hamburger / Big Mac",
+   "verificado_en": "2026-10-02"
+  },
+  "McNuggets (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pieza de pollo Original (KFC) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pieza de pollo Crujiente (KFC) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alitas picantes (KFC) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Twister (KFC) (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Información nutricional KFC (Twister) / USDA FDC tortilla de trigo + pollo apanado",
+   "verificado_en": "2026-10-02"
+  },
+  "Milanesa de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Porción típica / USDA FDC breaded chicken breast fried",
+   "verificado_en": "2026-10-02"
+  },
+  "Torreja de espinaca y tomate (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: TPCA Perú (tortilla de verduras) / receta típica huevo+harina+espinaca frita",
+   "verificado_en": "2026-10-02"
+  },
+  "Filete de pollo frito (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pescado frito (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Porción típica / TPCA Perú pescado frito",
+   "verificado_en": "2026-10-02"
+  },
+  "Sudado de pescado (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Escabeche de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Salchipapa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo al horno (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Porción típica / USDA FDC chicken roasted with skin",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo a la olla (presa con papa y verduras) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo a la olla con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Estofado de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Estofado de carne (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Aguadito de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Caldo de gallina (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sopa a la minuta (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Menestrón (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Ensalada de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sándwich de pollo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Panqueques de avena (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Corregido: Recetas típicas / USDA FDC pancakes (1 panqueque 4\" ≈ 38-50 g)",
+   "verificado_en": "2026-10-02"
+  },
+  "Wafle de avena (Estimado - varía según receta)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC waffles (1 wafle redondo 7\" ≈ 75 g)",
+   "verificado_en": "2026-10-02"
+  },
+  "Fideos / pasta (Crudos)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC pasta dry enriched; porción estándar 80-100 g en seco",
+   "verificado_en": "2026-10-02"
+  },
+  "Fideos / pasta (Cocidos)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC SR Legacy 20421 Pasta, cooked, enriched, without added salt",
+   "verificado_en": "2026-10-02"
+  },
+  "Fideos integrales (Cocidos)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tallarín saltado (plato) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de papaya natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de piña natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de maracuyá natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de fresa natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo surtido (papaya+piña+naranja) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Limonada con azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Picarón (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mazamorra morada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arroz con leche (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Combinado (mazamorra + arroz con leche) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Suspiro a la limeña (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Turrón de Doña Pepa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Alfajor (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Torta de chocolate (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Helado de vainilla (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Gelatina preparada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Flan / crema volteada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Churro relleno (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Queque simple (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke de plátano (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke de naranja (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke de vainilla (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke de zanahoria (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke marmoleado (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Keke de arándanos (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Panetón (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Torta tres leches (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cocada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Manjar blanco (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche asada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chocolate con leche (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta dulce rellena (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Café negro sin azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Café con leche (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Café con leche descremada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Capuchino (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Capuchino (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Té / infusión sin azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Agua (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jugo de naranja natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Gaseosa regular (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Gaseosa dietética (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chicha morada con azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Emoliente sin azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche de almendras sin azúcar (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Leche de coco (-)": {
+   "estado": "verificado",
+   "fuente": "Corregido: USDA FDC #170172 (coconut milk canned 197 kcal) vs bebida de coco sin azúcar (etiquetas comerciales ~17-20 kcal/100 ml)",
+   "verificado_en": "2026-10-02"
+  },
+  "Yogur bebible (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Azúcar blanca (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Miel de abeja (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mermelada (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Galleta de soda (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Avena instantánea en polvo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Proteína en polvo (whey) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Crema de arroz (Estimado - varía según marca)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Proteína en polvo (isolate) (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Aceite de oliva (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Mayonesa (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Almendras (Crudas)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Nueces (Crudas)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pecanas (Crudas)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Arándanos (Crudos)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sandía (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Melón (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pera (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Tuna (Cruda (pelada))": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pepino (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pimiento (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Cebolla (Cruda)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Apio (Crudo)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pollo pierna (sin piel) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pavo pechuga (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Pavita muslo (medallón, sin piel) (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jamón de pavo (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Jamón inglés (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Chorizo parrillero (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Trucha (Cocida)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Langostinos (Cocidos)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Queso parmesano (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yogur griego natural (-)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Yogur saborizado (Con azúcar)": {
+   "estado": "verificado",
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
+   "verificado_en": "2026-10-02"
+  },
+  "Sandwich de pollo (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Sandwich de atún (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Omelette (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Bowl de avena (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Waffles de avena y plátano (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Waffle de beterraga y mango (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Filete de pollo (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Quinua chaufa (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Bowl andino (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Bowl Super Power (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Trucha (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Peca Power Meat (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Wrap proteico (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Wrap filete de pollo (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Wrap crocante (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Cake de plátano (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Torta de cacao (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Cheesecake (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  },
+  "Parfait (PECAFIT) (-)": {
+   "estado": "pendiente",
+   "nota": "Jonah calcula los macros desde la carta de PECAFIT",
+   "revisado_en": "2026-10-02"
+  }
+ }
+}

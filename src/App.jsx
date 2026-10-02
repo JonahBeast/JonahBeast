@@ -1059,7 +1059,19 @@ const VERDURAS_SUGERENCIA = [
   { items: [['Brócoli (Cocido)', 100]], n: 'brócoli' },
   { items: [['Vainita (Cocida)', 80], ['Zanahoria (Cocida)', 80]], n: 'verduras' },
   { items: [['Pepino (Crudo)', 80], ['Tomate (Crudo)', 80]], n: 'ensalada de pepino' },
+  { items: [['Zanahoria (Cruda)', 80], ['Lechuga (Cruda)', 50]], n: 'ensalada de zanahoria' },
 ];
+/* Lo que casi siempre hay en una casa. Las sugerencias solo usan esto, lo que
+   el alumno ya suele comer y la proteína que marcó en "¿Qué tienes para cocinar?". */
+const BASICOS_CASA = new Set([
+  'Arroz blanco (Cocido)', 'Papa (Cocida)', 'Camote (Cocido)', 'Fideos / pasta (Cocidos)',
+  'Lenteja (Cocida)', 'Frejol canario (Cocido)', 'Avena (Cocida)', 'Pan francés (-)', 'Pan integral (-)',
+  'Huevo de gallina (Cocido)', 'Pollo pechuga (Cocida)', 'Carne de res (bistec) (Cocida)',
+  'Atún en lata en agua (escurrido) (-)', 'Queso fresco (-)', 'Yogur natural (-)', 'Maní (Crudo)',
+  'Café con leche (-)', 'Té / infusión sin azúcar (-)', 'Palta (Cruda)',
+  'Plátano de seda (Cruda)', 'Manzana (Cruda)', 'Papaya (Cruda)', 'Mandarina (Cruda)',
+  'Lechuga (Cruda)', 'Tomate (Crudo)', 'Pepino (Crudo)', 'Zanahoria (Cruda)', 'Zanahoria (Cocida)',
+]);
 const BASES_DESAYUNO = [
   { key: 'Pan francés (-)', g: 55, n: 'Pan', pan: true }, { key: 'Pan integral (-)', g: 60, n: 'Pan integral', pan: true },
   { key: 'Camote (Cocido)', g: 150, n: 'Camote sancochado' }, { key: 'Avena (Cocida)', g: 250, n: 'Avena' },
@@ -1136,8 +1148,11 @@ function sugerenciasComida({ objetivo, comida, restricciones = [], preferidos = 
   const vistos = new Set();
   const todos = [...tipicos, ...armados].filter(c => { if (vistos.has(c.nombre)) return false; vistos.add(c.nombre); return true; });
   const esSnack = comidaBuscada === 'Media mañana';
+  const aLaMano = new Set([...BASICOS_CASA, ...preferidos,
+    ...PROTEINAS_SUGERENCIA.filter(p => proteinas.includes(p.id)).map(p => p.key)]);
   const opciones = todos
     .filter(c => esSnack || !proteinas.length || proteinas.includes(c.proteina))
+    .filter(c => c.items.every(([k]) => aLaMano.has(k)))
     .map(c => {
       const o = armarOpcion(c, objetivo);
       if (!o) return null;
@@ -1162,9 +1177,16 @@ function sugerenciasComida({ objetivo, comida, restricciones = [], preferidos = 
   while (pool.length) {
     const grupo = salida.slice(salida.length - (salida.length % 4));
     const usados = new Set(grupo.flatMap(partes));
+    const acomps = new Set(grupo.map(g => partes(g)[1]));
     const prots = new Set(grupo.map(g => g.proteina));
-    let i = pool.findIndex(o => !prots.has(o.proteina) && !partes(o).slice(1).some(k => usados.has(k)));
-    if (i < 0) i = pool.findIndex(o => !partes(o).slice(1).some(k => usados.has(k)));
+    const nuevoAcomp = o => !acomps.has(partes(o)[1]);
+    const nuevaProt = o => !prots.has(o.proteina);
+    const nadaRepetido = o => !partes(o).slice(1).some(k => usados.has(k));
+    // De más a menos exigente: todo distinto → acompañamiento y proteína
+    // distintos → al menos el acompañamiento → al menos la proteína.
+    const reglas = [o => nuevaProt(o) && nadaRepetido(o), o => nuevaProt(o) && nuevoAcomp(o), nuevoAcomp, nuevaProt];
+    let i = -1;
+    for (const r of reglas) { i = pool.findIndex(r); if (i >= 0) break; }
     salida.push(pool.splice(i < 0 ? 0 : i, 1)[0]);
   }
   return salida;

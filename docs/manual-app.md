@@ -320,12 +320,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 1. Muestra lo que te queda del día (kcal, proteína, carbos, grasas).
 2. **"¿Para qué comida?"** ya viene con la comida de esa hora (en la noche, la cena). Puedes cambiarla.
 3. **"¿Qué tienes para cocinar?"** (opcional; no sale en media mañana ni media tarde): toca lo que tienes en casa (🍗 Pollo, 🥩 Carne, 🐟 Pescado, 🐖 Cerdo, 🦃 Pavita, 🥫 Atún, 🥚 Huevo) y solo salen opciones con eso. Si no eliges nada, salen de todo.
-4. Mira las combinaciones sugeridas (4 a la vez), con sus calorías y cantidades pensadas para **lo que te toca en esa comida** (no para todo lo que te queda del día). Tienen lógica con la hora:
-   - **Desayuno:** pan, pan integral, camote o avena con huevo, queso fresco, palta, pollo o jamón de pavo, y café con leche, té o fruta.
-   - **Almuerzo:** una proteína a la plancha con arroz, papa, camote, fideos, quinua, yuca o menestras, más ensalada o verduras; también platos típicos (ceviche, arroz con pollo, estofado…).
-   - **Cena (más ligera):** pollo, pescado, huevo, atún, pavita, cerdo o carne con camote, papa, quinua, pan integral o un poco de arroz, y verduras. En la cena no salen menestras, fideos ni ceviche.
-   - **Media mañana / media tarde:** fruta sola o con yogur, maní, almendras, queso fresco o un huevo.
-   - Primero salen las que usan alimentos que **ya sueles registrar** (seguro los tienes en casa) y se van alternando las proteínas.
+4. Mira las combinaciones sugeridas (4 a la vez), con sus calorías y cantidades pensadas para **lo que te toca en esa comida** (no para todo lo que te queda del día). **Solo usan cosas que casi siempre hay en casa** (arroz, papa, camote, fideos, lentejas, frejoles, avena, pan, huevo, pollo, carne, atún, queso fresco, yogur, maní, palta, plátano, manzana, papaya, mandarina, lechuga, tomate, pepino, zanahoria, café con leche, té), **más lo que tú ya sueles registrar** y la proteína que marcaste en "¿Qué tienes para cocinar?" (por ejemplo, si marcas Pescado o Cerdo, salen platos con eso). No salen platos preparados que no tengas a la mano (caldo, ceviche, sándwich…) salvo que tú ya los registres. Tienen lógica con la hora:
+   - **Desayuno:** pan, pan integral, camote o avena con huevo, queso fresco, palta o pollo, y café con leche, té o fruta.
+   - **Almuerzo:** una proteína a la plancha con arroz, papa, camote, fideos o menestras, más ensalada; también lentejas con arroz y pollo.
+   - **Cena (más ligera):** pollo, huevo, atún o carne con camote, papa, pan integral o un poco de arroz, y ensalada. En la cena no salen menestras, fideos ni ceviche.
+   - **Media mañana / media tarde:** fruta sola o con yogur, maní, queso fresco o un huevo.
+   - Primero salen las que usan alimentos que **ya sueles registrar** y se van alternando las proteínas.
 5. **"🔄 Ver otras opciones (1 de N)"** muestra 4 más cada vez que lo tocas. **"🎲 SORPRESA DEL DÍA"** te da otra idea. **🔄** junto a un ingrediente lo cambia por uno equivalente.
 6. Toca **"Agregar a mi día"**.
 - **Versión gratis: 3 veces por semana** (se renuevan cada lunes). Cada vez que lo abre cuenta 1; solo si lo cierra y lo vuelve a abrir en menos de 10 minutos no cuenta de nuevo. Armar el día completo con sugerencias es Premium. Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.

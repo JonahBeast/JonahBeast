@@ -3344,7 +3344,7 @@ function TuSemanaCard({ username, nombre }) {
   );
 }
 
-function PhotosTab({ username, pesoActual, nombre }) {
+function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
   const [fotos, setFotos] = useState([]);
   const [urls, setUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -3425,14 +3425,12 @@ function PhotosTab({ username, pesoActual, nombre }) {
       if (!ang) throw new Error('sin par');
       const fa = primeras.find(f => f.angulo === ang.id), fd = ultimas.find(f => f.angulo === ang.id);
       const datos = [];
-      if (Number(fa.peso) > 0 && Number(fd.peso) > 0) {
-        const d = Number(fd.peso) - Number(fa.peso);
-        if (Math.abs(d) >= 0.1) datos.push({ valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg', etiqueta: 'desde mi primera foto', color: d < 0 ? '#34D399' : '#FBBF24', peso: true });
-      }
-      const dias = Math.round((new Date(fd.fecha + 'T00:00:00') - new Date(fa.fecha + 'T00:00:00')) / 86400000);
-      if (dias > 0) datos.push({ valor: dias >= 14 ? `${Math.round(dias / 7)} sem` : `${dias} días`, etiqueta: 'entre una foto y otra', color: '#F97316' });
+      const kg = cambioEntreFotos(fa, fd, objetivo);
+      if (kg) datos.push(kg);
+      const tiempo = tiempoEntre(fa.fecha, fd.fecha);
+      if (tiempo) datos.push({ valor: tiempo, etiqueta: 'entre una foto y otra', color: '#F97316' });
       const codigo = await codigoInvitacion();
-      const blob = await generarTarjeta({ nombre, datos, fotoAntes: urls[fa.ruta], fotoDespues: urls[fd.ruta], codigo });
+      const blob = await generarTarjeta({ nombre, datos, fotoAntes: urls[fa.ruta], fotoDespues: urls[fd.ruta], fechaAntes: fa.fecha, fechaDespues: fd.fecha, codigo });
       const archivo = new File([blob], 'mi-cambio-jonah-beast.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
         await navigator.share({ files: [archivo], title: 'Mi cambio en Jonah Beast Fuel', text: textoInvitacion(codigo) });
@@ -3891,7 +3889,36 @@ function dibujarRecortada(ctx, img, x, y, w, h) {
   ctx.restore();
 }
 
-async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = null }) {
+/* Datos de las fotos para la tarjeta: el cambio de peso entre la primera y
+   la última foto (solo si las dos tienen su peso y el cambio es posible) y
+   el tiempo entre una y otra, bien escrito aunque sean años. */
+function cambioEntreFotos(fa, fd, objetivo = '') {
+  if (!(Number(fa?.peso) > 0 && Number(fd?.peso) > 0)) return null;
+  const d = Number(fd.peso) - Number(fa.peso);
+  if (Math.abs(d) < 0.1 || Math.abs(d) / Number(fa.peso) > 0.5) return null;
+  const bien = objetivo === 'Ganar músculo' ? d > 0 : d < 0;
+  return { valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg', etiqueta: 'desde mi primera foto', color: bien ? '#34D399' : '#FBBF24', peso: true, bien };
+}
+function tiempoEntre(desde, hasta) {
+  const dias = Math.round((new Date(String(hasta).slice(0, 10) + 'T00:00:00') - new Date(String(desde).slice(0, 10) + 'T00:00:00')) / 86400000);
+  if (!(dias > 0)) return null;
+  if (dias < 14) return dias === 1 ? '1 día' : `${dias} días`;
+  if (dias < 63) return `${Math.round(dias / 7)} sem`;
+  if (dias < 730) {
+    const medios = Math.round(dias / 30.4 * 2) / 2;
+    const enteros = Math.floor(medios);
+    return medios % 1 ? `${enteros} ${enteros === 1 ? 'mes' : 'meses'} y medio` : `${enteros} meses`;
+  }
+  const anios = Math.round(dias / 365 * 10) / 10;
+  return `${String(anios).replace('.', ',')} años`;
+}
+const fechaFoto = iso => {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SET', 'OCT', 'NOV', 'DIC'];
+  return `${d} ${meses[m - 1]} ${y}`;
+};
+
+async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, fechaAntes = null, fechaDespues = null, codigo = null }) {
   try { await Promise.all([document.fonts?.load('120px Anton'), document.fonts?.load('600 40px "Work Sans"')]); } catch {}
   const CARBON = '#16110D', CREMA = '#FAF6F0', NARANJA = '#E8590C', NARANJA2 = '#FF7020', GRIS = '#A8A29E', CAJA = '#231B15';
   const titulo = t => `${t}px Anton, Impact, Arial Black, sans-serif`;
@@ -3934,7 +3961,7 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
   let yDatos = 400;
   if (conFotos) {
     const fw = 450, fh = 600, y = 360, xs = [60, 570];
-    [[imgA, 'ANTES'], [imgB, 'AHORA']].forEach(([img, etiqueta], i) => {
+    [[imgA, 'ANTES', fechaAntes], [imgB, 'AHORA', fechaDespues]].forEach(([img, etiqueta, fecha], i) => {
       const x = xs[i], ahora = i === 1;
       ctx.save();
       if (ahora) { ctx.shadowColor = 'rgba(255,112,32,0.7)'; ctx.shadowBlur = 40; }
@@ -3951,6 +3978,8 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
       const pw = ctx.measureText(etiqueta).width + 48;
       caja(x + 24, y + fh - 84, pw, 60, 30); ctx.fillStyle = ahora ? NARANJA : 'rgba(250,246,240,0.9)'; ctx.fill();
       ctx.fillStyle = ahora ? CREMA : CARBON; ctx.fillText(etiqueta, x + 48, y + fh - 38);
+      // La fecha de cada foto: así se ve claro de cuándo es el "antes".
+      if (fecha) { ctx.font = cuerpo(28, 600); ctx.fillStyle = CREMA; ctx.fillText(fechaFoto(fecha), x + 24 + pw + 14, y + fh - 44, fw - pw - 60); }
     });
     // Flecha entre el antes y el ahora
     ctx.beginPath(); ctx.arc(540, y + fh / 2, 44, 0, Math.PI * 2); ctx.fillStyle = NARANJA; ctx.fill();
@@ -3980,9 +4009,16 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
     caja(70, yc, anchoIzq, 118, 24); ctx.fillStyle = CAJA; ctx.fill();
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(232,89,12,0.45)'; ctx.stroke();
     let tam = 64; ctx.font = titulo(tam);
-    while (tam > 36 && ctx.measureText(d.valor).width > 210) { tam -= 4; ctx.font = titulo(tam); }
-    ctx.fillStyle = d.color || CREMA; ctx.fillText(d.valor, 100, yc + 82);
-    ctx.font = cuerpo(28); ctx.fillStyle = GRIS; ctx.fillText(d.etiqueta, 300, yc + 70, anchoIzq - 250);
+    while (tam > 36 && ctx.measureText(d.valor).width > 250) { tam -= 4; ctx.font = titulo(tam); }
+    const anchoValor = Math.min(ctx.measureText(d.valor).width, 250);
+    // La etiqueta va al lado del número; si no entra, debajo (sin pisarlo).
+    const xEtiqueta = 100 + anchoValor + 22, anchoEtiqueta = 70 + anchoIzq - 24 - xEtiqueta;
+    ctx.font = cuerpo(28);
+    const alLado = ctx.measureText(d.etiqueta).width <= anchoEtiqueta;
+    ctx.font = titulo(tam); ctx.fillStyle = d.color || CREMA; ctx.fillText(d.valor, 100, alLado ? yc + 82 : yc + 62, 250);
+    ctx.font = cuerpo(alLado ? 28 : 26); ctx.fillStyle = GRIS;
+    if (alLado) ctx.fillText(d.etiqueta, xEtiqueta, yc + 70);
+    else ctx.fillText(d.etiqueta, 100, yc + 100, anchoIzq - 60);
     yc += 138;
   });
 
@@ -3992,8 +4028,8 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo = 
     const gx = W - gw - 30, gy = conFotos ? yDatos + 110 : yDatos + 130;
     ctx.save(); ctx.shadowColor = 'rgba(255,112,32,0.55)'; ctx.shadowBlur = 50;
     ctx.drawImage(gorila, gx, gy, gw, gh); ctx.restore();
-    const baja = principal && principal.peso && String(principal.valor).startsWith('−');
-    const frase = baja ? '¡ASÍ SE HACE!' : '¡VAMOS CON TODO!';
+    const vaBien = principal && principal.peso && (principal.bien !== undefined ? principal.bien : String(principal.valor).startsWith('−'));
+    const frase = vaBien ? '¡ASÍ SE HACE!' : '¡VAMOS CON TODO!';
     ctx.font = titulo(46);
     const bw = ctx.measureText(frase).width + 60, bh = 86;
     const bx = Math.min(W - bw - 30, gx + gw / 2 - bw / 2 + 10), by = gy - bh - 30;
@@ -4037,7 +4073,7 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
       // Fotos: primera y última del mismo ángulo (de frente, si hay). Si
       // las dos tienen su peso, el cambio de peso sale de ellas: es el
       // "antes" real (puede ser de antes de usar la app).
-      let fotoAntes = null, fotoDespues = null, pesoFotos = null;
+      let fotoAntes = null, fotoDespues = null, kgFotos = null, fechaAntes = null, fechaDespues = null;
       try {
         const { data: fotos } = await supabase.from('fotos_progreso')
           .select('*').eq('username', username).order('fecha', { ascending: true }).limit(600);
@@ -4048,27 +4084,34 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
             const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls([a.ruta, b.ruta], 600);
             if (signed && signed.length === 2) {
               fotoAntes = signed[0].signedUrl; fotoDespues = signed[1].signedUrl;
-              if (Number(a.peso) > 0 && Number(b.peso) > 0) pesoFotos = Number(b.peso) - Number(a.peso);
+              fechaAntes = a.fecha; fechaDespues = b.fecha;
+              kgFotos = cambioEntreFotos(a, b, form?.objetivo || '');
             }
             break;
           }
         }
       } catch {}
 
-      if (pesoFotos !== null || pesos.length >= 2) {
-        const d = pesoFotos !== null ? pesoFotos : pesos[pesos.length - 1].kg - pesos[0].kg;
+      // Kilos: de las fotos si las dos tienen su peso; si no, de sus
+      // pesajes en la app (y la etiqueta lo dice, para que no se confunda
+      // con el tiempo entre las fotos).
+      if (kgFotos) datos.push(kgFotos);
+      else if (pesos.length >= 2) {
+        const d = pesos[pesos.length - 1].kg - pesos[0].kg;
         if (Math.abs(d) >= 0.1) {
+          const bien = form?.objetivo === 'Ganar músculo' ? d > 0 : d < 0;
           datos.push({
             valor: (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' kg',
-            etiqueta: pesoFotos !== null ? 'desde mi primera foto' : 'de cambio en mi peso',
-            peso: true,
-            color: d < 0 ? '#34D399' : '#FBBF24',
+            etiqueta: 'desde que uso la app',
+            peso: true, bien,
+            color: bien ? '#34D399' : '#FBBF24',
           });
         }
       }
-      if (stats && stats.diasRegistrados) {
-        datos.push({ valor: String(stats.diasRegistrados), etiqueta: 'días registrados' });
-      }
+      // Días registrados en total (no solo los del periodo que está mirando),
+      // así nunca sale menos que su racha.
+      const diasConComida = new Set(rows.filter(r => Number(r.comidas_count) > 0 || Number(r.kcal_consumidas) > 0).map(r => r.fecha)).size;
+      if (diasConComida) datos.push({ valor: String(diasConComida), etiqueta: 'días registrados' });
       // "Días en mi objetivo" solo si es un buen número (60% o más); si no,
       // va el tiempo que lleva usando la app, que siempre suma.
       if (stats && stats.adherencia !== null && stats.adherencia !== undefined && stats.adherencia >= 60) {
@@ -4099,7 +4142,7 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
 
       let blob;
       try {
-        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, codigo });
+        blob = await generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, fechaAntes, fechaDespues, codigo });
       } catch {
         // Si las fotos bloquean la exportación, se genera sin ellas
         blob = await generarTarjeta({ nombre, datos, codigo });
@@ -4399,7 +4442,7 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
     return (
       <div className="flex flex-col gap-6 min-w-0">
         {subNav}
-        {premium ? <PhotosTab username={username} pesoActual={form?.peso} nombre={nombre} /> : (
+        {premium ? <PhotosTab username={username} pesoActual={form?.peso} nombre={nombre} objetivo={form?.objetivo || ''} /> : (
           <BloqueoPremium titulo="Tus fotos de progreso son Premium"
             texto="Guarda tus fotos de frente, perfil y espalda cada 2 semanas y compáralas lado a lado para ver el cambio real." />
         )}

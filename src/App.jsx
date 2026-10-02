@@ -1163,8 +1163,8 @@ function sugerenciasComida({ objetivo, comida, restricciones = [], preferidos = 
     const grupo = salida.slice(salida.length - (salida.length % 4));
     const usados = new Set(grupo.flatMap(partes));
     const prots = new Set(grupo.map(g => g.proteina));
-    let i = pool.slice(0, 25).findIndex(o => !prots.has(o.proteina) && !partes(o).slice(1).some(k => usados.has(k)));
-    if (i < 0) i = pool.slice(0, 25).findIndex(o => !partes(o).slice(1).some(k => usados.has(k)));
+    let i = pool.findIndex(o => !prots.has(o.proteina) && !partes(o).slice(1).some(k => usados.has(k)));
+    if (i < 0) i = pool.findIndex(o => !partes(o).slice(1).some(k => usados.has(k)));
     salida.push(pool.splice(i < 0 ? 0 : i, 1)[0]);
   }
   return salida;

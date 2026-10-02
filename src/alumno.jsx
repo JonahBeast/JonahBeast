@@ -66,7 +66,7 @@ import {
   esFritoOSaltado,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { EquipoTab, leerInvitacionEquipo } from './equipo.jsx';
+import { EquipoTab, MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -9733,6 +9733,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             después se le pide abrir la app en Chrome/Safari, donde tiene que
             volver a entrar con su correo. */}
         {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+        {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
+        {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}

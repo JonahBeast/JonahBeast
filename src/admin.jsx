@@ -2194,7 +2194,13 @@ function EquiposPanel({ users }) {
                     </div>
                   </div>
                 )}
-                {!e.oficial && <p className="jb-body text-[11px] text-zinc-500 mb-2">Código: <span className="text-orange-400 tracking-widest">{e.codigo}</span> · reto de {e.dias} días desde el {e.inicio}</p>}
+                <p className="jb-body text-[11px] text-zinc-500 mb-2">
+                  {!e.oficial && <>Código: <span className="text-orange-400 tracking-widest">{e.codigo}</span> · </>}
+                  {{ comer: '🍽️ Comer mejor', juntos: '🤝 Meta juntos', carrera: '🏁 Carrera' }[e.objetivo] || '🍽️ Comer mejor'}
+                  {e.meta_valor ? ` · meta ${e.meta_valor}${{ comidas: ' comidas', pct_total: '% entre todos', kg_total: ' kg entre todos', kg_cada: ' kg cada uno', carrera_kg: ' kg (carrera)', carrera_pct: '% (carrera)' }[e.meta_tipo] || ''}` : ''}
+                  {' '}· del {e.inicio} al {e.fin || addDaysISO(e.inicio, e.dias - 1)}
+                  {e.premio ? <> · 🎁 {e.premio}</> : null}
+                </p>
                 <ul className="space-y-1 mb-3">
                   {ms.map(m => {
                     const s = datos.semana[m.username];
@@ -8666,6 +8672,7 @@ function mensajesLanzamiento(comunidad, reto) {
     : enMarcha
       ? `El reto ya está en marcha (termina el ${fechaEnTexto(fin)}) y todavía estás a tiempo: cada comida que registres suma. Ahí te veo en el ranking 🔥`
       : 'Únete desde ya y arrancamos juntos 🔥';
+  const premio = reto?.premio ? `\n\n🎁 Premio para los más constantes: ${reto.premio}` : '';
   const cuandoComunidad = porEmpezar
     ? `Arrancamos el ${fechaEnTexto(reto.inicio)}: ${reto.dias} días juntos. ¡Prepárense! 🔥`
     : enMarcha ? `¡Reto en marcha hasta el ${fechaEnTexto(fin)}!` : '¡Ya viene el próximo reto!';
@@ -8685,7 +8692,7 @@ Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio r
 2. Toca la pestaña *"Equipo"* (abajo).
 3. Toca *"Unirme al Team Beast"*.
 
-O entra directo aquí: ${LINK_TEAM_BEAST}
+O entra directo aquí: ${LINK_TEAM_BEAST}${premio}
 ${comunidad ? `\nY únete a nuestra comunidad de WhatsApp: ${comunidad}\n` : ''}
 ${cuandoAlumnos} Cualquier duda, me escribes aquí.
 
@@ -8700,7 +8707,7 @@ Este es nuestro espacio. Aquí les voy a escribir yo: el arranque de cada reto, 
 📲 Recuerden: el reto se juega en la app, en la pestaña *"Equipo"*:
 ✓ = 3 o más comidas registradas en el día (10 puntos)
 – = 1 o 2 comidas (5 puntos)
-Y pueden mandarse ánimo con un toque 💪🔥👏
+Y pueden mandarse ánimo con un toque 💪🔥👏${premio}
 
 Yo también registro mis comidas todos los días, como uno más del equipo. No se trata de ser perfectos, se trata de no soltar. El cambio llega poco a poco, comida a comida.
 
@@ -8726,8 +8733,11 @@ function TeamBeastLanzamiento() {
   useEffect(() => {
     supabase.from('config').select('value').eq('key', CLAVE_LANZAMIENTO_OCULTO).maybeSingle()
       .then(({ data }) => setOculto(data?.value === '1'), () => setOculto(false));
-    supabase.from('equipos').select('whatsapp, inicio, dias').eq('oficial', true).eq('cerrado', false).maybeSingle()
-      .then(({ data }) => { setComunidad(data?.whatsapp || ''); if (data?.inicio) setReto({ inicio: data.inicio, dias: data.dias }); }, () => {});
+    supabase.from('equipos').select('whatsapp, inicio, dias, fin, premio').eq('oficial', true).eq('cerrado', false).maybeSingle()
+      .then(({ data }) => {
+        setComunidad(data?.whatsapp || '');
+        if (data?.inicio) setReto({ inicio: data.inicio, premio: data.premio || '', dias: data.fin ? Math.round((Date.parse(data.fin) - Date.parse(data.inicio)) / 86400000) + 1 : data.dias });
+      }, () => {});
   }, []);
 
   async function cambiarOculto(valor) {

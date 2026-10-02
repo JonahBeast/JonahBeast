@@ -5935,6 +5935,13 @@ function esPorPiezas(food) {
 }
 
 function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
+  // Platos de restaurantes aliados (PECAFIT): sus valores son por plato
+  // servido, no por peso. Siempre se registran por plato (1 sandwich,
+  // 1 bowl…), nunca con los gramos que calcule la IA.
+  if (/\(PECAFIT\)/.test(food.name)) {
+    const d = unidadPorDefecto(food);
+    return { unit: d.unit, qty: Math.max(1, Math.round(Number(cantidadIA) || 1)) };
+  }
   // Pollada / pollo frito: 1/4 u 1/8 de pollo según los gramos de la IA,
   // en unidades enteras (nadie come "½ cuarto de pollo").
   const cuarto = gramsPerUnit(food, 'cuarto de pollo'), octavo = gramsPerUnit(food, 'octavo de pollo');

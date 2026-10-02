@@ -409,6 +409,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ## 9. Captura inteligente: fotos de comida
 
+**Platos de PECAFIT:** si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, la foto registra el plato de PECAFIT completo, por plato (ej. "1 bowl" de "Bowl andino (PECAFIT)"): sus calorías son las del plato servido, sin calcular gramos. Si no se ve la marca, lo registra por partes (quinua, pollo, verduras…), como cualquier plato. Lo más exacto para PECAFIT es la tarjeta "RESTAURANTES ALIADOS" (8.2 G).
+
 ### 9.1 Cuántas fotos tengo
 
 | Situación | Fotos |

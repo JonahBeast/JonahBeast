@@ -40,7 +40,10 @@ for (const [grupo, nombre, estado, kcal, proteina, carbos, grasa, fibra] of RAW_
   claves.add(clave);
   const v = verificados[clave];
   if (!v) { errores.push(`${clave}: no está verificado (agrégalo a docs/alimentos-verificados.json con su fuente)`); continue; }
-  const problemas = revisarAlimento({ nombre, grupo, kcal, proteina, carbos, grasa, fibra });
+  // "por_plato": valores por plato servido (ej. PECAFIT), cargados como
+  // plato ÷ un peso de referencia: la regla de "más de 100 g en 100 g" no
+  // aplica (se registran siempre por plato); las demás sí.
+  const problemas = revisarAlimento({ nombre, grupo, kcal, proteina, carbos, grasa, fibra }, { porPlato: !!v.por_plato });
   if (v.estado === 'pendiente') { avisos.push(`${clave}: pendiente — ${v.nota || 'falta verificar'}`); continue; }
   if (v.estado !== 'verificado') errores.push(`${clave}: estado "${v.estado}" desconocido`);
   problemas.forEach(pr => errores.push(`${clave}: ${pr}`));

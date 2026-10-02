@@ -6022,24 +6022,21 @@ export default function App() {
     try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
   }
   async function deleteUser(username) {
-    setUsers(prev => prev.filter(u => u.username !== username));
     try {
-      // Borra todo el rastro del alumno (medidas, comidas, fotos, alimentos
-      // personales, notificaciones, ajustes y su plan). Su correo y
-      // contraseña de acceso quedan intactos: si vuelve a entrar, la app
-      // le muestra el aviso de "no encontramos tu perfil" en vez de
-      // fallar en silencio. Los pagos NO se borran, quedan como registro
-      // contable.
-      await supabase.from('datos_alumnos').delete().eq('username', username);
-      await supabase.from('historial').delete().eq('username', username);
-      await supabase.from('fotos_progreso').delete().eq('username', username);
-      await supabase.from('alimentos_personales').delete().eq('username', username);
-      await supabase.from('comidas_guardadas').delete().eq('username', username);
-      await supabase.from('push_subs').delete().eq('username', username);
-      await supabase.from('ajustes_membresia').delete().eq('username', username);
-      await supabase.from('alumnos').delete().eq('username', username);
-      await supabase.from('profiles').delete().eq('username', username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      // Borra todo: los datos del alumno (medidas, comidas, fotos, alimentos
+      // personales, notificaciones, ajustes y su plan) y también su acceso
+      // (correo y contraseña), en el servidor (api/eliminar-cuenta). Los
+      // pagos NO se borran, quedan como registro contable.
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/eliminar-cuenta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ username }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Intenta de nuevo.');
+      setUsers(prev => prev.filter(u => u.username !== username));
+    } catch (e) { alert('No se pudo eliminar: ' + (e?.message || 'Intenta de nuevo.')); }
   }
 
   async function logout() {

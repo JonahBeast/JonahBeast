@@ -39,6 +39,7 @@ import {
   todayISO,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
+import { analizarProgreso, resumenProgreso } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
 
@@ -5527,7 +5528,7 @@ function EmbudoPanel() {
   );
 }
 
-function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onToggleUser, onDeleteUser }) {
+function AlumnoRow({ u, progreso, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onToggleUser, onDeleteUser }) {
   const [expanded, setExpanded] = useState(false);
   const [dias, setDias] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -5565,6 +5566,11 @@ function AlumnoRow({ u, onRenew, onViewStudent, onAdjustDays, onActivarAddOnFoto
               <span className={act.color}>{act.text}</span>
               {u.codigoReferido && (<><span className="text-zinc-700">·</span><span className="text-orange-500">ref: {u.codigoReferido}</span></>)}
             </div>
+            {progreso && (
+              <div className={`text-xs mt-0.5 ${progreso.grupo === 'bien' ? 'text-emerald-400' : progreso.grupo === 'atencion' ? 'text-amber-400' : 'text-zinc-500'}`}>
+                {progreso.emoji} {progreso.texto}
+              </div>
+            )}
           </div>
         </div>
         <ChevronRight size={18} className={`text-zinc-600 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
@@ -7546,6 +7552,39 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
   const [ordenAlumnos, setOrdenAlumnos] = useState('actividad');
+  // Lo que la app le dice a cada alumno sobre su avance (mismo análisis de
+  // su pestaña Progreso, con sus últimos 30 días), para ver de un vistazo
+  // quién va bien y a quién hay que recomendarle otro camino.
+  const [progreso, setProgreso] = useState({});
+  const [filtroProgreso, setFiltroProgreso] = useState('todos');
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const desde = addDaysISO(todayISO(), -30);
+      const [{ data: hist }, { data: datos }] = await Promise.all([
+        traerTodas(() => supabase.from('historial').select('username, fecha, peso, kcal_consumidas, kcal_objetivo').gte('fecha', desde).order('fecha'), 'id'),
+        traerTodas(() => supabase.from('datos_alumnos').select('username, objetivo:form->>objetivo, pesoFecha:form->>pesoFecha'), 'username'),
+      ]);
+      if (cancelado) return;
+      const porAlumno = {};
+      (hist || []).forEach(r => { (porAlumno[r.username] = porAlumno[r.username] || []).push(r); });
+      const objetivo = {}, pesoFecha = {};
+      (datos || []).forEach(x => { objetivo[x.username] = x.objetivo || ''; pesoFecha[x.username] = x.pesoFecha || ''; });
+      const res = {};
+      Object.entries(porAlumno).forEach(([u, filas]) => {
+        let a = null;
+        try { a = analizarProgreso(filas.sort((x, y) => String(x.fecha).localeCompare(String(y.fecha))), { objetivo: objetivo[u] || '' }); } catch { a = null; }
+        const r = resumenProgreso(a);
+        // "Estancado" sin haberse vuelto a pesar en 2 semanas: la app lee el
+        // mismo peso de siempre, así que lo que falta es que se pese.
+        if (String(a?.estado || '').startsWith('estancado') && !(pesoFecha[u] >= addDaysISO(todayISO(), -14))) r.texto += ' · no se pesa hace +2 semanas';
+        res[u] = r;
+      });
+      setProgreso(res);
+    })().catch(() => {});
+    return () => { cancelado = true; };
+  }, [users.length]);
+  const progresoDe = u => progreso[u.username] || resumenProgreso(null);
 
   function submitNew(e) {
     e.preventDefault();
@@ -7565,6 +7604,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   }
 
   const usersFiltrados = users.filter(u => {
+    if (filtroProgreso !== 'todos' && progresoDe(u).grupo !== filtroProgreso) return false;
     if (!busqueda.trim()) return true;
     const q = busqueda.trim().toLowerCase();
     return (u.nombre || '').toLowerCase().includes(q) || u.username.toLowerCase().includes(q);
@@ -7723,8 +7763,28 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   ? seccionesConDatos.filter(s => s.key !== 'reto')
                   : seccionesConDatos.filter(s => s.key === filtroAlumnos);
 
+                const cuentaProgreso = g => users.filter(u => progresoDe(u).grupo === g).length;
+                const FILTROS_PROGRESO = [
+                  { key: 'bien', label: '✅ VAN BIEN', color: '#4affb0' },
+                  { key: 'atencion', label: '⚠️ OTRO CAMINO', color: '#ff9f43' },
+                  { key: 'datos', label: '🌱 SIN DATOS AÚN', color: '#6f92a8' },
+                ];
                 return (
                   <div className="flex flex-col gap-4">
+                    <div className="px-3 pt-3 -mb-2">
+                      <div className="font-mono text-[10px] tracking-widest mb-1.5" style={{ color: '#6f92a8' }}>SU AVANCE (LO QUE LES DICE LA APP)</div>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                        {FILTROS_PROGRESO.map(f => (
+                          <button key={f.key} onClick={() => setFiltroProgreso(v => v === f.key ? 'todos' : f.key)}
+                            className="shrink-0 font-mono text-[11px] tracking-wide px-3 py-1.5 rounded-full border transition-all whitespace-nowrap"
+                            style={filtroProgreso === f.key
+                              ? { background: f.color, borderColor: f.color, color: '#050a0f' }
+                              : { background: 'transparent', borderColor: '#163244', color: f.color }}>
+                            {f.label} · {cuentaProgreso(f.key)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex gap-1.5 overflow-x-auto px-3 pt-3 pb-1 -mb-1">
                       <button onClick={() => setFiltroAlumnos('todos')}
                         className="shrink-0 font-mono text-[11px] tracking-wide px-3 py-1.5 rounded-full border transition-all"
@@ -7755,7 +7815,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                           </div>
                           <div className="flex flex-col gap-2.5">
                             {grupos[s.key].map(u => (
-                              <AlumnoRow key={u.username} u={u}
+                              <AlumnoRow key={u.username} u={u} progreso={progresoDe(u)}
                                 onRenew={onRenew} onViewStudent={onViewStudent} onAdjustDays={onAdjustDays}
                                 onActivarAddOnFoto={onActivarAddOnFoto} onDesactivarAddOnFoto={onDesactivarAddOnFoto}
                                 onToggleUser={onToggleUser} onDeleteUser={onDeleteUser} />
@@ -7925,7 +7985,7 @@ function HistoriaAlumno({ username }) {
     (async () => {
       const [{ data: al }, { data: hist }, { data: pagos }, { data: ajustes }, { data: reg }, { data: cfg }, { data: subs }, { data: pedidos }, { data: datos }] = await Promise.all([
         supabase.from('alumnos').select('nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, created_at').eq('username', username).maybeSingle(),
-        traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso').eq('username', username).order('fecha')),
+        traerTodas(() => supabase.from('historial').select('fecha, comidas_count, peso, kcal_consumidas, kcal_objetivo').eq('username', username).order('fecha')),
         supabase.from('pagos').select('creado_en, monto, plan_meses, metodo, estado').eq('username', username).order('creado_en').range(0, 999),
         supabase.from('ajustes_membresia').select('created_at, dias, motivo').eq('username', username).order('created_at').range(0, 999),
         supabase.from('embudo_landing_eventos').select('fuente').eq('evento', 'registro').eq('username', username).limit(1),
@@ -7954,6 +8014,10 @@ function HistoriaAlumno({ username }) {
   for (let f = conComida.has(hoy) ? hoy : addDaysISO(hoy, -1); conComida.has(f); f = addDaysISO(f, -1)) racha++;
   const ultima = [...conComida].sort().pop() || null;
   const pesos = historialDePeso(d.form, d.hist, d.al);
+  // Lo mismo que le dice la app en su pestaña Progreso (últimos 30 días).
+  let coach = null;
+  try { coach = analizarProgreso(d.hist.filter(h => h.fecha >= addDaysISO(hoy, -30)), { objetivo: d.form?.objetivo || '' }); } catch { coach = null; }
+  const coachResumen = resumenProgreso(coach);
   const kg = pesos.length >= 2 ? pesos[0].kg - pesos[pesos.length - 1].kg : null;
   const esPrueba = d.al?.plan === 'trial' || d.al?.plan === 'prueba';
   const vence = d.al?.fecha_vencimiento;
@@ -7999,6 +8063,21 @@ function HistoriaAlumno({ username }) {
           </div>
         ))}
       </div>
+      {coach?.titulo && (
+        <div className={`bg-zinc-950 border rounded-lg p-3 ${coachResumen.grupo === 'bien' ? 'border-emerald-500/40' : coachResumen.grupo === 'atencion' ? 'border-amber-500/40' : 'border-zinc-800'}`}>
+          <div className="font-mono text-[10px] tracking-widest text-zinc-500 mb-1">LO QUE LE DICE LA APP{d.form?.objetivo ? ` · OBJETIVO: ${String(d.form.objetivo).toUpperCase()}` : ''}</div>
+          <h3 className={`jb-display text-sm mb-1 ${coachResumen.grupo === 'bien' ? 'text-emerald-400' : coachResumen.grupo === 'atencion' ? 'text-amber-400' : 'text-zinc-300'}`}>{coachResumen.emoji} {coach.titulo}</h3>
+          <p className="jb-body text-xs text-zinc-300 mb-1.5">{coach.mensaje}</p>
+          <p className="jb-body text-xs text-zinc-400"><span className="text-zinc-500">Lo que le recomienda:</span> {coach.accion}</p>
+          {(coach.adherencia !== null && coach.adherencia !== undefined || coach.constancia > 0) && (
+            <p className="jb-body text-[11px] text-zinc-500 mt-1.5">
+              {coach.adherencia !== null && coach.adherencia !== undefined ? `Cumple sus calorías ${coach.adherencia}% de los días` : ''}
+              {coach.adherencia !== null && coach.adherencia !== undefined && coach.constancia > 0 ? ' · ' : ''}
+              {coach.constancia > 0 ? `registra ${coach.constancia}% de los días` : ''}
+            </p>
+          )}
+        </div>
+      )}
       <GraficoHud titulo="COMIDAS POR DÍA · 30 DÍAS" datos={comidasDia} series={SERIE_LED_UNICA}
         formato={v => `${v} ${v === 1 ? 'comida' : 'comidas'}`} etiquetaCada={5} />
       {datosPeso.length >= 2 && (

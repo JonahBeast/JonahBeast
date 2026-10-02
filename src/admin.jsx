@@ -2095,7 +2095,7 @@ function EquiposPanel({ users }) {
     const desde = addDaysISO(todayISO(), -6);
     const [{ data: equipos }, { data: miembros }] = await Promise.all([
       supabase.from('equipos').select('*').eq('cerrado', false).order('created_at'),
-      traerTodas(() => supabase.from('equipo_miembros').select('equipo_id, username, unido_en, por_enlace').eq('activo', true)),
+      traerTodas(() => supabase.from('equipo_miembros').select('equipo_id, username, unido_en, por_enlace').eq('activo', true), ['equipo_id', 'username']),
     ]);
     const nombres = [...new Set((miembros || []).map(m => m.username))];
     const { data: hist } = nombres.length

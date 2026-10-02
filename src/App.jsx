@@ -3518,7 +3518,7 @@ function Bienvenida({ onEmpezar, onEntrar }) {
   );
 }
 
-function TrialSignup({ onBack, onCreated }) {
+function TrialSignup({ onBack, onCreated, onEntrar }) {
   const refDesdeURL = (() => {
     try { return new URLSearchParams(window.location.search).get('ref') || ''; } catch { return ''; }
   })();
@@ -3668,6 +3668,15 @@ function TrialSignup({ onBack, onCreated }) {
             {equipoInvita && (
               <p className="jb-body text-xs text-orange-300 mt-2">🦍 Te invitaron al equipo <b>{equipoInvita.nombre}{equipoInvita.apodo ? ` · ${equipoInvita.apodo}` : ''}</b>. Crea tu cuenta y entras con ellos.</p>
             )}
+            {/* Quien ya tiene cuenta y llega con un enlace de invitación cae
+                aquí: que entre con su cuenta en vez de crear otra. */}
+            {onEntrar && (
+              <button type="button" onClick={onEntrar}
+                className="mt-3 w-full jb-body text-sm text-zinc-300 border border-zinc-700 hover:border-orange-500 rounded-xl py-2.5 transition-colors">
+                ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
+                {equipoInvita && <span className="block text-[11px] text-zinc-500 mt-0.5">Entra con tu cuenta de siempre y te unes al equipo</span>}
+              </button>
+            )}
           </div>
 
           {!aviso && (
@@ -3737,6 +3746,11 @@ function TrialSignup({ onBack, onCreated }) {
                   Política de Privacidad
                 </a>
               </p>
+              {onEntrar && (
+                <button type="button" onClick={onEntrar} className="jb-body text-sm text-zinc-400 py-1">
+                  ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
+                </button>
+              )}
               <button type="button" onClick={onBack} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 mt-1">← Volver</button>
             </form>
           )}
@@ -6195,7 +6209,7 @@ export default function App() {
         irA(leerRecorrido() ? 'trial' : 'recorrido');
       }} />}
       {!tokenRef && view === 'recorrido' && <Recorrido onBack={volver} onListo={() => irA('trial')} />}
-      {!tokenRef && view === 'trial' && <TrialSignup onBack={volver} onCreated={handleTrialCreated} />}
+      {!tokenRef && view === 'trial' && <TrialSignup onBack={volver} onCreated={handleTrialCreated} onEntrar={() => irA('studentAuth')} />}
       {!tokenRef && view === 'adminAuth' && (
         <AdminAuth onBack={volver} busy={busy} onLogin={handleAdminLogin} />
       )}

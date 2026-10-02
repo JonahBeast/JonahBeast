@@ -97,6 +97,7 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
    - Si no pasa los datos: "Pon una edad entre 14 y 90 años.", "La estatura va en centímetros (ej. 165).", "Revisa tu peso en kilos (ej. 72).", "Tu peso meta debe ser menor/mayor a tu peso actual.".
    - Sus respuestas quedan guardadas en ese celular: si vuelve a tocar el botón, va directo a crear la cuenta. Al entrar por primera vez, **su objetivo, sus datos y su peso meta ya están cargados** (no tiene que volver a escribirlos) y su meta de calorías ya está calculada.
 1. La pantalla de registro dice **"GUARDA TU PLAN"** con "Tu meta: [kcal] y [g] de proteína al día" (si hizo el recorrido) o "CREA TU CUENTA GRATIS", y "Gratis para siempre, con Premium hasta el [fecha]".
+   - Debajo hay un botón **"¿Ya tienes cuenta? ENTRAR"** (también al final, debajo de "CREAR MI CUENTA GRATIS"): es para quien ya tiene cuenta y llegó aquí por un enlace de invitación (de un amigo o de un equipo). Que entre con su cuenta de siempre: **no debe crear otra**.
    - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
    - Si abriste la página desde **Instagram, Facebook, Messenger o TikTok** (por ejemplo, tocando un anuncio), en lugar del botón de Google sale: "Estás dentro de [app]: ahí Google no deja entrar." Esas apps no permiten el ingreso con Google. Regístrate con tu correo, o toca **⋯** arriba y elige **"Abrir en el navegador"** para usar Google. Lo mismo pasa en "Entrar con Google" al ingresar.
 2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"**, una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla) y **"Tu WhatsApp"** (obligatorio, 9 dígitos; "Para acompañarte y avisarte si se te pasa una comida. Nada de spam."). Si falta o está incompleto: "Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.".
@@ -568,7 +569,7 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 - **"Copiar enlace"**: copia solo el enlace, para pegarlo en otra red (Instagram, Facebook, Messenger, un estado). También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
 
 **Unirse con un enlace o código:**
-- Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**.
+- Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**. Si **ya tiene cuenta**, no debe crear otra: en esa pantalla toca **"¿Ya tienes cuenta? ENTRAR"** (arriba o abajo del formulario), entra con su cuenta de siempre y la invitación le aparece igual en "Equipo". A quien ya tiene cuenta el enlace no le cambia nada de su plan (el 10% es solo para cuentas nuevas).
 - Con el **código**: pestaña **"Equipo"** → **"Tengo un código"** → escribirlo → **"Entrar"**.
 - Máximo **30 integrantes** por equipo y **3 equipos** por persona (contando el Team Beast).
 

@@ -2172,7 +2172,7 @@ function EquiposPanel({ users }) {
             <button onClick={() => setAbierto(abierto === e.id ? null : e.id)} className="w-full text-left p-3 flex items-center gap-3">
               <span className="flex-1 min-w-0">
                 <span className="block jb-body text-sm text-zinc-100 font-semibold truncate">
-                  {e.oficial ? '🦍 ' : ''}{e.nombre}{apagado ? <span className="ml-2 text-[10px] text-amber-400 font-normal">💤 se apagó</span> : null}
+                  {e.oficial ? '🦍 ' : ''}{e.nombre}{e.apodo ? <span className="text-orange-400"> · {e.apodo}</span> : null}{apagado ? <span className="ml-2 text-[10px] text-amber-400 font-normal">💤 se apagó</span> : null}
                 </span>
                 <span className="block jb-body text-[11px] text-zinc-500">
                   Capitán: {e.oficial ? 'Jonah' : nombreDe(e.capitan)} · {ms.length} integrantes · {activos} activos · {comidas} comidas esta semana{inv ? ` · ${inv} por invitación` : ''}

@@ -50,6 +50,9 @@ const fechaLarga = iso => { const f = aFecha(iso); return `${DIAS_LARGOS[f.getDa
 const hoyISO = () => aISO(new Date());
 const proximoLunes = () => { const f = new Date(); const d = f.getDay(); f.setDate(f.getDate() + (d === 1 ? 7 : (8 - d) % 7)); return aISO(f); };
 
+// "Team Beast de Pedro · Los Imparables" (el apodo es opcional).
+const nombreCompleto = e => (e?.apodo ? `${e.nombre} · ${e.apodo}` : e?.nombre || '');
+
 const linkEquipo = (codigo, ref) =>
   `https://jonahbeast.com/?equipo=${encodeURIComponent(codigo)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}&fuente=equipo`;
 
@@ -58,10 +61,11 @@ function textoInvitacionEquipo(eq, ref) {
   if (eq.oficial) {
     return `Únete conmigo al Team Beast 🦍, el reto del mes con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
   }
-  return `¡Únete a mi equipo, el ${eq.nombre}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
+  return `¡Únete a mi equipo, el ${nombreCompleto(eq)}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
 }
 
 const ERRORES = {
+  apodo: 'Ese apodo no se puede usar. Prueba con otro (de 2 a 24 letras, sin groserías ni promesas de kilos).',
   nombre: 'Ese nombre no se puede usar. Prueba con otro (de 3 a 40 letras, sin groserías ni promesas de kilos).',
   whatsapp: 'Ese enlace no es de un grupo de WhatsApp. Debe empezar con https://chat.whatsapp.com/',
   muchos: 'Ya estás en 3 equipos, que es el máximo. Sal de uno para entrar a otro.',
@@ -149,6 +153,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
         <Tarjeta className="border-orange-500/60 mb-4">
           <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider mb-1">Te invitaron</p>
           <p className="jb-display text-xl text-zinc-50">{invitacion.nombre}</p>
+          {invitacion.apodo && <p className="jb-display text-base text-orange-400 -mt-0.5">{invitacion.apodo}</p>}
           <p className="jb-body text-xs text-zinc-400 mb-3">{invitacion.miembros} {invitacion.miembros === 1 ? 'integrante' : 'integrantes'}</p>
           <button onClick={() => unirse(invitacion.codigo, true)} disabled={ocupado} className={btnPrimary + ' w-full py-3'}>
             {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Unirme al equipo'}
@@ -190,6 +195,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block jb-display text-lg text-zinc-50 truncate">{e.nombre}</span>
+                    {e.apodo && <span className="block jb-display text-sm text-orange-400 truncate -mt-0.5">{e.apodo}</span>}
                     <span className="block jb-body text-xs text-zinc-500">
                       {e.miembros} {e.miembros === 1 ? 'integrante' : 'integrantes'}{e.capitan ? ' · eres el capitán' : ''}
                     </span>
@@ -270,6 +276,7 @@ function AyudaWhatsApp() {
 
 function CrearEquipo({ nombre, onCancelar, onCreado }) {
   const primero = String(nombre || '').trim().split(/\s+/)[0];
+  const [apodo, setApodo] = useState('');
   const titulo = `Team Beast de ${primero.length >= 2 ? primero.charAt(0).toUpperCase() + primero.slice(1).toLowerCase() : 'tu nombre'}`;
   const [dias, setDias] = useState(28);
   const [inicio, setInicio] = useState(proximoLunes());
@@ -280,7 +287,7 @@ function CrearEquipo({ nombre, onCancelar, onCreado }) {
   async function crear() {
     setError('');
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_crear', { p_nombre: titulo, p_dias: dias, p_inicio: inicio, p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_crear', { p_nombre: apodo.trim() || null, p_dias: dias, p_inicio: inicio, p_whatsapp: whatsapp.trim() || null });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     vibrar(30);
@@ -295,7 +302,12 @@ function CrearEquipo({ nombre, onCancelar, onCreado }) {
       <p className="jb-body text-sm text-zinc-400 mb-5">Invita a tu pareja, tu familia o tus compañeros del trabajo. Hasta 30 personas.</p>
       <Tarjeta>
         <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Tu equipo se llamará</p>
-        <p className="jb-display text-2xl text-orange-400 mb-4">{titulo.toUpperCase()} 🦍</p>
+        <p className="jb-display text-2xl text-zinc-50 leading-tight">{titulo.toUpperCase()} 🦍</p>
+        <p className="jb-display text-lg text-orange-400 mb-4 min-h-[1.75rem]">{apodo.trim() ? apodo.trim().toUpperCase() : ''}</p>
+        <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Apodo del equipo (opcional)</p>
+        <input value={apodo} onChange={e => setApodo(e.target.value.slice(0, 24))} placeholder="Ej. Los Imparables"
+          className={inputCls + ' w-full rounded-xl mb-1'} />
+        <p className="jb-body text-[11px] text-zinc-500 mb-4">Hasta 24 letras. Se verá así: "{titulo} · {apodo.trim() || 'Los Imparables'}". Lo puedes cambiar después.</p>
         <ElegirReto dias={dias} setDias={setDias} inicio={inicio} setInicio={setInicio} />
         <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Enlace de su grupo de WhatsApp (opcional)</p>
         <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
@@ -358,7 +370,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   }
 
   async function salir() {
-    if (!window.confirm(eq.oficial ? '¿Seguro que quieres salir del Team Beast?' : `¿Seguro que quieres salir de ${eq.nombre}?`)) return;
+    if (!window.confirm(eq.oficial ? '¿Seguro que quieres salir del Team Beast?' : `¿Seguro que quieres salir de ${nombreCompleto(eq)}?`)) return;
     const { ok, r, error: e } = await llamar('equipo_salir', { p_id: id });
     if (!ok) { showToast(mensajeError(r, e), 'error'); return; }
     showToast('Saliste del equipo. Cuando quieras, vuelves 🦍');
@@ -394,9 +406,10 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
       <div className="flex items-start justify-between gap-3 mb-1">
         <h1 className="jb-display text-3xl text-zinc-50 leading-tight break-words min-w-0">{eq.nombre.toUpperCase()}{eq.oficial ? ' 🦍' : ''}</h1>
         {eq.soy_capitan && !eq.oficial && (
-          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Grupo de WhatsApp del equipo"><Pencil size={16} /></button>
+          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Editar apodo y grupo de WhatsApp"><Pencil size={16} /></button>
         )}
       </div>
+      {eq.apodo && <p className="jb-display text-xl text-orange-400 -mt-1 mb-1">{eq.apodo.toUpperCase()}</p>}
       <p className="jb-body text-sm text-orange-300 mb-3">{subtitulo} · {eq.miembros.length} {eq.miembros.length === 1 ? 'integrante' : 'integrantes'}</p>
 
       {editar && <EditarEquipo eq={eq} onListo={() => { setEditar(false); cargar(); }} />}
@@ -534,13 +547,14 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
 }
 
 function EditarEquipo({ eq, onListo }) {
+  const [apodo, setApodo] = useState(eq.apodo || '');
   const [whatsapp, setWhatsapp] = useState(eq.whatsapp || '');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   async function guardar() {
     setError('');
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: eq.nombre, p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: eq.oficial ? null : apodo.trim() || null, p_whatsapp: whatsapp.trim() || null });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     showToast('✅ Equipo actualizado');
@@ -548,6 +562,13 @@ function EditarEquipo({ eq, onListo }) {
   }
   return (
     <Tarjeta className="mb-3">
+      {!eq.oficial && (
+        <>
+          <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Apodo del equipo (opcional)</p>
+          <input value={apodo} onChange={e => setApodo(e.target.value.slice(0, 24))} placeholder="Ej. Los Imparables"
+            className={inputCls + ' w-full rounded-xl mb-3'} />
+        </>
+      )}
       <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Enlace del grupo de WhatsApp</p>
       <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
         inputMode="url" className={inputCls + ' w-full rounded-xl'} />

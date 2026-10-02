@@ -555,11 +555,11 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 
 **Team Beast (el oficial):** el reto del mes con Jonah de capitán (ej. "Reto de octubre con Jonah"). Empieza el día 1 y termina el último día de cada mes; el siguiente arranca solo. Para entrar: pestaña **"Equipo"** → **"Unirme al Team Beast"**.
 
-**Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). El nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán.
+**Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). Ese nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán. Además, el capitán puede ponerle un **apodo** opcional (de 2 a 24 letras, sin groserías ni promesas de kilos), y se ve como **"Team Beast de Pedro · Los Imparables"**. El Team Beast oficial no lleva apodo.
 
 **Crear un equipo propio:**
 1. Pestaña **"Equipo"** → **"Crear mi equipo"**.
-2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Elige la **duración del reto** (**14, 28 o 56 días**) y **cuándo empiezan** (**"Hoy"** o el próximo **lunes**).
+2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Si quieres, escribe un **"Apodo del equipo (opcional)"** (ej. "Los Imparables"). Elige la **duración del reto** (**14, 28 o 56 días**) y **cuándo empiezan** (**"Hoy"** o el próximo **lunes**).
 3. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
 4. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍). Cada persona puede ser capitán de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
 
@@ -586,7 +586,7 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - "🔥 [Nombre] le mandó ánimo a [Nombre]"
   Junto a los logros de los compañeros hay un botón (👏 ¡Bien ahí!, 🔥 ¡Sigue así! o 💪 ¡Vamos!) para mandarle ánimo ahí mismo (cuenta como el ánimo del día para esa persona). Solo cuenta lo que pasó desde que cada uno entró al equipo. Al principio sale vacía ("Todavía no hay movimiento…").
 - **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos y la actividad; la conversación libre es en WhatsApp. En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
-- El **capitán** puede poner o cambiar el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
+- El **capitán** puede poner o cambiar el **apodo** y el enlace del grupo de WhatsApp (lápiz ✏️ arriba a la derecha) y, cuando el reto termina, **"ARRANCA OTRO RETO"**.
 - **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 
 Problemas:

@@ -3666,7 +3666,7 @@ function TrialSignup({ onBack, onCreated }) {
               <p className="jb-body text-xs text-orange-300 mt-2">🎁 Incluye +{diasCodigoLive()} días de Premium por tu código del live.</p>
             )}
             {equipoInvita && (
-              <p className="jb-body text-xs text-orange-300 mt-2">🦍 Te invitaron al equipo <b>{equipoInvita.nombre}</b>. Crea tu cuenta y entras con ellos.</p>
+              <p className="jb-body text-xs text-orange-300 mt-2">🦍 Te invitaron al equipo <b>{equipoInvita.nombre}{equipoInvita.apodo ? ` · ${equipoInvita.apodo}` : ''}</b>. Crea tu cuenta y entras con ellos.</p>
             )}
           </div>
 

@@ -3529,6 +3529,15 @@ function TrialSignup({ onBack, onCreated }) {
   const [aviso, setAviso] = useState('');
   const [refEstado, setRefEstado] = useState(null); // {ok, nombre} | {ok:false}
   const [refConfirmado, setRefConfirmado] = useState(false);
+  // Llegó con la invitación de un equipo (?equipo=): al crear su cuenta,
+  // la pestaña Equipo le ofrece unirse (ver src/equipo.jsx).
+  const [equipoInvita, setEquipoInvita] = useState(null);
+  useEffect(() => {
+    let codigo = '';
+    try { codigo = localStorage.getItem('jb-equipo-invitacion') || ''; } catch {}
+    if (!codigo) return;
+    supabase.rpc('equipo_por_codigo', { p_codigo: codigo }).then(({ data }) => { if (data?.nombre) setEquipoInvita(data); }, () => {});
+  }, []);
   // El campo de código se esconde tras "¿Tienes un código?" para que el
   // formulario se vea más corto; si llegó con ?ref= se abre ya lleno.
   const [verReferido, setVerReferido] = useState(!!refDesdeURL);
@@ -3655,6 +3664,9 @@ function TrialSignup({ onBack, onCreated }) {
             )}
             {diasCodigoLive() > 0 && (
               <p className="jb-body text-xs text-orange-300 mt-2">🎁 Incluye +{diasCodigoLive()} días de Premium por tu código del live.</p>
+            )}
+            {equipoInvita && (
+              <p className="jb-body text-xs text-orange-300 mt-2">🦍 Te invitaron al equipo <b>{equipoInvita.nombre}{equipoInvita.apodo ? ` · ${equipoInvita.apodo}` : ''}</b>. Crea tu cuenta y entras con ellos.</p>
             )}
           </div>
 
@@ -5577,7 +5589,13 @@ export default function App() {
         }
         return 'free';
       }
-      return new URLSearchParams(window.location.search).get('ref') ? 'trial' : 'landing';
+      const params = new URLSearchParams(window.location.search);
+      // Invitación de un equipo: se guarda para unirse apenas entre.
+      const equipo = params.get('equipo');
+      if (equipo && /^[A-Za-z0-9]{4,8}$/.test(equipo)) {
+        try { localStorage.setItem('jb-equipo-invitacion', equipo.toUpperCase()); } catch {}
+      }
+      return params.get('ref') || equipo ? 'trial' : 'landing';
     } catch { return 'landing'; }
   });
   const [linkCalculadora] = useState(esLinkCalculadora);

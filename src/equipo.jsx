@@ -1,6 +1,7 @@
 // EQUIPOS: retos en grupo (pestaña "Equipo" de la app del alumno).
 //
-// - El Team Beast oficial: el reto del mes con Jonah de capitán.
+// - El Team Beast oficial: el reto con Jonah de capitán (Jonah elige
+//   cuándo empieza y cuánto dura).
 // - Equipos propios: "Team Beast de [capitán]" (el nombre lo pone la base,
 //   no se elige). Los arma un alumno, invita por WhatsApp con un
 //   código o un enlace (jonahbeast.com/?equipo=CODIGO), máximo 30.
@@ -59,7 +60,7 @@ const linkEquipo = (codigo, ref) =>
 function textoInvitacionEquipo(eq, ref) {
   const link = linkEquipo(eq.codigo, ref);
   if (eq.oficial) {
-    return `Únete conmigo al Team Beast 🦍, el reto del mes con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
+    return `Únete conmigo al Team Beast 🦍, el reto en grupo con Jonah en Jonah Beast Fuel. Registramos lo que comemos y nos damos ánimo: el cambio llega poco a poco, comida a comida. Entra aquí: ${link}`;
   }
   return `¡Únete a mi equipo, el ${nombreCompleto(eq)}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida. Entra con este enlace: ${link} (o pon el código ${eq.codigo} en la pestaña Equipo)`;
 }
@@ -175,7 +176,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
               <p className="relative jb-body text-[11px] text-orange-300 uppercase tracking-wider">El equipo oficial</p>
               <p className="relative jb-display text-2xl text-zinc-50 mb-1">TEAM BEAST 🦍</p>
               <p className="relative jb-body text-sm text-zinc-300 mb-1">
-                El reto de {MESES[new Date().getMonth()]} con Jonah de capitán. Registra tus comidas, suma puntos y recibe ánimo del equipo.
+                El reto en grupo con Jonah de capitán. Registra tus comidas, suma puntos y recibe ánimo del equipo.
               </p>
               <p className="relative jb-body text-xs text-zinc-500 mb-4">{mis.oficial.miembros} {mis.oficial.miembros === 1 ? 'integrante' : 'integrantes'}</p>
               <button onClick={() => unirse(mis.oficial.codigo)} disabled={ocupado || !puedeMas} className={btnPrimary + ' relative w-full py-3'}>
@@ -250,6 +251,7 @@ function IngresarCodigo({ ocupado, onUnirse }) {
 
 function ElegirReto({ dias, setDias, inicio, setInicio }) {
   const lunes = proximoLunes();
+  const lunes2 = masDias(lunes, 7);
   const chip = activo => `jb-body text-sm py-2.5 rounded-xl border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`;
   return (
     <>
@@ -258,9 +260,10 @@ function ElegirReto({ dias, setDias, inicio, setInicio }) {
         {[14, 28, 56].map(d => <button key={d} type="button" onClick={() => setDias(d)} className={chip(dias === d)}>{d} días</button>)}
       </div>
       <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">¿Cuándo empiezan?</p>
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         <button type="button" onClick={() => setInicio(hoyISO())} className={chip(inicio === hoyISO())}>Hoy</button>
         <button type="button" onClick={() => setInicio(lunes)} className={chip(inicio === lunes)}>Lunes {fechaCorta(lunes)}</button>
+        <button type="button" onClick={() => setInicio(lunes2)} className={chip(inicio === lunes2)}>Lunes {fechaCorta(lunes2)}</button>
       </div>
     </>
   );
@@ -339,6 +342,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   const [animosNuevos, setAnimosNuevos] = useState([]);
   const [ref, setRef] = useState(null); // código de invitación personal (10% para el amigo)
   const [editar, setEditar] = useState(false);
+  const [programar, setProgramar] = useState(false);
   const [error, setError] = useState('');
 
   async function cargar(lunes = semana) {
@@ -392,8 +396,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   }
   if (!eq) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-orange-500" size={24} /></div>;
 
-  const mesReto = MESES[aFecha(eq.inicio).getMonth()];
-  const subtitulo = eq.oficial ? `Reto de ${mesReto} con Jonah` : `Reto de ${eq.dias} días`;
+  const subtitulo = eq.oficial ? `Reto de ${eq.dias} días con Jonah` : `Reto de ${eq.dias} días`;
   const empezo = eq.dia_actual > 0;
   const avance = Math.min(1, eq.dia_actual / eq.dias);
   const hoy = hoyISO();
@@ -452,7 +455,15 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
         </div>
       </Tarjeta>
 
-      {eq.terminado && eq.soy_capitan && !eq.oficial && <NuevoReto id={id} onListo={() => { setSemana(null); cargar(null); }} />}
+      {eq.soy_capitan && (eq.terminado ? (
+        <NuevoReto id={id} titulo="ARRANCA OTRO RETO" boton="Empezar nuevo reto" onListo={() => { setSemana(null); cargar(null); }} />
+      ) : (eq.oficial || !empezo) && (programar ? (
+        <NuevoReto id={id} titulo="PROGRAMA EL RETO" boton="Guardar fechas" dias={eq.dias} inicio={eq.inicio > hoy ? eq.inicio : null}
+          ayuda={empezo ? 'El reto ya está en marcha: si cambias la fecha, empieza de nuevo desde ese día.' : 'Mientras tanto, la gente se puede unir e invitar a otros.'}
+          onCancelar={() => setProgramar(false)} onListo={() => { setProgramar(false); setSemana(null); cargar(null); }} />
+      ) : (
+        <button onClick={() => setProgramar(true)} className={btnGhost + ' w-full py-2.5 mb-3 rounded-xl text-sm'}>📅 Cambiar cuándo empieza y cuánto dura</button>
+      )))}
 
       <Tarjeta className="mb-3 px-3">
         <div className="flex items-center justify-between mb-3">
@@ -581,25 +592,27 @@ function EditarEquipo({ eq, onListo }) {
   );
 }
 
-function NuevoReto({ id, onListo }) {
-  const [dias, setDias] = useState(28);
-  const [inicio, setInicio] = useState(proximoLunes());
+function NuevoReto({ id, titulo, boton, ayuda, dias: diasAntes, inicio: inicioAntes, onListo, onCancelar }) {
+  const [dias, setDias] = useState([14, 28, 56].includes(diasAntes) ? diasAntes : 28);
+  const [inicio, setInicio] = useState(inicioAntes || proximoLunes());
   const [ocupado, setOcupado] = useState(false);
   async function empezar() {
     setOcupado(true);
     const { r, ok, error } = await llamar('equipo_nuevo_reto', { p_id: id, p_dias: dias, p_inicio: inicio });
     setOcupado(false);
     if (!ok) { showToast(mensajeError(r, error), 'error'); return; }
-    showToast('🔥 ¡Nuevo reto en marcha! Vamos otra vez.');
+    showToast(inicio === hoyISO() ? '🔥 ¡Reto en marcha desde hoy! Vamos juntos.' : `📅 Listo: el reto empieza el ${fechaLarga(inicio)}.`);
     onListo();
   }
   return (
     <Tarjeta className="mb-3 border-orange-500/40">
-      <p className="jb-display text-base text-zinc-100 mb-3">ARRANCA OTRO RETO</p>
+      <p className="jb-display text-base text-zinc-100 mb-1">{titulo}</p>
+      {ayuda ? <p className="jb-body text-[11px] text-zinc-500 mb-3">{ayuda}</p> : <div className="mb-2" />}
       <ElegirReto dias={dias} setDias={setDias} inicio={inicio} setInicio={setInicio} />
       <button onClick={empezar} disabled={ocupado} className={btnPrimary + ' w-full py-3 rounded-xl'}>
-        {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Empezar nuevo reto'}
+        {ocupado ? <Loader2 className="animate-spin" size={16} /> : boton}
       </button>
+      {onCancelar && <button onClick={onCancelar} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Cancelar</button>}
     </Tarjeta>
   );
 }

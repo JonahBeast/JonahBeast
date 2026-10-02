@@ -8647,13 +8647,34 @@ async function traerCorreosAlumnos(usernames) {
 const CLAVE_LANZAMIENTO_OCULTO = 'team_beast_lanzamiento_oculto';
 const LINK_TEAM_BEAST = 'https://jonahbeast.com/?equipo=BEAST';
 
-function mensajesLanzamiento(comunidad) {
+// "lunes 5 de octubre" (fecha ISO → texto).
+const DIAS_TEXTO = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function fechaEnTexto(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const f = new Date(y, m - 1, d);
+  return `${DIAS_TEXTO[f.getDay()]} ${d} de ${MESES_LARGOS[m - 1]}`;
+}
+
+// reto = { inicio, dias } del Team Beast (puede faltar mientras carga).
+function mensajesLanzamiento(comunidad, reto) {
+  const hoy = todayISO();
+  const fin = reto ? addDaysISO(reto.inicio, reto.dias - 1) : null;
+  const porEmpezar = !!reto && reto.inicio > hoy;
+  const enMarcha = !!reto && reto.inicio <= hoy && fin >= hoy;
+  const cuandoAlumnos = porEmpezar
+    ? `Arrancamos el *${fechaEnTexto(reto.inicio)}*: son ${reto.dias} días. Únete desde ya para empezar juntos desde el primer día 🔥`
+    : enMarcha
+      ? `El reto ya está en marcha (termina el ${fechaEnTexto(fin)}) y todavía estás a tiempo: cada comida que registres suma. Ahí te veo en el ranking 🔥`
+      : 'Únete desde ya y arrancamos juntos 🔥';
+  const cuandoComunidad = porEmpezar
+    ? `Arrancamos el ${fechaEnTexto(reto.inicio)}: ${reto.dias} días juntos. ¡Prepárense! 🔥`
+    : enMarcha ? `¡Reto en marcha hasta el ${fechaEnTexto(fin)}!` : '¡Ya viene el próximo reto!';
   return [
     {
       id: 'alumnos', titulo: '1. Para tus alumnos', ayuda: 'Por WhatsApp, uno a uno o por lista de difusión.',
       texto: `¡Hola! Soy Jonah 🦍
 
-Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, el reto del mes dentro de la app, y yo soy el capitán 💪
+Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, un reto en grupo dentro de la app, y yo soy el capitán 💪
 
 ¿Cómo funciona? Simple: cada día que registras tus comidas sumas puntos. Con 3 comidas o más, el día queda con ✓. Aquí *no gana el que más baja, gana el más constante*. Y nadie ve tu peso ni lo que comes, solo tus días cumplidos.
 
@@ -8666,7 +8687,7 @@ Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio r
 
 O entra directo aquí: ${LINK_TEAM_BEAST}
 ${comunidad ? `\nY únete a nuestra comunidad de WhatsApp: ${comunidad}\n` : ''}
-Ya empezamos el reto del mes y todavía estás a tiempo: cada comida que registres suma. Ahí te veo en el ranking 🔥 Cualquier duda, me escribes aquí.
+${cuandoAlumnos} Cualquier duda, me escribes aquí.
 
 Vamos juntos. No estás solo/a, yo te acompaño 🦍`,
     },
@@ -8683,12 +8704,12 @@ Y pueden mandarse ánimo con un toque 💪🔥👏
 
 Yo también registro mis comidas todos los días, como uno más del equipo. No se trata de ser perfectos, se trata de no soltar. El cambio llega poco a poco, comida a comida.
 
-¡Reto del mes en marcha! Si tienen dudas, me escriben por privado 💪`,
+${cuandoComunidad} Si tienen dudas, me escriben por privado 💪`,
     },
     {
       id: 'historia', titulo: '3. Historia de Instagram o estado', ayuda: 'Sin números de peso, para cuidar las reglas de Instagram y Facebook.',
       texto: `🦍 TEAM BEAST
-El reto del mes en la app, conmigo de capitán.
+El reto en grupo de la app, conmigo de capitán.
 Registra tus comidas, suma puntos y recibe ánimo del equipo.
 Aquí gana el más constante 💪
 👉 jonahbeast.com/?equipo=BEAST`,
@@ -8699,13 +8720,14 @@ Aquí gana el más constante 💪
 function TeamBeastLanzamiento() {
   const [oculto, setOculto] = useState(null);
   const [comunidad, setComunidad] = useState('');
+  const [reto, setReto] = useState(null);
   const [abierto, setAbierto] = useState(null);
 
   useEffect(() => {
     supabase.from('config').select('value').eq('key', CLAVE_LANZAMIENTO_OCULTO).maybeSingle()
       .then(({ data }) => setOculto(data?.value === '1'), () => setOculto(false));
-    supabase.from('equipos').select('whatsapp').eq('oficial', true).eq('cerrado', false).maybeSingle()
-      .then(({ data }) => setComunidad(data?.whatsapp || ''), () => {});
+    supabase.from('equipos').select('whatsapp, inicio, dias').eq('oficial', true).eq('cerrado', false).maybeSingle()
+      .then(({ data }) => { setComunidad(data?.whatsapp || ''); if (data?.inicio) setReto({ inicio: data.inicio, dias: data.dias }); }, () => {});
   }, []);
 
   async function cambiarOculto(valor) {
@@ -8732,9 +8754,10 @@ function TeamBeastLanzamiento() {
       <p className="jb-body text-[11px] text-zinc-400 mt-0.5 mb-3">
         Mensajes listos con tu voz. Toca "Copiar" o "Enviar por WhatsApp" (eliges a quién o a tu lista de difusión).
         {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → Crecimiento → Equipos), se agrega solo al mensaje 1.'}
+        {' '}La fecha del reto sale de lo que programaste en la app (pestaña "Equipo" → "📅 Cambiar cuándo empieza y cuánto dura").
       </p>
       <div className="flex flex-col gap-2">
-        {mensajesLanzamiento(comunidad).map(m => (
+        {mensajesLanzamiento(comunidad, reto).map(m => (
           <div key={m.id} className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
             <p className="jb-body text-sm text-zinc-100">{m.titulo}</p>
             <p className="jb-body text-[11px] text-zinc-500 mb-2">{m.ayuda}</p>

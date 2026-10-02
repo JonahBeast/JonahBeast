@@ -19,9 +19,10 @@ import { traerTodas } from './traerTodas.js';
                              llegara a registrar nada. Solo los vencidos en
                              los últimos 60 días.
    🟢 ACOMPAÑAMIENTO
-     7. 🙌 Celebrar        — acaba de pagar, cumplió una racha (7, 14, 21,
-                             30, 60, 90 días), bajó un kilo más, cumple
-                             meses con la app o cumpleaños.
+     7. 🙌 Celebrar        — ganó una medalla del podio en el Team Beast
+                             (🥇🥈🥉), acaba de pagar, cumplió una racha (7,
+                             14, 21, 30, 60, 90 días), bajó un kilo más,
+                             cumple meses con la app o cumpleaños.
 
    Si la bienvenida automática por WhatsApp (plantilla) ya le llegó, no se
    repite a mano.
@@ -95,7 +96,7 @@ function escritoDe(escritos, username) {
    del servidor). */
 export async function cargarDatosCarino(supabase, hoyISO) {
   const desde = sumarDias(hoyISO, -120);
-  const [{ data: alumnos }, { data: hist }, { data: pagos }, { data: cfg }, { data: est }, { data: subs }, { data: auto }] = await Promise.all([
+  const [{ data: alumnos }, { data: hist }, { data: pagos }, { data: cfg }, { data: est }, { data: subs }, { data: auto }, { data: meds }] = await Promise.all([
     traerTodas(() => supabase.from('alumnos').select('username, nombre, telefono, plan, enabled, fecha_inicio, fecha_vencimiento, fecha_nacimiento, created_at')
       .eq('enabled', true).gte('fecha_vencimiento', sumarDias(hoyISO, -60)), 'username'),
     traerTodas(() => supabase.from('historial').select('username, fecha, comidas_count, peso')
@@ -107,11 +108,16 @@ export async function cargarDatosCarino(supabase, hoyISO) {
     traerTodas(() => supabase.from('push_subs').select('username').eq('activa', true)),
     supabase.from('whatsapp_mensajes').select('telefono').eq('tipo', 'bienvenida_auto')
       .gte('creado_en', new Date(Date.now() - 3 * 86400000).toISOString()).range(0, 999),
+    // Medallas del podio del Team Beast repartidas en los últimos 3 días.
+    supabase.from('equipo_medallas').select('username, medalla, equipos!inner(oficial, premio)')
+      .eq('equipos.oficial', true).in('medalla', ['oro', 'plata', 'bronce'])
+      .gte('created_at', new Date(Date.now() - 3 * 86400000).toISOString()).range(0, 999),
   ]);
   return {
     alumnos: alumnos || [], hist: hist || [], pagos: pagos || [], escritos: leerEscritos(cfg?.value),
     estados: est || [], conAvisos: (subs || []).map(s => s.username),
     bienvenidaAuto: (auto || []).map(m => nueve(m.telefono)),
+    medallasTeam: (meds || []).map(m => ({ username: m.username, medalla: m.medalla, premio: m.equipos?.premio || null })),
   };
 }
 
@@ -202,7 +208,7 @@ export const MOTIVO_AVISOS = {
   sin_activar: 'Nunca activó los avisos',
 };
 
-export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [], conAvisos = [], bienvenidaAuto = [], correos = {}, hoyISO, ahora = Date.now(), incluirHechos = false }) {
+export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [], conAvisos = [], bienvenidaAuto = [], medallasTeam = [], correos = {}, hoyISO, ahora = Date.now(), incluirHechos = false }) {
   const ayer = sumarDias(hoyISO, -1);
   const porUsuario = {};
   (hist || []).forEach(h => { (porUsuario[h.username] = porUsuario[h.username] || []).push(h); });
@@ -287,6 +293,12 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
         }
       }
       // 6. Celebrar.
+      const medalla = medallasTeam.find(m => m.username === a.username);
+      if (medalla) {
+        const lugar = { oro: '🥇 primer lugar', plata: '🥈 segundo lugar', bronce: '🥉 tercer lugar' }[medalla.medalla];
+        return { etapa: 'celebrar', motivo: `Ganó el ${lugar} del Team Beast 🏆`,
+          mensaje: `¡${n || 'Hola'}, ${lugar} del Team Beast! 🏆 Fuiste de los más constantes de todo el reto, y eso es lo que de verdad trae los resultados: disciplina, comida a comida.${medalla.premio ? ` Te ganaste tu premio: ${medalla.premio}. Escríbeme y lo coordinamos 🙌` : ''} Estoy orgulloso de ti. ¡Vamos por el siguiente reto juntos! 🦍` };
+      }
       if (pagaron.has(a.username)) {
         return { etapa: 'celebrar', motivo: 'Acaba de pagar su plan',
           mensaje: `¡${n || 'Hola'}, gracias por confiar en mí! 🙌 Ya tienes tu plan activo y desde hoy vamos juntos. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, entrenamiento y disciplina, comida a comida, y sé que tú también puedes avanzar a tu ritmo. Cualquier duda, escríbeme por aquí. ¡Vamos con todo! 🦍` };

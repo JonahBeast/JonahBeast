@@ -11,6 +11,12 @@
 //   corto, sus casillas y sus puntos (lo arma la base en equipo_ver).
 // - Ánimos de un toque (💪 🔥 👏) que le llegan al compañero como aviso.
 // - La conversación del equipo va en su grupo de WhatsApp (botón).
+// - Tres tipos de reto (equipos.objetivo): 🍽️ comer mejor, 🤝 meta juntos
+//   (bajar de peso en equipo) y 🏁 carrera (gana el primero en llegar).
+//   Meta y premio del capitán; podio 🥇🥈🥉 siempre por constancia. El peso
+//   cuenta solo si cada uno elige compartir su avance (nunca se ve el peso,
+//   solo kilos bajados), con tope de 1% por semana. Al terminar, la tarea
+//   diaria api/cron/equipos-cierre.js reparte las medallas.
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Copy, KeyRound, LogOut, Pencil, Users } from 'lucide-react';
 import { supabase } from './supabaseClient';
@@ -39,6 +45,36 @@ const ANIMOS = [
   { tipo: 'sigue', emoji: '🔥', texto: '¡Sigue así!' },
   { tipo: 'bien', emoji: '👏', texto: '¡Bien ahí!' },
 ];
+const OBJETIVOS = [
+  { id: 'comer', emoji: '🍽️', titulo: 'Comer mejor', ayuda: 'Gana el más constante registrando sus comidas.' },
+  { id: 'juntos', emoji: '🤝', titulo: 'Meta juntos', ayuda: 'Bajar de peso en equipo: se ayudan para llegar a una meta común. Ideal para la familia.' },
+  { id: 'carrera', emoji: '🏁', titulo: 'Carrera', ayuda: 'Compiten entre ustedes: gana el primero que llegue a la meta.' },
+];
+const TIPOS_META = {
+  juntos: [
+    { id: 'kg_cada', texto: 'Cada uno baja', unidad: 'kg' },
+    { id: 'kg_total', texto: 'Entre todos', unidad: 'kg' },
+    { id: 'pct_total', texto: 'Entre todos', unidad: '%' },
+  ],
+  carrera: [
+    { id: 'carrera_kg', texto: 'El primero en bajar', unidad: 'kg' },
+    { id: 'carrera_pct', texto: 'El primero en bajar', unidad: '%' },
+  ],
+};
+const EJEMPLO_PREMIO = {
+  comer: 'Ej. El 🥇 elige la próxima salida',
+  juntos: 'Ej. Si llegamos, parrillada familiar 🍖',
+  carrera: 'Ej. Los demás le invitan el ceviche 🐟',
+};
+export const MEDALLAS = {
+  oro: { emoji: '🥇', texto: 'Oro' },
+  plata: { emoji: '🥈', texto: 'Plata' },
+  bronce: { emoji: '🥉', texto: 'Bronce' },
+  meta: { emoji: '🏆', texto: 'Meta del equipo' },
+  meta_personal: { emoji: '🎯', texto: 'Meta cumplida' },
+  carrera: { emoji: '🏁', texto: 'Ganó la carrera' },
+};
+const fmtNum = n => (Math.round(Number(n || 0) * 10) / 10).toLocaleString('es-PE');
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const DIAS_CORTOS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -74,6 +110,10 @@ const ERRORES = {
   no_existe: 'No encontramos un equipo con ese código. Revísalo y prueba otra vez.',
   datos: 'Revisa los datos e intenta de nuevo.',
   ya_capitan: 'Ya eres capitán de un equipo. En otros equipos puedes estar como integrante.',
+  premio: 'Ese premio no se puede usar. Escríbelo de otra forma (de 2 a 80 letras, sin groserías).',
+  meta: 'Revisa la meta: falta el número o no corresponde al tipo de reto.',
+  meta_rapida: 'Esa meta es muy rápida para hacerla bien. Dales más tiempo o pon una meta menor (como mucho 1 kg o 1% por semana).',
+  oficial_comer: 'El Team Beast es un reto de comer mejor.',
   en_curso: 'El reto todavía no termina.',
 };
 const mensajeError = (r, error) => (error ? 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' : ERRORES[r?.error] || 'Algo falló. Intenta de nuevo.');
@@ -185,6 +225,8 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
             </div>
           )}
 
+          {mis.medallas?.length > 0 && <MisMedallas medallas={mis.medallas} />}
+
           {mis.equipos.length > 0 && (
             <div className="space-y-2 mb-4">
               <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider">Mis equipos</p>
@@ -223,7 +265,8 @@ export function EquipoTab({ username, nombre, onAnimosVistos }) {
               <li><span className="text-orange-400 font-semibold">✓ 10 puntos:</span> registraste 3 comidas o más ese día.</li>
               <li><span className="text-orange-300 font-semibold">– 5 puntos:</span> registraste 1 o 2 comidas.</li>
               <li><span className="text-zinc-500 font-semibold">✗ 0 puntos:</span> ese día no registraste.</li>
-              <li>Gana el más constante, no el que más baja. Tu peso y lo que comes no los ve nadie del equipo.</li>
+              <li>Tres tipos de reto: 🍽️ <b>comer mejor</b>, 🤝 <b>meta juntos</b> (bajar de peso en equipo) y 🏁 <b>carrera</b> (gana el primero en llegar a la meta).</li>
+              <li>El podio 🥇🥈🥉 es siempre para los más constantes, no para el que más baja. Tu peso no lo ve nadie: si quieres, compartes solo tus kilos bajados.</li>
               <li>Mándale ánimo a tus compañeros con un toque: les llega al celular.</li>
             </ul>
           </Tarjeta>
@@ -249,22 +292,151 @@ function IngresarCodigo({ ocupado, onUnirse }) {
   );
 }
 
-function ElegirReto({ dias, setDias, inicio, setInicio }) {
+// Configuración del reto (al crear el equipo o al programar un reto): tipo
+// de reto, meta, cuándo empieza, cuánto dura y premio. c = { objetivo,
+// metaTipo, metaValor, inicio, dias, hasta, premio }; hasta = fecha final
+// elegida a mano (si no, dura `dias`).
+const diasDelReto = c => (c.hasta ? Math.round((aFecha(c.hasta) - aFecha(c.inicio)) / 86400000) + 1 : c.dias);
+
+function configInicial(eq) {
+  const objetivo = eq?.objetivo || 'comer';
+  const dias = eq ? eq.dias : 28;
+  return {
+    objetivo,
+    metaTipo: eq?.meta_tipo || (objetivo === 'juntos' ? 'kg_cada' : objetivo === 'carrera' ? 'carrera_kg' : 'comidas'),
+    metaValor: eq?.meta_valor != null ? String(eq.meta_valor) : '',
+    inicio: eq?.inicio && eq.inicio > hoyISO() ? eq.inicio : proximoLunes(),
+    dias: [14, 28, 56].includes(dias) ? dias : 28,
+    hasta: eq && ![14, 28, 56].includes(dias) && eq.inicio > hoyISO() ? eq.fin : null,
+    premio: eq?.premio || '',
+  };
+}
+
+// Mismo control que hace la base (private.equipo_meta_error): como mucho
+// 1 kg o 1% por persona por semana.
+function errorConfig(c, oficial) {
+  const dias = diasDelReto(c);
+  if (!(dias >= 14 && dias <= 120)) return 'El reto debe durar entre 14 y 120 días.';
+  const v = Number(String(c.metaValor).replace(',', '.'));
+  if (c.objetivo === 'comer') {
+    if (oficial || !String(c.metaValor).trim()) return '';
+    return v >= 10 ? '' : 'La meta de comidas debe ser de 10 o más (o déjala vacía).';
+  }
+  if (!(v > 0)) return 'Escribe el número de la meta.';
+  const semanas = dias / 7;
+  if (['kg_cada', 'carrera_kg', 'pct_total', 'carrera_pct'].includes(c.metaTipo) && v > semanas) {
+    const u = c.metaTipo.endsWith('pct') || c.metaTipo === 'pct_total' ? '%' : ' kg';
+    return `Muy rápido para hacerlo bien: en ${Math.round(semanas)} semanas, como mucho ${fmtNum(Math.floor(semanas * 10) / 10)}${u}. Dales más tiempo o baja la meta.`;
+  }
+  return '';
+}
+
+function paramsConfig(c) {
+  const v = Number(String(c.metaValor).replace(',', '.'));
+  const conMeta = c.objetivo !== 'comer' || String(c.metaValor).trim() !== '';
+  return {
+    p_dias: diasDelReto(c),
+    p_inicio: c.inicio,
+    p_objetivo: c.objetivo,
+    p_meta_tipo: conMeta ? c.metaTipo : null,
+    p_meta_valor: conMeta ? v : null,
+    p_premio: c.premio.trim() || null,
+  };
+}
+
+function ConfigReto({ c, setC, oficial }) {
   const lunes = proximoLunes();
   const lunes2 = masDias(lunes, 7);
-  const chip = activo => `jb-body text-sm py-2.5 rounded-xl border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`;
+  const chip = activo => `jb-body text-sm py-2.5 px-2 rounded-xl border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`;
+  const cambiar = cambios => setC(v => ({ ...v, ...cambios }));
+  const elegirObjetivo = id => cambiar({
+    objetivo: id, metaValor: '',
+    metaTipo: id === 'juntos' ? 'kg_cada' : id === 'carrera' ? 'carrera_kg' : 'comidas',
+  });
+  const tipos = TIPOS_META[c.objetivo] || [];
+  const tipo = tipos.find(t => t.id === c.metaTipo);
+  const obj = OBJETIVOS.find(o => o.id === c.objetivo);
+  const err = errorConfig(c, oficial);
+  const titulo = t => <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">{t}</p>;
   return (
     <>
-      <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Duración del reto</p>
+      {!oficial && (
+        <>
+          {titulo('Tipo de reto')}
+          <div className="grid grid-cols-3 gap-2 mb-1.5">
+            {OBJETIVOS.map(o => (
+              <button key={o.id} type="button" onClick={() => elegirObjetivo(o.id)} className={chip(c.objetivo === o.id)}>
+                <span className="block text-base">{o.emoji}</span>{o.titulo}
+              </button>
+            ))}
+          </div>
+          <p className="jb-body text-[11px] text-zinc-500 mb-4">{obj?.ayuda}</p>
+        </>
+      )}
+
+      {c.objetivo === 'comer' ? (
+        <>
+          {titulo('Meta de comidas entre todos (opcional)')}
+          <input value={c.metaValor} onChange={e => cambiar({ metaValor: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+            inputMode="numeric" placeholder="Ej. 500" className={inputCls + ' w-full rounded-xl mb-1'} />
+          <p className="jb-body text-[11px] text-zinc-500 mb-4">Si la cumplen, todos ganan la medalla 🏆. Ej.: 6 personas × 3 comidas × 28 días ≈ 500.</p>
+        </>
+      ) : (
+        <>
+          {titulo(c.objetivo === 'carrera' ? 'Meta de la carrera' : 'Meta del equipo')}
+          <div className={`grid gap-2 mb-2 ${tipos.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {tipos.map(t => (
+              <button key={t.id} type="button" onClick={() => cambiar({ metaTipo: t.id })} className={chip(c.metaTipo === t.id) + ' text-xs'}>
+                {t.texto} ({t.unidad})
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="jb-body text-sm text-zinc-300 shrink-0">{tipo?.texto}</span>
+            <input value={c.metaValor} onChange={e => cambiar({ metaValor: e.target.value.replace(/[^0-9.,]/g, '').slice(0, 5) })}
+              inputMode="decimal" placeholder={tipo?.unidad === '%' ? '3' : '5'} className={inputCls + ' w-20 rounded-xl text-center'} />
+            <span className="jb-body text-sm text-zinc-300">{tipo?.unidad}</span>
+          </div>
+          <p className="jb-body text-[11px] text-zinc-500 mb-4">
+            {c.objetivo === 'carrera'
+              ? 'Gana el primero que llegue (se cuenta con el pesaje de cada semana). Si dos llegan la misma semana, gana el más constante. El podio 🥇🥈🥉 sigue siendo por constancia.'
+              : 'Cada uno decide si suma su avance; nadie ve el peso de nadie. Con % es más justo para todos los pesos.'}
+            {' '}Por salud, cada semana cuenta como mucho 1% del peso de cada uno, y los menores de 18 participan solo con su constancia.
+          </p>
+        </>
+      )}
+
+      {titulo('¿Cuándo empiezan?')}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        {[14, 28, 56].map(d => <button key={d} type="button" onClick={() => setDias(d)} className={chip(dias === d)}>{d} días</button>)}
+        <button type="button" onClick={() => cambiar({ inicio: hoyISO(), hasta: null })} className={chip(c.inicio === hoyISO())}>Hoy</button>
+        <button type="button" onClick={() => cambiar({ inicio: lunes, hasta: null })} className={chip(c.inicio === lunes)}>Lunes {fechaCorta(lunes)}</button>
+        <button type="button" onClick={() => cambiar({ inicio: lunes2, hasta: null })} className={chip(c.inicio === lunes2)}>Lunes {fechaCorta(lunes2)}</button>
       </div>
-      <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">¿Cuándo empiezan?</p>
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <button type="button" onClick={() => setInicio(hoyISO())} className={chip(inicio === hoyISO())}>Hoy</button>
-        <button type="button" onClick={() => setInicio(lunes)} className={chip(inicio === lunes)}>Lunes {fechaCorta(lunes)}</button>
-        <button type="button" onClick={() => setInicio(lunes2)} className={chip(inicio === lunes2)}>Lunes {fechaCorta(lunes2)}</button>
+
+      {titulo('Duración del reto')}
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        {[14, 28, 56].map(d => (
+          <button key={d} type="button" onClick={() => cambiar({ dias: d, hasta: null })} className={chip(!c.hasta && c.dias === d)}>{d} días</button>
+        ))}
+        <button type="button" onClick={() => cambiar({ hasta: c.hasta || masDias(c.inicio, 69) })} className={chip(!!c.hasta) + ' text-xs'}>Hasta una fecha</button>
       </div>
+      {c.hasta && (
+        <div className="flex items-center gap-2 mb-1">
+          <span className="jb-body text-sm text-zinc-300">Hasta el</span>
+          <input type="date" value={c.hasta} min={masDias(c.inicio, 13)} max={masDias(c.inicio, 119)}
+            onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={inputCls + ' rounded-xl'} />
+        </div>
+      )}
+      <p className="jb-body text-[11px] text-zinc-500 mb-4">
+        Del {fechaCorta(c.inicio)} al {fechaCorta(masDias(c.inicio, diasDelReto(c) - 1))} · {diasDelReto(c)} días
+      </p>
+
+      {titulo('Premio (opcional)')}
+      <input value={c.premio} onChange={e => cambiar({ premio: e.target.value.slice(0, 80) })}
+        placeholder={oficial ? 'Ej. 🥇 1 mes de Premium gratis' : EJEMPLO_PREMIO[c.objetivo]} className={inputCls + ' w-full rounded-xl mb-1'} />
+      <p className="jb-body text-[11px] text-zinc-500 mb-3">Se ve arriba en el equipo. Lo puedes cambiar después.</p>
+
+      {err && <p className="jb-body text-sm text-amber-400 mb-3">⚠️ {err}</p>}
     </>
   );
 }
@@ -281,16 +453,19 @@ function CrearEquipo({ nombre, onCancelar, onCreado }) {
   const primero = String(nombre || '').trim().split(/\s+/)[0];
   const [apodo, setApodo] = useState('');
   const titulo = `Team Beast de ${primero.length >= 2 ? primero.charAt(0).toUpperCase() + primero.slice(1).toLowerCase() : 'tu nombre'}`;
-  const [dias, setDias] = useState(28);
-  const [inicio, setInicio] = useState(proximoLunes());
+  const [c, setC] = useState(() => configInicial(null));
   const [whatsapp, setWhatsapp] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
 
   async function crear() {
     setError('');
+    const err = errorConfig(c, false);
+    if (err) { setError(err); return; }
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_crear', { p_nombre: apodo.trim() || null, p_dias: dias, p_inicio: inicio, p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_crear', {
+      p_nombre: apodo.trim() || null, p_whatsapp: whatsapp.trim() || null, ...paramsConfig(c),
+    });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     vibrar(30);
@@ -302,7 +477,7 @@ function CrearEquipo({ nombre, onCancelar, onCreado }) {
     <div className="pt-2">
       <button onClick={onCancelar} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 flex items-center gap-1 mb-3"><ChevronLeft size={16} /> Volver</button>
       <h1 className="jb-display text-3xl text-zinc-50 mb-1">CREA TU EQUIPO</h1>
-      <p className="jb-body text-sm text-zinc-400 mb-5">Invita a tu pareja, tu familia o tus compañeros del trabajo. Hasta 30 personas.</p>
+      <p className="jb-body text-sm text-zinc-400 mb-5">Con tu familia, tus amigos o tus compañeros del trabajo. Hasta 30 personas.</p>
       <Tarjeta>
         <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1">Tu equipo se llamará</p>
         <p className="jb-display text-2xl text-zinc-50 leading-tight">{titulo.toUpperCase()} 🦍</p>
@@ -311,7 +486,7 @@ function CrearEquipo({ nombre, onCancelar, onCreado }) {
         <input value={apodo} onChange={e => setApodo(e.target.value.slice(0, 24))} placeholder="Ej. Los Imparables"
           className={inputCls + ' w-full rounded-xl mb-1'} />
         <p className="jb-body text-[11px] text-zinc-500 mb-4">Hasta 24 letras. Se verá así: "{titulo} · {apodo.trim() || 'Los Imparables'}". Lo puedes cambiar después.</p>
-        <ElegirReto dias={dias} setDias={setDias} inicio={inicio} setInicio={setInicio} />
+        <ConfigReto c={c} setC={setC} oficial={false} />
         <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5">Enlace de su grupo de WhatsApp (opcional)</p>
         <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
           inputMode="url" className={inputCls + ' w-full rounded-xl'} />
@@ -397,6 +572,19 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   if (!eq) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-orange-500" size={24} /></div>;
 
   const subtitulo = eq.oficial ? `Reto de ${eq.dias} días con Jonah` : `Reto de ${eq.dias} días`;
+  const objetivo = OBJETIVOS.find(o => o.id === eq.objetivo) || OBJETIVOS[0];
+  const conPeso = eq.objetivo !== 'comer';
+  // Podio (al terminar): los 3 con más puntos (Jonah no compite en su Team Beast).
+  const podio = eq.miembros.filter(m => m.medalla_posible && m.puntos > 0).slice(0, 3);
+  const ganadorCarrera = eq.miembros.find(m => m.ganador);
+
+  async function compartir(nivel) {
+    const { r, ok, error: e } = await llamar('equipo_compartir', { p_id: id, p_nivel: nivel });
+    if (!ok) { showToast(mensajeError(r, e), 'error'); return; }
+    vibrar(20);
+    showToast(nivel === 'nada' ? 'Listo: participas solo con tu constancia.' : nivel === 'total' ? 'Listo: tu avance suma al total del equipo, sin verse por separado.' : 'Listo: el equipo verá tus kilos bajados (nunca tu peso).');
+    cargar();
+  }
   const empezo = eq.dia_actual > 0;
   const avance = Math.min(1, eq.dia_actual / eq.dias);
   const hoy = hoyISO();
@@ -409,11 +597,14 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
       <div className="flex items-start justify-between gap-3 mb-1">
         <h1 className="jb-display text-3xl text-zinc-50 leading-tight break-words min-w-0">{eq.nombre.toUpperCase()}{eq.oficial ? ' 🦍' : ''}</h1>
         {eq.soy_capitan && !eq.oficial && (
-          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Editar apodo y grupo de WhatsApp"><Pencil size={16} /></button>
+          <button onClick={() => setEditar(v => !v)} className="p-2 text-zinc-500 hover:text-orange-400 shrink-0" aria-label="Editar apodo, grupo de WhatsApp y premio"><Pencil size={16} /></button>
         )}
       </div>
       {eq.apodo && <p className="jb-display text-xl text-orange-400 -mt-1 mb-1">{eq.apodo.toUpperCase()}</p>}
-      <p className="jb-body text-sm text-orange-300 mb-3">{subtitulo} · {eq.miembros.length} {eq.miembros.length === 1 ? 'integrante' : 'integrantes'}</p>
+      <p className="jb-body text-sm text-orange-300 mb-1">{subtitulo} · {eq.miembros.length} {eq.miembros.length === 1 ? 'integrante' : 'integrantes'}</p>
+      <p className="jb-body text-xs text-zinc-400 mb-3">
+        {objetivo.emoji} {objetivo.titulo}{eq.premio ? <> · 🎁 <span className="text-zinc-200">Premio: {eq.premio}</span></> : null}
+      </p>
 
       {editar && <EditarEquipo eq={eq} onListo={() => { setEditar(false); cargar(); }} />}
 
@@ -455,14 +646,24 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
         </div>
       </Tarjeta>
 
+      {eq.terminado && (podio.length > 0 || ganadorCarrera || eq.progreso?.cumplida) && (
+        <Podio eq={eq} podio={podio} ganadorCarrera={ganadorCarrera} />
+      )}
+
+      {eq.progreso && <MetaEquipo eq={eq} />}
+
+      {conPeso && eq.yo && !eq.terminado && <MiAvance eq={eq} onCompartir={compartir} />}
+
       {eq.soy_capitan && (eq.terminado ? (
-        <NuevoReto id={id} titulo="ARRANCA OTRO RETO" boton="Empezar nuevo reto" onListo={() => { setSemana(null); cargar(null); }} />
+        <NuevoReto eq={eq} titulo="ARRANCA OTRO RETO" boton="Empezar nuevo reto" onListo={() => { setSemana(null); cargar(null); }} />
       ) : (eq.oficial || !empezo) && (programar ? (
-        <NuevoReto id={id} titulo="PROGRAMA EL RETO" boton="Guardar fechas" dias={eq.dias} inicio={eq.inicio > hoy ? eq.inicio : null}
+        <NuevoReto eq={eq} titulo="PROGRAMA EL RETO" boton="Guardar reto"
           ayuda={empezo ? 'El reto ya está en marcha: si cambias la fecha, empieza de nuevo desde ese día.' : 'Mientras tanto, la gente se puede unir e invitar a otros.'}
           onCancelar={() => setProgramar(false)} onListo={() => { setProgramar(false); setSemana(null); cargar(null); }} />
       ) : (
-        <button onClick={() => setProgramar(true)} className={btnGhost + ' w-full py-2.5 mb-3 rounded-xl text-sm'}>📅 Cambiar cuándo empieza y cuánto dura</button>
+        <button onClick={() => setProgramar(true)} className={btnGhost + ' w-full py-2.5 mb-3 rounded-xl text-sm'}>
+          {eq.oficial ? '📅 Cambiar fechas, meta y premio del reto' : '⚙️ Cambiar el reto: tipo, meta, fechas y premio'}
+        </button>
       )))}
 
       <Tarjeta className="mb-3 px-3">
@@ -487,6 +688,16 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
                 </button>
                 <span className="jb-display text-base text-zinc-100 tabular-nums shrink-0">{m.puntos} <span className="jb-body text-[10px] text-zinc-500">pts</span></span>
               </div>
+              {conPeso && m.peso && (
+                <div className="pl-7 mb-1.5 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="h-full bg-orange-400 rounded-full" style={{ width: `${Math.min(100, barraPeso(eq, m.peso) * 100)}%` }} />
+                  </div>
+                  <span className="jb-body text-[11px] text-zinc-300 tabular-nums shrink-0">
+                    −{fmtNum(m.peso.kg)} kg · {fmtNum(m.peso.pct)}%{m.peso.llego ? ' 🎯' : ''}{m.ganador ? ' 🏁' : ''}
+                  </span>
+                </div>
+              )}
               <div className="grid grid-cols-7 gap-1 pl-7">
                 {m.dias.map((d, j) => (
                   <span key={j} className="flex flex-col items-center gap-0.5">
@@ -560,12 +771,13 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
 function EditarEquipo({ eq, onListo }) {
   const [apodo, setApodo] = useState(eq.apodo || '');
   const [whatsapp, setWhatsapp] = useState(eq.whatsapp || '');
+  const [premio, setPremio] = useState(eq.premio || '');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   async function guardar() {
     setError('');
     setOcupado(true);
-    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: eq.oficial ? null : apodo.trim() || null, p_whatsapp: whatsapp.trim() || null });
+    const { r, ok, error: e } = await llamar('equipo_editar', { p_id: eq.id, p_nombre: eq.oficial ? null : apodo.trim() || null, p_whatsapp: whatsapp.trim() || null, p_premio: premio.trim() || null });
     setOcupado(false);
     if (!ok) { setError(mensajeError(r, e)); return; }
     showToast('✅ Equipo actualizado');
@@ -584,6 +796,9 @@ function EditarEquipo({ eq, onListo }) {
       <input value={whatsapp} onChange={e => setWhatsapp(e.target.value.trim())} placeholder="https://chat.whatsapp.com/..."
         inputMode="url" className={inputCls + ' w-full rounded-xl'} />
       <AyudaWhatsApp />
+      <p className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-1.5 mt-3">Premio (opcional)</p>
+      <input value={premio} onChange={e => setPremio(e.target.value.slice(0, 80))}
+        placeholder={eq.oficial ? 'Ej. 🥇 1 mes de Premium gratis' : EJEMPLO_PREMIO[eq.objetivo] || EJEMPLO_PREMIO.comer} className={inputCls + ' w-full rounded-xl'} />
       {error && <p className="jb-body text-sm text-red-400 mt-2">{error}</p>}
       <button onClick={guardar} disabled={ocupado} className={btnPrimary + ' w-full py-2.5 mt-3 rounded-xl'}>
         {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Guardar'}
@@ -592,23 +807,27 @@ function EditarEquipo({ eq, onListo }) {
   );
 }
 
-function NuevoReto({ id, titulo, boton, ayuda, dias: diasAntes, inicio: inicioAntes, onListo, onCancelar }) {
-  const [dias, setDias] = useState([14, 28, 56].includes(diasAntes) ? diasAntes : 28);
-  const [inicio, setInicio] = useState(inicioAntes || proximoLunes());
+function NuevoReto({ eq, titulo, boton, ayuda, onListo, onCancelar }) {
+  const [c, setC] = useState(() => configInicial(eq));
   const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
   async function empezar() {
+    setError('');
+    const err = errorConfig(c, eq.oficial);
+    if (err) { setError(err); return; }
     setOcupado(true);
-    const { r, ok, error } = await llamar('equipo_nuevo_reto', { p_id: id, p_dias: dias, p_inicio: inicio });
+    const { r, ok, error: e } = await llamar('equipo_nuevo_reto', { p_id: eq.id, ...paramsConfig(eq.oficial ? { ...c, objetivo: 'comer' } : c) });
     setOcupado(false);
-    if (!ok) { showToast(mensajeError(r, error), 'error'); return; }
-    showToast(inicio === hoyISO() ? '🔥 ¡Reto en marcha desde hoy! Vamos juntos.' : `📅 Listo: el reto empieza el ${fechaLarga(inicio)}.`);
+    if (!ok) { setError(mensajeError(r, e)); return; }
+    showToast(c.inicio === hoyISO() ? '🔥 ¡Reto en marcha desde hoy! Vamos juntos.' : `📅 Listo: el reto empieza el ${fechaLarga(c.inicio)}.`);
     onListo();
   }
   return (
     <Tarjeta className="mb-3 border-orange-500/40">
       <p className="jb-display text-base text-zinc-100 mb-1">{titulo}</p>
       {ayuda ? <p className="jb-body text-[11px] text-zinc-500 mb-3">{ayuda}</p> : <div className="mb-2" />}
-      <ElegirReto dias={dias} setDias={setDias} inicio={inicio} setInicio={setInicio} />
+      <ConfigReto c={c} setC={setC} oficial={eq.oficial} />
+      {error && <p className="jb-body text-sm text-red-400 mb-3">{error}</p>}
       <button onClick={empezar} disabled={ocupado} className={btnPrimary + ' w-full py-3 rounded-xl'}>
         {ocupado ? <Loader2 className="animate-spin" size={16} /> : boton}
       </button>
@@ -682,6 +901,173 @@ function ActividadEquipo({ eventos, miembros, onAnimar }) {
         <button onClick={() => setVerTodo(v => !v)} className="mt-3 jb-body text-xs text-orange-400">
           {verTodo ? 'Ver menos' : `Ver todo (${eventos.length})`}
         </button>
+      )}
+    </Tarjeta>
+  );
+}
+
+// Qué tan cerca está alguien de la meta (0 a 1), para su barrita.
+function barraPeso(eq, peso) {
+  const meta = Number(eq.meta_valor) || 0;
+  if (!meta) return 0;
+  if (eq.meta_tipo === 'carrera_pct' || eq.meta_tipo === 'pct_total') return peso.pct / meta;
+  if (eq.meta_tipo === 'kg_total') return peso.kg / Math.max(1, meta / Math.max(1, eq.progreso?.participantes || 1));
+  return peso.kg / meta;
+}
+
+// META DEL EQUIPO: cómo va la meta (comidas, % o kilos entre todos, cada
+// uno, o la carrera).
+function MetaEquipo({ eq }) {
+  const p = eq.progreso;
+  const meta = Number(p.meta) || 0;
+  const unidad = eq.meta_tipo === 'carrera_pct' || eq.meta_tipo === 'pct_total' ? '%' : ' kg';
+  let titulo = '', linea = '', extra = '', avance = 0;
+  if (p.tipo === 'comidas') {
+    titulo = `🍽️ META: ${fmtNum(meta)} COMIDAS ENTRE TODOS`;
+    linea = `Van ${fmtNum(p.valor)} de ${fmtNum(meta)} comidas registradas`;
+    avance = p.valor / meta;
+  } else if (p.tipo === 'pct_total') {
+    titulo = `🤝 META: BAJAR ${fmtNum(meta)}% ENTRE TODOS`;
+    linea = `Juntos ya bajaron ${fmtNum(p.valor)}% de ${fmtNum(meta)}%`;
+    extra = p.participantes >= 2 ? `Eso es ${fmtNum(p.kg_juntos)} kg menos entre ${p.participantes} personas 💪` : '';
+    avance = p.valor / meta;
+  } else if (p.tipo === 'kg_total') {
+    titulo = `🤝 META: BAJAR ${fmtNum(meta)} KG ENTRE TODOS`;
+    linea = `Juntos ya bajaron ${fmtNum(p.valor)} de ${fmtNum(meta)} kg`;
+    extra = p.participantes ? `${p.participantes} ${p.participantes === 1 ? 'persona suma' : 'personas suman'} su avance` : '';
+    avance = p.valor / meta;
+  } else if (p.tipo === 'kg_cada') {
+    titulo = `🎯 META: CADA UNO BAJA ${fmtNum(meta)} KG`;
+    linea = p.participantes ? `${p.valor} de ${p.participantes} ya llegaron a su meta` : '';
+    extra = p.participantes >= 2 ? `Juntos: ${fmtNum(p.kg_juntos)} kg menos 💪` : '';
+    avance = p.participantes ? p.valor / p.participantes : 0;
+  } else {
+    titulo = `🏁 CARRERA: EL PRIMERO EN BAJAR ${fmtNum(meta)}${unidad.toUpperCase()}`;
+    const lider = eq.miembros.filter(m => m.peso).sort((a, b) => barraPeso(eq, b.peso) - barraPeso(eq, a.peso))[0];
+    const gan = eq.miembros.find(m => m.ganador);
+    linea = gan ? `🏁 ¡${gan.yo ? 'Llegaste' : `${gan.nombre} llegó`} primero!`
+      : lider ? `Va adelante: ${lider.yo ? 'tú' : lider.nombre} (${unidad === '%' ? `${fmtNum(lider.peso.pct)}%` : `${fmtNum(lider.peso.kg)} kg`})` : '';
+    extra = p.participantes ? `${p.participantes} ${p.participantes === 1 ? 'persona compite' : 'personas compiten'}` : '';
+    avance = lider ? barraPeso(eq, lider.peso) : 0;
+  }
+  return (
+    <Tarjeta className={`mb-3 ${p.cumplida ? 'border-orange-500/60' : ''}`}>
+      <p className="jb-display text-base text-zinc-100 mb-2">{titulo}</p>
+      {p.tipo !== 'comidas' && !p.participantes ? (
+        <p className="jb-body text-sm text-zinc-400">
+          Todavía nadie suma su avance. {eq.objetivo === 'carrera' ? 'Para competir, elige abajo "Competir con mi avance".' : 'Abajo eliges si quieres sumar el tuyo.'}
+        </p>
+      ) : (
+        <>
+          <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden mb-2">
+            <div className="h-full bg-orange-500 rounded-full" style={{ width: `${Math.min(100, Math.max(0, avance) * 100)}%` }} />
+          </div>
+          {linea && <p className="jb-body text-sm text-zinc-200">{linea}</p>}
+          {extra && <p className="jb-body text-xs text-zinc-500 mt-0.5">{extra}</p>}
+        </>
+      )}
+      {p.cumplida && p.tipo !== 'carrera_kg' && p.tipo !== 'carrera_pct' && (
+        <p className="jb-body text-sm text-orange-300 mt-2">🏆 ¡Meta cumplida! Al terminar el reto, todos reciben la medalla.</p>
+      )}
+    </Tarjeta>
+  );
+}
+
+// TU AVANCE: qué comparte cada uno de su peso. Nadie ve el peso: como
+// mucho, sus kilos bajados.
+function MiAvance({ eq, onCompartir }) {
+  const yo = eq.yo;
+  if (yo.menor) {
+    return (
+      <Tarjeta className="mb-3">
+        <p className="jb-display text-base text-zinc-100 mb-1">TU AVANCE</p>
+        <p className="jb-body text-sm text-zinc-400">Por ser menor de 18, participas con tu constancia: cada comida que registras suma puntos para el podio 💪</p>
+      </Tarjeta>
+    );
+  }
+  const opciones = eq.objetivo === 'carrera'
+    ? [{ id: 'nada', texto: 'Solo constancia', ayuda: 'No compites por peso; sigues sumando puntos.' },
+       { id: 'avance', texto: 'Competir con mi avance', ayuda: 'El equipo ve tus kilos bajados (nunca tu peso).' }]
+    : [{ id: 'nada', texto: 'Solo constancia', ayuda: 'Tu peso no cuenta para la meta.' },
+       { id: 'total', texto: 'Sumar en privado', ayuda: 'Tu avance suma al total del equipo, sin verse por separado.' },
+       { id: 'avance', texto: 'Mostrar mi avance', ayuda: 'El equipo ve tus kilos bajados (nunca tu peso).' }];
+  const actual = opciones.find(o => o.id === yo.comparte) || opciones[0];
+  const chip = activo => `jb-body text-xs py-2.5 px-2 rounded-xl border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'bg-zinc-950 border-zinc-800 text-zinc-300'}`;
+  return (
+    <Tarjeta className="mb-3">
+      <p className="jb-display text-base text-zinc-100 mb-1">TU AVANCE</p>
+      <p className="jb-body text-xs text-zinc-400 mb-3">Tú decides qué compartes. Nadie del equipo ve tu peso.</p>
+      <div className={`grid gap-2 mb-2 ${opciones.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {opciones.map(o => (
+          <button key={o.id} type="button" onClick={() => o.id !== yo.comparte && onCompartir(o.id)} className={chip(o.id === yo.comparte)}>{o.texto}</button>
+        ))}
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500">{actual.ayuda}</p>
+      {yo.comparte !== 'nada' && (yo.sin_pesaje ? (
+        <p className="jb-body text-xs text-amber-400 mt-2">
+          ⚖️ Para sumar, anota tu peso en la pestaña "Mi cuerpo" (o en el pesaje del domingo en Inicio). Cuenta tu peso de hasta 14 días antes del inicio o el de la primera semana del reto.
+        </p>
+      ) : (
+        <p className="jb-body text-sm text-zinc-200 mt-2">
+          Tú: −{fmtNum(yo.kg)} kg · {fmtNum(yo.pct)}%{yo.llego ? ' 🎯 ¡llegaste a la meta!' : ''}
+          <span className="block jb-body text-[11px] text-zinc-500">Se cuenta con tu pesaje de cada semana, como mucho 1% por semana para que sea sano. Poco a poco, comida a comida 💪</span>
+        </p>
+      ))}
+    </Tarjeta>
+  );
+}
+
+// PODIO: al terminar el reto. Medallas por constancia, la carrera y la meta.
+function Podio({ eq, podio, ganadorCarrera }) {
+  const lugares = ['🥇', '🥈', '🥉'];
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-orange-500/60 bg-zinc-900 p-5 mb-3"
+      style={{ boxShadow: '0 0 40px -16px rgba(232,89,12,.6)' }}>
+      <p className="jb-display text-xl text-zinc-50 mb-3">🏆 ¡ASÍ TERMINÓ EL RETO!</p>
+      {ganadorCarrera && (
+        <p className="jb-body text-base text-orange-300 mb-3">🏁 {ganadorCarrera.yo ? '¡Ganaste la carrera!' : `¡${ganadorCarrera.nombre} ganó la carrera!`}</p>
+      )}
+      {podio.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider">Los más constantes</p>
+          {podio.map((m, i) => (
+            <p key={m.ref} className="jb-body text-sm text-zinc-100 flex justify-between gap-2">
+              <span>{lugares[i]} {m.nombre}{m.yo ? <span className="text-orange-400"> (tú)</span> : ''}</span>
+              <span className="text-zinc-400 tabular-nums">{m.puntos} pts</span>
+            </p>
+          ))}
+        </div>
+      )}
+      {eq.progreso?.cumplida && eq.objetivo !== 'carrera' && <p className="jb-body text-sm text-orange-300 mb-2">🏆 ¡Cumplieron la meta del equipo! Todos se llevan la medalla.</p>}
+      {eq.premio && <p className="jb-body text-sm text-zinc-200">🎁 Premio: {eq.premio}</p>}
+      <p className="jb-body text-[11px] text-zinc-500 mt-2">Las medallas llegan al día siguiente de terminar y quedan en "Mis medallas".</p>
+    </div>
+  );
+}
+
+// MIS MEDALLAS: lo que ganó en todos sus retos.
+function MisMedallas({ medallas }) {
+  const [ver, setVer] = useState(false);
+  const cuenta = {};
+  medallas.forEach(m => { cuenta[m.medalla] = (cuenta[m.medalla] || 0) + 1; });
+  return (
+    <Tarjeta className="mb-4">
+      <button type="button" onClick={() => setVer(v => !v)} className="w-full text-left">
+        <p className="jb-display text-base text-zinc-100 mb-1">MIS MEDALLAS</p>
+        <p className="jb-body text-xl">
+          {Object.keys(MEDALLAS).filter(k => cuenta[k]).map(k => (
+            <span key={k} className="mr-3">{MEDALLAS[k].emoji}<span className="jb-body text-sm text-zinc-400"> ×{cuenta[k]}</span></span>
+          ))}
+        </p>
+      </button>
+      {ver && (
+        <ul className="mt-2 space-y-1">
+          {medallas.slice(0, 20).map((m, i) => (
+            <li key={i} className="jb-body text-xs text-zinc-400">
+              {MEDALLAS[m.medalla]?.emoji} {MEDALLAS[m.medalla]?.texto} · {m.equipo}{m.apodo ? ` · ${m.apodo}` : ''} · reto del {fechaCorta(m.reto_inicio)}
+            </li>
+          ))}
+        </ul>
       )}
     </Tarjeta>
   );

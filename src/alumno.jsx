@@ -44,6 +44,8 @@ import {
   fetchTrialStats,
   fmtS,
   generateCombos,
+  sugerenciasComida,
+  PROTEINAS_SUGERENCIA,
   generateQuickOptions,
   agregarProductoAFoods,
   gramsPerUnit,
@@ -963,15 +965,48 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
     if (!r.yaContada) setCupoSug(r);
     setOpen(r.ok);
   }
-  const [targetMeal, setTargetMeal] = useState(MEAL_NAMES[0]);
+  // Abre en la comida de esa hora (antes abría siempre en Desayuno).
+  const [targetMeal, setTargetMealCrudo] = useState(() => comidaDeAhora());
   const [added, setAdded] = useState(null);
   const [itemOverrides, setItemOverrides] = useState({}); // `${optId}::${idx}` -> { food, grams }
   const [swapItem, setSwapItem] = useState(null); // { optId, idx }
+  // "¿Qué tienes para cocinar?": proteínas elegidas (vacío = todas).
+  const [proteinas, setProteinas] = useState([]);
+  const [pagina, setPagina] = useState(0);
+  const setTargetMeal = m => { setTargetMealCrudo(m); setPagina(0); };
+  // Lo que el alumno ya come (últimos 30 días): esos alimentos los tiene en
+  // casa, así que las sugerencias que los usan salen primero.
+  const [preferidos, setPreferidos] = useState(() => new Set());
+  useEffect(() => {
+    if (!open || !username || preferidos.size) return;
+    supabase.from('historial').select('meal_plan').eq('username', username).gte('fecha', addDaysISO(todayISO(), -30)).limit(40)
+      .then(({ data }) => {
+        const set = new Set();
+        (data || []).forEach(d => Object.values(d.meal_plan?.meals || {}).forEach(l => (l || []).forEach(en => en.foodKey && set.add(en.foodKey))));
+        setPreferidos(set);
+      }, () => {});
+  }, [open, username]);
 
   const restricciones = mealPlan.restricciones || [];
-  const combos = useMemo(() => generateCombos(remaining, targetMeal, restricciones), [remaining, targetMeal, restricciones]);
+  // Lo que le toca en esta comida (su parte del día), sin pasarse de lo que le queda.
+  const objetivoComida = useMemo(() => {
+    const parte = { 'Desayuno': 0.25, 'Media mañana': 0.10, 'Almuerzo': 0.35, 'Media tarde': 0.10, 'Cena': 0.20 }[targetMeal] || 0.25;
+    const kcalMeta = Number(mealPlan.targetKcal) || 2000;
+    const protMeta = (kcalMeta * (mealPlan.macros?.p || 0.3)) / 4;
+    return {
+      kcal: Math.max(0, Math.min(remaining.kcal, Math.max(kcalMeta * parte, 150))),
+      protein: Math.max(0, Math.min(remaining.protein, protMeta * parte)),
+    };
+  }, [remaining, targetMeal, mealPlan.targetKcal, mealPlan.macros]);
+  const todasSugerencias = useMemo(() => sugerenciasComida({ objetivo: objetivoComida, comida: targetMeal, restricciones, preferidos, proteinas }),
+    [objetivoComida, targetMeal, restricciones, preferidos, proteinas]);
+  const POR_PAGINA = 4;
+  const paginas = Math.max(1, Math.ceil(todasSugerencias.length / POR_PAGINA));
+  const paginaActual = pagina % paginas;
+  const combos = todasSugerencias.slice(paginaActual * POR_PAGINA, paginaActual * POR_PAGINA + POR_PAGINA);
   const quick = useMemo(() => generateQuickOptions(remaining, restricciones), [remaining, restricciones]);
-  const optionsBase = [...combos, ...quick];
+  const esSnack = targetMeal === 'Media mañana' || targetMeal === 'Media tarde';
+  const optionsBase = combos.length ? combos : quick;
 
   // Aplica las sustituciones que el alumno haya hecho dentro de un combo
   // (por ejemplo "cambia solo el pollo de este combo por atún").
@@ -1093,10 +1128,29 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                   })}
                 </div>
               </div>
+              {!esSnack && (
+                <div>
+                  <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Qué tienes para cocinar? <span className="normal-case tracking-normal">(opcional)</span></label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[...new Map(PROTEINAS_SUGERENCIA.map(p => [p.id, p])).values()].map(p => {
+                      const activa = proteinas.includes(p.id);
+                      const nombre = { pollo: 'Pollo', res: 'Carne', pescado: 'Pescado', cerdo: 'Cerdo', pavo: 'Pavita', atun: 'Atún', huevo: 'Huevo' }[p.id];
+                      return (
+                        <button key={p.id} onClick={() => { setProteinas(v => activa ? v.filter(x => x !== p.id) : [...v, p.id]); setPagina(0); }}
+                          className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${activa
+                            ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+                          <span>{p.e}</span>{nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {options.length === 0 ? (
                 <div className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl p-4">
                   <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-base shrink-0">😴</div>
-                  <p className="text-zinc-500 text-sm jb-body">Con tan pocas calorías disponibles, mejor espera a tu próxima comida.</p>
+                  <p className="text-zinc-500 text-sm jb-body">{proteinas.length ? 'No encontramos opciones con eso para esta comida. Prueba con otra cosa que tengas en casa.' : 'Con tan pocas calorías disponibles, mejor espera a tu próxima comida.'}</p>
                 </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -1179,6 +1233,11 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                     </div>
                   ))}
                 </div>
+              )}
+              {paginas > 1 && combos.length > 0 && (
+                <button onClick={() => { vibrar(10); setPagina(v => v + 1); setSwapItem(null); }} className={btnGhost + ' w-full py-3 text-sm'}>
+                  🔄 Ver otras opciones <span className="text-zinc-500">({paginaActual + 1} de {paginas})</span>
+                </button>
               )}
             </>
           )}

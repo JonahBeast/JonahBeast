@@ -318,9 +318,16 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 **F) "🦍 Pregúntale a Jonah qué puedes comer"**
 1. Muestra lo que te queda del día (kcal, proteína, carbos, grasas).
-2. Elige la comida en "¿Para qué comida?".
-3. Mira las combinaciones sugeridas. **"🎲 SORPRESA DEL DÍA"** te da otra idea. **🔄** cambia un ingrediente por uno equivalente.
-4. Toca **"Agregar a mi día"**.
+2. **"¿Para qué comida?"** ya viene con la comida de esa hora (en la noche, la cena). Puedes cambiarla.
+3. **"¿Qué tienes para cocinar?"** (opcional; no sale en media mañana ni media tarde): toca lo que tienes en casa (🍗 Pollo, 🥩 Carne, 🐟 Pescado, 🐖 Cerdo, 🦃 Pavita, 🥫 Atún, 🥚 Huevo) y solo salen opciones con eso. Si no eliges nada, salen de todo.
+4. Mira las combinaciones sugeridas (4 a la vez), con sus calorías y cantidades pensadas para **lo que te toca en esa comida** (no para todo lo que te queda del día). Tienen lógica con la hora:
+   - **Desayuno:** pan, pan integral, camote o avena con huevo, queso fresco, palta, pollo o jamón de pavo, y café con leche, té o fruta.
+   - **Almuerzo:** una proteína a la plancha con arroz, papa, camote, fideos, quinua, yuca o menestras, más ensalada o verduras; también platos típicos (ceviche, arroz con pollo, estofado…).
+   - **Cena (más ligera):** pollo, pescado, huevo, atún, pavita, cerdo o carne con camote, papa, quinua, pan integral o un poco de arroz, y verduras. En la cena no salen menestras, fideos ni ceviche.
+   - **Media mañana / media tarde:** fruta sola o con yogur, maní, almendras, queso fresco o un huevo.
+   - Primero salen las que usan alimentos que **ya sueles registrar** (seguro los tienes en casa) y se van alternando las proteínas.
+5. **"🔄 Ver otras opciones (1 de N)"** muestra 4 más cada vez que lo tocas. **"🎲 SORPRESA DEL DÍA"** te da otra idea. **🔄** junto a un ingrediente lo cambia por uno equivalente.
+6. Toca **"Agregar a mi día"**.
 - **Versión gratis: 3 veces por semana** (se renuevan cada lunes). Cada vez que lo abre cuenta 1; solo si lo cierra y lo vuelve a abrir en menos de 10 minutos no cuenta de nuevo. Armar el día completo con sugerencias es Premium. Debajo del botón dice "Versión gratis: te quedan N de 3 esta semana". Cuando se acaban sale **"Ya usaste tus 3 sugerencias gratis de esta semana"** con **"VER PREMIUM"**. En Premium se usa siempre que quiera.
 
 **H) "🍽️ TU MENÚ DE HOY" (arriba en "Comidas")**

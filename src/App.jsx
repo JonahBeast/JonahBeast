@@ -1021,6 +1021,155 @@ function generateCombos(remaining, comida, restricciones = []) {
   return opciones.slice(0, 5);
 }
 
+/* ── "¿QUÉ PUEDO COMER?" CON LÓGICA DE CADA COMIDA ────────────────────────
+   Además de los platos típicos de arriba, arma combinaciones con alimentos
+   que hay en cualquier casa peruana, según lo que tiene sentido a esa hora:
+   - Desayuno: pan, avena o camote + huevo, queso, palta o pollo + café,
+     té o fruta.
+   - Almuerzo: proteína + arroz, papa, camote, fideos, quinua, yuca o
+     menestras + ensalada o verduras.
+   - Cena (más ligera): pollo, pescado, huevo, atún o pavita + camote,
+     papa, quinua, pan integral o un poco de arroz + verduras. Sin menestras
+     ni fideos; el ceviche y los platos típicos pesados son solo del almuerzo.
+   - Media mañana / media tarde: fruta + yogur, maní, almendras, queso o huevo.
+   Cada parte trae su id de proteína para filtrar por "¿Qué tienes para cocinar?". */
+const PROTEINAS_SUGERENCIA = [
+  { id: 'pollo', key: 'Pollo pechuga (Cocida)', g: 130, n: 'Pollo a la plancha', e: '🍗' },
+  { id: 'res', key: 'Carne de res (bistec) (Cocida)', g: 120, n: 'Bistec a la plancha', e: '🥩' },
+  { id: 'pescado', key: 'Bonito (Cocido)', g: 140, n: 'Pescado a la plancha', e: '🐟' },
+  { id: 'pescado', key: 'Trucha (Cocida)', g: 140, n: 'Trucha a la plancha', e: '🐟' },
+  { id: 'cerdo', key: 'Cerdo (lomo) (Cocido)', g: 120, n: 'Lomo de cerdo a la plancha', e: '🐖' },
+  { id: 'pavo', key: 'Pavo pechuga (Cocida)', g: 130, n: 'Pavita a la plancha', e: '🦃' },
+  { id: 'atun', key: 'Atún en lata en agua (escurrido) (-)', g: 120, n: 'Atún', e: '🥫' },
+  { id: 'huevo', key: 'Huevo de gallina (Cocido)', g: 100, n: 'Huevos sancochados', e: '🥚' },
+];
+const CARBOS_ALMUERZO = [
+  { key: 'Arroz blanco (Cocido)', g: 180, n: 'arroz' }, { key: 'Papa (Cocida)', g: 220, n: 'papa sancochada' },
+  { key: 'Camote (Cocido)', g: 180, n: 'camote' }, { key: 'Fideos / pasta (Cocidos)', g: 200, n: 'fideos' },
+  { key: 'Quinua (Cocida)', g: 180, n: 'quinua' }, { key: 'Yuca (Cocida)', g: 150, n: 'yuca' },
+  { key: 'Lenteja (Cocida)', g: 180, n: 'lentejas' }, { key: 'Frejol canario (Cocido)', g: 180, n: 'frejoles' },
+];
+const CARBOS_CENA = [
+  { key: 'Camote (Cocido)', g: 130, n: 'camote' }, { key: 'Papa (Cocida)', g: 160, n: 'papa sancochada' },
+  { key: 'Quinua (Cocida)', g: 130, n: 'quinua' }, { key: 'Pan integral (-)', g: 60, n: 'pan integral' },
+  { key: 'Arroz blanco (Cocido)', g: 110, n: 'un poco de arroz' },
+];
+const VERDURAS_SUGERENCIA = [
+  { items: [['Lechuga (Cruda)', 60], ['Tomate (Crudo)', 80]], n: 'ensalada' },
+  { items: [['Brócoli (Cocido)', 100]], n: 'brócoli' },
+  { items: [['Vainita (Cocida)', 80], ['Zanahoria (Cocida)', 80]], n: 'verduras' },
+  { items: [['Pepino (Crudo)', 80], ['Tomate (Crudo)', 80]], n: 'ensalada de pepino' },
+];
+const BASES_DESAYUNO = [
+  { key: 'Pan francés (-)', g: 55, n: 'Pan', pan: true }, { key: 'Pan integral (-)', g: 60, n: 'Pan integral', pan: true },
+  { key: 'Camote (Cocido)', g: 150, n: 'Camote sancochado' }, { key: 'Avena (Cocida)', g: 250, n: 'Avena' },
+];
+const ACOMP_DESAYUNO = [
+  { id: 'huevo', key: 'Huevo de gallina (Cocido)', g: 100, n: 'huevo', e: '🍳' },
+  { id: 'queso', key: 'Queso fresco (-)', g: 40, n: 'queso fresco', e: '🧀' },
+  { id: 'palta', key: 'Palta (Cruda)', g: 50, n: 'palta', e: '🥑' },
+  { id: 'pollo', key: 'Pollo pechuga (Cocida)', g: 60, n: 'pollo', e: '🍗' },
+  { id: 'pavo', key: 'Jamón de pavo (-)', g: 40, n: 'jamón de pavo', e: '🥪' },
+];
+const BEBIDAS_DESAYUNO = [
+  { key: 'Café con leche (-)', g: 200, n: 'café con leche' }, { key: 'Té / infusión sin azúcar (-)', g: 200, n: 'té' },
+  { key: 'Papaya (Cruda)', g: 150, n: 'papaya' }, { key: 'Plátano de seda (Cruda)', g: 100, n: 'plátano' },
+];
+const FRUTAS_SNACK = [
+  { key: 'Manzana (Cruda)', g: 160, n: 'Manzana', e: '🍎' }, { key: 'Plátano de seda (Cruda)', g: 110, n: 'Plátano', e: '🍌' },
+  { key: 'Papaya (Cruda)', g: 200, n: 'Papaya', e: '🍈' }, { key: 'Mandarina (Cruda)', g: 150, n: 'Mandarina', e: '🍊' },
+  { key: 'Fresa (Cruda)', g: 150, n: 'Fresas', e: '🍓' },
+];
+const ACOMP_SNACK = [
+  { id: 'yogur', key: 'Yogur natural (-)', g: 150, n: 'yogur' }, { id: 'mani', key: 'Maní (Crudo)', g: 20, n: 'maní' },
+  { id: 'almendras', key: 'Almendras (Crudas)', g: 20, n: 'almendras' }, { id: 'queso', key: 'Queso fresco (-)', g: 30, n: 'queso fresco' },
+  { id: 'huevo', key: 'Huevo de gallina (Cocido)', g: 50, n: 'un huevo sancochado' },
+];
+const PLATOS_TIPICOS_PROTEINA = {
+  'Ceviche con camote y choclo': 'pescado', 'Pescado con arroz y ensalada': 'pescado', 'Frejoles con arroz y pescado': 'pescado',
+  'Pescado al vapor con verduras': 'pescado', 'Ensalada de atún con palta': 'atun', 'Bistec con papa y ensalada': 'res',
+  'Huevos con palta y pan integral': 'huevo', 'Caldo de gallina': 'pollo',
+};
+
+function combosArmados(comida) {
+  const out = [];
+  const conE = (n, e, prote, items) => out.push({ comida, nombre: n, emoji: e, proteina: prote, items });
+  if (comida === 'Desayuno') {
+    BASES_DESAYUNO.forEach(b => ACOMP_DESAYUNO.forEach(a => {
+      if (b.key === 'Avena (Cocida)' && a.id !== 'huevo') return; // avena: con huevo aparte o sola con fruta
+      BEBIDAS_DESAYUNO.forEach(bb => {
+        if (b.key === 'Avena (Cocida)' && bb.key === 'Café con leche (-)') return;
+        const nombre = b.pan ? `${b.n} con ${a.n} y ${bb.n}` : `${b.n} con ${a.n} y ${bb.n}`;
+        conE(nombre, a.e, a.id, [[b.key, b.g], [a.key, a.g], [bb.key, bb.g]]);
+      });
+    }));
+    ['Plátano de seda (Cruda)', 'Papaya (Cruda)'].forEach((k, i) =>
+      conE(`Avena con ${i ? 'papaya' : 'plátano'} y yogur`, '🥣', 'yogur', [['Avena (Cocida)', 250], [k, i ? 150 : 100], ['Yogur natural (-)', 120]]));
+  } else if (comida === 'Almuerzo' || comida === 'Cena') {
+    const carbos = comida === 'Almuerzo' ? CARBOS_ALMUERZO : CARBOS_CENA;
+    PROTEINAS_SUGERENCIA.forEach(p => carbos.forEach(c => VERDURAS_SUGERENCIA.forEach(v => {
+      if (p.id === 'atun' && ['Lenteja (Cocida)', 'Frejol canario (Cocido)', 'Fideos / pasta (Cocidos)'].includes(c.key)) return;
+      if (p.id === 'huevo' && comida === 'Almuerzo' && ['Fideos / pasta (Cocidos)', 'Yuca (Cocida)'].includes(c.key)) return;
+      const g = comida === 'Cena' ? Math.round(p.g * 0.9 / 5) * 5 : p.g;
+      conE(`${p.n} con ${c.n} y ${v.n}`, p.e, p.id, [[p.key, g], [c.key, c.g], ...v.items]);
+    })));
+  } else {
+    FRUTAS_SNACK.forEach(f => {
+      conE(f.n, f.e, null, [[f.key, f.g]]);
+      ACOMP_SNACK.forEach(a => conE(`${f.n} con ${a.n}`, f.e, a.id, [[f.key, f.g], [a.key, a.g]]));
+    });
+  }
+  return out;
+}
+
+/* Todas las sugerencias para una comida, ordenadas: primero las que mejor
+   encajan con lo que le toca en esa comida y las que usan alimentos que el
+   alumno ya come (los tiene en casa), alternando la proteína para que no
+   salgan 4 de pollo seguidas. proteinas: ids elegidos en "¿Qué tienes para
+   cocinar?" (vacío = todas). */
+function sugerenciasComida({ objetivo, comida, restricciones = [], preferidos = new Set(), proteinas = [] }) {
+  if (!objetivo || objetivo.kcal < 120) return [];
+  const comidaBuscada = COMIDAS_EQUIVALENTES[comida] || comida;
+  const tipicos = COMBOS_REALES.filter(c => c.comida === comidaBuscada)
+    .map(c => ({ ...c, proteina: PLATOS_TIPICOS_PROTEINA[c.nombre] || (/(pollo)/i.test(c.nombre) ? 'pollo' : /atún/i.test(c.nombre) ? 'atun' : /huevo/i.test(c.nombre) ? 'huevo' : null) }));
+  const armados = combosArmados(comidaBuscada === 'Media mañana' ? 'Media mañana' : comidaBuscada);
+  const vistos = new Set();
+  const todos = [...tipicos, ...armados].filter(c => { if (vistos.has(c.nombre)) return false; vistos.add(c.nombre); return true; });
+  const esSnack = comidaBuscada === 'Media mañana';
+  const opciones = todos
+    .filter(c => esSnack || !proteinas.length || proteinas.includes(c.proteina))
+    .map(c => {
+      const o = armarOpcion(c, objetivo);
+      if (!o) return null;
+      const conocidos = o.items.filter(it => preferidos.has(it.food.key)).length;
+      return { ...o, proteina: c.proteina, tipico: tipicos.includes(c), score: o.score - conocidos * 20 };
+    })
+    .filter(Boolean)
+    .filter(o => o.kcal <= objetivo.kcal * 1.3 || objetivo.kcal < 200)
+    .filter(o => !restricciones.length || !o.items.some(it => restricciones.includes(it.food.name)));
+  opciones.sort((a, b) => a.score - b.score);
+  // Alterna la proteína: reparte en grupos por proteína y los intercala.
+  const grupos = {};
+  opciones.forEach(o => { (grupos[o.proteina || 'otro'] = grupos[o.proteina || 'otro'] || []).push(o); });
+  const colas = Object.values(grupos);
+  const intercalada = [];
+  while (colas.some(c => c.length)) colas.forEach(c => { if (c.length) intercalada.push(c.shift()); });
+  // En cada grupo de 4 (lo que se ve a la vez) se evita repetir la proteína,
+  // el acompañamiento y la verdura: así no salen 4 "con arroz y ensalada".
+  const partes = o => o.items.map(it => it.food.key);
+  const salida = [];
+  const pool = intercalada;
+  while (pool.length) {
+    const grupo = salida.slice(salida.length - (salida.length % 4));
+    const usados = new Set(grupo.flatMap(partes));
+    const prots = new Set(grupo.map(g => g.proteina));
+    let i = pool.slice(0, 25).findIndex(o => !prots.has(o.proteina) && !partes(o).slice(1).some(k => usados.has(k)));
+    if (i < 0) i = pool.slice(0, 25).findIndex(o => !partes(o).slice(1).some(k => usados.has(k)));
+    salida.push(pool.splice(i < 0 ? 0 : i, 1)[0]);
+  }
+  return salida;
+}
+
 /* Opciones sueltas para cuando queda poco margen */
 function generateQuickOptions(remaining, restricciones = []) {
   if (remaining.kcal <= 0 || remaining.kcal > 350) return [];
@@ -6034,6 +6183,8 @@ export {
   fetchTrialStats,
   fmtS,
   generateCombos,
+  sugerenciasComida,
+  PROTEINAS_SUGERENCIA,
   generateQuickOptions,
   gramsPerUnit,
   inputCls,

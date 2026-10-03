@@ -829,7 +829,10 @@ function PedidosAtendidosIA() {
       .in('estado', ['agregado', 'descartado'])
       .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(80);
     const porIA = p => ['agregado', 'descartado'].includes(p.propuesta?.ia_estado) || p.propuesta?.variantes_resultado?.length;
-    setLista((data || []).filter(porIA));
+    // También lo que solo vio la IA en una foto (aunque lo hayas aprobado tú),
+    // para poder quitarlo si la IA se confundió de plato.
+    const deFoto = p => (p.solicitantes || []).length > 0 && (p.solicitantes || []).every(s => s.origen === 'foto');
+    setLista((data || []).filter(p => porIA(p) || (p.estado === 'agregado' && deFoto(p))));
   }
   useEffect(() => { cargar(); }, []);
   if (!lista?.length) return null;
@@ -858,6 +861,23 @@ function PedidoIA({ p, onListo }) {
   const [error, setError] = useState('');
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
   const quienes = quienesPidieron(p.solicitantes);
+  // Quitar de la app un alimento que no debía estar (ej. la IA se confundió
+  // de plato en una foto). El pedido queda descartado sin avisar a nadie.
+  async function quitar() {
+    const nombre = a.estado && a.estado !== '-' ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre;
+    if (!window.confirm(`¿Quitar "${nombre}" de la app?\n\nSe borra solo ese alimento de la lista. Si algún alumno ya lo registró, en su día dejará de verse con sus calorías.`)) return;
+    setOcupado(true); setError('');
+    try {
+      const { error: e1 } = await supabase.from('pedidos_alimentos')
+        .update({ estado: 'descartado', respuesta: null, actualizado_en: new Date().toISOString() }).eq('id', p.id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from('alimentos_extra').delete().eq('id', a.id);
+      if (e2) throw e2;
+      await cargarAlimentosExtraDeNuevo();
+      await onListo();
+    } catch (e) { setError(e.message || 'No se pudo quitar.'); }
+    setOcupado(false);
+  }
   async function guardar() {
     setOcupado(true); setError('');
     try {
@@ -902,8 +922,11 @@ function PedidoIA({ p, onListo }) {
           </div>
         </div>
       ) : (
-        <button onClick={() => setF({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasa })}
-          className="jb-body text-[11px] text-orange-400 underline mt-1">✏️ Corregir los números</button>
+        <div className="flex flex-wrap gap-x-4 mt-1">
+          <button onClick={() => setF({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasa: a.grasa })}
+            className="jb-body text-[11px] text-orange-400 underline">✏️ Corregir los números</button>
+          <button onClick={quitar} disabled={ocupado} className="jb-body text-[11px] text-red-400 underline">🗑️ Quitar de la app</button>
+        </div>
       ))}
       {error && <p className="jb-body text-xs text-red-400">{error}</p>}
     </div>

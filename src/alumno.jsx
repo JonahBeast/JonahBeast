@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
-import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO } from './menuDia.js';
+import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
 import {
   registrarPasoPago,
   leerPlatoDemo,
@@ -8511,7 +8511,8 @@ function ChipsGusto({ opciones, elegidos, onCambiar }) {
 function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
   const [g, setG] = useState({ ...GUSTOS_POR_DEFECTO, ...(inicial || {}) });
   const fijar = campo => valor => setG(v => ({ ...v, [campo]: valor }));
-  const listo = g.proteinas.length && g.acompanamientos.length && g.desayunos.length;
+  const vegetariano = g.estilo === 'vegetariano';
+  const listo = (vegetariano || g.proteinas.length) && g.acompanamientos.length && g.desayunos.length;
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCerrar}>
       <div className="bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5"
@@ -8522,8 +8523,28 @@ function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
         </div>
         <p className="jb-body text-xs text-zinc-400 mb-4">Con esto Jonah te arma el menú del día, justo para tu meta.</p>
 
-        <p className="jb-display text-xs text-zinc-300 mb-2">¿QUÉ PROTEÍNAS TE GUSTAN?</p>
-        <ChipsGusto opciones={OPCIONES_PROTEINA} elegidos={g.proteinas} onCambiar={fijar('proteinas')} />
+        <p className="jb-display text-xs text-zinc-300 mb-2">¿SIGUES ALGÚN ESTILO DE ALIMENTACIÓN?</p>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {ESTILOS_ALIMENTACION.map(e => {
+            const activo = (g.estilo || 'normal') === e.id;
+            return (
+              <button key={e.id} type="button" onClick={() => fijar('estilo')(e.id)}
+                className={`text-left rounded-xl border px-3 py-2 transition-colors ${activo ? 'bg-orange-500/15 border-orange-500' : 'bg-zinc-950 border-zinc-800'}`}>
+                <span className={`block jb-body text-sm font-semibold ${activo ? 'text-zinc-50' : 'text-zinc-300'}`}>{e.emoji} {e.label}</span>
+                <span className="block jb-body text-[11px] text-zinc-500 leading-snug">{e.ayuda}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {vegetariano ? (
+          <p className="jb-body text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">🥚 Tu proteína saldrá de huevos, soya, lentejas, garbanzos y queso fresco.</p>
+        ) : (
+          <>
+            <p className="jb-display text-xs text-zinc-300 mb-2">¿QUÉ PROTEÍNAS TE GUSTAN?</p>
+            <ChipsGusto opciones={OPCIONES_PROTEINA} elegidos={g.proteinas} onCambiar={fijar('proteinas')} />
+          </>
+        )}
         <p className="jb-display text-xs text-zinc-300 mt-4 mb-2">¿CON QUÉ ACOMPAÑAS?</p>
         <ChipsGusto opciones={OPCIONES_ACOMPANAMIENTO} elegidos={g.acompanamientos} onCambiar={fijar('acompanamientos')} />
         <p className="jb-display text-xs text-zinc-300 mt-4 mb-2">¿CÓMO DESAYUNAS?</p>
@@ -8541,7 +8562,7 @@ function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
 
         <button type="button" onClick={() => fijar('platos')(!g.platos)}
           className="w-full mt-4 flex items-center justify-between gap-3 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-left">
-          <span className="jb-body text-sm text-zinc-200">🇵🇪 Incluir platos peruanos<span className="block text-[11px] text-zinc-500">Lomo saltado, ají de gallina, seco… máximo 1 al día, en el almuerzo</span></span>
+          <span className="jb-body text-sm text-zinc-200">🇵🇪 Incluir platos peruanos<span className="block text-[11px] text-zinc-500">{vegetariano ? 'Menestra de lentejas, frejolada… máximo 1 al día, en el almuerzo' : 'Lomo saltado, ají de gallina, seco… máximo 1 al día, en el almuerzo'}</span></span>
           <span className={`w-10 h-6 rounded-full shrink-0 relative transition-colors ${g.platos ? 'bg-orange-500' : 'bg-zinc-700'}`}>
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-50 transition-all ${g.platos ? 'left-[18px]' : 'left-0.5'}`} />
           </span>

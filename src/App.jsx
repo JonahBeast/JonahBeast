@@ -5609,7 +5609,11 @@ export default function App() {
       if (equipo && /^[A-Za-z0-9]{4,8}$/.test(equipo)) {
         try { localStorage.setItem('jb-equipo-invitacion', equipo.toUpperCase()); } catch {}
       }
-      return params.get('ref') || equipo ? 'trial' : 'landing';
+      if (params.get('ref') || equipo) return 'trial';
+      // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
+      // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
+      // (no a la portada); al entrar, lo lleva a registrar su comida.
+      return params.get('registrar') ? 'studentAuth' : 'landing';
     } catch { return 'landing'; }
   });
   const [linkCalculadora] = useState(esLinkCalculadora);

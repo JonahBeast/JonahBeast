@@ -41,6 +41,10 @@ import {
 import { traerTodas } from './traerTodas.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
+// Link para los mensajes de WhatsApp a quien aún no registra su primera
+// comida: abre la app directo en la cámara para registrar la comida de esa
+// hora (si no tiene la sesión abierta, primero le pide entrar).
+const LINK_PRIMERA_COMIDA = 'https://jonahbeast.com/?registrar=ahora&foto=1';
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
 
 function membershipLabel(u) {
@@ -6574,7 +6578,7 @@ async function sugerenciasJarvis(users, d) {
       voz: `${primerNombre(u)} empezó su prueba. Un saludo suyo hoy vale oro.`,
       contexto: `Empezaron su prueba ayer u hoy: ${recienLlegados.map(quien).join('; ')}.`,
       boton: 'Darle la bienvenida',
-      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 7 días de Premium estoy contigo: registra tu primera comida con una foto y cualquier duda me escribes por aquí 💪`),
+      url: waDeAlumno(u, `Hola ${primerNombre(u)}, soy Jonah de Jonah Beast Fuel 🦍 ¡Bienvenido/a! Estos 7 días de Premium estoy contigo: registra tu primera comida con una foto (entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA}) y cualquier duda me escribes por aquí 💪`),
     });
   }
 
@@ -9686,14 +9690,14 @@ function RescatePanel({ users }) {
   function linkWhatsApp(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
     const texto = u.grupo === 'medias'
-      ? `Hola ${nombre}, soy Jonah 🦍 Vi que ya armaste tu plan 💪 ¿Te ayudo a registrar tu primera comida? Es un toque: abre la app y elige lo que comiste hoy.`
+      ? `Hola ${nombre}, soy Jonah 🦍 Vi que ya armaste tu plan 💪 ¿Te ayudo a registrar tu primera comida? Es un toque: entra aquí y tómale foto a tu plato 📸\n${LINK_PRIMERA_COMIDA}`
       : u.grupo === 'aldia'
       ? `Hola ${nombre}, soy Jonah 🦍 Vi que vienes registrando tus comidas, ¡así se hace! Esa constancia es la que trae resultados. Sigue así y cualquier duda me escribes 💪`
       : u.grupo === 'enfriando'
       ? `Hola ${nombre}, soy Jonah 🦍 Te extraño por la app: llevas ${u.sinRegistrar} días sin registrar tus comidas. ¿Todo bien? Registra hoy aunque sea tu desayuno y retomamos juntos 💪`
       : u.grupo === 'frio'
         ? `Hola ${nombre}, soy Jonah 🦍 Hace ${u.sinRegistrar} días que no te veo por la app. ¿Qué se te complicó? Cuéntame y lo resolvemos juntos, tu objetivo sigue ahí 🔥`
-        : `Hola ${nombre}, soy Jonah 🦍 Vi que aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto y ahí empezamos a trabajar tu objetivo 💪`;
+        : `Hola ${nombre}, soy Jonah 🦍 Vi que aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto: entra aquí y tómale foto a lo que vas a comer 📸\n${LINK_PRIMERA_COMIDA}\nAhí empezamos a trabajar tu objetivo, comida a comida 💪`;
     const extra = u.estadoAvisos === 'iphone_sin_instalar'
       ? '\n\nPD: para que te lleguen mis recordatorios en tu iPhone, abre la app en Safari → botón Compartir → "Agregar a pantalla de inicio" 📲'
       : u.estadoAvisos === 'bloqueado'
@@ -9900,7 +9904,7 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
     if (u.grupo === 'poco') {
       return `Hola ${nombre}, soy Jonah 🦍 Vi que empezaste a registrar tus comidas y quiero ayudarte a seguir. Tu prueba gratis ${cuando}. ¿Qué se te está complicando? En 2 minutos lo resolvemos juntos.`;
     }
-    return `Hola ${nombre}, soy Jonah 🦍 Vi que creaste tu cuenta pero aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto. Tu prueba gratis ${cuando}.`;
+    return `Hola ${nombre}, soy Jonah 🦍 Vi que creaste tu cuenta pero aún no registras tu primera comida. ¿Te ayudo a empezar? Toma menos de un minuto: entra aquí y tómale foto a tu plato 📸\n${LINK_PRIMERA_COMIDA}\nTu prueba gratis ${cuando}.`;
   }
 
   function mensajeRenovacion(u) {

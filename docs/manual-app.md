@@ -131,6 +131,7 @@ Errores del registro y qué hacer:
 2. Si te registraste con Google (o tu correo es de Gmail), toca **"Entrar con Google"**. Si no, escribe correo y contraseña y toca **"Entrar"**.
    - Si te registraste con correo y contraseña y ese correo es de Google, también puedes usar "Entrar con Google": entras a la misma cuenta.
 3. La sesión queda guardada: la próxima vez entras directo.
+4. Si Jonah te mandó por WhatsApp un link para registrar tu primera comida (jonahbeast.com/?registrar=ahora…): al tocarlo se abre la app directo en la cámara para tomarle foto a tu plato (la comida que corresponde a esa hora). Si no tenías la sesión abierta en ese navegador, primero sale la pantalla para entrar: entra con tu correo y contraseña (o Google) y te lleva directo a registrar.
 
 | Mensaje | Qué hacer |
 |---|---|

@@ -5998,6 +5998,7 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
 
 // "1¼ tazas (≈ 250 g)": fracciones de casa en vez de 1.25.
 function textoPorcionFoto(food, porcion) {
+  if (porcion.pesado) return `${Math.round(porcion.qty)} g ⚖️`;
   if (porcion.unit === 'gramos') return `≈ ${Math.round(porcion.qty)} g`;
   const entero = Math.floor(porcion.qty);
   const resto = Math.round((porcion.qty - entero) * 4);
@@ -6085,6 +6086,14 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
   const [tamanos, setTamanos] = useState({}); // { [key o id]: 'poco' | 'normal' | 'mucho' }
   const [conteos, setConteos] = useState({}); // piezas corregidas por el alumno: { [key o id]: n }
+  // "⚖️ Lo pesé": gramos exactos de la balanza; mandan sobre todo lo demás.
+  const [pesados, setPesados] = useState({}); // { [key o id]: gramos }
+  const [pesando, setPesando] = useState(null); // id con el cuadro de gramos abierto
+  const [gramosEscritos, setGramosEscritos] = useState('');
+  function porcionFinal(food, f, id) {
+    if (pesados[id] > 0) return { unit: 'gramos', qty: pesados[id], pesado: true };
+    return porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
+  }
   // "¿Qué era en realidad?": cuando la IA se equivocó, el alumno elige el
   // alimento correcto. { [key o id del grupo]: foodKey correcto }. Se
   // registra ese alimento con la porción que calculó la IA, y la
@@ -6227,6 +6236,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       setAgregandoExtra(false);
       setTamanos({});
       setConteos({});
+      setPesados({});
+      setPesando(null);
       setAceite('normal');
       setEstado('resultados');
     } catch (e) {
@@ -6245,7 +6256,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       const corregido = correcciones[id] ? buscarFood(correcciones[id]) : null;
       const food = corregido || (f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : (seleccionados[f.key] ? f : null));
       if (!food) return;
-      const porcion = porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
+      const porcion = porcionFinal(food, f, id);
       lista.push({ item: f, id, food, porcion, corregido: !!corregido });
     });
     return lista;
@@ -6367,6 +6378,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
           gramos_ia: f._gramosIA || null,
           gramos_final: Math.round(e.porcion.qty * gramsPerUnit(e.food, e.porcion.unit)),
           tamano: tamanos[id] || 'normal',
+          pesado: e.porcion.pesado ? true : null,
           piezas_corregidas: conteos[id] !== undefined && conteos[id] !== (f._cantidadIA || 1) ? conteos[id] : null,
           aceite: esConAceite(e.food, f._aceiteIA) ? aceite : null,
         };
@@ -6544,11 +6556,16 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                       className="text-zinc-500 hover:text-zinc-300 underline">Deshacer</button>
                   </p>
                 );
-                const porcion = food && porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
+                const porcion = food && porcionFinal(food, f, id);
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
                 const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
-                const ajuste = food && marcado && (esPorPiezas(food) ? (
+                const guardarPeso = () => {
+                  const g = Math.round(Number(String(gramosEscritos).replace(',', '.')));
+                  if (g > 0 && g <= 3000) setPesados(v => ({ ...v, [id]: g }));
+                  setPesando(null);
+                };
+                const ajusteIA = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
                     <button type="button" aria-label="Una menos"
@@ -6571,6 +6588,33 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                         </button>
                       );
                     })}
+                  </div>
+                ));
+                const ajuste = food && marcado && (pesando === id ? (
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); guardarPeso(); }}>
+                    <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
+                    <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
+                      onChange={e => setGramosEscritos(e.target.value)}
+                      className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
+                    <span className="jb-body text-xs text-zinc-400">g</span>
+                    <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
+                    <button type="button" onClick={() => setPesando(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                  </form>
+                ) : pesados[id] > 0 ? (
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="jb-body text-xs text-emerald-400">⚖️ Pesado en tu balanza</span>
+                    <button type="button" onClick={() => { setGramosEscritos(String(pesados[id])); setPesando(id); }}
+                      className="jb-body text-[11px] text-zinc-400 hover:text-zinc-200 underline">Cambiar</button>
+                    <button type="button" onClick={() => setPesados(v => { const n = { ...v }; delete n[id]; return n; })}
+                      className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-x-3">
+                    {ajusteIA}
+                    <button type="button" onClick={() => { setGramosEscritos(''); setPesando(id); }}
+                      className="mt-2 jb-body text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-2.5 py-1">
+                      ⚖️ Lo pesé
+                    </button>
                   </div>
                 ));
                 if (f.esOpciones) {
@@ -6729,7 +6773,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             ) : (
             <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo. <span className="text-zinc-500">Tip: si es un líquido (leche, yogurt, jugo) que se parece a otros, funciona mejor fotografiar el envase con la marca que el vaso servido.</span></p>
             )}
-            <button onClick={() => { setItems([]); setSeleccionados({}); setCorrecciones({}); setElecciones({}); setTamanos({}); setConteos({}); setAceite('normal'); setAgregandoExtra(true); setEstado('resultados'); }}
+            <button onClick={() => { setItems([]); setSeleccionados({}); setCorrecciones({}); setElecciones({}); setTamanos({}); setConteos({}); setPesados({}); setPesando(null); setAceite('normal'); setAgregandoExtra(true); setEstado('resultados'); }}
               className={btnGhost + ' w-full py-2.5 mb-2'}>＋ Agregarlo yo con esta foto</button>
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
           </div>

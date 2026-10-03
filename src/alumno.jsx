@@ -636,7 +636,9 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-function ModoVozActivo({ onElegirVarios }) {
+// autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
+// hoja Registrar), para registrar en un solo toque.
+function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -650,7 +652,16 @@ function ModoVozActivo({ onElegirVarios }) {
   const dictado = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const soportado = puedeGrabar || dictado;
 
-  useEffect(() => () => { clearInterval(reloj.current); try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {} }, []);
+  // Si se cierra mientras graba, el audio se descarta (no se manda a la IA).
+  useEffect(() => () => {
+    clearInterval(reloj.current);
+    descartar.current = true;
+    try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {}
+    try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {}
+  }, []);
+  // Solo con grabación de audio: el dictado del navegador necesita que la
+  // persona toque el micrófono.
+  useEffect(() => { if (autoGrabar && puedeGrabar) empezar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function interpretar(dicho) {
     setTexto(dicho);
@@ -963,6 +974,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
   }
 
+  // En la hoja Registrar el botón "Voz" ya graba directo (un solo toque).
   if (embebido) {
     return (
       <div className="flex flex-col gap-3">
@@ -975,7 +987,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} autoGrabar />}
       </div>
     );
   }

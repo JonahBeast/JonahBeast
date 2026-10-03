@@ -314,15 +314,15 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - Si no aparece o no quieres tomar la foto: **"Mejor lo busco por su nombre"**.
 
 **C) Voz**
-1. Toca **"Voz"** → pestaña **"🎤 Por voz"**. Sale **"¿QUÉ COMISTE?"** con un micrófono naranja grande ("Toca el micrófono y dilo como se lo contarías a un amigo").
-2. Toca el micrófono y habla. Mientras graba, el círculo late y abajo salen **🗑️** (borrar y empezar de nuevo), el **tiempo** (máximo 30 segundos) y **✅** (listo). También puedes tocar el círculo para terminar. La primera vez el celular pide permiso para el micrófono: tócale **"Permitir"**.
+1. Toca **"Voz"**: **empieza a grabar al toque** (un solo toque, sin entrar a otra pestaña). Sale **"¿QUÉ COMISTE?"** con el micrófono naranja grande latiendo; habla de una vez. La primera vez el celular pide permiso para el micrófono: tócale **"Permitir"**. Si el celular no deja grabar audio y usa el dictado del navegador, ahí sí tienes que tocar el micrófono ("Toca el micrófono y dilo como se lo contarías a un amigo").
+2. Mientras graba, el círculo late y abajo salen **🗑️** (borrar y empezar de nuevo), el **tiempo** (máximo 30 segundos) y **✅** (listo). También puedes tocar el círculo para terminar. Si lo borraste con 🗑️ o quieres decir algo más, toca el micrófono para grabar de nuevo.
 3. Di varios alimentos juntos, ej.: "2 huevos sancochados, 1 pan francés con palta y un café con leche" o "150 g de yogurt". Sale "Escuchando lo que dijiste…" y luego lo que entendió, entre comillas.
 4. Revisa la lista (✅ se agrega, ⬜ no). Si algo no quedó claro, elige la opción correcta.
 5. Toca **"Agregar N alimento(s)"**.
 - **Funciona en iPhone y en Android**, también dentro de Instagram o Facebook: el audio lo escucha la inteligencia artificial. Si el micrófono está bloqueado sale "Para registrar por voz, permite el micrófono…". Si no se escuchó o no reconoció alimentos, lo dice para que lo intentes de nuevo. Se puede usar hasta 30 veces al día.
 - **Es Premium.** En la versión gratis, el botón "Voz" dice "👑 Premium" y al tocarlo sale **"Registrar por voz es Premium"** con **"VER PREMIUM"**. Los atajos de abajo (repetir ayer, mis comidas, frecuentes) sí son gratis.
 
-**D) Favoritos:** dentro de "Voz", pestaña **"⭐ Favoritos"**: tus 9 alimentos más registrados; un toque y se agregan.
+**D) Favoritos:** dentro de "Voz", pestaña **"⭐ Favoritos"**: tus 9 alimentos más registrados; un toque y se agregan. (Al volver a la pestaña "🎤 Por voz" empieza a grabar de nuevo.)
 
 **E) Atajos de cada comida (abajo en la hoja "REGISTRAR")**
 - **"⚡ Agregar tu de siempre: …"** (si la comida está vacía).

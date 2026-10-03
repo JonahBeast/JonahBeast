@@ -74,6 +74,15 @@
     {
       "path": "/api/cron/prueba-guiada",
       "schedule": "15 23 * * *"
+    },
+    {
+      "path": "/api/cron/manual-jarvis",
+      "schedule": "40 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/cron/manual-jarvis.js": {
+      "includeFiles": "docs/manual-app.md"
+    }
+  }
 }

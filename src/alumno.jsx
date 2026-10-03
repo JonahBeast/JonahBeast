@@ -6119,6 +6119,39 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [aceite, setAceite] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
+  // Lo que la IA vio y no está en la app ya no se pide solo (la IA puede
+  // confundirse de plato): se le pregunta al alumno y solo si confirma se
+  // le pide a Jonah, como con "🙋 Pedirle a Jonah". { [nombre]: 'enviando' | 'ok' | 'error' }
+  const [pedidosFoto, setPedidosFoto] = useState({});
+  async function pedirDeFoto(nombre) {
+    setPedidosFoto(v => ({ ...v, [nombre]: 'enviando' }));
+    const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
+    setPedidosFoto(v => ({ ...v, [nombre]: error && !error.message?.startsWith('Ya enviaste') ? 'error' : 'ok' }));
+    if (!error) supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } }).then(() => cargarAlimentosExtra(true), () => {});
+  }
+  const preguntaNoEncontrados = noEncontrados.length > 0 && (
+    <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5 text-left">
+      <p className="jb-body text-xs text-zinc-300 mb-2">
+        La IA también creyó ver algo que aún no está en la app. Si de verdad lo comiste, pídeselo a Jonah:
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {noEncontrados.map(n => (
+          <div key={n} className="flex items-center justify-between gap-2">
+            <span className="jb-body text-xs text-orange-400 font-semibold min-w-0 break-words">{n}</span>
+            {!premium ? null : pedidosFoto[n] === 'ok' ? (
+              <span className="jb-body text-[11px] text-emerald-400 shrink-0">✅ Pedido a Jonah</span>
+            ) : (
+              <button type="button" disabled={pedidosFoto[n] === 'enviando'} onClick={() => pedirDeFoto(n)}
+                className="jb-body text-[11px] px-2.5 py-1 rounded-full border border-orange-500/50 text-zinc-100 hover:bg-orange-500 hover:text-zinc-950 shrink-0">
+                {pedidosFoto[n] === 'enviando' ? 'Enviando…' : pedidosFoto[n] === 'error' ? 'Reintentar' : '🙋 Sí, lo comí: pedirlo'}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!premium && <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Puedes crearlo tú con sus calorías.</p>}
+    </div>
+  );
   const [mensajeError, setMensajeError] = useState('');
   const [progresoIA, setProgresoIA] = useState(0);
   // Cuántas fotos le quedan. Premium (prueba o plan): hasta 5 al día, sin
@@ -6172,7 +6205,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
 
   async function analizar(base64, mimeType) {
     setEstado('analizando');
-    setNoEncontrados([]);
+    setNoEncontrados([]); setPedidosFoto({});
     try {
       // Los productos escaneados no se mandan: la foto reconoce platos, y
       // los empacados se registran mejor con su código de barras.
@@ -6744,13 +6777,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
             </p>
-            {noEncontrados.length > 0 && (
-              <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5">
-                <p className="jb-body text-xs text-zinc-300">
-                  También vimos <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, que aún no está en la app.{premium ? ' Ya le avisamos a Jonah para agregarlo 🙌' : ' Puedes crearlo tú con sus calorías.'}
-                </p>
-              </div>
-            )}
+            {preguntaNoEncontrados}
           </div>
         )}
 
@@ -6764,10 +6791,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
             {noEncontrados.length > 0 ? (
               <>
-                <p className="jb-body text-sm text-zinc-300 mb-1">
-                  Parece <span className="text-orange-400 font-semibold">{noEncontrados.join(', ')}</span>, y aún no está en la app.
-                </p>
-                <p className="jb-body text-sm text-zinc-400 mb-4">{premium ? 'Ya le avisamos a Jonah para agregarlo 🙌 Mientras tanto, búscalo escribiendo o elige algo parecido.' : 'Búscalo escribiendo, elige algo parecido o créalo tú con sus calorías.'}</p>
+                <p className="jb-body text-sm text-zinc-400 mb-1">No encontramos tu plato en la app.</p>
+                <div className="mb-4">{preguntaNoEncontrados}</div>
                 <button onClick={onCerrar} className={btnPrimary + ' w-full py-2.5 mb-2'}>Buscarlo escribiendo</button>
               </>
             ) : (

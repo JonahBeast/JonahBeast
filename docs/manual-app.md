@@ -160,9 +160,9 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 ## 6. Cómo se organiza la app del alumno
 
-**Barra de abajo (5 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**, **"Equipo"**.
+**Barra de abajo (5 pestañas):** **"Inicio"**, **"Comidas"**, **"Mi cuerpo"**, **"Progreso"**, **"Comunidad"**.
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
-- Un **punto naranja sobre "Equipo"** significa que un compañero le mandó ánimo o que tiene una invitación a un equipo por aceptar (ver 12.2).
+- Un **punto naranja sobre "Comunidad"** significa que Jonah publicó un anuncio nuevo en el muro (ver 12.3), que un compañero le mandó ánimo o que tiene una invitación a un equipo por aceptar (ver 12.2). Dentro, el punto sale sobre "Muro" o "Mis equipos" según de qué se trate.
 
 **Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros; **en el celular está abajo, en el pie de la pantalla**: "🔊 Quitar sonidos" / "🔇 Activar sonidos"), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
 
@@ -550,16 +550,16 @@ Problemas:
 - "¿Hay premio a la mejor transformación o creatina?" → No, el único premio es 1 mes gratis por completar el reto.
 - Entrega del mes gratis → la coordina Jonah al terminar el reto.
 
-### 12.2 Pestaña "Equipo" (retos en grupo)
+### 12.2 "Mis equipos" (retos en grupo)
 
-Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y versión gratis.
+Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y versión gratis. Están en la pestaña **"Comunidad"** → arriba, **"Mis equipos"** (al lado de "Muro", ver 12.3). La app recuerda cuál de las dos vio la última vez; los enlaces de invitación, los avisos de ánimo y de fin de reto y la tarjeta de medalla abren directo "Mis equipos".
 
-**Team Beast (el oficial):** el reto en grupo con Jonah de capitán (siempre de tipo "Comer mejor"; Jonah no compite por medallas en su propio equipo). Jonah elige cuándo empieza, cuánto dura, la meta de comidas y el premio: antes de empezar, el equipo muestra "EMPIEZA EL [fecha]" y ya se puede entrar e invitar; durante el reto dice, por ejemplo, "Reto de 28 días con Jonah". Para entrar: pestaña **"Equipo"** → **"Unirme al Team Beast"**.
+**Team Beast (el oficial):** el reto en grupo con Jonah de capitán (siempre de tipo "Comer mejor"; Jonah no compite por medallas en su propio equipo). Jonah elige cuándo empieza, cuánto dura, la meta de comidas y el premio: antes de empezar, el equipo muestra "EMPIEZA EL [fecha]" y ya se puede entrar e invitar; durante el reto dice, por ejemplo, "Reto de 28 días con Jonah". Para entrar: **"Comunidad"** → **"Mis equipos"** → **"Unirme al Team Beast"** (o el botón "Únete al reto" de un anuncio de Jonah en el muro).
 
 **Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). Ese nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán. Además, el capitán puede ponerle un **apodo** opcional (de 2 a 24 letras, sin groserías ni promesas de kilos), y se ve como **"Team Beast de Pedro · Los Imparables"**. El Team Beast oficial no lleva apodo.
 
 **Crear un equipo propio:**
-1. Pestaña **"Equipo"** → **"Crear mi equipo"**.
+1. **"Comunidad"** → **"Mis equipos"** → **"Crear mi equipo"**.
 2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Si quieres, escribe un **"Apodo del equipo (opcional)"** (ej. "Los Imparables").
 3. Elige el **"Tipo de reto"** (ver "Tipos de reto" abajo) y su **meta**.
 4. Elige **cuándo empiezan** (**"Hoy"**, el próximo **lunes** o el lunes siguiente) y la **duración**: **14, 28 o 56 días** o **"Hasta una fecha"** (de 14 a 120 días; ej. "hasta el 20 de diciembre").
@@ -585,15 +585,15 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 - **"Mostrar mi avance"** / **"Competir con mi avance"** (carrera): el equipo ve su barrita y sus **kilos bajados** (ej. "−2.4 kg · 2.6%"), **nunca su peso**. Para la carrera es obligatorio.
 - Para sumar hay que tener un **peso anotado** ("Mi cuerpo" o el pesaje del domingo en Inicio): cuenta el peso de hasta 14 días antes del inicio o el de la primera semana del reto. Si no hay, sale "⚖️ Para sumar, anota tu peso…".
 
-**Al terminar el reto:** al día siguiente, como a las 8am, a todos les llega "🏆 ¡Terminó el reto! Entra a ver el podio y quién ganó" (o "🏁 ¡Terminó la carrera!…"). En el equipo sale **"🏆 ¡ASÍ TERMINÓ EL RETO!"** con el ganador de la carrera, el podio de los más constantes, si cumplieron la meta y el premio. Las medallas (🥇 🥈 🥉 🏆 🎯 🏁) quedan para siempre en **"MIS MEDALLAS"**, arriba en la pestaña "Equipo" (al tocarla se ven todas). **A quien gana una medalla, al abrir la app le sale una tarjeta donde Jonah el gorila se la entrega** ("¡CAMPEÓN!", "¡SEGUNDO LUGAR!", "¡TERCER LUGAR!", "¡GANASTE LA CARRERA!", "¡META CUMPLIDA!" o "¡LLEGASTE A TU META!"), con un mensaje de Jonah y el premio del reto. Botones: **"📲 Compartir mi medalla"** (arma una imagen con el estilo de la tarjeta "MI CAMBIO": la medalla, Jonah con su globo "¡ASÍ SE HACE!", el equipo y su código de invitación; sin kilos), **"Ver el podio"** y **"Cerrar"**. Sale una sola vez por medalla (en los 14 días siguientes); si ganó varias, muestra la más importante y nombra las demás. El premio lo coordinan entre ellos (en el Team Beast, lo coordina Jonah).
+**Al terminar el reto:** al día siguiente, como a las 8am, a todos les llega "🏆 ¡Terminó el reto! Entra a ver el podio y quién ganó" (o "🏁 ¡Terminó la carrera!…"). En el equipo sale **"🏆 ¡ASÍ TERMINÓ EL RETO!"** con el ganador de la carrera, el podio de los más constantes, si cumplieron la meta y el premio. Las medallas (🥇 🥈 🥉 🏆 🎯 🏁) quedan para siempre en **"MIS MEDALLAS"**, arriba en "Mis equipos" (al tocarla se ven todas). **A quien gana una medalla, al abrir la app le sale una tarjeta donde Jonah el gorila se la entrega** ("¡CAMPEÓN!", "¡SEGUNDO LUGAR!", "¡TERCER LUGAR!", "¡GANASTE LA CARRERA!", "¡META CUMPLIDA!" o "¡LLEGASTE A TU META!"), con un mensaje de Jonah y el premio del reto. Botones: **"📲 Compartir mi medalla"** (arma una imagen con el estilo de la tarjeta "MI CAMBIO": la medalla, Jonah con su globo "¡ASÍ SE HACE!", el equipo y su código de invitación; sin kilos), **"Ver el podio"** y **"Cerrar"**. Sale una sola vez por medalla (en los 14 días siguientes); si ganó varias, muestra la más importante y nombra las demás. El premio lo coordinan entre ellos (en el Team Beast, lo coordina Jonah).
 
 **Invitar:** dentro del equipo, tarjeta **"INVITA A TU GENTE"**:
 - **"Invitar por WhatsApp"**: abre WhatsApp con el mensaje y el enlace ya escritos; solo hay que elegir a quién (persona o grupo) y enviar. No hay que pegar nada.
 - **"Copiar enlace"**: copia solo el enlace, para pegarlo en otra red (Instagram, Facebook, Messenger, un estado). También se puede pasar el **código del equipo** (5 letras/números). El enlace lleva además el código de invitación del alumno, así el amigo nuevo tiene **10% de descuento en su primer plan** (ver sección 12).
 
 **Unirse con un enlace o código:**
-- Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, la pestaña **"Equipo"** muestra **"Te invitaron"** → **"Unirme al equipo"**. Si **ya tiene cuenta**, no debe crear otra: en esa pantalla toca **"¿Ya tienes cuenta? ENTRAR"** (arriba o abajo del formulario), entra con su cuenta de siempre y la invitación le aparece igual en "Equipo". A quien ya tiene cuenta el enlace no le cambia nada de su plan (el 10% es solo para cuentas nuevas).
-- Con el **código**: pestaña **"Equipo"** → **"Tengo un código"** → escribirlo → **"Entrar"**.
+- Con el **enlace**: si no tiene cuenta, la crea (sale "🦍 Te invitaron al equipo [nombre]…"); al entrar, **"Comunidad"** → **"Mis equipos"** muestra **"Te invitaron"** → **"Unirme al equipo"**. Si **ya tiene cuenta**, no debe crear otra: en esa pantalla toca **"¿Ya tienes cuenta? ENTRAR"** (arriba o abajo del formulario), entra con su cuenta de siempre y la invitación le aparece igual en "Mis equipos". A quien ya tiene cuenta el enlace no le cambia nada de su plan (el 10% es solo para cuentas nuevas).
+- Con el **código**: **"Comunidad"** → **"Mis equipos"** → **"Tengo un código"** → escribirlo → **"Entrar"**.
 - Máximo **30 integrantes** por equipo y **3 equipos** por persona (contando el Team Beast).
 
 **Qué se ve dentro del equipo:**
@@ -612,7 +612,7 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - "🏆 [Nombre] lleva 7 días seguidos registrando" (a los 3, 7, 14, 21 y 30 días)
   - "🔥 [Nombre] le mandó ánimo a [Nombre]"
   Junto a los logros de los compañeros hay un botón (👏 ¡Bien ahí!, 🔥 ¡Sigue así! o 💪 ¡Vamos!) para mandarle ánimo ahí mismo (cuenta como el ánimo del día para esa persona). Solo cuenta lo que pasó desde que cada uno entró al equipo. Al principio sale vacía ("Todavía no hay movimiento…").
-- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos y la actividad; la conversación libre es en WhatsApp. En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
+- **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos, la actividad y el muro de la comunidad (12.3); la conversación libre, si el equipo quiere, es en su grupo de WhatsApp (es opcional: si no hay enlace, el botón no sale). En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
 - El **capitán** puede poner o cambiar el **apodo**, el enlace del grupo de WhatsApp y el **premio** (lápiz ✏️ arriba a la derecha). Mientras el reto no empieza, puede cambiar todo el reto con **"⚙️ Cambiar el reto: tipo, meta, fechas y premio"** (en el Team Beast: "📅 Cambiar fechas, meta y premio del reto", en cualquier momento). Cuando el reto termina, le sale **"ARRANCA OTRO RETO"**.
 - **"Salir del equipo"** (abajo, letra pequeña). Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 
@@ -623,6 +623,32 @@ Problemas:
 - "Bajé de peso y no se ve en el equipo" → revisar en "TU AVANCE" que no esté en "Solo constancia" y que tenga un peso anotado al empezar; se cuenta con el pesaje de cada semana y como mucho 1% por semana.
 - "Esa meta es muy rápida" → como mucho 1 kg o 1% por semana de reto: alargar la fecha o bajar la meta.
 - "Registré y no me sale el ✓" → el ✓ es con 3 comidas o más del día (desayuno, media mañana, almuerzo, media tarde y cena cuentan por separado); con 1 o 2 sale "–". Se actualiza al volver a abrir el equipo.
+
+
+### 12.3 "Muro" de la comunidad
+
+En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast celebra sus logros. Es para todos (Premium y versión gratis). **Nadie escribe texto**: solo se reacciona con un toque, así que no hay mensajes feos ni nada que moderar.
+
+**Qué sale en el muro** (lo más nuevo arriba, de los últimos 14 días):
+- **Anuncios de Jonah** ("JONAH 🦍"): retos nuevos, avisos, mensajes. Los fijados ("📌 Fijado") van siempre arriba. Algunos traen el botón **"Únete al reto · [equipo]"**: lleva a "Mis equipos" con la invitación lista para tocar **"Unirme al equipo"**. Si ya está en ese equipo, dice **"Ver el reto"**.
+- **"LOGROS DE LA COMUNIDAD"**, que salen solos de los retos y de las comidas registradas:
+  - 🥇🥈🥉 "[Nombre] ganó la medalla de oro (plata, bronce) en el Team Beast por su constancia" (o "en su equipo" / "en [apodo del equipo]")
+  - 🏁 "[Nombre] ganó la carrera en su equipo"
+  - 🎯 "[Nombre] llegó a su meta en su equipo"
+  - 🏆 "[Equipo] cumplió su meta del equipo: [nombres]"
+  - 🔥 "[Nombre] lleva 7 días seguidos registrando sus comidas" (a los 7, 14, 21, 30, 60 y 90 días)
+  - 🦍 "[Nombre] se unió al Team Beast"
+  Los logros propios salen con "Tú" y con borde naranja.
+- **Nunca se muestra el peso, los kilos ni lo que come nadie.** Solo el nombre corto (ej. "Rosa M.").
+
+**Reaccionar:** debajo de cada logro y anuncio hay tres botones, **🔥 💪 👏**, con cuántos reaccionaron. Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (como mucho 3 avisos de estos al día).
+
+**Aparecer en el muro (es opcional):** la primera vez sale **"¿QUIERES APARECER EN EL MURO?"** → **"Sí, quiero"** o **"Ahora no"**. Mientras no diga que sí, **sus logros no salen** (igual puede ver el muro y reaccionar). Se cambia cuando quiera abajo del muro: "Apareces en el muro como [nombre]. **Dejar de aparecer**" o "No apareces en el muro. **Quiero aparecer**". Los **menores de 18** pueden ver y reaccionar, pero no aparecen en el muro.
+
+Problemas:
+- "Gané una medalla (o tengo una racha) y no salgo en el muro" → revisar abajo del muro que diga "Apareces en el muro"; si no, tocar "Quiero aparecer". Las rachas salen el día que llega a 7, 14, 21, 30, 60 o 90 días seguidos con al menos una comida registrada, y quedan 14 días en el muro.
+- "No me deja aparecer" → hay que ser mayor de 18 (según la edad de "Mi cuerpo").
+- "Quiero escribir o subir una foto de mi plato" → por ahora el muro es solo de logros y reacciones; las fotos de platos llegarán más adelante.
 
 ---
 
@@ -756,7 +782,7 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
-**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, fin del reto de su equipo) llegan siempre; los ánimos, como mucho 3 con aviso al día.
+**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, reacción a un logro suyo en el muro, fin del reto de su equipo) llegan siempre; los ánimos y las reacciones, como mucho 3 con aviso al día cada uno.
 
 | Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
 |---|---|---|

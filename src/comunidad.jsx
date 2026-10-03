@@ -14,6 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { reaccionesPara } from './reacciones.js';
 import { btnPrimary, btnGhost, showToast, vibrar, todayISO, addDaysISO } from './App.jsx';
 import { EquipoTab, MEDALLAS, CLAVE_INVITACION_EQUIPO, llamar, Tarjeta, haceCuanto } from './equipo.jsx';
 
@@ -134,11 +135,6 @@ export function CompartirPlato({ username, comida, blob, previewUrl, plato, onLi
   );
 }
 
-const REACCIONES = [
-  { tipo: 'fuego', emoji: '🔥' },
-  { tipo: 'fuerza', emoji: '💪' },
-  { tipo: 'aplauso', emoji: '👏' },
-];
 
 export function ComunidadTab({ username, nombre, vista, onVista, avisoEquipos, onAnimosVistos, onMuroVisto }) {
   function cambiar(v) { guardarVistaComunidad(v); onVista(v); window.scrollTo({ top: 0 }); }
@@ -364,13 +360,13 @@ function Muro({ onIrEquipos, onVisto }) {
 function Reacciones({ item, propio = false, onReaccionar }) {
   const mias = item.mias || [];
   return (
-    <div className="flex gap-1.5 mt-3">
-      {REACCIONES.map(r => {
+    <div className="flex flex-wrap gap-1.5 mt-3">
+      {reaccionesPara(item).map(r => {
         const n = item.reacciones?.[r.tipo] || 0;
         const mia = mias.includes(r.tipo);
         if (propio && !n) return null;
         return (
-          <button key={r.tipo} onClick={() => !propio && onReaccionar(item.id, r.tipo)} disabled={propio}
+          <button key={r.tipo} onClick={() => !propio && onReaccionar(item.id, r.tipo)} disabled={propio} aria-label={r.texto} title={r.texto}
             className={`jb-body text-sm px-3 py-1 rounded-full border transition-colors ${mia ? 'border-orange-500 bg-orange-500/15 text-zinc-50' : 'border-zinc-800 text-zinc-300'} ${propio ? '' : 'hover:border-orange-500/60'}`}>
             {r.emoji}{n > 0 && <span className="ml-1 text-xs">{n}</span>}
           </button>

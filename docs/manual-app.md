@@ -429,7 +429,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - "Llegaste a 5 fotos hoy" ("Una por cada comida. Si necesitas más, escríbenos por WhatsApp.") (Premium) → mañana puede seguir con fotos. Mientras tanto, tocar **"Registrarlo escribiendo"**. Si de verdad necesita más, tocar **"Escribir por WhatsApp"** y pasar a Jonah.
 - "Ya usaste tus 3 fotos gratis de esta semana" ("Registrar con foto todas tus comidas es Premium.") (versión gratis) → el lunes tiene 3 fotos nuevas. Si quiere foto en todas sus comidas, tocar **"Ver Premium"**. Si no, **"Registrarlo escribiendo"**.
 - "Ya leíste 5 etiquetas hoy…" (al leer la tabla nutricional) → mañana puede leer más; mientras tanto, **"Buscarlo escribiendo"**.
-- "No reconocimos nada con confianza en esta foto…" → más luz, más cerca; si es un envase (leche, yogurt, jugo), fotografiar la marca. Luego "Probar otra foto".
+- "No reconocimos nada con confianza en esta foto…" → más luz, más cerca; si es un envase (leche, yogurt, jugo), fotografiar la marca. Luego "Probar otra foto". O tocar **"＋ Agregarlo yo con esta foto"**: se busca el alimento a mano y se registra con esa foto (y se puede compartir en la Comunidad).
+- **"La foto no detectó todo"** (ej. vio la proteína pero no la crema de arroz) → en la lista de la foto, debajo de lo detectado, tocar **"＋ Agregar algo que no detectó"**, buscarlo y ajustar su cantidad. Queda registrado junto con lo demás y sale también si comparte el plato.
 - "La foto es demasiado pesada." → tomar la foto con la cámara en vez de usar una imagen guardada.
 - "No se pudo procesar la foto…" → "Reintentar".
 - "Tu cuenta no está activa…" → la cuenta fue desactivada por Jonah: pasar a Jonah.

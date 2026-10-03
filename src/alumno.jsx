@@ -6058,6 +6058,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   // corrección se guarda para que la próxima foto de este alumno la sepa.
   const [correcciones, setCorrecciones] = useState({});
   const [corrigiendo, setCorrigiendo] = useState(null); // key o id que se está corrigiendo
+  // "＋ Agregar algo que no detectó": el alumno suma a la lista lo que la IA
+  // no vio (queda marcado como _manual: no cuenta como acierto ni error de
+  // la IA).
+  const [agregandoExtra, setAgregandoExtra] = useState(false);
+  function agregarFaltante(key) {
+    const food = buscarFood(key);
+    setAgregandoExtra(false);
+    if (!food) return;
+    if (!items.some(f => !f.esOpciones && f.key === food.key)) {
+      setItems(v => [...v, { ...food, _cantidadIA: 1, _gramosIA: null, _aceiteIA: false, _confianzaIA: 'alta', _manual: true }]);
+    }
+    setSeleccionados(v => ({ ...v, [food.key]: true }));
+  }
   // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
   // cuando la IA dijo ese alimento (viene del servidor). { [foodKey]: [foodKey] }
   const [alternativasIA, setAlternativasIA] = useState({});
@@ -6178,6 +6191,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       setElecciones({});
       setCorrecciones({});
       setCorrigiendo(null);
+      setAgregandoExtra(false);
       setTamanos({});
       setConteos({});
       setAceite('normal');
@@ -6253,7 +6267,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
       const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
-      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido ? {} : { fotoIA: food.key }) });
+      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -6325,6 +6339,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         };
       };
       items.forEach(f => {
+        if (f._manual) return; // lo agregó el alumno: la IA no lo sugirió
         const id = f.esOpciones ? f.id : f.key;
         // Si el alumno dijo qué era en realidad, lo sugerido se cuenta como
         // descartado y se anota "corregido_a" (con la porción final).
@@ -6575,7 +6590,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
                     </label>
                     {avisoCorregido && <div className="pl-7">{avisoCorregido}</div>}
-                    {!corregido && corrigiendo !== id && (
+                    {!corregido && !f._manual && corrigiendo !== id && (
                       <button type="button" onClick={() => setCorrigiendo(id)}
                         className="ml-7 mt-1.5 jb-body text-xs text-orange-400 hover:text-orange-300 border border-orange-500/40 rounded-full px-2.5 py-0.5">
                         ✏️ No es esto
@@ -6587,6 +6602,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 );
               })}
             </div>
+            {agregandoExtra ? (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
+                <p className="jb-body text-[11px] text-zinc-400 mb-1">¿Qué más tenía tu plato? Búscalo:</p>
+                <BuscadorAlimento valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
+                  onElegir={agregarFaltante} onNoEncuentra={() => setAgregandoExtra(false)} />
+                <button type="button" onClick={() => setAgregandoExtra(false)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setCorrigiendo(null); setAgregandoExtra(true); }}
+                className="w-full mb-4 jb-body text-sm py-2 rounded-lg border border-dashed border-zinc-600 text-zinc-300 hover:border-orange-500 hover:text-zinc-100">
+                ＋ Agregar algo que no detectó
+              </button>
+            )}
             {(() => {
               // Pregunta del aceite: solo si hay algo frito o saltado marcado.
               const elegidos = elegidosConPorcion();
@@ -6667,6 +6695,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             ) : (
             <p className="jb-body text-sm text-zinc-400 mb-4">No reconocimos nada con confianza en esta foto. Intenta con más luz o más cerca del plato, o agrégalo escribiendo. <span className="text-zinc-500">Tip: si es un líquido (leche, yogurt, jugo) que se parece a otros, funciona mejor fotografiar el envase con la marca que el vaso servido.</span></p>
             )}
+            <button onClick={() => { setItems([]); setSeleccionados({}); setCorrecciones({}); setElecciones({}); setTamanos({}); setConteos({}); setAceite('normal'); setAgregandoExtra(true); setEstado('resultados'); }}
+              className={btnGhost + ' w-full py-2.5 mb-2'}>＋ Agregarlo yo con esta foto</button>
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
           </div>
         )}

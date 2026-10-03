@@ -14,7 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { btnPrimary, btnGhost, showToast, vibrar } from './App.jsx';
+import { btnPrimary, btnGhost, showToast, vibrar, todayISO, addDaysISO } from './App.jsx';
 import { EquipoTab, MEDALLAS, CLAVE_INVITACION_EQUIPO, llamar, Tarjeta, haceCuanto } from './equipo.jsx';
 
 const CLAVE_VISTA = 'jb-comunidad-vista';
@@ -410,4 +410,107 @@ function textoLogro(ev) {
     return { emoji: '🔥', texto: <>{quien} {ev.yo ? 'llevas' : 'lleva'} <b>{ev.detalle} días seguidos</b> registrando {ev.yo ? 'tus' : 'sus'} comidas</> };
   }
   return { emoji: '🦍', texto: <>{quien} {ev.yo ? 'te uniste' : 'se unió'} al <b>Team Beast</b></> };
+}
+
+// TARJETAS DE INICIO que llevan gente a la comunidad (una a la vez):
+// 1. Al llegar a 3, 7, 14, 21, 30, 60 o 90 días seguidos registrando, a quien
+//    todavía no aparece en el muro: "¿Lo celebramos con la comunidad?".
+// 2. Si no, a quien no está en el Team Beast: "Únete al reto con Jonah".
+// "Ahora no" la esconde (la del logro hasta el siguiente logro; la del Team
+// Beast por 7 días).
+const HITOS_RACHA = [3, 7, 14, 21, 30, 60, 90];
+const CLAVE_TB_AHORA_NO = 'jb-team-beast-ahora-no';
+function leerLocal(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch {} }
+
+export function InvitacionComunidad({ username, onIrComunidad }) {
+  const [datos, setDatos] = useState(null); // { nov, racha }
+  const [oculta, setOculta] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const [{ r: nov, ok }, { data: hist }] = await Promise.all([
+          llamar('comunidad_novedades'),
+          supabase.from('historial').select('fecha, comidas_count')
+            .eq('username', username).gte('fecha', addDaysISO(todayISO(), -100)),
+        ]);
+        if (!ok || !vivo) return;
+        const con = new Set((hist || []).filter(h => Number(h.comidas_count) > 0).map(h => h.fecha));
+        let racha = 0;
+        let dia = con.has(todayISO()) ? todayISO() : addDaysISO(todayISO(), -1);
+        while (con.has(dia)) { racha++; dia = addDaysISO(dia, -1); }
+        setDatos({ nov, racha });
+      } catch {}
+    })();
+    return () => { vivo = false; };
+  }, [username]);
+
+  if (!datos || oculta) return null;
+  const { nov, racha } = datos;
+  const hito = [...HITOS_RACHA].reverse().find(h => racha >= h);
+  const claveHito = `jb-celebrar-racha-${hito}`;
+  const verLogro = hito && !nov.visible && !nov.menor && !leerLocal(claveHito);
+  const ahoraNoTB = leerLocal(CLAVE_TB_AHORA_NO);
+  const verTeam = !verLogro && nov.oficial && !nov.oficial.soy_miembro
+    && !(ahoraNoTB && ahoraNoTB > addDaysISO(todayISO(), -7));
+  if (!verLogro && !verTeam) return null;
+
+  async function aparecer() {
+    setOcupado(true);
+    const { ok } = await llamar('comunidad_aparecer', { p_visible: true });
+    setOcupado(false);
+    if (!ok) { showToast('No se pudo guardar. Revisa tu internet e intenta de nuevo.', 'error'); return; }
+    vibrar(30);
+    showToast('🦍 ¡Listo! Ya apareces en el muro: ahí saldrán tus logros.');
+    setOculta(true);
+    onIrComunidad('muro');
+  }
+  async function unirse() {
+    setOcupado(true);
+    const { r, ok } = await llamar('equipo_unirse', { p_codigo: nov.oficial.codigo, p_por_enlace: false });
+    setOcupado(false);
+    if (!ok) { showToast(r?.error === 'muchos' ? 'Ya estás en 3 equipos, que es el máximo.' : 'No se pudo. Revisa tu internet e intenta de nuevo.', 'error'); return; }
+    vibrar(30);
+    showToast('🦍 ¡Bienvenido al Team Beast! Vamos juntos, comida a comida.');
+    setOculta(true);
+    onIrComunidad('equipos');
+  }
+
+  if (verLogro) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl border border-orange-500/50 bg-zinc-900 p-4 mb-4"
+        style={{ boxShadow: '0 0 40px -18px rgba(232,89,12,.6)' }}>
+        <p className="jb-display text-xl text-zinc-50 leading-tight">🔥 ¡{racha} DÍAS SEGUIDOS REGISTRANDO!</p>
+        <p className="jb-body text-sm text-zinc-300 mt-1 mb-1">¿Lo celebramos con la comunidad? Aparece en el muro y deja que te aplaudan.</p>
+        <p className="jb-body text-[11px] text-zinc-500 mb-3">Solo sale tu nombre corto y tus logros. Nunca tu peso ni lo que comes.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={aparecer} disabled={ocupado} className={btnPrimary + ' py-3'}>
+            {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Sí, que lo vean 🔥'}
+          </button>
+          <button onClick={() => { guardarLocal(claveHito, '1'); setOculta(true); }} disabled={ocupado} className={btnGhost + ' py-3'}>Ahora no</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-orange-500/40 bg-zinc-900 p-4 mb-4">
+      <div className="flex items-center gap-3 mb-2">
+        <img src="/logo-marca.webp" alt="Jonah" className="w-12 h-12 object-contain shrink-0" />
+        <span>
+          <span className="block jb-body text-[11px] text-orange-300 uppercase tracking-wider">El reto en grupo con Jonah</span>
+          <span className="block jb-display text-xl text-zinc-50 leading-tight">ÚNETE AL TEAM BEAST 🦍</span>
+        </span>
+      </div>
+      <p className="jb-body text-sm text-zinc-300 mb-3">Registra tus comidas, suma puntos y recibe ánimo del equipo. Con gente al lado se hace más fácil.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={unirse} disabled={ocupado} className={btnPrimary + ' py-3'}>
+          {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Unirme'}
+        </button>
+        <button onClick={() => { guardarLocal(CLAVE_TB_AHORA_NO, todayISO()); setOculta(true); }} disabled={ocupado} className={btnGhost + ' py-3'}>Ahora no</button>
+      </div>
+    </div>
+  );
 }

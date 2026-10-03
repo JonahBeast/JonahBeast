@@ -2281,6 +2281,7 @@ function ComunidadPanel({ users }) {
       <p className="jb-display text-lg text-zinc-50 mb-1">🦍 COMUNIDAD (MURO)</p>
       <p className="jb-body text-xs text-zinc-500 mb-4">Los logros de los retos salen solos en el muro. Aquí publicas tus anuncios y revisas las fotos de platos.</p>
       <FotosComunidad users={users} />
+      <AplaudirComunidad />
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[[datos.visibles, 'aparecen en el muro'], [datos.reacciones.length, 'reacciones en 7 días']].map(([n, t]) => (
           <div key={t} className="bg-zinc-950/60 rounded-xl p-3 text-center">
@@ -2348,6 +2349,73 @@ const FRASES_PLATO_ADMIN = {
   almuerzo_beast: '¡Almuerzo Beast! 💪', desayuno: 'Desayuno con todo ☀️', cena: 'Cena ligera y rica 🌙',
   casera: 'Comida casera 🍲', rico_sano: 'Sí se puede comer rico y sano 🔥', comida_a_comida: 'Comida a comida 🦍',
 };
+/* "Aplaude a tus alumnos": los logros del muro (de quienes aparecen en él)
+   con 🔥 💪 👏. Jonah reacciona como su cuenta de alumno, así al alumno le
+   llega "Jonah 🦍 reaccionó 🔥 a tu logro". Un toque pone, otro quita. */
+const MEDALLA_ADMIN = { oro: '🥇 ganó el oro', plata: '🥈 ganó la plata', bronce: '🥉 ganó el bronce', carrera: '🏁 ganó la carrera', meta_personal: '🎯 llegó a su meta' };
+function textoLogroAdmin(ev) {
+  if (ev.tipo === 'racha') return `🔥 ${ev.quien} lleva ${ev.detalle} días seguidos registrando`;
+  if (ev.tipo === 'foto') return `📸 ${ev.quien} compartió su plato${ev.plato ? `: ${ev.plato.split(' · ').map(l => l.split(':')[0]).join(', ')}` : ''}`;
+  if (ev.tipo === 'team_beast') return `🦍 ${ev.quien} se unió al Team Beast`;
+  if (ev.tipo === 'medalla') return `${ev.quien} ${MEDALLA_ADMIN[ev.detalle] || 'ganó una medalla'}${ev.oficial ? ' en el Team Beast' : ''}`;
+  if (ev.tipo === 'meta_equipo') return `🏆 ${ev.oficial ? 'El Team Beast' : ev.apodo || 'Un equipo'} cumplió su meta: ${(ev.nombres || []).join(', ')}`;
+  return ev.tipo;
+}
+function AplaudirComunidad() {
+  const [eventos, setEventos] = useState(null);
+  const [verTodo, setVerTodo] = useState(false);
+  async function cargar() {
+    const { data, error } = await supabase.rpc('comunidad_admin_muro');
+    setEventos(error || data?.error ? [] : (data.eventos || []).filter(e => !e.yo));
+  }
+  useEffect(() => { cargar(); }, []);
+  async function reaccionar(ev, tipo) {
+    const ya = (ev.mias || []).includes(tipo);
+    setEventos(lista => lista.map(e => e.id !== ev.id ? e : {
+      ...e,
+      mias: ya ? e.mias.filter(t => t !== tipo) : [...(e.mias || []), tipo],
+      reacciones: { ...e.reacciones, [tipo]: Math.max(0, (e.reacciones?.[tipo] || 0) + (ya ? -1 : 1)) },
+    }));
+    const { data, error } = await supabase.rpc('comunidad_admin_reaccionar', { p_evento: ev.id, p_tipo: tipo });
+    if (error || data?.error) { showToast('No se pudo guardar tu reacción', 'error'); cargar(); return; }
+    if (!ya) showToast('🔥 Le llegó tu aplauso');
+  }
+  if (!eventos) return null;
+  const lista = verTodo ? eventos : eventos.slice(0, 6);
+  return (
+    <div className="mb-4">
+      <p className="jb-display text-base text-zinc-100 mb-1">🔥 APLAUDE A TUS ALUMNOS {eventos.some(e => !(e.mias || []).length) && <span className="text-orange-400">· {eventos.filter(e => !(e.mias || []).length).length} sin tu aplauso</span>}</p>
+      <p className="jb-body text-[11px] text-zinc-500 mb-2">Logros del muro de los últimos 14 días. Tu reacción les llega como "Jonah 🦍 reaccionó 🔥 a tu logro".</p>
+      {eventos.length === 0 ? (
+        <p className="jb-body text-xs text-zinc-500 mb-2">Todavía no hay logros de alumnos en el muro.</p>
+      ) : (
+        <ul className="space-y-1.5 mb-2">
+          {lista.map(ev => (
+            <li key={ev.id} className="bg-zinc-950/60 border border-zinc-800 rounded-xl px-3 py-2 flex items-center gap-2">
+              <span className="flex-1 min-w-0 jb-body text-xs text-zinc-200 leading-snug">{textoLogroAdmin(ev)}</span>
+              <span className="flex gap-1 shrink-0">
+                {[['fuego', '🔥'], ['fuerza', '💪'], ['aplauso', '👏']].map(([t, emoji]) => {
+                  const mia = (ev.mias || []).includes(t);
+                  const n = ev.reacciones?.[t] || 0;
+                  return (
+                    <button key={t} onClick={() => reaccionar(ev, t)}
+                      className={`jb-body text-xs px-2 py-1 rounded-full border ${mia ? 'border-orange-500 bg-orange-500/15 text-zinc-50' : 'border-zinc-700 text-zinc-300'}`}>
+                      {emoji}{n > 0 && <span className="ml-0.5 text-[10px]">{n}</span>}
+                    </button>
+                  );
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {eventos.length > 6 && (
+        <button onClick={() => setVerTodo(v => !v)} className="jb-body text-xs text-orange-400">{verTodo ? 'Ver menos' : `Ver todos (${eventos.length})`}</button>
+      )}
+    </div>
+  );
+}
+
 function FotosComunidad({ users }) {
   const [fotos, setFotos] = useState(null);
   const [urls, setUrls] = useState({});

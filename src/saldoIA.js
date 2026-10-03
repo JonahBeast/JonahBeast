@@ -11,7 +11,12 @@ export const PRECIOS_IA_USD = {
   'claude-opus-5': [5, 25, 0.5, 6.25],
   'claude-opus-5-5': [4, 20, 0.2, 5],
   'claude-haiku-4-5': [1, 5, 0.1, 1.25],
+  // Registro por voz (OpenAI, no Anthropic): audio de entrada y texto de salida.
+  'gpt-4o-mini-transcribe': [3, 5, 0, 0],
 };
+
+// Lo que se paga a OpenAI (voz) no sale del saldo de Anthropic.
+export const esDeOpenAI = f => String(f?.modelo || '').startsWith('gpt-');
 
 export function costoUsdIA(f) {
   const m = String(f.modelo || '');
@@ -65,7 +70,7 @@ export function saldoEstimado(movimientos, usosDesde, recargaAuto = null) {
   // Uso y recargas anotadas, en orden, desde el punto de partida.
   const recargasAnotadas = (movimientos || []).filter(m => m.tipo === 'recarga' && new Date(m.fecha) > inicio && !(p.ancla && new Date(m.fecha) <= new Date(p.ancla.fecha)));
   const eventos = [
-    ...(usosDesde || []).filter(u => new Date(u.creado_en) >= inicio).map(u => ({ t: new Date(u.creado_en), costo: costoUsdIA(u) })),
+    ...(usosDesde || []).filter(u => new Date(u.creado_en) >= inicio && !esDeOpenAI(u)).map(u => ({ t: new Date(u.creado_en), costo: costoUsdIA(u) })),
     ...recargasAnotadas.map(m => ({ t: new Date(m.fecha), recarga: Number(m.monto_usd) })),
   ].sort((a, b) => a.t - b.t);
   const recargasPrevias = recargasAnotadas.reduce((s, m) => s + Number(m.monto_usd), 0);

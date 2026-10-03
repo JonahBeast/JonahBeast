@@ -3019,11 +3019,12 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp'];
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz'];
 
 // Partes de la app que usan IA, para comparar su costo con el mes anterior.
 const PARTES_IA = [
   { funcion: 'reconocer-comida', label: 'Fotos de comida', uso: 'foto' },
+  { funcion: 'registro-voz', label: 'Registro por voz', uso: 'audio' },
   { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
   { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
   { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
@@ -3205,6 +3206,7 @@ const COLORES_PARTES_IA = {
   'alimentos-pedidos': '#3987e5',
   'jarvis-chat': '#199e70',
   'whatsapp-webhook': '#c98500',
+  'registro-voz': '#a76fdc',
 };
 
 const PERIODOS_IA = [
@@ -4048,7 +4050,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
     if (!f.username) return;
     const a = porAlumnoIA[f.username] || (porAlumnoIA[f.username] = { username: f.username, soles: 0, fotos: 0, mensajes: 0 });
     a.soles += f.soles;
-    if (f.tipo === 'whatsapp') a.mensajes++; else if (f.tipo !== 'codigo') a.fotos++;
+    if (f.tipo === 'whatsapp') a.mensajes++; else if (f.tipo !== 'codigo' && f.tipo !== 'voz') a.fotos++;
   });
   // Comparación con el mes anterior: el total contra lo que se llevaba
   // gastado a esta misma altura del mes pasado (para no comparar medio mes

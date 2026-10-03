@@ -7464,6 +7464,9 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   const [unidad, setUnidad] = useState(null);
   const [aceite, setAceite] = useState('normal');
   const [otraMedida, setOtraMedida] = useState(false);
+  // Cantidad exacta escrita a mano (para quien pesa su comida o sabe la medida).
+  const [exacta, setExacta] = useState('');
+  const [unidadExacta, setUnidadExacta] = useState('gramos');
   const [agregados, setAgregados] = useState([]); // [{ id, nombre, cantidad }]
   const [frecuentes, setFrecuentes] = useState([]); // [{ food, unit, qty }]
   const inputRef = useRef(null);
@@ -7518,7 +7521,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
-    setElegido(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto('');
+    setElegido(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto(''); setExacta('');
     setTimeout(() => inputRef.current?.focus(), 50);
   }
   function quitar(id) {
@@ -7567,6 +7570,30 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 </button>
               ))}
             </div>
+            {(() => {
+              // "¿Sabes la cantidad exacta?": un número y su medida (gramos por defecto).
+              const qty = Number(String(exacta).replace(',', '.'));
+              const gramos = qty * (unidadExacta === 'gramos' ? 1 : (unitsFor(elegido).find(u => u[0] === unidadExacta)?.[1] || 1));
+              const valida = qty > 0 && gramos <= 5000;
+              const porcion = { unit: unidadExacta, qty: Math.round(qty * 100) / 100 };
+              return (
+                <form className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onSubmit={e => { e.preventDefault(); if (valida) agregar(elegido, porcion, aceite); }}>
+                  <p className="jb-body text-sm text-zinc-300 mb-2">✏️ ¿Sabes la cantidad exacta? Escríbela:</p>
+                  <div className="flex items-center gap-2">
+                    <input type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
+                      placeholder="Ej. 120" aria-label="Cantidad exacta"
+                      className="w-24 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
+                    <select value={unidadExacta} onChange={e => setUnidadExacta(e.target.value)} aria-label="Medida"
+                      className="flex-1 min-w-0 jb-body text-sm rounded-xl px-2 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-100 outline-none">
+                      {unitsFor(elegido).map(([u]) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <button type="submit" disabled={!valida} className={btnPrimary + ' px-4 py-2.5 text-sm shrink-0 disabled:opacity-40'}>Agregar</button>
+                  </div>
+                  {valida && <p className="jb-body text-xs text-orange-400 mt-1.5">≈ {kcalDe(elegido, porcion, aceite)} kcal</p>}
+                  {qty > 0 && !valida && <p className="jb-body text-xs text-amber-400 mt-1.5">Cantidad muy alta, revísala.</p>}
+                </form>
+              );
+            })()}
             {esConAceite(elegido) && (
               <div>
                 <p className="jb-body text-sm text-zinc-300 mb-1.5">🍳 ¿Cuánto aceite tenía?</p>
@@ -7631,7 +7658,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 {resultados.map(f => {
                   const d = unidadPorDefecto(f);
                   return (
-                    <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); }}
+                    <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit); }}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
                       <span className="text-xl shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
                       <span className="min-w-0 flex-1">

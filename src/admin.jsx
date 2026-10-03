@@ -2509,7 +2509,7 @@ function FotosComunidad({ users }) {
 
   return (
     <div className="mb-4">
-      <p className="jb-display text-base text-zinc-100 mb-1">📸 FOTOS DE PLATOS {pendientes.length > 0 && <span className="text-orange-400">· {pendientes.length} por revisar</span>}</p>
+      <p className="jb-display text-base text-zinc-100 mb-1">📸 FOTOS DE PLATOS PARA LA COMUNIDAD {pendientes.length > 0 && <span className="text-orange-400">· {pendientes.length} por revisar</span>}</p>
       <p className="jb-body text-[11px] text-zinc-500 mb-2">A quien ya le aprobaste 5 fotos, las siguientes le salen solas.</p>
       {pendientes.length === 0 ? (
         <p className="jb-body text-xs text-zinc-500 mb-2">No hay fotos por revisar. ✅</p>

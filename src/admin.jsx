@@ -1264,11 +1264,20 @@ async function cargarAlimentosExtraDeNuevo() {
    Al tocar "Escribirle" se abre WhatsApp y queda anotado en el pedido
    (avisos.escrito_wa) para que no vuelva a salir. */
 const DIAS_RESPUESTAS_WA = 3;
-function mensajePedidoWhatsApp(p, nombre) {
+// ¿El alumno lo pidió (app) o solo lo vio la IA en su foto? En una foto él
+// no pidió nada: el mensaje no puede decir "como me pediste".
+function soloDeFoto(p, username) {
+  const suyos = (p.solicitantes || []).filter(s => String(s?.username) === String(username));
+  return suyos.length > 0 && suyos.every(s => s.origen === 'foto');
+}
+function mensajePedidoWhatsApp(p, nombre, username) {
   const n = String(nombre || '').trim().split(/\s+/)[0] || '';
   if (p.estado === 'agregado') {
     const a = p.alimentos_extra;
     const plato = a ? (a.estado && a.estado !== '-' ? `${a.nombre} (${a.estado.toLowerCase()})` : a.nombre) : p.nombre;
+    if (soloDeFoto(p, username)) {
+      return `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah. En una foto tuya la app vio algo que parecía "${plato}" y todavía no lo teníamos, así que ya lo agregué. ¿Era eso lo que comiste? Si no, cuéntame qué era y lo corrijo 💪🦍`;
+    }
     return `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah. Ya agregué "${plato}" a la app, como me pediste. Búscalo en "REGISTRAR" → "Escribir" (si no te sale, cierra y vuelve a abrir la app). ¡Seguimos juntos, comida a comida! 💪🦍`;
   }
   const r = String(p.respuesta || '').trim();
@@ -1292,7 +1301,10 @@ function RespuestasParaWhatsApp({ onCantidad }) {
       const sinAviso = p.avisos?.sin_avisos || [];
       const usuarios = [...new Set((p.solicitantes || []).filter(s => s?.origen !== 'whatsapp' && s.username).map(s => String(s.username)))];
       usuarios.filter(u => u !== 'martin' && !escritos.includes(u))
-        .forEach(u => items.push({ p, username: u, sinAviso: sinAviso.includes(u) }));
+        // Lo descartado que solo vio la IA en una foto: el alumno no pidió
+        // nada, no hay nada que contarle.
+        .filter(u => !(p.estado === 'descartado' && soloDeFoto(p, u)))
+        .forEach(u => items.push({ p, username: u, sinAviso: sinAviso.includes(u), deFoto: soloDeFoto(p, u) }));
     });
     const usernames = [...new Set(items.map(i => i.username))];
     const { data: alumnos } = usernames.length
@@ -1309,7 +1321,7 @@ function RespuestasParaWhatsApp({ onCantidad }) {
   useEffect(() => { cargar(); }, []);
 
   async function escribir(item, abrir = true) {
-    if (abrir) window.open(enlaceWhatsApp(item.alumno.telefono, mensajePedidoWhatsApp(item.p, item.alumno.nombre)), '_blank', 'noopener');
+    if (abrir) window.open(enlaceWhatsApp(item.alumno.telefono, mensajePedidoWhatsApp(item.p, item.alumno.nombre, item.username)), '_blank', 'noopener');
     const avisos = { ...(item.p.avisos || {}), escrito_wa: [...new Set([...(item.p.avisos?.escrito_wa || []), item.username])] };
     await supabase.from('pedidos_alimentos').update({ avisos }).eq('id', item.p.id);
     await cargar();
@@ -1326,8 +1338,9 @@ function RespuestasParaWhatsApp({ onCantidad }) {
             <b>{item.alumno.nombre || item.username}</b>
             <span className="text-[11px] text-zinc-500"> · {item.p.estado === 'agregado' ? '✅ agregado' : '🗑️ descartado'} "{item.p.nombre}" · {fechaHoraCorta(item.p.resuelto_en)}</span>
           </p>
+          {item.deFoto && <p className="jb-body text-[11px] text-sky-300">📷 No lo pidió: lo vio la IA en su foto. El mensaje le pregunta si era eso.</p>}
           {item.sinAviso && <p className="jb-body text-[11px] text-amber-300">⚠️ No le llegó la notificación: escríbele para que se entere.</p>}
-          <p className="jb-body text-xs text-zinc-400 whitespace-pre-line">{mensajePedidoWhatsApp(item.p, item.alumno.nombre)}</p>
+          <p className="jb-body text-xs text-zinc-400 whitespace-pre-line">{mensajePedidoWhatsApp(item.p, item.alumno.nombre, item.username)}</p>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => escribir(item)} className={btnPrimary + ' text-xs py-1.5 px-3'}>
               <MessageCircle size={14} /> Escribirle

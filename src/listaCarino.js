@@ -41,6 +41,10 @@ import { traerTodas } from './traerTodas.js';
    Al tocar "Escribirle" se anota (config → lista_carino_escritos): ese día
    queda ✅ y ese mismo paso no se repite en 7 días. */
 
+// Link para quien aún no registra su primera comida: abre la app directo en
+// la cámara para registrar la comida de esa hora (si no tiene la sesión
+// abierta, primero le pide entrar).
+export const LINK_PRIMERA_COMIDA = 'https://jonahbeast.com/?registrar=ahora&foto=1';
 export const CLAVE_ESCRITOS = 'lista_carino_escritos';
 export const MAX_LISTA = 20;
 const HITOS_RACHA = [7, 14, 21, 30, 60, 90];
@@ -256,7 +260,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
           ? { etapa: 'bienvenida', motivo: `Se registró hoy${interno ? ' desde Instagram/Facebook' : ''} y ya anotó su primera comida 🔥`,
               mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. Vamos a ir juntos. Cualquier duda me escribes aquí, ¿ya? 🦍` }
           : { etapa: 'bienvenida', motivo: interno ? 'Se registró hoy desde Instagram/Facebook' : 'Se registró hoy',
-              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
+              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
       }
       // 2. Prueba por terminar (hoy o mañana).
       if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {
@@ -265,13 +269,13 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
           ? { etapa: 'prueba', motivo: `Su prueba termina ${cuando} · registró ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}`,
               mensaje: `Hola${n ? ' ' + n : ''} 👋 Tu Premium de prueba termina ${cuando}. En estos días registraste tus comidas ${conComida.size} ${conComida.size === 1 ? 'día' : 'días'}, ¡y eso ya es empezar a cambiar! 💪 No sueltes ahora que agarraste ritmo: con constancia, en unas semanas vas a ver la diferencia en el espejo. ¿Te cuento los planes para seguir juntos? 🦍` }
           : { etapa: 'prueba', motivo: `Su prueba termina ${cuando} y no llegó a usarla`,
-              mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu Premium de prueba termina ${cuando} y me quedé con ganas de acompañarte 😅 Igual la app sigue gratis para ti, para siempre. Si te animas, hoy registra una comida con una foto y empezamos de a poquito. ¿Qué te frenó? Cuéntame y lo vemos juntos 💪🦍` };
+              mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu Premium de prueba termina ${cuando} y me quedé con ganas de acompañarte 😅 Igual la app sigue gratis para ti, para siempre. Si te animas, hoy registra una comida con una foto y empezamos de a poquito (entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA}). ¿Qué te frenó? Cuéntame y lo vemos juntos 💪🦍` };
       }
       // 3. Primera comida: más de un día sin anotar nada (hasta 7).
       if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 7)) {
         const cuando = diasDesdeInicio === 1 ? 'ayer' : `hace ${diasDesdeInicio ?? 'unos'} días`;
         return { etapa: 'primera', motivo: `Se registró ${cuando}${interno ? ' desde Instagram/Facebook' : ''} y aún no anota ninguna comida`,
-          mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
+          mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
       }
       // 4. Retomar.
       if (ultimaComida) {

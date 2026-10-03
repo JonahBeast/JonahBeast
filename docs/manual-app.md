@@ -258,6 +258,12 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **Medidor fijo arriba:** anillo con las **"kcal quedan"** (o "kcal de más" si te pasaste), "X de Y kcal" y barras de **Proteína**, **Carbos** y **Grasas**.
 - **5 comidas:** Desayuno ☀️, Media mañana 🍎, Almuerzo 🍽️, Media tarde 🥐, Cena 🌙. La que toca por la hora lleva **"AHORA"**:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
+- **Las comidas que ya pasaron se ven cerradas**, para llegar a la de AHORA sin bajar tanto:
+  - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"**. Tócala para abrirla y ver o cambiar sus alimentos; la flecha **⌄** de arriba a la derecha la vuelve a cerrar. Si le agregas algo, se queda abierta.
+  - Si no registraste nada, se juntan en una línea gris: ej. **"Media mañana y Media tarde — no registradas"** con un **+**. Si te olvidaste de anotar algo, toca **+** y elige a cuál ("¿A cuál?").
+  - La comida de **AHORA** y las que todavía no llegan se ven completas, como siempre.
+  - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
+- **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
 - Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.

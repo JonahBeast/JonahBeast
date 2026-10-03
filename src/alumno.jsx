@@ -8011,6 +8011,8 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
 // en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
 function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onDesarmar, onCerrar }) {
   const [verSustitutos, setVerSustitutos] = useState(false);
+  // El número grande también se escribe a mano (ej. 37 g), no solo con − / +.
+  const [escribiendo, setEscribiendo] = useState(null); // texto mientras escribe
   const food = buscarFood(en.foodKey);
 
   useEffect(() => {
@@ -8026,6 +8028,13 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
   const bucket = grupoDeSustitucion(food);
 
   const fijar = (patch) => updateEntry(meal, en.id, { ...patch, grams: undefined });
+  function guardarEscrito() {
+    const n = Number(String(escribiendo ?? '').replace(',', '.'));
+    if (n > 0 && n * (porcion.unit === 'gramos' ? 1 : (unidades.find(u => u[0] === porcion.unit)?.[1] || 1)) <= 5000) {
+      fijar({ unit: porcion.unit, qty: Math.round(n * 100) / 100 });
+    }
+    setEscribiendo(null);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -8050,7 +8059,13 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             fijar({ unit: porcion.unit, qty: nueva });
           }}>−</BotonPaso>
           <div className="text-center min-w-[120px]">
-            <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{porcion.qty}</p>
+            <input type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
+              value={escribiendo ?? porcion.qty}
+              onFocus={e => { setEscribiendo(String(porcion.qty)); e.target.select(); }}
+              onChange={e => setEscribiendo(e.target.value)}
+              onBlur={guardarEscrito}
+              onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[120px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
             <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
           </div>
           <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>

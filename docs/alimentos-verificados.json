@@ -1854,6 +1854,41 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central: Applesauce, canned, sweetened (equivalente al puré casero con azúcar).",
    "verificado_en": "2026-10-03"
+  },
+  "Arroz árabe (-)": {
+   "estado": "verificado",
+   "fuente": "Receta casera calculada: arroz blanco cocido, fideo cabello de ángel dorado en mantequilla, pasas y almendras. Arroz, fideo y pasas: Tablas Peruanas de Composición de Alimentos (CENAN/INS); mantequilla y almendras: USDA FoodData Central.",
+   "verificado_en": "2026-10-03"
+  },
+  "Ensalada de manzana navideña (-)": {
+   "estado": "verificado",
+   "fuente": "Receta casera calculada (tipo Waldorf): manzana, apio, pasas, nueces y mayonesa/crema. USDA FoodData Central (Waldorf salad) y Tablas Peruanas de Composición de Alimentos (CENAN/INS).",
+   "verificado_en": "2026-10-03"
+  },
+  "Ensalada de pollo navideña (-)": {
+   "estado": "verificado",
+   "fuente": "Receta casera calculada: pechuga de pollo cocida, piña y durazno en almíbar, apio y mayonesa. Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central (chicken salad).",
+   "verificado_en": "2026-10-03"
+  },
+  "Puré de camote (-)": {
+   "estado": "verificado",
+   "fuente": "Receta casera calculada: camote cocido con mantequilla y leche. Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central (sweet potato, mashed).",
+   "verificado_en": "2026-10-03"
+  },
+  "Pierna de cerdo al horno (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: Pork, fresh, leg (ham), whole, lean and fat, roasted, con un poco de aliño.",
+   "verificado_en": "2026-10-03"
+  },
+  "Panetón con chispas de chocolate (-)": {
+   "estado": "verificado",
+   "fuente": "Etiquetas nutricionales típicas de panetón con chispas de chocolate en Perú (~380 kcal/100 g).",
+   "verificado_en": "2026-10-03"
+  },
+  "Vino espumante (champán) (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: Wine, dessert/sparkling (espumante semiseco); las calorías incluyen el alcohol.",
+   "verificado_en": "2026-10-03"
   }
  }
 }

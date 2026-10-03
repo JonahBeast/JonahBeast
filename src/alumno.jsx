@@ -6250,13 +6250,23 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
-    if (cucharadas && buscarFood(CLAVE_ACEITE)) {
+    const aceiteExtra = cucharadas && buscarFood(CLAVE_ACEITE);
+    if (aceiteExtra) {
       onAgregar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
     }
     registrarFeedbackReconocimiento(elegidos);
-    // Ofrecer compartir el plato en la Comunidad (Etapa B del muro).
+    // Ofrecer compartir el plato en la Comunidad (Etapa B del muro), con lo
+    // que registró y su cantidad: "Yogur griego: 1 taza (≈ 245 g) · …".
     if (elegidos.length && fotoBlob.current && previewUrl && preguntarCompartirPlato()) {
-      setPlatoCompartir(elegidos.slice(0, 2).map(e => e.food.name).join(' · ').slice(0, 60));
+      const lineas = elegidos.map(e => `${e.food.name}: ${textoPorcionFoto(e.food, e.porcion)}`);
+      if (aceiteExtra) lineas.push(`${aceiteExtra.name}: ${textoPorcionFoto(aceiteExtra, { unit: 'cucharada', qty: cucharadas })}`);
+      let texto = '';
+      for (const l of lineas.slice(0, 6)) {
+        const siguiente = texto ? `${texto} · ${l}` : l;
+        if (siguiente.length > 300) break;
+        texto = siguiente;
+      }
+      setPlatoCompartir(texto);
       setEstado('compartir');
       return;
     }

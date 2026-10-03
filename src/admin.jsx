@@ -2393,7 +2393,12 @@ function FotosComunidad({ users }) {
         : <div className="w-full aspect-square bg-zinc-950 flex items-center justify-center"><Loader2 size={16} className="animate-spin text-zinc-600" /></div>}
       <div className="p-2">
         <p className="jb-body text-xs text-zinc-200 truncate">{nombreDe(f.username)} <span className="text-zinc-600">@{f.username}</span></p>
-        <p className="jb-body text-[11px] text-zinc-400 truncate">{FRASES_PLATO_ADMIN[f.frase]}{f.plato ? ` · ${f.plato}` : ''}</p>
+        <p className="jb-body text-[11px] text-zinc-300">{FRASES_PLATO_ADMIN[f.frase]}</p>
+        {f.plato && (
+          <ul className="jb-body text-[11px] text-zinc-500 mt-0.5">
+            {f.plato.split(' · ').map((l, i) => <li key={i}>• {l}</li>)}
+          </ul>
+        )}
         {children}
       </div>
     </div>

@@ -67,7 +67,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
-import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato } from './comunidad.jsx';
+import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -9880,6 +9880,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
               onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
           );
+          const invitacionComunidad = (
+            <InvitacionComunidad username={username}
+              onIrComunidad={v => { setRegistrarAl(null); setVistaComunidad(v); setTab('equipo'); window.scrollTo({ top: 0 }); }} />
+          );
           const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;
           const resto = (
             <>
@@ -9899,6 +9903,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  {invitacionComunidad}
                   {fotoDia1}
                   {centro}
                   <button onClick={() => setVerMasFacil(v => !v)}
@@ -9917,6 +9922,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                       🔠 Ver la app más grande y sencilla
                     </button>
                   )}
+                  {invitacionComunidad}
                   {fotoDia1}{primeros}{centro}{resto}
                 </>
               )}

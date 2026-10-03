@@ -657,6 +657,12 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
 
 **Reaccionar:** debajo de cada logro y anuncio hay tres botones, **🔥 💪 👏**, con cuántos reaccionaron. Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (como mucho 3 avisos de estos al día).
 
+**Jonah también aplaude:** desde su panel, Jonah reacciona a los logros y fotos del muro; al alumno le llega "Jonah 🦍 reaccionó 🔥 a tu logro. ¡Sigue así!".
+
+**Tarjetas en Inicio que invitan a la comunidad** (una a la vez, arriba en Inicio):
+- Al llegar a **3, 7, 14, 21, 30, 60 o 90 días seguidos** registrando, a quien todavía no aparece en el muro: **"🔥 ¡N DÍAS SEGUIDOS REGISTRANDO!"** → **"Sí, que lo vean 🔥"** (activa "aparecer en el muro" y lleva al Muro) o **"Ahora no"** (vuelve a preguntar en el siguiente logro). Los menores de 18 no la ven.
+- A quien no está en el Team Beast: **"ÚNETE AL TEAM BEAST 🦍"** → **"Unirme"** (entra al reto y lleva a "Mis equipos") o **"Ahora no"** (vuelve a salir en 7 días).
+
 **Aparecer en el muro (es opcional):** la primera vez sale **"¿QUIERES APARECER EN EL MURO?"** → **"Sí, quiero"** o **"Ahora no"**. Mientras no diga que sí, **sus logros no salen** (igual puede ver el muro y reaccionar). Se cambia cuando quiera abajo del muro: "Apareces en el muro como [nombre]. **Dejar de aparecer**" o "No apareces en el muro. **Quiero aparecer**". Los **menores de 18** pueden ver y reaccionar, pero no aparecen en el muro.
 
 Problemas:

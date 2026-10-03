@@ -144,25 +144,31 @@ export function EntrenoHoy({ username, form, setForm }) {
           </div>
         </div>
       ) : deHoy ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
+        // flex-wrap: con letra grande en el celular, los botones bajan a
+        // otra línea en vez de tapar el texto.
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-2xl shrink-0">💪</span>
-          <span className="flex-1 min-w-0">
+          <span className="flex-1 min-w-[9rem] break-words">
             <span className="block jb-body text-sm text-zinc-100">Hoy: {textoTipos(deHoy.tipos)} · {deHoy.minutos >= 120 ? '2 h o más' : `${deHoy.minutos} min`}</span>
             <span className="block jb-body text-[11px] text-zinc-500">Esta semana: {estaSemana} {estaSemana === 1 ? 'entreno' : 'entrenos'}</span>
           </span>
-          <button onClick={editar} className="jb-body text-xs text-orange-400 shrink-0">Editar</button>
-          <button onClick={borrar} className="jb-body text-xs text-zinc-500 shrink-0">Borrar</button>
+          <span className="ml-auto flex items-center gap-3 shrink-0">
+            <button onClick={editar} className="jb-body text-xs text-orange-400">Editar</button>
+            <button onClick={borrar} className="jb-body text-xs text-zinc-500">Borrar</button>
+          </span>
         </div>
       ) : !hoyNo ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-2xl shrink-0">💪</span>
-          <span className="flex-1 min-w-0">
+          <span className="flex-1 min-w-[9rem] break-words">
             <span className="block jb-body text-sm text-zinc-100">¿Entrenaste hoy?</span>
             {estaSemana > 0 && <span className="block jb-body text-[11px] text-zinc-500">Esta semana: {estaSemana} {estaSemana === 1 ? 'entreno' : 'entrenos'}</span>}
           </span>
-          <button onClick={() => { setTipos([]); setMinutos(45); setAbierto(true); }} className={btnPrimary + ' px-3 py-2 text-sm shrink-0'}>Anotar</button>
-          <button onClick={() => { try { localStorage.setItem(CLAVE_HOY_NO, hoy); } catch {} setHoyNo(true); }}
-            className="jb-body text-[11px] text-zinc-500 shrink-0">Hoy no</button>
+          <span className="ml-auto flex items-center gap-3 shrink-0">
+            <button onClick={() => { setTipos([]); setMinutos(45); setAbierto(true); }} className={btnPrimary + ' px-3 py-2 text-sm'}>Anotar</button>
+            <button onClick={() => { try { localStorage.setItem(CLAVE_HOY_NO, hoy); } catch {} setHoyNo(true); }}
+              className="jb-body text-[11px] text-zinc-500">Hoy no</button>
+          </span>
         </div>
       ) : null}
     </>

@@ -437,7 +437,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 9.3 Compartir el plato en la Comunidad
 
 Después de tocar el botón para agregar lo que reconoció la foto, sale **"✅ ¡Comida registrada!"** y **"📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?"** (la comida ya quedó registrada, decida lo que decida):
-- Elige una frase lista (no se escribe texto): **"¡Almuerzo Beast! 💪"**, **"Desayuno con todo ☀️"**, **"Cena ligera y rica 🌙"**, **"Comida casera 🍲"**, **"Sí se puede comer rico y sano 🔥"** o **"Comida a comida 🦍"**.
+- Elige una frase lista (no se escribe texto): **"¡Almuerzo Beast! 💪"**, **"Desayuno con todo ☀️"**, **"Cena ligera y rica 🌙"**, **"Comida casera 🍲"**, **"Sí se puede comer rico y sano 🔥"** o **"Comida a comida 🦍"**. Sale marcada la que corresponde a la comida donde lo registró (Desayuno → "Desayuno con todo ☀️", Almuerzo → "¡Almuerzo Beast! 💪", Cena → "Cena ligera y rica 🌙", media mañana o media tarde → "Comida a comida 🦍"); se puede tocar otra antes de compartir.
 - **"Compartir"**: la foto va al muro (12.3) con su nombre corto, la frase y el nombre del plato. **Nunca su peso ni sus calorías.** Compartir activa "aparecer en el muro".
   - Las primeras fotos las revisa Jonah: sale "¡Listo! Jonah la revisa y pronto aparece en la comunidad 💪" y, cuando la aprueba, le llega "🔥 Jonah aprobó la foto de tu plato: ya está en la comunidad. ¡Así se hace!". Cuando Jonah ya le aprobó 5 fotos, las siguientes salen al instante ("🔥 ¡Tu plato ya está en la comunidad!").
   - Mientras espera, arriba del muro dice "⏳ Tu foto está en revisión…".

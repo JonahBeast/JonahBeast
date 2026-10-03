@@ -6040,7 +6040,7 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -6614,7 +6614,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
         )}
 
         {estado === 'compartir' && (
-          <CompartirPlato username={username} blob={fotoBlob.current} previewUrl={previewUrl} plato={platoCompartir} onListo={onCerrar} />
+          <CompartirPlato username={username} comida={comida} blob={fotoBlob.current} previewUrl={previewUrl} plato={platoCompartir} onListo={onCerrar} />
         )}
 
         {estado === 'vacio' && (
@@ -8239,6 +8239,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       {fotoPara && (
         <ReconocerFotoModal
           username={username}
+          comida={fotoPara}
           todosLosAlimentos={todosLosAlimentos}
           onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}

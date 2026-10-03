@@ -63,9 +63,11 @@ function volverAPreguntar() {
 
 // "¿Compartes tu plato con la Comunidad?": sale en la foto inteligente
 // después de agregar la comida (la foto ya se reconoció como comida).
-export function CompartirPlato({ username, blob, previewUrl, plato, onListo }) {
-  const h = new Date().getHours();
-  const [frase, setFrase] = useState(h < 11 ? 'desayuno' : h >= 18 ? 'cena' : 'almuerzo_beast');
+// La frase que sale marcada depende de la comida en la que lo registró
+// (en los snacks, una que sirve para cualquier momento).
+const FRASE_POR_COMIDA = { 'Desayuno': 'desayuno', 'Almuerzo': 'almuerzo_beast', 'Cena': 'cena' };
+export function CompartirPlato({ username, comida, blob, previewUrl, plato, onListo }) {
+  const [frase, setFrase] = useState(FRASE_POR_COMIDA[comida] || 'comida_a_comida');
   const [enviando, setEnviando] = useState(false);
 
   async function compartir() {

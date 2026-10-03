@@ -1834,6 +1834,26 @@
    "por_plato": true,
    "fuente": "\"Resumen de Macros Validados — Carta Pecafit\" (Jonah Huamani, validado con PECAFIT; USDA y tablas peruanas). Valor por plato servido: se registra siempre por plato.",
    "verificado_en": "2026-10-02"
+  },
+  "Chocolatada navideña (-)": {
+   "estado": "verificado",
+   "fuente": "Receta casera calculada: 2 tarros de leche evaporada (800 g), 2 tabletas de chocolate de taza (180 g), 150 g de azúcar y 1,5 L de agua (~2,6 kg). Leche evaporada y azúcar: Tablas Peruanas de Composición de Alimentos (CENAN/INS); chocolate de taza: etiqueta nutricional típica (~480 kcal/100 g).",
+   "verificado_en": "2026-10-03"
+  },
+  "Pavo al horno (con piel) (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: Turkey, whole, meat and skin, roasted.",
+   "verificado_en": "2026-10-03"
+  },
+  "Lechón al horno (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: Pork, fresh, leg, lean and fat, roasted, ajustado por la piel crocante del lechón peruano.",
+   "verificado_en": "2026-10-03"
+  },
+  "Puré de manzana (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: Applesauce, canned, sweetened (equivalente al puré casero con azúcar).",
+   "verificado_en": "2026-10-03"
   }
  }
 }

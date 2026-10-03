@@ -371,7 +371,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.3 Editar o borrar un alimento
 
 - **Cantidad rápida:** −/+ en la fila. Si ya está en lo mínimo (ej. 10 g o 1 unidad), **"−" lo quita** (es como ponerle cero) y sale "🗑️ Quitaste [alimento]". Sirve, por ejemplo, para dejar tu pan con pollo separado sin lechuga.
-- **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida, **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
+- **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida (con − / + o **tocando el número grande para escribirlo**, ej. 37 g), **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
 - **Aceite en fritos y saltados (🍳):** si registras escribiendo un frito o saltado (chaufa, lomo saltado, chicharrón, pollo broaster, apanados, papas fritas…), al elegirlo se abre su panel con **"🍳 ¿Cuánto aceite tenía?"**: **"Air fryer / poco"** (hecho en air fryer o con muy poco aceite) le resta un 30% de grasa, **"Normal"** no cambia nada (ya incluye el aceite normal), **"Bastante"** suma 1 cucharada de aceite y **"Mucho"**, 2. Las calorías del alimento ya muestran el cambio. Puedes cambiarlo después tocando el alimento.
 - **Borrar rápido:** desliza la fila hacia la izquierda.
 - Si pones 5 kg o más sale "Cantidad muy alta, revísala".

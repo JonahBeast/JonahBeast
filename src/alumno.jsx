@@ -617,30 +617,109 @@ function ModoVoz(props) {
   return <ModoVozActivo {...props} />;
 }
 
+// Grabación: el audio se graba en el celular y la IA lo pasa a texto en el
+// servidor (reconocer-comida → transcribir_voz). Así funciona también en
+// iPhone y dentro de Instagram/Facebook, donde el dictado del navegador no.
+// Si el celular no puede grabar, se usa el dictado del navegador (si hay).
+const MAX_SEGUNDOS_VOZ = 30;
+function tipoAudioGrabable() {
+  if (typeof window === 'undefined' || !window.MediaRecorder) return null;
+  for (const t of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg']) {
+    try { if (window.MediaRecorder.isTypeSupported(t)) return t; } catch {}
+  }
+  return '';
+}
+const blobABase64 = blob => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result || '').split(',')[1] || '');
+  r.onerror = reject;
+  r.readAsDataURL(blob);
+});
+
 function ModoVozActivo({ onElegirVarios }) {
-  const [escuchando, setEscuchando] = useState(false);
+  const [fase, setFase] = useState('listo'); // listo | grabando | procesando
+  const [segundos, setSegundos] = useState(0);
+  const [aviso, setAviso] = useState('');
   const [texto, setTexto] = useState('');
   const [items, setItems] = useState([]); // { textoOriginal, cantidad, food, activo }
-  const soportado = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const grabador = useRef(null);
+  const partes = useRef([]);
+  const reloj = useRef(null);
+  const descartar = useRef(false);
+  const puedeGrabar = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && tipoAudioGrabable() !== null;
+  const dictado = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const soportado = puedeGrabar || dictado;
 
-  function escuchar() {
-    if (!soportado) return;
+  useEffect(() => () => { clearInterval(reloj.current); try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {} }, []);
+
+  function interpretar(dicho) {
+    setTexto(dicho);
+    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+    setItems(encontrados);
+    if (!encontrados.length) setAviso('No reconocí alimentos en lo que dijiste. Intenta de nuevo, por ejemplo: "2 huevos y 1 pan".');
+  }
+
+  async function empezar() {
+    setAviso(''); setItems([]); setTexto('');
+    if (!puedeGrabar) return dictar();
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setAviso('Para registrar por voz, permite el micrófono cuando el celular lo pida (o actívalo en los ajustes del navegador).');
+      return;
+    }
+    const tipo = tipoAudioGrabable();
+    const rec = tipo ? new MediaRecorder(stream, { mimeType: tipo }) : new MediaRecorder(stream);
+    partes.current = [];
+    descartar.current = false;
+    rec.ondataavailable = e => { if (e.data?.size) partes.current.push(e.data); };
+    rec.onstop = async () => {
+      clearInterval(reloj.current);
+      stream.getTracks().forEach(t => t.stop());
+      if (descartar.current) { setFase('listo'); return; }
+      const blob = new Blob(partes.current, { type: rec.mimeType || tipo || 'audio/webm' });
+      if (blob.size < 1500) { setFase('listo'); setAviso('No se escuchó nada. Toca el micrófono y habla cerca del celular.'); return; }
+      setFase('procesando');
+      try {
+        const audioBase64 = await blobABase64(blob);
+        const { data, error } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'transcribir_voz', audioBase64, mimeType: blob.type } });
+        if (error || data?.error) throw new Error(data?.error === 'premium' ? 'Registrar por voz es Premium.' : (data?.error || 'No se pudo escuchar el audio. Intenta de nuevo.'));
+        const dicho = String(data?.texto || '').trim();
+        if (!dicho) throw new Error('No se escuchó nada. Intenta de nuevo, hablando cerca del celular.');
+        interpretar(dicho);
+      } catch (e) {
+        setAviso(e.message || 'No se pudo escuchar el audio. Intenta de nuevo.');
+      }
+      setFase('listo');
+    };
+    grabador.current = rec;
+    rec.start();
+    setSegundos(0);
+    setFase('grabando');
+    vibrar(20);
+    reloj.current = setInterval(() => setSegundos(s => {
+      if (s + 1 >= MAX_SEGUNDOS_VOZ) { try { rec.state === 'recording' && rec.stop(); } catch {} }
+      return s + 1;
+    }), 1000);
+  }
+
+  function terminar() { try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {} }
+  function cancelar() { descartar.current = true; terminar(); setSegundos(0); }
+
+  // Respaldo: dictado del navegador (Chrome de Android).
+  function dictar() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
     const rec = new SR();
     rec.lang = 'es-PE';
     rec.interimResults = false;
     rec.maxAlternatives = 1;
-    setEscuchando(true);
-    setItems([]);
-    rec.onresult = (e) => {
-      const dicho = e.results[0][0].transcript;
-      setTexto(dicho);
-      const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
-      setItems(encontrados);
-    };
-    rec.onerror = () => setEscuchando(false);
-    rec.onend = () => setEscuchando(false);
-    try { rec.start(); } catch { setEscuchando(false); }
+    setFase('grabando');
+    rec.onresult = e => interpretar(e.results[0][0].transcript);
+    rec.onerror = () => setFase('listo');
+    rec.onend = () => setFase('listo');
+    try { rec.start(); } catch { setFase('listo'); }
   }
 
   function alternarItem(i) {
@@ -661,27 +740,46 @@ function ModoVozActivo({ onElegirVarios }) {
   }
 
   if (!soportado) {
-    return <p className="jb-body text-xs text-zinc-500 text-center py-6">Tu navegador no soporta el registro por voz todavía. Prueba desde Chrome en Android, o usa los otros modos.</p>;
+    return <p className="jb-body text-xs text-zinc-500 text-center py-6">Tu celular no deja grabar audio desde aquí. Usa "Escribir" o "Foto".</p>;
   }
 
+  const grabando = fase === 'grabando';
+  const reloj2 = `00:${String(segundos).padStart(2, '0')}`;
   return (
     <div className="flex flex-col items-center gap-3 py-3">
-      <div className="relative">
-        {escuchando && (
+      <p className="jb-display text-2xl text-zinc-50 tracking-wide">¿QUÉ COMISTE?</p>
+      <div className="relative my-2">
+        {grabando && (
           <>
-            <span className="absolute inset-0 rounded-full bg-red-500/40 animate-ping" />
-            <span className="absolute -inset-2 rounded-full bg-red-500/20 animate-ping" style={{ animationDelay: '0.3s' }} />
+            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping" />
+            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping" style={{ animationDelay: '0.35s' }} />
           </>
         )}
-        <button onClick={escuchar} disabled={escuchando}
-          className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${escuchando ? 'bg-red-500 scale-110' : 'bg-gradient-to-br from-orange-600 via-orange-500 to-orange-400 hover:scale-105'}`}
-          style={{ boxShadow: escuchando ? '0 0 30px rgba(239,68,68,0.6)' : '0 0 24px rgba(249,115,22,0.45)' }}>
-          <Mic size={30} className="text-white" strokeWidth={2.2} />
+        <button onClick={grabando ? terminar : empezar} disabled={fase === 'procesando'}
+          aria-label={grabando ? 'Terminar de grabar' : 'Grabar lo que comiste'}
+          className={`relative w-28 h-28 rounded-full flex items-center justify-center transition-all ${grabando ? 'bg-orange-500 scale-105' : 'bg-gradient-to-br from-orange-600 via-orange-500 to-orange-400 hover:scale-105'} disabled:opacity-60`}
+          style={{ boxShadow: '0 0 34px rgba(232,89,12,0.55)' }}>
+          {fase === 'procesando'
+            ? <Loader2 size={40} className="text-zinc-950 animate-spin" />
+            : grabando ? <span className="w-9 h-9 rounded-lg bg-zinc-950" /> : <Mic size={44} className="text-zinc-950" strokeWidth={2.3} />}
         </button>
       </div>
-      <p className="jb-body text-xs text-zinc-500">{escuchando ? 'Escuchando...' : 'Toca y di qué comiste'}</p>
-      <p className="jb-body text-[10px] text-zinc-600 text-center max-w-[240px]">Puedes decir varios alimentos juntos: "1 pan + 2 huevos + 1 taza de café"</p>
-      {texto && <p className="jb-body text-sm text-zinc-300 italic">"{texto}"</p>}
+      {grabando && puedeGrabar ? (
+        <div className="flex items-center justify-center gap-8 w-full">
+          <button onClick={cancelar} aria-label="Borrar y empezar de nuevo" className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-lg">🗑️</button>
+          <span className="jb-display text-xl text-zinc-100 tabular-nums w-16 text-center">{reloj2}</span>
+          <button onClick={terminar} aria-label="Listo" className="w-12 h-12 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+        </div>
+      ) : (
+        <p className="jb-body text-sm text-zinc-400 text-center">
+          {fase === 'procesando' ? 'Escuchando lo que dijiste…' : grabando ? 'Te escucho…' : 'Toca el micrófono y dilo como se lo contarías a un amigo'}
+        </p>
+      )}
+      {fase === 'listo' && !texto && (
+        <p className="jb-body text-xs text-zinc-500 text-center max-w-[260px]">Ej.: "2 huevos sancochados, 1 pan francés con palta y un café con leche"</p>
+      )}
+      {aviso && <p className="jb-body text-xs text-amber-300 text-center max-w-[280px]">{aviso}</p>}
+      {texto && <p className="jb-body text-sm text-zinc-300 italic text-center">"{texto}"</p>}
 
       {items.length > 0 ? (
         <div className="w-full flex flex-col gap-2 mt-1">

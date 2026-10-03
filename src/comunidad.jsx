@@ -301,7 +301,11 @@ function Muro({ onIrEquipos, onVisto }) {
                     ? <img src={urls[ev.ruta]} alt={ev.plato || 'Plato'} loading="lazy" className="w-full max-h-80 object-cover rounded-xl bg-zinc-950" />
                     : <div className="w-full h-48 rounded-xl bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-zinc-600" size={20} /></div>}
                   <p className="jb-display text-base text-zinc-50 mt-2">{FRASES_PLATO[ev.detalle] || ''}</p>
-                  {ev.plato && <p className="jb-body text-xs text-zinc-500">{ev.plato}</p>}
+                  {ev.plato && (
+                    <ul className="jb-body text-xs text-zinc-400 mt-1 space-y-0.5">
+                      {ev.plato.split(' · ').map((l, i) => <li key={i}>• {l}</li>)}
+                    </ul>
+                  )}
                   <div className="flex items-end justify-between gap-2">
                     <Reacciones item={ev} propio={ev.yo} onReaccionar={reaccionar} />
                     {!ev.yo && <button onClick={() => reportar(ev)} className="jb-body text-[10px] text-zinc-600 hover:text-zinc-400 mb-1">Reportar</button>}

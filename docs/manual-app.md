@@ -438,7 +438,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 Después de tocar el botón para agregar lo que reconoció la foto, sale **"✅ ¡Comida registrada!"** y **"📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?"** (la comida ya quedó registrada, decida lo que decida):
 - Elige una frase lista (no se escribe texto): **"¡Almuerzo Beast! 💪"**, **"Desayuno con todo ☀️"**, **"Cena ligera y rica 🌙"**, **"Comida casera 🍲"**, **"Sí se puede comer rico y sano 🔥"** o **"Comida a comida 🦍"**. Sale marcada la que corresponde a la comida donde lo registró (Desayuno → "Desayuno con todo ☀️", Almuerzo → "¡Almuerzo Beast! 💪", Cena → "Cena ligera y rica 🌙", media mañana o media tarde → "Comida a comida 🦍"); se puede tocar otra antes de compartir.
-- **"Compartir"**: la foto va al muro (12.3) con su nombre corto, la frase y el nombre del plato. **Nunca su peso ni sus calorías.** Compartir activa "aparecer en el muro".
+- **"Compartir"**: la foto va al muro (12.3) con su nombre corto, la frase y **lo que registró con su cantidad**, tal como lo eligió (ej. "• Yogur griego: 1 taza (≈ 245 g)", uno debajo del otro; si agregó aceite aparte, también sale). **Nunca su peso ni sus calorías.** Compartir activa "aparecer en el muro".
   - Las primeras fotos las revisa Jonah: sale "¡Listo! Jonah la revisa y pronto aparece en la comunidad 💪" y, cuando la aprueba, le llega "🔥 Jonah aprobó la foto de tu plato: ya está en la comunidad. ¡Así se hace!". Cuando Jonah ya le aprobó 5 fotos, las siguientes salen al instante ("🔥 ¡Tu plato ya está en la comunidad!").
   - Mientras espera, arriba del muro dice "⏳ Tu foto está en revisión…".
 - **"No, gracias"**: no se comparte esa foto. **"No me preguntes más"**: deja de preguntar en ese celular.
@@ -649,7 +649,7 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
   - 🔥 "[Nombre] lleva 7 días seguidos registrando sus comidas" (a los 7, 14, 21, 30, 60 y 90 días)
   - 🦍 "[Nombre] se unió al Team Beast"
   Los logros propios salen con "Tú" y con borde naranja.
-- **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y el plato. Debajo, a la derecha, **"Reportar"** (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
+- **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y lo que registró con su cantidad. Debajo, a la derecha, **"Reportar"** (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
 - **Nunca se muestra el peso, los kilos ni las calorías de nadie.** Solo el nombre corto (ej. "Rosa M.").
 
 **Reaccionar:** debajo de cada logro y anuncio hay tres botones, **🔥 💪 👏**, con cuántos reaccionaron. Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (como mucho 3 avisos de estos al día).

@@ -2416,6 +2416,36 @@ function AplaudirComunidad() {
   );
 }
 
+/* HOY: lo pendiente de la comunidad, para resolverlo ahí mismo. Solo sale
+   si hay fotos de platos por revisar (o reportadas) o logros del muro sin
+   el aplauso de Jonah. */
+function ComunidadHoyPanel({ users }) {
+  const [pend, setPend] = useState(null); // { fotos, aplausos }
+  useEffect(() => {
+    (async () => {
+      const [{ count: fotos }, { data: muro }] = await Promise.all([
+        supabase.from('comunidad_fotos').select('id', { count: 'exact', head: true })
+          .or('estado.eq.pendiente,and(estado.eq.oculta,reportes.gte.2)'),
+        supabase.rpc('comunidad_admin_muro'),
+      ]);
+      const aplausos = (muro?.eventos || []).filter(e => !e.yo && !(e.mias || []).length).length;
+      setPend({ fotos: fotos || 0, aplausos });
+    })().catch(() => setPend({ fotos: 0, aplausos: 0 }));
+  }, []);
+  if (!pend || (!pend.fotos && !pend.aplausos)) return null;
+  return (
+    <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5">
+      <p className="jb-display text-lg text-zinc-50 mb-1">🦍 COMUNIDAD</p>
+      <p className="jb-body text-xs text-zinc-400 mb-4">
+        {[pend.fotos ? `${pend.fotos} ${pend.fotos === 1 ? 'foto de plato por revisar' : 'fotos de platos por revisar'}` : null,
+          pend.aplausos ? `${pend.aplausos} ${pend.aplausos === 1 ? 'logro sin tu aplauso' : 'logros sin tu aplauso'}` : null].filter(Boolean).join(' · ')}
+      </p>
+      {pend.fotos > 0 && <FotosComunidad users={users} />}
+      {pend.aplausos > 0 && <AplaudirComunidad />}
+    </div>
+  );
+}
+
 function FotosComunidad({ users }) {
   const [fotos, setFotos] = useState(null);
   const [urls, setUrls] = useState({});
@@ -8245,6 +8275,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 después, lo que es trámite (pagos, alimentos, vencimientos…). */}
             <MensajesDelDiaPanel />
             <ListosParaPagarPanel />
+            <ComunidadHoyPanel users={users} />
             <AvisoMejoras40Panel />
             <PagosPanel />
             <PedidosAlimentosPanel />

@@ -7,6 +7,8 @@ import { traerTodas } from './traerTodas.js';
      1. 🎉 Bienvenida      — se registró en las últimas 24 horas.
      2. ⏳ Prueba por terminar — termina hoy o mañana.
      3. 🌱 Primera comida  — lleva más de un día sin anotar ninguna (hasta 7).
+                             De 11am a 4pm el mensaje lo invita a tomarle
+                             la foto a su almuerzo.
    🟠 IMPORTANTE
      4. 💪 Retomar         — en prueba lleva 2 a 4 días sin registrar; paga
                              y lleva 3 a 7.
@@ -227,6 +229,11 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
   const yaBienvenida = new Set(bienvenidaAuto.filter(Boolean));
   const pagaron = new Set((pagos || []).filter(p => !/add-on/i.test(p.metodo || '')).map(p => p.username));
   const [, mesHoy, diaHoy] = hoyISO.split('-').map(Number);
+  // Hora del almuerzo en Perú (11am a 3:59pm): el mensaje de "Primera
+  // comida" invita a tomarle la foto al almuerzo, que es la comida que casi
+  // todos hacen y el mejor momento para estrenar la app.
+  const horaPeru = new Date(ahora - 5 * 3600000).getUTCHours();
+  const esAlmuerzo = horaPeru >= 11 && horaPeru < 16;
 
   const lista = [];
   for (const a of alumnos || []) {
@@ -280,6 +287,10 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       // 3. Primera comida: más de un día sin anotar nada (hasta 7).
       if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 7)) {
         const cuando = diasDesdeInicio === 1 ? 'ayer' : `hace ${diasDesdeInicio ?? 'unos'} días`;
+        if (esAlmuerzo && !interno) {
+          return { etapa: 'primera', motivo: `Se registró ${cuando} y aún no anota ninguna comida · 🍽️ hora del almuerzo`,
+            mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya es hora del almuerzo 🍽️ y es el momento perfecto para estrenar la app: antes de comer, tómale una foto a tu plato y la app te dice qué tiene (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, comida a comida, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
+        }
         return { etapa: 'primera', motivo: `Se registró ${cuando}${interno ? ' desde Instagram/Facebook' : ''} y aún no anota ninguna comida`,
           mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
       }

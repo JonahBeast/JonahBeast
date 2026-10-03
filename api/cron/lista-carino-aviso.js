@@ -9,6 +9,9 @@
 //     api/nuevo-alumno.js; aquí no se repite.
 //   - Cada persona se avisa una sola vez por paso y por día (config →
 //     lista_carino_avisados).
+//   - A las 12pm, hora del almuerzo, un recordatorio con los nuevos que aún
+//     no registran su primera comida (es el mejor momento para escribirles:
+//     su mensaje invita a tomarle foto al almuerzo).
 //   - A las 7pm, si quedó algo sin mandar, un solo recordatorio con lo que
 //     falta.
 // De noche (10pm a 7am) no avisa: lo que aparezca sale a las 7am.
@@ -59,6 +62,15 @@ export default async function handler(req, res) {
       avisos.push({
         title: `📲 ${nuevos.length} mensajes para mandar`,
         body: `${enLista(nuevos.map(primer))}. Toca aquí: están en orden en Mensajes del día, cada uno con su mensaje listo.`,
+      });
+    }
+    // 12pm (solo en la primera revisión de esa hora): los nuevos sin primera
+    // comida que siguen sin mensaje, para escribirles a la hora del almuerzo.
+    const sinPrimera = lista.filter(x => x.etapa === 'primera' || (x.etapa === 'bienvenida' && !/ya anotó/.test(x.motivo)));
+    if (hora === 12 && new Date().getUTCMinutes() < 15 && sinPrimera.length) {
+      avisos.push({
+        title: `🍽️ Hora del almuerzo: ${sinPrimera.length === 1 ? '1 nuevo aún no registra' : `${sinPrimera.length} nuevos aún no registran`} su primera comida`,
+        body: `${enLista(sinPrimera.map(primer))}. Es el mejor momento para escribirles: su mensaje ya está listo en Mensajes del día y los invita a tomarle foto a lo que van a comer.`,
       });
     }
     // 7pm (solo en la primera revisión de esa hora): lo que quedó sin mandar.

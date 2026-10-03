@@ -371,6 +371,11 @@ const RAW_FOODS = [
   ["Lácteos","Queso parmesano","-",392,35.8,3.2,25.8,0.0],
   ["Lácteos","Yogur griego natural","-",59,10.0,3.6,0.4,0.0],
   ["Lácteos","Yogur saborizado","Con azúcar",90,2.8,15.0,2.2,0.0],
+  /* --- Navidad (oct 2026) --- */
+  ["Bebidas","Chocolatada navideña","-",96,2.3,12.9,4.0,0.4],
+  ["Platos preparados","Pavo al horno (con piel)","-",190,28.5,0.0,7.5,0.0],
+  ["Platos preparados","Lechón al horno","-",280,25.0,0.0,20.0,0.0],
+  ["Platos preparados","Puré de manzana","-",75,0.3,18.0,0.3,1.2],
   /* --- Carta PECAFIT (restaurante aliado) --- */
   /* Valores por 100g, recalculados desde "Resumen de Macros Validados — Carta Pecafit"
      (correcciones: filete de pollo en sandwich y bowl andino, stevia en gotas para waffles,
@@ -609,6 +614,10 @@ const UNITS_BY_NAME = {
   'Keke marmoleado': [['tajada', 70], ['porción', 90]],
   'Keke de arándanos': [['tajada', 70], ['porción', 90]],
   'Panetón': [['tajada', 80], ['porción', 100]],
+  'Chocolatada navideña': [['taza', 240], ['vaso', 200]],
+  'Pavo al horno (con piel)': [['porción', 150], ['tajada', 60]],
+  'Lechón al horno': [['porción', 150]],
+  'Puré de manzana': [['porción', 100], ['cucharada', 20]],
   'Torta tres leches': [['tajada', 100], ['porción', 130]],
   'Cocada': [['unidad', 30]],
   'Manjar blanco': [['cucharada', 20], ['porción', 30]],

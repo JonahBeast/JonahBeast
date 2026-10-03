@@ -22,6 +22,7 @@ export const GRUPOS = [
   { id: 'paso', titulo: 'Al paso' },
   { id: 'postres', titulo: 'Postres' },
   { id: 'bebidas', titulo: 'Bebidas' },
+  { id: 'navidad', titulo: 'Navidad' },
 ];
 
 export const PLATOS = [
@@ -205,7 +206,7 @@ export const PLATOS = [
   { slug: 'alfajor', alimento: 'Alfajor', nombre: 'Alfajor', grupo: 'postres',
     frase: 'Un alfajor',
     consejo: 'Chiquito pero con mucho manjar y mantequilla. Uno con tu café está bien, sin culpa; el tema es cuando se van tres.' },
-  { slug: 'paneton', alimento: 'Panetón', nombre: 'Panetón', grupo: 'postres',
+  { slug: 'paneton', alimento: 'Panetón', nombre: 'Panetón', grupo: 'navidad',
     etiqueta: 'Una tajada', frase: 'Una tajada de panetón',
     consejo: 'En diciembre no tienes por qué dejarlo. Una tajada con tu chocolate, y la cuentas en tu día. Comida a comida.' },
   { slug: 'leche-asada', el: 'la', alimento: 'Leche asada', nombre: 'Leche asada', grupo: 'postres',
@@ -218,4 +219,17 @@ export const PLATOS = [
   { slug: 'emoliente', alimento: 'Emoliente', estado: 'Con azúcar', nombre: 'Emoliente', grupo: 'bebidas',
     porcion: 'vaso', etiqueta: 'Un vaso', frase: 'Un vaso de emoliente', aclara: 'Con azúcar, como se vende en la carretilla.',
     consejo: 'Las hierbas casi no tienen calorías; lo que suma es el azúcar. Pídelo con poquita azúcar y es de las mejores bebidas calientes.' },
+
+  // Navidad
+  { slug: 'chocolatada-navidena', el: 'la', alimento: 'Chocolatada navideña', nombre: 'Chocolatada navideña', grupo: 'navidad',
+    etiqueta: 'Una taza', frase: 'Una taza de chocolatada navideña', aclara: 'Hecha en casa con leche evaporada, chocolate de taza y azúcar.',
+    consejo: 'Es de las cosas más ricas de diciembre y no tienes por qué dejarla. Una taza con tu tajada de panetón y la cuentas en tu día. Si la preparas tú, con menos azúcar queda igual de rica.' },
+  { slug: 'pavo-al-horno', alimento: 'Pavo al horno (con piel)', nombre: 'Pavo al horno', grupo: 'navidad',
+    etiqueta: 'Una porción', frase: 'Una porción de pavo al horno',
+    consejo: 'El pavo es de lo mejor de la cena: mucha proteína. Lo que suma son los acompañamientos. Sírvete una buena porción de pavo y ve más tranquilo con el puré, el arroz y la ensalada rusa.' },
+  { slug: 'lechon-al-horno', alimento: 'Lechón al horno', nombre: 'Lechón al horno', grupo: 'navidad',
+    etiqueta: 'Una porción', frase: 'Una porción de lechón al horno',
+    consejo: 'El lechón tiene más grasa que el pavo, sobre todo la piel crocante. Si hay de los dos, combina: un poco de cada uno y una porción normal. Es una noche para disfrutar, sin culpa.' },
+  { slug: 'pure-de-manzana', alimento: 'Puré de manzana', nombre: 'Puré de manzana', grupo: 'navidad',
+    consejo: 'Es ligero: casi todo es la fruta con su azúcar. Un par de cucharadas al lado de tu pavo está perfecto.' },
 ];

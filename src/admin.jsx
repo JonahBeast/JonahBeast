@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { reaccionesPara } from './reacciones.js';
 import { opcionesUsoMenu } from './menuDia.js';
 import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
@@ -2383,7 +2384,7 @@ function AplaudirComunidad() {
     }));
     const { data, error } = await supabase.rpc('comunidad_admin_reaccionar', { p_evento: ev.id, p_tipo: tipo });
     if (error || data?.error) { showToast('No se pudo guardar tu reacción', 'error'); cargar(); return; }
-    if (!ya) showToast('🔥 Le llegó tu aplauso');
+    if (!ya) showToast('🔥 Le llegó tu reacción');
   }
   if (!eventos) return null;
   const lista = verTodo ? eventos : eventos.slice(0, 6);
@@ -2398,8 +2399,8 @@ function AplaudirComunidad() {
           {lista.map(ev => (
             <li key={ev.id} className="bg-zinc-950/60 border border-zinc-800 rounded-xl px-3 py-2 flex items-center gap-2">
               <span className="flex-1 min-w-0 jb-body text-xs text-zinc-200 leading-snug">{textoLogroAdmin(ev)}</span>
-              <span className="flex gap-1 shrink-0">
-                {[['fuego', '🔥'], ['fuerza', '💪'], ['aplauso', '👏']].map(([t, emoji]) => {
+              <span className="flex flex-wrap justify-end gap-1 shrink-0 max-w-[45%]">
+                {reaccionesPara(ev).map(({ tipo: t, emoji }) => {
                   const mia = (ev.mias || []).includes(t);
                   const n = ev.reacciones?.[t] || 0;
                   return (

@@ -672,7 +672,7 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
 - **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y lo que registró con su cantidad. Debajo, a la derecha, **"Reportar"** (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
 - **Nunca se muestra el peso, los kilos ni las calorías de nadie.** Solo el nombre corto (ej. "Rosa M.").
 
-**Reaccionar:** debajo de cada logro y anuncio hay tres botones, **🔥 💪 👏**, con cuántos reaccionaron. Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (como mucho 3 avisos de estos al día).
+**Reaccionar:** debajo de cada publicación hay cinco botones con cuántos reaccionaron. En las **fotos de platos**: **😋** (qué rico), **🤤** (se me antoja), **😍** (me encanta), **🔥** y **👏**. En los **logros y anuncios**: **🔥**, **💪**, **👏**, **🥳** (a celebrar) y **🤩** (wow). Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (o "… reaccionó 😋 a la foto de tu plato.", con el emoji que eligió; como mucho 3 avisos de estos al día).
 
 **Jonah también aplaude:** desde su panel, Jonah reacciona a los logros y fotos del muro; al alumno le llega "Jonah 🦍 reaccionó 🔥 a tu logro. ¡Sigue así!".
 

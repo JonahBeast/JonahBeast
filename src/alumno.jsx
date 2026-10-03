@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, ChevronDown, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
@@ -8338,6 +8338,29 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = comidaDeAhora();
+  // Comidas que ya pasaron: las registradas se ven cerradas en una línea
+  // (se abren tocándolas) y las que no se registraron se juntan en una sola
+  // línea delgada, para llegar a la comida de AHORA sin bajar tanto.
+  const idxAhora = MEAL_NAMES.indexOf(mealAhora);
+  const [abiertas, setAbiertas] = useState({}); // comida pasada -> true si el alumno la abrió
+  const [eligiendoSaltada, setEligiendoSaltada] = useState(false);
+  const saltadas = MEAL_NAMES.filter((m, i) => i < idxAhora && !(mealPlan.meals[m] || []).length);
+  // La comida a la que se le está agregando algo queda abierta, para ver lo
+  // que se agregó.
+  useEffect(() => {
+    const m = hojaMeal || fotoPara || codigoPara || escribirPara;
+    if (m && MEAL_NAMES.indexOf(m) < idxAhora) setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Al entrar a Comidas, si la comida de AHORA quedó fuera de la pantalla,
+  // se baja hasta ella.
+  useEffect(() => {
+    if (hojaInicial?.meal) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById('comida-ahora');
+      if (el && el.getBoundingClientRect().top > window.innerHeight - 140) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [ayudaCerrada, setAyudaCerrada] = useState(() => {
     try { return localStorage.getItem('jb_ayuda_no_comidas') === '1'; } catch { return false; }
   });
@@ -8582,13 +8605,63 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       )}
 
 
-      {MEAL_NAMES.map(meal => {
+      {MEAL_NAMES.map((meal, idx) => {
         const entradas = mealPlan.meals[meal];
         const vacia = entradas.length === 0;
         const esAhora = meal === mealAhora;
+        const pasada = idx < idxAhora;
         const kcalComida = entradas.reduce((a, en) => a + entryMacros(en).kcal, 0);
+        // Ya pasó y no se registró: todas juntas en una línea delgada, en el
+        // lugar de la última.
+        if (pasada && vacia) {
+          if (meal !== saltadas[saltadas.length - 1]) return null;
+          const nombres = saltadas.length === 1 ? saltadas[0]
+            : `${saltadas.slice(0, -1).join(', ')} y ${saltadas[saltadas.length - 1]}`;
+          return (
+            <div key="saltadas" className="px-1 -my-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm opacity-60 shrink-0">{saltadas.map(m => ICONO_COMIDA[m]).join('')}</span>
+                <p className="jb-body text-xs text-zinc-500 flex-1 min-w-0">{nombres} — {saltadas.length === 1 ? 'no registrada' : 'no registradas'}</p>
+                <button onClick={() => { vibrar(10); if (saltadas.length === 1) setHojaMeal(saltadas[0]); else setEligiendoSaltada(v => !v); }}
+                  aria-label={`Agregar a ${nombres}`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-zinc-950 border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-500/40">
+                  <Plus size={16} strokeWidth={2.4} />
+                </button>
+              </div>
+              {eligiendoSaltada && saltadas.length > 1 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="jb-body text-[11px] text-zinc-500 self-center">¿A cuál?</span>
+                  {saltadas.map(m => (
+                    <button key={m} onClick={() => { setEligiendoSaltada(false); setHojaMeal(m); }}
+                      className="jb-body text-xs px-3 py-1.5 rounded-full border border-orange-500/40 bg-zinc-950 text-zinc-200 flex items-center gap-1.5">
+                      <span>{ICONO_COMIDA[m]}</span>{m}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+        // Ya pasó y tiene lo registrado: cerrada en una línea; se abre al tocarla.
+        if (pasada && !abiertas[meal]) {
+          return (
+            <button key={meal} onClick={() => { vibrar(8); setAbiertas(a => ({ ...a, [meal]: true })); }}
+              aria-label={`Ver ${meal}`}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
+              <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
+                {ICONO_COMIDA[meal] || '🍴'}
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="jb-display text-sm tracking-wide text-orange-500 block">{meal.toUpperCase()}</span>
+                <span className="jb-body text-[11px] text-zinc-500 tabular-nums block">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></span>
+              </span>
+              <ChevronRight size={18} className="text-zinc-500 shrink-0" />
+            </button>
+          );
+        }
         return (
-        <div key={meal} className={`bg-zinc-900 border rounded-2xl ${vacia ? 'px-4 py-3' : 'p-4'} ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}
+        <div key={meal} id={esAhora ? 'comida-ahora' : undefined} className={`bg-zinc-900 border rounded-2xl ${vacia ? 'px-4 py-3' : 'p-4'} ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}
           style={esAhora ? { boxShadow: '0 0 22px rgba(232,89,12,.12)' } : undefined}>
           <div className={`flex items-center gap-2.5 ${vacia ? '' : 'mb-3'}`}>
             <div key={destellos[meal] || 0} className={`relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border ${vacia ? 'bg-zinc-800/60 border-zinc-700' : 'bg-orange-500/20 border-orange-500/40'} ${destellos[meal] ? 'jbm-completa' : ''}`}>
@@ -8607,6 +8680,12 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                 ? <p className="jb-body text-[11px] text-zinc-600">{esAhora ? 'Es hora de registrar — toca +' : 'Sin registrar'}</p>
                 : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
             </div>
+            {pasada && !vacia && (
+              <button onClick={() => setAbiertas(a => ({ ...a, [meal]: false }))} aria-label={`Cerrar ${meal}`}
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-500 hover:text-zinc-300">
+                <ChevronDown size={18} />
+              </button>
+            )}
             <button onClick={() => { vibrar(10); setHojaMeal(meal); }} aria-label={`Agregar a ${meal}`}
               className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${esAhora ? 'bg-orange-500 text-zinc-950 hover:bg-orange-400' : 'bg-zinc-950 border border-orange-500/40 text-orange-400 hover:bg-orange-500/10'}`}>
               <Plus size={18} strokeWidth={2.4} />
@@ -8649,13 +8728,16 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
                     <div
-                      className="relative bg-zinc-950 border border-zinc-800 rounded-xl pl-2.5 pr-2 py-2 flex items-center gap-2.5"
+                      className="relative bg-zinc-950 border border-zinc-800 rounded-xl pl-2.5 pr-2 py-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5"
                       style={{ transform: `translateX(${swipeDx}px)`, transition: swipeDx === 0 ? 'transform 0.2s ease' : 'none' }}
                       onTouchStart={e => onSwipeStart(en.id, e.touches[0].clientX)}
                       onTouchMove={e => onSwipeMove(en.id, e.touches[0].clientX)}
                       onTouchEnd={() => onSwipeEnd(meal, en.id)}
                     >
-                      <div className="flex-1 min-w-0">
+                      {/* El nombre necesita un mínimo de espacio: si la pantalla es
+                          angosta (o la letra está grande), los botones − y + pasan
+                          abajo en vez de partir el nombre a la mitad. */}
+                      <div className="flex-1 min-w-[8.5rem]">
                       <button type="button" onClick={() => setEditando({ meal, id: en.id })}
                         className="w-full min-w-0 flex items-center gap-2.5 text-left">
                         <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
@@ -8674,7 +8756,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                         </button>
                       )}
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 ml-auto">
                         <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => {
                           // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con
                           // pollo separado, pero sin lechuga.

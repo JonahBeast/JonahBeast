@@ -5468,7 +5468,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
   if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
-  const plural = unit === 'porción' ? 'porciones' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
+  const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${qty} ${plural}`;
 }
 

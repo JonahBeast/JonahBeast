@@ -66,7 +66,7 @@ function volverAPreguntar() {
 // La frase que sale marcada depende de la comida en la que lo registró
 // (en los snacks, una que sirve para cualquier momento).
 const FRASE_POR_COMIDA = { 'Desayuno': 'desayuno', 'Almuerzo': 'almuerzo_beast', 'Cena': 'cena' };
-export function CompartirPlato({ username, comida, blob, previewUrl, plato, onListo }) {
+export function CompartirPlato({ username, comida, blob, previewUrl, plato, onListo, onCorregir }) {
   const [frase, setFrase] = useState(FRASE_POR_COMIDA[comida] || 'comida_a_comida');
   const [enviando, setEnviando] = useState(false);
 
@@ -98,10 +98,21 @@ export function CompartirPlato({ username, comida, blob, previewUrl, plato, onLi
 
   return (
     <div>
-      <p className="jb-body text-sm text-orange-300 mb-2">✅ ¡Comida registrada!</p>
       {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-48 object-cover rounded-xl mb-3" />}
       <p className="jb-display text-lg text-zinc-50 mb-1">📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?</p>
-      <p className="jb-body text-xs text-zinc-400 mb-3">Inspira a otros: sale en el muro con tu nombre corto y la frase que elijas. Nunca tu peso ni tus calorías.</p>
+      <p className="jb-body text-xs text-zinc-400 mb-3">Inspira a otros: sale en el muro con tu nombre corto, la frase que elijas y lo que comiste. Nunca tu peso ni tus calorías.</p>
+      {plato && (
+        <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 mb-3">
+          <ul className="jb-body text-xs text-zinc-300 space-y-0.5">
+            {plato.split(' · ').map((l, i) => <li key={i}>• {l}</li>)}
+          </ul>
+          {onCorregir && (
+            <button onClick={onCorregir} disabled={enviando} className="jb-body text-xs text-orange-400 underline mt-2">
+              ✏️ ¿No es la cantidad? Corrígela
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {Object.entries(FRASES_PLATO).map(([k, t]) => (
           <button key={k} onClick={() => setFrase(k)}
@@ -110,7 +121,7 @@ export function CompartirPlato({ username, comida, blob, previewUrl, plato, onLi
           </button>
         ))}
       </div>
-      <p className="jb-body text-[11px] text-zinc-500 mb-3">Jonah revisa las primeras fotos antes de publicarlas.</p>
+      <p className="jb-body text-[11px] text-zinc-500 mb-3">Jonah revisa las primeras fotos antes de publicarlas. Tu comida se registra igual, la compartas o no.</p>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={compartir} disabled={enviando} className={btnPrimary + ' py-3'}>
           {enviando ? <Loader2 className="animate-spin" size={16} /> : 'Compartir'}

@@ -5971,7 +5971,7 @@ function textoPorcionFoto(food, porcion) {
   const fr = ['', '¼', '½', '¾'][resto] || '';
   const numero = entero === 0 ? fr : `${entero}${fr}`;
   const plural = porcion.qty > 1 && !/[\s/]/.test(porcion.unit)
-    ? (porcion.unit === 'porción' ? 'porciones' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
+    ? (porcion.unit === 'porción' ? 'porciones' : porcion.unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
     : porcion.unit;
   const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
   return `${numero} ${plural} (≈ ${gramos} g)`;
@@ -6040,7 +6040,7 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -6240,21 +6240,44 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
     return lista.slice(0, 3);
   }
 
-  function confirmar() {
-    const elegidos = elegidosConPorcion();
-    registrarPasoPago('foto_comida', username, elegidos.length ? 'agrego' : 'agrego_nada');
+  // La comida se registra apenas toca agregar (nada se pierde si cierra la
+  // app). Si en "¿Compartes tu plato?" quiere corregir una cantidad, se
+  // quita lo recién agregado y vuelve a la lista; al confirmar otra vez se
+  // registra con lo corregido. Así lo que sale en el muro es igual a lo que
+  // registró.
+  const recienAgregados = useRef(null); // { ids, elegidos }
+  function agregar(elegidos) {
+    const ids = [];
+    const sumar = entry => { ids.push(entry.id); onAgregar(entry); };
     elegidos.forEach(({ item, food, porcion, corregido }) => {
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
       const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
-      onAgregar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido ? {} : { fotoIA: food.key }) });
+      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
-    const aceiteExtra = cucharadas && buscarFood(CLAVE_ACEITE);
-    if (aceiteExtra) {
-      onAgregar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
+    if (cucharadas && buscarFood(CLAVE_ACEITE)) {
+      sumar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
     }
-    registrarFeedbackReconocimiento(elegidos);
+    return ids;
+  }
+  function terminarCompartir() {
+    if (recienAgregados.current) { registrarFeedbackReconocimiento(recienAgregados.current.elegidos); recienAgregados.current = null; }
+    onCerrar();
+  }
+  const cerrar = () => (recienAgregados.current ? terminarCompartir() : onCerrar());
+  function corregirAntesDeCompartir() {
+    if (recienAgregados.current && onQuitar) onQuitar(recienAgregados.current.ids);
+    recienAgregados.current = null;
+    setEstado('resultados');
+  }
+
+  function confirmar() {
+    const elegidos = elegidosConPorcion();
+    registrarPasoPago('foto_comida', username, elegidos.length ? 'agrego' : 'agrego_nada');
+    const ids = agregar(elegidos);
+    const cucharadas = extraAceite(elegidos);
+    const aceiteExtra = cucharadas && buscarFood(CLAVE_ACEITE);
     // Ofrecer compartir el plato en la Comunidad (Etapa B del muro), con lo
     // que registró y su cantidad: "Yogur griego: 1 taza (≈ 245 g) · …".
     if (elegidos.length && fotoBlob.current && previewUrl && preguntarCompartirPlato()) {
@@ -6267,9 +6290,11 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         texto = siguiente;
       }
       setPlatoCompartir(texto);
+      recienAgregados.current = { ids, elegidos };
       setEstado('compartir');
       return;
     }
+    registrarFeedbackReconocimiento(elegidos);
     onCerrar();
   }
 
@@ -6329,12 +6354,12 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={cerrar}>
       <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <style>{ESTILOS_ESCANER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
-          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
+          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
         </div>
         {estado === 'elegir' && (
           <div className="text-center">
@@ -6624,7 +6649,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         )}
 
         {estado === 'compartir' && (
-          <CompartirPlato username={username} comida={comida} blob={fotoBlob.current} previewUrl={previewUrl} plato={platoCompartir} onListo={onCerrar} />
+          <CompartirPlato username={username} comida={comida} blob={fotoBlob.current} previewUrl={previewUrl} plato={platoCompartir}
+            onListo={terminarCompartir} onCorregir={onQuitar ? corregirAntesDeCompartir : null} />
         )}
 
         {estado === 'vacio' && (
@@ -8255,6 +8281,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEscribirPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
+          onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
         />
       )}
       {!ayudaCerrada && (

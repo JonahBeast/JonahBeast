@@ -436,7 +436,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ### 9.3 Compartir el plato en la Comunidad
 
-Después de tocar el botón para agregar lo que reconoció la foto, sale **"✅ ¡Comida registrada!"** y **"📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?"** (la comida ya quedó registrada, decida lo que decida):
+Después de tocar el botón para agregar lo que reconoció la foto, sale **"📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?"** con la lista de lo que registró y su cantidad (la comida ya quedó registrada, decida lo que decida):
+- Si una cantidad no es la real (ej. eran 2 scoops y dice 1), tocar **"✏️ ¿No es la cantidad? Corrígela"**: vuelve a la lista de la foto (ahí se cambia con **"¿Cuántas?"** − / + o con Poco / Normal / Mucho) y al agregar de nuevo queda registrada con lo corregido, sin duplicarse. Después se puede compartir.
 - Elige una frase lista (no se escribe texto): **"¡Almuerzo Beast! 💪"**, **"Desayuno con todo ☀️"**, **"Cena ligera y rica 🌙"**, **"Comida casera 🍲"**, **"Sí se puede comer rico y sano 🔥"** o **"Comida a comida 🦍"**. Sale marcada la que corresponde a la comida donde lo registró (Desayuno → "Desayuno con todo ☀️", Almuerzo → "¡Almuerzo Beast! 💪", Cena → "Cena ligera y rica 🌙", media mañana o media tarde → "Comida a comida 🦍"); se puede tocar otra antes de compartir.
 - **"Compartir"**: la foto va al muro (12.3) con su nombre corto, la frase y **lo que registró con su cantidad**, tal como lo eligió (ej. "• Yogur griego: 1 taza (≈ 245 g)", uno debajo del otro; si agregó aceite aparte, también sale). **Nunca su peso ni sus calorías.** Compartir activa "aparecer en el muro".
   - Las primeras fotos las revisa Jonah: sale "¡Listo! Jonah la revisa y pronto aparece en la comunidad 💪" y, cuando la aprueba, le llega "🔥 Jonah aprobó la foto de tu plato: ya está en la comunidad. ¡Así se hace!". Cuando Jonah ya le aprobó 5 fotos, las siguientes salen al instante ("🔥 ¡Tu plato ya está en la comunidad!").

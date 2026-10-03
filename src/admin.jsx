@@ -2227,8 +2227,9 @@ function EquiposPanel({ users }) {
 /* COMUNIDAD (muro de la app, ver src/comunidad.jsx): Jonah publica
    anuncios con un botón opcional "Únete al reto", los fija arriba o los
    oculta, y ve cuántos aparecen en el muro y cuántas reacciones hubo. Los
-   logros del muro salen solos de los retos. */
-function ComunidadPanel() {
+   logros del muro salen solos de los retos. También revisa las fotos de
+   platos que comparten los alumnos (FotosComunidad). */
+function ComunidadPanel({ users }) {
   const [datos, setDatos] = useState(null);
   const [texto, setTexto] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -2278,7 +2279,8 @@ function ComunidadPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
       <p className="jb-display text-lg text-zinc-50 mb-1">🦍 COMUNIDAD (MURO)</p>
-      <p className="jb-body text-xs text-zinc-500 mb-4">Los logros de los retos salen solos en el muro. Aquí publicas tus anuncios.</p>
+      <p className="jb-body text-xs text-zinc-500 mb-4">Los logros de los retos salen solos en el muro. Aquí publicas tus anuncios y revisas las fotos de platos.</p>
+      <FotosComunidad users={users} />
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[[datos.visibles, 'aparecen en el muro'], [datos.reacciones.length, 'reacciones en 7 días']].map(([n, t]) => (
           <div key={t} className="bg-zinc-950/60 rounded-xl p-3 text-center">
@@ -2333,6 +2335,117 @@ function ComunidadPanel() {
             );
           })}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/* Fotos de platos que los alumnos comparten en el muro. Jonah publica o
+   no publica cada una (a quien ya le aprobó 5, le salen solas). Las
+   ocultas son las que 2 alumnos reportaron. Una foto no publicada se borra
+   del almacenamiento. */
+const FRASES_PLATO_ADMIN = {
+  almuerzo_beast: '¡Almuerzo Beast! 💪', desayuno: 'Desayuno con todo ☀️', cena: 'Cena ligera y rica 🌙',
+  casera: 'Comida casera 🍲', rico_sano: 'Sí se puede comer rico y sano 🔥', comida_a_comida: 'Comida a comida 🦍',
+};
+function FotosComunidad({ users }) {
+  const [fotos, setFotos] = useState(null);
+  const [urls, setUrls] = useState({});
+  const [ocupado, setOcupado] = useState(null);
+  const [verPublicadas, setVerPublicadas] = useState(false);
+
+  async function cargar() {
+    const { data } = await supabase.from('comunidad_fotos').select('*').order('created_at', { ascending: false }).limit(300);
+    const lista = data || [];
+    setFotos(lista);
+    const desde = Date.now() - 14 * 86400000;
+    const rutas = lista.filter(f => f.estado === 'pendiente' || f.estado === 'oculta' || (f.estado === 'aprobada' && new Date(f.created_at).getTime() >= desde)).map(f => f.ruta);
+    if (rutas.length) {
+      const { data: firmadas } = await supabase.storage.from('comunidad-fotos').createSignedUrls(rutas, 3600);
+      setUrls(Object.fromEntries((firmadas || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl])));
+    }
+  }
+  useEffect(() => { cargar().catch(() => setFotos([])); }, []);
+
+  async function decidir(f, estado) {
+    if (estado === 'rechazada' && f.estado !== 'pendiente' && !window.confirm('¿Borrar esta foto del muro para siempre?')) return;
+    setOcupado(f.id);
+    const { data, error } = await supabase.rpc('comunidad_foto_estado', { p_id: f.id, p_estado: estado });
+    if (error || data?.error) { setOcupado(null); showToast('No se pudo guardar: ' + (error?.message || data?.error), 'error'); return; }
+    if (estado === 'rechazada') await supabase.storage.from('comunidad-fotos').remove([f.ruta]).catch(() => {});
+    setOcupado(null);
+    showToast(estado === 'aprobada' ? '✅ Publicada en el muro' : estado === 'oculta' ? 'Quitada del muro' : 'No se publicó');
+    cargar();
+  }
+
+  if (!fotos) return null;
+  const nombreDe = u => (users || []).find(x => x.username === u)?.nombre || u;
+  const aprobadasDe = u => fotos.filter(f => f.username === u && f.estado === 'aprobada').length;
+  const pendientes = fotos.filter(f => f.estado === 'pendiente').reverse();
+  const ocultas = fotos.filter(f => f.estado === 'oculta' && f.reportes >= 2);
+  const desde = Date.now() - 14 * 86400000;
+  const publicadas = fotos.filter(f => f.estado === 'aprobada' && new Date(f.created_at).getTime() >= desde);
+
+  const Foto = ({ f, children }) => (
+    <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl overflow-hidden">
+      {urls[f.ruta]
+        ? <img src={urls[f.ruta]} alt="" loading="lazy" className="w-full aspect-square object-cover bg-zinc-950" />
+        : <div className="w-full aspect-square bg-zinc-950 flex items-center justify-center"><Loader2 size={16} className="animate-spin text-zinc-600" /></div>}
+      <div className="p-2">
+        <p className="jb-body text-xs text-zinc-200 truncate">{nombreDe(f.username)} <span className="text-zinc-600">@{f.username}</span></p>
+        <p className="jb-body text-[11px] text-zinc-400 truncate">{FRASES_PLATO_ADMIN[f.frase]}{f.plato ? ` · ${f.plato}` : ''}</p>
+        {children}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mb-4">
+      <p className="jb-display text-base text-zinc-100 mb-1">📸 FOTOS DE PLATOS {pendientes.length > 0 && <span className="text-orange-400">· {pendientes.length} por revisar</span>}</p>
+      <p className="jb-body text-[11px] text-zinc-500 mb-2">A quien ya le aprobaste 5 fotos, las siguientes le salen solas.</p>
+      {pendientes.length === 0 ? (
+        <p className="jb-body text-xs text-zinc-500 mb-2">No hay fotos por revisar. ✅</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {pendientes.map(f => (
+            <Foto key={f.id} f={f}>
+              <p className="jb-body text-[10px] text-zinc-600 mb-1.5">{aprobadasDe(f.username)}/5 aprobadas</p>
+              <div className="grid grid-cols-2 gap-1">
+                <button onClick={() => decidir(f, 'aprobada')} disabled={ocupado === f.id} className="jb-body text-xs py-1.5 rounded-lg bg-orange-500 text-zinc-950 font-semibold">✅ Publicar</button>
+                <button onClick={() => decidir(f, 'rechazada')} disabled={ocupado === f.id} className="jb-body text-xs py-1.5 rounded-lg border border-zinc-700 text-zinc-300">❌ No</button>
+              </div>
+            </Foto>
+          ))}
+        </div>
+      )}
+      {ocultas.length > 0 && (
+        <>
+          <p className="jb-body text-xs text-amber-400 mb-1">⚠️ Reportadas por alumnos (se ocultaron solas)</p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {ocultas.map(f => (
+              <Foto key={f.id} f={f}>
+                <div className="grid grid-cols-2 gap-1 mt-1">
+                  <button onClick={() => decidir(f, 'aprobada')} disabled={ocupado === f.id} className="jb-body text-xs py-1.5 rounded-lg border border-orange-500/60 text-orange-300">Volver a publicar</button>
+                  <button onClick={() => decidir(f, 'rechazada')} disabled={ocupado === f.id} className="jb-body text-xs py-1.5 rounded-lg border border-zinc-700 text-zinc-300">Borrar</button>
+                </div>
+              </Foto>
+            ))}
+          </div>
+        </>
+      )}
+      {publicadas.length > 0 && (
+        <button onClick={() => setVerPublicadas(v => !v)} className="jb-body text-xs text-orange-400 mb-2">
+          {verPublicadas ? 'Ocultar las publicadas' : `Ver las publicadas (${publicadas.length} en 14 días)`}
+        </button>
+      )}
+      {verPublicadas && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {publicadas.map(f => (
+            <Foto key={f.id} f={f}>
+              <button onClick={() => decidir(f, 'oculta')} disabled={ocupado === f.id} className="jb-body text-[11px] text-zinc-500 hover:text-red-400 mt-1">Quitar del muro</button>
+            </Foto>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -8291,7 +8404,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
                 <EquiposPanel users={users} />
-                <ComunidadPanel />
+                <ComunidadPanel users={users} />
               </>
             )}
           </>

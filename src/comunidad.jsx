@@ -6,9 +6,14 @@
 //   texto libre, así que no hay nada que moderar. Solo aparece quien lo
 //   activa (y nunca menores de 18); de cada uno solo va su nombre corto,
 //   nunca su peso ni sus kilos. Todo lo arma la base en comunidad_muro.
+// - Fotos de platos (Etapa B): después de registrar su comida con la foto
+//   inteligente, el alumno puede compartirla con una frase lista
+//   (CompartirPlato). Jonah la aprueba en su panel (a quien ya le aprobó 5
+//   le salen solas); con 2 reportes se oculta sola.
 // - "Mis equipos": los retos en grupo (src/equipo.jsx).
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { supabase } from './supabaseClient';
 import { btnPrimary, btnGhost, showToast, vibrar } from './App.jsx';
 import { EquipoTab, MEDALLAS, CLAVE_INVITACION_EQUIPO, llamar, Tarjeta, haceCuanto } from './equipo.jsx';
 
@@ -34,6 +39,86 @@ export async function hayAnuncioNuevo() {
 }
 function marcarMuroVisto() {
   try { localStorage.setItem(CLAVE_VISTO, new Date().toISOString()); } catch {}
+}
+
+// Frases listas para la foto del plato (el alumno no escribe texto).
+export const FRASES_PLATO = {
+  almuerzo_beast: '¡Almuerzo Beast! 💪',
+  desayuno: 'Desayuno con todo ☀️',
+  cena: 'Cena ligera y rica 🌙',
+  casera: 'Comida casera 🍲',
+  rico_sano: 'Sí se puede comer rico y sano 🔥',
+  comida_a_comida: 'Comida a comida 🦍',
+};
+const CLAVE_NO_COMPARTIR = 'jb-compartir-plato-no';
+export function preguntarCompartirPlato() {
+  try { return localStorage.getItem(CLAVE_NO_COMPARTIR) !== '1'; } catch { return true; }
+}
+function noPreguntarMas() {
+  try { localStorage.setItem(CLAVE_NO_COMPARTIR, '1'); } catch {}
+}
+function volverAPreguntar() {
+  try { localStorage.removeItem(CLAVE_NO_COMPARTIR); } catch {}
+}
+
+// "¿Compartes tu plato con la Comunidad?": sale en la foto inteligente
+// después de agregar la comida (la foto ya se reconoció como comida).
+export function CompartirPlato({ username, blob, previewUrl, plato, onListo }) {
+  const h = new Date().getHours();
+  const [frase, setFrase] = useState(h < 11 ? 'desayuno' : h >= 18 ? 'cena' : 'almuerzo_beast');
+  const [enviando, setEnviando] = useState(false);
+
+  async function compartir() {
+    setEnviando(true);
+    const ruta = `${username}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error: upErr } = await supabase.storage.from('comunidad-fotos').upload(ruta, blob, { contentType: 'image/jpeg', upsert: false });
+    if (upErr) { setEnviando(false); showToast('No se pudo subir la foto. Revisa tu internet e intenta de nuevo.', 'error'); return; }
+    const { r, ok, error } = await llamar('comunidad_foto_subir', { p_ruta: ruta, p_frase: frase, p_plato: plato || null });
+    if (!ok) {
+      supabase.storage.from('comunidad-fotos').remove([ruta]).catch(() => {});
+      setEnviando(false);
+      if (r?.error === 'menor') {
+        noPreguntarMas();
+        showToast('Compartir fotos en la comunidad es para mayores de 18. ¡Sigue registrando, vas muy bien! 💪');
+        onListo();
+      } else if (r?.error === 'limite') {
+        showToast('Hoy ya compartiste 3 fotos. ¡Mañana compartes más! 💪');
+        onListo();
+      } else {
+        showToast(error ? 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' : 'Algo falló. Intenta de nuevo.', 'error');
+      }
+      return;
+    }
+    vibrar(30);
+    showToast(r.estado === 'aprobada' ? '🔥 ¡Tu plato ya está en la comunidad!' : '¡Listo! Jonah la revisa y pronto aparece en la comunidad 💪');
+    onListo();
+  }
+
+  return (
+    <div>
+      <p className="jb-body text-sm text-orange-300 mb-2">✅ ¡Comida registrada!</p>
+      {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-48 object-cover rounded-xl mb-3" />}
+      <p className="jb-display text-lg text-zinc-50 mb-1">📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?</p>
+      <p className="jb-body text-xs text-zinc-400 mb-3">Inspira a otros: sale en el muro con tu nombre corto y la frase que elijas. Nunca tu peso ni tus calorías.</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {Object.entries(FRASES_PLATO).map(([k, t]) => (
+          <button key={k} onClick={() => setFrase(k)}
+            className={`jb-body text-xs px-3 py-1.5 rounded-full border transition-colors ${frase === k ? 'border-orange-500 bg-orange-500/15 text-zinc-50' : 'border-zinc-700 text-zinc-300 hover:border-orange-500/60'}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 mb-3">Jonah revisa las primeras fotos antes de publicarlas.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={compartir} disabled={enviando} className={btnPrimary + ' py-3'}>
+          {enviando ? <Loader2 className="animate-spin" size={16} /> : 'Compartir'}
+        </button>
+        <button onClick={onListo} disabled={enviando} className={btnGhost + ' py-3'}>No, gracias</button>
+      </div>
+      <button onClick={() => { noPreguntarMas(); onListo(); }} disabled={enviando}
+        className="block mx-auto jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-3">No me preguntes más</button>
+    </div>
+  );
 }
 
 const REACCIONES = [
@@ -69,10 +154,26 @@ export function ComunidadTab({ username, nombre, vista, onVista, avisoEquipos, o
 function Muro({ onIrEquipos, onVisto }) {
   const [muro, setMuro] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  const [urls, setUrls] = useState({}); // ruta → enlace temporal de la foto
+  const [reportadas, setReportadas] = useState([]);
+  const [preguntaPlatos, setPreguntaPlatos] = useState(preguntarCompartirPlato);
 
   async function cargar() {
     const { r, ok } = await llamar('comunidad_muro');
     setMuro(ok ? r : { error: true });
+    const rutas = ok ? r.eventos.filter(e => e.tipo === 'foto' && e.ruta).map(e => e.ruta) : [];
+    if (rutas.length) {
+      const { data } = await supabase.storage.from('comunidad-fotos').createSignedUrls(rutas, 3600);
+      setUrls(Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl])));
+    }
+  }
+
+  async function reportar(ev) {
+    if (!window.confirm('¿Reportar esta foto? Si la reportan 2 personas se oculta y Jonah la revisa.')) return;
+    const { ok } = await llamar('comunidad_foto_reportar', { p_id: ev.foto_id });
+    if (!ok) { showToast('No se pudo enviar el reporte. Intenta de nuevo.', 'error'); return; }
+    setReportadas(x => [...x, ev.id]);
+    showToast('Gracias por avisar. Jonah la va a revisar. 🙏');
   }
   useEffect(() => {
     cargar().then(() => { marcarMuroVisto(); onVisto?.(); });
@@ -143,6 +244,14 @@ function Muro({ onIrEquipos, onVisto }) {
         </Tarjeta>
       )}
 
+      {yo.fotos_en_revision > 0 && (
+        <Tarjeta className="mb-3">
+          <p className="jb-body text-sm text-zinc-300">
+            ⏳ {yo.fotos_en_revision === 1 ? 'Tu foto está' : `Tus ${yo.fotos_en_revision} fotos están`} en revisión. Jonah la{yo.fotos_en_revision === 1 ? '' : 's'} revisa pronto y te avisamos cuando salga{yo.fotos_en_revision === 1 ? '' : 'n'} en el muro.
+          </p>
+        </Tarjeta>
+      )}
+
       {anuncios.map(a => (
         <Tarjeta key={a.id} className={`mb-3 ${a.fijado ? 'border-orange-500/50' : ''}`}>
           <div className="flex items-center gap-2.5 mb-2">
@@ -175,7 +284,29 @@ function Muro({ onIrEquipos, onVisto }) {
         </Tarjeta>
       ) : (
         <div className="space-y-2">
-          {eventos.map(ev => {
+          {eventos.filter(ev => !reportadas.includes(ev.id)).map(ev => {
+            if (ev.tipo === 'foto') {
+              return (
+                <Tarjeta key={ev.id} className={ev.yo ? 'border-orange-500/40' : ''}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="w-10 h-10 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center text-lg shrink-0">📸</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block jb-body text-sm text-zinc-200 leading-snug">{ev.yo ? 'Tú compartiste tu plato' : <><b>{ev.quien}</b> compartió su plato</>}</span>
+                      <span className="block jb-body text-[10px] text-zinc-500 mt-0.5">{haceCuanto(ev.cuando)}</span>
+                    </span>
+                  </div>
+                  {urls[ev.ruta]
+                    ? <img src={urls[ev.ruta]} alt={ev.plato || 'Plato'} loading="lazy" className="w-full max-h-80 object-cover rounded-xl bg-zinc-950" />
+                    : <div className="w-full h-48 rounded-xl bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-zinc-600" size={20} /></div>}
+                  <p className="jb-display text-base text-zinc-50 mt-2">{FRASES_PLATO[ev.detalle] || ''}</p>
+                  {ev.plato && <p className="jb-body text-xs text-zinc-500">{ev.plato}</p>}
+                  <div className="flex items-end justify-between gap-2">
+                    <Reacciones item={ev} propio={ev.yo} onReaccionar={reaccionar} />
+                    {!ev.yo && <button onClick={() => reportar(ev)} className="jb-body text-[10px] text-zinc-600 hover:text-zinc-400 mb-1">Reportar</button>}
+                  </div>
+                </Tarjeta>
+              );
+            }
             const { emoji, texto } = textoLogro(ev);
             return (
               <Tarjeta key={ev.id} className={ev.yo ? 'border-orange-500/40' : ''}>
@@ -202,6 +333,12 @@ function Muro({ onIrEquipos, onVisto }) {
               ? <>No apareces en el muro. <button onClick={() => aparecer(true)} disabled={ocupado} className="text-orange-400 underline">Quiero aparecer</button></>
               : null}
       </p>
+      {!preguntaPlatos && !yo.menor && (
+        <p className="jb-body text-[11px] text-zinc-500 text-center mt-2">
+          <button onClick={() => { volverAPreguntar(); setPreguntaPlatos(true); showToast('📸 Listo: al registrar con foto te preguntaremos si quieres compartir tu plato.'); }}
+            className="text-orange-400 underline">Volver a preguntarme si comparto mis platos</button>
+        </p>
+      )}
     </div>
   );
 }

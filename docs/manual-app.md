@@ -434,6 +434,16 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - "No se pudo procesar la foto…" → "Reintentar".
 - "Tu cuenta no está activa…" → la cuenta fue desactivada por Jonah: pasar a Jonah.
 
+### 9.3 Compartir el plato en la Comunidad
+
+Después de tocar el botón para agregar lo que reconoció la foto, sale **"✅ ¡Comida registrada!"** y **"📸 ¿COMPARTES TU PLATO CON LA COMUNIDAD?"** (la comida ya quedó registrada, decida lo que decida):
+- Elige una frase lista (no se escribe texto): **"¡Almuerzo Beast! 💪"**, **"Desayuno con todo ☀️"**, **"Cena ligera y rica 🌙"**, **"Comida casera 🍲"**, **"Sí se puede comer rico y sano 🔥"** o **"Comida a comida 🦍"**.
+- **"Compartir"**: la foto va al muro (12.3) con su nombre corto, la frase y el nombre del plato. **Nunca su peso ni sus calorías.** Compartir activa "aparecer en el muro".
+  - Las primeras fotos las revisa Jonah: sale "¡Listo! Jonah la revisa y pronto aparece en la comunidad 💪" y, cuando la aprueba, le llega "🔥 Jonah aprobó la foto de tu plato: ya está en la comunidad. ¡Así se hace!". Cuando Jonah ya le aprobó 5 fotos, las siguientes salen al instante ("🔥 ¡Tu plato ya está en la comunidad!").
+  - Mientras espera, arriba del muro dice "⏳ Tu foto está en revisión…".
+- **"No, gracias"**: no se comparte esa foto. **"No me preguntes más"**: deja de preguntar en ese celular.
+- Solo se pueden compartir fotos de la **foto inteligente** (las que la app reconoció como comida), como mucho **3 al día** ("Hoy ya compartiste 3 fotos…"). Los **menores de 18** no comparten fotos.
+
 ---
 
 ## 10. Pestaña "Mi cuerpo" (datos y objetivo)
@@ -639,7 +649,8 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
   - 🔥 "[Nombre] lleva 7 días seguidos registrando sus comidas" (a los 7, 14, 21, 30, 60 y 90 días)
   - 🦍 "[Nombre] se unió al Team Beast"
   Los logros propios salen con "Tú" y con borde naranja.
-- **Nunca se muestra el peso, los kilos ni lo que come nadie.** Solo el nombre corto (ej. "Rosa M.").
+- **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y el plato. Debajo, a la derecha, **"Reportar"** (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
+- **Nunca se muestra el peso, los kilos ni las calorías de nadie.** Solo el nombre corto (ej. "Rosa M.").
 
 **Reaccionar:** debajo de cada logro y anuncio hay tres botones, **🔥 💪 👏**, con cuántos reaccionaron. Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (como mucho 3 avisos de estos al día).
 
@@ -648,7 +659,9 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
 Problemas:
 - "Gané una medalla (o tengo una racha) y no salgo en el muro" → revisar abajo del muro que diga "Apareces en el muro"; si no, tocar "Quiero aparecer". Las rachas salen el día que llega a 7, 14, 21, 30, 60 o 90 días seguidos con al menos una comida registrada, y quedan 14 días en el muro.
 - "No me deja aparecer" → hay que ser mayor de 18 (según la edad de "Mi cuerpo").
-- "Quiero escribir o subir una foto de mi plato" → por ahora el muro es solo de logros y reacciones; las fotos de platos llegarán más adelante.
+- "¿Cómo subo la foto de mi plato?" → registrando la comida con la **foto inteligente** (sección 9); al agregarla, sale "¿Compartes tu plato con la Comunidad?". No se pueden subir fotos de la galería directo al muro ni escribir texto.
+- "Compartí mi foto y no sale" → si dice "⏳ Tu foto está en revisión", Jonah todavía no la revisa. Si Jonah decidió no publicarla, no sale (no llega aviso).
+- "Ya no me pregunta si quiero compartir" → tocó "No me preguntes más" en ese celular: abajo del muro, tocar **"Volver a preguntarme si comparto mis platos"**.
 
 ---
 
@@ -782,7 +795,7 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
-**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, reacción a un logro suyo en el muro, fin del reto de su equipo) llegan siempre; los ánimos y las reacciones, como mucho 3 con aviso al día cada uno.
+**Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, reacción a un logro o foto suya en el muro, foto aprobada por Jonah, fin del reto de su equipo) llegan siempre; los ánimos y las reacciones, como mucho 3 con aviso al día cada uno.
 
 | Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
 |---|---|---|

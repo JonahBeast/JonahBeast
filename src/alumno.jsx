@@ -68,6 +68,7 @@ import {
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
+import { EntrenoHoy } from './entreno.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -9902,8 +9903,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
           );
           const invitacionComunidad = (
-            <InvitacionComunidad username={username}
-              onIrComunidad={v => { setRegistrarAl(null); setVistaComunidad(v); setTab('equipo'); window.scrollTo({ top: 0 }); }} />
+            <>
+              <InvitacionComunidad username={username}
+                onIrComunidad={v => { setRegistrarAl(null); setVistaComunidad(v); setTab('equipo'); window.scrollTo({ top: 0 }); }} />
+              <EntrenoHoy username={username} form={form} setForm={setForm} />
+            </>
           );
           const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;
           const resto = (

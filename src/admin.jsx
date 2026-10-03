@@ -2238,15 +2238,18 @@ function ComunidadPanel({ users }) {
 
   async function cargar() {
     const desde = new Date(Date.now() - 7 * 86400000).toISOString();
-    const [{ data: anuncios }, { data: equipos }, { count: visibles }, { data: reacciones }] = await Promise.all([
+    const dow = new Date().getDay();
+    const lunes = addDaysISO(todayISO(), dow === 0 ? -6 : 1 - dow);
+    const [{ data: anuncios }, { data: equipos }, { count: visibles }, { data: reacciones }, { data: entrenos }] = await Promise.all([
       supabase.from('comunidad_anuncios').select('*').eq('activo', true).order('fijado', { ascending: false }).order('created_at', { ascending: false }).limit(20),
       supabase.from('equipos').select('codigo, nombre, apodo, oficial').eq('cerrado', false).order('oficial', { ascending: false }).order('created_at'),
       supabase.from('comunidad_perfil').select('username', { count: 'exact', head: true }).eq('visible', true),
       traerTodas(() => supabase.from('comunidad_reacciones').select('evento, username, created_at').eq('activo', true).gte('created_at', desde), ['evento', 'username', 'tipo']),
+      traerTodas(() => supabase.from('entrenos').select('username, fecha').gte('fecha', lunes), ['username', 'fecha']),
     ]);
-    setDatos({ anuncios: anuncios || [], equipos: equipos || [], visibles: visibles || 0, reacciones: reacciones || [] });
+    setDatos({ anuncios: anuncios || [], equipos: equipos || [], visibles: visibles || 0, reacciones: reacciones || [], entrenos: entrenos || [] });
   }
-  useEffect(() => { cargar().catch(() => setDatos({ anuncios: [], equipos: [], visibles: 0, reacciones: [], error: true })); }, []);
+  useEffect(() => { cargar().catch(() => setDatos({ anuncios: [], equipos: [], visibles: 0, reacciones: [], entrenos: [], error: true })); }, []);
 
   async function publicar() {
     const t = texto.trim();
@@ -2282,8 +2285,9 @@ function ComunidadPanel({ users }) {
       <p className="jb-body text-xs text-zinc-500 mb-4">Los logros de los retos salen solos en el muro. Aquí publicas tus anuncios y revisas las fotos de platos.</p>
       <FotosComunidad users={users} />
       <AplaudirComunidad />
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {[[datos.visibles, 'aparecen en el muro'], [datos.reacciones.length, 'reacciones en 7 días']].map(([n, t]) => (
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[[datos.visibles, 'aparecen en el muro'], [datos.reacciones.length, 'reacciones en 7 días'],
+          [`${new Set(datos.entrenos.map(e => e.username)).size}`, `entrenan esta semana (${datos.entrenos.length} entrenos)`]].map(([n, t]) => (
           <div key={t} className="bg-zinc-950/60 rounded-xl p-3 text-center">
             <p className="jb-display text-2xl text-orange-400 tabular-nums">{n}</p>
             <p className="jb-body text-[10px] text-zinc-500 leading-tight">{t}</p>
@@ -2357,6 +2361,7 @@ function textoLogroAdmin(ev) {
   if (ev.tipo === 'racha') return `🔥 ${ev.quien} lleva ${ev.detalle} días seguidos registrando`;
   if (ev.tipo === 'foto') return `📸 ${ev.quien} compartió su plato${ev.plato ? `: ${ev.plato.split(' · ').map(l => l.split(':')[0]).join(', ')}` : ''}`;
   if (ev.tipo === 'team_beast') return `🦍 ${ev.quien} se unió al Team Beast`;
+  if (ev.tipo === 'entreno') return `💪 ${ev.quien} entrenó ${ev.detalle} veces esta semana`;
   if (ev.tipo === 'medalla') return `${ev.quien} ${MEDALLA_ADMIN[ev.detalle] || 'ganó una medalla'}${ev.oficial ? ' en el Team Beast' : ''}`;
   if (ev.tipo === 'meta_equipo') return `🏆 ${ev.oficial ? 'El Team Beast' : ev.apodo || 'Un equipo'} cumplió su meta: ${(ev.nombres || []).join(', ')}`;
   return ev.tipo;

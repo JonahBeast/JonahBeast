@@ -222,6 +222,15 @@ De arriba hacia abajo:
 - **Resumen del cuerpo** (IMC o % grasa) → lleva a "Mi cuerpo".
 - **"MI OBJETIVO DE PESO":** barra de avance hacia tu peso meta.
 
+### 7.0 "💪 ¿Entrenaste hoy?" (Inicio)
+
+- En Inicio sale una línea **"💪 ¿Entrenaste hoy?"** con **"Anotar"** y **"Hoy no"** (la esconde hasta mañana).
+- **"Anotar"** → **"¿QUÉ ENTRENASTE HOY?"**: se marcan **uno o varios** (si hizo un mix, todos): 🏋️ Pesas · 🏃 Cardio · 🚶 Caminata · ⚽ Deporte · 🔥 Funcional · 💃 Baile · ✨ Otro, y **"¿Cuánto tiempo en total?"** (15', 30', 45', 60', 90', 2 h+) → **"Guardar"** ("💪 ¡Entreno anotado!…").
+- Ya anotado, la línea dice **"Hoy: Pesas + Cardio · 60 min"** y **"Esta semana: N entrenos"**, con **"Editar"** y **"Borrar"**. Es uno por día y se anota el mismo día.
+- **No suma calorías al día.** Su nivel de actividad ("Mi cuerpo": Sedentario, Ligero, Moderado, Intenso…) ya incluye sus entrenos; sumarlas otra vez sería contarlas dos veces.
+- **"📊 ¿AJUSTAMOS TU ACTIVIDAD?"**: cuando ya lleva 2 semanas anotando, la app compara lo que entrena con su nivel de actividad. Si no coincide (ej. dice "Intenso" pero anotó unos 2 por semana), le sugiere el nivel que corresponde (unos 1–2 por semana → Ligero, 3–5 → Moderado, 6 o más → Intenso): **"Sí, cámbiala"** (cambia su actividad y sus calorías se ajustan solas) o **"Ahora no"** (vuelve a preguntar en 2 semanas). Nunca se cambia sola. Si entrena más pero no siempre lo anota, que toque "Ahora no".
+- Si aparece en el muro de la Comunidad, con **3 o más entrenos en la semana** sale "💪 [Nombre] entrenó N veces esta semana" (sin detalles).
+
 ### 7.1 Modo fácil (letra grande e Inicio sencillo)
 
 Para quien la app se le hace complicada o la letra le queda pequeña.
@@ -656,6 +665,7 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
   - 🏆 "[Equipo] cumplió su meta del equipo: [nombres]"
   - 🔥 "[Nombre] lleva 7 días seguidos registrando sus comidas" (a los 7, 14, 21, 30, 60 y 90 días)
   - 🦍 "[Nombre] se unió al Team Beast"
+  - 💪 "[Nombre] entrenó N veces esta semana" (con 3 o más entrenos anotados en la semana, ver 7.0)
   Los logros propios salen con "Tú" y con borde naranja.
 - **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y lo que registró con su cantidad. Debajo, a la derecha, **"Reportar"** (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
 - **Nunca se muestra el peso, los kilos ni las calorías de nadie.** Solo el nombre corto (ej. "Rosa M.").

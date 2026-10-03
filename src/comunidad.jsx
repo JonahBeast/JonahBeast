@@ -406,6 +406,9 @@ function textoLogro(ev) {
       texto: <>{equipo} cumplió su meta del equipo{ev.yo ? ' (¡y tú estás ahí!)' : ''}: {nombres.join(', ')}{otros > 0 ? ` y ${otros} más` : ''}</>,
     };
   }
+  if (ev.tipo === 'entreno') {
+    return { emoji: '💪', texto: <>{quien} {ev.yo ? 'entrenaste' : 'entrenó'} <b>{ev.detalle} veces</b> esta semana</> };
+  }
   if (ev.tipo === 'racha') {
     return { emoji: '🔥', texto: <>{quien} {ev.yo ? 'llevas' : 'lleva'} <b>{ev.detalle} días seguidos</b> registrando {ev.yo ? 'tus' : 'sus'} comidas</> };
   }

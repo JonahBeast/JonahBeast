@@ -28,6 +28,12 @@ const LIMITE_SUGERENCIAS_GRATIS = 3; // "¿Qué puedo comer?" en la versión gra
 // Leer la tabla nutricional de un producto NO usa las fotos de comida:
 // tiene su propio tope diario. El producto queda guardado para todos.
 const LIMITE_ETIQUETAS_DIARIO = 5;
+// Registrar por voz (Premium): el audio se graba en el celular y aquí se pasa
+// a texto con OpenAI (funciona en iPhone y dentro de Instagram/Facebook, donde
+// el dictado del navegador no). Tope diario para cuidar costos.
+const LIMITE_VOZ_DIARIO = 30;
+const MAX_AUDIO_BASE64 = 4_000_000; // ~3 MB (30 s de audio sobran)
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
 // Cuentas sin tope de fotos (ni de etiquetas), para las pruebas de Jonah.
 // Las fotos se siguen contando y el costo queda en ia_uso como siempre.
 const FOTOS_SIN_LIMITE = new Set(["martin"]);
@@ -90,13 +96,13 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const cuerpo = await req.json();
-    const { imagenBase64, mimeType, alimentos, consulta, accion, codigo, producto } = cuerpo;
+    const { imagenBase64, mimeType, alimentos, consulta, accion, codigo, producto, audioBase64 } = cuerpo;
     const sesion = await usuarioDeLaSesion(supabase, req);
     if (!sesion && cuerpo?.demo !== true) return json({ error: "Inicia sesión para usar el reconocimiento por foto." }, 401);
     if (!sesion) return await fotoDePrueba(supabase, req, cuerpo);
     const username = sesion;
     const personales = cuerpo.personales;
-    return await fotoDeAlumno(supabase, username, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto });
+    return await fotoDeAlumno(supabase, username, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto, audioBase64 });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);
@@ -104,7 +110,7 @@ Deno.serve(async (req) => {
 });
 
 // Foto de un alumno con sesión: su cupo, sus alimentos, sus correcciones.
-async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto }: any) {
+async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mimeType, alimentos, personales, consulta, accion, codigo, producto, audioBase64 }: any) {
   try {
     // Cuenta habilitada: con el plan (o la prueba) vigente es Premium; si ya
     // venció, sigue en la versión gratis. Solo una cuenta deshabilitada por
@@ -143,6 +149,24 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: MODELO_FOTOS, usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
+    if (accion === "transcribir_voz") {
+      if (!premium && !sinLimite) return json({ error: "premium", funcion: "voz" }, 200);
+      if (typeof audioBase64 !== "string" || !audioBase64) return json({ error: "Falta el audio." }, 400);
+      if (audioBase64.length > MAX_AUDIO_BASE64) return json({ error: "El audio es muy largo. Grábalo de nuevo, más corto." }, 413);
+      if (!OPENAI_API_KEY) return json({ error: "La voz no está disponible en este momento." }, 503);
+      const periodoVoz = `voz-${hoyLima}`;
+      const { data: usadasVoz, error: errVoz } = await supabase.rpc("reservar_foto_reconocimiento", {
+        p_username: username, p_periodo: periodoVoz, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_VOZ_DIARIO,
+      });
+      if (errVoz) return json({ error: "No se pudo procesar el audio. Intenta de nuevo." }, 500);
+      if (usadasVoz === null || usadasVoz === undefined) return json({ error: "Por hoy ya usaste la voz muchas veces. Escríbelo o usa la foto 🙌" }, 200);
+      const texto = await transcribirVoz(audioBase64, String(mimeType || "audio/webm"));
+      if (texto === null) {
+        await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoVoz });
+        return json({ error: "No se pudo escuchar el audio. Intenta de nuevo." }, 502);
+      }
+      return json({ texto });
+    }
     if (accion === "leer_etiqueta") {
       // Leer la tabla nutricional con IA es Premium.
       if (!premium && !sinLimite) return json({ error: "premium", funcion: "etiqueta" }, 200);
@@ -887,5 +911,36 @@ async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: strin
     if (error) console.error("No se pudo anotar el uso de IA:", error.message);
   } catch (e) {
     console.error("No se pudo anotar el uso de IA:", (e as Error)?.message);
+  }
+}
+
+// Audio grabado en el celular → texto (OpenAI). Devuelve null si falló.
+// Se le da la idea de que es comida peruana para que escriba bien los
+// nombres de los platos.
+async function transcribirVoz(audioBase64: string, mime: string): Promise<string | null> {
+  try {
+    const tipo = mime.split(";")[0] || "audio/webm";
+    const extension = tipo.includes("mp4") || tipo.includes("aac") || tipo.includes("m4a") ? "m4a"
+      : tipo.includes("mpeg") ? "mp3" : tipo.includes("ogg") ? "ogg" : tipo.includes("wav") ? "wav" : "webm";
+    const bytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+    if (!bytes.length) return null;
+    const form = new FormData();
+    form.append("file", new Blob([bytes], { type: tipo }), `voz.${extension}`);
+    form.append("model", "gpt-4o-mini-transcribe");
+    form.append("language", "es");
+    form.append("prompt", "Lo que comió una persona en Perú, con cantidades: 1 pan francés, 2 huevos sancochados, una taza de café con leche, arroz con pollo, lomo saltado, ceviche, palta.");
+    const r = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST", headers: { authorization: `Bearer ${OPENAI_API_KEY}` }, body: form,
+    });
+    if (!r.ok) {
+      console.error("OpenAI (voz) respondió", r.status, (await r.text().catch(() => "")).slice(0, 200));
+      return null;
+    }
+    const d = await r.json().catch(() => ({}));
+    console.log(JSON.stringify({ evento: "registro_por_voz", bytes: bytes.length }));
+    return String(d?.text || "").replace(/\s+/g, " ").trim().slice(0, 500);
+  } catch (e) {
+    console.error("transcribirVoz:", (e as Error)?.message);
+    return null;
   }
 }

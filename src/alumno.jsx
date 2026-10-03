@@ -5937,6 +5937,38 @@ function esPorPiezas(food) {
   return UNIDADES_DISCRETAS.includes(unidadPorDefecto(food).unit);
 }
 
+/* Piezas grandes (palta, mango, camote…): se comen enteras o a la mitad,
+   así que el − / + va de medio en medio. Las chicas (huevo, pan) van de
+   uno en uno, pero igual se puede bajar a media. Los platos PECAFIT van
+   siempre enteros. */
+function esPiezaGrande(food) {
+  const d = unidadPorDefecto(food);
+  return d.qty * gramsPerUnit(food, d.unit) >= 100;
+}
+
+// Conteo con el que arranca: si la IA contó 1 pieza grande pero calculó
+// menos de ¾ de su peso, es media (ej. media palta de 100 g).
+function conteoFoto(food, cantidadIA, gramosIA) {
+  const n = Number(cantidadIA) || 1;
+  if (/\(PECAFIT\)/.test(food.name)) return n;
+  const pieza = unidadPorDefecto(food).qty * gramsPerUnit(food, unidadPorDefecto(food).unit);
+  if (n === 1 && esPiezaGrande(food) && Number(gramosIA) > 0 && Number(gramosIA) < pieza * 0.75) return 0.5;
+  return n;
+}
+
+function pasoConteo(food, n, dir) {
+  if (/\(PECAFIT\)/.test(food.name)) return Math.min(12, Math.max(1, n + dir));
+  const paso = esPiezaGrande(food) || (dir < 0 ? n <= 1 : n < 1) ? 0.5 : 1;
+  return Math.min(12, Math.max(0.5, n + dir * paso));
+}
+
+// "½", "1½", "2"
+function textoConteo(n) {
+  const entero = Math.floor(n);
+  const medio = n - entero >= 0.5 ? '½' : '';
+  return entero === 0 ? '½' : `${entero}${medio}`;
+}
+
 function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   // Platos de restaurantes aliados (PECAFIT): sus valores son por plato
   // servido, no por peso. Siempre se registran por plato (1 sandwich,
@@ -6213,7 +6245,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       const corregido = correcciones[id] ? buscarFood(correcciones[id]) : null;
       const food = corregido || (f.esOpciones ? (elecciones[f.id] && f.alternativas.find(a => a.key === elecciones[f.id])) : (seleccionados[f.key] ? f : null));
       if (!food) return;
-      const porcion = porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
+      const porcion = porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
       lista.push({ item: f, id, food, porcion, corregido: !!corregido });
     });
     return lista;
@@ -6512,18 +6544,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                       className="text-zinc-500 hover:text-zinc-300 underline">Deshacer</button>
                   </p>
                 );
-                const porcion = food && porcionDeFoto(food, conteos[id] ?? f._cantidadIA, f._gramosIA, tamanos[id] || 'normal');
+                const porcion = food && porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
+                const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
                 const ajuste = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
                     <button type="button" aria-label="Una menos"
-                      onClick={() => setConteos(v => ({ ...v, [id]: Math.max(1, (v[id] ?? f._cantidadIA ?? 1) - 1) }))}
+                      onClick={() => setConteos(v => ({ ...v, [id]: pasoConteo(food, conteo, -1) }))}
                       className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">−</button>
-                    <span className="jb-display text-sm text-zinc-100 w-5 text-center tabular-nums">{conteos[id] ?? f._cantidadIA ?? 1}</span>
+                    <span className="jb-display text-sm text-zinc-100 min-w-[1.25rem] text-center tabular-nums">{textoConteo(conteo)}</span>
                     <button type="button" aria-label="Una más"
-                      onClick={() => setConteos(v => ({ ...v, [id]: Math.min(12, (v[id] ?? f._cantidadIA ?? 1) + 1) }))}
+                      onClick={() => setConteos(v => ({ ...v, [id]: pasoConteo(food, conteo, 1) }))}
                       className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">+</button>
                   </div>
                 ) : (

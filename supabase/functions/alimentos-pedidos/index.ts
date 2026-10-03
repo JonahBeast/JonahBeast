@@ -722,7 +722,11 @@ async function descartar(id: number, respuesta: unknown) {
 // envío; al resto se le lista en sin_avisos (igual lo verá al abrir la app).
 async function avisarSolicitantes(solicitantes: any[], mensajes: { push: string; whatsapp: string }) {
   const telefonos = [...new Set(solicitantes.filter((s) => s?.origen === "whatsapp" && s.telefono).map((s) => String(s.telefono)))];
-  const usernames = [...new Set(solicitantes.filter((s) => s?.origen !== "whatsapp" && s.username).map((s) => String(s.username)))];
+  // Quien solo aparece porque la IA lo vio en su foto no pidió nada: no se
+  // le avisa (si la IA se confundió de plato, el aviso no tendría sentido).
+  const pidio = (u: string) => solicitantes.some((s) => String(s?.username) === u && s?.origen !== "foto");
+  const usernames = [...new Set(solicitantes.filter((s) => s?.origen !== "whatsapp" && s.username).map((s) => String(s.username)))]
+    .filter(pidio);
   const avisos = { whatsapp: [] as string[], app: [] as string[], sin_avisos: [] as string[], a_mano: [] as { telefono: string; nombre: string | null }[] };
 
   if (telefonos.length) {

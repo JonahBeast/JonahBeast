@@ -751,6 +751,13 @@ function PedidoAlimento({ pedido, onResuelto }) {
       {propuesta?.ia_estado === 'dudoso' && (
         <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no estuvo segura, así que no lo agregó sola. Decide tú:</p>
       )}
+      {/* Solo lo vio la IA en una foto: nadie lo pidió y la IA puede haber
+          confundido el plato. Mejor preguntarle al alumno antes de aprobar. */}
+      {(pedido.solicitantes || []).length > 0 && (pedido.solicitantes || []).every(s => s.origen === 'foto') && (
+        <p className="jb-body text-xs text-sky-300 bg-sky-950/30 border border-sky-900/60 rounded-lg px-2.5 py-1.5">
+          📷 Nadie lo pidió: la IA lo vio en una foto{propuesta?.ia_estado === 'dudoso' ? ' y no está segura de qué era' : ''}. Antes de aprobar, pregúntale al alumno qué comió (puede ser algo que ya está en la app).
+        </p>
+      )}
       {propuesta?.ia_estado === 'revisando' && (
         <p className="jb-body text-xs text-zinc-400">🤖 La IA lo está atendiendo… Toca "Actualizar" en un momento.</p>
       )}

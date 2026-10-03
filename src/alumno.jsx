@@ -9908,7 +9908,17 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                   {verMasFacil && <>{primeros}{resto}</>}
                 </>
               ) : (
-                <>{fotoDia1}{primeros}{centro}{resto}</>
+                <>
+                  {/* A los mayores de 40 que no lo tienen activo, el Modo
+                      fácil a la vista (no solo en el pie de la pantalla). */}
+                  {mayor && !verOfertaFacil && (
+                    <button onClick={() => elegirModoFacil(true)}
+                      className="w-full mb-4 flex items-center justify-center gap-2 jb-body text-base text-zinc-100 py-3 rounded-xl border border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20">
+                      🔠 Ver la app más grande y sencilla
+                    </button>
+                  )}
+                  {fotoDia1}{primeros}{centro}{resto}
+                </>
               )}
             </>
           );

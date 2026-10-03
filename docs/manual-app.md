@@ -234,6 +234,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **Cómo se activa:**
   - A quien puso **40 años o más** en sus datos, Inicio le pregunta una vez **"¿TE LA PONGO MÁS FÁCIL? 🔠"** con **"Sí, actívalo"** o **"No, gracias"**.
   - Cualquiera lo activa o lo quita cuando quiera desde el pie de la pantalla: **"🔠 Letra grande"** / **"🔠 Quitar letra grande"**.
+  - A quien tiene **40 años o más** y no lo tiene activo, arriba en Inicio le sale siempre el botón **"🔠 Ver la app más grande y sencilla"** (un toque y se activa).
   - Queda guardado en su cuenta (si entra desde otro celular, sigue igual).
 
 **"¿QUÉ SE TE HACE DIFÍCIL DE LA APP? 🙋"** (solo a quien tiene 40 años o más, desde su segundo día con la app y después de elegir si quiere el Modo fácil): Jonah le pregunta, una sola vez, qué le cuesta para mejorarlo. Puede elegir varias: "Registrar mis comidas", "La foto de la comida", "Entender los números (calorías, proteína…)", "Encontrar los botones", "La letra es pequeña", "Nada, todo bien 🙌", y escribir "Otra cosa". **"Enviar"** → "¡Gracias! Con esto Jonah mejora la app para ti 💪". **"Ahora no"** la vuelve a mostrar en 3 días. La respuesta le llega a Jonah.

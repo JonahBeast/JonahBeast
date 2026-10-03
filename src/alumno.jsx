@@ -67,7 +67,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
-import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo } from './comunidad.jsx';
+import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato } from './comunidad.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -6042,8 +6042,11 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
 }
 function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, onEscribir, onVerPlanes }) {
   const { premium } = usePremium();
-  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error
+  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
   const [previewUrl, setPreviewUrl] = useState(null);
+  // La foto ya comprimida, por si la comparte en la Comunidad al terminar.
+  const fotoBlob = useRef(null);
+  const [platoCompartir, setPlatoCompartir] = useState('');
   const [items, setItems] = useState([]); // alimentos encontrados (objetos completos de todosLosAlimentos, o grupos de opciones {esOpciones:true, ...})
   const [seleccionados, setSeleccionados] = useState({});
   const [elecciones, setElecciones] = useState({}); // para grupos de opciones ambiguas: { [id del grupo]: foodKey elegido }
@@ -6098,6 +6101,7 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
     if (!file) return;
     try {
       const blob = await comprimirImagen(file, 1200, 0.85);
+      fotoBlob.current = blob;
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = String(reader.result);
@@ -6250,6 +6254,12 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
       onAgregar({ id: uid(), foodKey: CLAVE_ACEITE, unit: 'cucharada', qty: cucharadas });
     }
     registrarFeedbackReconocimiento(elegidos);
+    // Ofrecer compartir el plato en la Comunidad (Etapa B del muro).
+    if (elegidos.length && fotoBlob.current && previewUrl && preguntarCompartirPlato()) {
+      setPlatoCompartir(elegidos.slice(0, 2).map(e => e.food.name).join(' · ').slice(0, 60));
+      setEstado('compartir');
+      return;
+    }
     onCerrar();
   }
 
@@ -6601,6 +6611,10 @@ function ReconocerFotoModal({ username, todosLosAlimentos, onCerrar, onAgregar, 
               </div>
             )}
           </div>
+        )}
+
+        {estado === 'compartir' && (
+          <CompartirPlato username={username} blob={fotoBlob.current} previewUrl={previewUrl} plato={platoCompartir} onListo={onCerrar} />
         )}
 
         {estado === 'vacio' && (

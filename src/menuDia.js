@@ -76,7 +76,51 @@ export const GUSTOS_POR_DEFECTO = {
   desayunos: ['pan', 'huevos'],
   comidas: 5,
   platos: true,
+  estilo: 'normal',
 };
+
+/* Estilos de alimentación (gustos.estilo). Cambian qué alimentos entran
+   al menú (y a la lista de compras):
+   - vegetariano: sin carne ni pescado; la proteína sale de huevos, soya,
+     menestras y queso; de los platos peruanos, solo los de menestras.
+   - sin_lactosa: sin leche, yogur ni queso (la avena va con leche sin
+     lactosa) ni platos con leche o queso (ají de gallina).
+   - menos_carbos: la misma meta de calorías y proteína, con ~45% menos
+     carbohidratos (lo que falta va en grasa sana: palta, aceite de oliva,
+     maní); porciones de arroz/papa más chicas, sin avena en el desayuno y
+     solo platos peruanos con pocos carbohidratos. */
+export const ESTILOS_ALIMENTACION = [
+  { id: 'normal', label: 'Normal', emoji: '🍽️', ayuda: 'Como siempre: de todo, a tu medida.' },
+  { id: 'vegetariano', label: 'Vegetariano', emoji: '🥚', ayuda: 'Sin carne ni pescado. Con huevos, lácteos, soya y menestras.' },
+  { id: 'sin_lactosa', label: 'Sin lactosa', emoji: '🥛', ayuda: 'Sin leche, yogur ni queso. La avena va con leche sin lactosa.' },
+  { id: 'menos_carbos', label: 'Menos carbohidratos', emoji: '🥗', ayuda: 'Más proteína y verduras; menos arroz, papa y fideos.' },
+];
+
+const PROTEINAS_VEGETARIANAS = [
+  { key: 'Huevo de gallina (Cocido)', texto: 'Huevo sancochado', gusto: 'huevo' },
+  { key: 'Soya (Cocida)', texto: 'Soya guisada', gusto: 'soya' },
+  { key: 'Lenteja (Cocida)', texto: 'Lentejas guisadas', gusto: 'menestra' },
+  { key: 'Garbanzo (Cocido)', texto: 'Garbanzos guisados', gusto: 'menestra' },
+  { key: 'Queso fresco (-)', texto: 'Queso fresco', gusto: 'queso' },
+];
+const LACTEOS = ['Leche descremada (-)', 'Yogur natural (-)', 'Yogur griego natural (-)', 'Queso fresco (-)', 'Ají de gallina (-)'];
+const LECHE_SIN_LACTOSA = { key: 'Leche sin lactosa (-)', texto: 'Leche sin lactosa' };
+
+// Nombres de alimentos que el estilo saca del menú (se suman a "Nunca me
+// sugieras esto").
+function fueraPorEstilo(estilo, buscar) {
+  let claves = [];
+  if (estilo === 'vegetariano') {
+    claves = [
+      ...OPCIONES_PROTEINA.filter(o => o.id !== 'huevo').flatMap(o => o.alimentos.map(a => a.key)),
+      'Jamón de pavo (-)',
+      ...PLATOS.filter(p => !p.menestra).map(p => p.key),
+    ];
+  } else if (estilo === 'sin_lactosa') {
+    claves = LACTEOS;
+  }
+  return claves.map(k => buscar(k)?.name).filter(Boolean);
+}
 
 /* Alimentos que Jonah agrega desde el panel pueden entrar al menú si les
    marca un uso (columna menu_uso de alimentos_extra; en la app llegan como
@@ -282,17 +326,25 @@ function gramosUnidad(buscar, gramsPerUnit, def) {
 
 function platoPrincipal(ctx, meta, r, evitarProteina) {
   const { buscar, gramsPerUnit, gustos, restricciones } = ctx;
-  let proteinas = alimentosDe(OPCIONES_PROTEINA, gustos.proteinas.filter(p => p !== 'huevo' || gustos.proteinas.length === 1), restricciones, buscar, ctx.extras, 'proteina');
-  if (!proteinas.length) proteinas = alimentosDe(OPCIONES_PROTEINA, ['pollo'], restricciones, buscar);
+  let proteinas;
+  if (ctx.estilo === 'vegetariano') {
+    proteinas = sinRestringidos(PROTEINAS_VEGETARIANAS, restricciones, buscar);
+    if (!proteinas.length) proteinas = [PROTEINAS_VEGETARIANAS[0]];
+  } else {
+    proteinas = alimentosDe(OPCIONES_PROTEINA, gustos.proteinas.filter(p => p !== 'huevo' || gustos.proteinas.length === 1), restricciones, buscar, ctx.extras, 'proteina');
+    if (!proteinas.length) proteinas = alimentosDe(OPCIONES_PROTEINA, ['pollo'], restricciones, buscar);
+  }
   const distintas = proteinas.filter(p => p.gusto !== evitarProteina);
   const prot = elegir(r, distintas.length ? distintas : proteinas);
   let acomp = alimentosDe(OPCIONES_ACOMPANAMIENTO, gustos.acompanamientos, restricciones, buscar, ctx.extras, 'acompanamiento');
+  // Si la proteína ya es una menestra, el acompañamiento no repite menestra.
+  if (prot.gusto === 'menestra') acomp = acomp.filter(a => a.gusto !== 'menestras');
   if (!acomp.length) acomp = alimentosDe(OPCIONES_ACOMPANAMIENTO, ['arroz'], restricciones, buscar);
   const carb = elegir(r, acomp);
   const porHuevo = prot.key.startsWith('Huevo') ? gramosUnidad(buscar, gramsPerUnit, { key: prot.key, unidad: 'unidad' }) : null;
   const items = [
     item(buscar, { ...prot, unidad: porHuevo ? 'unidad' : null }, 'p', porHuevo ? { min: porHuevo, max: porHuevo * 4, porUnidad: porHuevo } : { min: 50, max: 300, paso: 10 }),
-    Object.assign(item(buscar, carb, 'c', { min: 0, max: 500, paso: 10 }) || {}, { minSiHay: 60 }),
+    Object.assign(item(buscar, carb, 'c', { min: 0, max: ctx.estilo === 'menos_carbos' ? 150 : 500, paso: 10 }) || {}, { minSiHay: 60 }),
     ...ensaladaItems(buscar, r),
     item(buscar, ACEITE, 'f', { min: 0, max: 15, paso: 5 }),
   ].filter(Boolean);
@@ -306,22 +358,34 @@ function platoPeruano(ctx, meta, r) {
     const id = f.menuUso.split(':')[1];
     return id === 'menestras' ? { key: f.key, menestra: true } : { key: f.key, proteina: id };
   });
-  const opciones = [...PLATOS, ...platosExtra].filter(p => p.menestra ? gustos.acompanamientos.includes('menestras') : gustos.proteinas.includes(p.proteina))
-    .filter(p => { const f = buscar(p.key); return f && !restricciones.includes(f.name); });
+  const opciones = [...PLATOS, ...platosExtra]
+    .filter(p => ctx.estilo === 'vegetariano' ? p.menestra
+      : p.menestra ? gustos.acompanamientos.includes('menestras') : gustos.proteinas.includes(p.proteina))
+    .filter(p => { const f = buscar(p.key); return f && !restricciones.includes(f.name); })
+    // Menos carbohidratos: solo platos con pocos carbos (≤ 14 g por 100 g).
+    .filter(p => ctx.estilo !== 'menos_carbos' || buscar(p.key).carbs <= 14);
   if (!opciones.length) return null;
   const plato = elegir(r, opciones);
   const food = buscar(plato.key);
   // Si su meta pide más proteína de la que trae el plato, el ajuste final
   // puede sumar una porción extra de la misma proteína (empieza en 0).
   // En las menestras, la proteína extra es la primera que le guste.
-  const idExtra = plato.proteina || gustos.proteinas.find(p => p !== 'huevo') || gustos.proteinas[0];
+  const idExtra = ctx.estilo === 'vegetariano' ? 'huevo' : plato.proteina || gustos.proteinas.find(p => p !== 'huevo') || gustos.proteinas[0];
   const extra = OPCIONES_PROTEINA.find(o => o.id === idExtra)?.alimentos
     .find(a => { const f = buscar(a.key); return f && !restricciones.includes(f.name); });
   const acomp = plato.acomp && buscar(plato.acomp.key) && !restricciones.includes(buscar(plato.acomp.key).name) ? plato.acomp : null;
   const items = [
     { key: plato.key, food, texto: food.name, rol: 'k', g: 0, min: 200, max: 650, paso: 25 },
     ...ensaladaItems(buscar, r),
-    ...(extra ? [{ key: extra.key, food: buscar(extra.key), texto: `Extra: ${extra.texto.charAt(0).toLowerCase()}${extra.texto.slice(1)}`, rol: 'p', g: 0, min: 0, max: 150, paso: 10, minSiHay: 60 }] : []),
+    ...(extra ? [(() => {
+      const textoExtra = `Extra: ${extra.texto.charAt(0).toLowerCase()}${extra.texto.slice(1)}`;
+      // El huevo va en unidades enteras (0 a 3).
+      if (extra.key.startsWith('Huevo')) {
+        const pu = gramosUnidad(buscar, ctx.gramsPerUnit, { key: extra.key, unidad: 'unidad' }) || 50;
+        return { key: extra.key, food: buscar(extra.key), texto: textoExtra, rol: 'p', g: 0, min: 0, max: pu * 3, unidad: 'unidad', porUnidad: pu };
+      }
+      return { key: extra.key, food: buscar(extra.key), texto: textoExtra, rol: 'p', g: 0, min: 0, max: 150, paso: 10, minSiHay: 60 };
+    })()] : []),
     ...(acomp ? [{ key: acomp.key, food: buscar(acomp.key), texto: acomp.texto, rol: 'c', g: 120, min: 0, max: 250, paso: 10, minSiHay: 80 }] : []),
   ];
   resolver(items, meta);
@@ -331,9 +395,15 @@ function platoPeruano(ctx, meta, r) {
 function desayuno(ctx, meta, r) {
   const { buscar, gramsPerUnit, gustos, restricciones } = ctx;
   const desayunosExtra = ctx.extras.filter(f => f.menuUso === 'desayuno' && !restricciones.includes(f.name));
-  const estilos = [...(gustos.desayunos.length ? gustos.desayunos : ['pan']), ...(desayunosExtra.length ? ['extra'] : [])];
-  const estilo = elegir(r, estilos);
   const huevoOk = gustos.proteinas.includes('huevo') && !restricciones.includes('Huevo de gallina');
+  let deseados = gustos.desayunos.length ? gustos.desayunos : ['pan'];
+  // Menos carbohidratos: sin avena (si tiene otra opción, o si come huevo).
+  if (ctx.estilo === 'menos_carbos') {
+    const sinAvena = deseados.filter(d => d !== 'avena');
+    deseados = sinAvena.length ? sinAvena : huevoOk ? ['huevos'] : deseados;
+  }
+  const estilos = [...deseados, ...(desayunosExtra.length ? ['extra'] : [])];
+  const estilo = elegir(r, estilos);
   const conUnidad = (def, rol, maxUnidades) => {
     const pu = gramosUnidad(buscar, gramsPerUnit, def);
     return item(buscar, def, rol, pu ? { min: pu, max: pu * maxUnidades, porUnidad: pu } : { min: 30, max: 200, paso: 10 });
@@ -345,10 +415,11 @@ function desayuno(ctx, meta, r) {
   } else if (estilo === 'avena') {
     items = [
       item(buscar, { key: 'Avena en hojuelas (Cruda)', texto: 'Avena en hojuelas (cruda, para preparar)' }, 'c', { min: 30, max: 160, paso: 10 }),
-      item(buscar, LECHE, 'fijo', { g: 250 }),
+      item(buscar, ctx.estilo === 'sin_lactosa' ? LECHE_SIN_LACTOSA : LECHE, 'fijo', { g: 250 }),
       huevoOk
         ? conUnidad({ key: 'Huevo de gallina (Cocido)', unidad: 'unidad', texto: 'Huevo sancochado' }, 'p', 3)
-        : item(buscar, { key: 'Yogur natural (-)', texto: 'Yogur natural' }, 'p', { min: 100, max: 250, paso: 50 }),
+        : ctx.estilo === 'sin_lactosa' ? null
+          : item(buscar, { key: 'Yogur natural (-)', texto: 'Yogur natural' }, 'p', { min: 100, max: 250, paso: 50 }),
       item(buscar, { key: 'Plátano de seda (Cruda)', unidad: 'unidad', texto: 'Plátano de seda' }, 'fijo', { g: 0 }),
     ].filter(Boolean);
     const platano = items.find(i => i.key.startsWith('Plátano'));
@@ -426,10 +497,19 @@ export function comidasDelMenu(gustos) {
    las que faltan se recalculan con lo que le queda del día: si almorzó
    más, la cena sale más ligera. */
 export function armarMenu({ buscar, gramsPerUnit, gustos, restricciones = [], mealPlan, semilla, variantes = {}, extras = [], consumido = {} }) {
-  const g = { ...GUSTOS_POR_DEFECTO, ...(gustos || {}) };
+  let g = { ...GUSTOS_POR_DEFECTO, ...(gustos || {}) };
+  const estilo = ESTILOS_ALIMENTACION.some(e => e.id === g.estilo) ? g.estilo : 'normal';
+  // Vegetariano: el huevo cuenta como proteína que le gusta (desayunos y snacks).
+  if (estilo === 'vegetariano') g = { ...g, proteinas: ['huevo'] };
+  const restr = [...restricciones, ...fueraPorEstilo(estilo, buscar)];
   // extras: alimentos agregados por Jonah con un uso en el menú (menuUso).
-  const ctx = { buscar, gramsPerUnit, gustos: g, restricciones, extras: (extras || []).filter(f => f && f.menuUso && f.kcal > 0) };
+  const ctx = { buscar, gramsPerUnit, gustos: g, estilo, restricciones: restr, extras: (extras || []).filter(f => f && f.menuUso && f.kcal > 0) };
   const meta = metaDelDia(mealPlan);
+  if (estilo === 'menos_carbos') {
+    // Misma meta de calorías y proteína, con menos carbos y más grasa.
+    meta.c = meta.c * 0.55;
+    meta.f = Math.max(meta.f, (meta.kcal - meta.p * 4 - meta.c * 4) / 9);
+  }
   const reparto = REPARTO[g.comidas] || REPARTO[5];
   const base = variantes.base || 0;
   const rDia = azar(`${semilla}|dia|${base}`);
@@ -650,6 +730,8 @@ const COMPRA_POR_CLAVE = {
   'Atún en lata en agua (escurrido) (-)': { texto: 'Atún en agua', cat: 'Carnes, pescados y huevos', como: 'lata', porUnidad: 120 },
   'Huevo de gallina (Cocido)': { texto: 'Huevos', cat: 'Carnes, pescados y huevos', como: 'unidad', porUnidad: 50 },
   'Leche descremada (-)': { texto: 'Leche descremada', cat: 'Lácteos', como: 'litro' },
+  'Leche sin lactosa (-)': { texto: 'Leche sin lactosa', cat: 'Lácteos', como: 'litro' },
+  'Soya (Cocida)': { factor: 0.4, texto: 'Soya (en grano)', cat: 'Abarrotes' },
   'Yogur natural (-)': { texto: 'Yogur natural', cat: 'Lácteos', como: 'litro' },
   'Queso fresco (-)': { factor: 1, texto: 'Queso fresco', cat: 'Lácteos' },
   'Jamón de pavo (-)': { factor: 1, texto: 'Jamón de pavo', cat: 'Lácteos' },

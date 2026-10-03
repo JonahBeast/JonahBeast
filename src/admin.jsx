@@ -8619,7 +8619,7 @@ function HistoriaAlumno({ username }) {
     ...d.pagos.map(p => ({ f: p.creado_en, t: `💳 Pago de ${fmtS(Number(p.monto) || 0)}${p.plan_meses ? ` · plan de ${p.plan_meses} ${Number(p.plan_meses) === 1 ? 'mes' : 'meses'}` : ''}${p.metodo ? ` · ${p.metodo}` : ''}`, extra: p.estado === 'aprobado' ? null : p.estado })),
     ...d.ajustes.map(a => ({ f: a.created_at, t: `${Number(a.dias) >= 0 ? '🎁' : '➖'} ${Number(a.dias) >= 0 ? '+' : ''}${a.dias} días de Premium${a.motivo ? ` · ${a.motivo}` : ''}` })),
     ...d.pedidos.map(p => ({ f: p.creado_en, t: `🍽️ Pidió "${p.nombre}"`, extra: p.estado === 'agregado' ? 'agregado' : p.estado === 'descartado' ? 'descartado' : 'pendiente' })),
-    d.escrito?.f && { f: d.escrito.f, t: `📲 Le escribiste desde el panel${d.escrito.e ? ` (${(ETAPAS.find(e => e.id === d.escrito.e)?.titulo) || (d.escrito.e === 'convertir' ? '🔥 Listos para pagar' : d.escrito.e)})` : ''}` },
+    d.escrito?.f && { f: d.escrito.f, t: `📲 Le escribiste desde el panel${d.escrito.e ? ` (${(ETAPAS.find(e => e.id === d.escrito.e)?.titulo) || (d.escrito.e === 'convertir' ? '🔥 Más cerca de pagar' : d.escrito.e)})` : ''}` },
   ].filter(Boolean).sort((a, b) => String(b.f).localeCompare(String(a.f)));
   const tarjetas = [
     { v: estadoPlan, l: vence ? `${d.al?.plan === 'pago' || esPrueba ? 'Vence' : 'Venció'} el ${fechaCorta(vence)}` : 'Plan' },
@@ -9253,7 +9253,7 @@ function MensajesDelDiaPanel() {
   );
 }
 
-/* 🔥 LISTOS PARA PAGAR: alumnos que todavía no pagan pero usan la app de
+/* 🔥 MÁS CERCA DE PAGAR: alumnos que todavía no pagan pero usan la app de
    verdad (registran casi todos los días, se pesan), ordenados por qué tan
    probable es que paguen. Arriba los que más la usan y a los que menos días
    de Premium de prueba les quedan; también los que siguen registrando en la
@@ -9356,7 +9356,7 @@ function ListosParaPagarPanel() {
     <div className="bg-zinc-900 border border-orange-500/50 rounded-2xl p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="jb-display text-lg text-zinc-50">🔥 LISTOS PARA PAGAR</h2>
+          <h2 className="jb-display text-lg text-zinc-50">🔥 MÁS CERCA DE PAGAR</h2>
           <p className="jb-body text-xs text-zinc-400 mt-0.5">
             Todavía no pagan, pero usan la app de verdad. Arriba, los más probables: los que más registran y a los que menos días de prueba les quedan. Un mensaje tuyo a tiempo puede hacer la diferencia.
           </p>

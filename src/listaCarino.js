@@ -130,6 +130,11 @@ export async function cargarDatosCarino(supabase, hoyISO) {
    WhatsApp se abre en el navegador normal, así que el mensaje le da el
    camino para tener la app de verdad y con qué correo entrar.
    correo = { correo, google } (de api/correos-alumnos) o null. */
+/* Invitación a la comunidad (Team Beast) para la bienvenida. Va con la ruta
+   dentro de la app y no con el enlace ?equipo=BEAST: quien se registró
+   desde Instagram/Facebook abre el enlace en otro navegador sin su sesión
+   y caería en la pantalla de crear cuenta. */
+export const INVITAR_COMUNIDAD = 'Y únete a la comunidad 🦍: en la app entra a Comunidad → Mis equipos → "Unirme al Team Beast". Ahí vamos juntos, nos damos ánimo y yo voy de capitán.';
 const CIERRE_JUNTOS = 'Vamos juntos por esos resultados. No estás solo/a, yo te acompaño 🦍';
 
 /* Pasos numerados para tener la app instalada y entrar a su cuenta. La
@@ -178,7 +183,8 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
       : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
   const historia = 'Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
   const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
-  return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${CIERRE_JUNTOS}`;
+  const comunidad = etapa === 'bienvenida' ? `${INVITAR_COMUNIDAD}\n\n` : '';
+  return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${comunidad}${CIERRE_JUNTOS}`;
 }
 
 /* Mensaje para activar los avisos, según por qué no le llegan. */
@@ -258,9 +264,9 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
         if (a.telefono && yaBienvenida.has(nueve(a.telefono))) return null;
         return ultimaComida
           ? { etapa: 'bienvenida', motivo: `Se registró hoy${interno ? ' desde Instagram/Facebook' : ''} y ya anotó su primera comida 🔥`,
-              mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. Vamos a ir juntos. Cualquier duda me escribes aquí, ¿ya? 🦍` }
+              mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. ${INVITAR_COMUNIDAD} Cualquier duda me escribes aquí, ¿ya? 🦍` }
           : { etapa: 'bienvenida', motivo: interno ? 'Se registró hoy desde Instagram/Facebook' : 'Se registró hoy',
-              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. Cualquier duda, aquí estoy 🦍` };
+              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. ${INVITAR_COMUNIDAD} Cualquier duda, aquí estoy 🦍` };
       }
       // 2. Prueba por terminar (hoy o mañana).
       if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
+import MANUAL_APP from '../docs/manual-app.md?raw';
 import { opcionesUsoMenu } from './menuDia.js';
 import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
@@ -5315,6 +5316,56 @@ function ProductosPanel() {
 
 // Memoria de Jarvis: las notas que Jonah le pidió recordar ("recuerda
 // que..."). Jarvis solo guarda cuando se lo piden; aquí se ven y se borran.
+/* "🔄 Actualizar manual de Jarvis": copia a la base (manual_app) el manual
+   que viene dentro de esta versión publicada. Solo en la versión de main
+   (la real): en una versión de prueba el manual podría no ser el de main.
+   Compara por huella (sha256) para saber si ya está al día. */
+async function huellaTexto(t) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function ManualJarvisPanel() {
+  const [estado, setEstado] = useState(null); // { alDia, commit, actualizado_en } | { error }
+  const [ocupado, setOcupado] = useState(false);
+  const [mensaje, setMensaje] = useState('');
+  const esMain = __RAMA__ === 'main';
+  async function revisar() {
+    const [{ data }, mia] = await Promise.all([supabase.rpc('estado_manual_app'), huellaTexto(MANUAL_APP)]);
+    if (!data || data.error) { setEstado({ error: true }); return; }
+    setEstado({ alDia: data.sha256 === mia, commit: data.commit, actualizado_en: data.actualizado_en });
+  }
+  useEffect(() => { revisar().catch(() => setEstado({ error: true })); }, []);
+  async function actualizar() {
+    setOcupado(true); setMensaje('');
+    try {
+      const { data, error } = await supabase.rpc('actualizar_manual_app', { p_texto: MANUAL_APP, p_commit: __COMMIT__ });
+      if (error || data?.error || !data?.iguales) throw new Error(error?.message || data?.error || 'no quedó igual');
+      setMensaje(`✅ Listo: Jarvis y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
+      await revisar();
+    } catch (e) { setMensaje('No se pudo actualizar: ' + (e.message || 'error')); }
+    setOcupado(false);
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-2">
+      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS</h2>
+      <p className="jb-body text-[11px] text-zinc-500">Jarvis y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
+      {estado === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
+        : estado.error ? <p className="jb-body text-xs text-red-400">No se pudo revisar el manual.</p>
+        : estado.alDia
+          ? <p className="jb-body text-sm text-emerald-400">✅ Al día{estado.commit ? ` (commit ${String(estado.commit).slice(0, 7)})` : ''}.</p>
+          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis está desactualizado: la app tiene cambios que Jarvis todavía no conoce.</p>}
+      {estado && !estado.error && !estado.alDia && (esMain ? (
+        <button onClick={actualizar} disabled={ocupado} className={btnPrimary + ' text-sm py-2 self-start'}>
+          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis'}
+        </button>
+      ) : (
+        <p className="jb-body text-[11px] text-zinc-500">El botón solo sale en jonahbeast.com (la versión real), no en las versiones de prueba.</p>
+      ))}
+      {mensaje && <p className={`jb-body text-xs ${mensaje.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{mensaje}</p>}
+    </div>
+  );
+}
+
 function MemoriaJarvisPanel() {
   const [notas, setNotas] = useState(null);
   async function cargar() {
@@ -8566,6 +8617,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'ia' && (
           <>
             <PrecisionIAPanel />
+            <ManualJarvisPanel />
             <MemoriaJarvisPanel />
             <ReconocimientoFotoPanel />
             <ProductosPanel />

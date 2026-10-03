@@ -34,6 +34,7 @@ const LIMITE_ETIQUETAS_DIARIO = 5;
 const LIMITE_VOZ_DIARIO = 30;
 const MAX_AUDIO_BASE64 = 4_000_000; // ~3 MB (30 s de audio sobran)
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
+const MODELO_VOZ = "gpt-4o-mini-transcribe";
 // Cuentas sin tope de fotos (ni de etiquetas), para las pruebas de Jonah.
 // Las fotos se siguen contando y el costo queda en ia_uso como siempre.
 const FOTOS_SIN_LIMITE = new Set(["martin"]);
@@ -160,7 +161,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       });
       if (errVoz) return json({ error: "No se pudo procesar el audio. Intenta de nuevo." }, 500);
       if (usadasVoz === null || usadasVoz === undefined) return json({ error: "Por hoy ya usaste la voz muchas veces. Escríbelo o usa la foto 🙌" }, 200);
-      const texto = await transcribirVoz(audioBase64, String(mimeType || "audio/webm"));
+      const texto = await transcribirVoz(audioBase64, String(mimeType || "audio/webm"), (usage) => anotarUsoIA(supabase, { funcion: "registro-voz", tipo: "voz", username, modelo: MODELO_VOZ, usage }));
       if (texto === null) {
         await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoVoz });
         return json({ error: "No se pudo escuchar el audio. Intenta de nuevo." }, 502);
@@ -900,11 +901,11 @@ async function correccionesDeTodos(supabase: any, validas: Set<string>): Promise
   }
 }
 
-async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: string | null; modelo?: string; usage?: any }) {
+async function anotarUsoIA(supabase: any, fila: { funcion?: string; tipo: string; username?: string | null; modelo?: string; usage?: any }) {
   try {
     const u = fila.usage || {};
     const { error } = await supabase.from("ia_uso").insert({
-      funcion: "reconocer-comida", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
+      funcion: fila.funcion || "reconocer-comida", tipo: fila.tipo, username: fila.username || null, modelo: fila.modelo || "desconocido",
       tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
       tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
     });
@@ -917,7 +918,7 @@ async function anotarUsoIA(supabase: any, fila: { tipo: string; username?: strin
 // Audio grabado en el celular → texto (OpenAI). Devuelve null si falló.
 // Se le da la idea de que es comida peruana para que escriba bien los
 // nombres de los platos.
-async function transcribirVoz(audioBase64: string, mime: string): Promise<string | null> {
+async function transcribirVoz(audioBase64: string, mime: string, anotar: (usage: any) => Promise<void>): Promise<string | null> {
   try {
     const tipo = mime.split(";")[0] || "audio/webm";
     const extension = tipo.includes("mp4") || tipo.includes("aac") || tipo.includes("m4a") ? "m4a"
@@ -926,7 +927,7 @@ async function transcribirVoz(audioBase64: string, mime: string): Promise<string
     if (!bytes.length) return null;
     const form = new FormData();
     form.append("file", new Blob([bytes], { type: tipo }), `voz.${extension}`);
-    form.append("model", "gpt-4o-mini-transcribe");
+    form.append("model", MODELO_VOZ);
     form.append("language", "es");
     form.append("prompt", "Lo que comió una persona en Perú, con cantidades: 1 pan francés, 2 huevos sancochados, una taza de café con leche, arroz con pollo, lomo saltado, ceviche, palta.");
     const r = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -937,7 +938,15 @@ async function transcribirVoz(audioBase64: string, mime: string): Promise<string
       return null;
     }
     const d = await r.json().catch(() => ({}));
-    console.log(JSON.stringify({ evento: "registro_por_voz", bytes: bytes.length }));
+    console.log(JSON.stringify({ evento: "registro_por_voz", bytes: bytes.length, usage: d?.usage }));
+    // Costo en el panel de Rentabilidad: OpenAI devuelve los tokens de audio
+    // (entrada) y de texto (salida). Si no los trae, se estima por el tamaño
+    // del audio (~1 token cada 100 bytes de audio comprimido, aprox.).
+    const u = d?.usage || {};
+    await anotar({
+      input_tokens: Number(u.input_tokens) || Math.round(bytes.length / 100),
+      output_tokens: Number(u.output_tokens) || Math.round(String(d?.text || "").length / 4),
+    });
     return String(d?.text || "").replace(/\s+/g, " ").trim().slice(0, 500);
   } catch (e) {
     console.error("transcribirVoz:", (e as Error)?.message);

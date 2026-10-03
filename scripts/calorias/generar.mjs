@@ -51,7 +51,7 @@ const nombreMedida = m => ARTICULO[m] || (m.charAt(0).toUpperCase() + m.slice(1)
 
 // Junta los datos de cada plato y avisa (frena el build) si algo no cuadra.
 const platos = PLATOS.map(p => {
-  const filas = RAW_FOODS.filter(r => r[1] === p.alimento);
+  const filas = RAW_FOODS.filter(r => r[1] === p.alimento && (!p.estado || r[2] === p.estado));
   if (filas.length !== 1) throw new Error(`Calorías: "${p.alimento}" aparece ${filas.length} veces en RAW_FOODS (debe ser 1).`);
   const [grupoApp, name, estado, kcal, protein, carbs, fat, fiber] = filas[0];
   const f = { name, estado, kcal, protein, carbs, fat, fiber };
@@ -223,7 +223,7 @@ function paginaPlato(p) {
   return `${cabecera({ titulo, descripcion, ruta, jsonld })}
 <nav class="migas"><a href="/">Inicio</a> › <a href="/calorias">Calorías</a> › ${esc(p.nombre)}</nav>
 <h1 class="display">Calorías ${del} <em>${esc(nombreMin)}</em></h1>
-<p class="bajada">${esc(frase)} tiene unas <b>${kcal} kcal</b>. Aquí ves cuánto tiene según tu porción y cómo comerlo sin dejarlo.</p>
+<p class="bajada">${esc(frase)} tiene unas <b>${kcal} kcal</b>. Aquí ves cuánto tiene según tu porción y cómo disfrutarlo sin dejarlo.</p>
 
 <div class="tarjeta">
   <div class="grande">

@@ -7,6 +7,8 @@ import { RuedaFecha } from './regla.jsx';
 import {
   CATEGORIAS_TIENDA,
   avisarError,
+  showToast,
+  vibrar,
   Field,
   btnPrimary,
   cambiarCantidad,
@@ -139,16 +141,27 @@ function TiendaSeccionCurada({ titulo, productos, variantesPorProducto, onAgrega
   );
 }
 
+const CLAVE_CARRITO = 'jb_tienda_carrito';
+const CLAVE_CLIENTE = 'jb_tienda_cliente';
+const ENVIO_GRATIS = 200;
+
 function TiendaPublica({ username, onIrALaApp }) {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
   const [variantesPorProducto, setVariantesPorProducto] = useState({});
   const [categoria, setCategoria] = useState('todos');
   const [marcaFiltro, setMarcaFiltro] = useState('todas');
-  const [carrito, setCarrito] = useState([]);
+  // El carrito y los datos de envío se recuerdan en este celular: si sale
+  // de la página y vuelve, su carrito sigue ahí.
+  const [carrito, setCarrito] = useState(() => { try { const c = JSON.parse(localStorage.getItem(CLAVE_CARRITO) || '[]'); return Array.isArray(c) ? c : []; } catch { return []; } });
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [checkoutAbierto, setCheckoutAbierto] = useState(false);
-  const [cliente, setCliente] = useState({ nombre: '', telefono: '', correo: '', direccion: '', departamento: '', provincia: '', distrito: '', fechaNacimiento: '' });
+  const [cliente, setCliente] = useState(() => {
+    const vacio = { nombre: '', telefono: '', correo: '', direccion: '', departamento: '', provincia: '', distrito: '', fechaNacimiento: '' };
+    try { return { ...vacio, ...(JSON.parse(localStorage.getItem(CLAVE_CLIENTE) || '{}') || {}) }; } catch { return vacio; }
+  });
+  const [descuento, setDescuento] = useState(null); // { codigo, porcentaje } ya validado
+  const [validando, setValidando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [err, setErr] = useState('');
   const [codigoDescuento, setCodigoDescuento] = useState('');
@@ -157,6 +170,28 @@ function TiendaPublica({ username, onIrALaApp }) {
   const [globoAyudaVisible, setGloboAyudaVisible] = useState(true);
 
   useEffect(() => { cargar(); }, []);
+  useEffect(() => { try { localStorage.setItem(CLAVE_CARRITO, JSON.stringify(carrito)); } catch {} }, [carrito]);
+  // Si es alumno con sesión, sus datos (nombre, celular, correo) ya vienen puestos.
+  useEffect(() => {
+    if (!username) return;
+    supabase.from('alumnos').select('nombre, telefono, correo').eq('username', username).maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setCliente(v => ({ ...v, nombre: v.nombre || data.nombre || '', telefono: v.telefono || data.telefono || '', correo: v.correo || data.correo || '' }));
+      }, () => {});
+  }, [username]);
+
+  async function aplicarCodigo() {
+    const codigo = codigoDescuento.trim();
+    if (!codigo) return;
+    setValidando(true);
+    try {
+      const { data } = await supabase.functions.invoke('crear-pedido-tienda', { body: { accion: 'validar_codigo', codigo } });
+      if (data?.valido) { setDescuento({ codigo: data.codigo, porcentaje: Number(data.porcentaje) || 0 }); vibrar(20); showToast(`Código ${data.codigo} aplicado: −${data.porcentaje}%`); }
+      else { setDescuento(null); showToast('El código de descuento no es válido o ya expiró.', 'error'); }
+    } catch { setDescuento(null); showToast('No se pudo revisar el código. Intenta de nuevo.', 'error'); }
+    setValidando(false);
+  }
 
   async function cargar() {
     setLoading(true);
@@ -170,6 +205,9 @@ function TiendaPublica({ username, onIrALaApp }) {
         porProd[v.producto_id].push(v);
       });
       setVariantesPorProducto(porProd);
+      // El carrito guardado se actualiza con los precios de hoy (y se quita lo que ya no está).
+      const activos = Object.fromEntries((prods || []).map(p => [p.id, p]));
+      setCarrito(prev => prev.filter(i => activos[i.productoId]).map(i => ({ ...i, precio: Number(activos[i.productoId].precio_oferta || activos[i.productoId].precio) || i.precio })));
     } catch (e) { avisarError(e); }
     setLoading(false);
   }
@@ -204,7 +242,12 @@ function TiendaPublica({ username, onIrALaApp }) {
       .filter(i => i.cantidad > 0));
   }
 
-  const totalCarrito = carrito.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const subtotalCarrito = carrito.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  // Mismo cálculo que el servidor: el % se aplica a cada precio.
+  const totalCarrito = descuento
+    ? carrito.reduce((a, i) => a + Math.round(i.precio * (1 - descuento.porcentaje / 100) * 100) / 100 * i.cantidad, 0)
+    : subtotalCarrito;
+  const faltaEnvioGratis = Math.max(0, ENVIO_GRATIS - totalCarrito);
 
   async function confirmarPedido() {
     setErr('');
@@ -223,11 +266,13 @@ function TiendaPublica({ username, onIrALaApp }) {
           nombreCliente: cliente.nombre.trim(), telefonoCliente: cliente.telefono.trim(),
           correo: cliente.correo.trim(), direccion: cliente.direccion.trim(), distrito: distritoCompleto,
           fechaNacimiento: cliente.fechaNacimiento || null,
-          codigoDescuento: codigoDescuento.trim() || null,
+          codigoDescuento: (descuento?.codigo || codigoDescuento.trim()) || null,
           username: username || null,
         },
       });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo procesar el pedido.');
+      // Se recuerdan sus datos de envío para la próxima compra.
+      try { localStorage.setItem(CLAVE_CLIENTE, JSON.stringify(cliente)); } catch {}
       window.location.href = data.init_point;
     } catch (e) {
       setErr(e.message || 'No se pudo conectar con Mercado Pago.');
@@ -432,16 +477,36 @@ function TiendaPublica({ username, onIrALaApp }) {
             </div>
             {carrito.length > 0 && (
               <div className="p-4 border-t border-zinc-800 flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <input placeholder="Código de descuento" value={codigoDescuento}
-                    onChange={e => setCodigoDescuento(e.target.value)}
-                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200" />
+                {/* Envío gratis: cuánto falta (o que ya lo tiene). */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+                  <p className="text-xs text-zinc-300">{faltaEnvioGratis > 0 ? <>Te faltan <b className="text-orange-400">S/{faltaEnvioGratis.toFixed(2)}</b> para envío gratis 🚚</> : <b className="text-emerald-400">🚚 ¡Tienes envío gratis!</b>}</p>
+                  <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden mt-1.5">
+                    <div className={`h-full rounded-full ${faltaEnvioGratis > 0 ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, (totalCarrito / ENVIO_GRATIS) * 100)}%` }} />
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm mb-1">
+                {descuento ? (
+                  <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/40 rounded-lg px-3 py-2">
+                    <span className="text-xs text-emerald-300">✓ Código <b>{descuento.codigo}</b> · −{descuento.porcentaje}%</span>
+                    <button onClick={() => { setDescuento(null); setCodigoDescuento(''); }} className="text-xs text-zinc-400 underline px-2 py-1">Quitar</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input placeholder="Código de descuento" value={codigoDescuento}
+                      onChange={e => setCodigoDescuento(e.target.value)}
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-zinc-200 uppercase" />
+                    <button onClick={aplicarCodigo} disabled={validando || !codigoDescuento.trim()}
+                      className="text-sm font-semibold text-orange-400 border border-orange-500/50 rounded-lg px-3 disabled:opacity-40">
+                      {validando ? <Loader2 className="animate-spin" size={14} /> : 'Aplicar'}
+                    </button>
+                  </div>
+                )}
+                <div className="flex justify-between items-baseline text-sm mb-1">
                   <span className="text-zinc-400">Total</span>
-                  <span className="text-orange-500 font-semibold">S/{totalCarrito.toFixed(2)}</span>
+                  <span>
+                    {descuento && <span className="text-zinc-500 line-through text-xs mr-2">S/{subtotalCarrito.toFixed(2)}</span>}
+                    <span className="text-orange-500 font-semibold">S/{totalCarrito.toFixed(2)}</span>
+                  </span>
                 </div>
-                <p className="text-[10px] text-zinc-600 -mt-1">El descuento se aplica al pagar, si el código es válido.</p>
                 <button onClick={() => setCheckoutAbierto(true)} className={btnPrimary + ' py-3'}>Pagar con Mercado Pago</button>
                 <button onClick={whatsappPedido} className="bg-emerald-600 text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
                   <MessageCircle size={16} /> Comprar por WhatsApp

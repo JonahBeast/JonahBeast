@@ -247,9 +247,9 @@ De arriba hacia abajo:
 
 ### 7.0 "💪 ¿Entrenaste hoy?" (Inicio)
 
-- En Inicio sale una línea **"💪 ¿Entrenaste hoy?"** con **"Anotar"** y **"Hoy no"** (la esconde hasta mañana).
-- **"Anotar"** → **"¿QUÉ ENTRENASTE HOY?"**: se marcan **uno o varios** (si hizo un mix, todos): 🏋️ Pesas · 🏃 Cardio · 🚶 Caminata · ⚽ Deporte · 🔥 Funcional · 💃 Baile · ✨ Otro, y **"¿Cuánto tiempo en total?"** (15', 30', 45', 60', 90', 2 h+) → **"Guardar"** ("💪 ¡Entreno anotado!…").
-- Ya anotado, la línea dice **"Hoy: Pesas + Cardio · 60 min"** y **"Esta semana: N entrenos"**, con **"Editar"** y **"Borrar"** (pregunta "¿BORRAR EL ENTRENO DE HOY?" antes de borrar). Es uno por día y se anota el mismo día.
+- En Inicio sale la tarjeta **"💪 ¿Entrenaste hoy?"** con **"Anotar"** y **"Hoy no"** (la esconde hasta mañana), "Esta semana: N entrenos" y **la semana L–D** con un ✓ verde en los días que entrenaste.
+- **"Anotar"** abre una **hoja desde abajo** "¿QUÉ ENTRENASTE HOY?" con **"Hoy"** o **"Ayer"** arriba (se puede anotar el de ayer si se olvidó). Se marcan **uno o varios** (si hizo un mix, todos): 🏋️ Pesas · 🏃 Cardio · 🚶 Caminata · ⚽ Deporte · 🔥 Funcional · 💃 Baile · ✨ Otro, y **"¿Cuánto tiempo en total?"** con la **regla deslizable** (de 5 en 5 minutos, hasta 4 horas). **"Guardar"** → "💪 ¡Entreno anotado! Comida a comida y entreno a entreno."
+- Ya anotado, la tarjeta dice **"Hoy: Pesas + Cardio · 60 min"** con **"Editar"**; en la hoja está **"Borrar este entreno"** (pregunta antes). Si ayer no anotó nada, debajo sale **"¿Entrenaste ayer y no lo anotaste? Anótalo aquí"**. Es uno por día y solo hoy o ayer.
 - **No suma calorías al día.** Su nivel de actividad ("Mi cuerpo": Sedentario, Ligero, Moderado, Intenso…) ya incluye sus entrenos; sumarlas otra vez sería contarlas dos veces.
 - **"📊 ¿AJUSTAMOS TU ACTIVIDAD?"**: cuando ya lleva 2 semanas anotando, la app compara lo que entrena con su nivel de actividad. Si no coincide (ej. dice "Intenso" pero anotó unos 2 por semana), le sugiere el nivel que corresponde (unos 1–2 por semana → Ligero, 3–5 → Moderado, 6 o más → Intenso): **"Sí, cámbiala"** (cambia su actividad y sus calorías se ajustan solas) o **"Ahora no"** (vuelve a preguntar en 2 semanas). Nunca se cambia sola. Si entrena más pero no siempre lo anota, que toque "Ahora no".
 - Si aparece en el muro de la Comunidad, con **3 o más entrenos en la semana** sale "💪 [Nombre] entrenó N veces esta semana" (sin detalles).
@@ -915,17 +915,17 @@ Tocar un aviso de comida abre la app directo en esa comida.
 
 **Cómo comprar:**
 1. Toca **"Elegir"** en el producto y escoge talla, sabor o versión ("(agotado)" = sin stock).
-2. Se abre **"TU CARRITO"**; ajusta cantidades con +/−.
-3. (Opcional) "Código de descuento": el total **no cambia en pantalla**, el descuento se aplica en la página de Mercado Pago.
+2. Se abre **"TU CARRITO"**; ajusta cantidades con +/−. **El carrito se guarda** en tu celular: si sales de la página y vuelves, sigue ahí. Arriba del total dice **"Te faltan S/X para envío gratis 🚚"** (con una barra) o **"🚚 ¡Tienes envío gratis!"**.
+3. (Opcional) "Código de descuento" → **"Aplicar"**: si es válido sale "✓ Código [CÓDIGO] · −N%" y el **total con descuento** (el precio sin descuento tachado). "Quitar" lo saca.
 4. Elige:
-   - **"Pagar con Mercado Pago"** → llena "DATOS DE ENVÍO" (nombre, celular, correo, departamento, provincia, distrito, dirección) → **"Pagar S/[total]"**. Acepta Visa, Mastercard, American Express, Diners y saldo de Mercado Pago.
+   - **"Pagar con Mercado Pago"** → llena "DATOS DE ENVÍO" (nombre, celular, correo, departamento, provincia, distrito, dirección; si eres alumno con tu sesión abierta, tu nombre, celular y correo ya vienen puestos, y en tu siguiente compra desde ese celular se recuerdan todos tus datos) → **"Pagar S/[total]"**. Acepta Visa, Mastercard, American Express, Diners y saldo de Mercado Pago.
    - **"Comprar por WhatsApp"** → se abre WhatsApp con tu pedido para coordinar pago y entrega.
 
 **Envío:** gratis desde S/200. El costo y la fecha de entrega se coordinan por WhatsApp. Envíos a todo el Perú.
 
 **Problemas:**
 - "Pagué y no me llegó confirmación" → el comprobante lo envía Mercado Pago; para la entrega, pasar a Jonah con nombre y celular.
-- "Se me borró el carrito" → el carrito no se guarda al salir de la página.
+- "Se me borró el carrito" → el carrito se guarda en ese celular y ese navegador; si entró desde otro celular u otro navegador, no lo verá.
 - "El código de descuento no es válido o ya expiró." → revisar cómo se escribió.
 - "Sin stock suficiente de …" → elegir otra variante o menos unidades.
 

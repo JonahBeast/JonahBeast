@@ -4075,8 +4075,8 @@ function AnaliticaIAPanel({ tipoCambio }) {
    canal llegó cada registro (el ?utm_source= del link). */
 const NOMBRE_FUENTE = {
   meta_propio: 'Tus anuncios de Meta', meta: 'Meta', agencia: 'Agencia',
-  fb: 'Facebook', facebook: 'Facebook', ig: 'Instagram', instagram: 'Instagram', instagram_app: 'Instagram', ig_bio: 'Bio de Instagram',
-  tiktok: 'TikTok', tiktok_bio: 'Bio de TikTok', directo: 'Directo / sin marca', sin_dato: 'Sin dato (antes de medirlo)',
+  fb: 'Facebook', facebook: 'Facebook', ig: 'Instagram', instagram: 'Instagram', instagram_app: 'Instagram', ig_bio: 'Bio de Instagram (app)',
+  tiktok: 'TikTok', tiktok_bio: 'Bio de TikTok (app)', personal_tiktok: 'TikTok personal de Jonah', personal_ig: 'Instagram personal de Jonah', directo: 'Directo / sin marca', sin_dato: 'Sin dato (antes de medirlo)',
 };
 const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
 

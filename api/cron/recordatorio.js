@@ -26,7 +26,7 @@
 // comida en los últimos 14 días: le dice cuántas fotos gratis le quedan
 // esta semana (ver alumnosGratis en api/_lib/push.js).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, HORAS_AVISOS } from '../_lib/push.js';
 
 const FOTOS_GRATIS_SEMANA = 3;
 
@@ -47,12 +47,14 @@ function mensajeAlmuerzoGratis(quedan) {
   return { title: 'Jonah 🦍', body: variantes[Math.floor(Math.random() * variantes.length)] };
 }
 
-// Hora de Perú → momento del día y comida que se revisa.
-const RUTINA = {
-  8: { momento: 'manana', comida: 'Desayuno', tipo: 'buenos_dias' },
-  14: { momento: 'mediodia', comida: 'Almuerzo', tipo: 'almuerzo' },
-  21: { momento: 'noche', comida: 'Cena', tipo: 'cena' },
-};
+// Momentos del día y su hora por defecto (Perú). Cada alumno puede elegir
+// otra hora en ⚙️ Mi perfil (7–9am, 1–3pm, 8–10pm) o apagar estos avisos
+// ("comidas"): ver preferenciasAvisos en _lib/push.js.
+const RUTINAS = [
+  { momento: 'manana', comida: 'Desayuno', tipo: 'buenos_dias', defecto: 8 },
+  { momento: 'mediodia', comida: 'Almuerzo', tipo: 'almuerzo', defecto: 14 },
+  { momento: 'noche', comida: 'Cena', tipo: 'cena', defecto: 21 },
+];
 
 const NOMBRE_COMIDA = {
   Desayuno: 'tu desayuno', 'Media mañana': 'tu media mañana', Almuerzo: 'tu almuerzo',
@@ -152,10 +154,11 @@ async function enviarLote(supabase, targets) {
   return { enviados, fallidos: detalleFallos.length, detalleFallos, usuariosOk: [...usuariosOk] };
 }
 
-async function targetsGratis(supabase, hoyISO, comida, url) {
-  const gratis = (await alumnosGratis(supabase, hoyISO))
+async function targetsGratis(supabase, hoyISO, comida, url, prefs, rutina, horaPeru) {
+  const gratis = sinApagados(prefs, (await alumnosGratis(supabase, hoyISO))
     .filter(g => g.ultimaComida && g.ultimaComida >= addDaysISO(hoyISO, -14))
-    .map(g => g.username);
+    .map(g => g.username), 'comidas')
+    .filter(u => horaAviso(prefs, u, rutina.momento, rutina.defecto) === horaPeru);
   if (!gratis.length) return [];
   const { data: datos } = await supabase.from('datos_alumnos').select('username, meal_plan, meal_plan_fecha').in('username', gratis);
   const yaRegistro = new Set((datos || [])
@@ -185,11 +188,14 @@ export default async function handler(req, res) {
       .from('alumnos').select('username')
       .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
-    const usernames = (alumnos || []).map(a => a.username);
+    const todos = (alumnos || []).map(a => a.username);
 
-    const rutina = RUTINA[horaPeru];
+    const rutina = RUTINAS.find(r => HORAS_AVISOS[r.momento].includes(horaPeru));
     if (!rutina) return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de avisos' });
     const { momento, comida, tipo } = rutina;
+    // A esta hora: los que tienen este aviso a esta hora (la suya o la de siempre) y no lo apagaron.
+    const prefs = await preferenciasAvisos(supabase);
+    const usernames = sinApagados(prefs, todos, 'comidas').filter(u => horaAviso(prefs, u, momento, rutina.defecto) === horaPeru);
 
     const { data: datos } = usernames.length
       ? await supabase.from('datos_alumnos').select('username, meal_plan, meal_plan_fecha, form').in('username', usernames)
@@ -219,7 +225,7 @@ export default async function handler(req, res) {
       targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url } }));
     }
     // Versión gratis: solo el almuerzo, a quien registró en los últimos 14 días.
-    if (tipo === 'almuerzo') targets.push(...await targetsGratis(supabase, hoyISO, comida, url));
+    if (tipo === 'almuerzo') targets.push(...await targetsGratis(supabase, hoyISO, comida, url, prefs, rutina, horaPeru));
     if (!targets.length) return res.status(200).json({ ok: true, enviados: 0, comida, motivo: 'nadie pendiente o sin presupuesto' });
     const r = await enviarLote(supabase, targets);
     await anotarAvisos(supabase, r.usuariosOk || [], { tipo, momento, hoyISO });

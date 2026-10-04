@@ -15,7 +15,7 @@
 //
 // Cron sugerido en vercel.json: "0 1 * * *" (01:00 UTC = 20:00 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos, alumnosGratis, diasDesde } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos, alumnosGratis, diasDesde, preferenciasAvisos, sinApagados } from '../_lib/push.js';
 
 const DIAS_TE_EXTRANE_GRATIS = [3, 7, 14, 30];
 
@@ -49,7 +49,9 @@ export default async function handler(req, res) {
     const gratis = (await alumnosGratis(supabase, hoyISO))
       .filter(g => g.ultimaComida && DIAS_TE_EXTRANE_GRATIS.includes(diasDesde(g.ultimaComida, hoyISO)))
       .map(g => g.username);
-    const libres = new Set(await conPresupuesto(supabase, [...usernames, ...gratis], { momento: 'noche', hoyISO }));
+    // Quien apagó "Racha en riesgo" en su perfil no recibe estos avisos.
+    const prefs = await preferenciasAvisos(supabase);
+    const libres = new Set(await conPresupuesto(supabase, sinApagados(prefs, [...usernames, ...gratis], 'racha'), { momento: 'noche', hoyISO }));
     const enviar = async (u, mensaje, tipo) => {
       const r = await enviarPushA(supabase, [u], mensaje);
       totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);

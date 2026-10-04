@@ -208,3 +208,24 @@ export async function calcularRachas(supabase, usernames, hoyISO) {
   }
   return rachas;
 }
+
+/* Avisos que el alumno apagó o la hora que eligió (app → ⚙️ Mi perfil →
+   "Tus avisos"). Se guardan en su ficha: datos_alumnos.form.avisos =
+   { apagados: ['comidas' | 'racha' | 'pesaje' | 'resumen' | 'retos'],
+     horas: { manana: 7|8|9, mediodia: 13|14|15, noche: 20|21|22 } }.
+   Los avisos de su plan, pagos, pedidos y de la comunidad siempre llegan. */
+export const HORAS_AVISOS = { manana: [7, 8, 9], mediodia: [13, 14, 15], noche: [20, 21, 22] };
+export async function preferenciasAvisos(supabase) {
+  const { data } = await supabase.from('datos_alumnos').select('username, avisos:form->avisos').not('form->avisos', 'is', null);
+  const prefs = {};
+  (data || []).forEach(d => { if (d.avisos && typeof d.avisos === 'object') prefs[d.username] = d.avisos; });
+  return prefs;
+}
+export function sinApagados(prefs, usernames, categoria) {
+  return (usernames || []).filter(u => !(Array.isArray(prefs?.[u]?.apagados) && prefs[u].apagados.includes(categoria)));
+}
+export function horaAviso(prefs, username, momento, defecto) {
+  const h = Number(prefs?.[username]?.horas?.[momento]);
+  return HORAS_AVISOS[momento]?.includes(h) ? h : defecto;
+}
+

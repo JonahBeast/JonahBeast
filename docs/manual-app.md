@@ -165,11 +165,11 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
 - Un **punto naranja sobre "Comunidad"** significa que Jonah publicó un anuncio nuevo en el muro (ver 12.3), que un compañero le mandó ánimo o que tiene una invitación a un equipo por aceptar (ver 12.2). Dentro, el punto sale sobre "Muro" o "Mis equipos" según de qué se trate.
 
-**Barra de arriba:** logo, botón de sonido 🔊/🔇 (sonidos de logros; **en el celular está abajo, en el pie de la pantalla**: "🔊 Quitar sonidos" / "🔇 Activar sonidos"), ícono de **tarjeta "Mi plan"** (planes y pagos), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
+**Barra de arriba:** logo, botón de sonido 🔊/🔇 (en computadora), ícono de **tarjeta "Mi plan"** (planes y pagos), ícono **⚙️ "Mi perfil y ajustes"** (ver 6.3), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
 
 **Indicador de guardado** (arriba a la derecha, junto a "Salir", **en todas las pestañas**): **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar. Si sale la nube, ver la sección 8.8.
 
-**Pie de la pantalla (letra pequeña):** "Política de Privacidad" · (en el celular) "🔊 Quitar sonidos" / "🔇 Activar sonidos" · **"🔠 Letra grande"** (o "🔠 Quitar letra grande" si ya lo tiene; ver 7.1) · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
+**Pie de la pantalla:** **"⚙️ Mi perfil y ajustes"** · "Política de Privacidad". (Letra grande, sonidos, avisos, celular y eliminar cuenta están en Mi perfil.)
 
 **Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan." En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**.
 
@@ -183,14 +183,26 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Buscador de alimentos** (cuando buscas un alimento en una fila de Comidas, en "¿Era otro alimento?" o en la foto): antes de escribir muestra **"⭐ Lo que comes seguido"** (tus alimentos más registrados); un toque y listo. Si escribes, busca en todos los alimentos.
 
+### 6.3 ⚙️ Mi perfil y ajustes
+
+Se abre con el ícono **⚙️** de la barra de arriba o con **"⚙️ Mi perfil y ajustes"** en el pie de la pantalla.
+- **"TU CUENTA":** tu nombre y correo, **"Mi celular (WhatsApp)"** (agregarlo o cambiarlo) y **"Mi plan"** (planes y pagos).
+- **"TUS AVISOS":** si los avisos te llegan en ese celular (si no, botón **"Activar"**) y un interruptor para cada tipo:
+  - **🍽️ Recordatorios de comidas** (desayuno, almuerzo y cena, solo si aún no la registraste). Con él prendido eliges la **hora** de cada uno: desayuno 7, 8 u 9 am · almuerzo 1, 2 o 3 pm · cena 8, 9 o 10 pm (por defecto 8 am, 2 pm y 9 pm).
+  - **🔥 Racha en riesgo** · **⚖️ Pesaje y control** · **📊 Resumen de tu semana** · **🏆 Retos y equipos**.
+  - Los avisos de tu plan, tus pagos, tus pedidos de alimentos y la comunidad siempre llegan. Nunca más de 3 avisos al día.
+- **"LA APP":** **"🔠 Letra grande e Inicio sencillo"** (modo fácil, ver 7.1) y **"🔊 Sonidos de logros"**.
+- **"PRIVACIDAD":** "Política de Privacidad" y **"Eliminar mi cuenta"**.
+
 ### 6.1 La primera vez (guía de bienvenida)
 
 1. "¿CÓMO TE LLAMAS?" → nombre → "Guardar y seguir".
 2. "¿QUIERES QUE TE ACOMPAÑE DE CERCA?" → WhatsApp (9 dígitos) → "Guardar y seguir".
-3. "ACTIVA TUS NOTIFICACIONES" → "Activar notificaciones" (si lo rechaza, igual puede seguir con "Continuar").
-4. Explicación de los 3 pasos (Tus datos, Tu objetivo, Tus comidas) y de la rutina: registrar todos los días, usar «¿Qué puedo comer?», pesarse cada domingo y cada 2 semanas medirse y tomarse fotos.
-5. **"GRACIAS POR CONFIAR EN MÍ, [NOMBRE]"** (firmado "— JONAH BEAST"): "Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Y ahora, con esta misma app, entrenando y con disciplina, bajé de 104 a 90 kg en 2 meses y medio. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪". Lo ven todos, también quien toca "Saltar y empezar" (ese botón lleva directo a esta pantalla).
-6. **"¡Empecemos!"**.
+3. Explicación de los 3 pasos (Tus datos, Tu objetivo, Tus comidas) y de la rutina: registrar todos los días, usar «¿Qué puedo comer?», pesarse cada domingo y cada 2 semanas medirse y tomarse fotos.
+4. **"GRACIAS POR CONFIAR EN MÍ, [NOMBRE]"** (firmado "— JONAH BEAST"): "Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Y ahora, con esta misma app, entrenando y con disciplina, bajé de 104 a 90 kg en 2 meses y medio. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪". Lo ven todos, también quien toca "Saltar y empezar" (ese botón lleva directo a esta pantalla).
+5. **"¡Empecemos!"**.
+
+Los pasos 1 y 2 solo salen si faltan (si entró con Google, el nombre ya está). **Los avisos ya no se piden en la guía:** se piden una sola vez, justo después de registrar la primera comida ("¡COMIDA REGISTRADA! 💪" → "🔔 Sí, activar avisos"). Al activarlos, Jonah manda su saludo de bienvenida.
 
 **Si usa la app dentro de TikTok, Instagram o Facebook** (pasa cuando llega desde un anuncio): primero se le deja registrar su primera comida ahí mismo ("¡TU PLAN ESTÁ LISTO!", 6.2); recién después de su primera comida (o si cierra esa pantalla), como mucho una vez al día, sale **"UN ÚLTIMO PASO PARA ACOMPAÑARTE"**: "Estás usando la app dentro de [TikTok/Instagram/Facebook/otra app]. Ahí no te llegan mis avisos ni puedes instalarla. Ábrela en Chrome (Safari en iPhone): tu cuenta y tu plan ya están guardados." Muestra en grande "Allá entras con tu correo" con **su correo** y **"Copiar mi correo"** (si se registró con Google: "Allá toca "Continuar con Google" con" su correo); si entra con contraseña, agrega "¿No recuerdas tu contraseña? Allá toca "¿Olvidaste tu contraseña?" y te llega un enlace a este correo." Luego el botón **"🌐 Abrir en Chrome"** (o Safari). Si no se abre: tres puntos arriba a la derecha → "Abrir en el navegador" (o "Abrir en Safari"), o escribir **jonahbeast.com** en el navegador; también hay **"Copiar el enlace"**. **"Seguir aquí por ahora"** la cierra hasta el día siguiente. En Chrome o Safari debe **entrar con su correo y contraseña** (o "Continuar con Google" si se registró así).
 
@@ -253,7 +265,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - Debajo sigue el Centro de mando (calorías del día) y el botón **"Ver más de mi día ▾"**, que muestra lo demás de Inicio (primeros pasos, racha, resumen, etc.).
 - **Cómo se activa:**
   - A quien puso **40 años o más** en sus datos, Inicio le pregunta una vez **"¿TE LA PONGO MÁS FÁCIL? 🔠"** con **"Sí, actívalo"** o **"No, gracias"**.
-  - Cualquiera lo activa o lo quita cuando quiera desde el pie de la pantalla: **"🔠 Letra grande"** / **"🔠 Quitar letra grande"**.
+  - Cualquiera lo activa o lo quita cuando quiera en **⚙️ Mi perfil** → "LA APP" → **"🔠 Letra grande e Inicio sencillo"**.
   - A quien tiene **40 años o más** y no lo tiene activo, arriba en Inicio le sale siempre el botón **"🔠 Ver la app más grande y sencilla"** (un toque y se activa).
   - Queda guardado en su cuenta (si entra desde otro celular, sigue igual).
 
@@ -834,9 +846,9 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 
 ### 14.1 Activar
 
-- En la guía de bienvenida, en la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos"), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos"), o en el pie → **"Activar notificaciones"**.
+- En la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos", sale una sola vez tras la primera comida), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos") o en **⚙️ Mi perfil** → "TUS AVISOS" → **"Activar"**. En Mi perfil también se eligen cuáles avisos te llegan y la hora de los de comidas (ver 6.3).
 - La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante el Premium de prueba**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 3 días; después vuelve a salir.
-- **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio, la guía de bienvenida y "Activar notificaciones" tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
+- **En iPhone**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio y la ventana "Activar notificaciones" (desde Mi perfil) tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
 - **En Android** (Xiaomi, Huawei, Oppo, Samsung): Ajustes → Batería → Chrome → **"Sin restricciones"**, si no se apagan los avisos.
 - **Si abrió la app desde Instagram, TikTok o Facebook** (el navegador de esas apps no permite avisos), la tarjeta de Inicio dice "Abriste la app desde Instagram, TikTok o Facebook, y ahí no llegan avisos. Ábrela en tu navegador:" con los pasos: tres puntos (arriba a la derecha) → **"Abrir en Chrome"** (en iPhone, **"Abrir en Safari"**), o escribir **jonahbeast.com** en el navegador, y ahí tocar "Activar avisos".
 - Jonah ve en su panel quién no recibe avisos y por qué (iPhone sin instalar, bloqueados, nunca activados, navegador de Instagram/TikTok), y puede escribirle por WhatsApp con los pasos para su celular.
@@ -886,10 +898,10 @@ Tocar un aviso de comida abre la app directo en esa comida.
 
 ## 15. Cuenta: celular y eliminar cuenta
 
-**Guardar o cambiar el celular:** pie de la pantalla → **"Agregar mi celular"** / **"Actualizar mi celular"** → escribir el número → **"Guardar"** → "¡Listo! Tu celular quedó guardado."
+**Guardar o cambiar el celular:** **⚙️ Mi perfil** → **"Mi celular (WhatsApp)"** → escribir el número → **"Guardar"** → "¡Listo! Tu celular quedó guardado."
 
 **Eliminar la cuenta:**
-1. Pie de la pantalla → **"Eliminar mi cuenta"**.
+1. **⚙️ Mi perfil** → "PRIVACIDAD" → **"Eliminar mi cuenta"**.
 2. "¿Eliminar tu cuenta?" → **"Sí, continuar"**. Se borran historial, plan de comidas, fotos y notificaciones, y también el acceso (correo y contraseña): para volver tendría que registrarse de nuevo. Los pagos anteriores quedan como registro. **No se puede deshacer.**
 3. Escribe **ELIMINAR** (en mayúsculas) y toca **"Eliminar mi cuenta"**.
 - Si solo quiere pausar, **no hace falta eliminar**: basta con no renovar; el historial se conserva.

@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, ChevronDown, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Settings, ChevronDown, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
@@ -1387,6 +1387,137 @@ function SoundToggleButton() {
   );
 }
 
+/* ⚙️ MI PERFIL: tu cuenta, tus avisos (cuáles te llegan y a qué hora),
+   la app (letra grande, sonidos) y privacidad, todo en un solo lugar.
+   Las preferencias de avisos se guardan en tu ficha (form.avisos) y las
+   respetan las tareas automáticas (api/_lib/push.js → preferenciasAvisos). */
+const TIPOS_AVISO = [
+  { id: 'comidas', titulo: '🍽️ Recordatorios de comidas', ayuda: 'Desayuno, almuerzo y cena, solo si aún no la registraste.' },
+  { id: 'racha', titulo: '🔥 Racha en riesgo', ayuda: 'En la noche, si ese día aún no registraste nada.' },
+  { id: 'pesaje', titulo: '⚖️ Pesaje y control', ayuda: 'El domingo para pesarte y tu control cada 2 semanas.' },
+  { id: 'resumen', titulo: '📊 Resumen de tu semana', ayuda: 'Los lunes en la mañana.' },
+  { id: 'retos', titulo: '🏆 Retos y equipos', ayuda: 'Tu reto semanal y cuando termina un reto de tu equipo.' },
+];
+const HORAS_COMIDA_AVISO = [
+  { momento: 'manana', comida: 'Desayuno', horas: [7, 8, 9], defecto: 8 },
+  { momento: 'mediodia', comida: 'Almuerzo', horas: [13, 14, 15], defecto: 14 },
+  { momento: 'noche', comida: 'Cena', horas: [20, 21, 22], defecto: 21 },
+];
+const textoHora = h => `${h > 12 ? h - 12 : h} ${h >= 12 ? 'pm' : 'am'}`;
+function Interruptor({ activo, onCambio, etiqueta }) {
+  return (
+    <button type="button" role="switch" aria-checked={activo} aria-label={etiqueta} onClick={() => { vibrar(10); onCambio(!activo); }}
+      className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${activo ? 'bg-orange-500' : 'bg-zinc-700'}`}>
+      <span className={`absolute top-1 w-5 h-5 rounded-full bg-zinc-50 transition-all ${activo ? 'left-6' : 'left-1'}`} />
+    </button>
+  );
+}
+function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil, onCelular, onNotif, onEliminar, onPlanes }) {
+  const [estadoPush, setEstadoPush] = useState(null);
+  const [sonido, setSonido] = useState(sonidoActivo);
+  useEffect(() => { estadoPushEquipo().then(setEstadoPush).catch(() => setEstadoPush('nosoportado')); }, []);
+  const avisos = form?.avisos || {};
+  const apagados = Array.isArray(avisos.apagados) ? avisos.apagados : [];
+  const horas = avisos.horas || {};
+  const fijarAvisos = cambio => setForm(v => ({ ...v, avisos: { ...(v.avisos || {}), ...cambio(v.avisos || {}) } }));
+  const alternar = (id, prender) => fijarAvisos(a => {
+    const lista = Array.isArray(a.apagados) ? a.apagados : [];
+    return { apagados: prender ? lista.filter(x => x !== id) : [...new Set([...lista, id])] };
+  });
+  const Seccion = ({ titulo, children }) => (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+      <h2 className="jb-display text-sm text-zinc-300 tracking-wide mb-3">{titulo}</h2>
+      <div className="flex flex-col divide-y divide-zinc-800">{children}</div>
+    </div>
+  );
+  const Fila = ({ titulo, ayuda, children, onClick }) => {
+    const Tag = onClick ? 'button' : 'div';
+    return (
+      <Tag onClick={onClick} className="w-full flex items-center gap-3 py-3 text-left min-h-[52px]">
+        <span className="flex-1 min-w-0">
+          <span className="block jb-body text-sm text-zinc-100">{titulo}</span>
+          {ayuda && <span className="block jb-body text-xs text-zinc-500 mt-0.5">{ayuda}</span>}
+        </span>
+        {children}
+      </Tag>
+    );
+  };
+  return (
+    <div className="pt-2">
+      <h1 className="jb-display text-3xl text-zinc-50 mb-1">MI PERFIL</h1>
+      <p className="jb-body text-sm text-zinc-400 mb-5">Tu cuenta, tus avisos y cómo ves la app.</p>
+
+      <Seccion titulo="TU CUENTA">
+        <Fila titulo={userRecord?.nombre || username} ayuda={userRecord?.correo || null} />
+        <Fila titulo="Mi celular (WhatsApp)" ayuda={userRecord?.telefono || 'Aún no lo agregas'} onClick={onCelular}>
+          <ChevronRight size={18} className="text-zinc-500 shrink-0" />
+        </Fila>
+        <Fila titulo="Mi plan" ayuda="Planes, pagos y renovación" onClick={onPlanes}>
+          <ChevronRight size={18} className="text-zinc-500 shrink-0" />
+        </Fila>
+      </Seccion>
+
+      <Seccion titulo="TUS AVISOS">
+        <Fila titulo={estadoPush === 'activo' ? '🔔 Avisos activados en este celular' : '🔕 Los avisos no te llegan en este celular'}
+          ayuda={estadoPush === 'activo' ? 'Elige abajo cuáles quieres recibir.' : 'Actívalos para que Jonah te acompañe en el día.'}>
+          {estadoPush !== 'activo' && estadoPush !== null && (
+            <button onClick={onNotif} className="jb-body text-xs font-semibold text-zinc-950 bg-orange-500 rounded-full px-3.5 py-2 shrink-0">Activar</button>
+          )}
+        </Fila>
+        {TIPOS_AVISO.map(t => {
+          const prendido = !apagados.includes(t.id);
+          return (
+            <div key={t.id}>
+              <Fila titulo={t.titulo} ayuda={t.ayuda}>
+                <Interruptor activo={prendido} onCambio={v => alternar(t.id, v)} etiqueta={t.titulo} />
+              </Fila>
+              {t.id === 'comidas' && prendido && (
+                <div className="pb-3 flex flex-col gap-2">
+                  {HORAS_COMIDA_AVISO.map(h => {
+                    const elegida = h.horas.includes(Number(horas[h.momento])) ? Number(horas[h.momento]) : h.defecto;
+                    return (
+                      <div key={h.momento} className="flex items-center gap-2">
+                        <span className="jb-body text-xs text-zinc-400 w-20 shrink-0">{h.comida}</span>
+                        <div className="flex gap-1.5">
+                          {h.horas.map(x => (
+                            <button key={x} type="button" onClick={() => { vibrar(8); fijarAvisos(a => ({ horas: { ...(a.horas || {}), [h.momento]: x } })); }}
+                              className={`jb-body text-xs px-3 py-2 rounded-full border ${elegida === x ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                              {textoHora(x)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <p className="jb-body text-[11px] text-zinc-500 pt-3">Los avisos de tu plan, tus pagos, tus pedidos de alimentos y la comunidad siempre te llegan. Nunca más de 3 avisos al día.</p>
+      </Seccion>
+
+      <Seccion titulo="LA APP">
+        <Fila titulo="🔠 Letra grande e Inicio sencillo" ayuda="Todo más grande y fácil de leer.">
+          <Interruptor activo={!!modoFacil} onCambio={onModoFacil} etiqueta="Letra grande" />
+        </Fila>
+        <Fila titulo="🔊 Sonidos de logros" ayuda="Al cumplir tu meta, subir de nivel…">
+          <Interruptor activo={sonido} onCambio={() => setSonido(alternarSonido())} etiqueta="Sonidos" />
+        </Fila>
+      </Seccion>
+
+      <Seccion titulo="PRIVACIDAD">
+        <Fila titulo="Política de Privacidad" onClick={() => window.open('https://jonahbeast.com/privacidad.html', '_blank', 'noopener')}>
+          <ChevronRight size={18} className="text-zinc-500 shrink-0" />
+        </Fila>
+        <Fila titulo="Eliminar mi cuenta" ayuda="Borra tu cuenta y tus datos." onClick={onEliminar}>
+          <ChevronRight size={18} className="text-red-400 shrink-0" />
+        </Fila>
+      </Seccion>
+    </div>
+  );
+}
+
 // El mismo interruptor de sonidos, como enlace del pie de la pantalla (en el celular).
 function SonidoPie() {
   const [activo, setActivo] = useState(sonidoActivo);
@@ -2327,10 +2458,6 @@ async function activarPushAlumnoInterno(username) {
   return 'activo';
 }
 
-// Después de registrar una comida es el mejor momento para ofrecer los
-// recordatorios: el alumno ya vio para qué sirve la app. Antes solo se
-// pedían en la bienvenida, y el banner del inicio no se ve durante la
-// prueba gratis (ahí va el de la prueba). Se ofrece una sola vez.
 /* La rayita de arriba de las hojas que suben desde abajo (solo en el
    celular). Si la hoja se puede cerrar tocando afuera, también se cierra
    deslizando la rayita hacia abajo. */
@@ -2349,6 +2476,10 @@ function AsaHoja({ onCerrar }) {
   );
 }
 
+// Después de registrar una comida es el mejor momento para ofrecer los
+// recordatorios: el alumno ya vio para qué sirve la app. Antes solo se
+// pedían en la bienvenida, y el banner del inicio no se ve durante la
+// prueba gratis (ahí va el de la prueba). Se ofrece una sola vez.
 function NotifTrasComidaModal({ username, onClose }) {
   const [trabajando, setTrabajando] = useState(false);
   const [resultado, setResultado] = useState(null);
@@ -2358,7 +2489,16 @@ function NotifTrasComidaModal({ username, onClose }) {
     let estado = 'disponible';
     try { estado = await activarPushAlumno(username); } catch {}
     setTrabajando(false);
-    if (estado === 'activo') { setResultado('activo'); setTimeout(onClose, 1800); }
+    if (estado === 'activo') {
+      setResultado('activo'); setTimeout(onClose, 1800);
+      // El saludo de Jonah (antes se mandaba al activarlos en la guía de
+      // bienvenida, que ya no los pide).
+      supabase.auth.getSession().then(({ data: { session } }) => fetch('/api/bienvenida-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ username }),
+      })).catch(() => {});
+    }
     else if (estado === 'bloqueado') setResultado('bloqueado');
     else onClose();
   }
@@ -5057,11 +5197,9 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
       texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu Premium está por vencer. Nada de spam, solo lo importante.',
       esTelefono: true,
     }]),
-    ...(incluirPasoNotif ? [{
-      emoji: '🦍', titulo: 'ACTIVA TUS NOTIFICACIONES',
-      texto: 'Es lo más importante que puedes activar: así Jonah te avisa si se te pasa una comida, te acompaña cuando lo necesites, y te avisa a tiempo antes de que venza tu plan — para que nunca pierdas tu progreso por no enterarte.',
-      esNotificacion: true,
-    }] : []),
+    // Los avisos ya NO se piden aquí: se piden una sola vez, justo después
+    // de registrar su primera comida (NotifTrasComidaModal), cuando ya vio
+    // para qué sirve la app.
     // Antes eran 7 pantallas de explicación; ahora son 2, para que el
     // alumno llegue rápido a usar la app.
     {
@@ -10639,8 +10777,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <span className="hidden sm:inline-flex"><SoundToggleButton /></span>
           <button onClick={() => setTab('planes')}
             className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            title="Mi plan">
+            title="Mi plan" aria-label="Mi plan">
             <CreditCard size={18} />
+          </button>
+          <button onClick={() => { setRegistrarAl(null); setTab('perfil'); window.scrollTo({ top: 0 }); }}
+            className={`p-2 rounded-lg transition-colors ${tab === 'perfil' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            title="Mi perfil y ajustes" aria-label="Mi perfil y ajustes">
+            <Settings size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
           <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
@@ -10791,36 +10934,25 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
+        {tab === 'perfil' && (
+          <PerfilTab userRecord={userRecord} username={username} form={form} setForm={setForm}
+            modoFacil={modoFacil} onModoFacil={v => elegirModoFacil(v)}
+            onCelular={() => setMostrarCelular(true)} onNotif={() => setMostrarNotif(true)} onEliminar={() => setMostrarEliminar(true)}
+            onPlanes={() => { setTab('planes'); window.scrollTo({ top: 0 }); }} />
+        )}
         {tab === 'equipo' && <ComunidadTab username={username} nombre={userRecord?.nombre} vista={vistaComunidad} onVista={setVistaComunidad}
           avisoEquipos={avisoEquipo} onAnimosVistos={revisarAvisoEquipo} onMuroVisto={() => setAvisoMuro(false)} />}
       </main>
       <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
+        <button onClick={() => { setRegistrarAl(null); setTab('perfil'); window.scrollTo({ top: 0 }); }}
+          className="jb-body text-xs text-zinc-500 hover:text-orange-400 underline px-2 py-2">
+          ⚙️ Mi perfil y ajustes
+        </button>
+        <span className="text-zinc-800 text-[11px]">·</span>
         <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer"
-          className="jb-body text-[11px] text-zinc-700 hover:text-zinc-500 underline">
+          className="jb-body text-xs text-zinc-600 hover:text-zinc-400 underline px-2 py-2">
           Política de Privacidad
         </a>
-        <span className="text-zinc-800 text-[11px]">·</span>
-        <span className="sm:hidden"><SonidoPie /></span>
-        <span className="text-zinc-800 text-[11px] sm:hidden">·</span>
-        <button onClick={() => elegirModoFacil(!modoFacil)}
-          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
-          {modoFacil ? '🔠 Quitar letra grande' : '🔠 Letra grande'}
-        </button>
-        <span className="text-zinc-800 text-[11px]">·</span>
-        <button onClick={() => setMostrarNotif(true)}
-          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
-          Activar notificaciones
-        </button>
-        <span className="text-zinc-800 text-[11px]">·</span>
-        <button onClick={() => setMostrarCelular(true)}
-          className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
-          {userRecord?.telefono ? 'Actualizar mi celular' : 'Agregar mi celular'}
-        </button>
-        <span className="text-zinc-800 text-[11px]">·</span>
-        <button onClick={() => setMostrarEliminar(true)}
-          className="jb-body text-[11px] text-zinc-700 hover:text-red-400 underline">
-          Eliminar mi cuenta
-        </button>
       </footer>
       {pesoFacil && <PesoRapidoModal form={form} setForm={setForm} onCerrar={() => setPesoFacil(false)} />}
       {mostrarNotif && (

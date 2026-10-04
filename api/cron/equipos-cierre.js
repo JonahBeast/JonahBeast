@@ -15,7 +15,7 @@
 //
 // Cron en vercel.json: "10 13 * * *" (13:10 UTC = 8:10am Perú).
 
-import { getSupabase, setupWebPush, verificarCronSecret, enviarPushA } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, enviarPushA, preferenciasAvisos, sinApagados } from '../_lib/push.js';
 
 const EMOJI = { oro: '🥇', plata: '🥈', bronce: '🥉', meta_personal: '🎯', carrera: '🏁' };
 const primer = n => String(n || '').trim().split(/\s+/)[0];
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
     const { data: cerrados, error } = await supabase.rpc('equipo_cerrar_retos');
     if (error) throw error;
     let avisos = 0;
+    let prefs = null;
     for (const eq of cerrados || []) {
       const nombre = eq.apodo ? `${eq.nombre} · ${eq.apodo}` : eq.nombre;
       const medallas = eq.medallas || [];
@@ -38,7 +39,8 @@ export default async function handler(req, res) {
         : metaCumplida
           ? '🏆 ¡Terminó el reto y cumplieron la meta! Entra a ver tu medalla y el podio'
           : '🏆 ¡Terminó el reto! Entra a ver el podio y quién ganó';
-      const miembros = (eq.miembros || []).filter(u => !(eq.oficial && u === eq.capitan));
+      if (!prefs) prefs = await preferenciasAvisos(supabase);
+      const miembros = sinApagados(prefs, (eq.miembros || []).filter(u => !(eq.oficial && u === eq.capitan)), 'retos');
       if (miembros.length) {
         const r = await enviarPushA(supabase, miembros, { title: nombre.slice(0, 60), body: cuerpo, url: '/?ir=equipo' });
         avisos += r.enviados || 0;

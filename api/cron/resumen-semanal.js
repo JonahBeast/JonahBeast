@@ -8,7 +8,7 @@
 //
 // Cron en vercel.json: "0 12 * * 1" (12:00 UTC lunes = 7:00 Perú lunes)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, avisoConPresupuesto } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, avisoConPresupuesto, preferenciasAvisos, sinApagados } from '../_lib/push.js';
 import { traerTodas } from '../../src/traerTodas.js';
 
 function sumarDias(iso, dias) {
@@ -40,7 +40,8 @@ export default async function handler(req, res) {
     const dias = {};
     (filas || []).forEach(r => { (dias[r.username] = dias[r.username] || new Set()).add(r.fecha); });
 
-    const envios = Object.entries(dias).map(([username, set]) => {
+    const conResumen = new Set(sinApagados(await preferenciasAvisos(supabase), Object.keys(dias), 'resumen'));
+    const envios = Object.entries(dias).filter(([username]) => conResumen.has(username)).map(([username, set]) => {
       const n = set.size;
       const body = n >= 5
         ? `Semana de bestia 🔥 ${n}/7 días registrados. Mira tu resumen en la app y compártelo 📲`

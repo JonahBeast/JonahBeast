@@ -271,6 +271,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
 - Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
+- **Tira de días (arriba):** **"Hoy"** y los 6 días anteriores, cada uno con su número; un puntito verde marca los días que tienen comidas registradas. Toca un día anterior para **ver y corregir lo que comiste ese día** (por ejemplo, si olvidaste anotar la cena de ayer): sale "Estás viendo ayer / el lunes 29. Lo que agregues o cambies se guarda en ese día." con el botón **"Volver a hoy"**. En un día anterior se registra igual que hoy (foto, escribir, código, voz, atajos) y todas las comidas se ven abiertas; se guarda solo. Tu peso de ese día no cambia.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
 

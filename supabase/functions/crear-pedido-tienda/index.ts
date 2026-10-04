@@ -32,7 +32,20 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
   try {
-    const { items, nombreCliente, telefonoCliente, correo, direccion, distrito, fechaNacimiento, codigoDescuento } = await req.json();
+    const cuerpo = await req.json();
+    // "Aplicar" el código en el carrito: solo dice si es válido y su %, para
+    // mostrar el total con descuento antes de pagar. Al pagar se vuelve a
+    // validar aquí mismo (nunca se confía en el % que mande el navegador).
+    if (cuerpo?.accion === "validar_codigo") {
+      const codigo = String(cuerpo.codigo || "").toUpperCase().trim().slice(0, 40);
+      if (!codigo) return responder({ valido: false });
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!);
+      const { data: cod } = await sb.from("tienda_codigos_descuento")
+        .select("codigo, porcentaje, usos_maximos, usos_actuales").eq("codigo", codigo).eq("activo", true).maybeSingle();
+      const valido = !!cod && (cod.usos_maximos === null || cod.usos_actuales < cod.usos_maximos);
+      return responder(valido ? { valido: true, codigo: cod.codigo, porcentaje: Math.min(Math.max(Number(cod.porcentaje) || 0, 0), 100) } : { valido: false });
+    }
+    const { items, nombreCliente, telefonoCliente, correo, direccion, distrito, fechaNacimiento, codigoDescuento } = cuerpo;
 
     if (!Array.isArray(items) || items.length === 0) {
       return responder({ error: "El carrito esta vacio." }, 400);

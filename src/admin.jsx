@@ -1270,7 +1270,7 @@ function RevisionDiaria() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🧩 ALIMENTOS POR REVISAR · {total}</h2>
+        <h2 className="jb-display text-base text-zinc-200">🧩 IDEAS DE LA IA: MENÚ Y VARIANTES · {total}</h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
@@ -1925,7 +1925,7 @@ function PedidosAlimentosPanel() {
 
           {/* Lo que casi no se usa, junto y cerrado: la bandeja queda limpia. */}
           <button onClick={() => setVerHerramientas(v => !v)} className="flex items-center justify-between w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-3 text-left">
-            <span className="jb-body text-xs text-zinc-400">🧰 Más herramientas <span className="text-zinc-600">(lo que hizo la IA, historial, agregar un alimento a mano, menú del día)</span></span>
+            <span className="jb-body text-xs text-zinc-400">🧰 Más herramientas <span className="text-zinc-600">(lo que hizo la IA, historial, agregar un alimento a mano, ideas de menú y variantes, productos escaneados)</span></span>
             <ChevronRight size={16} className={`text-zinc-500 transition-transform shrink-0 ${verHerramientas ? 'rotate-90' : ''}`} />
           </button>
           {verHerramientas && (
@@ -1934,7 +1934,9 @@ function PedidosAlimentosPanel() {
               <PedidosAtendidosIA />
               <HistorialAlimentosPropios />
               <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ tipo: 'pedido', nombre, avisos: null }, ...rs])} />
+              <RevisionDiaria />
               <AlimentosEnMenu />
+              <ProductosPanel />
             </div>
           )}
         </div>
@@ -4001,6 +4003,21 @@ function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1,
 // Gráficos del costo de la IA: cuánto se gasta, cuántas veces se usa y
 // cuánto sale cada uso, por día, semana o mes, por parte de la app. Con
 // comparación contra el período anterior y botón para descargar en Excel.
+/* 💸 CUÁNTO GASTA LA IA (pestaña IA): los gráficos del costo de la IA, con
+   el tipo de cambio que Jonah guardó en NEGOCIO → Dinero → Rentabilidad. */
+function CostoIAPanel() {
+  const [tc, setTc] = useState(SUPUESTOS_RENTABILIDAD.tipoCambio);
+  useEffect(() => {
+    supabase.from('config').select('value').eq('key', 'rentabilidad_supuestos').maybeSingle()
+      .then(({ data }) => { try { const v = Number(JSON.parse(data?.value || '{}').tipoCambio); if (v > 0) setTc(v); } catch {} });
+  }, []);
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <AnaliticaIAPanel tipoCambio={tc} />
+    </div>
+  );
+}
+
 function AnaliticaIAPanel({ tipoCambio }) {
   const [filas, setFilas] = useState(null);
   const [periodo, setPeriodo] = useState('dia');
@@ -4840,7 +4857,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
       <div className={`${tarjeta} flex flex-col gap-3`}>
         <div>
           <h3 className="jb-display text-sm text-zinc-300">🤖 COSTO REAL DE LA IA · ESTE MES</h3>
-          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cada uso de la IA queda anotado con lo que costó de verdad (tipo de cambio {fmtS(sup.tipoCambio)} por dólar).</p>
+          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cada uso de la IA queda anotado con lo que costó de verdad (tipo de cambio {fmtS(sup.tipoCambio)} por dólar). Los gráficos día a día están en la pestaña 📸 IA.</p>
         </div>
         {!mes ? <Loader2 size={14} className="animate-spin text-orange-500" /> : iaFilas.length === 0 ? (
           <p className="jb-body text-xs text-zinc-500">Todavía no hay usos anotados. Se empiezan a medir apenas se publiquen las funciones de IA actualizadas.</p>
@@ -4917,8 +4934,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </>
         )}
       </div>
-
-      <AnaliticaIAPanel tipoCambio={sup.tipoCambio} />
 
       <div>
         <h3 className="jb-display text-sm text-zinc-300 mb-1">CUÁNTO TE DEJA CADA PLAN AL MES</h3>
@@ -5082,142 +5097,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function MetricasPanel() {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [leadsPorRed, setLeadsPorRed] = useState([]);
-  const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
-  const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
-  const [ajustesDias, setAjustesDias] = useState([]);
-
-  useEffect(() => { if (open) load(); }, [open]);
-
-  async function load() {
-    setLoading(true);
-    let alumnosData = [];
-    try {
-      const { data: alumnos } = await supabase.from('alumnos')
-        .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto, telefono');
-      alumnosData = alumnos || [];
-
-      // Proyección: alumnos "por vencer" (0-7 días, habilitados) × precio estimado de su plan
-      const porVencer = alumnosData.filter(a => {
-        if (!a.enabled) return false;
-        const dl = daysLeft(a.fecha_vencimiento);
-        return dl !== null && dl <= 7;
-      });
-      let precioPorUsuario = {};
-      if (porVencer.length) {
-        try {
-          const usernames = porVencer.map(a => a.username);
-          const { data: pagosHist } = await supabase.from('pagos')
-            .select('username, plan_meses, creado_en')
-            .in('username', usernames)
-            .order('creado_en', { ascending: false });
-          (pagosHist || []).forEach(p => {
-            if (!precioPorUsuario[p.username]) {
-              const plan = PLANES.find(pl => pl.meses === p.plan_meses);
-              precioPorUsuario[p.username] = plan ? plan.precioDefault : PLANES[0].precioDefault;
-            }
-          });
-        } catch {}
-      }
-      const montoProyectado = porVencer.reduce((acc, a) =>
-        acc + (precioPorUsuario[a.username] ?? PLANES[0].precioDefault), 0);
-      setProyeccion({ count: porVencer.length, monto: montoProyectado });
-    } catch {}
-    try {
-      const { data: leadsData } = await supabase.from('leads').select('red, telefono');
-      const counts = {};
-      (leadsData || []).forEach(l => {
-        const red = l.red || 'sin canal';
-        counts[red] = (counts[red] || 0) + 1;
-      });
-      setLeadsPorRed(Object.entries(counts));
-
-      // Cuántos leads (con teléfono) hoy son alumnos, cruzando por número de celular
-      const telefonosAlumnos = new Set(
-        alumnosData.map(a => (a.telefono || '').replace(/\D/g, '')).filter(Boolean)
-      );
-      const leadsConTelefono = (leadsData || []).filter(l => (l.telefono || '').replace(/\D/g, ''));
-      const convertidos = leadsConTelefono.filter(l =>
-        telefonosAlumnos.has((l.telefono || '').replace(/\D/g, ''))
-      ).length;
-      setLeadsConvertidos({ total: (leadsData || []).length, convertidos });
-    } catch {}
-    try {
-      const { data: ajustes } = await supabase.from('ajustes_membresia')
-        .select('username, dias, motivo, created_at').order('created_at', { ascending: false }).limit(30);
-      setAjustesDias(ajustes || []);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    setLoading(false);
-  }
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">📊 MÉTRICAS</h2>
-        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
-          {loading ? (
-            <Loader2 className="animate-spin text-orange-500" size={20} />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Proyección por vencer (7 días)</div>
-                  <div className="text-emerald-400 jb-display text-lg">S/ {proyeccion.monto.toFixed(2)}</div>
-                  <div className="text-[11px] text-zinc-500">{proyeccion.count} alumnos · estimado</div>
-                </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Leads convertidos a alumno</div>
-                  <div className="text-emerald-400 jb-display text-lg">{leadsConvertidos.convertidos} de {leadsConvertidos.total}</div>
-                  <div className="text-[11px] text-zinc-500">cruce por teléfono</div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">LEADS POR CANAL</h3>
-                <div className="flex flex-col gap-1.5">
-                  {leadsPorRed.map(([red, count]) => (
-                    <div key={red} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
-                      <span className="text-zinc-400">{red}</span>
-                      <span className="jb-display text-zinc-100">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">HISTORIAL DE AJUSTES DE DÍAS</h3>
-                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
-                  {ajustesDias.length === 0 && <p className="text-zinc-500 text-xs">Sin ajustes registrados todavía.</p>}
-                  {ajustesDias.map((a, i) => (
-                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center gap-2">
-                      <div className="min-w-0">
-                        <div className="text-zinc-200 text-sm truncate">{a.username}</div>
-                        <div className="text-zinc-600 text-[11px]">
-                          {new Date(a.created_at).toLocaleDateString('es-PE')} {a.motivo ? `· ${a.motivo}` : ''}
-                        </div>
-                      </div>
-                      <span className={`jb-display text-sm shrink-0 ${a.dias > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {a.dias > 0 ? '+' : ''}{a.dias} día(s)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -9260,6 +9139,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   });
   const setSubNegocio = v => { setSubNegocioCrudo(v); try { localStorage.setItem('admin_sub_negocio', v); } catch {} };
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
+  const [verListas, setVerListas] = useState(false);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
   const [ordenAlumnos, setOrdenAlumnos] = useState('actividad');
   // Lo que la app le dice a cada alumno sobre su avance (mismo análisis de
@@ -9378,24 +9258,37 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
-            {/* Primero, todos los mensajes del día en un solo lugar y en orden;
-                después, lo que es trámite (pagos, alimentos, vencimientos…). */}
+            {/* HOY es solo lo que hay que hacer hoy, de lo más urgente a lo
+                que puede esperar. Los números van en NEGOCIO y lo de la IA
+                (saldo, costo, precisión) en IA. Muchas tarjetas solo salen
+                cuando tienen algo pendiente. */}
             <MensajesDelDiaPanel />
-            <ListosParaPagarPanel />
-            <ComunidadHoyPanel users={users} />
-            <AvisoMejoras40Panel />
             <PagosPanel />
             <PedidosAlimentosPanel />
-            <RevisionDiaria />
-            <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
-            <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
-            {/* Listas de a quién escribirle (antes estaban en NEGOCIO). */}
-            <RescatePanel users={users} />
-            <SinAvisosPanel users={users} />
-            <CumpleanosPanel users={users} />
-            <SaldoIAPanel />
-            <EmbudoPanel />
-
+            <ComunidadHoyPanel users={users} />
+            <ListosParaPagarPanel />
+            <AvisoMejoras40Panel />
+            {/* Las listas completas: lo urgente de cada una ya sale arriba en
+                "Mensajes del día"; aquí quedan juntas y cerradas, para cuando
+                quieras ver a todos o usar sus botones (+7 días, renovar…). */}
+            <button type="button" onClick={() => setVerListas(v => !v)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-left">
+              <span>
+                <span className="jb-display text-base text-zinc-200 block">📂 LISTAS COMPLETAS</span>
+                <span className="jb-body text-[11px] text-zinc-500">Por vencer, volver a invitar, rescate, sin avisos, cumpleaños y seguimiento. Lo urgente ya te sale en "Mensajes del día".</span>
+              </span>
+              <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${verListas ? 'rotate-90' : ''}`} />
+            </button>
+            {verListas && (
+              <div className="flex flex-col gap-4 pl-2 border-l-2 border-zinc-800">
+                <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
+                <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
+                <RescatePanel users={users} />
+                <SinAvisosPanel users={users} />
+                <CumpleanosPanel users={users} />
+                <EmbudoPanel />
+              </div>
+            )}
           </>
         )}
 
@@ -9585,6 +9478,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 { id: 'resumen', label: '📊 Resumen' },
                 { id: 'dinero', label: '💰 Dinero' },
                 { id: 'crecimiento', label: '📣 Anuncios y embudo' },
+                { id: 'comunidad', label: '🦍 Comunidad' },
               ].map(t => (
                 <button key={t.id} type="button" onClick={() => setSubNegocio(t.id)}
                   className={`jb-body text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${subNegocio === t.id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
@@ -9610,11 +9504,15 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <EmbudoResumenPanel />
                 <ConversionSemanalPanel />
                 <ActivacionPanel users={users} />
-                <MetricasPanel />
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
-                <EquiposPanel users={users} />
+                <VozParaVideosPanel />
+              </>
+            )}
+            {subNegocio === 'comunidad' && (
+              <>
                 <ComunidadPanel users={users} />
+                <EquiposPanel users={users} />
               </>
             )}
           </>
@@ -9622,13 +9520,15 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'ia' && (
           <>
-            <PrecisionIAPanel />
+            {/* Primero cuánto cuesta la IA, después qué tan bien trabaja y
+                al final lo de Jarvis. */}
+            <SaldoIAPanel />
+            <CostoIAPanel />
             <ReporteIAAlimentos grande />
-            <ManualJarvisPanel />
-            <VozParaVideosPanel />
-            <MemoriaJarvisPanel />
+            <PrecisionIAPanel />
             <ReconocimientoFotoPanel />
-            <ProductosPanel />
+            <ManualJarvisPanel />
+            <MemoriaJarvisPanel />
           </>
         )}
 
@@ -10204,7 +10104,7 @@ function TeamBeastLanzamiento() {
       <p className="jb-display text-base text-zinc-50">🦍 LANZAMIENTO DEL TEAM BEAST</p>
       <p className="jb-body text-[11px] text-zinc-400 mt-0.5 mb-3">
         Mensajes listos con tu voz. Toca "Copiar" o "Enviar por WhatsApp" (eliges a quién o a tu lista de difusión).
-        {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → Crecimiento → Equipos), se agrega solo al mensaje 1.'}
+        {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → 🦍 Comunidad → Equipos), se agrega solo al mensaje 1.'}
         {' '}La fecha del reto sale de lo que programaste en la app (pestaña "Equipo" → "📅 Cambiar cuándo empieza y cuánto dura").
       </p>
       <div className="flex flex-col gap-2">

@@ -72,7 +72,7 @@ import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
-import { horaLimiteAlimento, horaPeruCorta, minutosHasta } from './plazos.js';
+import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
 import { analizarProgreso, historialDePeso, corregirHistorial } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -5940,7 +5940,7 @@ function PedidosEnCaminoCard({ username, oculto = false }) {
     const { data: creados } = await supabase.from('alimentos_personales').select('id, nombre, created_at, editado_en')
       .eq('username', username).eq('revision', 'dudoso').is('reemplazo', null)
       .gte('created_at', new Date(Date.now() - 2 * 864e5).toISOString()).limit(5);
-    setPropios(creados || []);
+    setPropios((creados || []).filter(a => tienePlazo(a.editado_en || a.created_at)));
   }
   useEffect(() => {
     revisar().catch(() => {});

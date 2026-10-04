@@ -16,6 +16,9 @@ const SINONIMOS = {
   sangre: 'sangrecita',
 };
 
+// Palabras que solo dicen cómo se come (ya pasadas por SINONIMOS).
+const ESTADOS = new Set(['cocido', 'crudo', 'frito', 'horneado', 'tostado', 'tostada', 'natural']);
+
 export function palabrasAlimento(texto) {
   return [...new Set(String(texto || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
     .split(/[^a-zñ0-9]+/).filter(Boolean)
@@ -37,7 +40,11 @@ export function parecido(a, b) {
   // "pollo cocido" dentro de "pollo pechuga cocido".
   const corto = Math.min(A.length, B.length);
   const contenido = corto >= 2 && comunes === corto ? 0.75 : 0;
-  return Math.max(jaccard, contenido);
+  // Un nombre de una palabra que es el otro más solo cómo se come:
+  // "Sangrecita" = "Sangrecita (cocido)", "Papa" = "Papa (cocida)".
+  const [chico, grande] = A.length <= B.length ? [A, B] : [B, A];
+  const soloEstado = chico.length === 1 && grande.includes(chico[0]) && grande.every(p => p === chico[0] || ESTADOS.has(p)) ? 0.75 : 0;
+  return Math.max(jaccard, contenido, soloEstado);
 }
 
 export const UMBRAL_PARECIDO = 0.5;

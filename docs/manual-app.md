@@ -68,8 +68,8 @@ La portada web se ve igual que la bienvenida de la app instalada:
 
 Sirve para medirse sin crear cuenta y **sin código**. Para el % de grasa hace falta una cinta métrica.
 
-1. Llena "Sexo", "Edad (años)", "Estatura (cm)", "Peso (kg)" y "Actividad física". Los campos vienen vacíos, con un ejemplo en gris.
-2. (Opcional) En **"📏 PARA TU % DE GRASA · CON CINTA MÉTRICA"**: "Cuello (cm)", "Cintura (cm)" y "Cadera (cm)". "¿Cómo medir?" muestra una imagen guía. Sin cinta igual ve sus calorías y su peso saludable.
+1. Elige **Hombre** o **Mujer** (dos botones), pon **"Edad"**, **"Estatura"** y **"Peso"** deslizando la **regla** de cada número (o tocando el número y escribiéndolo) y elige tu **"Actividad física"** tocando una de las opciones (cada una con su explicación). Los números vienen vacíos, con un ejemplo en gris.
+2. (Opcional) En **"📏 PARA TU % DE GRASA · CON CINTA MÉTRICA"**: "Cuello", "Cintura" y "Cadera" en centímetros, también con la regla (de 0.5 en 0.5 cm) o escribiéndolos. "¿Cómo medir?" muestra una imagen guía. Sin cinta igual ve sus calorías y su peso saludable.
 3. (Opcional) **"¿Tienes el código de un live?"** → "Código del live (opcional)". **El código se comparte en los lives de Instagram o TikTok de Jonah** (no importan mayúsculas) y puede tener fecha de vencimiento. **No reemplaza a WhatsApp** para ver el % de grasa: lo que da es un premio que Jonah elige en cada live (por ejemplo **+7 días, +15 días o +1 mes de Premium**) que se suma a la prueba gratis al crear su cuenta nueva. En los resultados sale **"🎁 CÓDIGO [código] ACTIVADO: +[N] DÍAS DE PREMIUM"** y "Se suman a tus 7 días de prueba al crear tu cuenta: [7+N] días de Premium gratis en total" (si el código no tiene premio, solo "✅ CÓDIGO [código] ACTIVADO"). El código queda guardado en ese celular 7 días: la pantalla de registro dice "🎁 Incluye +[N] días de Premium por tu código del live" y la fecha de Premium ya los incluye. Al entrar por primera vez a la cuenta sale "🎁 Tu código del live te dio +[N] días de Premium". Vale una sola vez por cuenta y solo para cuentas nuevas (creadas hace 3 días o menos, en prueba); a quien ya tenía cuenta no le suma días.
 4. Toca **"VER MIS RESULTADOS"**. Sale **libre**: "⚡ Gasto de mantenimiento" (kcal/día), "🔥 Metabolismo basal", "IMC" y "Peso saludable" para su estatura.
 5. Si puso sus medidas, **"📏 TU COMPOSICIÓN CORPORAL"** (% de grasa, masa grasa, masa magra y masa muscular) sale borrosa con **"TU % DE GRASA ESTÁ LISTO"** y el botón **"📲 VER MI % DE GRASA Y RECIBIRLO POR WHATSAPP"**: al tocarlo se muestran sus resultados y se abre WhatsApp con un mensaje para Jonah con sus números ("Hola Jonah 👋 Medí mi composición corporal en la web: …% de grasa…"); el asistente le responde. **Por WhatsApp es solo la primera vez en ese celular:** las siguientes veces que se mide ve su composición directo, con "📈 ¿Quieres ver cómo baja tu % de grasa semana a semana? Crea tu cuenta gratis y guarda tu historial." y el botón **"Guardar mi historial"** (lleva al recorrido). También puede tocar "o crea tu cuenta gratis y guárdalo ahí". Si no puso medidas sale "¿Y TU % DE GRASA?" con "📏 Agregar mis medidas".
@@ -174,6 +174,12 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 **Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan."
 
 **Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄).
+
+**Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
+
+**Mientras carga** (muro, equipos, fotos, atajos), se ve la forma gris de las tarjetas latiendo suavemente hasta que aparece lo real.
+
+**Buscador de alimentos** (cuando buscas un alimento en una fila de Comidas, en "¿Era otro alimento?" o en la foto): antes de escribir muestra **"⭐ Lo que comes seguido"** (tus alimentos más registrados); un toque y listo. Si escribes, busca en todos los alimentos.
 
 ### 6.1 La primera vez (guía de bienvenida)
 
@@ -308,7 +314,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
    - También puedes tocar **"Tomar foto al código"**: una foto normal del código de barras, de cerca, con las barras y los números visibles. Se leen las barras y, si no se puede, la app lee los números impresos debajo. No gasta fotos. Si la cámara en vivo no abre en tu celular, esta es la opción que aparece. Debajo está **"🖼️ Subir de mi galería"**, por si ya le tomaste foto al código (por ejemplo, en la tienda).
    - O **"Buscarlo por su nombre"** para buscarlo escribiendo como cualquier alimento.
 2. Si el producto ya está en la app, aparece con su nombre, marca y calorías por 100 g.
-   - Elige cuánto comiste en **"porción"** (la de la etiqueta) o en **"gramos"**, con **−** y **+**.
+   - Elige cuánto comiste en **"porción"** (la de la etiqueta, con **−** y **+**) o en **"gramos"** (con la **regla deslizable** de 5 en 5 g, o tocando el número y escribiéndolo).
    - Toca **"Agregar a [comida]"**.
 3. Si sale **"✓ Código leído: …"** y **"Este producto todavía no está registrado"**, el código se leyó bien pero nadie ha registrado ese producto aún (pasa con muchas marcas peruanas). **Sé el primero en agregarlo:** toca **"Tomar foto a la tabla nutricional"**: foto de cerca y con buena luz a la tabla de información nutricional del empaque. Si ya le tomaste foto antes, toca **"🖼️ Subir de mi galería"** (debajo) y elígela. (Si el código leído no coincide con los números debajo de las barras, toca **"Escanear de nuevo"** abajo.)
    - La app lee los valores. Luego escribe o revisa el **nombre** (y la marca, opcional) y toca **"Guardar producto"**. Si cierras la ventana con el nombre puesto, el producto se guarda igual.
@@ -377,7 +383,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.3 Editar o borrar un alimento
 
 - **Cantidad rápida:** −/+ en la fila. Si ya está en lo mínimo (ej. 10 g o 1 unidad), **"−" lo quita** (es como ponerle cero) y sale "🗑️ Quitaste [alimento]" con el botón **"DESHACER"** (5 segundos) por si fue sin querer: el alimento vuelve a su lugar con su misma cantidad. Sirve, por ejemplo, para dejar tu pan con pollo separado sin lechuga.
-- **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida (con − / + o **tocando el número grande para escribirlo**, ej. 37 g), **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
+- **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida (en unidades, tazas, platos… con − / +; en **gramos** con la **regla deslizable** de 5 en 5 g; o **tocando el número grande para escribirlo**, ej. 37 g), **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
 - **Aceite en fritos y saltados (🍳):** si registras escribiendo un frito o saltado (chaufa, lomo saltado, chicharrón, pollo broaster, apanados, papas fritas…), al elegirlo se abre su panel con **"🍳 ¿Cuánto aceite tenía?"**: **"Air fryer / poco"** (hecho en air fryer o con muy poco aceite) le resta un 30% de grasa, **"Normal"** no cambia nada (ya incluye el aceite normal), **"Bastante"** suma 1 cucharada de aceite y **"Mucho"**, 2. Las calorías del alimento ya muestran el cambio. Puedes cambiarlo después tocando el alimento.
 - **Borrar rápido:** desliza la fila hacia la izquierda.
 - **Siempre se puede deshacer:** al quitar un alimento de cualquier forma (deslizando, con "−" en lo mínimo o con "Quitar"), abajo sale "🗑️ Quitaste [alimento]" con **"DESHACER"** durante 5 segundos.
@@ -526,6 +532,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
   - **"TE FALTA PESARTE"**: no anotaste un peso nuevo en el periodo que mira, o hace más de 2 semanas. Te muestra tu último peso y su fecha y te pide pesarte en ayunas (ideal el domingo) y anotarlo en "Mi cuerpo" → "Mis datos". No te dice "estancado" solo porque no te pesaste.
   - "VAS PROGRESANDO CORRECTAMENTE", "ESTÁS BAJANDO MUY RÁPIDO", "NECESITO MÁS REGISTROS", "TU PROGRESO SE ESTANCÓ" o "VAS EN DIRECCIÓN CONTRARIA": según cuánto cambió tu peso por semana desde el inicio del periodo hasta tu último pesaje, tu objetivo y cuántos días registras y cumples tus calorías.
   - Si tu objetivo es **mantener tu peso** y te mantienes: **"TE ESTÁS MANTENIENDO"**.
+- **"CALORÍAS POR DÍA":** una barra por día con la **línea punteada de tu meta**; arriba dice tu promedio y tu meta. Toca una barra para ver las calorías de ese día. En periodos de más de un mes se ve **"CALORÍAS POR SEMANA"** (promedio de los días que registraste cada semana). Debajo, los gráficos de **% de grasa** y **masa muscular** (Premium).
 - **"📤 Compartir mi progreso":** arma una imagen con tu avance: tus kilos de cambio en grande ("desde mi primera foto" si tu primera y tu última foto tienen su peso; si no, "desde que uso la app" con tus pesajes; nunca un cambio imposible), tu racha, tus días registrados en total y tus días en tu objetivo (solo si es 60% o más; si no, cuántas semanas llevas usando la app), un antes/después si tienes 2 fotos del mismo ángulo en fechas distintas ("MI CAMBIO", en formato de historia, con las fotos enteras y la fecha de cada una, aunque la primera sea de antes de usar la app) y a Jonah el gorila con un globo ("¡ASÍ SE HACE!" si bajaste, "¡VAMOS CON TODO!" si no). Abajo va la frase "El cambio llega poco a poco, comida a comida". Abajo lleva "jonahbeast.com · Mi código: [tu código] (10% dcto)", y en WhatsApp va también tu link de invitación (sección 12). Además copia tu link de invitación y te recuerda pegarlo en Instagram con el sticker "Enlace", para que se pueda tocar. Necesita al menos 2 días de historial.
 - **"MI OBJETIVO DE PESO":** "Peso inicial" y "Peso objetivo" con la **regla deslizable** (de 0.1 en 0.1 kg) o tocando el número para escribirlo; se guarda solo.
 
@@ -541,7 +548,7 @@ Arriba: **"Tendencias"** y **"Fotos"**.
 - **"Volver a tomar"** borra la foto (no se puede recuperar) para tomarla de nuevo. Antes pregunta **"¿BORRAR ESTA FOTO?"** con **"Borrar foto"** o **"Cancelar"**.
 - **"🔄 Comparar primera vs. última"** (necesitas fotos de 2 fechas distintas). Arriba sale **"📲 Compartir mi antes y después"**: arma una imagen con tu primera foto y la última del mismo ángulo con sus fechas, los kilos de diferencia (si las dos fotos tienen peso) y el tiempo entre una y otra (en días, semanas, meses o años), con tu código de invitación, para tus historias. También copia tu link de invitación (sección 12).
 - **"🔥 MIRA TU CAMBIO"**: al subir una foto de hoy, si ya tenías una más antigua del mismo ángulo, sale este aviso con **"Ver mi antes y después"**.
-- **"🕰️ ¿TIENES FOTOS DE ANTES DE EMPEZAR?"** (debajo de "FOTOS DE HOY"): si te tomaste fotos antes de usar la app, elige **"Fecha de esas fotos"** (antes de hoy), opcionalmente **"Tu peso de ese día"** (con la regla deslizable o escribiéndolo), y sube cada ángulo de tu galería. Quedan con esa fecha como tus primeras fotos, para que no pierdas tu "antes".
+- **"🕰️ ¿TIENES FOTOS DE ANTES DE EMPEZAR?"** (debajo de "FOTOS DE HOY"): si te tomaste fotos antes de usar la app, elige **"Fecha de esas fotos"** (antes de hoy) deslizando las **ruedas de día, mes y año**, opcionalmente **"Tu peso de ese día"** (con la regla deslizable o escribiéndolo), y sube cada ángulo de tu galería. Quedan con esa fecha como tus primeras fotos, para que no pierdas tu "antes".
 - **"📸 TU FOTO DEL DÍA 1"** (pantalla de inicio): en tus primeras 3 semanas, mientras no tengas ninguna foto de progreso, Jonah te invita a tomarte tus fotos de inicio. **"📸 Tomar mis fotos"** abre "Fotos"; **"Hoy no"** la oculta hasta mañana. Sale solo con Premium (incluida la prueba de 7 días).
 - Las fotos son **privadas**: solo las ven el alumno y el equipo.
 
@@ -602,7 +609,7 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 1. **"Comunidad"** → **"Mis equipos"** → **"Crear mi equipo"**.
 2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Si quieres, escribe un **"Apodo del equipo (opcional)"** (ej. "Los Imparables").
 3. Elige el **"Tipo de reto"** (ver "Tipos de reto" abajo) y su **meta**.
-4. Elige **cuándo empiezan** (**"Hoy"**, el próximo **lunes** o el lunes siguiente) y la **duración**: **14, 28 o 56 días** o **"Hasta una fecha"** (de 14 a 120 días; ej. "hasta el 20 de diciembre").
+4. Elige **cuándo empiezan** (**"Hoy"**, el próximo **lunes** o el lunes siguiente) y la **duración**: **14, 28 o 56 días** o **"Hasta una fecha"** (de 14 a 120 días; ej. "hasta el 20 de diciembre"), que se elige con las **ruedas de día, mes y año**.
 5. Opcional: el **"Premio"** (hasta 80 letras; ej. "Los demás le invitan el ceviche 🐟"). Se ve arriba en el equipo.
 6. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
 7. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍). Cada persona puede ser capitán de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
@@ -724,7 +731,7 @@ Problemas:
 1. Toca **"Elegir"** en el plan.
 2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**.
 3. Paga desde tu app del banco.
-4. En "2 · CONFIRMA TU PAGO" llena: "Tu celular (WhatsApp)" (si falta, 9 dígitos), fecha de nacimiento (opcional), **"Número de operación"** y la **captura del pago** ("Toca para adjuntar tu captura", imagen o PDF).
+4. En "2 · CONFIRMA TU PAGO" llena: "Tu celular (WhatsApp)" (si falta, 9 dígitos), fecha de nacimiento (opcional, con las **ruedas de día, mes y año**), **"Número de operación"** y la **captura del pago** ("Toca para adjuntar tu captura", imagen o PDF).
 5. Toca **"ENVIAR MI PAGO"**.
 6. Verás **"Tu pago está en revisión"**: se confirma **en menos de 24 horas** y el acceso se activa solo.
 7. Cuando se aprueba, llega una notificación: "✅ ¡Listo! Tu pago fue aprobado y tu plan está activo hasta el DD/MM/AAAA." (solo si activaste las notificaciones; si no, lo ves en "MIS PAGOS").

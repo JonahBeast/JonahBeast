@@ -71,7 +71,7 @@ import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
-import { ReglaDeslizable } from './regla.jsx';
+import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import { analizarProgreso, historialDePeso, corregirHistorial } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -2325,6 +2325,24 @@ async function activarPushAlumnoInterno(username) {
 // recordatorios: el alumno ya vio para qué sirve la app. Antes solo se
 // pedían en la bienvenida, y el banner del inicio no se ve durante la
 // prueba gratis (ahí va el de la prueba). Se ofrece una sola vez.
+/* La rayita de arriba de las hojas que suben desde abajo (solo en el
+   celular). Si la hoja se puede cerrar tocando afuera, también se cierra
+   deslizando la rayita hacia abajo. */
+function AsaHoja({ onCerrar }) {
+  const inicio = useRef(null);
+  return (
+    <div className="sm:hidden -mt-3 mb-3 pt-1 pb-2 flex justify-center touch-none"
+      onTouchStart={e => { inicio.current = e.touches[0].clientY; }}
+      onTouchEnd={e => {
+        const dy = inicio.current === null ? 0 : e.changedTouches[0].clientY - inicio.current;
+        inicio.current = null;
+        if (onCerrar && dy > 60) onCerrar();
+      }}>
+      <div className="w-10 h-1 rounded-full bg-zinc-700" />
+    </div>
+  );
+}
+
 function NotifTrasComidaModal({ username, onClose }) {
   const [trabajando, setTrabajando] = useState(false);
   const [resultado, setResultado] = useState(null);
@@ -2340,8 +2358,9 @@ function NotifTrasComidaModal({ username, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-sm w-full p-6 text-center">
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-sm w-full p-6 text-center">
+        <AsaHoja />
         <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
           {resultado === 'activo' ? '✅' : '🦍'}
         </div>
@@ -2452,8 +2471,9 @@ function GuiaIphoneModal({ onCerrar }) {
   const [paso, setPaso] = useState(0);
   const [titulo, detalle] = PASOS_IPHONE[paso];
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]" onClick={onCerrar}>
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-sm w-full p-5 text-center" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-[70]" onClick={onCerrar}>
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-sm w-full p-5 text-center" onClick={e => e.stopPropagation()}>
+        <AsaHoja onCerrar={onCerrar} />
         <p className="jb-body text-[11px] text-orange-400 uppercase tracking-wider mb-1">Paso {paso + 1} de {PASOS_IPHONE.length}</p>
         <h3 className="jb-display text-lg text-zinc-50 mb-3">{titulo.toUpperCase()}</h3>
         <DibujoIphone paso={paso + 1} />
@@ -3666,11 +3686,10 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
               Si te tomaste fotos antes de usar la app, súbelas con la fecha en que te las tomaste. Quedan como tus primeras fotos y así no pierdes tu "antes".
             </p>
             <div className="flex flex-col gap-2 mb-3">
-              <label className="jb-body text-[11px] text-zinc-400">
-                Fecha de esas fotos
-                <input type="date" value={fechaAntes} max={addDaysISO(hoy, -1)} onChange={e => setFechaAntes(e.target.value)}
-                  className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200" />
-              </label>
+              <div className="jb-body text-[11px] text-zinc-400">
+                Fecha de esas fotos {!fechaAntes && <span className="text-orange-400">· desliza día, mes y año</span>}
+                <div className="mt-1"><RuedaFecha valor={fechaAntes} onCambio={setFechaAntes} min="2015-01-01" max={addDaysISO(hoy, -1)} inicial={addDaysISO(hoy, -30)} /></div>
+              </div>
               <CampoNumero label="Tu peso de ese día (opcional)" valor={pesoAntes} paso={0.1} min={30} max={250}
                 inicial={Math.round((Number(pesoActual) || 70) * 10) / 10} unidad="kilos" placeholder="kg"
                 onCambio={n => setPesoAntes(n === '' ? '' : String(n))} />
@@ -3740,7 +3759,9 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
           })}
         </div>
       ) : loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="animate-spin text-orange-500" size={28} /></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[0, 1, 2, 3].map(i => <Skeleton key={i} className="aspect-[3/4] w-full rounded-xl" />)}
+        </div>
       ) : porFecha.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
           <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-2xl mx-auto mb-3">
@@ -3798,6 +3819,74 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
 /* ------------------------------------------------------------------ */
 /* COACH DIGITAL — análisis de tendencia                               */
 /* ------------------------------------------------------------------ */
+
+/* "CALORÍAS POR DÍA" (Progreso → Tendencias): una barra por día con la
+   línea de su meta, como en las apps de nutrición. Con más de 31 días se
+   agrupa por semana (promedio de los días que registró). Tocando una barra
+   se ve su número. */
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+const fechaMini = iso => { const [, m, d] = String(iso).slice(0, 10).split('-').map(Number); return `${d} ${MESES_CORTOS[m - 1]}`; };
+function BarrasCalorias({ filas }) {
+  const [activa, setActiva] = useState(null);
+  const dias = (filas || []).map(r => ({ f: String(r.fecha).slice(0, 10), kcal: Number(r.kcal_consumidas) || 0, meta: Number(r.kcal_objetivo) || 0 }));
+  const semanal = dias.length > 31;
+  let barras = dias.map(d => ({ ...d, etiqueta: fechaMini(d.f) }));
+  if (semanal) {
+    const grupos = [];
+    dias.forEach((d, i) => { if (i % 7 === 0) grupos.push([]); grupos[grupos.length - 1].push(d); });
+    barras = grupos.map(g => {
+      const con = g.filter(d => d.kcal > 0);
+      const metas = g.filter(d => d.meta > 0);
+      return {
+        f: g[0].f, etiqueta: `Semana del ${fechaMini(g[0].f)}`,
+        kcal: con.length ? Math.round(con.reduce((a, d) => a + d.kcal, 0) / con.length) : 0,
+        meta: metas.length ? Math.round(metas.reduce((a, d) => a + d.meta, 0) / metas.length) : 0,
+      };
+    });
+  }
+  const conDatos = barras.filter(b => b.kcal > 0);
+  const metas = barras.filter(b => b.meta > 0);
+  const meta = metas.length ? Math.round(metas.reduce((a, b) => a + b.meta, 0) / metas.length) : 0;
+  const tope = Math.max(meta * 1.25, ...barras.map(b => b.kcal), 1);
+  const sel = activa !== null ? barras[activa] : null;
+  const prom = conDatos.length ? Math.round(conDatos.reduce((a, b) => a + b.kcal, 0) / conDatos.length) : 0;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h3 className="jb-display text-sm text-zinc-200">{semanal ? 'CALORÍAS POR SEMANA' : 'CALORÍAS POR DÍA'}</h3>
+        <span className="jb-body text-[11px] text-zinc-500">Toca una barra</span>
+      </div>
+      <p className="jb-body text-xs text-zinc-400 mb-3 tabular-nums min-h-[1rem]">
+        {sel ? <>{sel.etiqueta}: <span className="text-zinc-50 font-semibold">{sel.kcal ? `${sel.kcal.toLocaleString('es-PE')} kcal` : 'sin registro'}</span>{sel.meta ? ` · meta ${sel.meta.toLocaleString('es-PE')}` : ''}</>
+          : conDatos.length ? <>Promedio: <span className="text-zinc-50 font-semibold">{prom.toLocaleString('es-PE')} kcal</span>{meta ? ` · tu meta: ${meta.toLocaleString('es-PE')}` : ''}</> : 'Aún no hay comidas registradas en estos días.'}
+      </p>
+      {conDatos.length > 0 && (
+        <div className="relative h-32">
+          {meta > 0 && (
+            <div className="absolute left-0 right-0 border-t-2 border-dashed border-zinc-300/60 pointer-events-none" style={{ bottom: `${(meta / tope) * 100}%` }}>
+              <span className="absolute right-0 -top-4 jb-body text-[10px] text-zinc-400">meta</span>
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-end gap-[3px]">
+            {barras.map((b, i) => (
+              <button key={b.f} type="button" onClick={() => setActiva(activa === i ? null : i)} aria-label={`${b.etiqueta}: ${b.kcal} kcal`}
+                className="flex-1 h-full flex items-end min-w-0">
+                <span className={`w-full rounded-t-[4px] transition-colors ${b.kcal === 0 ? 'bg-zinc-800' : activa === i ? 'bg-orange-400' : 'bg-orange-500'}`}
+                  style={{ height: b.kcal ? `${Math.max(3, (b.kcal / tope) * 100)}%` : '3px', opacity: activa === null || activa === i ? 1 : 0.55 }} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {conDatos.length > 0 && (
+        <div className="flex justify-between jb-body text-[10px] text-zinc-500 mt-1.5">
+          <span>{barras[0].etiqueta.replace('Semana del ', '')}</span>
+          <span>{barras[barras.length - 1].etiqueta.replace('Semana del ', '')}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MiniChart({ points, color = '#f97316', suffix = '' }) {
   if (!Array.isArray(points) || points.length < 2) return null;
@@ -4809,15 +4898,16 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
 
       <BotonCompartir username={username} nombre={nombre} rows={rows} stats={stats} form={form} />
 
-      <div className="grid sm:grid-cols-3 gap-3">
+      <BarrasCalorias filas={filtrados} />
+
+      <div className="grid sm:grid-cols-2 gap-3">
         {[
           ['grasa_pct', '% GRASA CORPORAL', '%'],
           ['masa_muscular', 'MASA MUSCULAR', ' kg'],
-          ['kcal_consumidas', 'CALORÍAS DIARIAS', ''],
         ].map(([campo, titulo, sufijo]) => {
           const pts = serie(campo);
           // El historial de % de grasa y la masa muscular son Premium.
-          const bloqueado = !premium && campo !== 'kcal_consumidas';
+          const bloqueado = !premium;
           return (
             <div key={campo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <h3 className="jb-display text-xs text-zinc-400 mb-2">{titulo}</h3>
@@ -5033,8 +5123,9 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6">
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6">
+        <AsaHoja />
         <div className="text-center mb-5">
           <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">
             {p.esTelefono ? <Phone className="text-orange-500" size={26} /> : p.emoji}
@@ -5634,8 +5725,11 @@ function PedidosResueltosCard({ username, oculto = false }) {
 /* permitirPedido: muestra "Pedirle a Jonah" (no tiene sentido, por ejemplo,
    en "Nunca me sugieras esto"). pista: línea bajo el buscador vacío que
    recuerda que se puede pedir un plato que no está. */
-function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false }) {
+// username (opcional): antes de escribir muestra "⭐ Lo que comes seguido"
+// (sus alimentos más registrados), como en las apps de nutrición.
+function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus = false, permitirPedido = true, pista = false, username = null }) {
   const [texto, setTexto] = useState(valor || '');
+  const frecuentes = useComidasFrecuentes(username);
   const [abierto, setAbierto] = useState(false);
   const [pedido, setPedido] = useState(null); // { estado: 'enviando' | 'ok' | 'agregado' | 'existe' | 'error' | 'premium', nombre, error?, alimento? }
   const { premium, onVerPremium } = usePremium();
@@ -5688,8 +5782,22 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
         className={inputCls + ' py-2 w-full'}
         placeholder="Escribe para buscar…"
       />
-      {abierto && (
-        <div className="absolute z-30 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+      {abierto && !texto.trim() && frecuentes.length > 0 && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+          <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider px-3 pt-2.5 pb-1">⭐ Lo que comes seguido</p>
+          {frecuentes.map(f => (
+            <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
+              onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
+              className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
+              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
+              <span className="jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+            </button>
+          ))}
+          <p className="jb-body text-[11px] text-zinc-600 px-3 py-2">O escribe para buscar cualquier alimento.</p>
+        </div>
+      )}
+      {abierto && (texto.trim() || !frecuentes.length) && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-72 overflow-y-auto">
           {resultados.length === 0 ? (
             <div className="p-3">
               <p className="jb-body text-xs text-zinc-400 mb-2">
@@ -5813,9 +5921,10 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={onCerrar}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-5 jb-body"
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={onCerrar}>
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-5 jb-body"
         onClick={e => e.stopPropagation()}>
+        <AsaHoja onCerrar={onCerrar} />
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-sm shrink-0">🍴</div>
@@ -6001,7 +6110,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
       {abierto && (
         <div className="mt-2 bg-zinc-950 border border-zinc-800 rounded-xl p-3">
           {cargando ? (
-            <Loader2 className="animate-spin text-orange-500" size={18} />
+            <div className="flex flex-col gap-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-8 w-full rounded-lg" />)}</div>
           ) : abierto === 'ayer' ? (
             !ayer || ayer.length === 0 ? (
               <p className="jb-body text-xs text-zinc-500">No registraste {meal.toLowerCase()} ayer.</p>
@@ -6669,8 +6778,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={cerrar}>
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={cerrar}>
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-5" onClick={e => e.stopPropagation()}>
+        <AsaHoja onCerrar={cerrar} />
         <style>{ESTILOS_ESCANER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
@@ -6798,7 +6908,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                       </>
                     )}
                     <p className="jb-body text-[11px] text-zinc-400 mb-1">{rapidas.length ? 'Si no, búscalo' : 'Búscalo'} y la próxima foto ya lo sabrá:</p>
-                    <BuscadorAlimento valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
+                    <BuscadorAlimento username={username} valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
                       onElegir={key => { setCorrecciones(v => ({ ...v, [id]: key })); setCorrigiendo(null); }}
                       onNoEncuentra={() => setCorrigiendo(null)} />
                     <button type="button" onClick={() => setCorrigiendo(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
@@ -6938,7 +7048,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             {agregandoExtra ? (
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
                 <p className="jb-body text-[11px] text-zinc-400 mb-1">¿Qué más tenía tu plato? Búscalo:</p>
-                <BuscadorAlimento valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
+                <BuscadorAlimento username={username} valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
                   onElegir={agregarFaltante} onNoEncuentra={() => setAgregandoExtra(false)} />
                 <button type="button" onClick={() => setAgregandoExtra(false)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
               </div>
@@ -7459,8 +7569,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={cerrar}>
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-5 max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={cerrar}>
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-5" onClick={e => e.stopPropagation()}>
+        <AsaHoja onCerrar={cerrar} />
         <style>{ESTILOS_ESCANER + ESTILOS_LASER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
@@ -7537,14 +7648,25 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-5 mb-3">
-              <BotonPaso grande etiqueta="Menos" onClick={() => setCantidad(c => Math.max(paso, Math.round((c - paso) * 10) / 10))}>−</BotonPaso>
-              <div className="text-center min-w-[110px]">
-                <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{cantidad}</p>
-                <p className="jb-body text-sm text-zinc-400 mt-1">{unidad === 'gramos' ? 'gramos' : cantidad === 1 ? 'porción' : 'porciones'}</p>
+            {unidad === 'gramos' ? (
+              // En gramos: regla (de 5 en 5 g) o tocar el número y escribirlo.
+              <div className="mb-3 text-center">
+                <input type="number" inputMode="decimal" min="1" step="any" value={cantidad} aria-label="Gramos"
+                  onChange={e => setCantidad(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
+                  className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[140px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
+                <p className="jb-body text-sm text-zinc-400 mt-1">gramos</p>
+                <ReglaDeslizable valor={cantidad || ''} onCambio={setCantidad} paso={5} min={5} max={1500} inicial={100} etiqueta="los gramos" />
               </div>
-              <BotonPaso grande etiqueta="Más" onClick={() => setCantidad(c => Math.round((c + paso) * 10) / 10)}>+</BotonPaso>
-            </div>
+            ) : (
+              <div className="flex items-center justify-center gap-5 mb-3">
+                <BotonPaso grande etiqueta="Menos" onClick={() => setCantidad(c => Math.max(paso, Math.round((c - paso) * 10) / 10))}>−</BotonPaso>
+                <div className="text-center min-w-[110px]">
+                  <p className="jb-display text-4xl text-zinc-50 tabular-nums leading-none">{cantidad}</p>
+                  <p className="jb-body text-sm text-zinc-400 mt-1">{cantidad === 1 ? 'porción' : 'porciones'}</p>
+                </div>
+                <BotonPaso grande etiqueta="Más" onClick={() => setCantidad(c => Math.round((c + paso) * 10) / 10)}>+</BotonPaso>
+              </div>
+            )}
             {Number(producto.porcion_g) > 0 && (
               <div className="flex justify-center gap-2 mb-4">
                 {['porción', 'gramos'].map(u => (
@@ -8099,8 +8221,9 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
     try { await navigator.clipboard.writeText('https://jonahbeast.com'); setCopiado(true); } catch {}
   }
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl max-w-md w-full p-6 text-center">
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
+        <AsaHoja />
         <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
         <h2 className="jb-display text-xl text-zinc-50 mb-3">UN ÚLTIMO PASO PARA ACOMPAÑARTE</h2>
         <p className="jb-body text-sm text-zinc-300 leading-relaxed">
@@ -8180,13 +8303,15 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
+        {/* En gramos se elige con la regla (de 5 en 5 g) o escribiéndolo; en
+            unidades, tazas, platos… con − y +. */}
         <div className="flex items-center justify-center gap-5 mb-3">
-          <BotonPaso grande etiqueta="Menos" onClick={() => {
+          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Menos" onClick={() => {
             const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
             // En lo mínimo, "−" lo quita (cero).
             if (nueva >= Number(porcion.qty)) { removeEntry(meal, en.id); onCerrar(); return; }
             fijar({ unit: porcion.unit, qty: nueva });
-          }}>−</BotonPaso>
+          }}>−</BotonPaso>}
           <div className="text-center min-w-[120px]">
             <input type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
               value={escribiendo ?? porcion.qty}
@@ -8197,8 +8322,14 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
               className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[120px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
             <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
           </div>
-          <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>
+          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>}
         </div>
+        {porcion.unit === 'gramos' && (
+          <div className="mb-3">
+            <ReglaDeslizable valor={Number(porcion.qty) || ''} paso={5} min={5} max={1500} inicial={100} etiqueta="los gramos"
+              onCambio={g => fijar({ unit: 'gramos', qty: g })} />
+          </div>
+        )}
 
         {unidades.length > 1 && (
           <div className="flex flex-wrap justify-center gap-2 mb-4">
@@ -8304,7 +8435,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
 
         <div className="mb-4">
           <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">¿Era otro alimento?</p>
-          <BuscadorAlimento valor="" alimentos={todosLosAlimentos}
+          <BuscadorAlimento username={username} valor="" alimentos={todosLosAlimentos}
             onElegir={key => {
               const f = buscarFood(key);
               const d = unidadPorDefecto(f);
@@ -8840,7 +8971,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                 if (!food) {
                   return (
                     <div key={en.id} id={'entrada-' + en.id} className="bg-zinc-950 border border-orange-500/40 rounded-xl p-2 flex items-center gap-2">
-                      <BuscadorAlimento
+                      <BuscadorAlimento username={username}
                         valor={textoInicial[en.id] || ''}
                         alimentos={todosLosAlimentos}
                         onElegir={key => {
@@ -8993,6 +9124,7 @@ function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
     <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center" onClick={onCerrar}>
       <div className="bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5"
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }} onClick={e => e.stopPropagation()}>
+        <AsaHoja onCerrar={onCerrar} />
         <div className="flex items-center justify-between mb-1">
           <h3 className="jb-display text-lg text-zinc-50">🍽️ TUS GUSTOS</h3>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
@@ -9443,8 +9575,9 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-      <div className="bg-zinc-900 border border-red-500/40 rounded-2xl p-6 max-w-md w-full">
+    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 sm:px-4">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-red-500/40 rounded-t-3xl sm:rounded-2xl p-6 max-w-md w-full">
+        <AsaHoja />
         {paso === 1 ? (
           <>
             <h3 className="jb-display text-lg text-red-400 mb-3">¿Eliminar tu cuenta?</h3>
@@ -9540,8 +9673,9 @@ function NotificacionesModal({ username, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full">
+    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 sm:px-4">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl p-6 max-w-md w-full">
+        <AsaHoja />
         {estado === 'yaActivo' ? (
           <>
             <h3 className="jb-display text-lg text-emerald-400 mb-3">¡Ya están activas!</h3>
@@ -9607,8 +9741,9 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
-      <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-6 max-w-md w-full">
+    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 sm:px-4">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl p-6 max-w-md w-full">
+        <AsaHoja />
         {guardado ? (
           <>
             <h3 className="jb-display text-lg text-emerald-400 mb-3">¡Listo!</h3>

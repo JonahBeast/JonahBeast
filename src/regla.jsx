@@ -114,3 +114,93 @@ export function ReglaDeslizable({ valor, onCambio, paso = 1, min, max, inicial, 
     </div>
   );
 }
+
+/* Ruedas para elegir una fecha (día · mes · año), como el reloj del
+   celular: cada columna se desliza hacia arriba o abajo y la fila del
+   centro es la elegida. valor: 'AAAA-MM-DD' o '' (vacío: se muestra
+   "inicial" sin cambiar nada hasta que la persona mueva una rueda).
+   min / max: 'AAAA-MM-DD' (opcionales). */
+const ALTO_FILA = 40;
+const MESES_RUEDA = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+const dosDig = n => String(n).padStart(2, '0');
+const diasDelMes = (a, m) => new Date(Date.UTC(a, m, 0)).getUTCDate();
+
+function ColumnaRueda({ opciones, valor, onCambio, etiqueta, className = '' }) {
+  const caja = useRef(null);
+  const espera = useRef(null);
+  const moviendo = useRef(false);
+  const idx = Math.max(0, opciones.findIndex(o => o.v === valor));
+
+  useEffect(() => {
+    const el = caja.current;
+    if (!el || moviendo.current) return;
+    if (Math.abs(el.scrollTop - idx * ALTO_FILA) > 1) el.scrollTop = idx * ALTO_FILA;
+  }, [idx, opciones.length]);
+  useEffect(() => () => clearTimeout(espera.current), []);
+
+  function alMover() {
+    moviendo.current = true;
+    clearTimeout(espera.current);
+    espera.current = setTimeout(() => {
+      moviendo.current = false;
+      const el = caja.current;
+      if (!el) return;
+      const i = Math.min(opciones.length - 1, Math.max(0, Math.round(el.scrollTop / ALTO_FILA)));
+      if (opciones[i] && opciones[i].v !== valor) {
+        try { navigator.vibrate?.(6); } catch {}
+        onCambio(opciones[i].v);
+      }
+    }, 120);
+  }
+
+  return (
+    <div ref={caja} onScroll={alMover} role="listbox" aria-label={etiqueta}
+      className={'relative overflow-y-auto snap-y snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ' + className}
+      style={{ height: ALTO_FILA * 3, overscrollBehavior: 'contain', WebkitMaskImage: 'linear-gradient(transparent, #000 30%, #000 70%, transparent)', maskImage: 'linear-gradient(transparent, #000 30%, #000 70%, transparent)' }}>
+      <div style={{ height: ALTO_FILA }} />
+      {opciones.map((o, i) => (
+        <button key={o.v} type="button" role="option" aria-selected={i === idx}
+          onClick={() => { caja.current?.scrollTo({ top: i * ALTO_FILA, behavior: 'smooth' }); }}
+          className={`snap-center w-full flex items-center justify-center jb-body tabular-nums transition-colors ${i === idx ? 'text-zinc-50 text-lg font-semibold' : 'text-zinc-500 text-base'}`}
+          style={{ height: ALTO_FILA }}>
+          {o.label}
+        </button>
+      ))}
+      <div style={{ height: ALTO_FILA }} />
+    </div>
+  );
+}
+
+export function RuedaFecha({ valor, onCambio, min = '1930-01-01', max, inicial }) {
+  const hoy = new Date();
+  const maximo = max || `${hoy.getFullYear()}-${dosDig(hoy.getMonth() + 1)}-${dosDig(hoy.getDate())}`;
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(valor || '') ? valor : (inicial || maximo);
+  const [a, m, d] = base.split('-').map(Number);
+  const [aMin] = min.split('-').map(Number);
+  const [aMax] = maximo.split('-').map(Number);
+
+  function fijar(na, nm, nd) {
+    const dia = Math.min(nd, diasDelMes(na, nm));
+    let f = `${na}-${dosDig(nm)}-${dosDig(dia)}`;
+    if (f < min) f = min;
+    if (f > maximo) f = maximo;
+    onCambio(f);
+  }
+
+  const anios = [];
+  for (let y = aMax; y >= aMin; y--) anios.push({ v: y, label: String(y) });
+  const meses = MESES_RUEDA.map((nombre, i) => ({ v: i + 1, label: nombre }));
+  const dias = Array.from({ length: diasDelMes(a, m) }, (_, i) => ({ v: i + 1, label: String(i + 1) }));
+
+  return (
+    <div className="relative bg-zinc-950 border border-zinc-800 rounded-xl px-2">
+      <div className="pointer-events-none absolute left-2 right-2 rounded-lg bg-orange-500/10 border border-orange-500/40"
+        style={{ top: ALTO_FILA, height: ALTO_FILA }} />
+      <div className="relative grid grid-cols-[1fr_1.6fr_1.2fr] gap-1">
+        <ColumnaRueda etiqueta="Día" opciones={dias} valor={d} onCambio={v => fijar(a, m, v)} />
+        <ColumnaRueda etiqueta="Mes" opciones={meses} valor={m} onCambio={v => fijar(a, v, d)} />
+        <ColumnaRueda etiqueta="Año" opciones={anios} valor={a} onCambio={v => fijar(v, m, d)} />
+      </div>
+    </div>
+  );
+}

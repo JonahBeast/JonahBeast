@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
-import { btnPrimary, btnGhost, showToast, confirmar, vibrar, todayISO, addDaysISO } from './App.jsx';
+import { btnPrimary, btnGhost, showToast, confirmar, vibrar, todayISO, addDaysISO, Skeleton } from './App.jsx';
 import { EquipoTab, MEDALLAS, CLAVE_INVITACION_EQUIPO, llamar, Tarjeta, haceCuanto } from './equipo.jsx';
 
 const CLAVE_VISTA = 'jb-comunidad-vista';
@@ -224,7 +224,8 @@ function Muro({ onIrEquipos, onVisto }) {
     onIrEquipos();
   }
 
-  if (!muro) return <div className="flex justify-center py-10"><Loader2 className="animate-spin text-orange-500" size={24} /></div>;
+  // Mientras carga: la forma de las publicaciones (no un circulito girando).
+  if (!muro) return <div className="flex flex-col gap-3"><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-24 w-full rounded-xl" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-24 w-full rounded-xl" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-24 w-full rounded-xl" /></div></div>;
   if (muro.error) {
     return (
       <Tarjeta className="text-center">
@@ -306,7 +307,7 @@ function Muro({ onIrEquipos, onVisto }) {
                   </div>
                   {urls[ev.ruta]
                     ? <img src={urls[ev.ruta]} alt={ev.plato || 'Plato'} loading="lazy" className="w-full max-h-80 object-cover rounded-xl bg-zinc-950" />
-                    : <div className="w-full h-48 rounded-xl bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-zinc-600" size={20} /></div>}
+                    : <Skeleton className="w-full h-48 rounded-xl" />}
                   <p className="jb-display text-base text-zinc-50 mt-2">{FRASES_PLATO[ev.detalle] || ''}</p>
                   {ev.plato && (
                     <ul className="jb-body text-xs text-zinc-400 mt-1 space-y-0.5">

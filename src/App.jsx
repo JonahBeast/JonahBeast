@@ -4847,6 +4847,34 @@ const PLANES = [
   { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 209.90, badge: 'MEJOR PRECIO' },
 ];
 
+/* "Copiar": copia un dato de pago (número de Yape/Plin, cuenta, CCI o
+   monto) para pegarlo en la app del banco sin escribirlo a mano. */
+async function copiarTexto(texto) {
+  try { await navigator.clipboard.writeText(texto); return true; } catch {}
+  try {
+    const t = document.createElement('textarea');
+    t.value = texto; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(t);
+    return ok;
+  } catch { return false; }
+}
+function BotonCopiar({ texto, que }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <button type="button" aria-label={`Copiar ${que}`}
+      onClick={async () => {
+        const ok = await copiarTexto(String(texto));
+        if (ok) { vibrar(15); setCopiado(true); showToast(`Copiado: ${que}`); setTimeout(() => setCopiado(false), 1800); }
+        else showToast('No se pudo copiar. Mantén presionado el dato para copiarlo.', 'error');
+      }}
+      className={`jb-body text-xs font-semibold rounded-full px-3 py-1.5 border shrink-0 transition-colors ${copiado ? 'bg-emerald-500 border-emerald-500 text-zinc-950' : 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'}`}>
+      {copiado ? '✓ Copiado' : 'Copiar'}
+    </button>
+  );
+}
+
 function fmtS(n) {
   return 'S/' + Number(n).toFixed(2);
 }
@@ -5339,8 +5367,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                     <span className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs">🏦</span>
                     <span className="text-zinc-200 font-medium">{datosPago.banco_nombre}</span>
                   </div>
-                  <div><span className="text-zinc-500">Cuenta:</span> {datosPago.banco_cuenta}</div>
-                  {datosPago.banco_cci && <div><span className="text-zinc-500">CCI:</span> {datosPago.banco_cci}</div>}
+                  <div className="flex items-center justify-between gap-2"><span><span className="text-zinc-500">Cuenta:</span> {datosPago.banco_cuenta}</span><BotonCopiar texto={String(datosPago.banco_cuenta).replace(/\s/g, '')} que="la cuenta" /></div>
+                  {datosPago.banco_cci && <div className="flex items-center justify-between gap-2"><span><span className="text-zinc-500">CCI:</span> {datosPago.banco_cci}</span><BotonCopiar texto={String(datosPago.banco_cci).replace(/\s/g, '')} que="el CCI" /></div>}
                   <div><span className="text-zinc-500">Titular:</span> {datosPago.banco_titular || datosPago.yape_titular}</div>
                 </div>
               ) : (
@@ -5352,17 +5380,21 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   {metodo === 'Plin' ? '🔵' : '🟣'}
                 </div>
                 <div className="jb-body text-xs text-zinc-500 mb-1">Número de {metodo}</div>
-                <div className="jb-display text-2xl text-zinc-50 tracking-wider">
-                  {metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero}
+                <div className="flex items-center justify-center gap-3">
+                  <div className="jb-display text-2xl text-zinc-50 tracking-wider">
+                    {metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero}
+                  </div>
+                  <BotonCopiar texto={String((metodo === 'Plin' ? datosPago.plin_numero : datosPago.yape_numero) || '').replace(/\s/g, '')} que={`el número de ${metodo}`} />
                 </div>
                 <div className="jb-body text-xs text-zinc-400 mt-1">
                   {metodo === 'Plin' ? datosPago.plin_titular : datosPago.yape_titular}
                 </div>
               </div>
             )}
-            <p className="jb-body text-xs text-zinc-600 mt-3 text-center">
-              Monto exacto: <span className="text-orange-500 font-semibold">{fmtS(precioDe(seleccion))}</span>
-            </p>
+            <div className="jb-body text-xs text-zinc-600 mt-3 flex items-center justify-center gap-2">
+              <span>Monto exacto: <span className="text-orange-500 font-semibold">{fmtS(precioDe(seleccion))}</span></span>
+              {metodo !== 'Mercado Pago' && <BotonCopiar texto={(Number(precioDe(seleccion)) || 0).toFixed(2)} que="el monto" />}
+            </div>
           </div>
 
           {metodo === 'Mercado Pago' ? (

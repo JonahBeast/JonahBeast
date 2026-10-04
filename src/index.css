@@ -20,3 +20,7 @@ html, body {
 body {
   font-family: 'Work Sans', sans-serif;
 }
+
+/* Inicio: de los avisos (pesaje, pedidos, tu semana, prueba, avisos…) se ve
+   solo el primero que aplique, debajo del anillo y de REGISTRAR. */
+.jb-avisos-inicio > :not(:first-child) { display: none; }

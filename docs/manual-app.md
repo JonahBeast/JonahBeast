@@ -413,6 +413,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 ### 8.4 Crear tu propio alimento
 
 1. En el buscador toca **"+ Crear mi alimento"** (si no hay resultados) o **"+ No está en la lista, crearlo"**.
+   - Mientras escribes el nombre, si ya hay algo parecido en la app sale **"🔎 ¿Es alguno de estos? Ya están en la app, revisados por Jonah:"** con hasta 4 opciones y sus calorías. Toca el que es y se usa ese (no se crea nada). Si no es ninguno, sigue y crea el tuyo.
 2. Copia los datos de la etiqueta **por cada 100 g**: "Nombre", "Calorías por 100 g" y, si quieres, proteína, carbos y grasas.
 3. Toca **"Guardar alimento"**. Solo tú lo ves; en el buscador sale como "tuyo".
 - Error "Revisa las calorías: ningún alimento pasa de 900 kcal por 100 g." → seguramente pusiste las calorías del paquete entero, no de 100 g.

@@ -73,6 +73,7 @@ import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preg
 import { EntrenoHoy } from './entreno.jsx';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
+import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, historialDePeso, corregirHistorial } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -214,17 +215,21 @@ const SINONIMOS = {
 
 /* Busca alimentos por palabras sueltas y en cualquier orden:
    "pollo pechuga" encuentra "Pechuga de pollo". */
+// El sinónimo SUMA resultados, no reemplaza lo escrito: antes "refresco"
+// buscaba solo "gaseosa" y el "Refresco de cebada" no aparecía (el alumno
+// creía que no estaba y lo creaba de nuevo).
 function buscarAlimentos(lista, texto, limite = 40) {
-  let q = normalizar(texto);
+  const q = normalizar(texto);
   if (!q) return lista.slice(0, limite);
-  if (SINONIMOS[q]) q = normalizar(SINONIMOS[q]);
-  const palabras = q.split(' ').filter(Boolean);
+  const alternativas = [q.split(' ').filter(Boolean)];
+  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean));
+  const palabras = alternativas[0];
   const conPuntaje = [];
   for (const f of lista) {
     let objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
     if (objetivo.includes('keke')) objetivo += ' queque';
     else if (objetivo.includes('queque')) objetivo += ' keke';
-    if (!palabras.every(w => objetivo.includes(w))) continue;
+    if (!alternativas.some(ps => ps.every(w => objetivo.includes(w)))) continue;
     const nombreNorm = normalizar(f.name);
     let puntaje = 3;
     if (nombreNorm.startsWith(q)) puntaje = 0;
@@ -6159,12 +6164,23 @@ function revisarAlimentoPropio(id, onRevisado) {
 // Crear un alimento propio, o corregir uno que ya creó (editar = el
 // alimento). Al corregir no se cambia el nombre: las comidas donde ya lo
 // usó lo buscan por el nombre y se recalculan solas con los datos nuevos.
-function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado, onRevisado }) {
+// onElegirExistente(food): si lo que va a crear ya está en la app, lo elige
+// en vez de crearlo (así no se llena de repetidos y usa datos revisados).
+function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, onCreado, onRevisado, onElegirExistente = null }) {
   const [f, setF] = useState(editar
     ? { nombre: editar.name, kcal: String(editar.kcal), proteina: String(editar.protein || ''), carbos: String(editar.carbs || ''), grasas: String(editar.fat || '') }
     : { nombre: nombreInicial || '', kcal: '', proteina: '', carbos: '', grasas: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // "¿Es alguno de estos?": los de la app que se parecen a lo que escribe.
+  const yaEnApp = useMemo(() => {
+    if (editar || String(f.nombre).trim().length < 3) return [];
+    const base = FOODS.filter(x => !x.esPersonal && !x.esProducto)
+      .map(x => ({ etiqueta: x.state && x.state !== '-' ? `${x.name} (${String(x.state).toLowerCase()})` : x.name, f: x }));
+    // Los más parecidos por nombre y, si faltan, lo que daría el buscador.
+    const lista = [...alimentosParecidos(f.nombre, base, 4).map(x => x.f), ...buscarAlimentos(base.map(x => x.f), f.nombre, 4)];
+    return lista.filter((x, i) => lista.findIndex(y => y.key === x.key) === i).slice(0, 4);
+  }, [f.nombre, editar]);
 
   async function guardar() {
     setErr('');
@@ -6209,6 +6225,20 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
             <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
               className={inputCls + (editar ? ' opacity-60' : '')} placeholder="Ej. Barra proteica marca X" />
           </Field>
+          {yaEnApp.length > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 flex flex-col gap-1.5">
+              <p className="jb-body text-xs text-zinc-200 font-semibold">🔎 ¿Es alguno de estos? Ya están en la app, revisados por Jonah:</p>
+              {yaEnApp.map(x => (
+                <button key={x.key} type="button" disabled={!onElegirExistente}
+                  onClick={() => { onElegirExistente?.(x); onCerrar(); }}
+                  className="flex items-center justify-between gap-2 text-left bg-zinc-950 border border-zinc-800 hover:border-orange-500 rounded-lg px-3 py-2 min-h-[44px]">
+                  <span className="jb-body text-sm text-zinc-100 min-w-0">{x.key.replace(/ \(-\)$/, '')}</span>
+                  <span className="jb-body text-[11px] text-zinc-500 tabular-nums shrink-0">{Math.round(x.kcal)} kcal · 100 g</span>
+                </button>
+              ))}
+              <p className="jb-body text-[11px] text-zinc-500">{onElegirExistente ? 'Tócalo para usarlo. Si no es ninguno, sigue y crea el tuyo.' : 'Si es uno de estos, búscalo con ese nombre. Si no, sigue y crea el tuyo.'}</p>
+            </div>
+          )}
           <Field label="Calorías por 100 g">
             <input type="number" inputMode="decimal" value={f.kcal}
               onChange={e => setF(v => ({ ...v, kcal: e.target.value }))}
@@ -9296,6 +9326,10 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             await cargarPersonales();
             const nuevo = (nombre || crearPara.texto).trim() + ' (mío)';
             updateEntry(crearPara.meal, crearPara.id, { foodKey: nuevo, unit: 'gramos', qty: 100, grams: undefined });
+          }}
+          onElegirExistente={food => {
+            const u = unidadPorDefecto(food);
+            updateEntry(crearPara.meal, crearPara.id, { foodKey: food.key, unit: u.unit, qty: u.qty, grams: undefined });
           }}
         />
       )}

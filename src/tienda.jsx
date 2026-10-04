@@ -5,6 +5,7 @@ import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, S
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import {
   CATEGORIAS_TIENDA,
+  avisarError,
   Field,
   btnPrimary,
   cambiarCantidad,
@@ -168,7 +169,7 @@ function TiendaPublica({ username, onIrALaApp }) {
         porProd[v.producto_id].push(v);
       });
       setVariantesPorProducto(porProd);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     setLoading(false);
   }
 

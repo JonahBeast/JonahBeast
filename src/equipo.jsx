@@ -21,7 +21,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Copy, KeyRound, LogOut, Pencil, Users } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { btnPrimary, btnGhost, inputCls, showToast, vibrar } from './App.jsx';
+import { btnPrimary, btnGhost, inputCls, showToast, confirmar, vibrar } from './App.jsx';
 
 export const CLAVE_INVITACION_EQUIPO = 'jb-equipo-invitacion';
 
@@ -554,7 +554,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
   }
 
   async function salir() {
-    if (!window.confirm(eq.oficial ? '¿Seguro que quieres salir del Team Beast?' : `¿Seguro que quieres salir de ${nombreCompleto(eq)}?`)) return;
+    if (!(await confirmar({ titulo: eq.oficial ? '¿SALIR DEL TEAM BEAST?' : `¿SALIR DE ${nombreCompleto(eq).toUpperCase()}?`, texto: 'Cuando quieras, puedes volver.', si: 'Salir del equipo', peligro: true }))) return;
     const { ok, r, error: e } = await llamar('equipo_salir', { p_id: id });
     if (!ok) { showToast(mensajeError(r, e), 'error'); return; }
     showToast('Saliste del equipo. Cuando quieras, vuelves 🦍');

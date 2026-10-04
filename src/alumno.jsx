@@ -56,6 +56,8 @@ import {
   setFoodsPersonales,
   usarAlimentosExtra,
   showToast,
+  avisarError,
+  confirmar,
   textoPorcion,
   tieneDatosBasicos,
   todayISO,
@@ -70,7 +72,7 @@ import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
 import { ReglaDeslizable } from './regla.jsx';
-import { analizarProgreso, historialDePeso } from './progreso.js';
+import { analizarProgreso, historialDePeso, corregirHistorial } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
    embajador + su carta con macros reales dentro de la app). Cada
@@ -2566,7 +2568,7 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
       }
       setEstado('disponible');
       anotarEstadoAvisos('disponible', username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     setTrabajando(false);
   }
 
@@ -3317,7 +3319,7 @@ async function imagenSemana({ nombre, r, codigo = null }) {
 }
 
 /* Pesaje del domingo: el domingo (y el lunes, si no lo hizo) Inicio pide
-   el peso de hoy con su último peso ya escrito y − / + de 0.1 kg. Así el
+   el peso de hoy con su último peso ya escrito y la regla de 0.1 kg. Así el
    resumen "Tu semana" del lunes muestra el cambio real. */
 function PesajeCard({ form, setForm }) {
   const hoy = todayISO();
@@ -3332,7 +3334,6 @@ function PesajeCard({ form, setForm }) {
   const yaSePeso = !!(domingo && form.pesoFecha && form.pesoFecha >= domingo);
   if (!domingo || yaSePeso || oculto || !(pesoActual > 0)) return null;
 
-  const mover = d => setValor(v => Math.min(250, Math.max(30, Math.round((Number(v) + d) * 10) / 10)));
   function guardar() {
     const nuevo = Math.round(Number(valor) * 10) / 10;
     if (!(nuevo >= 30 && nuevo <= 250)) { showToast('Revisa tu peso: debe estar entre 30 y 250 kg.', 'error'); return; }
@@ -3353,19 +3354,14 @@ function PesajeCard({ form, setForm }) {
       <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Pesaje de la semana</p>
       <p className="jb-display text-lg text-zinc-50 leading-tight mt-0.5">¿CUÁNTO PESAS HOY? ⚖️</p>
       <p className="jb-body text-xs text-zinc-400 mt-1">En ayunas, después del baño y sin ropa pesada. Toma 10 segundos.</p>
-      <div className="flex items-center justify-center gap-3 mt-3">
-        <button type="button" onClick={() => mover(-0.1)} aria-label="Bajar 0.1 kg"
-          className="w-12 h-12 rounded-full bg-zinc-950 border border-zinc-700 text-2xl text-zinc-200 hover:border-orange-500">−</button>
-        <div className="flex items-baseline gap-1">
-          <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
-            onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
-            className="jb-display text-4xl text-orange-400 bg-transparent w-28 text-center tabular-nums focus:outline-none border-b border-zinc-700 focus:border-orange-500" />
-          <span className="jb-body text-sm text-zinc-400">kg</span>
-        </div>
-        <button type="button" onClick={() => mover(0.1)} aria-label="Subir 0.1 kg"
-          className="w-12 h-12 rounded-full bg-zinc-950 border border-zinc-700 text-2xl text-zinc-200 hover:border-orange-500">+</button>
+      <div className="flex items-baseline justify-center gap-1 mt-3">
+        <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+          onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
+          className="jb-display text-4xl text-orange-400 bg-transparent w-28 text-center tabular-nums focus:outline-none" />
+        <span className="jb-body text-sm text-zinc-400">kg</span>
       </div>
-      <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">La vez pasada: {pesoActual} kg</p>
+      <ReglaDeslizable valor={valor} onCambio={setValor} paso={0.1} min={30} max={250} inicial={pesoActual} etiqueta="tu peso de hoy" />
+      <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">Desliza la regla o toca el número para escribirlo · La vez pasada: {pesoActual} kg</p>
       <button onClick={guardar} className={btnPrimary + ' w-full py-2.5 mt-3'}>Guardar mi peso</button>
       <button onClick={ahoraNo} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
     </div>
@@ -3555,12 +3551,12 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
   }
 
   async function borrar(foto) {
-    if (!window.confirm('¿Borrar esta foto? No se puede recuperar.')) return;
+    if (!(await confirmar({ titulo: '¿BORRAR ESTA FOTO?', texto: 'No se puede recuperar.', si: 'Borrar foto', peligro: true }))) return;
     try {
       await supabase.storage.from('fotos-progreso').remove([foto.ruta]);
       await supabase.from('fotos_progreso').delete().eq('id', foto.id);
       await cargar();
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
 
   const porFecha = useMemo(() => {
@@ -3669,17 +3665,15 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
             <p className="jb-body text-xs text-zinc-500 mb-3">
               Si te tomaste fotos antes de usar la app, súbelas con la fecha en que te las tomaste. Quedan como tus primeras fotos y así no pierdes tu "antes".
             </p>
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="flex flex-col gap-2 mb-3">
               <label className="jb-body text-[11px] text-zinc-400">
                 Fecha de esas fotos
                 <input type="date" value={fechaAntes} max={addDaysISO(hoy, -1)} onChange={e => setFechaAntes(e.target.value)}
                   className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200" />
               </label>
-              <label className="jb-body text-[11px] text-zinc-400">
-                Tu peso de ese día (opcional)
-                <input type="number" inputMode="decimal" step="0.1" placeholder="kg" value={pesoAntes} onChange={e => setPesoAntes(e.target.value)}
-                  className="mt-1 w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-2 text-sm text-zinc-200" />
-              </label>
+              <CampoNumero label="Tu peso de ese día (opcional)" valor={pesoAntes} paso={0.1} min={30} max={250}
+                inicial={Math.round((Number(pesoActual) || 70) * 10) / 10} unidad="kilos" placeholder="kg"
+                onCambio={n => setPesoAntes(n === '' ? '' : String(n))} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {ANGULOS.map(a => {
@@ -4459,9 +4453,136 @@ function CalendarioConstancia({ rows }) {
   );
 }
 
+/* "MIS PESAJES" (Progreso → Tendencias): la lista de sus pesajes reales,
+   del más nuevo al más antiguo. Tocando uno se corrige con la regla o se
+   borra (si fue un error). Las correcciones se guardan en su perfil
+   (pesajes y pesosCorregidos) y se ven igual en el gráfico, en el coach y
+   en el panel de Jonah (src/progreso.js → corregirHistorial). */
+const r1kg = v => Math.round(Number(v) * 10) / 10;
+function MisPesajesCard({ form, setForm, rows }) {
+  const [verTodos, setVerTodos] = useState(false);
+  const [editando, setEditando] = useState(null); // { p, esActual }
+  const [valor, setValor] = useState(0);
+  const [registrar, setRegistrar] = useState(false);
+  const puntos = useMemo(() => historialDePeso(form || {}, rows || []), [form, rows]);
+  const lista = puntos.map((p, i) => ({ ...p, antes: i > 0 ? puntos[i - 1].kg : null, esActual: i === puntos.length - 1 && r1kg(form?.peso) === p.kg })).reverse();
+  const visibles = verTodos ? lista : lista.slice(0, 5);
+
+  function abrir(p) { setEditando(p); setValor(p.kg); }
+
+  function aplicar(p, nuevo) {
+    setForm(v => {
+      if (p.inicial) return { ...v, pesoInicial: nuevo };
+      const kg = r1kg(p.kg);
+      const pesajes = (Array.isArray(v.pesajes) ? v.pesajes : []).filter(x => x && x.f !== p.f);
+      if (nuevo) pesajes.push({ f: p.f, kg: nuevo });
+      pesajes.sort((a, b) => a.f.localeCompare(b.f));
+      const corr = (Array.isArray(v.pesosCorregidos) ? v.pesosCorregidos : []).filter(c => !(c && c.f === p.f && r1kg(c.kg) === kg));
+      corr.push({ f: p.f, kg, nuevo: nuevo || null });
+      const out = { ...v, pesajes: pesajes.slice(-300), pesosCorregidos: corr.slice(-100) };
+      if (p.esActual && nuevo) { out.peso = nuevo; out.pesoFecha = p.f; }
+      return out;
+    });
+  }
+
+  function guardar() {
+    const nuevo = r1kg(valor);
+    if (!(nuevo >= 30 && nuevo <= 250)) { showToast('Revisa el peso: debe estar entre 30 y 250 kg.', 'error'); return; }
+    if (nuevo !== editando.kg) { aplicar(editando, nuevo); vibrar(20); showToast(`✅ Corregido: ${nuevo} kg el ${fechaCorta(editando.f)}`); }
+    setEditando(null);
+  }
+
+  async function borrar() {
+    const p = editando;
+    if (!(await confirmar({ titulo: '¿BORRAR ESTE PESAJE?', texto: `${p.kg} kg del ${fechaCorta(p.f)}. Ya no se contará en tu gráfico ni en tu avance.`, si: 'Borrar pesaje', peligro: true }))) return;
+    aplicar(p, null);
+    setEditando(null);
+    vibrar(15);
+    showToast(`🗑️ Borraste el pesaje del ${fechaCorta(p.f)}`, 'success', {
+      accion: {
+        texto: 'DESHACER',
+        alHacer: () => setForm(v => {
+          const pesajes = [...(Array.isArray(v.pesajes) ? v.pesajes : []).filter(x => x && x.f !== p.f), { f: p.f, kg: p.kg }].sort((a, b) => a.f.localeCompare(b.f));
+          const corr = (Array.isArray(v.pesosCorregidos) ? v.pesosCorregidos : []).filter(c => !(c && c.f === p.f && r1kg(c.kg) === r1kg(p.kg) && !c.nuevo));
+          return { ...v, pesajes, pesosCorregidos: corr };
+        }),
+      },
+    });
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <h3 className="jb-display text-sm text-zinc-200">MIS PESAJES</h3>
+        <button onClick={() => setRegistrar(true)} className="jb-body text-xs font-semibold text-zinc-950 bg-orange-500 rounded-full px-3 py-1.5 flex items-center gap-1">
+          <Plus size={14} strokeWidth={2.6} /> Registrar peso
+        </button>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500 mb-3">¿Anotaste mal un peso? Tócalo para corregirlo o borrarlo.</p>
+      {lista.length === 0 ? (
+        <p className="jb-body text-xs text-zinc-500 text-center py-3">Aún no tienes pesajes. Toca "Registrar peso" para anotar el de hoy.</p>
+      ) : (
+        <div className="flex flex-col divide-y divide-zinc-800">
+          {visibles.map(p => {
+            const dif = p.antes !== null ? r1kg(p.kg - p.antes) : null;
+            return (
+              <button key={p.f + (p.inicial ? 'i' : '')} onClick={() => abrir(p)}
+                className="flex items-center gap-3 py-2.5 text-left hover:bg-zinc-800/40 -mx-1 px-1 rounded-lg">
+                <span className="jb-body text-xs text-zinc-400 w-20 shrink-0 tabular-nums">{fechaCorta(p.f)}</span>
+                <span className="jb-display text-lg text-zinc-50 tabular-nums flex-1">{p.kg} <span className="jb-body text-xs text-zinc-500">kg</span>
+                  {p.inicial && <span className="jb-body text-[10px] text-zinc-400 border border-zinc-700 rounded-full px-1.5 py-0.5 ml-2 align-middle">inicial</span>}
+                  {p.esActual && <span className="jb-body text-[10px] text-orange-300 border border-orange-500/40 rounded-full px-1.5 py-0.5 ml-2 align-middle">actual</span>}
+                </span>
+                {dif !== null && dif !== 0 && <span className="jb-body text-xs text-zinc-400 tabular-nums">{dif > 0 ? '+' : '−'}{Math.abs(dif).toFixed(1)}</span>}
+                <ChevronRight size={16} className="text-zinc-600 shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {lista.length > 5 && (
+        <button onClick={() => setVerTodos(v => !v)} className="w-full jb-body text-xs text-orange-400 mt-2 py-1">
+          {verTodos ? 'Ver menos' : `Ver todos (${lista.length})`}
+        </button>
+      )}
+
+      {editando && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setEditando(null)}>
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl w-full max-w-lg mx-auto px-5 pt-3"
+            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+            <p className="jb-display text-xl text-zinc-50">{editando.inicial ? 'TU PESO INICIAL' : `PESAJE DEL ${fechaCorta(editando.f).toUpperCase()}`}</p>
+            <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para corregirlo.</p>
+            <div className="flex items-baseline justify-center gap-1 mt-4">
+              <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+                onChange={e => setValor(e.target.value)} aria-label="Peso de ese día en kilos"
+                className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
+              <span className="jb-body text-base text-zinc-400">kg</span>
+            </div>
+            <ReglaDeslizable valor={valor} onCambio={setValor} paso={0.1} min={30} max={250} inicial={editando.kg} etiqueta="el peso de ese día" />
+            <button onClick={guardar} className={btnPrimary + ' w-full py-3.5 mt-4 text-base'}>Guardar</button>
+            {!editando.inicial && !editando.esActual && (
+              <button onClick={borrar} className="w-full jb-body text-sm text-red-400 border border-red-500/40 rounded-xl py-3 mt-2 flex items-center justify-center gap-1.5">
+                <Trash2 size={15} /> Borrar este pesaje
+              </button>
+            )}
+            {editando.esActual && <p className="jb-body text-[11px] text-zinc-500 text-center mt-2">Es tu peso actual: puedes corregirlo, pero no borrarlo.</p>}
+            <button onClick={() => setEditando(null)} className="block mx-auto jb-body text-sm text-zinc-500 mt-3">Cancelar</button>
+          </div>
+        </div>
+      )}
+      {registrar && <PesoRapidoModal form={form} setForm={setForm} onCerrar={() => setRegistrar(false)} />}
+    </div>
+  );
+}
+
 function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
   const [vista, setVista] = useState(vistaInicial === 'fotos' ? 'fotos' : 'tendencias');
-  const [rows, setRows] = useState([]);
+  const [rowsCrudas, setRows] = useState([]);
+  // Con las correcciones que el alumno hizo en "MIS PESAJES".
+  const rows = useMemo(() => corregirHistorial(rowsCrudas, form || {}), [rowsCrudas, form?.pesosCorregidos]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(true);
   const { premium } = usePremium();
   // Gratis: tendencias de 7 días. De 30 días a 1 año es Premium.
@@ -4674,6 +4795,7 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
         </div>
         <GraficoPeso puntos={puntosPeso} meta={pesoObjetivo} />
       </div>
+      {setForm && <MisPesajesCard form={form} setForm={setForm} rows={rows} />}
 
       {premium ? (
         <>
@@ -5356,15 +5478,13 @@ function MetaPesoCard({ form, setForm }) {
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
       <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Tu punto de partida y tu meta. En Inicio verás cuánto avanzas.</p>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Peso inicial (kg)">
-          <input type="number" inputMode="decimal" className={inputCls} value={form.pesoInicial ?? ''} placeholder={pesoActual || ''}
-            onChange={e => setForm(v => ({ ...v, pesoInicial: e.target.value === '' ? null : Number(e.target.value) }))} />
-        </Field>
-        <Field label="Peso objetivo (kg)">
-          <input type="number" inputMode="decimal" className={inputCls} value={form.pesoObjetivo ?? ''} placeholder="Ej. 75"
-            onChange={e => setForm(v => ({ ...v, pesoObjetivo: e.target.value === '' ? null : Number(e.target.value) }))} />
-        </Field>
+      <div className="flex flex-col gap-3">
+        <CampoNumero label="Peso inicial" valor={form.pesoInicial ?? ''} paso={0.1} min={30} max={250}
+          inicial={pesoActual || 70} unidad="kilos" placeholder={pesoActual ? String(pesoActual) : '70'}
+          onCambio={n => setForm(v => ({ ...v, pesoInicial: n === '' ? null : n }))} />
+        <CampoNumero label="Peso objetivo" valor={form.pesoObjetivo ?? ''} paso={0.1} min={30} max={250}
+          inicial={pesoActual || 70} unidad="kilos" placeholder="Ej. 75"
+          onCambio={n => setForm(v => ({ ...v, pesoObjetivo: n === '' ? null : n }))} />
       </div>
     </div>
   );
@@ -5827,7 +5947,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
       await cargarTodo();
       setAbierto('guardadas');
       showToast('Comida guardada para la próxima');
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     setGuardando(false);
   }
 
@@ -5835,7 +5955,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     try {
       await supabase.from('comidas_guardadas').delete().eq('id', id);
       setGuardadas(g => g.filter(x => x.id !== id));
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
 
   function resumen(items) {
@@ -8059,7 +8179,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <BotonPaso grande etiqueta="Menos" onClick={() => {
             const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
             // En lo mínimo, "−" lo quita (cero).
-            if (nueva >= Number(porcion.qty)) { vibrar(15); removeEntry(meal, en.id); onCerrar(); showToast(`🗑️ Quitaste ${nombreAlimento(food)}`); return; }
+            if (nueva >= Number(porcion.qty)) { removeEntry(meal, en.id); onCerrar(); return; }
             fijar({ unit: porcion.unit, qty: nueva });
           }}>−</BotonPaso>
           <div className="text-center min-w-[120px]">
@@ -8190,7 +8310,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         </div>
 
         <div className="flex gap-2">
-          <button type="button" onClick={() => { vibrar(15); removeEntry(meal, en.id); onCerrar(); }}
+          <button type="button" onClick={() => { removeEntry(meal, en.id); onCerrar(); }}
             className="flex-1 jb-body text-sm text-red-400 border border-red-500/40 hover:bg-red-500/10 rounded-xl py-3 flex items-center justify-center gap-1.5">
             <Trash2 size={15} /> Quitar
           </button>
@@ -8465,6 +8585,31 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
   function removeEntry(meal, id) {
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: v.meals[meal].filter(en => en.id !== id) } }));
   }
+  // Quitar un alimento con "DESHACER" por 5 segundos: si fue sin querer,
+  // vuelve a su lugar con su misma cantidad.
+  function quitarConDeshacer(meal, id) {
+    const lista = mealPlan.meals[meal] || [];
+    const pos = lista.findIndex(x => x.id === id);
+    const quitado = lista[pos];
+    removeEntry(meal, id);
+    if (!quitado?.foodKey) return;
+    const food = buscarFood(quitado.foodKey);
+    vibrar(15);
+    showToast(`🗑️ Quitaste ${food ? nombreAlimento(food) : 'el alimento'}`, 'success', {
+      accion: {
+        texto: 'DESHACER',
+        alHacer: () => {
+          vibrar(10);
+          setMealPlan(v => {
+            const actual = [...(v.meals[meal] || [])];
+            if (actual.some(x => x.id === quitado.id)) return v;
+            actual.splice(Math.min(pos, actual.length), 0, quitado);
+            return { ...v, meals: { ...v.meals, [meal]: actual } };
+          });
+        },
+      },
+    });
+  }
   // "🧩 Ajustar ingredientes": el plato se cambia, en su lugar, por sus partes.
   function desarmarPlato(meal, en) {
     const partes = partesDelPlato(en);
@@ -8487,12 +8632,9 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     });
   }
   function onSwipeEnd(meal, id) {
+    const s = swipe[id];
+    if (s && s.dx <= SWIPE_UMBRAL) quitarConDeshacer(meal, id);
     setSwipe(v => {
-      const s = v[id];
-      if (s && s.dx <= SWIPE_UMBRAL) {
-        vibrar(15);
-        removeEntry(meal, id);
-      }
       const { [id]: _, ...resto } = v;
       return resto;
     });
@@ -8539,7 +8681,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
         const en = (mealPlan.meals[editando.meal] || []).find(x => x.id === editando.id);
         return en ? (
           <HojaEditarAlimento meal={editando.meal} en={en} todosLosAlimentos={todosLosAlimentos}
-            username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={removeEntry}
+            username={username} mealPlan={mealPlan} updateEntry={updateEntry} removeEntry={quitarConDeshacer}
             onCrear={texto => setCrearPara({ meal: editando.meal, id: en.id, texto })}
             onEditarPropio={food => setEditarPropio(food)}
             onDesarmar={() => desarmarPlato(editando.meal, en)}
@@ -8753,7 +8895,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
                           // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con
                           // pollo separado, pero sin lechuga.
                           const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
-                          if (nueva >= Number(porcion.qty)) { vibrar(15); removeEntry(meal, en.id); showToast(`🗑️ Quitaste ${nombreAlimento(food)}`); return; }
+                          if (nueva >= Number(porcion.qty)) { quitarConDeshacer(meal, en.id); return; }
                           updateEntry(meal, en.id, { unit: porcion.unit, qty: nueva, grams: undefined });
                         }}>−</BotonPaso>
                         <button type="button" onClick={() => setEditando({ meal, id: en.id })}
@@ -9681,10 +9823,11 @@ function OfertaModoFacil({ onElegir }) {
   );
 }
 
+// "¿Cuánto pesas hoy?": hoja que sube desde abajo, con la regla. La usan el
+// botón "Mi peso" del modo fácil y "+ Registrar peso" de Progreso.
 function PesoRapidoModal({ form, setForm, onCerrar }) {
   const pesoActual = Math.round((Number(form.peso) || 0) * 10) / 10;
   const [valor, setValor] = useState(pesoActual || 70);
-  const mover = d => setValor(v => Math.min(250, Math.max(30, Math.round((Number(v) + d) * 10) / 10)));
   function guardar() {
     const nuevo = Math.round(Number(valor) * 10) / 10;
     if (!(nuevo >= 30 && nuevo <= 250)) { showToast('Revisa tu peso: debe estar entre 30 y 250 kg.', 'error'); return; }
@@ -9696,22 +9839,21 @@ function PesoRapidoModal({ form, setForm, onCerrar }) {
     onCerrar();
   }
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center p-4 z-50" onClick={onCerrar}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onCerrar}>
+      <div className="absolute inset-0 bg-black/70" />
+      <div className="relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl w-full max-w-lg mx-auto px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <p className="jb-display text-xl text-zinc-50">¿CUÁNTO PESAS HOY? ⚖️</p>
-        <p className="jb-body text-sm text-zinc-400 mt-1">Usa los botones − y + o escribe tu peso.</p>
-        <div className="flex items-center justify-center gap-4 mt-4">
-          <button type="button" onClick={() => mover(-0.1)} aria-label="Bajar 0.1 kg"
-            className="w-14 h-14 rounded-full bg-zinc-950 border border-zinc-700 text-3xl text-zinc-200">−</button>
-          <div className="flex items-baseline gap-1">
-            <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
-              onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
-              className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none border-b border-zinc-700 focus:border-orange-500" />
-            <span className="jb-body text-base text-zinc-400">kg</span>
-          </div>
-          <button type="button" onClick={() => mover(0.1)} aria-label="Subir 0.1 kg"
-            className="w-14 h-14 rounded-full bg-zinc-950 border border-zinc-700 text-3xl text-zinc-200">+</button>
+        <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para escribirlo.</p>
+        <div className="flex items-baseline justify-center gap-1 mt-4">
+          <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+            onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
+            className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
+          <span className="jb-body text-base text-zinc-400">kg</span>
         </div>
+        <ReglaDeslizable valor={valor} onCambio={setValor} paso={0.1} min={30} max={250} inicial={pesoActual || 70} etiqueta="tu peso de hoy" />
         {pesoActual > 0 && <p className="jb-body text-sm text-zinc-500 text-center mt-2">La vez pasada: {pesoActual} kg</p>}
         <button onClick={guardar} className={btnPrimary + ' w-full py-3.5 mt-4 text-base'}>Guardar mi peso</button>
         <button onClick={onCerrar} className="block mx-auto jb-body text-sm text-zinc-500 mt-3">Cancelar</button>
@@ -9870,6 +10012,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setForm(v => {
       const hoy = todayISO();
       const kg = Math.round(Number(v.peso) * 10) / 10;
+      // Corrigió su último pesaje en Progreso → "MIS PESAJES": ya quedó en su
+      // fecha; no es un pesaje nuevo de hoy.
+      if (v.pesoFecha && v.pesoFecha !== hoy && (Array.isArray(v.pesajes) ? v.pesajes : []).some(p => p && p.f === v.pesoFecha && Math.round(Number(p.kg) * 10) / 10 === kg)) return v;
       const antes = (Array.isArray(v.pesajes) ? v.pesajes : []).filter(p => p && p.f !== hoy);
       return { ...v, pesoFecha: hoy, pesajes: [...antes, { f: hoy, kg }].slice(-300) };
     });
@@ -10057,11 +10202,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         const { count } = await supabase.from('fotos_progreso')
           .select('id', { count: 'exact', head: true }).eq('username', username);
         setTieneFotos((count || 0) > 0);
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      } catch (e) { avisarError(e); }
       try {
         const vista = localStorage.getItem('jb_guia_' + username);
         if (!vista) { setVerGuia(true); setGuiaVista(false); }
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      } catch (e) { avisarError(e); }
     })();
   }, [username, userRecord]);
 

@@ -9,6 +9,7 @@
 
 - Cuando termines un cambio, súbelo a la rama de trabajo y **espera a que Vercel construya la versión de prueba**. Luego dame el **link directo** a esa versión con `?preview=1` al final (por ejemplo `https://...vercel.app/?preview=1`). Ese parámetro hace que mis propias visitas no cuenten en las métricas de la landing.
 - **Nunca hagas el merge** de un pull request sin que yo lo pida explícitamente.
+- Cuando hagas una mejora, **busca todos los lugares de la app donde pasa lo mismo y propónmelos juntos en el mismo cambio**, para que la experiencia del alumno quede pareja (ej. si el peso pasa a regla deslizable, que sea en todas las pantallas donde se pone el peso).
 
 ## Base de datos y Supabase (proyecto `jnhvpjrxilubkyhculoh`)
 

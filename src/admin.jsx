@@ -5667,6 +5667,411 @@ function ManualJarvisPanel() {
   );
 }
 
+
+/* 🎙️ Voz para mis videos: genera un mp3 con la misma función de voz que usa
+   Jarvis (jarvis-voz, OpenAI) para poner voz en off a los videos. Solo
+   admin. No usa la voz "de Jarvis en vivo": no toca su caché ni su estado. */
+const GUION_VIDEO_GUIA = [
+  'Así funciona mi app.',
+  'Primero me cuentas de ti, en cinco preguntas rápidas.',
+  'Y recibes tu plan, con comida peruana.',
+  'Cada día ves tus calorías, proteína, carbos y grasas.',
+  'Registras en segundos: escribiendo, con foto, con código o con voz.',
+  'Escribes como hablas, lomo saltado, eliges la porción y listo.',
+  'O le tomas foto a tu plato, y la inteligencia artificial lo reconoce.',
+  'O escaneas el código de barras de lo que compras.',
+  'Y ves a la comunidad: rachas, medallas y platos de otros.',
+  'Invita a un amigo: él gana siete días de Premium y tú, quince.',
+  'Pruébala gratis: el link está en mi perfil.',
+].join(' ');
+const MAX_CARACTERES_VOZ_VIDEO = 1500;
+// Jonah el gorila (mascota): motivador y enérgico, en primera persona.
+const GUION_VIDEO_GORILA = [
+  '¡Soy Jonah, el gorila! ¡Bienvenido al juego! Hoy te enseño cómo funciona la app.',
+  '¡Nivel uno! Responde cinco preguntas rápidas. ¡Fácil!',
+  '¡Nivel dos! Recibe tu plan, con comida peruana.',
+  '¡Nivel tres! Mira tu día: calorías, proteína, carbos y grasas.',
+  '¡Registra en segundos! Escribiendo, con foto, con código o con voz.',
+  'Escribe lomo saltado, elige la porción y listo.',
+  '¡Tómale foto a tu plato y la inteligencia artificial lo reconoce!',
+  '¡Escanea el código de barras de lo que compras!',
+  '¡Únete a la comunidad: rachas, medallas y platos de otros!',
+  '¡Invita a un amigo! Él gana siete días de Premium, y tú, quince si él paga.',
+  '¡Poco a poco, comida a comida! ¡Tú puedes, vamos por tus metas!',
+  '¡Pruébala gratis, el link está en mi perfil!',
+].join(' ');
+// Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
+// (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
+const vocesVideo = () => [
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+];
+// Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
+const GUION_VIDEO_JARVIS = [
+  'Permítame mostrarle cómo funciona esta app.',
+  'Primero, usted responde cinco preguntas rápidas.',
+  'Enseguida recibe su plan, con comida peruana.',
+  'Cada día, sus calorías, proteína, carbos y grasas, a la vista.',
+  'Registra en segundos: escribiendo, con foto, con código o con voz.',
+  'Escribe como habla: lomo saltado, elige la porción y listo.',
+  'O fotografía su plato, y la inteligencia artificial lo reconoce.',
+  'O escanea el código de barras de lo que compra.',
+  'Y conoce a la comunidad: rachas, medallas y platos de otros.',
+  'Invite a un amigo: él gana siete días de Premium; usted, quince si él paga.',
+  'Pruébela gratis. El enlace está en el perfil de Jonah.',
+].join(' ');
+
+async function generarVozVideo(texto, voz) {
+  const pedir = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+      body: JSON.stringify({ texto, voz }),
+    });
+  };
+  let r = await pedir();
+  // Si la sesión quedó vieja (por ejemplo, entraste desde otra pantalla), se renueva y se reintenta una vez.
+  if (r.status === 401) { const { error } = await supabase.auth.refreshSession(); if (!error) r = await pedir(); }
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    let motivo = '';
+    try { motivo = (await r.json())?.error || ''; } catch {}
+    if (r.status === 401 || r.status === 403) throw new Error('Tu sesión de administrador venció. Toca "Salir", vuelve a entrar y prueba de nuevo.');
+    if (motivo === 'sin_clave') throw new Error('La función de voz no tiene la clave de OpenAI.');
+    if (r.status === 502) throw new Error('OpenAI no pudo generar la voz en este momento. Intenta de nuevo en un minuto.');
+    throw new Error('No se pudo generar la voz. Intenta de nuevo.');
+  }
+  return await r.blob();
+}
+/* Efecto de personaje "gorila de videojuego", hecho en el navegador (Web
+   Audio). Baja la voz hasta una octava SIN alargarla (cambio de tono con
+   dos líneas de retardo), le pone temblor de rugido en la garganta,
+   distorsión, sonido retro de 8 bits y eco de cueva; al inicio, golpes de
+   pecho y un rugido; al final, un sonido de "nivel superado". Devuelve WAV. */
+const EFECTOS_GORILA = {
+  // Criaturas: la voz se reemplaza por un gruñido sintético (vocoder).
+  criatura: { voc: { f0: 92, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0, amHz: 40, rugido: 0.15, bits: 0, reverb: 0.05 },
+  jefe: { voc: { f0: 72, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0.1, amHz: 44, rugido: 0.3, bits: 0, reverb: 0.05 },
+  // Voz humana procesada (más grave).
+  suave: { tono: 0.75, rugido: 0.1, graves: 2, presencia: 3, am: 0, amHz: 38, bits: 0, reverb: 0.04 },
+  medio: { tono: 0.65, rugido: 0.2, graves: 3, presencia: 3, am: 0.08, amHz: 42, bits: 0, reverb: 0.06 },
+  monstruo: { tono: 0.55, rugido: 0.35, graves: 4, presencia: 3, am: 0.15, amHz: 48, bits: 0, reverb: 0.1 },
+};
+function curvaRugido(k) {
+  const n = 2048, c = new Float32Array(n), g = 1 + k * 10;
+  for (let i = 0; i < n; i++) c[i] = Math.tanh(((i * 2) / n - 1) * g) / Math.tanh(g);
+  return c;
+}
+function curvaBits(niveles) {
+  const n = 2048, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) c[i] = Math.round(((i * 2) / n - 1) * niveles) / niveles;
+  return c;
+}
+// Vocoder de criatura: toma el ritmo y las sílabas de la voz (la "envolvente"
+// de cada banda de frecuencia) y se las pone a un gruñido sintético grave
+// (diente de sierra + ruido), con la garganta más grande (formantes abajo).
+function coefBP(f0, Q, sr) {
+  const w = (2 * Math.PI * f0) / sr, al = Math.sin(w) / (2 * Q), a0 = 1 + al;
+  return { b0: al / a0, b2: -al / a0, a1: (-2 * Math.cos(w)) / a0, a2: (1 - al) / a0 };
+}
+function filtroBP(x, c) {
+  const y = new Float32Array(x.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const xi = x[i], yi = c.b0 * xi + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+    x2 = x1; x1 = xi; y2 = y1; y1 = yi; y[i] = yi;
+  }
+  return y;
+}
+function vocoderCriatura(x, sr, { f0 = 95, shift = 0.88, bandas = 28, ruido = 0.18, ruidoAlto = 0.6, q = 3.5, envHz = 70, seco = 0.55, secoHz = 3200, pre = 0.95, subeTono = 0.35, vibrato = 0.03, jitter = 0.05 }) {
+  const n = x.length;
+  // Pre-énfasis: realza las consonantes antes de medirlas.
+  const mod0 = new Float32Array(n); for (let i = 1; i < n; i++) mod0[i] = x[i] - pre * x[i - 1];
+  const tot = new Float32Array(n);
+  { const a = Math.exp((-2 * Math.PI * 12) / sr); let e = 0; for (let i = 0; i < n; i++) { e = a * e + (1 - a) * Math.abs(x[i]); tot[i] = e; } }
+  let mx = 0; for (let i = 0; i < n; i += 64) mx = Math.max(mx, tot[i]); mx = mx || 1;
+  // Portadoras: diente de sierra grave (rica en armónicos) y ruido, por separado.
+  const sierra = new Float32Array(n), soplo = new Float32Array(n); let fase = 0, jit = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / sr, v = tot[i] / mx; if (i % 441 === 0) jit = (Math.random() - 0.5) * jitter;
+    const f = f0 * (1 + subeTono * v + vibrato * Math.sin(2 * Math.PI * 5.5 * t) + jit);
+    fase += f / sr; fase -= Math.floor(fase);
+    sierra[i] = 2 * fase - 1; soplo[i] = Math.random() * 2 - 1;
+  }
+  const out = new Float32Array(n);
+  const fMin = 120, fMax = Math.min(7600, sr / 2 - 500), aEnv = Math.exp((-2 * Math.PI * envHz) / sr);
+  const bp2 = (z, f) => { const c = coefBP(f, q, sr); return filtroBP(filtroBP(z, c), c); }; // dos filtros seguidos: bandas más afiladas
+  const rmsDe = z => { let r = 0; for (let i = 0; i < z.length; i += 4) r += z[i] * z[i]; return Math.sqrt(r / Math.ceil(z.length / 4)) || 1; };
+  for (let k = 0; k < bandas; k++) {
+    const pos = k / (bandas - 1), fc = fMin * Math.pow(fMax / fMin, pos);
+    const mezcla = Math.min(0.95, ruido + ruidoAlto * pos * pos); // más ruido en las bandas agudas (consonantes)
+    const mod = bp2(mod0, fc);
+    const fp = Math.max(90, fc * shift), ps = bp2(sierra, fp), pr = bp2(soplo, fp);
+    // portadora pareja: cada banda con el mismo volumen (la sierra se apagaría hacia los agudos)
+    const norma = 1 / Math.sqrt(Math.pow((1 - mezcla) * rmsDe(ps), 2) + Math.pow(mezcla * rmsDe(pr), 2));
+    let e1 = 0, e2 = 0;
+    for (let i = 0; i < n; i++) {
+      e1 = aEnv * e1 + (1 - aEnv) * Math.abs(mod[i]); e2 = aEnv * e2 + (1 - aEnv) * e1; // suavizado de dos etapas
+      out[i] += ((1 - mezcla) * ps[i] + mezcla * pr[i]) * norma * e2;
+    }
+  }
+  let rx = 0, ry = 0; for (let i = 0; i < n; i++) { rx += x[i] * x[i]; ry += out[i] * out[i]; }
+  const g = ry > 0 ? Math.sqrt(rx / ry) : 1;
+  for (let i = 0; i < n; i++) out[i] *= g;
+  // Consonantes nítidas: un poco de la voz original solo en los agudos (no lleva el timbre humano).
+  if (seco > 0) {
+    const hp = filtroHP(x, secoHz, sr);
+    for (let i = 0; i < n; i++) out[i] += seco * hp[i];
+  }
+  return out;
+}
+function filtroHP(x, fc, sr) {
+  const w = (2 * Math.PI * fc) / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.707), a0 = 1 + al;
+  const b0 = (1 + c) / 2 / a0, b1 = -(1 + c) / a0, b2 = b0, a1 = (-2 * c) / a0, a2 = (1 - al) / a0;
+  const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const xi = x[i], yi = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = xi; y2 = y1; y1 = yi; y[i] = yi; }
+  return y;
+}
+// Momentos en que arranca una sílaba fuerte (para ponerle un gruñido).
+function iniciosFuertes(x, sr) {
+  const paso = Math.floor(sr * 0.02), env = [];
+  for (let i = 0; i < x.length; i += paso) { let sum = 0; const m = Math.min(x.length, i + paso); for (let j = i; j < m; j++) sum += x[j] * x[j]; env.push(Math.sqrt(sum / (m - i))); }
+  const mx = env.reduce((a, b) => Math.max(a, b), 0) || 1, out = []; let ultimo = -1, activo = false;
+  for (let k = 0; k < env.length; k++) {
+    const v = env[k] / mx;
+    if (!activo && v > 0.35) { const t = k * 0.02; if (t - ultimo > 0.4) { out.push(t); ultimo = t; } activo = true; }
+    else if (activo && v < 0.12) activo = false;
+  }
+  return out;
+}
+// Cambio de tono hacia abajo sin cambiar la duración: dos retardos que se
+// mueven en diente de sierra y se mezclan con fundidos cruzados.
+function cambiarTono(ctx, tono) {
+  const SR = ctx.sampleRate, buf = 0.1, fade = 0.05, retraso = 0.1;
+  const mult = 2 * (1 - tono);
+  const largo = Math.round(buf * SR), fl = Math.round(fade * SR);
+  const bajada = ctx.createBuffer(1, largo, SR), fundido = ctx.createBuffer(1, largo, SR);
+  const pb = bajada.getChannelData(0), pf = fundido.getChannelData(0);
+  for (let i = 0; i < largo; i++) {
+    pb[i] = i / largo;
+    pf[i] = i < fl ? Math.sqrt(i / fl) : i >= largo - fl ? Math.sqrt(1 - (i - (largo - fl)) / fl) : 1;
+  }
+  const entrada = ctx.createGain(), salida = ctx.createGain();
+  const par = inicio => {
+    const mod = ctx.createBufferSource(); mod.buffer = bajada; mod.loop = true;
+    const g = ctx.createGain(); g.gain.value = 0.5 * retraso * mult;
+    const d = ctx.createDelay(1); mod.connect(g).connect(d.delayTime);
+    const fd = ctx.createBufferSource(); fd.buffer = fundido; fd.loop = true;
+    const mezcla = ctx.createGain(); mezcla.gain.value = 0; fd.connect(mezcla.gain);
+    entrada.connect(d); d.connect(mezcla); mezcla.connect(salida);
+    mod.start(inicio); fd.start(inicio);
+  };
+  par(0.05); par(0.05 + buf - fade);
+  return { entrada, salida };
+}
+function notaJuego(ctx, t, f, dur, vol = 0.08) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function golpePecho(ctx, t) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.2);
+  g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.32);
+  const len = Math.floor(ctx.sampleRate * 0.09), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const r = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), gn = ctx.createGain();
+  r.buffer = b; lp.type = 'lowpass'; lp.frequency.value = 700; gn.gain.value = 0.18;
+  r.connect(lp).connect(gn).connect(ctx.destination); r.start(t);
+}
+// Rugido de gorila inventado: diente de sierra grave con temblor, distorsión
+// y un filtro que se abre y se cierra, más un soplido de ruido.
+function rugidoGorila(ctx, t, dur = 0.9, vol = 0.25) {
+  const o = ctx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(68, t + dur);
+  const vib = ctx.createOscillator(), vibG = ctx.createGain(); vib.frequency.value = 26; vibG.gain.value = 14; vib.connect(vibG).connect(o.frequency);
+  const sh = ctx.createWaveShaper(); sh.curve = curvaRugido(0.8);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+  lp.frequency.setValueAtTime(350, t); lp.frequency.linearRampToValueAtTime(1400, t + dur * 0.4); lp.frequency.linearRampToValueAtTime(300, t + dur);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.08); g.gain.setValueAtTime(vol, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(sh).connect(lp).connect(g).connect(ctx.destination);
+  const len = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const r = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), gn = ctx.createGain();
+  r.buffer = b; bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 0.7;
+  gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(vol * 0.5, t + 0.1); gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  r.connect(bp).connect(gn).connect(ctx.destination);
+  o.start(t); vib.start(t); o.stop(t + dur + 0.05); vib.stop(t + dur + 0.05); r.start(t);
+}
+function audioBufferAWav(buf) {
+  const nCh = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate;
+  const v = new DataView(new ArrayBuffer(44 + len * nCh * 2));
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + len * nCh * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, len * nCh * 2, true);
+  const chs = Array.from({ length: nCh }, (_, c) => buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) { const x = Math.max(-1, Math.min(1, chs[c][i])); v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2; }
+  return new Blob([v], { type: 'audio/wav' });
+}
+async function aplicarEfectoGorila(blob, { nivel, pecho, nivelSuperado }) {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const SR = 44100;
+  const buf = await new OAC(1, 1, SR).decodeAudioData(await blob.arrayBuffer());
+  const cfg = EFECTOS_GORILA[nivel] || null;
+  const pre = pecho ? 2.0 : 0.3, dur = buf.duration, post = nivelSuperado ? 1.8 : 0.5;
+  const total = pre + dur + post;
+  const ctx = new OAC(2, Math.ceil(total * SR), SR);
+  let fuente = buf, gruñidos = [];
+  if (cfg && cfg.voc) {
+    const x = buf.getChannelData(0), y = vocoderCriatura(x, buf.sampleRate, cfg.voc);
+    fuente = ctx.createBuffer(1, y.length, buf.sampleRate); fuente.getChannelData(0).set(y);
+    gruñidos = iniciosFuertes(x, buf.sampleRate);
+  }
+  const src = ctx.createBufferSource(); src.buffer = fuente;
+  const salida = ctx.createGain(); salida.gain.value = 1;
+  let nodo = src;
+  const unir = n => { nodo.connect(n.entrada || n); nodo = n.salida || n; };
+  if (cfg) {
+    if (cfg.tono) unir(cambiarTono(ctx, cfg.tono));
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = cfg.voc ? 90 : 55; unir(hp);
+    if (cfg.graves) { const graves = ctx.createBiquadFilter(); graves.type = 'lowshelf'; graves.frequency.value = 170; graves.gain.value = cfg.graves; unir(graves); }
+    if (cfg.am > 0) { // temblor de rugido en la garganta (modulación de volumen grave)
+      const am = ctx.createGain(); am.gain.value = 1 - cfg.am;
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = cfg.amHz; lfoG.gain.value = cfg.am; lfo.connect(lfoG).connect(am.gain); lfo.start(0); lfo.stop(total);
+      unir(am);
+    }
+    if (cfg.rugido > 0) { const sh = ctx.createWaveShaper(); sh.curve = curvaRugido(cfg.rugido); sh.oversample = '2x'; unir(sh); }
+    if (cfg.bits) { const bc = ctx.createWaveShaper(); bc.curve = curvaBits(cfg.bits); unir(bc); }
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cfg.voc ? 9500 : 5200; unir(lp);
+    const medios = ctx.createBiquadFilter(); medios.type = 'peaking'; medios.frequency.value = cfg.voc ? 1800 : 1500; medios.Q.value = 0.9; medios.gain.value = cfg.presencia ?? 3; unir(medios);
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18; unir(comp);
+  }
+  nodo.connect(salida); salida.connect(ctx.destination);
+  const eco = ctx.createDelay(0.5); eco.delayTime.value = 0.07; const ecoG = ctx.createGain(); ecoG.gain.value = cfg && !cfg.voc ? 0.14 : 0;
+  salida.connect(eco); eco.connect(ecoG); ecoG.connect(ctx.destination);
+  if (cfg && cfg.reverb > 0) { // eco de cueva
+    const largo = Math.floor(SR * 0.8), ir = ctx.createBuffer(2, largo, SR);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < largo; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / largo, 2.5); }
+    const conv = ctx.createConvolver(); conv.buffer = ir; const vg = ctx.createGain(); vg.gain.value = cfg.reverb;
+    salida.connect(conv); conv.connect(vg); vg.connect(ctx.destination);
+  }
+  src.start(pre);
+  if (pecho) { golpePecho(ctx, 0.1); golpePecho(ctx, 0.55); rugidoGorila(ctx, 0.95, 0.95, 0.22); }
+  gruñidos.forEach(t => rugidoGorila(ctx, pre + Math.max(0, t - 0.03), 0.18, 0.05));
+  if (nivelSuperado) {
+    const t0 = pre + dur + 0.1;
+    [523, 659, 784, 1047, 1319].forEach((f, i) => notaJuego(ctx, t0 + i * 0.09, f, 0.12));
+    notaJuego(ctx, t0 + 0.5, 1568, 0.5, 0.1);
+  }
+  const hecho = await ctx.startRendering();
+  // Volumen final parejo: lleva el pico a 0,9 (así se oye bien en el parlante del celular).
+  let pico = 0; for (let c = 0; c < hecho.numberOfChannels; c++) { const d = hecho.getChannelData(c); for (let i = 0; i < d.length; i++) pico = Math.max(pico, Math.abs(d[i])); }
+  if (pico > 0) { const g = 0.9 / pico; for (let c = 0; c < hecho.numberOfChannels; c++) { const d = hecho.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= g; } }
+  return audioBufferAWav(hecho);
+}
+
+function VozParaVideosPanel() {
+  const [texto, setTexto] = useState(GUION_VIDEO_GUIA);
+  const [voz, setVoz] = useState('friday');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const [audio, setAudio] = useState(null); // { blob, url, nombre }
+  const [nivel, setNivel] = useState('suave'); // ninguno | suave | medio | monstruo
+  const [pecho, setPecho] = useState(true);
+  const [nivelSuperado, setNivelSuperado] = useState(true);
+  const [procesando, setProcesando] = useState(false);
+  const [conEfecto, setConEfecto] = useState(null); // { blob, url, nombre }
+  useEffect(() => () => { if (audio?.url) URL.revokeObjectURL(audio.url); }, [audio]);
+  useEffect(() => () => { if (conEfecto?.url) URL.revokeObjectURL(conEfecto.url); }, [conEfecto]);
+  async function aplicarEfecto() {
+    setProcesando(true); setError('');
+    try {
+      const wav = await aplicarEfectoGorila(audio.blob, { nivel, pecho, nivelSuperado });
+      setConEfecto({ blob: wav, url: URL.createObjectURL(wav), nombre: `voz-${voz}-gorila-${nivel}.wav` });
+    } catch (e) { setError('No se pudo aplicar el efecto en este navegador.'); }
+    setProcesando(false);
+  }
+  const n = texto.length;
+  async function generar() {
+    setOcupado(true); setError('');
+    try {
+      const blob = await generarVozVideo(texto.trim(), voz);
+      setAudio({ blob, url: URL.createObjectURL(blob), nombre: `voz-${voz}.mp3` });
+      setConEfecto(null);
+    } catch (e) { setError(e.message || 'No se pudo generar la voz.'); }
+    setOcupado(false);
+  }
+  const puedeCompartir = typeof navigator !== 'undefined' && !!navigator.canShare && audio
+    && (() => { try { return navigator.canShare({ files: [new File([audio.blob], audio.nombre, { type: 'audio/mpeg' })] }); } catch { return false; } })();
+  async function compartir() {
+    try { await navigator.share({ files: [new File([audio.blob], audio.nombre, { type: 'audio/mpeg' })] }); } catch {}
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">🎙️ VOZ PARA MIS VIDEOS</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Escribe lo que quieres que diga la voz, elige cuál y toca Generar. Escúchala y descarga el mp3 para ponerla a tu video. Cada vez que generas se usa tu cuenta de OpenAI (cuesta muy poco).</p>
+      </div>
+      <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, MAX_CARACTERES_VOZ_VIDEO))} rows={9}
+        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 jb-body text-sm text-zinc-100 outline-none focus:border-orange-500" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
+        <span className="flex items-center gap-3 flex-wrap justify-end">
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
+        </span>
+      </div>
+      <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
+        <select value={voz} onChange={e => setVoz(e.target.value)}
+          className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
+          {vocesVideo().map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+        </select>
+      </label>
+      <button onClick={generar} disabled={ocupado || !texto.trim()} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
+        {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🎙️ Generar voz'}
+      </button>
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+      {audio && (
+        <div className="flex flex-col gap-2">
+          <audio src={audio.url} controls className="w-full" />
+          <div className="flex flex-wrap gap-2">
+            <a href={audio.url} download={audio.nombre} className={btnGhost + ' text-sm py-2 px-4'}>⬇️ Descargar mp3</a>
+            {puedeCompartir && <button onClick={compartir} className={btnGhost + ' text-sm py-2 px-4'}>📤 Compartir / guardar</button>}
+          </div>
+          <div className="mt-2 border-t border-zinc-800 pt-3 flex flex-col gap-2">
+            <p className="jb-display text-sm text-zinc-200">🦍🎮 EFECTO DE GORILA DE VIDEOJUEGO</p>
+            <p className="jb-body text-[11px] text-zinc-500">"Criatura" y "Jefe final" reemplazan la voz por un gruñido de gorila que sigue el ritmo de las palabras, con un gruñido en cada frase fuerte, temblor de rugido, 8 bits y eco de cueva. Al inicio, golpes de pecho y rugido; al final, «nivel superado». Escucha y prueba hasta que te guste.</p>
+            <select value={nivel} onChange={e => setNivel(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
+              <option value="criatura">🦍 Criatura robótica (experimental)</option>
+              <option value="jefe">🦍👑 Jefe robótico (experimental)</option>
+              <option value="suave">Voz humana grave · suave</option>
+              <option value="medio">Voz humana grave · media</option>
+              <option value="monstruo">Voz humana grave · monstruo</option>
+              <option value="ninguno">Sin efecto en la voz (solo los sonidos)</option>
+            </select>
+            <label className="jb-body text-xs text-zinc-300 flex items-center gap-2"><input type="checkbox" checked={pecho} onChange={e => setPecho(e.target.checked)} /> 🥁 Golpes de pecho y rugido al inicio</label>
+            <label className="jb-body text-xs text-zinc-300 flex items-center gap-2"><input type="checkbox" checked={nivelSuperado} onChange={e => setNivelSuperado(e.target.checked)} /> 🎮 Sonido de «nivel superado» al final</label>
+            <button onClick={aplicarEfecto} disabled={procesando} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
+              {procesando ? <Loader2 size={15} className="animate-spin" /> : '🦍 Aplicar y escuchar'}
+            </button>
+            {conEfecto && (
+              <div className="flex flex-col gap-2">
+                <audio src={conEfecto.url} controls className="w-full" />
+                <a href={conEfecto.url} download={conEfecto.nombre} className={btnGhost + ' text-sm py-2 px-4 self-start'}>⬇️ Descargar con efecto (WAV)</a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MemoriaJarvisPanel() {
   const [notas, setNotas] = useState(null);
   async function cargar() {
@@ -8918,6 +9323,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <PrecisionIAPanel />
             <ManualJarvisPanel />
+            <VozParaVideosPanel />
             <MemoriaJarvisPanel />
             <ReconocimientoFotoPanel />
             <ProductosPanel />

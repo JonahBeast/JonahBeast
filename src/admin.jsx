@@ -5368,6 +5368,94 @@ function ManualJarvisPanel() {
   );
 }
 
+
+/* 🎙️ Voz para mis videos: genera un mp3 con la misma función de voz que usa
+   Jarvis (jarvis-voz, OpenAI) para poner voz en off a los videos. Solo
+   admin. No usa la voz "de Jarvis en vivo": no toca su caché ni su estado. */
+const GUION_VIDEO_GUIA = [
+  'Así funciona mi app.',
+  'Primero me cuentas de ti, en cinco preguntas rápidas.',
+  'Y recibes tu plan, con comida peruana.',
+  'Cada día ves tus calorías, proteína, carbos y grasas.',
+  'Registras en segundos: escribiendo, con foto, con código o con voz.',
+  'Escribes como hablas, lomo saltado, eliges la porción y listo.',
+  'O le tomas foto a tu plato, y la inteligencia artificial lo reconoce.',
+  'O escaneas el código de barras de lo que compras.',
+  'Y ves a la comunidad: rachas, medallas y platos de otros.',
+  'Invita a un amigo: él gana siete días de Premium y tú, quince.',
+  'Pruébala gratis: el link está en mi perfil.',
+].join(' ');
+const MAX_CARACTERES_VOZ_VIDEO = 1500;
+async function generarVozVideo(texto, voz) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+    body: JSON.stringify({ texto, voz }),
+  });
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    let motivo = '';
+    try { motivo = (await r.json())?.error || ''; } catch {}
+    throw new Error(motivo === 'sin_clave' ? 'La función de voz no tiene la clave de OpenAI.' : 'No se pudo generar la voz. Intenta de nuevo.');
+  }
+  return await r.blob();
+}
+function VozParaVideosPanel() {
+  const [texto, setTexto] = useState(GUION_VIDEO_GUIA);
+  const [voz, setVoz] = useState('friday');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const [audio, setAudio] = useState(null); // { blob, url, nombre }
+  useEffect(() => () => { if (audio?.url) URL.revokeObjectURL(audio.url); }, [audio]);
+  const n = texto.length;
+  async function generar() {
+    setOcupado(true); setError('');
+    try {
+      const blob = await generarVozVideo(texto.trim(), voz);
+      setAudio({ blob, url: URL.createObjectURL(blob), nombre: `voz-${voz}.mp3` });
+    } catch (e) { setError(e.message || 'No se pudo generar la voz.'); }
+    setOcupado(false);
+  }
+  const puedeCompartir = typeof navigator !== 'undefined' && !!navigator.canShare && audio
+    && (() => { try { return navigator.canShare({ files: [new File([audio.blob], audio.nombre, { type: 'audio/mpeg' })] }); } catch { return false; } })();
+  async function compartir() {
+    try { await navigator.share({ files: [new File([audio.blob], audio.nombre, { type: 'audio/mpeg' })] }); } catch {}
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div>
+        <h2 className="jb-display text-base text-zinc-200">🎙️ VOZ PARA MIS VIDEOS</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Escribe lo que quieres que diga la voz, elige cuál y toca Generar. Escúchala y descarga el mp3 para ponerla a tu video. Cada vez que generas se usa tu cuenta de OpenAI (cuesta muy poco).</p>
+      </div>
+      <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, MAX_CARACTERES_VOZ_VIDEO))} rows={9}
+        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 jb-body text-sm text-zinc-100 outline-none focus:border-orange-500" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="jb-body text-[11px] text-zinc-500 tabular-nums">{n} / {MAX_CARACTERES_VOZ_VIDEO} letras</span>
+        <button onClick={() => setTexto(GUION_VIDEO_GUIA)} className="jb-body text-[11px] text-orange-400 underline">Volver al guion de la guía</button>
+      </div>
+      <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
+        <select value={voz} onChange={e => setVoz(e.target.value)}
+          className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
+          {VOCES_PREMIUM_JARVIS.map(v => <option key={v.id} value={v.id.replace('premium:', '')}>{v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre}</option>)}
+        </select>
+      </label>
+      <button onClick={generar} disabled={ocupado || !texto.trim()} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
+        {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🎙️ Generar voz'}
+      </button>
+      {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+      {audio && (
+        <div className="flex flex-col gap-2">
+          <audio src={audio.url} controls className="w-full" />
+          <div className="flex flex-wrap gap-2">
+            <a href={audio.url} download={audio.nombre} className={btnGhost + ' text-sm py-2 px-4'}>⬇️ Descargar mp3</a>
+            {puedeCompartir && <button onClick={compartir} className={btnGhost + ' text-sm py-2 px-4'}>📤 Compartir / guardar</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MemoriaJarvisPanel() {
   const [notas, setNotas] = useState(null);
   async function cargar() {
@@ -8620,6 +8708,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <>
             <PrecisionIAPanel />
             <ManualJarvisPanel />
+            <VozParaVideosPanel />
             <MemoriaJarvisPanel />
             <ReconocimientoFotoPanel />
             <ProductosPanel />

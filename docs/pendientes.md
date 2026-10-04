@@ -15,6 +15,8 @@
 
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
+- **Voz en off del video "guía rápida" (41 s).** En el panel (📸 IA) está la tarjeta "🎙️ Voz para mis videos" con el guion cargado y la voz de Frida. Jonah genera el mp3, lo descarga y se lo pasa a Claude (por Google Drive), que lo ajusta a las escenas del video. La frase "Soy Jonah" la graba Jonah. TikTok suele pedir marcar el contenido con voz sintética.
+
 ## Anuncios (análisis del 4 de octubre, últimos 30 días)
 
 - **Gasto:** Meta S/249 (solo la cuenta de la empresa "Jonah Beast Fuel - Anuncios"; **falta la cuenta personal "Martin Huamani"**, donde Jonah también anuncia y que Claude no puede leer todavía), TikTok S/39. Registros en la app: 46; hoy paga 1 de esos 46. **Pagando ahora: 2** (Joselyn y Yanet; la tercera cuenta con plan pago es `martin`, de Jonah).

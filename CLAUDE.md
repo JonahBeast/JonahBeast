@@ -46,3 +46,12 @@
 - **Claude no escribe en `manual_app`.** Si el PR toca el manual, después del merge solo me recuerda que toque ese botón. Si le pido revisar, puede leer la fila y comparar su huella con la del archivo de `main`, sin cambiarla.
 - Un cambio que solo toca el manual ya **no** obliga a volver a publicar `jarvis-chat` ni `whatsapp-webhook`.
 - `npm run manual-jarvis` sigue copiando la lista de alimentos de `src/App.jsx` a `whatsapp-webhook` y `alimentos-pedidos` (`alimentos.ts`). Si se olvida, `npm run build` falla y avisa.
+
+## Pendientes entre sesiones
+
+Cada sesión nueva empieza sin recordar la anterior. Para no perder el hilo, los pendientes, las fechas y lo que está en curso viven en `docs/pendientes.md`, que se carga solo al empezar:
+
+@docs/pendientes.md
+
+- **Al terminar una tarea, bórrala de ese archivo en el mismo PR** y anota lo nuevo que quedó pendiente. Que sea corto: solo lo vigente.
+- Lo que vale para siempre (reglas, forma de trabajar) va en este archivo, no en `docs/pendientes.md`.

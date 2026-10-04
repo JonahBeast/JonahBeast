@@ -41,6 +41,8 @@ import {
   todayISO,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
+import { horaLimiteAlimento, horaPeruCorta, minutosHasta } from './plazos.js';
+import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
@@ -563,7 +565,11 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '' };
+// De dónde salen los números de un alimento (columna alimentos_extra.fuente;
+// misma lista que FUENTES en supabase/functions/alimentos-pedidos). Es
+// obligatoria para agregar uno nuevo: así cada alimento queda validado.
+const FUENTES_ALIMENTO = ['Tabla Peruana (CENAN)', 'Etiqueta del producto', 'USDA', 'Receta promedio'];
 const USOS_MENU = opcionesUsoMenu();
 
 /* Menú del día: si Jonah le marca un uso al alimento, puede salir en el
@@ -591,6 +597,7 @@ function formDesdePropuesta(p, nombre) {
     unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '',
     // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
     menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
+    fuente: FUENTES_ALIMENTO.includes(p.fuente) ? p.fuente : '',
   };
 }
 
@@ -606,13 +613,46 @@ function quienesPidieron(solicitantes) {
   return lista;
 }
 
-function FormAlimento({ form, setForm }) {
+/* "⚠️ Se parece a…": antes de agregar un alimento, los de la app que
+   podrían ser lo mismo con otro nombre (src/parecidos.js). onEsEste(food):
+   qué hacer si Jonah confirma que es ese (descartar el pedido con su nombre,
+   o unir el alimento del alumno). Sin onEsEste solo avisa. */
+function etiquetaFood(f) {
+  return f.state && f.state !== '-' ? `${f.name} (${String(f.state).toLowerCase()})` : f.name;
+}
+function ParecidosEnApp({ nombre, estado, onEsEste }) {
+  const etiqueta = String(nombre || '').trim() + (estado && estado.trim() !== '-' && estado.trim() ? ` (${estado.trim()})` : '');
+  const lista = useMemo(() => {
+    if (String(nombre || '').trim().length < 3) return [];
+    const base = FOODS.filter(f => !f.esPersonal && !f.esProducto).map(f => ({ etiqueta: etiquetaFood(f), f }));
+    return alimentosParecidos(etiqueta, base, 3);
+  }, [etiqueta]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!lista.length) return null;
+  const n = v => Math.round((Number(v) || 0) * 10) / 10;
+  return (
+    <div className="bg-amber-950/40 border border-amber-800 rounded-lg p-2.5 flex flex-col gap-1.5">
+      <p className="jb-body text-xs text-amber-300 font-semibold">⚠️ Se parece a {lista.length === 1 ? 'uno' : 'estos'} que ya está{lista.length === 1 ? '' : 'n'} en la app. ¿Es lo mismo?</p>
+      {lista.map(({ f }) => (
+        <div key={f.key} className="flex items-center justify-between gap-2 bg-zinc-950/60 rounded-md px-2 py-1.5">
+          <span className="jb-body text-xs text-zinc-200 min-w-0">
+            {f.key}<span className="text-zinc-500 tabular-nums"> · {Math.round(f.kcal)} kcal · P {n(f.protein)} · C {n(f.carbs)} · G {n(f.fat)}</span>
+          </span>
+          {onEsEste && <button type="button" onClick={() => onEsEste(f)} className={btnGhost + ' text-[11px] py-1 px-2.5 shrink-0'}>🔗 Es este</button>}
+        </div>
+      ))}
+      <p className="jb-body text-[10px] text-zinc-500">Si no es lo mismo, sigue normal{onEsEste ? '' : ' (o cámbiale el nombre para que se distinga)'}.</p>
+    </div>
+  );
+}
+
+function FormAlimento({ form, setForm, onEsEste }) {
   const campo = (k) => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const num = (k) => Number(form[k]) || 0;
   const kcalCalculadas = Math.round(4 * num('proteina') + 4 * num('carbos') + 9 * num('grasa'));
   const desvio = num('kcal') > 0 && Math.abs(kcalCalculadas - num('kcal')) > Math.max(25, num('kcal') * 0.15);
   return (
     <div className="flex flex-col gap-2">
+      <ParecidosEnApp nombre={form.nombre} estado={form.estado} onEsEste={onEsEste} />
       <div className="grid grid-cols-2 gap-2">
         <label className="col-span-2 jb-body text-[11px] text-zinc-500">Nombre
           <input value={form.nombre} onChange={campo('nombre')} className={inputCls + ' w-full text-sm mt-0.5'} maxLength={80} />
@@ -647,6 +687,13 @@ function FormAlimento({ form, setForm }) {
           <input type="number" inputMode="decimal" min="0" value={form.gramos_unidad} onChange={campo('gramos_unidad')} disabled={!form.unidad.trim()} className={inputCls + ' w-full text-sm mt-0.5 tabular-nums disabled:opacity-40'} />
         </label>
       </div>
+      <label className="jb-body text-[11px] text-zinc-500">📚 ¿De dónde salen los números?
+        <select value={form.fuente || ''} onChange={campo('fuente')} className={inputCls + ' w-full text-sm mt-0.5' + (form.fuente ? '' : ' border-amber-600')}>
+          <option value="">Elige la fuente…</option>
+          {FUENTES_ALIMENTO.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+        {!form.fuente && <span className="block text-[10px] text-amber-400 mt-0.5">Elígela para poder agregarlo: así cada alimento de la base queda validado.</span>}
+      </label>
       <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
         <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
         <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
@@ -737,7 +784,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     setGuardando(false);
   }
 
-  const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '';
+  const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '' && form.fuente;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-2.5">
       <div>
@@ -752,6 +799,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
       {propuesta?.ia_estado === 'dudoso' && (
         <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no estuvo segura, así que no lo agregó sola. Decide tú:</p>
       )}
+      <RecomendacionIA texto={recomendacionPedido(propuesta)} />
       {/* Solo lo vio la IA en una foto: nadie lo pidió y la IA puede haber
           confundido el plato. Mejor preguntarle al alumno antes de aprobar. */}
       {(pedido.solicitantes || []).length > 0 && (pedido.solicitantes || []).every(s => s.origen === 'foto') && (
@@ -784,7 +832,10 @@ function PedidoAlimento({ pedido, onResuelto }) {
               🧩 Al aprobar, te quedan para revisar estas variantes: {propuesta.variantes.map(v => v.nombre).join(' · ')}
             </p>
           )}
-          <FormAlimento form={form} setForm={setForm} />
+          <FormAlimento form={form} setForm={setForm} onEsEste={f => {
+            setRespuesta(`Ya estaba en la app como "${etiquetaFood(f)}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+            setDescartando(true);
+          }} />
           <div className="flex gap-2">
             <button onClick={aprobar} disabled={!listo || guardando} className={btnPrimary + ' flex-1 text-sm py-2'}>
               {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Aprobar y avisar'}
@@ -961,10 +1012,11 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
       </p>
       {v.estado !== 'ya_existia' && v.kcal != null && (
         <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
-          {n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g){v.unidad ? ` · 1 ${v.unidad} = ${n(v.gramos_unidad)} g` : ''}
+          {n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g){v.unidad ? ` · 1 ${v.unidad} = ${n(v.gramos_unidad)} g` : ''}{v.fuente ? ` · 📚 ${v.fuente}` : ''}
           {v.estado === 'sugerida' && v.cuadra === false && <span className="text-amber-400"> · ⚠️ las calorías no cuadran con los macros</span>}
         </p>
       )}
+      {v.estado === 'sugerida' && <div className="mt-1"><ParecidosEnApp nombre={v.nombre} estado={v.estado_alimento} /></div>}
       {v.estado === 'sugerida' && (
         <label className="jb-body text-[10px] text-zinc-500 block mt-1">Menú del día{v.menu_uso ? ' (la IA sugiere lo elegido)' : ''}:
           <SelectUsoMenu valor={menuUso} onCambiar={setMenuUso} className="mt-0.5 text-xs" />
@@ -1273,7 +1325,7 @@ function AgregarAlimentoSuelto({ onListo }) {
         <>
           {nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {nota}</p>}
           <FormAlimento form={form} setForm={setForm} />
-          <button onClick={agregar} disabled={guardando || !form.nombre.trim() || form.kcal === ''} className={btnPrimary + ' text-sm py-2'}>
+          <button onClick={agregar} disabled={guardando || !form.nombre.trim() || form.kcal === '' || !form.fuente} className={btnPrimary + ' text-sm py-2'}>
             {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
           </button>
         </>
@@ -1318,16 +1370,31 @@ function mensajePedidoWhatsApp(p, nombre, username) {
   return `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Sobre tu pedido "${p.nombre}": ${r}`;
 }
 
-function RespuestasParaWhatsApp({ onCantidad }) {
+// Mensaje de Jonah para un alimento que creó el alumno ("+ Crear mi
+// alimento") y Jonah ya revisó en la bandeja.
+function mensajePropioWhatsApp(r, nombreAlumno) {
+  const n = String(nombreAlumno || '').trim().split(/\s+/)[0] || '';
+  const hola = `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah.`;
+  if (r.revision === 'aprobado') return `${hola} Revisé "${r.nombre}", el alimento que creaste, y ya lo agregué a la app para todos con sus datos revisados. Tus comidas con ese alimento ya se actualizaron solas. ¡Gracias por ayudar a que la app crezca! Seguimos juntos, comida a comida 💪🦍`;
+  if (r.revision === 'existe') return `${hola} Revisé "${r.nombre}", el alimento que creaste: ya estaba en la app como "${r.oficial || r.nombre}", así que los uní. Tus comidas ya usan esos datos y la próxima vez búscalo con ese nombre en "REGISTRAR" → "Escribir" 💪🦍`;
+  if (r.revision === 'corregido') return `${hola} Revisé "${r.nombre}", el alimento que creaste, y le ajusté los números para que tus calorías salgan exactas. Tus comidas ya se actualizaron solas. Cualquier duda me escribes aquí 💪🦍`;
+  return `${hola} Revisé "${r.nombre}", el alimento que creaste, y sus números están bien 👌 Puedes seguir usándolo tranquilo. ¡Seguimos juntos, comida a comida! 💪🦍`;
+}
+
+/* soloId: muestra solo los botones de ese pedido (dentro de su tarjeta en
+   la bandeja, apenas Jonah lo resuelve). excluir: pedidos que ya tienen su
+   botón en su tarjeta (para no repetirlos en el recuadro de arriba). */
+function RespuestasParaWhatsApp({ onCantidad, soloId = null, excluir = [] }) {
   const [lista, setLista] = useState(null);
   async function cargar() {
     const desde = new Date(Date.now() - DIAS_RESPUESTAS_WA * 864e5).toISOString();
-    const { data } = await supabase.from('pedidos_alimentos')
+    let q = supabase.from('pedidos_alimentos')
       .select('id, nombre, estado, respuesta, solicitantes, avisos, resuelto_en, alimentos_extra(nombre, estado)')
-      .in('estado', ['agregado', 'descartado'])
-      .gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(60);
+      .in('estado', ['agregado', 'descartado']);
+    q = soloId ? q.eq('id', soloId) : q.gte('resuelto_en', desde).order('resuelto_en', { ascending: false }).limit(60);
+    const { data } = await q;
     const items = [];
-    (data || []).forEach(p => {
+    (data || []).filter(p => !excluir.includes(p.id)).forEach(p => {
       const escritos = p.avisos?.escrito_wa || [];
       const sinAviso = p.avisos?.sin_avisos || [];
       const usuarios = [...new Set((p.solicitantes || []).filter(s => s?.origen !== 'whatsapp' && s.username).map(s => String(s.username)))];
@@ -1349,7 +1416,7 @@ function RespuestasParaWhatsApp({ onCantidad }) {
     setLista(conTelefono);
     onCantidad?.(conTelefono.length);
   }
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); }, [soloId, excluir.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function escribir(item, abrir = true) {
     if (abrir) window.open(enlaceWhatsApp(item.alumno.telefono, mensajePedidoWhatsApp(item.p, item.alumno.nombre, item.username)), '_blank', 'noopener');
@@ -1359,10 +1426,29 @@ function RespuestasParaWhatsApp({ onCantidad }) {
   }
 
   if (!lista?.length) return null;
+  const botones = item => (
+    <div className="flex flex-wrap gap-2">
+      <button onClick={() => escribir(item)} className={btnPrimary + ' text-xs py-1.5 px-3'}>
+        <MessageCircle size={14} /> {soloId ? `Mandar respuesta a ${item.alumno.nombre || item.username}` : 'Escribirle'}
+      </button>
+      <button onClick={() => escribir(item, false)} className={btnGhost + ' text-xs py-1.5 px-3'}>No hace falta</button>
+    </div>
+  );
+  // Dentro de la tarjeta: solo el mensaje y el botón.
+  if (soloId) return (
+    <div className="flex flex-col gap-2 mt-1">
+      {lista.map(item => (
+        <div key={item.username} className="flex flex-col gap-1.5">
+          <p className="jb-body text-[11px] text-zinc-400 whitespace-pre-line bg-zinc-950/60 border border-zinc-800 rounded-lg p-2">{mensajePedidoWhatsApp(item.p, item.alumno.nombre, item.username)}</p>
+          {botones(item)}
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div className="bg-orange-950/20 border border-orange-900/60 rounded-xl p-3.5 flex flex-col gap-2">
       <p className="jb-display text-sm text-orange-400">💬 RESPUESTAS PARA MANDAR POR WHATSAPP · {lista.length}</p>
-      <p className="jb-body text-[11px] text-zinc-400">Pedidos resueltos de los últimos {DIAS_RESPUESTAS_WA} días. Un mensaje tuyo los motiva más que la notificación. Toca "Escribirle": se abre WhatsApp con el mensaje listo y aquí deja de salir. Si no hace falta escribirle, toca "No hace falta".</p>
+      <p className="jb-body text-[11px] text-zinc-400">Pedidos resueltos de los últimos {DIAS_RESPUESTAS_WA} días a los que aún no les escribiste (los que resolvió la IA sola, o los que resolviste y no mandaste). Un mensaje tuyo los motiva más que la notificación. Toca "Escribirle": se abre WhatsApp con el mensaje listo y aquí deja de salir. Si no hace falta escribirle, toca "No hace falta".</p>
       {lista.map(item => (
         <div key={item.p.id + item.username} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex flex-col gap-1.5">
           <p className="jb-body text-sm text-zinc-100">
@@ -1372,84 +1458,242 @@ function RespuestasParaWhatsApp({ onCantidad }) {
           {item.deFoto && <p className="jb-body text-[11px] text-sky-300">📷 No lo pidió: lo vio la IA en su foto. El mensaje le pregunta si era eso.</p>}
           {item.sinAviso && <p className="jb-body text-[11px] text-amber-300">⚠️ No le llegó la notificación: escríbele para que se entere.</p>}
           <p className="jb-body text-xs text-zinc-400 whitespace-pre-line">{mensajePedidoWhatsApp(item.p, item.alumno.nombre, item.username)}</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => escribir(item)} className={btnPrimary + ' text-xs py-1.5 px-3'}>
-              <MessageCircle size={14} /> Escribirle
-            </button>
-            <button onClick={() => escribir(item, false)} className={btnGhost + ' text-xs py-1.5 px-3'}>No hace falta</button>
-          </div>
+          {botones(item)}
         </div>
       ))}
     </div>
   );
 }
 
+// Botón de WhatsApp de un alimento creado por un alumno que Jonah acaba de
+// revisar. Queda anotado en revision_ia.escrito_wa para no repetirlo.
+function WhatsAppPropio({ r }) {
+  const [alumno, setAlumno] = useState(undefined);
+  const [hecho, setHecho] = useState(false);
+  useEffect(() => {
+    supabase.from('alumnos').select('nombre, telefono').eq('username', r.username).maybeSingle()
+      .then(({ data }) => setAlumno(data || null), () => setAlumno(null));
+  }, [r.username]);
+  if (alumno === undefined || hecho) return null;
+  if (!alumno?.telefono) return <p className="jb-body text-[11px] text-zinc-500">No tiene celular registrado: lo verá al abrir la app.</p>;
+  const texto = mensajePropioWhatsApp(r, alumno.nombre);
+  async function escribir(abrir = true) {
+    if (abrir) window.open(enlaceWhatsApp(alumno.telefono, texto), '_blank', 'noopener');
+    setHecho(true);
+    const { data } = await supabase.from('alimentos_personales').select('revision_ia').eq('id', r.id).maybeSingle();
+    await supabase.from('alimentos_personales').update({ revision_ia: { ...(data?.revision_ia || {}), escrito_wa: true } }).eq('id', r.id);
+  }
+  return (
+    <div className="flex flex-col gap-1.5 mt-1">
+      <p className="jb-body text-[11px] text-zinc-400 whitespace-pre-line bg-zinc-950/60 border border-zinc-800 rounded-lg p-2">{texto}</p>
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => escribir()} className={btnPrimary + ' text-xs py-1.5 px-3'}>
+          <MessageCircle size={14} /> Mandar respuesta a {alumno.nombre || r.username}
+        </button>
+        <button onClick={() => escribir(false)} className={btnGhost + ' text-xs py-1.5 px-3'}>No hace falta</button>
+      </div>
+    </div>
+  );
+}
+
+// Reloj del plazo de 1 hora (ver src/plazos.js).
+function RelojPlazo({ desde }) {
+  const [, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick(v => v + 1), 30000); return () => clearInterval(t); }, []);
+  const limite = horaLimiteAlimento(desde);
+  const min = minutosHasta(limite);
+  const tarde = min < 0;
+  const poco = !tarde && min <= 20;
+  const texto = tarde
+    ? `⏰ Pasó la hora por ${Math.abs(min) >= 60 ? Math.round(Math.abs(min) / 60) + ' h' : Math.abs(min) + ' min'} · el alumno espera`
+    : min >= 60 ? `⏱️ Responde antes de las ${horaPeruCorta(limite)}` : `⏱️ Quedan ${min} min · antes de las ${horaPeruCorta(limite)}`;
+  return (
+    <span className={`jb-body text-[11px] font-semibold px-2 py-0.5 rounded-full border self-start ${tarde ? 'text-red-300 border-red-800 bg-red-950/40' : poco ? 'text-amber-300 border-amber-800 bg-amber-950/40' : 'text-zinc-300 border-zinc-700 bg-zinc-900'}`}>
+      {texto}
+    </span>
+  );
+}
+
+// Lo que la IA recomienda hacer con un pedido (con sus macros ya calculados).
+function recomendacionPedido(p) {
+  if (!p || p.kcal == null) return null;
+  if (p.ya_existe) return `🔗 Ya existe como "${p.ya_existe}". Descártalo: el mensaje le dice con qué nombre buscarlo.`;
+  if (p.parecidos?.length) return `🔎 Se parece a "${p.parecidos[0]}"${p.parecidos.length > 1 ? ` (o ${p.parecidos.slice(1).map(x => `"${x}"`).join(', ')})` : ''}. Si es lo mismo, toca "🔗 Es este" abajo; si no, apruébalo con un nombre que lo distinga.`;
+  if (p.por_partes?.length) return `🧩 Que lo registre por partes: ${p.por_partes.join(' + ')}. Descártalo: el mensaje le explica cómo.`;
+  const cuadra = Math.abs(4 * (+p.proteina || 0) + 4 * (+p.carbos || 0) + 9 * (+p.grasa || 0) - (+p.kcal || 0)) <= Math.max(25, (+p.kcal || 0) * 0.15);
+  return cuadra
+    ? `✅ Aprobarlo con ${Math.round(p.kcal)} kcal · P ${p.proteina} · C ${p.carbos} · G ${p.grasa} (por 100 g). Revisa el nombre y toca "Aprobar y avisar".`
+    : '🤔 Los números de la IA no cuadran. Toca 🔄 para recalcular o corrígelos a mano.';
+}
+
+// Y con un alimento que creó un alumno.
+function recomendacionPropio(ri) {
+  if (!ri?.ia) return null;
+  if (ri.veredicto === 'ya_existe' && ri.ya_existe) return `🔗 Ya existe en la app como "${ri.ya_existe}": toca "Ya existe en la app" y elígelo.`;
+  if (ri.veredicto === 'bien' || ri.veredicto === 'corregir') return `➕ Agregarlo para todos con los números de la IA (${Math.round(ri.ia.kcal)} kcal por 100 g): toca "Agregar para todos" → "🤖 La IA". Así la base crece y su alimento pasa a ser el oficial.`;
+  return '💬 La IA no reconoce bien el alimento. Si no sabes qué es, pregúntale al alumno de qué marca es o cómo lo prepara.';
+}
+
+function RecomendacionIA({ texto }) {
+  if (!texto) return null;
+  return (
+    <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2">
+      <p className="jb-body text-[11px] text-orange-300 font-semibold">🤖 Recomendación</p>
+      <p className="jb-body text-xs text-zinc-200 mt-0.5">{texto}</p>
+    </div>
+  );
+}
+
+/* 🍽️ ALIMENTOS POR REVISAR: una sola bandeja para todo lo que un alumno
+   no encontró en la app. Junta los pedidos (🙋 "Pedirle a Jonah", WhatsApp,
+   foto) y los alimentos que crearon con "+ Crear mi alimento". La IA atiende
+   todo apenas llega; aquí quedan solo los que no pudo decidir, ordenados por
+   su hora límite (1 hora; de noche, hasta las 8am: src/plazos.js). Cada
+   tarjeta trae la recomendación de la IA y, apenas Jonah decide, el botón
+   para mandarle la respuesta por WhatsApp ahí mismo.
+   Abajo: los candidatos para la base (alimentos creados que la IA dio por
+   buenos y podrían servirle a todos), lo que la IA resolvió sola y el
+   historial. */
+const COLUMNAS_PROPIOS = 'id, username, nombre, kcal, proteina, carbos, grasas, created_at, editado_en, revision, revisado_en, revision_ia';
+
+// Desde cuándo espera el alumno: el primero que lo pidió por la app o por
+// WhatsApp (lo que solo vio la IA en una foto no tiene a nadie esperando).
+function esperaDesde(pedido) {
+  const fechas = (pedido.solicitantes || []).filter(s => s?.origen === 'app' || s?.origen === 'whatsapp').map(s => s.fecha).filter(Boolean).sort();
+  return fechas[0] || null;
+}
+
 function PedidosAlimentosPanel() {
   const [pedidos, setPedidos] = useState([]);
+  const [propios, setPropios] = useState([]);
+  const [candidatos, setCandidatos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(false);
-  const [resueltos, setResueltos] = useState([]); // aprobados en esta sesión, con sus avisos
+  const [verCandidatos, setVerCandidatos] = useState(false);
+  const [resueltos, setResueltos] = useState([]); // resueltos en esta sesión, con su botón de WhatsApp
   const [porEscribir, setPorEscribir] = useState(0); // respuestas para mandar por WhatsApp
+  const [version, setVersion] = useState(0);
 
   useEffect(() => { cargar(); }, []);
 
   async function cargar() {
     setCargando(true);
     try {
-      const { data, error } = await supabase.from('pedidos_alimentos')
-        .select('id, nombre, propuesta, solicitantes, actualizado_en')
-        .eq('estado', 'pendiente').order('actualizado_en', { ascending: false }).limit(100);
-      if (error) throw error;
-      // Primero los que tienen a alguien esperando (WhatsApp o el botón de la app), luego los que pidió más gente.
-      const esperando = p => (p.solicitantes || []).some(s => s.origen === 'whatsapp' || s.origen === 'app');
-      const orden = p => quienesPidieron(p.solicitantes).length + (esperando(p) ? 100 : 0);
-      setPedidos((data || []).sort((a, b) => orden(b) - orden(a)));
-      if ((data || []).some(esperando)) setAbierto(true);
-    } catch { setPedidos([]); }
+      const [rp, ra, rc] = await Promise.all([
+        supabase.from('pedidos_alimentos')
+          .select('id, nombre, propuesta, solicitantes, creado_en, actualizado_en')
+          .eq('estado', 'pendiente').order('actualizado_en', { ascending: false }).limit(100),
+        // Creados por alumnos que la IA no pudo decidir (o aún no revisa).
+        supabase.from('alimentos_personales').select(COLUMNAS_PROPIOS).is('reemplazo', null)
+          .or('revision.is.null,revision.eq.revisando,revision.eq.dudoso').order('created_at', { ascending: false }).limit(100),
+        // Creados que la IA dio por buenos: candidatos para agregar para todos.
+        supabase.from('alimentos_personales').select(COLUMNAS_PROPIOS).is('reemplazo', null)
+          .in('revision', ['ok', 'corregido']).order('created_at', { ascending: false }).limit(100),
+      ]);
+      if (rp.error) throw rp.error;
+      setPedidos(rp.data || []);
+      setPropios((ra.data || []).map(a => ({ ...a, alertas: alertasAlimentoPropio(a) })));
+      setCandidatos((rc.data || []).filter(a => a.revision_ia?.base !== 'no').map(a => ({ ...a, alertas: alertasAlimentoPropio(a) })));
+      if ((rp.data || []).some(esperaDesde) || (ra.data || []).length) setAbierto(true);
+    } catch { setPedidos([]); setPropios([]); setCandidatos([]); }
+    setVersion(v => v + 1);
     setCargando(false);
   }
 
   function resuelto(id, resultado) {
     setPedidos(ps => ps.filter(p => p.id !== id));
-    if (resultado) setResueltos(rs => [resultado, ...rs]);
+    if (resultado) setResueltos(rs => [{ ...resultado, tipo: 'pedido', id }, ...rs]);
   }
+  function propioListo(resultado) {
+    if (resultado) setResueltos(rs => [resultado, ...rs]);
+    cargar();
+  }
+
+  // Todo en una lista, primero lo que tiene a alguien esperando (por hora
+  // límite) y al final lo que solo vio la IA en una foto.
+  const items = [
+    ...pedidos.map(p => ({ tipo: 'pedido', id: 'p' + p.id, p, desde: esperaDesde(p) })),
+    ...propios.map(a => ({ tipo: 'propio', id: 'a' + a.id, a, desde: a.editado_en || a.created_at })),
+  ].sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
+  const total = items.length;
+  const tarde = items.some(i => i.desde && minutosHasta(horaLimiteAlimento(i.desde)) < 0);
+  const idsResueltos = resueltos.filter(r => r.tipo === 'pedido').map(r => r.id);
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🍽️ PEDIDOS DE ALIMENTOS · {pedidos.length}{porEscribir > 0 && <span className="text-orange-400"> · 💬 {porEscribir}</span>}</h2>
+        <h2 className="jb-display text-base text-zinc-200">
+          🍽️ ALIMENTOS POR REVISAR · {total}
+          {tarde && <span className="text-red-400"> ⏰</span>}
+          {porEscribir > 0 && <span className="text-orange-400"> · 💬 {porEscribir}</span>}
+        </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       <div className={abierto ? 'px-5 pt-1 pb-3' : 'hidden'}>
-        <RespuestasParaWhatsApp key={resueltos.length} onCantidad={n => { setPorEscribir(n); if (n > 0) setAbierto(true); }} />
+        <RespuestasParaWhatsApp key={version + ':' + idsResueltos.join(',')} excluir={idsResueltos} onCantidad={n => { setPorEscribir(n); if (n > 0) setAbierto(true); }} />
       </div>
       {abierto && (
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">Los piden tus clientes por WhatsApp (💬), con el botón de la app (🙋) o los ve la IA en las fotos (📷). La IA los atiende sola: si está segura, lo agrega a la app (o responde con qué nombre ya existe). Aquí te quedan solo los que no pudo decidir (🤔). Al aprobar o descartar, avisamos a quien lo pidió (y lo ve también al abrir la app).</p>
+            <p className="jb-body text-xs text-zinc-500">Todo lo que un alumno no encontró en la app: lo que pide (🙋 app, 💬 WhatsApp) y lo que crea con "+ Crear mi alimento" (🍴). La IA atiende todo apenas llega; aquí te queda solo lo que no pudo decidir, con su recomendación. Tienes <b className="text-zinc-300">1 hora</b> para responder (de noche, hasta las 8am): el alumno ve esa hora en su app. Al decidir, te sale el botón para mandarle la respuesta por WhatsApp.</p>
             <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
 
-          {resueltos.map((r, i) => (
-            <div key={i} className={`rounded-xl p-3 border ${r.descartado ? 'bg-zinc-950 border-zinc-800' : 'bg-emerald-950/30 border-emerald-900'}`}>
+          {resueltos.map((r, i) => r.tipo === 'propio' ? (
+            <div key={'r' + i} className="rounded-xl p-3 border bg-emerald-950/30 border-emerald-900 flex flex-col gap-1">
+              <p className="jb-body text-sm font-semibold text-emerald-300">
+                {{ aprobado: `➕ "${r.nombre}" ya está en la app para todos`, existe: `🔗 "${r.nombre}" quedó unido a "${r.oficial}"`, corregido: `✏️ Corregiste "${r.nombre}"`, ok: `✓ "${r.nombre}" quedó como está` }[r.revision]}
+                <span className="text-[11px] text-zinc-500 font-normal"> · @{r.username}</span>
+              </p>
+              <WhatsAppPropio r={r} />
+            </div>
+          ) : (
+            <div key={'r' + i} className={`rounded-xl p-3 border ${r.descartado ? 'bg-zinc-950 border-zinc-800' : 'bg-emerald-950/30 border-emerald-900'}`}>
               <p className={`jb-body text-sm font-semibold ${r.descartado ? 'text-zinc-300' : 'text-emerald-300'}`}>
                 {r.descartado ? `🗑️ Descartaste "${r.nombre}"${r.respuesta ? '' : ' (sin avisar)'}` : `✅ ${r.nombre} ya está en la app`}
               </p>
               <ResultadoAvisos nombre={r.nombre} avisos={r.avisos}
                 mensaje={r.descartado && r.respuesta ? `Sobre tu pedido *${r.nombre}*: ${r.respuesta}` : undefined} />
+              <RespuestasParaWhatsApp soloId={r.id} />
             </div>
           ))}
 
-          {cargando ? (
+          {cargando && !total ? (
             <Loader2 className="animate-spin text-orange-500" size={20} />
-          ) : pedidos.length === 0 ? (
-            <p className="jb-body text-zinc-500 text-sm">No hay pedidos pendientes. Aparecerán aquí cuando alguien pida un plato que no está en la app.</p>
+          ) : total === 0 ? (
+            <p className="jb-body text-zinc-500 text-sm">Nada por revisar 🙌 Aquí aparece lo que un alumno pida o cree y la IA no pueda decidir sola.</p>
           ) : (
-            pedidos.map(p => <PedidoAlimento key={p.id} pedido={p} onResuelto={resuelto} />)
+            items.map(i => (
+              <div key={i.id} className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="jb-body text-[11px] text-zinc-500">{i.tipo === 'pedido' ? '🙋 Pedido' : `🍴 Lo creó @${i.a.username} (ya lo puede usar)`}</span>
+                  {i.desde && <RelojPlazo desde={i.desde} />}
+                </div>
+                {i.tipo === 'pedido'
+                  ? <PedidoAlimento pedido={i.p} onResuelto={resuelto} />
+                  : <AlimentoPropio a={i.a} onListo={propioListo} />}
+              </div>
+            ))
+          )}
+
+          {candidatos.length > 0 && (
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
+              <button onClick={() => setVerCandidatos(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
+                <span className="jb-body text-xs text-zinc-300">➕ Candidatos para la base de todos · {candidatos.length}</span>
+                <ChevronRight size={16} className={`text-zinc-500 transition-transform ${verCandidatos ? 'rotate-90' : ''}`} />
+              </button>
+              {verCandidatos && (
+                <div className="px-3.5 pb-3.5 flex flex-col gap-2.5">
+                  <p className="jb-body text-[11px] text-zinc-500">Alimentos que crearon los alumnos y la IA ya revisó (el alumno ya los usa, no hay apuro). Si le sirven a otros, agrégalos para todos: así la base crece. Si son algo muy suyo (una receta de casa), déjalos solo para él.</p>
+                  {candidatos.map(a => <AlimentoPropio key={a.id} a={a} onListo={propioListo} candidato />)}
+                </div>
+              )}
+            </div>
           )}
 
           <PedidosAtendidosIA />
-          <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ nombre, avisos: null }, ...rs])} />
+          <HistorialAlimentosPropios />
+          <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ tipo: 'pedido', nombre, avisos: null }, ...rs])} />
           <AlimentosEnMenu />
         </div>
       )}
@@ -1476,66 +1720,37 @@ function alertasAlimentoPropio(a) {
   return alertas;
 }
 
-function AlimentosPropiosPanel() {
-  const [lista, setLista] = useState([]);
-  const [cargando, setCargando] = useState(true);
+// Historial de todos los alimentos creados por alumnos (dentro de la
+// bandeja): para revisar o corregir cualquiera, aunque la IA ya lo resolvió.
+function HistorialAlimentosPropios() {
+  const [lista, setLista] = useState(null);
   const [abierto, setAbierto] = useState(false);
-  const [verTodos, setVerTodos] = useState(false);
-
-  useEffect(() => { cargar(); }, [verTodos]);
 
   async function cargar() {
-    setCargando(true);
-    try {
-      let q = supabase.from('alimentos_personales')
-        .select('id, username, nombre, kcal, proteina, carbos, grasas, created_at, revision, revisado_en, revision_ia')
-        .order('created_at', { ascending: false }).limit(200);
-      // Pendientes: los dudosos (la IA no estuvo segura) y los que la IA aún no revisa.
-      if (!verTodos) q = q.or('revision.is.null,revision.eq.revisando,revision.eq.dudoso');
-      const { data, error } = await q;
-      if (error) throw error;
-      // Primero los dudosos, luego los que tienen alertas.
-      const filas = (data || []).map(a => ({ ...a, alertas: alertasAlimentoPropio(a) }));
-      const peso = a => (a.revision === 'dudoso' ? 100 : 0) + a.alertas.length;
-      setLista(filas.sort((a, b) => peso(b) - peso(a)));
-    } catch { setLista([]); }
-    setCargando(false);
+    const { data } = await supabase.from('alimentos_personales').select(COLUMNAS_PROPIOS)
+      .order('created_at', { ascending: false }).limit(200);
+    setLista((data || []).map(a => ({ ...a, alertas: alertasAlimentoPropio(a) })));
   }
-
-  const porRevisar = a => !a.revision || a.revision === 'revisando' || a.revision === 'dudoso';
-  const pendientes = lista.filter(porRevisar).length;
+  useEffect(() => { if (abierto && lista === null) cargar(); }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">
-          🍴 ALIMENTOS CREADOS POR ALUMNOS · {pendientes}
-          {lista.some(a => a.revision === 'dudoso') && <span className="text-amber-400"> ⚠️</span>}
-        </h2>
-        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
+        <span className="jb-body text-xs text-zinc-300">🍴 Todos los alimentos creados por alumnos</span>
+        <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
-        <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="jb-body text-xs text-zinc-500">
-              Los crean con "+ Crear mi alimento" y solo los ve quien los creó. La IA los revisa sola apenas se crean: si está segura, lo da por bueno, lo corrige o lo cambia por el de la app. Aquí te quedan solo los que no pudo decidir (🤔). Si corriges uno, sus comidas se recalculan solas y le avisamos al abrir la app.
-            </p>
-            <button onClick={() => setVerTodos(v => !v)} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>{verTodos ? 'Solo pendientes' : 'Ver todos'}</button>
-          </div>
-          {cargando ? (
-            <Loader2 className="animate-spin text-orange-500" size={20} />
-          ) : lista.length === 0 ? (
-            <p className="jb-body text-zinc-500 text-sm">No hay alimentos por revisar.</p>
-          ) : (
-            lista.map(a => <AlimentoPropio key={a.id} a={a} onListo={cargar} />)
-          )}
+        <div className="px-3.5 pb-3.5 flex flex-col gap-2.5">
+          {lista === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
+            : !lista.length ? <p className="jb-body text-xs text-zinc-500">Aún nadie creó alimentos.</p>
+            : lista.map(a => <AlimentoPropio key={a.id} a={a} onListo={cargar} />)}
         </div>
       )}
     </div>
   );
 }
 
-function AlimentoPropio({ a, onListo }) {
+function AlimentoPropio({ a, onListo, candidato = false }) {
   const [editando, setEditando] = useState(false);
   const [f, setF] = useState({ kcal: a.kcal, proteina: a.proteina, carbos: a.carbos, grasas: a.grasas });
   const [ia, setIa] = useState(null);
@@ -1545,14 +1760,15 @@ function AlimentoPropio({ a, onListo }) {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
 
-  async function marcar(revision, datos = {}) {
+  async function marcar(revision, datos = {}, extra = {}) {
     setOcupado(true); setError('');
     try {
       const { error: e } = await supabase.from('alimentos_personales')
         // Lo decidió Jonah: deja de contar como decisión de la IA.
         .update({ ...datos, revision, revisado_en: new Date().toISOString(), ...(a.revision_ia ? { revision_ia: { ...a.revision_ia, auto: false } } : {}) }).eq('id', a.id);
       if (e) throw e;
-      await onListo();
+      // A la bandeja le llega qué se decidió, para el botón de WhatsApp.
+      await onListo({ tipo: 'propio', id: a.id, username: a.username, nombre: a.nombre, revision, oficial: extra.oficial || null });
     } catch (e) { setError('No se pudo guardar: ' + (e?.message || 'intenta de nuevo.')); }
     setOcupado(false);
   }
@@ -1576,8 +1792,22 @@ function AlimentoPropio({ a, onListo }) {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: paraTodos });
       if (paraTodos.menu_uso) await guardarUsoMenu(r.alimento_id, paraTodos.menu_uso);
       await cargarAlimentosExtraDeNuevo();
-      await marcar('aprobado');
+      // Su alimento pasa a ser el oficial (mismo nombre que le da la app:
+      // "Nombre (estado)"): deja de salir repetido en su buscador y sus
+      // comidas usan los datos revisados.
+      const limpio = t => String(t || '').replace(/\s+/g, ' ').trim();
+      const oficial = `${limpio(paraTodos.nombre).slice(0, 80)} (${limpio(paraTodos.estado).slice(0, 30) || '-'})`;
+      await marcar('aprobado', { reemplazo: oficial }, { oficial });
     } catch (e) { setError(e.message); setOcupado(false); }
+  }
+
+  // Candidato para la base que es algo muy suyo: deja de salir aquí.
+  async function soloParaEl() {
+    setOcupado(true); setError('');
+    const { error: e } = await supabase.from('alimentos_personales')
+      .update({ revision_ia: { ...(a.revision_ia || {}), base: 'no' } }).eq('id', a.id);
+    if (e) { setError('No se pudo guardar: ' + e.message); setOcupado(false); return; }
+    await onListo(null);
   }
 
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
@@ -1599,7 +1829,7 @@ function AlimentoPropio({ a, onListo }) {
   })();
   async function marcarExiste(f) {
     if (!confirm(`¿Cambiar "${a.nombre}" de @${a.username} por "${f.key}" de la app (${Math.round(f.kcal)} kcal / 100 g)?\n\nSu alimento deja de salir en su buscador y sus comidas pasan a usar los datos de la app.`)) return;
-    await marcar('existe', { reemplazo: f.key });
+    await marcar('existe', { reemplazo: f.key }, { oficial: f.key });
   }
 
   // Cifras del formulario "Agregar para todos": las del alumno o las de la IA
@@ -1614,7 +1844,8 @@ function AlimentoPropio({ a, onListo }) {
         const p = formDesdePropuesta(propuestaIA, base.nombre);
         return { ...p, nombre: base.nombre, menu_uso: base.menu_uso };
       }
-      return { ...base, ...cifrasAlumno };
+      // Los números del alumno casi siempre salen de la etiqueta del producto.
+      return { ...base, ...cifrasAlumno, fuente: base.fuente || 'Etiqueta del producto' };
     });
   }
 
@@ -1630,6 +1861,7 @@ function AlimentoPropio({ a, onListo }) {
       {ri?.ia && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
           {a.revision === 'dudoso' && <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no está segura. Decide tú:</p>}
+          {a.revision === 'dudoso' && <div className="my-1"><RecomendacionIA texto={recomendacionPropio(ri)} /></div>}
           {ri.nota && <p className="jb-body text-[11px] text-zinc-400 mt-0.5">🤖 {ri.nota}</p>}
           <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">🤖 La IA estima: {n(ri.ia.kcal)} kcal · P {n(ri.ia.proteina)} g · C {n(ri.ia.carbos)} g · G {n(ri.ia.grasa)} g</p>
           {porIA && a.revision === 'corregido' && ri.antes && (
@@ -1684,9 +1916,9 @@ function AlimentoPropio({ a, onListo }) {
               </button>
             ))}
           </div>
-          <FormAlimento form={paraTodos} setForm={setParaTodos} />
+          <FormAlimento form={paraTodos} setForm={setParaTodos} onEsEste={marcarExiste} />
           <div className="flex gap-2">
-            <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === ''} className={btnPrimary + ' text-sm py-2 flex-1'}>
+            <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === '' || !paraTodos.fuente} className={btnPrimary + ' text-sm py-2 flex-1'}>
               {ocupado ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
             </button>
             <button onClick={() => setParaTodos(null)} className={btnGhost + ' text-sm py-2'}>Cancelar</button>
@@ -1721,17 +1953,18 @@ function AlimentoPropio({ a, onListo }) {
             </>
           ) : (
             <>
-              {a.revision !== 'ok' && <button disabled={ocupado} onClick={() => marcar('ok')} className={btnGhost + ' text-xs py-1.5 px-3'}>✓ Está bien</button>}
-              <button disabled={ocupado} onClick={() => setEditando(true)} className={btnGhost + ' text-xs py-1.5 px-3'}>✏️ Corregir</button>
+              {a.revision !== 'ok' && !candidato && <button disabled={ocupado} onClick={() => marcar('ok')} className={btnGhost + ' text-xs py-1.5 px-3'}>✓ Está bien</button>}
+              {!candidato && <button disabled={ocupado} onClick={() => setEditando(true)} className={btnGhost + ' text-xs py-1.5 px-3'}>✏️ Corregir</button>}
               {!ia && <button disabled={ocupado} onClick={compararIA} className={btnGhost + ' text-xs py-1.5 px-3'}>{ocupado ? <Loader2 size={13} className="animate-spin" /> : '🤖 Comparar con la IA'}</button>}
               {a.revision !== 'existe' && (
                 <button disabled={ocupado} onClick={() => setExiste(String(ia?.ya_existe || a.nombre).replace(/[()'"]/g, ' ').trim())}
                   className={btnGhost + ' text-xs py-1.5 px-3'}>🔗 Ya existe en la app</button>
               )}
               {a.revision !== 'aprobado' && (
-                <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno }); }}
+                <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }}
                   className={btnGhost + ' text-xs py-1.5 px-3'}>➕ Agregar para todos</button>
               )}
+              {candidato && <button disabled={ocupado} onClick={soloParaEl} className={btnGhost + ' text-xs py-1.5 px-3'}>✕ Dejarlo solo para él</button>}
             </>
           )}
         </div>
@@ -8006,7 +8239,7 @@ function WhatsAppPanel() {
       else {
         const nuevos = [...lista, { role: 'assistant', content: d.texto || '(sin respuesta)' }];
         if (d.pasar) nuevos.push({ role: 'nota', content: `🙋 Aquí te pasaría el chat y te llegaría un aviso: ${d.pasar.resumen}` });
-        if (d.pedido) nuevos.push({ role: 'nota', content: `🍽️ Anotaría el pedido "${d.pedido}" en Pedidos de alimentos.` });
+        if (d.pedido) nuevos.push({ role: 'nota', content: `🍽️ Anotaría el pedido "${d.pedido}" en Alimentos por revisar.` });
         setSimMensajes(nuevos);
       }
     } catch (e) {
@@ -8382,7 +8615,6 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <PagosPanel />
             <PedidosAlimentosPanel />
             <RevisionDiaria />
-            <AlimentosPropiosPanel />
             <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
             <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
             {/* Listas de a quién escribirle (antes estaban en NEGOCIO). */}

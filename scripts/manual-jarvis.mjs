@@ -1,5 +1,8 @@
 // Copia a las funciones de Supabase lo que necesitan del repo (Supabase no
 // puede leer archivos del repo cuando corre):
+//  * la lista de alimentos de src/App.jsx → api/_lib/alimentos-app.js (nombre
+//    y calorías, para buscar repetidos en la revisión de cada lunes:
+//    api/cron/verificar-alimentos.js);
 //  * la lista de alimentos de src/App.jsx → alimentos.ts, en whatsapp-webhook
 //    (para que el asistente sepa qué platos ya existen) y en alimentos-pedidos
 //    (para no agregar dos veces el mismo alimento; ahí van también los usos
@@ -58,8 +61,22 @@ export const GRUPOS_APP: string[] = ${JSON.stringify(grupos)};
 export const ALIMENTOS_APP: string[] = ${JSON.stringify(alimentos, null, 0).replace(/","/g, '",\n  "').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]')};
 `;
 
+// Nombre como sale en la app y calorías por 100 g (4º número de cada fila).
+const conKcal = [...bloque.matchAll(/^\s*\["([^"]+)","([^"]+)","([^"]*)",\s*([\d.]+)/gm)]
+  .map(([, , nombre, estado, kcal]) => ({ etiqueta: estado && estado !== '-' ? `${nombre} (${estado.toLowerCase()})` : nombre, kcal: Number(kcal) }));
+if (conKcal.length !== alimentos.length) {
+  console.error('✗ No se pudieron leer las calorías de todos los alimentos de RAW_FOODS.');
+  process.exit(1);
+}
+
 const lista = (a) => JSON.stringify(a, null, 0).replace(/","/g, '",\n  "').replace(/^\[/, '[\n  ').replace(/\]$/, ',\n]');
 const destinos = [
+  { ruta: 'api/_lib/alimentos-app.js', contenido: `// Generado desde RAW_FOODS de src/App.jsx con "npm run manual-jarvis". No editar a mano.
+// Nombre como sale en la app y calorías por 100 g (lo usa api/cron/verificar-alimentos.js).
+export const ALIMENTOS_APP = [
+${conKcal.map(a => '  ' + JSON.stringify(a)).join(',\n')},
+];
+` },
   { ruta: 'supabase/functions/whatsapp-webhook/alimentos.ts', contenido: contenidoAlimentos },
   // USOS_MENU: para qué puede servir un alimento en el menú del día (src/menuDia.js).
   { ruta: 'supabase/functions/alimentos-pedidos/alimentos.ts', contenido: contenidoAlimentos + `export const CLAVES_APP: string[] = ${lista(claves)};\n`

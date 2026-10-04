@@ -72,6 +72,7 @@ import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
+import { horaLimiteAlimento, horaPeruCorta, minutosHasta } from './plazos.js';
 import { analizarProgreso, historialDePeso, corregirHistorial } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -5836,10 +5837,16 @@ function PedidosResueltosCard({ username, oculto = false }) {
   const clave = 'jb-pedidos-vistos:' + username;
   const [pedidos, setPedidos] = useState([]);
   useEffect(() => {
-    let desde = null;
-    try { desde = localStorage.getItem(clave); } catch {}
-    supabase.rpc('mis_pedidos_resueltos', { p_desde: desde || new Date(Date.now() - 7 * 86400000).toISOString() })
-      .then(({ data }) => setPedidos(Array.isArray(data) ? data : []), () => {});
+    function cargar() {
+      let desde = null;
+      try { desde = localStorage.getItem(clave); } catch {}
+      supabase.rpc('mis_pedidos_resueltos', { p_desde: desde || new Date(Date.now() - 7 * 86400000).toISOString() })
+        .then(({ data }) => setPedidos(Array.isArray(data) ? data : []), () => {});
+    }
+    cargar();
+    // "Tus pedidos en camino" avisa cuando a uno le llegó la respuesta.
+    window.addEventListener('jb-pedidos-resueltos', cargar);
+    return () => window.removeEventListener('jb-pedidos-resueltos', cargar);
   }, [clave]);
   if (!pedidos.length || oculto) return null;
   function listo() {
@@ -5867,6 +5874,113 @@ function PedidosResueltosCard({ username, oculto = false }) {
   );
 }
 
+/* 🕐 TUS PEDIDOS EN CAMINO: lo que pidió (🙋 "Pedirle a Jonah" o desde la
+   foto) y la IA le dejó a Jonah, y los alimentos que creó y Jonah está
+   revisando. Muestra en qué paso va y antes de qué hora le respondemos (1
+   hora; de noche, antes de las 8am: src/plazos.js). Los pedidos se anotan
+   en este celular al pedirlos y salen de aquí cuando ya tienen respuesta
+   (la respuesta se ve en "Novedades de tus pedidos"). */
+const claveEnCamino = u => 'jb-pedidos-en-camino:' + u;
+function leerEnCamino(username) {
+  try { return JSON.parse(localStorage.getItem(claveEnCamino(username)) || '[]').filter(p => Date.now() - p.en < 3 * 864e5); } catch { return []; }
+}
+function guardarEnCamino(username, lista) {
+  try { localStorage.setItem(claveEnCamino(username), JSON.stringify(lista)); } catch {}
+  try { window.dispatchEvent(new Event('jb-pedidos-en-camino')); } catch {}
+}
+function anotarPedidoEnCamino(username, nombre) {
+  if (!username || !nombre) return;
+  const lista = leerEnCamino(username).filter(p => p.nombre.toLowerCase() !== nombre.toLowerCase());
+  guardarEnCamino(username, [...lista, { nombre, en: Date.now() }]);
+}
+
+function PasosPedido({ paso }) {
+  // paso: 1 recibido, 2 la IA lo revisa, 3 Jonah lo revisa, 4 listo
+  const pasos = ['Recibido', 'La IA lo revisó', 'Jonah lo revisa', 'Listo'];
+  return (
+    <div className="grid grid-cols-4 gap-1 mt-2">
+      {pasos.map((t, i) => {
+        const n = i + 1;
+        const hecho = n < paso, ahora = n === paso;
+        return (
+          <div key={t} className="flex flex-col items-center gap-1 min-w-0">
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${hecho ? 'bg-emerald-500 text-zinc-950' : ahora ? 'bg-orange-500 text-zinc-950 animate-pulse' : 'bg-zinc-800 text-zinc-500'}`}>
+              {hecho ? '✓' : n}
+            </span>
+            <span className={`jb-body text-[10px] leading-tight text-center ${hecho ? 'text-emerald-400' : ahora ? 'text-orange-400 font-semibold' : 'text-zinc-600'}`}>{t}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PedidosEnCaminoCard({ username, oculto = false }) {
+  const [pedidos, setPedidos] = useState(() => leerEnCamino(username));
+  const [propios, setPropios] = useState([]);
+  const [, setTick] = useState(0);
+
+  async function revisar() {
+    let lista = leerEnCamino(username);
+    if (lista.length) {
+      // Los que ya tienen respuesta salen de aquí.
+      const desde = new Date(Math.min(...lista.map(p => p.en)) - 60000).toISOString();
+      const { data } = await supabase.rpc('mis_pedidos_resueltos', { p_desde: desde });
+      if (Array.isArray(data) && data.length) {
+        const listos = new Set(data.map(p => String(p.nombre || '').toLowerCase()));
+        const quedan = lista.filter(p => !listos.has(p.nombre.toLowerCase()));
+        if (quedan.length !== lista.length) {
+          lista = quedan;
+          guardarEnCamino(username, quedan);
+          try { window.dispatchEvent(new Event('jb-pedidos-resueltos')); } catch {}
+        }
+      }
+    }
+    setPedidos(lista);
+    const { data: creados } = await supabase.from('alimentos_personales').select('id, nombre, created_at, editado_en')
+      .eq('username', username).eq('revision', 'dudoso').is('reemplazo', null)
+      .gte('created_at', new Date(Date.now() - 2 * 864e5).toISOString()).limit(5);
+    setPropios(creados || []);
+  }
+  useEffect(() => {
+    revisar().catch(() => {});
+    const alAnotar = () => setPedidos(leerEnCamino(username));
+    window.addEventListener('jb-pedidos-en-camino', alAnotar);
+    // Cada minuto: avanza el reloj y revisa si ya hay respuesta.
+    const t = setInterval(() => { setTick(v => v + 1); revisar().catch(() => {}); }, 60000);
+    return () => { window.removeEventListener('jb-pedidos-en-camino', alAnotar); clearInterval(t); };
+  }, [username]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const items = [
+    ...pedidos.map(p => ({ id: 'p' + p.nombre, nombre: p.nombre, desde: p.en, propio: false })),
+    ...propios.map(a => ({ id: 'a' + a.id, nombre: a.nombre, desde: a.editado_en || a.created_at, propio: true })),
+  ];
+  if (!items.length || oculto) return null;
+  return (
+    <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-3">
+      <p className="jb-display text-sm text-zinc-50 mb-1">🕐 TUS PEDIDOS EN CAMINO</p>
+      <div className="flex flex-col divide-y divide-zinc-800">
+        {items.map(i => {
+          const limite = horaLimiteAlimento(i.desde);
+          const tarde = minutosHasta(limite) < 0;
+          return (
+            <div key={i.id} className="py-2.5">
+              <p className="jb-body text-sm text-zinc-100 font-semibold break-words">{i.nombre}</p>
+              <PasosPedido paso={3} />
+              <p className="jb-body text-[11px] text-zinc-400 mt-2 leading-snug">
+                {i.propio ? 'Ya lo puedes usar. Estoy revisando sus números para que tus calorías salgan exactas. ' : ''}
+                {tarde
+                  ? <>Me estoy demorando un poquito más de lo prometido, ya casi te respondo 🙏</>
+                  : <>Te respondo antes de las <b className="text-orange-400">{horaPeruCorta(limite)}</b> 💪</>}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* permitirPedido: muestra "Pedirle a Jonah" (no tiene sentido, por ejemplo,
    en "Nunca me sugieras esto"). pista: línea bajo el buscador vacío que
    recuerda que se puede pedir un plato que no está. */
@@ -5881,7 +5995,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
 
   /* "Pedirle a Jonah que lo agregue": la IA lo atiende al instante. Si está
      segura, lo agrega a la app (o le dice con qué nombre ya existe) y aquí
-     mismo se le muestra; si no, queda en "Pedidos de alimentos" del panel y,
+     mismo se le muestra; si no, queda en "Alimentos por revisar" del panel y,
      cuando Jonah lo resuelve, le avisamos al alumno. */
   async function pedirAJonah() {
     const nombre = texto.trim().slice(0, 80);
@@ -5905,8 +6019,15 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
         setPedido(p => p?.nombre === nombre ? { estado: 'existe', nombre, alimento: data.ya_existe } : p);
       } else if (data?.estado === 'descartado' && data.por_partes?.length) {
         setPedido(p => p?.nombre === nombre ? { estado: 'partes', nombre, partes: data.por_partes } : p);
+      } else if (data?.estado !== 'descartado') {
+        // La IA se lo dejó a Jonah: queda en "Tus pedidos en camino".
+        anotarPedidoEnCamino(username, nombre);
+        setPedido(p => p?.nombre === nombre ? { estado: 'jonah', nombre, limite: horaLimiteAlimento(Date.now()) } : p);
       }
-    } catch {}
+    } catch {
+      anotarPedidoEnCamino(username, nombre);
+      setPedido(p => p?.nombre === nombre ? { estado: 'jonah', nombre, limite: horaLimiteAlimento(Date.now()) } : p);
+    }
   }
 
   useEffect(() => { setTexto(valor || ''); }, [valor]);
@@ -6007,7 +6128,8 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
       {pedido && (
         <p className={`jb-body text-xs mt-1.5 ${pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
           {pedido.estado === 'enviando' && 'Enviando tu pedido…'}
-          {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! Estamos calculando los macros de <b className="text-orange-400">{pedido.nombre}</b>. Te avisamos apenas esté en la app 💪</>}
+          {pedido.estado === 'ok' && <>🍽️ ¡Buen pedido! La IA está revisando <b className="text-orange-400">{pedido.nombre}</b>…</>}
+          {pedido.estado === 'jonah' && <>🕐 ¡Recibido! Reviso <b className="text-orange-400">{pedido.nombre}</b> yo mismo y te respondo antes de las <b className="text-orange-400">{horaPeruCorta(pedido.limite)}</b>. Mientras, lo ves en "Tus pedidos en camino" en Inicio 💪</>}
           {pedido.estado === 'agregado' && <>✅ ¡Listo! <b className="text-orange-400">{pedido.alimento}</b> ya está en la app. Escríbelo arriba y elígelo 💪</>}
           {pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{pedido.alimento}</b>. Escríbelo así arriba y elígelo 🙌</>}
           {pedido.estado === 'partes' && <>🧩 Regístralo por partes, cada uno con tu cantidad: <b className="text-orange-400">{pedido.partes.join(' + ')}</b>. Así es más exacto y luego te sale en ⭐ Favoritos 💪</>}
@@ -6603,7 +6725,11 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
     setPedidosFoto(v => ({ ...v, [nombre]: 'enviando' }));
     const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
     setPedidosFoto(v => ({ ...v, [nombre]: error && !error.message?.startsWith('Ya enviaste') ? 'error' : 'ok' }));
-    if (!error) supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } }).then(() => cargarAlimentosExtra(true), () => {});
+    if (!error) supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } })
+      .then(({ data }) => {
+        cargarAlimentosExtra(true);
+        if (data?.estado !== 'agregado' && data?.estado !== 'descartado') anotarPedidoEnCamino(username, nombre);
+      }, () => anotarPedidoEnCamino(username, nombre));
   }
   const preguntaNoEncontrados = noEncontrados.length > 0 && (
     <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5 text-left">
@@ -8969,11 +9095,13 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       // Avisos (una vez) de lo que cambió Jonah.
       try {
         const visto = localStorage.getItem('jb_alim_corregido_visto') || '';
-        const nuevos = filas.filter(a => (a.revision === 'corregido' || a.revision === 'existe') && a.revisado_en && a.revisado_en > visto);
+        const nuevos = filas.filter(a => ['corregido', 'existe', 'aprobado'].includes(a.revision) && a.revisado_en && a.revisado_en > visto);
         if (nuevos.length) {
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
-          showToast(oficial
+          showToast(oficial && a.revision === 'aprobado'
+            ? `➕ ¡Gracias! Jonah revisó "${a.nombre}" y ya está en la app para todos. Tus comidas ya se actualizaron.`
+            : oficial
             ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
             : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
@@ -10827,6 +10955,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         )}
         {/* En Inicio, las novedades de pedidos van con los demás avisos
             (debajo del anillo); en las otras pestañas, arriba. */}
+        {tab !== 'dash' && <PedidosEnCaminoCard username={username} oculto={tab === 'planes'} />}
         {tab !== 'dash' && <PedidosResueltosCard username={username} oculto={tab === 'planes'} />}
       </div>
 
@@ -10858,6 +10987,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           const avisos = (
             <div className="jb-avisos-inicio">
               <PesajeCard form={form} setForm={setForm} />
+              <PedidosEnCaminoCard username={username} />
               <PedidosResueltosCard username={username} />
               <TuSemanaCard username={username} nombre={userRecord?.nombre} />
               {versionGratis ? <GratisBanner onVerPremium={() => setTab('planes')} />

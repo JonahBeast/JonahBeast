@@ -479,7 +479,7 @@ async function registrarPedido(telefono: string, alumno: any, nombreWa: string |
       headers: { "Content-Type": "application/json", "x-webhook-secret": AVISO_SECRETO },
       body: JSON.stringify({
         admin: true,
-        body: `🍽️ ${quien || "+" + telefono} pide agregar "${alimento}" a la app. Revísalo en Pedidos de alimentos.`,
+        body: `🍽️ ${quien || "+" + telefono} pide agregar "${alimento}" a la app. Revísalo en HOY → Alimentos por revisar.`,
       }),
     });
   } catch (e) {

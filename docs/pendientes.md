@@ -13,6 +13,9 @@
 
 ## En curso
 
+- **Alimentos por revisar y base limpia (PR #300).** Después del merge: publicar `alimentos-pedidos` y `whatsapp-webhook` con el código de `main` (la columna `alimentos_extra.fuente` ya está creada) y recordarle a Jonah tocar "🔄 Actualizar manual de Jarvis". Quedan por decidir en la bandeja: "Sangrecita" y "Pollo sancochado" de christopher.amt17. Revisar si "Chocolate con leche batido (taza)" (86 kcal) se confunde con "Chocolate con leche" de barra (535 kcal).
+- **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
+
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
 ## Anuncios (análisis del 4 de octubre, últimos 30 días)

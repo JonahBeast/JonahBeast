@@ -171,7 +171,9 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Pie de la pantalla (letra pequeña):** "Política de Privacidad" · (en el celular) "🔊 Quitar sonidos" / "🔇 Activar sonidos" · **"🔠 Letra grande"** (o "🔠 Quitar letra grande" si ya lo tiene; ver 7.1) · "Activar notificaciones" · "Agregar mi celular" / "Actualizar mi celular" · "Eliminar mi cuenta".
 
-**Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan."
+**Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan." En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**.
+
+**Elegir la comida** (Desayuno, Media mañana, Almuerzo, Media tarde, Cena): en toda la app se ve igual, una fila de botones que se desliza de lado; el elegido en naranja y un puntito en la comida de la hora.
 
 **Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄).
 
@@ -693,6 +695,9 @@ En **"Comunidad"** → **"Muro"**: el lugar donde toda la comunidad Jonah Beast 
   Los logros propios salen con "Tú" y con borde naranja.
 - **📸 Fotos de platos** que comparten los alumnos (ver 9.3): "[Nombre] compartió su plato", con la foto, la frase y lo que registró con su cantidad. Debajo, a la derecha, **"Reportar"** (pregunta "¿REPORTAR ESTA FOTO?" antes de enviarlo) (para fotos que no son de comida o que incomodan): pide confirmar y la foto desaparece para quien la reportó; **con 2 reportes se oculta para todos** y Jonah la revisa.
 - **Nunca se muestra el peso, los kilos ni las calorías de nadie.** Solo el nombre corto (ej. "Rosa M.").
+- **Tocar una foto de plato** la abre en grande (toca otra vez para cerrar).
+- **Publicaciones nuevas:** el muro revisa cada minuto; si hay nuevas, arriba sale **"↑ N publicaciones nuevas"** (tócala para verlas). Deslizando hacia abajo estando arriba del todo, **el muro se actualiza ahí mismo** (sin recargar toda la app).
+- Si todavía no hay logros, sale el botón **"Únete a un reto 🦍"** (lleva a "Mis equipos").
 
 **Reaccionar:** debajo de cada publicación hay cinco botones con cuántos reaccionaron. En las **fotos de platos**: **😋** (qué rico), **🤤** (se me antoja), **😍** (me encanta), **🔥** y **👏**. En los **logros y anuncios**: **🔥**, **💪**, **👏**, **🥳** (a celebrar) y **🤩** (wow). Un toque pone la reacción (se pinta de naranja) y otro toque la quita. En los logros propios solo se ven las cuentas. Cuando alguien reacciona a un logro, a su dueño le llega un aviso: "[Nombre] reaccionó 🔥 a tu logro. ¡Sigue así!" (o "… reaccionó 😋 a la foto de tu plato.", con el emoji que eligió; como mucho 3 avisos de estos al día).
 

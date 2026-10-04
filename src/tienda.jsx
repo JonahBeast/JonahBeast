@@ -423,9 +423,9 @@ function TiendaPublica({ username, onIrALaApp }) {
                     <div className="text-zinc-500 text-[11px]">{i.varianteNombre} · S/{i.precio.toFixed(2)}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => cambiarCantidad(i.varianteId, -1)} className="w-6 h-6 rounded bg-zinc-800 text-zinc-300">-</button>
+                    <button onClick={() => cambiarCantidad(i.varianteId, -1)} className="w-9 h-9 rounded-lg bg-zinc-800 text-zinc-200 text-lg" aria-label="Uno menos">−</button>
                     <span className="text-zinc-200 text-xs w-4 text-center">{i.cantidad}</span>
-                    <button onClick={() => cambiarCantidad(i.varianteId, 1)} className="w-6 h-6 rounded bg-zinc-800 text-zinc-300">+</button>
+                    <button onClick={() => cambiarCantidad(i.varianteId, 1)} className="w-9 h-9 rounded-lg bg-zinc-800 text-zinc-200 text-lg" aria-label="Uno más">+</button>
                   </div>
                 </div>
               ))}

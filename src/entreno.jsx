@@ -153,8 +153,8 @@ export function EntrenoHoy({ username, form, setForm }) {
             <span className="block jb-body text-[11px] text-zinc-500">Esta semana: {estaSemana} {estaSemana === 1 ? 'entreno' : 'entrenos'}</span>
           </span>
           <span className="ml-auto flex items-center gap-3 shrink-0">
-            <button onClick={editar} className="jb-body text-xs text-orange-400">Editar</button>
-            <button onClick={borrar} className="jb-body text-xs text-zinc-500">Borrar</button>
+            <button onClick={editar} className="jb-body text-xs text-orange-400 px-2 py-2.5 -my-1">Editar</button>
+            <button onClick={borrar} className="jb-body text-xs text-zinc-500 px-2 py-2.5 -my-1">Borrar</button>
           </span>
         </div>
       ) : !hoyNo ? (
@@ -167,7 +167,7 @@ export function EntrenoHoy({ username, form, setForm }) {
           <span className="ml-auto flex items-center gap-3 shrink-0">
             <button onClick={() => { setTipos([]); setMinutos(45); setAbierto(true); }} className={btnPrimary + ' px-3 py-2 text-sm'}>Anotar</button>
             <button onClick={() => { try { localStorage.setItem(CLAVE_HOY_NO, hoy); } catch {} setHoyNo(true); }}
-              className="jb-body text-[11px] text-zinc-500">Hoy no</button>
+              className="jb-body text-xs text-zinc-500 px-2 py-2.5 -my-1">Hoy no</button>
           </span>
         </div>
       ) : null}

@@ -11,7 +11,7 @@
 //   (CompartirPlato). Jonah la aprueba en su panel (a quien ya le aprobó 5
 //   le salen solas); con 2 reportes se oculta sola.
 // - "Mis equipos": los retos en grupo (src/equipo.jsx).
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
@@ -166,16 +166,40 @@ function Muro({ onIrEquipos, onVisto }) {
   const [urls, setUrls] = useState({}); // ruta → enlace temporal de la foto
   const [reportadas, setReportadas] = useState([]);
   const [preguntaPlatos, setPreguntaPlatos] = useState(preguntarCompartirPlato);
+  const [nuevas, setNuevas] = useState(null); // muro más reciente aún no mostrado (pastilla "N nuevas")
+  const [fotoGrande, setFotoGrande] = useState(null);
+  const idsVistos = useRef(new Set());
 
-  async function cargar() {
-    const { r, ok } = await llamar('comunidad_muro');
-    setMuro(ok ? r : { error: true });
-    const rutas = ok ? r.eventos.filter(e => e.tipo === 'foto' && e.ruta).map(e => e.ruta) : [];
+  async function mostrar(r) {
+    setMuro(r);
+    setNuevas(null);
+    idsVistos.current = new Set([...(r.eventos || []), ...(r.anuncios || [])].map(e => e.id));
+    const rutas = r.eventos.filter(e => e.tipo === 'foto' && e.ruta).map(e => e.ruta);
     if (rutas.length) {
       const { data } = await supabase.storage.from('comunidad-fotos').createSignedUrls(rutas, 3600);
       setUrls(Object.fromEntries((data || []).filter(d => d.signedUrl).map(d => [d.path, d.signedUrl])));
     }
   }
+  async function cargar() {
+    const { r, ok } = await llamar('comunidad_muro');
+    if (!ok) { setMuro(m => m && !m.error ? m : { error: true }); return; }
+    await mostrar(r);
+  }
+  // Cada minuto revisa si hay publicaciones nuevas: si hay, sale la
+  // pastilla "↑ N nuevas" (no se mueve lo que estás viendo).
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (document.hidden) return;
+      const { r, ok } = await llamar('comunidad_muro');
+      if (!ok) return;
+      const n = [...(r.eventos || []), ...(r.anuncios || [])].filter(e => !idsVistos.current.has(e.id)).length;
+      if (n > 0) setNuevas({ r, n });
+    }, 60000);
+    // Deslizar hacia abajo arriba del todo: actualiza el muro aquí mismo.
+    const alRecargar = e => { e.preventDefault(); cargar(); };
+    window.addEventListener('jb-recargar', alRecargar);
+    return () => { clearInterval(t); window.removeEventListener('jb-recargar', alRecargar); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function reportar(ev) {
     if (!(await confirmar({ titulo: '¿REPORTAR ESTA FOTO?', texto: 'Si la reportan 2 personas se oculta y Jonah la revisa.', si: 'Reportar', peligro: true }))) return;
@@ -238,6 +262,20 @@ function Muro({ onIrEquipos, onVisto }) {
   const { yo, anuncios, eventos } = muro;
   return (
     <div>
+      {nuevas && (
+        <div className="sticky top-20 z-20 flex justify-center -mb-2 pointer-events-none">
+          <button onClick={() => { vibrar(10); mostrar(nuevas.r); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="pointer-events-auto jb-body text-sm font-semibold text-zinc-950 bg-orange-500 rounded-full px-4 py-2 shadow-lg shadow-orange-900/40">
+            ↑ {nuevas.n === 1 ? '1 publicación nueva' : `${nuevas.n} publicaciones nuevas`}
+          </button>
+        </div>
+      )}
+      {fotoGrande && (
+        <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-3" onClick={() => setFotoGrande(null)} role="dialog" aria-label="Foto en grande">
+          <img src={fotoGrande} alt="Plato" className="max-w-full max-h-full object-contain rounded-xl" />
+          <span className="absolute top-4 right-4 jb-body text-sm text-zinc-300">Toca para cerrar</span>
+        </div>
+      )}
       {!yo.visible && !yo.menor && !yo.decidio && (
         <Tarjeta className="border-orange-500/60 mb-4">
           <p className="jb-display text-lg text-zinc-50 mb-1">¿QUIERES APARECER EN EL MURO?</p>
@@ -291,6 +329,7 @@ function Muro({ onIrEquipos, onVisto }) {
           <p className="jb-body text-sm text-zinc-400">
             Todavía no hay logros en el muro. Registra tus comidas día a día, únete a un reto y aquí lo celebramos juntos. 🦍
           </p>
+          <button onClick={onIrEquipos} className={btnPrimary + ' w-full py-2.5 text-sm mt-3'}>Únete a un reto 🦍</button>
         </Tarjeta>
       ) : (
         <div className="space-y-2">
@@ -306,7 +345,9 @@ function Muro({ onIrEquipos, onVisto }) {
                     </span>
                   </div>
                   {urls[ev.ruta]
-                    ? <img src={urls[ev.ruta]} alt={ev.plato || 'Plato'} loading="lazy" className="w-full max-h-80 object-cover rounded-xl bg-zinc-950" />
+                    ? <button type="button" onClick={() => setFotoGrande(urls[ev.ruta])} className="block w-full" aria-label="Ver la foto en grande">
+                        <img src={urls[ev.ruta]} alt={ev.plato || 'Plato'} loading="lazy" className="w-full max-h-80 object-cover rounded-xl bg-zinc-950" />
+                      </button>
                     : <Skeleton className="w-full h-48 rounded-xl" />}
                   <p className="jb-display text-base text-zinc-50 mt-2">{FRASES_PLATO[ev.detalle] || ''}</p>
                   {ev.plato && (
@@ -316,7 +357,7 @@ function Muro({ onIrEquipos, onVisto }) {
                   )}
                   <div className="flex items-end justify-between gap-2">
                     <Reacciones item={ev} propio={ev.yo} onReaccionar={reaccionar} />
-                    {!ev.yo && <button onClick={() => reportar(ev)} className="jb-body text-[10px] text-zinc-600 hover:text-zinc-400 mb-1">Reportar</button>}
+                    {!ev.yo && <button onClick={() => reportar(ev)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 px-2 py-2 -mr-2">Reportar</button>}
                   </div>
                 </Tarjeta>
               );
@@ -368,7 +409,7 @@ function Reacciones({ item, propio = false, onReaccionar }) {
         if (propio && !n) return null;
         return (
           <button key={r.tipo} onClick={() => !propio && onReaccionar(item.id, r.tipo)} disabled={propio} aria-label={r.texto} title={r.texto}
-            className={`jb-body text-sm px-3 py-1 rounded-full border transition-colors ${mia ? 'border-orange-500 bg-orange-500/15 text-zinc-50' : 'border-zinc-800 text-zinc-300'} ${propio ? '' : 'hover:border-orange-500/60'}`}>
+            className={`jb-body text-base px-3 py-1.5 min-h-[38px] min-w-[44px] rounded-full border transition-colors ${mia ? 'border-orange-500 bg-orange-500/15 text-zinc-50' : 'border-zinc-800 text-zinc-300'} ${propio ? '' : 'hover:border-orange-500/60'}`}>
             {r.emoji}{n > 0 && <span className="ml-1 text-xs">{n}</span>}
           </button>
         );

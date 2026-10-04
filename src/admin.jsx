@@ -5424,16 +5424,24 @@ const GUION_VIDEO_JARVIS = [
 ].join(' ');
 
 async function generarVozVideo(texto, voz) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ texto, voz }),
-  });
+  const pedir = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+      body: JSON.stringify({ texto, voz }),
+    });
+  };
+  let r = await pedir();
+  // Si la sesión quedó vieja (por ejemplo, entraste desde otra pantalla), se renueva y se reintenta una vez.
+  if (r.status === 401) { const { error } = await supabase.auth.refreshSession(); if (!error) r = await pedir(); }
   if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
     let motivo = '';
     try { motivo = (await r.json())?.error || ''; } catch {}
-    throw new Error(motivo === 'sin_clave' ? 'La función de voz no tiene la clave de OpenAI.' : 'No se pudo generar la voz. Intenta de nuevo.');
+    if (r.status === 401 || r.status === 403) throw new Error('Tu sesión de administrador venció. Toca "Salir", vuelve a entrar y prueba de nuevo.');
+    if (motivo === 'sin_clave') throw new Error('La función de voz no tiene la clave de OpenAI.');
+    if (r.status === 502) throw new Error('OpenAI no pudo generar la voz en este momento. Intenta de nuevo en un minuto.');
+    throw new Error('No se pudo generar la voz. Intenta de nuevo.');
   }
   return await r.blob();
 }

@@ -5388,18 +5388,18 @@ const GUION_VIDEO_GUIA = [
 const MAX_CARACTERES_VOZ_VIDEO = 1500;
 // Jonah el gorila (mascota): motivador y enérgico, en primera persona.
 const GUION_VIDEO_GORILA = [
-  '¡Soy Jonah, el gorila! Y hoy te enseño cómo funciona la app. ¡Vamos!',
-  'Primero, respondes cinco preguntas rápidas. ¡Fácil!',
-  'Recibes tu plan, con comida peruana.',
-  'Cada día ves tus calorías, proteína, carbos y grasas.',
-  'Registras en segundos: escribiendo, con foto, con código o con voz.',
+  '¡Soy Jonah, el gorila! ¡Bienvenido al juego! Hoy te enseño cómo funciona la app.',
+  '¡Nivel uno! Responde cinco preguntas rápidas. ¡Fácil!',
+  '¡Nivel dos! Recibe tu plan, con comida peruana.',
+  '¡Nivel tres! Mira tu día: calorías, proteína, carbos y grasas.',
+  '¡Registra en segundos! Escribiendo, con foto, con código o con voz.',
   'Escribe lomo saltado, elige la porción y listo.',
-  '¿Prefieres foto? Tómale foto a tu plato y la inteligencia artificial lo reconoce.',
-  '¿Compraste algo empacado? Escanea el código de barras.',
-  'Mira a la comunidad: rachas, medallas y platos de otros.',
+  '¡Tómale foto a tu plato y la inteligencia artificial lo reconoce!',
+  '¡Escanea el código de barras de lo que compras!',
+  '¡Únete a la comunidad: rachas, medallas y platos de otros!',
   '¡Invita a un amigo! Él gana siete días de Premium, y tú, quince si él paga.',
-  'Poco a poco, comida a comida. ¡Vamos por tus metas, tú puedes!',
-  'Pruébala gratis: el link está en mi perfil.',
+  '¡Poco a poco, comida a comida! ¡Tú puedes, vamos por tus metas!',
+  '¡Pruébala gratis, el link está en mi perfil!',
 ].join(' ');
 // Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
 // (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
@@ -5437,19 +5437,109 @@ async function generarVozVideo(texto, voz) {
   }
   return await r.blob();
 }
+/* Efecto de personaje "gorila de videojuego", hecho en el navegador (Web
+   Audio): baja el tono, agrega graves y rugido, golpes de pecho al inicio y
+   un sonido de "nivel superado" al final. Devuelve un WAV. */
+const EFECTOS_GORILA = {
+  suave: { nombre: 'Gorila suave', tono: 0.9, rugido: 0, graves: 6 },
+  medio: { nombre: 'Gorila medio', tono: 0.8, rugido: 0.3, graves: 9 },
+  monstruo: { nombre: 'Gorila monstruo', tono: 0.7, rugido: 0.6, graves: 12 },
+};
+function curvaRugido(k) {
+  const n = 2048, c = new Float32Array(n), g = 1 + k * 10;
+  for (let i = 0; i < n; i++) c[i] = Math.tanh(((i * 2) / n - 1) * g) / Math.tanh(g);
+  return c;
+}
+function notaJuego(ctx, t, f, dur, vol = 0.16) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+function golpePecho(ctx, t) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.2);
+  g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.32);
+  const len = Math.floor(ctx.sampleRate * 0.09), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const r = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), gn = ctx.createGain();
+  r.buffer = b; lp.type = 'lowpass'; lp.frequency.value = 700; gn.gain.value = 0.18;
+  r.connect(lp).connect(gn).connect(ctx.destination); r.start(t);
+}
+function audioBufferAWav(buf) {
+  const nCh = buf.numberOfChannels, len = buf.length, sr = buf.sampleRate;
+  const v = new DataView(new ArrayBuffer(44 + len * nCh * 2));
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + len * nCh * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, len * nCh * 2, true);
+  const chs = Array.from({ length: nCh }, (_, c) => buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < nCh; c++) { const x = Math.max(-1, Math.min(1, chs[c][i])); v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2; }
+  return new Blob([v], { type: 'audio/wav' });
+}
+async function aplicarEfectoGorila(blob, { nivel, pecho, nivelSuperado }) {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const SR = 44100;
+  const buf = await new OAC(1, 1, SR).decodeAudioData(await blob.arrayBuffer());
+  const cfg = EFECTOS_GORILA[nivel] || null;
+  const tono = cfg ? cfg.tono : 1;
+  const pre = pecho ? 1.1 : 0.05, dur = buf.duration / tono, post = nivelSuperado ? 1.8 : 0.4;
+  const ctx = new OAC(2, Math.ceil((pre + dur + post) * SR), SR);
+  const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = tono;
+  let nodo = src;
+  if (cfg) {
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 55;
+    const graves = ctx.createBiquadFilter(); graves.type = 'lowshelf'; graves.frequency.value = 170; graves.gain.value = cfg.graves;
+    const medios = ctx.createBiquadFilter(); medios.type = 'peaking'; medios.frequency.value = 1600; medios.Q.value = 0.9; medios.gain.value = 3;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18;
+    nodo.connect(hp); nodo = hp; nodo.connect(graves); nodo = graves;
+    if (cfg.rugido > 0) { const sh = ctx.createWaveShaper(); sh.curve = curvaRugido(cfg.rugido); sh.oversample = '2x'; nodo.connect(sh); nodo = sh; }
+    nodo.connect(medios); nodo = medios; nodo.connect(comp); nodo = comp;
+  }
+  const salida = ctx.createGain(); salida.gain.value = cfg ? 0.6 : 0.9;
+  nodo.connect(salida); salida.connect(ctx.destination);
+  const eco = ctx.createDelay(0.5); eco.delayTime.value = 0.07; const ecoG = ctx.createGain(); ecoG.gain.value = cfg ? 0.16 : 0;
+  salida.connect(eco); eco.connect(ecoG); ecoG.connect(ctx.destination);
+  src.start(pre);
+  if (pecho) { golpePecho(ctx, 0.1); golpePecho(ctx, 0.55); }
+  if (nivelSuperado) {
+    const t0 = pre + dur + 0.1;
+    [523, 659, 784, 1047, 1319].forEach((f, i) => notaJuego(ctx, t0 + i * 0.09, f, 0.12));
+    notaJuego(ctx, t0 + 0.5, 1568, 0.5, 0.18);
+  }
+  return audioBufferAWav(await ctx.startRendering());
+}
+
 function VozParaVideosPanel() {
   const [texto, setTexto] = useState(GUION_VIDEO_GUIA);
   const [voz, setVoz] = useState('friday');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const [audio, setAudio] = useState(null); // { blob, url, nombre }
+  const [nivel, setNivel] = useState('medio'); // ninguno | suave | medio | monstruo
+  const [pecho, setPecho] = useState(true);
+  const [nivelSuperado, setNivelSuperado] = useState(true);
+  const [procesando, setProcesando] = useState(false);
+  const [conEfecto, setConEfecto] = useState(null); // { blob, url, nombre }
   useEffect(() => () => { if (audio?.url) URL.revokeObjectURL(audio.url); }, [audio]);
+  useEffect(() => () => { if (conEfecto?.url) URL.revokeObjectURL(conEfecto.url); }, [conEfecto]);
+  async function aplicarEfecto() {
+    setProcesando(true); setError('');
+    try {
+      const wav = await aplicarEfectoGorila(audio.blob, { nivel, pecho, nivelSuperado });
+      setConEfecto({ blob: wav, url: URL.createObjectURL(wav), nombre: `voz-${voz}-gorila-${nivel}.wav` });
+    } catch (e) { setError('No se pudo aplicar el efecto en este navegador.'); }
+    setProcesando(false);
+  }
   const n = texto.length;
   async function generar() {
     setOcupado(true); setError('');
     try {
       const blob = await generarVozVideo(texto.trim(), voz);
       setAudio({ blob, url: URL.createObjectURL(blob), nombre: `voz-${voz}.mp3` });
+      setConEfecto(null);
     } catch (e) { setError(e.message || 'No se pudo generar la voz.'); }
     setOcupado(false);
   }
@@ -5471,7 +5561,7 @@ function VozParaVideosPanel() {
         <span className="flex items-center gap-3 flex-wrap justify-end">
           <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
-          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('gorila'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('medio'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
       </div>
       <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
@@ -5481,7 +5571,7 @@ function VozParaVideosPanel() {
         </select>
       </label>
       {voz.startsWith('gorila') && (
-        <p className="jb-body text-[11px] text-amber-400">🦍 Las voces del gorila suenan de verdad cuando se publica la función de voz nueva (después de unir el cambio). Antes de eso, sonarán como Jarvis.</p>
+        <p className="jb-body text-[11px] text-amber-400">🦍 Esta voz suena de verdad cuando se publica la función de voz nueva (después de unir el cambio). Mientras tanto, usa Onyx con el efecto de gorila de abajo.</p>
       )}
       <button onClick={generar} disabled={ocupado || !texto.trim()} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
         {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🎙️ Generar voz'}
@@ -5493,6 +5583,28 @@ function VozParaVideosPanel() {
           <div className="flex flex-wrap gap-2">
             <a href={audio.url} download={audio.nombre} className={btnGhost + ' text-sm py-2 px-4'}>⬇️ Descargar mp3</a>
             {puedeCompartir && <button onClick={compartir} className={btnGhost + ' text-sm py-2 px-4'}>📤 Compartir / guardar</button>}
+          </div>
+          <div className="mt-2 border-t border-zinc-800 pt-3 flex flex-col gap-2">
+            <p className="jb-display text-sm text-zinc-200">🦍🎮 EFECTO DE GORILA DE VIDEOJUEGO</p>
+            <p className="jb-body text-[11px] text-zinc-500">Baja el tono, agrega graves y rugido, golpes de pecho al inicio y el sonido de "nivel superado" al final. Escúchalo y prueba otro nivel hasta que te guste.</p>
+            <select value={nivel} onChange={e => setNivel(e.target.value)}
+              className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
+              <option value="suave">Gorila suave</option>
+              <option value="medio">Gorila medio</option>
+              <option value="monstruo">Gorila monstruo (muy grave)</option>
+              <option value="ninguno">Sin efecto en la voz (solo los sonidos)</option>
+            </select>
+            <label className="jb-body text-xs text-zinc-300 flex items-center gap-2"><input type="checkbox" checked={pecho} onChange={e => setPecho(e.target.checked)} /> 🥁 Golpes de pecho al inicio</label>
+            <label className="jb-body text-xs text-zinc-300 flex items-center gap-2"><input type="checkbox" checked={nivelSuperado} onChange={e => setNivelSuperado(e.target.checked)} /> 🎮 Sonido de «nivel superado» al final</label>
+            <button onClick={aplicarEfecto} disabled={procesando} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
+              {procesando ? <Loader2 size={15} className="animate-spin" /> : '🦍 Aplicar y escuchar'}
+            </button>
+            {conEfecto && (
+              <div className="flex flex-col gap-2">
+                <audio src={conEfecto.url} controls className="w-full" />
+                <a href={conEfecto.url} download={conEfecto.nombre} className={btnGhost + ' text-sm py-2 px-4 self-start'}>⬇️ Descargar con efecto (WAV)</a>
+              </div>
+            )}
           </div>
         </div>
       )}

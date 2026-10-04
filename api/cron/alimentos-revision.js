@@ -21,6 +21,8 @@ import { verificarCronSecret, getSupabase, setupWebPush, enviarPushA } from '../
 
 const PERU_MS = 5 * 60 * 60 * 1000;
 const AVISAR_ANTES_MS = 20 * 60 * 1000;
+// Igual que PLAZOS_DESDE de src/plazos.js: lo de antes no tiene plazo.
+const PLAZOS_DESDE = Date.parse('2026-10-04T16:30:00Z');
 
 // Igual que horaLimiteAlimento de src/plazos.js.
 function horaLimite(desde) {
@@ -38,7 +40,7 @@ function horaLimite(desde) {
 async function recordarPlazos() {
   const supabase = getSupabase();
   const ahora = Date.now();
-  const toca = desde => desde && ahora >= horaLimite(desde) - AVISAR_ANTES_MS;
+  const toca = desde => desde && new Date(desde).getTime() >= PLAZOS_DESDE && ahora >= horaLimite(desde) - AVISAR_ANTES_MS;
   const [{ data: pedidos }, { data: creados }, { data: admin }] = await Promise.all([
     supabase.from('pedidos_alimentos').select('id, nombre, propuesta, solicitantes')
       .eq('estado', 'pendiente').eq('propuesta->>ia_estado', 'dudoso').range(0, 99),

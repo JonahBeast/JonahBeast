@@ -299,6 +299,7 @@ const SINONIMOS: Record<string, string> = {
   frita: "frito", fritos: "frito", fritas: "frito", horneada: "horneado", asada: "asado", crudo: "crudo", cruda: "crudo",
   sangre: "sangrecita",
 };
+const ESTADOS = new Set(["cocido", "crudo", "frito", "horneado", "tostado", "tostada", "natural"]);
 function palabrasAlimento(texto: string) {
   return [...new Set(String(texto || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
     .split(/[^a-zñ0-9]+/).filter(Boolean)
@@ -315,7 +316,9 @@ function parecido(a: string, b: string) {
   if (!comunes) return 0;
   const jaccard = comunes / new Set([...A, ...B]).size;
   const corto = Math.min(A.length, B.length);
-  return Math.max(jaccard, corto >= 2 && comunes === corto ? 0.75 : 0);
+  const [chico, grande] = A.length <= B.length ? [A, B] : [B, A];
+  const soloEstado = chico.length === 1 && grande.includes(chico[0]) && grande.every((p) => p === chico[0] || ESTADOS.has(p)) ? 0.75 : 0;
+  return Math.max(jaccard, corto >= 2 && comunes === corto ? 0.75 : 0, soloEstado);
 }
 // Los que se parecen MUCHO (la IA no lo agrega sola: lo decide Jonah).
 async function muyParecidos(etiqueta: string) {

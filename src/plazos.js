@@ -5,6 +5,10 @@
    api/cron/alimentos-revision.js repite esta misma regla para el
    recordatorio de los 40 minutos. Perú no cambia de hora: siempre UTC-5. */
 export const PLAZO_ALIMENTO_MS = 60 * 60 * 1000;
+// La regla empezó el 4 de octubre de 2026 (11:30am Perú): lo que llegó antes
+// no tiene reloj (nadie le prometió esa hora al alumno).
+export const PLAZOS_DESDE = Date.parse('2026-10-04T16:30:00Z');
+export const tienePlazo = desde => !!desde && new Date(desde).getTime() >= PLAZOS_DESDE;
 const PERU_MS = 5 * 60 * 60 * 1000;
 
 export function horaLimiteAlimento(desde) {

@@ -41,7 +41,7 @@ import {
   todayISO,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
-import { horaLimiteAlimento, horaPeruCorta, minutosHasta } from './plazos.js';
+import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
 import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
@@ -800,6 +800,17 @@ function PedidoAlimento({ pedido, onResuelto }) {
         <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no estuvo segura, así que no lo agregó sola. Decide tú:</p>
       )}
       <RecomendacionIA texto={recomendacionPedido(propuesta)} />
+      {/* Si ya existe (o se parece mucho a uno), la acción recomendada es
+          responderle con qué nombre buscarlo: un solo botón grande. */}
+      {!descartando && (propuesta?.ya_existe || propuesta?.parecidos?.length > 0) && (
+        <button onClick={() => {
+          const nombreApp = propuesta.ya_existe || propuesta.parecidos[0];
+          setRespuesta(`Ya estaba en la app como "${nombreApp}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+          setDescartando(true);
+        }} className={btnPrimary + ' text-sm py-2.5 w-full'}>
+          ✅ Responderle: ya existe como "{propuesta.ya_existe || propuesta.parecidos[0]}"
+        </button>
+      )}
       {/* Solo lo vio la IA en una foto: nadie lo pidió y la IA puede haber
           confundido el plato. Mejor preguntarle al alumno antes de aprobar. */}
       {(pedido.solicitantes || []).length > 0 && (pedido.solicitantes || []).every(s => s.origen === 'foto') && (
@@ -1527,11 +1538,27 @@ function recomendacionPedido(p) {
 }
 
 // Y con un alimento que creó un alumno.
-function recomendacionPropio(ri) {
-  if (!ri?.ia) return null;
-  if (ri.veredicto === 'ya_existe' && ri.ya_existe) return `🔗 Ya existe en la app como "${ri.ya_existe}": toca "Ya existe en la app" y elígelo.`;
-  if (ri.veredicto === 'bien' || ri.veredicto === 'corregir') return `➕ Agregarlo para todos con los números de la IA (${Math.round(ri.ia.kcal)} kcal por 100 g): toca "Agregar para todos" → "🤖 La IA". Así la base crece y su alimento pasa a ser el oficial.`;
-  return '💬 La IA no reconoce bien el alimento. Si no sabes qué es, pregúntale al alumno de qué marca es o cómo lo prepara.';
+/* Y con un alimento que creó un alumno: qué conviene hacer, con una sola
+   acción lista para tocar. Antes de sugerir "agregar para todos" se busca
+   si ya hay uno igual en la app con otro nombre (src/parecidos.js); si hay
+   varios igual de parecidos, gana el de calorías más cercanas a lo que
+   estima la IA ("Pollo sancochado" ≈ 165 kcal → "Pollo pechuga (cocida)").
+   Devuelve { tipo: 'existe' | 'corregir' | 'para_todos' | null, texto, food?, cifras? }. */
+function recomendacionPropio(a, ri) {
+  const base = FOODS.filter(f => !f.esPersonal && !f.esProducto).map(f => ({ etiqueta: etiquetaFood(f), f }));
+  const kcalRef = Number(ri?.ia?.kcal) || Number(a.kcal) || 0;
+  let food = null;
+  if (ri?.ya_existe) food = FOODS.find(f => f.key === ri.ya_existe || etiquetaFood(f).toLowerCase() === String(ri.ya_existe).toLowerCase()) || null;
+  if (!food) {
+    const muy = alimentosParecidos(a.nombre, base, 6).filter(x => x.parecido >= 0.75);
+    const top = muy.length ? muy[0].parecido : 0;
+    food = muy.filter(x => x.parecido === top).sort((x, y) => Math.abs(x.f.kcal - kcalRef) - Math.abs(y.f.kcal - kcalRef))[0]?.f || null;
+  }
+  if (food) return { tipo: 'existe', food, texto: `🔗 Ya está en la app como "${food.key}" (${Math.round(food.kcal)} kcal por 100 g). Únelo con ese: sus comidas usan los datos correctos y la base no se llena de repetidos.` };
+  if (!ri?.ia) return { tipo: null, texto: null };
+  if (ri.veredicto === 'corregir') return { tipo: 'corregir', cifras: ri.ia, texto: `✏️ Sus números están mal. Corrígelos con los de la IA (${Math.round(ri.ia.kcal)} kcal por 100 g): sus comidas se recalculan solas.` };
+  if (ri.veredicto === 'bien') return { tipo: 'para_todos', texto: `➕ Sus números están bien y no existe en la app. Agrégalo para todos: la base crece y su alimento pasa a ser el oficial.` };
+  return { tipo: null, texto: '💬 La IA no reconoce bien el alimento. Pregúntale al alumno qué es exactamente (marca o cómo lo prepara) antes de decidir.' };
 }
 
 function RecomendacionIA({ texto }) {
@@ -1614,7 +1641,7 @@ function PedidosAlimentosPanel() {
   const items = [
     ...pedidos.map(p => ({ tipo: 'pedido', id: 'p' + p.id, p, desde: esperaDesde(p) })),
     ...propios.map(a => ({ tipo: 'propio', id: 'a' + a.id, a, desde: a.editado_en || a.created_at })),
-  ].sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
+  ].map(i => ({ ...i, desde: tienePlazo(i.desde) ? i.desde : null })).sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
   const total = items.length;
   const tarde = items.some(i => i.desde && minutosHasta(horaLimiteAlimento(i.desde)) < 0);
   const idsResueltos = resueltos.filter(r => r.tipo === 'pedido').map(r => r.id);
@@ -1812,6 +1839,27 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
 
   const n = v => Math.round((Number(v) || 0) * 10) / 10;
   const ri = a.revision_ia || null;
+  // Por revisar: una sola acción grande (la recomendada) y el resto en
+  // "Otras opciones", para no tener 5 botones iguales.
+  const pendiente = !candidato && (a.revision === 'dudoso' || !a.revision);
+  const rec = useMemo(() => recomendacionPropio(a, ri), [a.id, a.revision, a.revisado_en]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [masOpciones, setMasOpciones] = useState(false);
+  async function hacerRecomendado() {
+    if (rec.tipo === 'existe') return marcar('existe', { reemplazo: rec.food.key }, { oficial: rec.food.key });
+    if (rec.tipo === 'corregir') {
+      const c = rec.cifras;
+      return marcar('corregido', { kcal: Number(c.kcal), proteina: Number(c.proteina) || 0, carbos: Number(c.carbos) || 0, grasas: Number(c.grasa) || 0 });
+    }
+    if (rec.tipo === 'para_todos') {
+      setFuente('ia');
+      const p = ia || await compararIA();
+      if (p) { setParaTodos({ ...formDesdePropuesta(p, a.nombre), nombre: a.nombre }); }
+      else { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }
+    }
+  }
+  const textoRecomendado = rec.tipo === 'existe' ? `✅ Unir con "${rec.food.key}"`
+    : rec.tipo === 'corregir' ? `✅ Corregir con los números de la IA (${Math.round(rec.cifras.kcal)} kcal)`
+    : rec.tipo === 'para_todos' ? '✅ Agregar para todos' : '';
   const porIA = ri?.auto && ['ok', 'corregido', 'existe'].includes(a.revision); // lo decidió la IA sola (Jonah no lo tocó después)
   const estado = porIA
     ? { ok: '🤖 La IA lo dio por bueno', corregido: '🤖 La IA lo corrigió', existe: '🤖 La IA lo cambió por uno de la app' }[a.revision]
@@ -1861,7 +1909,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
       {ri?.ia && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
           {a.revision === 'dudoso' && <p className="jb-body text-xs text-amber-400 font-semibold">🤔 La IA no está segura. Decide tú:</p>}
-          {a.revision === 'dudoso' && <div className="my-1"><RecomendacionIA texto={recomendacionPropio(ri)} /></div>}
+          {pendiente && <div className="my-1"><RecomendacionIA texto={rec.texto} /></div>}
           {ri.nota && <p className="jb-body text-[11px] text-zinc-400 mt-0.5">🤖 {ri.nota}</p>}
           <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">🤖 La IA estima: {n(ri.ia.kcal)} kcal · P {n(ri.ia.proteina)} g · C {n(ri.ia.carbos)} g · G {n(ri.ia.grasa)} g</p>
           {porIA && a.revision === 'corregido' && ri.antes && (
@@ -1951,6 +1999,13 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
                 className={btnPrimary + ' text-xs py-1.5 px-3'}>Guardar corrección</button>
               <button onClick={() => setEditando(false)} className={btnGhost + ' text-xs py-1.5 px-3'}>Cancelar</button>
             </>
+          ) : pendiente && rec.tipo && !masOpciones ? (
+            <div className="flex flex-col gap-2 w-full">
+              <button disabled={ocupado} onClick={hacerRecomendado} className={btnPrimary + ' text-sm py-2.5 w-full'}>
+                {ocupado ? <Loader2 size={15} className="animate-spin" /> : textoRecomendado}
+              </button>
+              <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si no es lo recomendado)</button>
+            </div>
           ) : (
             <>
               {a.revision !== 'ok' && !candidato && <button disabled={ocupado} onClick={() => marcar('ok')} className={btnGhost + ' text-xs py-1.5 px-3'}>✓ Está bien</button>}

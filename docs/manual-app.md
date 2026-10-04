@@ -259,7 +259,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **5 comidas:** Desayuno ☀️, Media mañana 🍎, Almuerzo 🍽️, Media tarde 🥐, Cena 🌙. La que toca por la hora lleva **"AHORA"**:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
 - **Las comidas que ya pasaron se ven cerradas**, para llegar a la de AHORA sin bajar tanto:
-  - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"**. Tócala para abrirla y ver o cambiar sus alimentos; la flecha **⌄** de arriba a la derecha la vuelve a cerrar. Si le agregas algo, se queda abierta.
+  - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"**. El **✓ verde** junto al ícono de la comida (abierta o cerrada) significa que ya registraste esa comida. Tócala para abrirla y ver o cambiar sus alimentos; la flecha **⌄** de arriba a la derecha la vuelve a cerrar. Si le agregas algo, se queda abierta.
   - Si no registraste nada, se juntan en una línea gris: ej. **"Media mañana y Media tarde — no registradas"** con un **+**. Si te olvidaste de anotar algo, toca **+** y elige a cuál ("¿A cuál?").
   - La comida de **AHORA** y las que todavía no llegan se ven completas, como siempre.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.

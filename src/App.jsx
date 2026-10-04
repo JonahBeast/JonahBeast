@@ -4346,7 +4346,9 @@ function unirComidas(servidor, local) {
     const ids = new Set((meals[comida] || []).map(en => en.id));
     meals[comida] = [...(meals[comida] || []), ...(entradas || []).filter(en => en.foodKey && !ids.has(en.id))];
   });
-  return { ...(servidor || local), meals };
+  // Vasos de agua del día: se queda el número mayor (no se pierde ninguno).
+  const agua = Math.max(Number(servidor?.agua) || 0, Number(local?.agua) || 0);
+  return { ...(servidor || local), meals, ...(agua ? { agua } : {}) };
 }
 
 function filaHistorial({ username, form, mealPlan, fecha }) {
@@ -6006,7 +6008,7 @@ export default function App() {
           .update({ meal_plan: data.mealPlan })
           .eq('username', username).eq('fecha', data.fecha);
       } catch (e) { avisarError(e); }
-      plan = { ...plan, meals: EMPTY_MEALS() };
+      plan = { ...plan, meals: EMPTY_MEALS(), agua: 0 };
     }
 
     // Cuentas antiguas que nunca cambiaron los valores de ejemplo

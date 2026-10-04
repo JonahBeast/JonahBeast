@@ -274,7 +274,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - La comida de **AHORA** y las que todavía no llegan se ven completas, como siempre.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
-- Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
+- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
 - **Tira de días (arriba):** **"Hoy"** y los 6 días anteriores, cada uno con su número; un puntito verde marca los días que tienen comidas registradas. Toca un día anterior para **ver y corregir lo que comiste ese día** (por ejemplo, si olvidaste anotar la cena de ayer): sale "Estás viendo ayer / el lunes 29. Lo que agregues o cambies se guarda en ese día." con el botón **"Volver a hoy"**. En un día anterior se registra igual que hoy (foto, escribir, código, voz, atajos) y todas las comidas se ven abiertas; se guarda solo. Tu peso de ese día no cambia.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
@@ -436,6 +436,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - **Barras de macros:** ámbar = pasaste ese objetivo en más de 15%.
 - **"TOTAL DEL DÍA VS. OBJETIVO":** naranja ("Vas bien — te faltan unas N kcal para entrar en tu meta del día."), verde ("¡Cumpliste tu meta de hoy! 💪 Así se hace, comida a comida.") o ámbar ("Pasaste tu meta de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.").
 
+### 8.9 💧 Agua
+
+- La fila **"💧 AGUA"** está en **Inicio** (debajo del Centro de mando) y en **Comidas** (debajo de las comidas). Cada 💧 es un **vaso de 250 ml**: toca el siguiente vaso (o **"+ 1 vaso"**) cada vez que tomes uno; si te equivocaste, toca el último vaso lleno y se quita.
+- Arriba dice "N/M vasos · X L". La **meta** sale de tu peso (unos 35 ml por kilo, entre 6 y 14 vasos). Al llegar sale "💧 ¡Meta de agua cumplida!" y se pone en verde con ✓.
+- Se guarda con las comidas de ese día (también en los días anteriores de la tira de días) y empieza en 0 cada día.
+
 ### 8.8 "Sin guardar": sin internet o sesión cerrada
 
 - Aplica a todo lo que se anota en la app (comidas y datos de "Mi cuerpo"). El indicador está en la barra de arriba, en todas las pestañas; el aviso grande aparece debajo de esa barra.
@@ -504,7 +510,7 @@ Errores: "Completa tu edad, estatura y peso para seguir." · "Revisa que tu esta
 ### 10.2 Objetivo
 
 1. Elige **"PERDER GRASA"** 🔥 (viene en −20%), **"MANTENER PESO"** ⚖️ o **"GANAR MÚSCULO"** 💪 (viene en +10%).
-2. Si quieres, cambia el porcentaje (botones o "O escribe otro valor:", máximo 40%).
+2. Si quieres, cambia el porcentaje (botones −10%, −15%, −20%, −25% o la **regla** de "O elige otro valor", máximo 40%). Debajo sale cuánto cambiarías por semana, ej. **"≈ 0.5 kg por semana menos · llegarías a tus 80 kg cerca del 12 de marzo"** (la fecha sale si pusiste tu peso meta en Progreso → "MI OBJETIVO DE PESO"). Es una estimación: cada cuerpo responde distinto.
 3. Verás "Calorías objetivo", "Proteína", "Carbos" y "Grasas".
 4. Toca **"🍽️ Ir a registrar mis comidas"**.
 
@@ -513,7 +519,7 @@ Errores: "Completa tu edad, estatura y peso para seguir." · "Revisa que tu esta
 ### 10.3 La meta de "Comidas" sigue sola al objetivo
 
 - Al elegir o cambiar el objetivo, o al actualizar tus datos (peso, edad…), la meta de calorías y macros de "Comidas" **se actualiza sola**.
-- **Ajuste manual:** en "Mi cuerpo" → "Objetivo" → **"AJUSTE FINO DE CALORÍAS Y MACROS"** se pueden escribir calorías y porcentajes a mano (deben sumar 100%). Si lo haces, la app respeta tus valores hasta que cambies de objetivo.
+- **Ajuste manual:** en "Mi cuerpo" → "Objetivo" → **"AJUSTE FINO DE CALORÍAS Y MACROS"** se ajustan a mano con la **regla**: las **calorías al día** y el **% de proteína** y de **grasas** (cada uno muestra sus gramos); los **carbohidratos se calculan solos** con lo que falta para 100%. Si lo haces, la app respeta tus valores hasta que cambies de objetivo.
   - **Es Premium.** En la versión gratis sale "Ajustar tu meta a mano es Premium" (la meta calculada según su objetivo sí es gratis). Si tenía una meta a mano de antes, puede tocar "Usar mi objetivo" para volver a la calculada.
 - Si aparece el aviso amarillo "Tu meta de comidas (X kcal) no coincide con tu objetivo (Y kcal)." (pasa si la ajustaste a mano), toca **"Usar mi objetivo"** para volver a la meta calculada.
 

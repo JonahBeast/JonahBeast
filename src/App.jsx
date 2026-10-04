@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { ReglaDeslizable } from './regla.jsx';
 
 // Partes que se descargan solo cuando hacen falta: quien entra a la
 // portada no baja el panel de admin, la app del alumno ni la tienda.
@@ -3165,23 +3166,17 @@ function mensajePlanWhatsApp(r, plan, extra = '') {
   return `Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}).${extra ? ' ' + extra : ' ¿Me ayudas a empezar?'}`;
 }
 
-function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder }) {
-  const n = Number(valor);
-  const ajustar = d => {
-    const base = Number.isFinite(n) && valor !== '' ? n : Number(placeholder) || min;
-    onCambio(String(Math.min(max, Math.max(min, Math.round((base + d) * 10) / 10))));
-  };
+// El número se elige deslizando la regla (o se toca y se escribe).
+function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder, inicial }) {
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-      <p className="jb-body text-xs text-zinc-400 mb-2">{label}</p>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={() => ajustar(-paso)} className="w-11 h-11 rounded-full border border-orange-500/60 text-orange-400 text-xl shrink-0">−</button>
-        <input type="number" inputMode="decimal" value={valor} placeholder={placeholder}
-          onChange={e => onCambio(e.target.value)}
-          className="flex-1 min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-        <button type="button" onClick={() => ajustar(paso)} className="w-11 h-11 rounded-full border border-orange-500/60 text-orange-400 text-xl shrink-0">+</button>
-      </div>
-      <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">{unidad}</p>
+      <p className="jb-body text-xs text-zinc-400 mb-1">{label}</p>
+      <input type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
+        onChange={e => onCambio(e.target.value)}
+        className="w-full min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+      <p className="jb-body text-[11px] text-zinc-500 text-center">{unidad}</p>
+      <ReglaDeslizable valor={valor} onCambio={v => onCambio(String(v))} paso={paso} min={min} max={max}
+        inicial={inicial ?? (placeholder || (min + max) / 2)} etiqueta={label.toLowerCase()} />
     </div>
   );
 }
@@ -3315,7 +3310,7 @@ function Recorrido({ onBack, onListo }) {
               <h1 className="jb-display text-3xl text-zinc-50 leading-tight">TU ESTATURA Y TU PESO</h1>
               <p className="jb-body text-sm text-zinc-400 mb-2">Con esto calculamos cuánto gasta tu cuerpo al día.</p>
               <NumeroGrande label="Estatura" valor={r.estatura} onCambio={v => fijar('estatura', v)} min={120} max={230} unidad="centímetros" placeholder="165" />
-              <NumeroGrande label="Peso actual" valor={r.peso} onCambio={v => fijar('peso', v)} paso={0.5} min={30} max={300} unidad="kilos" placeholder="70" />
+              <NumeroGrande label="Peso actual" valor={r.peso} onCambio={v => fijar('peso', v)} paso={0.1} min={30} max={300} unidad="kilos" placeholder="70" />
             </>
           )}
           {actual === 'actividad' && (
@@ -3330,7 +3325,7 @@ function Recorrido({ onBack, onListo }) {
             <>
               <h1 className="jb-display text-3xl text-zinc-50 leading-tight">¿A QUÉ PESO QUIERES LLEGAR?</h1>
               <p className="jb-body text-sm text-zinc-400 mb-2">Hoy pesas {r.peso} kg. Pon una meta realista; luego la puedes cambiar.</p>
-              <NumeroGrande label="Peso meta" valor={r.pesoObjetivo} onCambio={v => fijar('pesoObjetivo', v)} paso={0.5} min={30} max={300} unidad="kilos" />
+              <NumeroGrande label="Peso meta" valor={r.pesoObjetivo} onCambio={v => fijar('pesoObjetivo', v)} paso={0.1} min={30} max={300} unidad="kilos" inicial={Number(r.peso) || 70} />
             </>
           )}
           {actual === 'plan' && plan && (

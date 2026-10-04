@@ -89,10 +89,10 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 
 0. **Recorrido antes del registro:** al tocar **"EMPEZAR AHORA"** (o "CREAR MI CUENTA GRATIS" después de probar la foto) responde, con una barra de avance ("1/6"…) y el botón **"← Atrás"** arriba a la izquierda (vuelve al paso anterior; en el primero, a la portada):
    1. **"¿QUÉ QUIERES LOGRAR?"**: 🔥 Bajar grasa · 💪 Ganar músculo · ⚖️ Mantenerme y comer mejor.
-   2. **"CUÉNTANOS DE TI"**: Hombre o Mujer y su edad.
-   3. **"TU ESTATURA Y TU PESO"** (en centímetros y kilos, con − / + o escribiendo).
+   2. **"CUÉNTANOS DE TI"**: Hombre o Mujer y su edad (deslizando la regla o escribiéndola).
+   3. **"TU ESTATURA Y TU PESO"** (en centímetros y kilos). Cada número tiene debajo una **regla que se desliza con el dedo** a la izquierda o derecha: el número cambia en vivo y la rayita naranja del centro marca el valor (el peso va de 0.1 en 0.1 kg). También se puede tocar el número y escribirlo.
    4. **"¿QUÉ TAN ACTIVO ERES?"** (Sedentario, Ligero, Moderado, Intenso, Muy intenso).
-   5. **"¿A QUÉ PESO QUIERES LLEGAR?"** (solo si quiere bajar o subir; viene sugerido y se puede cambiar).
+   5. **"¿A QUÉ PESO QUIERES LLEGAR?"** (solo si quiere bajar o subir; viene sugerido y se puede cambiar con la regla o escribiéndolo).
    6. **"ESTO ES LO QUE TE TOCA"**: sus calorías y su proteína al día y, si puso peso meta, "A este ritmo llegarías a [X] kg en unas [N] semanas" (estimación). Botón **"CREAR MI CUENTA Y GUARDAR MI PLAN"**.
    - Si no pasa los datos: "Pon una edad entre 14 y 90 años.", "La estatura va en centímetros (ej. 165).", "Revisa tu peso en kilos (ej. 72).", "Tu peso meta debe ser menor/mayor a tu peso actual.".
    - Sus respuestas quedan guardadas en ese celular: si vuelve a tocar el botón, va directo a crear la cuenta. Al entrar por primera vez, **su objetivo, sus datos y su peso meta ya están cargados** (no tiene que volver a escribirlos) y su meta de calorías ya está calculada.
@@ -479,10 +479,10 @@ Arriba hay dos botones: **"Mis datos"** y **"Objetivo"**.
 ### 10.1 Mis datos
 
 1. Elige "Hombre" o "Mujer".
-2. Pon "Edad", "Estatura" (en **centímetros**, ej. 165) y "Peso" (kg), con −/+ o escribiendo.
+2. Pon "Edad", "Estatura" (en **centímetros**, ej. 165) y "Peso" (kg): **desliza la regla** que está debajo de cada número (a la izquierda baja, a la derecha sube; la rayita naranja del centro marca el valor) o toca el número y escríbelo. El peso va de 0.1 en 0.1 kg.
 3. Elige "Actividad física": Sedentario (poco o nada) · Ligero (1–2 días/semana) · Moderado (3–5) · Intenso (6–7) · Muy intenso (7 días + trabajo activo).
 4. Toca **"Guardar y elegir mi objetivo"** (o "Listo · Registrar mis comidas").
-- (Opcional) **"📏 TU % DE GRASA · OPCIONAL"**: cuello, cintura y cadera en cm para calcular % de grasa, masa magra y muscular.
+- (Opcional) **"📏 TU % DE GRASA · OPCIONAL"**: cuello, cintura y cadera en cm para calcular % de grasa, masa magra y muscular. También con la regla deslizable (de 0.5 en 0.5 cm) o escribiéndolos.
   - **Versión gratis:** se mide **una vez**. Si ya tiene sus medidas guardadas, ve "Tus medidas: …" y "Volver a medirte es Premium". La masa muscular muestra "👑 Premium".
 - **Para actualizar tu peso** se usa este mismo campo "Peso"; el historial se guarda solo.
 

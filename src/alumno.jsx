@@ -1886,22 +1886,30 @@ function GoalSelector({ form, setForm, tdee, peso, datosListos = true, onComplet
                   })}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="jb-body text-xs text-zinc-500">O escribe otro valor:</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="jb-display text-lg text-orange-500">
-                      {goal === 'Perder grasa' ? '−' : '+'}
-                    </span>
-                    <input type="number" inputMode="numeric" min="0" max="40"
-                      className={inputCls + ' w-20 py-2'}
-                      value={Math.abs(pct) || ''}
-                      onChange={e => {
-                        const n = Math.min(Math.abs(Number(e.target.value) || 0), 40);
-                        setForm(v => ({ ...v, ajustePct: goal === 'Perder grasa' ? -n : n }));
-                      }} />
-                    <span className="jb-body text-sm text-zinc-400">%</span>
-                  </div>
-                </div>
+                <CampoNumero label={`O elige otro valor (${goal === 'Perder grasa' ? '−' : '+'}%)`} valor={Math.abs(pct) || ''} paso={1} min={0} max={40}
+                  inicial={Math.abs(GOALS[goal].pct)} unidad={goal === 'Perder grasa' ? '% menos que tu mantenimiento' : '% más que tu mantenimiento'}
+                  onCambio={n => { const v = Math.min(Math.abs(Number(n) || 0), 40); setForm(f => ({ ...f, ajustePct: goal === 'Perder grasa' ? -v : v })); }} />
+                {/* Cuánto cambia por semana y cuándo llegaría a su meta de peso. */}
+                {(() => {
+                  const kgSemana = Math.abs(tdee - targetKcal) * 7 / 7700;
+                  if (!(kgSemana > 0.01)) return null;
+                  const metaPeso = Number(form.pesoObjetivo) || 0;
+                  const falta = metaPeso && peso ? (goal === 'Perder grasa' ? peso - metaPeso : metaPeso - peso) : 0;
+                  let llegada = null;
+                  if (falta > 0) {
+                    const d = new Date(); d.setDate(d.getDate() + Math.round((falta / kgSemana) * 7));
+                    llegada = `${d.getDate()} de ${['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'][d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ` de ${d.getFullYear()}` : ''}`;
+                  }
+                  return (
+                    <div className="mt-3 bg-orange-500/10 border border-orange-500/40 rounded-xl px-3.5 py-3">
+                      <p className="jb-body text-sm text-zinc-100">
+                        ≈ <b>{kgSemana.toFixed(1)} kg por semana</b> {goal === 'Perder grasa' ? 'menos' : 'más'}
+                        {llegada ? <> · llegarías a tus <b>{metaPeso} kg</b> cerca del <b>{llegada}</b></> : null}
+                      </p>
+                      <p className="jb-body text-[11px] text-zinc-400 mt-1">Es una estimación: cada cuerpo responde distinto. Lo importante es la constancia, comida a comida.{!metaPeso ? ' Pon tu peso meta en Progreso para ver una fecha.' : ''}</p>
+                    </div>
+                  );
+                })()}
               </>
             )}
 
@@ -5548,7 +5556,7 @@ function CentroDeMando({ nombre, mealPlan, onRegistrar, metaEstimada = false, on
 function MetaPesoCard({ form, setForm }) {
   const pesoActual = Number(form.peso) || 0;
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+    <div id="meta-peso" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
       <h2 className="jb-display text-base text-zinc-200 mb-1">MI OBJETIVO DE PESO</h2>
       <p className="jb-body text-xs text-zinc-500 mb-4">Tu punto de partida y tu meta. En Inicio verás cuánto avanzas.</p>
       <div className="flex flex-col gap-3">
@@ -5616,7 +5624,7 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
           </p>
         </button>
       ) : (
-        <button onClick={onIrProgreso}
+        <button onClick={() => onIrProgreso('meta-peso')}
           className="bg-zinc-900 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-4 flex items-center gap-3 text-left transition-colors">
           <Target className="text-orange-500 shrink-0" size={18} />
           <p className="jb-body text-sm text-zinc-300 flex-1"><span className="text-zinc-100 font-semibold">Define tu meta de peso</span> para ver cuánto avanzas</p>
@@ -8026,6 +8034,48 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   );
 }
 
+/* 💧 AGUA: vasos de 250 ml del día, un toque por vaso. La meta sale del
+   peso (unos 35 ml por kilo, entre 6 y 14 vasos). Se guarda con las
+   comidas del día (mealPlan.agua), así queda en el historial de ese día. */
+function metaAgua(peso) {
+  const n = Math.round(((Number(peso) || 70) * 35) / 250);
+  return Math.min(14, Math.max(6, n));
+}
+function AguaFila({ mealPlan, setMealPlan, peso }) {
+  const meta = metaAgua(peso);
+  const vasos = Math.max(0, Number(mealPlan?.agua) || 0);
+  function fijar(n) {
+    const nuevo = Math.max(0, Math.min(30, n));
+    vibrar(nuevo > vasos ? 12 : 8);
+    setMealPlan(v => ({ ...v, agua: nuevo }));
+    if (nuevo === meta && vasos < meta) showToast('💧 ¡Meta de agua cumplida! Tu cuerpo te lo agradece.');
+  }
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="jb-display text-sm text-zinc-200 tracking-wide">💧 AGUA</span>
+        <span className={`jb-body text-xs tabular-nums ${vasos >= meta ? 'text-emerald-400 font-semibold' : 'text-zinc-400'}`}>
+          {vasos}/{meta} vasos · {(vasos * 0.25).toFixed(vasos % 4 ? 2 : 1).replace(/\.?0+$/, '')} L{vasos >= meta ? ' ✓' : ''}
+        </span>
+      </div>
+      <div className="flex items-center gap-1 flex-wrap">
+        {Array.from({ length: Math.max(meta, vasos) }, (_, i) => {
+          const lleno = i < vasos;
+          return (
+            <button key={i} type="button" onClick={() => fijar(lleno && i === vasos - 1 ? i : i + 1)}
+              aria-label={lleno ? `Vaso ${i + 1} (tomado)` : `Tomé el vaso ${i + 1}`}
+              className={`w-8 h-9 rounded-lg flex items-center justify-center text-base border transition-colors ${lleno ? 'bg-sky-500/20 border-sky-400/60' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
+              💧
+            </button>
+          );
+        })}
+        <button type="button" onClick={() => fijar(vasos + 1)} aria-label="Un vaso más"
+          className="ml-auto jb-body text-xs font-semibold text-sky-300 border border-sky-500/50 rounded-full px-3 py-2">+ 1 vaso</button>
+      </div>
+    </div>
+  );
+}
+
 /* Selector de comida (Desayuno, Media mañana…): el mismo en toda la app
    (Registrar, Restaurantes aliados, "¿Qué puedo comer?"…). Naranja el
    elegido; el puntito marca la comida de la hora. */
@@ -8510,36 +8560,44 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
               <p className="text-amber-200 text-xs jb-body">Estos valores no coinciden con tu objetivo ({Math.round(targets.kcal)} kcal). Toca "Usar mi objetivo" para sincronizarlos.</p>
             </div>
           )}
-          <div className="grid sm:grid-cols-5 gap-3 items-end">
-            <Field label="Calorías objetivo (kcal)">
-              <input type="number" className={inputCls} value={mealPlan.targetKcal}
-                onChange={e => setMealPlan(v => ({ ...v, targetKcal: Number(e.target.value) || 0, metaManual: true }))} />
-            </Field>
-            <Field label="% Proteína">
-              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.p}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, p: Number(e.target.value) || 0 }, metaManual: true }))} />
-            </Field>
-            <Field label="% Carbohidratos">
-              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.c}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, c: Number(e.target.value) || 0 }, metaManual: true }))} />
-            </Field>
-            <Field label="% Grasas">
-              <input type="number" step="0.05" className={inputCls} value={mealPlan.macros.f}
-                onChange={e => setMealPlan(v => ({ ...v, macros: { ...v.macros, f: Number(e.target.value) || 0 }, metaManual: true }))} />
-            </Field>
-            {targets ? (
-              <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
-                <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
-              </button>
-            ) : tdee ? (
-              <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
-                <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
-              </button>
-            ) : null}
-          </div>
-          {Math.abs(macroSum - 1) > 0.001 && (
-            <p className="text-red-400 text-xs mt-2 flex items-center gap-1.5"><AlertTriangle size={13} /> Los porcentajes deben sumar 100% (ahora suman {Math.round(macroSum * 100)}%).</p>
-          )}
+          {/* Calorías con la regla; proteína y grasas en % con su regla y los
+              carbohidratos se calculan solos (lo que falta para 100%). */}
+          {(() => {
+            const kcal = Math.round(mealPlan.targetKcal) || 0;
+            const p = Math.round((mealPlan.macros.p || 0) * 100);
+            const f = Math.round((mealPlan.macros.f || 0) * 100);
+            const c = Math.max(0, 100 - p - f);
+            const fijarMacros = (np, nf) => {
+              const pp = Math.max(10, Math.min(60, np)), ff = Math.max(10, Math.min(60, nf));
+              const cc = Math.max(0, 100 - pp - ff);
+              setMealPlan(v => ({ ...v, macros: { p: pp / 100, c: cc / 100, f: ff / 100 }, metaManual: true }));
+            };
+            return (
+              <div className="flex flex-col gap-3">
+                <CampoNumero label="Calorías al día" valor={kcal} paso={10} min={1000} max={5000} inicial={2000} unidad="kcal"
+                  onCambio={n => setMealPlan(v => ({ ...v, targetKcal: Number(n) || 0, metaManual: true }))} />
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <CampoNumero label={`Proteína · ${Math.round(kcal * p / 100 / 4)} g`} valor={p} paso={1} min={10} max={60} inicial={30} unidad="% de tus calorías"
+                    onCambio={n => fijarMacros(Number(n) || 0, f)} />
+                  <CampoNumero label={`Grasas · ${Math.round(kcal * f / 100 / 9)} g`} valor={f} paso={1} min={10} max={60} inicial={30} unidad="% de tus calorías"
+                    onCambio={n => fijarMacros(p, Number(n) || 0)} />
+                </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+                  <span className="jb-body text-xs text-zinc-400 uppercase tracking-wider">Carbohidratos (se calculan solos)</span>
+                  <span className="jb-display text-xl text-zinc-50 tabular-nums">{c}% <span className="jb-body text-xs text-zinc-400">· {Math.round(kcal * c / 100 / 4)} g</span></span>
+                </div>
+                {targets ? (
+                  <button onClick={applyGoal} className={btnPrimary + ' text-sm'}>
+                    <Target size={14} /> Usar mi objetivo ({Math.round(targets.kcal)})
+                  </button>
+                ) : tdee ? (
+                  <button onClick={() => setMealPlan(v => ({ ...v, targetKcal: Math.round(tdee) }))} className={btnGhost + ' text-sm'}>
+                    <Flame size={14} /> Usar mi mantenimiento ({Math.round(tdee)})
+                  </button>
+                ) : null}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -8675,7 +8733,7 @@ function MealTab(props) {
   );
 }
 
-function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true }) {
+function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null }) {
   const [personales, setPersonales] = useState([]);
   const [editarPropio, setEditarPropio] = useState(null);
   const [escribiendo, setEscribiendo] = useState(false);
@@ -9182,6 +9240,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         </div>
         );
       })}
+
+      <AguaFila mealPlan={mealPlan} setMealPlan={setMealPlan} peso={peso} />
 
       <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-5">
         <h3 className="jb-display text-sm text-zinc-200 mb-3">TOTAL DEL DÍA VS. OBJETIVO</h3>
@@ -10625,9 +10685,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">
         {tab === 'dash' && (() => {
           const centro = (
-            <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
-              onRegistrar={irARegistrar} metaEstimada={metaEstimada}
-              onAjustarMeta={() => { setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }} />
+            <>
+              <CentroDeMando nombre={userRecord?.nombre} mealPlan={mealPlan}
+                onRegistrar={irARegistrar} metaEstimada={metaEstimada}
+                onAjustarMeta={() => { setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }} />
+              <AguaFila mealPlan={mealPlan} setMealPlan={setMealPlan} peso={form.peso} />
+            </>
           );
           const primeros = (
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
@@ -10671,7 +10734,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               <ResumenSemanalCard username={username} />
               <RachaCard username={username} mealPlan={mealPlan} onRegistrar={() => irARegistrar(comidaDeAhora())} />
               <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
-              <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={() => { setTab('progress'); window.scrollTo({ top: 0 }); }} />
+              <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={(ancla) => {
+                setTab('progress'); window.scrollTo({ top: 0 });
+                // "Define tu meta de peso": baja directo a esa tarjeta (Progreso carga en un momento).
+                if (ancla) { let n = 0; const t = setInterval(() => { const el = document.getElementById(ancla); if (el || ++n > 20) { clearInterval(t); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 150); }
+              }} />
             </>
           );
           return (
@@ -10719,7 +10786,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} hojaInicial={registrarAl} onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} peso={form.peso} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} hojaInicial={registrarAl} onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />}
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}

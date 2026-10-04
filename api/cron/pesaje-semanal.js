@@ -9,7 +9,7 @@
 //
 // Cron en vercel.json: "0 12 * * 0" (12:00 UTC domingo = 7:00 Perú domingo)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos, alumnosGratis, addDaysISO } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos, alumnosGratis, addDaysISO, preferenciasAvisos, sinApagados } from '../_lib/push.js';
 
 const MENSAJES = [
   'Buenos días 🦍 Hoy toca pesaje: pésate en ayunas, después del baño, y anótalo en la app. Toma 10 segundos ⚖️',
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
 
     const body = MENSAJES[Math.floor(Math.random() * MENSAJES.length)];
     // Presupuesto de avisos: es el aviso especial de la mañana del domingo.
-    const conCupo = await conPresupuesto(supabase, destino, { momento: 'manana', especial: true, hoyISO });
+    const conCupo = await conPresupuesto(supabase, sinApagados(await preferenciasAvisos(supabase), destino, 'pesaje'), { momento: 'manana', especial: true, hoyISO });
     let enviados = 0; const fallidos = [];
     await Promise.all(conCupo.map(async u => {
       const r = await enviarPushA(supabase, [u], { title: 'Jonah 🦍', body, url: '/' });

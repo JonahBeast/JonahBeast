@@ -21,7 +21,7 @@
 // Mismo patrón de envío en paralelo que api/cron/recordatorio.js, para
 // no repetir el problema de timeout de Vercel con muchos alumnos.
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados } from '../_lib/push.js';
 import { traerTodas } from '../../src/traerTodas.js';
 
 const INTERVALO_DIAS = 15;
@@ -145,7 +145,7 @@ export default async function handler(req, res) {
     }
 
     // Presupuesto de avisos: es un aviso especial de la mañana.
-    const conCupo = new Set(await conPresupuesto(supabase, targets.map(t => t.username), { momento: 'manana', especial: true, hoyISO }));
+    const conCupo = new Set(await conPresupuesto(supabase, sinApagados(await preferenciasAvisos(supabase), targets.map(t => t.username), 'pesaje'), { momento: 'manana', especial: true, hoyISO }));
     const r = await enviarLote(supabase, targets.filter(t => conCupo.has(t.username)));
     await anotarAvisos(supabase, r.usuariosOk || [], { tipo: 'control_quincenal', momento: 'manana', hoyISO });
     return res.status(200).json({ ok: true, enviados: r.enviados, fallidos: r.fallidos, tipo: 'control_quincenal', candidatos: targets.length });

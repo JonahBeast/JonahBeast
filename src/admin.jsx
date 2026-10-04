@@ -5455,9 +5455,9 @@ const EFECTOS_GORILA = {
   criatura: { voc: { f0: 92, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0, amHz: 40, rugido: 0.15, bits: 0, reverb: 0.05 },
   jefe: { voc: { f0: 72, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0.1, amHz: 44, rugido: 0.3, bits: 0, reverb: 0.05 },
   // Voz humana procesada (más grave).
-  suave: { tono: 0.72, rugido: 0.3, graves: 8, am: 0.22, amHz: 38, bits: 0, reverb: 0.1 },
-  medio: { tono: 0.6, rugido: 0.5, graves: 10, am: 0.38, amHz: 42, bits: 48, reverb: 0.16 },
-  monstruo: { tono: 0.5, rugido: 0.7, graves: 12, am: 0.5, amHz: 48, bits: 28, reverb: 0.24 },
+  suave: { tono: 0.75, rugido: 0.1, graves: 2, presencia: 3, am: 0, amHz: 38, bits: 0, reverb: 0.04 },
+  medio: { tono: 0.65, rugido: 0.2, graves: 3, presencia: 3, am: 0.08, amHz: 42, bits: 0, reverb: 0.06 },
+  monstruo: { tono: 0.55, rugido: 0.35, graves: 4, presencia: 3, am: 0.15, amHz: 48, bits: 0, reverb: 0.1 },
 };
 function curvaRugido(k) {
   const n = 2048, c = new Float32Array(n), g = 1 + k * 10;

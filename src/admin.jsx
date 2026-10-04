@@ -565,7 +565,11 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '' };
+// De dónde salen los números de un alimento (columna alimentos_extra.fuente;
+// misma lista que FUENTES en supabase/functions/alimentos-pedidos). Es
+// obligatoria para agregar uno nuevo: así cada alimento queda validado.
+const FUENTES_ALIMENTO = ['Tabla Peruana (CENAN)', 'Etiqueta del producto', 'USDA', 'Receta promedio'];
 const USOS_MENU = opcionesUsoMenu();
 
 /* Menú del día: si Jonah le marca un uso al alimento, puede salir en el
@@ -593,6 +597,7 @@ function formDesdePropuesta(p, nombre) {
     unidad: p.unidad || '', gramos_unidad: p.unidad ? (p.gramos_unidad || '') : '',
     // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
     menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
+    fuente: FUENTES_ALIMENTO.includes(p.fuente) ? p.fuente : '',
   };
 }
 
@@ -682,6 +687,13 @@ function FormAlimento({ form, setForm, onEsEste }) {
           <input type="number" inputMode="decimal" min="0" value={form.gramos_unidad} onChange={campo('gramos_unidad')} disabled={!form.unidad.trim()} className={inputCls + ' w-full text-sm mt-0.5 tabular-nums disabled:opacity-40'} />
         </label>
       </div>
+      <label className="jb-body text-[11px] text-zinc-500">📚 ¿De dónde salen los números?
+        <select value={form.fuente || ''} onChange={campo('fuente')} className={inputCls + ' w-full text-sm mt-0.5' + (form.fuente ? '' : ' border-amber-600')}>
+          <option value="">Elige la fuente…</option>
+          {FUENTES_ALIMENTO.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+        {!form.fuente && <span className="block text-[10px] text-amber-400 mt-0.5">Elígela para poder agregarlo: así cada alimento de la base queda validado.</span>}
+      </label>
       <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
         <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
         <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
@@ -772,7 +784,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     setGuardando(false);
   }
 
-  const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '';
+  const listo = form.nombre.trim() && form.kcal !== '' && form.proteina !== '' && form.carbos !== '' && form.grasa !== '' && form.fuente;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 flex flex-col gap-2.5">
       <div>
@@ -1000,7 +1012,7 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
       </p>
       {v.estado !== 'ya_existia' && v.kcal != null && (
         <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
-          {n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g){v.unidad ? ` · 1 ${v.unidad} = ${n(v.gramos_unidad)} g` : ''}
+          {n(v.kcal)} kcal · P {n(v.proteina)} g · C {n(v.carbos)} g · G {n(v.grasa)} g (por 100 g){v.unidad ? ` · 1 ${v.unidad} = ${n(v.gramos_unidad)} g` : ''}{v.fuente ? ` · 📚 ${v.fuente}` : ''}
           {v.estado === 'sugerida' && v.cuadra === false && <span className="text-amber-400"> · ⚠️ las calorías no cuadran con los macros</span>}
         </p>
       )}
@@ -1313,7 +1325,7 @@ function AgregarAlimentoSuelto({ onListo }) {
         <>
           {nota && <p className="jb-body text-[11px] text-zinc-500">🤖 {nota}</p>}
           <FormAlimento form={form} setForm={setForm} />
-          <button onClick={agregar} disabled={guardando || !form.nombre.trim() || form.kcal === ''} className={btnPrimary + ' text-sm py-2'}>
+          <button onClick={agregar} disabled={guardando || !form.nombre.trim() || form.kcal === '' || !form.fuente} className={btnPrimary + ' text-sm py-2'}>
             {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
           </button>
         </>
@@ -1832,7 +1844,8 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
         const p = formDesdePropuesta(propuestaIA, base.nombre);
         return { ...p, nombre: base.nombre, menu_uso: base.menu_uso };
       }
-      return { ...base, ...cifrasAlumno };
+      // Los números del alumno casi siempre salen de la etiqueta del producto.
+      return { ...base, ...cifrasAlumno, fuente: base.fuente || 'Etiqueta del producto' };
     });
   }
 
@@ -1905,7 +1918,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           </div>
           <FormAlimento form={paraTodos} setForm={setParaTodos} onEsEste={marcarExiste} />
           <div className="flex gap-2">
-            <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === ''} className={btnPrimary + ' text-sm py-2 flex-1'}>
+            <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === '' || !paraTodos.fuente} className={btnPrimary + ' text-sm py-2 flex-1'}>
               {ocupado ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}
             </button>
             <button onClick={() => setParaTodos(null)} className={btnGhost + ' text-sm py-2'}>Cancelar</button>
@@ -1948,7 +1961,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
                   className={btnGhost + ' text-xs py-1.5 px-3'}>🔗 Ya existe en la app</button>
               )}
               {a.revision !== 'aprobado' && (
-                <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno }); }}
+                <button disabled={ocupado} onClick={() => { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }}
                   className={btnGhost + ' text-xs py-1.5 px-3'}>➕ Agregar para todos</button>
               )}
               {candidato && <button disabled={ocupado} onClick={soloParaEl} className={btnGhost + ' text-xs py-1.5 px-3'}>✕ Dejarlo solo para él</button>}

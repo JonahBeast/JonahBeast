@@ -128,6 +128,10 @@ class ErrorDeDatos extends Error {}
 // ---------------------------------------------------------------- calcular
 
 const VALORES_MENU = ["", ...USOS_MENU.map((u) => u.valor)];
+// De dónde salen los números (columna alimentos_extra.fuente). Misma lista
+// que FUENTES_ALIMENTO en src/admin.jsx.
+const FUENTES = ["Tabla Peruana (CENAN)", "Etiqueta del producto", "USDA", "Receta promedio"];
+const DESCRIPCION_FUENTE = "De dónde salen los números: \"Tabla Peruana (CENAN)\" si está en esa tabla (úsala primero), \"Etiqueta del producto\" si es un producto de marca, \"USDA\" si no está en la tabla peruana, o \"Receta promedio\" si es un plato calculado sumando sus ingredientes.";
 const DESCRIPCION_MENU = "Para qué serviría en el menú del día (una sugerencia que revisa Jonah): uno de los valores de la lista de usos del menú, o \"\" si no va en el menú.";
 
 const ESQUEMA_PROPUESTA = {
@@ -171,14 +175,16 @@ const ESQUEMA_PROPUESTA = {
           gramos_unidad: { type: "number" },
           seguridad: { type: "string", enum: ["alta", "media", "baja"] },
           menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
+          fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
         },
-        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso"],
+        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso", "fuente"],
         additionalProperties: false,
       },
     },
     menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
+    fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes", "fuente"],
   additionalProperties: false,
 };
 
@@ -206,6 +212,7 @@ async function calcular(nombre: string, id?: number, tipo = "alimento", modelo =
       text: `Eres nutricionista y armas la base de alimentos de Jonah Beast Fuel, una app peruana de nutrición. Te piden agregar un alimento o plato. Calcula sus macros POR CADA 100 g, tal como se come (cocido si se come cocido), con porciones y recetas típicas de Perú. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS) y, si no está, USDA o recetas caseras promedio.
 
 Reglas:
+- Fuente: anota de dónde salen los números (Tabla Peruana CENAN primero; si no está, USDA; si es un producto de marca, su etiqueta; si es un plato, receta promedio sumando sus ingredientes). Así la base queda validada.
 - Números por 100 g, con un decimal como máximo. kcal ≈ 4·proteína + 4·carbos + 9·grasa (acepta un pequeño desvío por fibra o alcohol).
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
 - Mezclas caseras (por_partes): si lo pedido es una combinación que cada persona arma a su gusto con ingredientes que YA están en la lista (ej. "avena con proteína" = avena en hojuelas + leche + proteína en polvo; "batido de plátano con whey"), pon esos ingredientes en "por_partes" con su nombre exacto. Así el alumno lo registra por partes con sus cantidades y la app no se llena de mezclas personales. NO lo uses para platos con receta estándar de restaurante o comida típica (lomo saltado, ají de gallina, jugo surtido de juguería): esos se agregan como plato. Si falta algún ingrediente en la lista, deja "por_partes" vacío. Igual calcula los macros de la mezcla típica, por si Jonah decide agregarla.
@@ -238,7 +245,8 @@ ${lista}`,
   const usoValido = (u: unknown) => VALORES_MENU.includes(String(u || "")) ? String(u || "") : "";
   propuesta.menu_uso = usoValido(propuesta.menu_uso);
   propuesta.por_partes = (Array.isArray(propuesta.por_partes) ? propuesta.por_partes : []).map((n: unknown) => String(n || "").trim()).filter(Boolean).slice(0, 5);
-  propuesta.variantes.forEach((v: any) => { v.menu_uso = usoValido(v.menu_uso); });
+  propuesta.variantes.forEach((v: any) => { v.menu_uso = usoValido(v.menu_uso); v.fuente = FUENTES.includes(v.fuente) ? v.fuente : ""; });
+  propuesta.fuente = FUENTES.includes(propuesta.fuente) ? propuesta.fuente : "";
 
   if (id) {
     await supabase.from("pedidos_alimentos").update({ propuesta, actualizado_en: new Date().toISOString() }).eq("id", id);
@@ -657,6 +665,7 @@ function limpiarAlimento(a: any) {
     fibra: num(a?.fibra, 100, "la fibra"),
     unidad: unidad || null,
     gramos_unidad: unidad ? gramosUnidad : null,
+    fuente: FUENTES.includes(texto(a?.fuente, 40)) ? texto(a?.fuente, 40) : null,
   };
 }
 

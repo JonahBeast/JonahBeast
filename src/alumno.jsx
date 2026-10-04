@@ -1412,6 +1412,29 @@ function Interruptor({ activo, onCambio, etiqueta }) {
     </button>
   );
 }
+// Secciones y filas de Mi perfil. Van FUERA de PerfilTab: si se definen
+// adentro, cada vez que la app se actualiza (cada pocos segundos) se
+// vuelven a crear y el toque se pierde a mitad de camino.
+function SeccionPerfil({ titulo, children }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+      <h2 className="jb-display text-sm text-zinc-300 tracking-wide mb-3">{titulo}</h2>
+      <div className="flex flex-col divide-y divide-zinc-800">{children}</div>
+    </div>
+  );
+}
+function FilaPerfil({ titulo, ayuda, children, onClick }) {
+  const Tag = onClick ? 'button' : 'div';
+  return (
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} className="w-full flex items-center gap-3 py-3 text-left min-h-[52px]">
+      <span className="flex-1 min-w-0">
+        <span className="block jb-body text-sm text-zinc-100">{titulo}</span>
+        {ayuda && <span className="block jb-body text-xs text-zinc-500 mt-0.5">{ayuda}</span>}
+      </span>
+      {children}
+    </Tag>
+  );
+}
 function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil, onCelular, onNotif, onEliminar, onPlanes }) {
   const [estadoPush, setEstadoPush] = useState(null);
   const [sonido, setSonido] = useState(sonidoActivo);
@@ -1424,53 +1447,35 @@ function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil
     const lista = Array.isArray(a.apagados) ? a.apagados : [];
     return { apagados: prender ? lista.filter(x => x !== id) : [...new Set([...lista, id])] };
   });
-  const Seccion = ({ titulo, children }) => (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
-      <h2 className="jb-display text-sm text-zinc-300 tracking-wide mb-3">{titulo}</h2>
-      <div className="flex flex-col divide-y divide-zinc-800">{children}</div>
-    </div>
-  );
-  const Fila = ({ titulo, ayuda, children, onClick }) => {
-    const Tag = onClick ? 'button' : 'div';
-    return (
-      <Tag onClick={onClick} className="w-full flex items-center gap-3 py-3 text-left min-h-[52px]">
-        <span className="flex-1 min-w-0">
-          <span className="block jb-body text-sm text-zinc-100">{titulo}</span>
-          {ayuda && <span className="block jb-body text-xs text-zinc-500 mt-0.5">{ayuda}</span>}
-        </span>
-        {children}
-      </Tag>
-    );
-  };
   return (
     <div className="pt-2">
       <h1 className="jb-display text-3xl text-zinc-50 mb-1">MI PERFIL</h1>
       <p className="jb-body text-sm text-zinc-400 mb-5">Tu cuenta, tus avisos y cómo ves la app.</p>
 
-      <Seccion titulo="TU CUENTA">
-        <Fila titulo={userRecord?.nombre || username} ayuda={userRecord?.correo || null} />
-        <Fila titulo="Mi celular (WhatsApp)" ayuda={userRecord?.telefono || 'Aún no lo agregas'} onClick={onCelular}>
+      <SeccionPerfil titulo="TU CUENTA">
+        <FilaPerfil titulo={userRecord?.nombre || username} ayuda={userRecord?.correo || null} />
+        <FilaPerfil titulo="Mi celular (WhatsApp)" ayuda={userRecord?.telefono || 'Aún no lo agregas'} onClick={onCelular}>
           <ChevronRight size={18} className="text-zinc-500 shrink-0" />
-        </Fila>
-        <Fila titulo="Mi plan" ayuda="Planes, pagos y renovación" onClick={onPlanes}>
+        </FilaPerfil>
+        <FilaPerfil titulo="Mi plan" ayuda="Planes, pagos y renovación" onClick={onPlanes}>
           <ChevronRight size={18} className="text-zinc-500 shrink-0" />
-        </Fila>
-      </Seccion>
+        </FilaPerfil>
+      </SeccionPerfil>
 
-      <Seccion titulo="TUS AVISOS">
-        <Fila titulo={estadoPush === 'activo' ? '🔔 Avisos activados en este celular' : '🔕 Los avisos no te llegan en este celular'}
+      <SeccionPerfil titulo="TUS AVISOS">
+        <FilaPerfil titulo={estadoPush === 'activo' ? '🔔 Avisos activados en este celular' : '🔕 Los avisos no te llegan en este celular'}
           ayuda={estadoPush === 'activo' ? 'Elige abajo cuáles quieres recibir.' : 'Actívalos para que Jonah te acompañe en el día.'}>
           {estadoPush !== 'activo' && estadoPush !== null && (
             <button onClick={onNotif} className="jb-body text-xs font-semibold text-zinc-950 bg-orange-500 rounded-full px-3.5 py-2 shrink-0">Activar</button>
           )}
-        </Fila>
+        </FilaPerfil>
         {TIPOS_AVISO.map(t => {
           const prendido = !apagados.includes(t.id);
           return (
             <div key={t.id}>
-              <Fila titulo={t.titulo} ayuda={t.ayuda}>
+              <FilaPerfil titulo={t.titulo} ayuda={t.ayuda}>
                 <Interruptor activo={prendido} onCambio={v => alternar(t.id, v)} etiqueta={t.titulo} />
-              </Fila>
+              </FilaPerfil>
               {t.id === 'comidas' && prendido && (
                 <div className="pb-3 flex flex-col gap-2">
                   {HORAS_COMIDA_AVISO.map(h => {
@@ -1495,25 +1500,25 @@ function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil
           );
         })}
         <p className="jb-body text-[11px] text-zinc-500 pt-3">Los avisos de tu plan, tus pagos, tus pedidos de alimentos y la comunidad siempre te llegan. Nunca más de 3 avisos al día.</p>
-      </Seccion>
+      </SeccionPerfil>
 
-      <Seccion titulo="LA APP">
-        <Fila titulo="🔠 Letra grande e Inicio sencillo" ayuda="Todo más grande y fácil de leer.">
+      <SeccionPerfil titulo="LA APP">
+        <FilaPerfil titulo="🔠 Letra grande e Inicio sencillo" ayuda="Todo más grande y fácil de leer.">
           <Interruptor activo={!!modoFacil} onCambio={onModoFacil} etiqueta="Letra grande" />
-        </Fila>
-        <Fila titulo="🔊 Sonidos de logros" ayuda="Al cumplir tu meta, subir de nivel…">
+        </FilaPerfil>
+        <FilaPerfil titulo="🔊 Sonidos de logros" ayuda="Al cumplir tu meta, subir de nivel…">
           <Interruptor activo={sonido} onCambio={() => setSonido(alternarSonido())} etiqueta="Sonidos" />
-        </Fila>
-      </Seccion>
+        </FilaPerfil>
+      </SeccionPerfil>
 
-      <Seccion titulo="PRIVACIDAD">
-        <Fila titulo="Política de Privacidad" onClick={() => window.open('https://jonahbeast.com/privacidad.html', '_blank', 'noopener')}>
+      <SeccionPerfil titulo="PRIVACIDAD">
+        <FilaPerfil titulo="Política de Privacidad" onClick={() => window.open('https://jonahbeast.com/privacidad.html', '_blank', 'noopener')}>
           <ChevronRight size={18} className="text-zinc-500 shrink-0" />
-        </Fila>
-        <Fila titulo="Eliminar mi cuenta" ayuda="Borra tu cuenta y tus datos." onClick={onEliminar}>
+        </FilaPerfil>
+        <FilaPerfil titulo="Eliminar mi cuenta" ayuda="Borra tu cuenta y tus datos." onClick={onEliminar}>
           <ChevronRight size={18} className="text-red-400 shrink-0" />
-        </Fila>
-      </Seccion>
+        </FilaPerfil>
+      </SeccionPerfil>
     </div>
   );
 }

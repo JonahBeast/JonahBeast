@@ -7804,12 +7804,17 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   <div className="flex items-center gap-2">
                     <input type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
                       placeholder="Ej. 120" aria-label="Cantidad exacta"
-                      className="w-24 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
-                    <select value={unidadExacta} onChange={e => setUnidadExacta(e.target.value)} aria-label="Medida"
-                      className="flex-1 min-w-0 jb-body text-sm rounded-xl px-2 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-100 outline-none">
-                      {unitsFor(elegido).map(([u]) => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                      className="flex-1 min-w-0 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
                     <button type="submit" disabled={!valida} className={btnPrimary + ' px-4 py-2.5 text-sm shrink-0 disabled:opacity-40'}>Agregar</button>
+                  </div>
+                  {/* La medida, con botoncitos (igual que en "Editar a fondo"). */}
+                  <div className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="Medida">
+                    {unitsFor(elegido).map(([u]) => (
+                      <button key={u} type="button" onClick={() => { vibrar(8); setUnidadExacta(u); }} aria-pressed={unidadExacta === u}
+                        className={`jb-body text-sm px-3 py-1.5 rounded-full border ${unidadExacta === u ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                        {u}
+                      </button>
+                    ))}
                   </div>
                   {valida && <p className="jb-body text-xs text-orange-400 mt-1.5">≈ {kcalDe(elegido, porcion, aceite)} kcal</p>}
                   {qty > 0 && !valida && <p className="jb-body text-xs text-amber-400 mt-1.5">Cantidad muy alta, revísala.</p>}

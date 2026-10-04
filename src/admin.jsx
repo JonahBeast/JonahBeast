@@ -5386,6 +5386,21 @@ const GUION_VIDEO_GUIA = [
   'Pruébala gratis: el link está en mi perfil.',
 ].join(' ');
 const MAX_CARACTERES_VOZ_VIDEO = 1500;
+// Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
+const GUION_VIDEO_JARVIS = [
+  'Permítame mostrarle cómo funciona esta app.',
+  'Primero, usted responde cinco preguntas rápidas.',
+  'Enseguida recibe su plan, con comida peruana.',
+  'Cada día, sus calorías, proteína, carbos y grasas, a la vista.',
+  'Registra en segundos: escribiendo, con foto, con código o con voz.',
+  'Escribe como habla: lomo saltado, elige la porción y listo.',
+  'O fotografía su plato, y la inteligencia artificial lo reconoce.',
+  'O escanea el código de barras de lo que compra.',
+  'Y conoce a la comunidad: rachas, medallas y platos de otros.',
+  'Invite a un amigo: él gana siete días de Premium; usted, quince si él paga.',
+  'Pruébela gratis. El enlace está en el perfil de Jonah.',
+].join(' ');
+
 async function generarVozVideo(texto, voz) {
   const { data: { session } } = await supabase.auth.getSession();
   const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
@@ -5431,7 +5446,10 @@ function VozParaVideosPanel() {
         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 jb-body text-sm text-zinc-100 outline-none focus:border-orange-500" />
       <div className="flex items-center justify-between gap-2">
         <span className="jb-body text-[11px] text-zinc-500 tabular-nums">{n} / {MAX_CARACTERES_VOZ_VIDEO} letras</span>
-        <button onClick={() => setTexto(GUION_VIDEO_GUIA)} className="jb-body text-[11px] text-orange-400 underline">Volver al guion de la guía</button>
+        <span className="flex items-center gap-3">
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
+        </span>
       </div>
       <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
         <select value={voz} onChange={e => setVoz(e.target.value)}

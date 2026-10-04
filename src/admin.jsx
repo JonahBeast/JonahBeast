@@ -5682,7 +5682,7 @@ function VozParaVideosPanel() {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const [audio, setAudio] = useState(null); // { blob, url, nombre }
-  const [nivel, setNivel] = useState('medio'); // ninguno | suave | medio | monstruo
+  const [nivel, setNivel] = useState('suave'); // ninguno | suave | medio | monstruo
   const [pecho, setPecho] = useState(true);
   const [nivelSuperado, setNivelSuperado] = useState(true);
   const [procesando, setProcesando] = useState(false);
@@ -5725,7 +5725,7 @@ function VozParaVideosPanel() {
         <span className="flex items-center gap-3 flex-wrap justify-end">
           <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
-          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('medio'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
       </div>
       <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz

@@ -21,7 +21,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Copy, KeyRound, LogOut, Pencil, Users } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { btnPrimary, btnGhost, inputCls, showToast, confirmar, vibrar } from './App.jsx';
+import { btnPrimary, btnGhost, inputCls, showToast, confirmar, vibrar, Skeleton } from './App.jsx';
+import { RuedaFecha } from './regla.jsx';
 
 export const CLAVE_INVITACION_EQUIPO = 'jb-equipo-invitacion';
 
@@ -210,7 +211,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false 
       )}
 
       {!mis ? (
-        <div className="flex justify-center py-10"><Loader2 className="animate-spin text-orange-500" size={24} /></div>
+        <div className="flex flex-col gap-3"><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-12 w-full rounded-xl" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-12 w-full rounded-xl" /></div></div>
       ) : (
         <>
           {!enOficial && mis.oficial && (
@@ -426,10 +427,9 @@ function ConfigReto({ c, setC, oficial }) {
         <button type="button" onClick={() => cambiar({ hasta: c.hasta || masDias(c.inicio, 69) })} className={chip(!!c.hasta) + ' text-xs'}>Hasta una fecha</button>
       </div>
       {c.hasta && (
-        <div className="flex items-center gap-2 mb-1">
-          <span className="jb-body text-sm text-zinc-300">Hasta el</span>
-          <input type="date" value={c.hasta} min={masDias(c.inicio, 13)} max={masDias(c.inicio, 119)}
-            onChange={e => e.target.value && cambiar({ hasta: e.target.value })} className={inputCls + ' rounded-xl'} />
+        <div className="mb-1">
+          <span className="jb-body text-sm text-zinc-300 block mb-1">Hasta el</span>
+          <RuedaFecha valor={c.hasta} min={masDias(c.inicio, 13)} max={masDias(c.inicio, 119)} onCambio={f => f && cambiar({ hasta: f })} />
         </div>
       )}
       <p className="jb-body text-[11px] text-zinc-500 mb-4">
@@ -574,7 +574,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
       </div>
     );
   }
-  if (!eq) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-orange-500" size={24} /></div>;
+  if (!eq) return <div className="flex flex-col gap-3"><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-16 w-full rounded-xl" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-16 w-full rounded-xl" /></div><div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3"><div className="flex items-center gap-3"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-3.5 w-40" /></div><Skeleton className="h-16 w-full rounded-xl" /></div></div>;
 
   const subtitulo = eq.oficial ? `Reto de ${eq.dias} días con Jonah` : `Reto de ${eq.dias} días`;
   const objetivo = OBJETIVOS.find(o => o.id === eq.objetivo) || OBJETIVOS[0];

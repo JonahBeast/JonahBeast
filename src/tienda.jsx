@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { RuedaFecha } from './regla.jsx';
 import {
   CATEGORIAS_TIENDA,
   avisarError,
@@ -492,7 +493,7 @@ function TiendaPublica({ username, onIrALaApp }) {
               <input value={cliente.direccion} onChange={e => setCliente(v => ({ ...v, direccion: e.target.value }))} className={inputCls} />
             </Field>
             <Field label="Fecha de nacimiento (opcional, para sorpresas 🎂)">
-              <input type="date" value={cliente.fechaNacimiento} onChange={e => setCliente(v => ({ ...v, fechaNacimiento: e.target.value }))} className={inputCls} />
+              <RuedaFecha valor={cliente.fechaNacimiento} onCambio={f => setCliente(v => ({ ...v, fechaNacimiento: f }))} inicial="1990-06-15" />
             </Field>
             {err && <p className="text-red-400 text-xs flex items-center gap-1.5"><AlertTriangle size={13} />{err}</p>}
             <button onClick={confirmarPedido} disabled={enviando} className={btnPrimary + ' py-3 mt-2'}>

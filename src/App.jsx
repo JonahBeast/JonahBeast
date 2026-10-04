@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
-import { ReglaDeslizable } from './regla.jsx';
+import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 
 // Partes que se descargan solo cuando hacen falta: quien entra a la
 // portada no baja el panel de admin, la app del alumno ni la tienda.
@@ -2889,11 +2889,11 @@ function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
   }
 
   const mensajeGrasa = `Hola Jonah, medí mi composición corporal en la web: ${results.bf.toFixed(1)}% de grasa (${results.bfCat.toLowerCase()}), masa muscular ${results.muscleKg.toFixed(1)} kg, IMC ${results.bmi.toFixed(1)} y gasto de mantenimiento ${Math.round(results.tdee)} kcal al día (peso ${num('peso')} kg). ¿Me ayudas a empezar mi plan?`;
+  // Número grande con regla deslizable (o tocarlo y escribirlo).
   const campo = (k, label, extra = {}) => (
-    <Field label={label} helpHref={extra.ayuda}>
-      <input type="number" inputMode="decimal" className={inputCls + ' w-full placeholder:text-zinc-600'} value={form[k]} placeholder={extra.ph}
-        onChange={e => setForm(v => ({ ...v, [k]: e.target.value === '' ? '' : Number(e.target.value) }))} />
-    </Field>
+    <NumeroGrande key={k} label={label} valor={form[k] === '' || form[k] === null || form[k] === undefined ? '' : String(form[k])}
+      onCambio={v => setForm(f => ({ ...f, [k]: v === '' ? '' : Number(v) }))}
+      paso={extra.paso || 1} min={extra.min} max={extra.max} unidad={extra.unidad} placeholder={extra.ph} ayuda={extra.ayuda} />
   );
 
   return (
@@ -2913,28 +2913,36 @@ function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
 
         {step === 'form' ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Sexo">
-                <select value={form.sexo} onChange={e => setForm(v => ({ ...v, sexo: e.target.value }))} className={inputCls + ' w-full min-w-0'}>
-                  <option value="M">Hombre</option>
-                  <option value="F">Mujer</option>
-                </select>
-              </Field>
-              {campo('edad', 'Edad (años)', { ph: '30' })}
-              {campo('estatura', 'Estatura (cm)', { ph: '165' })}
-              {campo('peso', 'Peso (kg)', { ph: '72' })}
-              <Field label="Actividad física">
-                <select value={form.actividad} onChange={e => setForm(v => ({ ...v, actividad: e.target.value }))} className={inputCls + ' w-full min-w-0'}>
-                  {Object.keys(ACTIVITY_FACTORS).map(a => <option key={a} value={a}>{a} — {ACTIVITY_DESC[a]}</option>)}
-                </select>
-              </Field>
+            {/* Igual que "Mis datos" en la app: botones y reglas deslizables. */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {[['M', 'Hombre'], ['F', 'Mujer']].map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setForm(f => ({ ...f, sexo: v }))}
+                  className={`jb-body text-base py-3 rounded-xl border transition-colors ${form.sexo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {campo('edad', 'Edad', { ph: '30', min: 14, max: 90, unidad: 'años' })}
+              {campo('estatura', 'Estatura', { ph: '165', min: 120, max: 230, unidad: 'centímetros' })}
+              {campo('peso', 'Peso', { ph: '72', min: 30, max: 300, paso: 0.1, unidad: 'kilos' })}
+            </div>
+            <p className="jb-body text-xs text-zinc-400 mt-4 mb-2">Actividad física</p>
+            <div className="flex flex-col gap-2">
+              {Object.keys(ACTIVITY_FACTORS).map(a => (
+                <button key={a} type="button" onClick={() => setForm(f => ({ ...f, actividad: a }))}
+                  className={`text-left rounded-xl border px-3.5 py-2.5 transition-colors ${form.actividad === a ? 'bg-orange-500/15 border-orange-500' : 'border-zinc-800 bg-zinc-950'}`}>
+                  <span className={`jb-body text-sm font-semibold block ${form.actividad === a ? 'text-orange-300' : 'text-zinc-200'}`}>{a}</span>
+                  <span className="jb-body text-xs text-zinc-500 block">{ACTIVITY_DESC[a]}</span>
+                </button>
+              ))}
             </div>
             <p className="jb-display text-sm text-zinc-200 mt-5 mb-1">📏 PARA TU % DE GRASA <span className="text-zinc-500 text-xs">· CON CINTA MÉTRICA</span></p>
             <p className="jb-body text-xs text-zinc-500 mb-3">Opcional. Si no tienes cinta, igual ves tus calorías y tu peso saludable.</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {campo('cuello', 'Cuello (cm)', { ph: '38', ayuda: '/guia-cuello.jpg' })}
-              {campo('cintura', 'Cintura (cm)', { ph: '85', ayuda: '/guia-cintura.jpg' })}
-              {campo('cadera', 'Cadera (cm)', { ph: '95', ayuda: '/guia-cadera.jpg' })}
+              {campo('cuello', 'Cuello', { ph: '38', ayuda: '/guia-cuello.jpg', min: 20, max: 70, paso: 0.5, unidad: 'centímetros' })}
+              {campo('cintura', 'Cintura', { ph: '85', ayuda: '/guia-cintura.jpg', min: 40, max: 200, paso: 0.5, unidad: 'centímetros' })}
+              {campo('cadera', 'Cadera', { ph: '95', ayuda: '/guia-cadera.jpg', min: 50, max: 200, paso: 0.5, unidad: 'centímetros' })}
             </div>
             {verCodigo ? (
               <div className="mt-4">
@@ -3219,10 +3227,13 @@ function mensajePlanWhatsApp(r, plan, extra = '') {
 }
 
 // El número se elige deslizando la regla (o se toca y se escribe).
-function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder, inicial }) {
+function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder, inicial, ayuda }) {
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-      <p className="jb-body text-xs text-zinc-400 mb-1">{label}</p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="jb-body text-xs text-zinc-400">{label}</p>
+        {ayuda && <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>}
+      </div>
       <input type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
         onChange={e => onCambio(e.target.value)}
         className="w-full min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
@@ -5379,8 +5390,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               </Field>
               {!userRecord?.fecha_nacimiento && (
                 <Field label="Tu fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
-                  <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)}
-                    className={inputCls} />
+                  <RuedaFecha valor={fechaNac} onCambio={setFechaNac} inicial="1990-06-15" />
                 </Field>
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -5404,8 +5414,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             )}
             {!userRecord?.fecha_nacimiento && (
               <Field label="Tu fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
-                <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)}
-                  className={inputCls} />
+                <RuedaFecha valor={fechaNac} onCambio={setFechaNac} inicial="1990-06-15" />
               </Field>
             )}
             <Field label="Número de operación">

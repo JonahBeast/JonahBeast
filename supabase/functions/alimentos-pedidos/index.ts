@@ -394,7 +394,7 @@ async function revisarUno(fila: any) {
   if (!guardada) return { revision: null };
 
   if (revision === "dudoso" && !horaDeSilencio()) {
-    await enviarPush({ admin: true, body: `🍴 La IA no está segura de "${fila.nombre}" (@${fila.username}). Revísalo en HOY → Alimentos creados por alumnos.` });
+    await enviarPush({ admin: true, body: `🍴 La IA no está segura de "${fila.nombre}" (@${fila.username}). Revísalo en HOY → Alimentos por revisar (el alumno espera tu respuesta en 1 hora).` });
   }
   return { revision };
 }
@@ -578,7 +578,7 @@ async function atenderPedido(pedido: any) {
   // 3) No está segura: queda para Jonah, con los macros ya calculados.
   await supabase.from("pedidos_alimentos").update({ propuesta: guardar("dudoso"), actualizado_en: ahora }).eq("id", pedido.id).eq("estado", "pendiente");
   if (!horaDeSilencio()) {
-    await enviarPush({ admin: true, body: `🍽️ La IA no está segura del pedido "${pedido.nombre}". Revísalo en HOY → Pedidos de alimentos.` });
+    await enviarPush({ admin: true, body: `🍽️ La IA no está segura del pedido "${pedido.nombre}". Revísalo en HOY → Alimentos por revisar (el alumno espera tu respuesta en 1 hora).` });
   }
   return { estado: "dudoso" };
 }

@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     const { data: admins } = await supabase.from('profiles').select('username').eq('role', 'admin');
     const lista = malos.slice(0, 3).map(m => m.nombre).join(', ');
-    const body = `🔎 Revisión de alimentos: ${malos.length} ${malos.length === 1 ? 'alimento no cuadra' : 'alimentos no cuadran'} (${lista}${malos.length > 3 ? '…' : ''}). Revísalos en "Pedidos de alimentos" o pregúntale a Jarvis.`;
+    const body = `🔎 Revisión de alimentos: ${malos.length} ${malos.length === 1 ? 'alimento no cuadra' : 'alimentos no cuadran'} (${lista}${malos.length > 3 ? '…' : ''}). Revísalos en "Alimentos por revisar" o pregúntale a Jarvis.`;
     const r = await enviarPushA(supabase, (admins || []).map(a => a.username).filter(Boolean), { title: 'Jarvis 🦍', body, url: '/' });
     return res.status(200).json({ ok: true, revisados, problemas: malos.length, detalle: malos, avisado: r.enviados });
   } catch (e) {

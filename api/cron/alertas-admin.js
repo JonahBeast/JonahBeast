@@ -71,16 +71,16 @@ export default async function handler(req, res) {
         avisos.push({
           title: '🍽️ Pedidos por revisar',
           body: pedidos.length === 1
-            ? `Anoche quedó 1 pedido que la IA no pudo decidir: ${lista(pedidos)}. Revísalo en HOY → Pedidos de alimentos.`
-            : `Anoche quedaron ${pedidos.length} pedidos que la IA no pudo decidir: ${lista(pedidos.slice(0, 5))}${pedidos.length > 5 ? '…' : ''}. Revísalos en HOY → Pedidos de alimentos.`,
+            ? `Anoche quedó 1 pedido que la IA no pudo decidir: ${lista(pedidos)}. Revísalo en HOY → Alimentos por revisar.`
+            : `Anoche quedaron ${pedidos.length} pedidos que la IA no pudo decidir: ${lista(pedidos.slice(0, 5))}${pedidos.length > 5 ? '…' : ''}. Revísalos en HOY → Alimentos por revisar.`,
         });
       }
       if (creados?.length) {
         avisos.push({
           title: '🍴 Alimentos por revisar',
           body: creados.length === 1
-            ? `Anoche un alumno creó ${lista(creados)} y la IA no está segura. Revísalo en HOY → Alimentos creados por alumnos.`
-            : `Anoche quedaron ${creados.length} alimentos creados por alumnos que la IA no pudo decidir. Revísalos en HOY → Alimentos creados por alumnos.`,
+            ? `Anoche un alumno creó ${lista(creados)} y la IA no está segura. Revísalo en HOY → Alimentos por revisar.`
+            : `Anoche quedaron ${creados.length} alimentos creados por alumnos que la IA no pudo decidir. Revísalos en HOY → Alimentos por revisar.`,
         });
       }
     }

@@ -1671,6 +1671,118 @@ function RecomendacionIA({ texto }) {
    historial. */
 const COLUMNAS_PROPIOS = 'id, username, nombre, kcal, proteina, carbos, grasas, created_at, editado_en, revision, revisado_en, revision_ia';
 
+/* 📊 Cómo le va a la IA con los alimentos: de todo lo que revisó, cuánto
+   resolvió sola, cuánto le pasó a Jonah, en cuántos de esos Jonah aceptó
+   sus números y cuánto costó. Sirve para decidir con datos si conviene
+   darle más libertad (o quitársela). La IA revisa pedidos desde el 29 de
+   setiembre de 2026. */
+const IA_ALIMENTOS_DESDE = '2026-09-29T00:00:00Z';
+function ReporteIAAlimentos() {
+  const [abierto, setAbierto] = useState(false);
+  const [periodo, setPeriodo] = useState('30'); // '30' | 'todo'
+  const [datos, setDatos] = useState(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    let vivo = true;
+    (async () => {
+      setDatos(null);
+      const desde = periodo === '30' ? new Date(Date.now() - 30 * 864e5).toISOString() : IA_ALIMENTOS_DESDE;
+      const [rp, ra, ru] = await Promise.all([
+        supabase.from('pedidos_alimentos').select('estado, propuesta, alimentos_extra(kcal)')
+          .gte('creado_en', desde).not('propuesta', 'is', null).limit(2000),
+        supabase.from('alimentos_personales').select('revision, revision_ia').gte('created_at', desde).not('revision_ia', 'is', null).limit(2000),
+        supabase.from('ia_uso').select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
+          .eq('funcion', 'alimentos-pedidos').gte('creado_en', desde).limit(5000),
+      ]);
+      if (!vivo) return;
+      const pedidos = (rp.data || []).filter(p => p.propuesta?.ia_estado && p.propuesta.ia_estado !== 'revisando');
+      const sola = pedidos.filter(p => ['agregado', 'descartado'].includes(p.propuesta.ia_estado));
+      const pasados = pedidos.filter(p => p.propuesta.ia_estado === 'dudoso');
+      const aprobados = pasados.filter(p => p.estado === 'agregado');
+      const mismosNumeros = aprobados.filter(p => {
+        const ia = Number(p.propuesta.kcal), fin = Number(p.alimentos_extra?.kcal);
+        return ia > 0 && fin > 0 && Math.abs(ia - fin) / ia <= 0.03;
+      });
+      const propios = ra.data || [];
+      const costoUsd = (ru.data || []).reduce((t, f) => t + costoUsdIA(f), 0);
+      setDatos({
+        total: pedidos.length + propios.length,
+        pedidos: pedidos.length,
+        sola: sola.length,
+        solaQuitados: sola.filter(p => p.propuesta.ia_estado === 'agregado' && p.estado === 'descartado').length,
+        pasados: pasados.length,
+        aprobados: aprobados.length,
+        descartados: pasados.filter(p => p.estado === 'descartado').length,
+        esperando: pasados.filter(p => p.estado === 'pendiente').length,
+        mismosNumeros: mismosNumeros.length,
+        propios: propios.length,
+        propiosSola: propios.filter(a => a.revision_ia?.auto).length,
+        costoSoles: costoUsd * SUPUESTOS_RENTABILIDAD.tipoCambio,
+        llamadas: (ru.data || []).length,
+      });
+    })().catch(() => vivo && setDatos({ error: true }));
+    return () => { vivo = false; };
+  }, [abierto, periodo]);
+
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const d = datos;
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
+      <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
+        <span className="jb-body text-xs text-zinc-300">📊 Cómo le va a la IA con los alimentos</span>
+        <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-3.5 pb-3.5 flex flex-col gap-3">
+          <div className="flex gap-1.5">
+            {[['30', 'Últimos 30 días'], ['todo', 'Desde el inicio']].map(([v, t]) => (
+              <button key={v} onClick={() => setPeriodo(v)}
+                className={`jb-body text-[11px] px-3 py-1 rounded-full border ${periodo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-400'}`}>{t}</button>
+            ))}
+          </div>
+          {!d ? <Loader2 className="animate-spin text-orange-500" size={18} />
+            : d.error ? <p className="jb-body text-xs text-red-400">No se pudo armar el reporte. Intenta de nuevo.</p>
+            : d.total === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no hay casos en este periodo.</p>
+            : (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {[[d.total, 'casos revisó la IA'], [`${pct(d.sola + d.propiosSola, d.total)}%`, 'resolvió sola'], [`${pct(d.pasados + (d.propios - d.propiosSola), d.total)}%`, 'te pasó a ti']].map(([v, t]) => (
+                    <div key={t} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-center">
+                      <p className="jb-display text-xl text-zinc-50 tabular-nums">{v}</p>
+                      <p className="jb-body text-[10px] text-zinc-500 leading-tight">{t}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="jb-body text-xs text-zinc-300 flex flex-col gap-1.5">
+                  <p className="text-zinc-400 font-semibold">🙋 Pedidos ({d.pedidos})</p>
+                  <p>🤖 Resolvió sola: <b>{d.sola}</b>{d.solaQuitados ? <span className="text-amber-300"> · {d.solaQuitados} lo quitaste después</span> : ''}</p>
+                  <p>➡️ Te pasó a ti: <b>{d.pasados}</b> · aprobaste {d.aprobados}, descartaste {d.descartados}{d.esperando ? `, ${d.esperando} esperando` : ''}</p>
+                  {d.aprobados > 0 && (
+                    <p>🎯 De los que aprobaste, usaste <b>sus mismas calorías en {d.mismosNumeros} de {d.aprobados}</b> ({pct(d.mismosNumeros, d.aprobados)}%)</p>
+                  )}
+                  {d.propios > 0 && <>
+                    <p className="text-zinc-400 font-semibold mt-1">🍴 Alimentos que crearon los alumnos ({d.propios})</p>
+                    <p>🤖 Resolvió sola: <b>{d.propiosSola}</b> · ➡️ te pasó a ti: <b>{d.propios - d.propiosSola}</b></p>
+                  </>}
+                  <p className="text-zinc-400 font-semibold mt-1">💰 Costo</p>
+                  <p>S/{d.costoSoles.toFixed(2)} en {d.llamadas} revisiones (unos S/{(d.llamadas ? d.costoSoles / d.llamadas : 0).toFixed(2)} cada una)</p>
+                </div>
+                <p className="jb-body text-[11px] text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg p-2.5">
+                  {d.aprobados >= 10 && pct(d.mismosNumeros, d.aprobados) >= 90
+                    ? `💡 Cuando te pasa un caso, casi siempre aceptas sus números (${pct(d.mismosNumeros, d.aprobados)}%): la IA acierta, solo es prudente por las reglas que le pusimos para cuidar la base. ${d.total >= 50 ? 'Ya hay casos suficientes: se puede pensar en darle más libertad en los tipos de plato donde acierta.' : 'Cuando haya unos 50 casos, se puede pensar en darle más libertad.'}`
+                    : d.aprobados >= 10
+                    ? `💡 Cambias sus números seguido (solo aceptas ${pct(d.mismosNumeros, d.aprobados)}%): mejor que te siga pasando los casos.`
+                    : '💡 Todavía hay pocos casos para sacar conclusiones. Mira este reporte de nuevo en unas semanas.'}
+                </p>
+              </>
+            )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Desde cuándo espera el alumno: el primero que lo pidió por la app o por
 // WhatsApp (lo que solo vio la IA en una foto no tiene a nadie esperando).
 function esperaDesde(pedido) {
@@ -1814,6 +1926,7 @@ function PedidosAlimentosPanel() {
           </button>
           {verHerramientas && (
             <div className="flex flex-col gap-3 pl-2 border-l-2 border-zinc-800">
+              <ReporteIAAlimentos />
               <PedidosAtendidosIA />
               <HistorialAlimentosPropios />
               <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ tipo: 'pedido', nombre, avisos: null }, ...rs])} />

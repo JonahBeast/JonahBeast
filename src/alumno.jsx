@@ -5343,7 +5343,7 @@ function CentroDeMando({ nombre, mealPlan, onRegistrar, metaEstimada = false, on
                   ? 'bg-orange-500/20 border-orange-500'
                   : esAhora ? 'bg-zinc-950 border-orange-500 jbm-fab' : 'bg-zinc-950 border-zinc-700'}`}>
                   {ICONO_COMIDA[ml]}
-                  {hecha && <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>}
+                  {hecha && <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>}
                 </span>
                 <span className={`jb-body text-[10px] leading-tight text-center ${esAhora ? 'text-orange-400 font-semibold' : hecha ? 'text-zinc-300' : 'text-zinc-500'}`}>
                   {ml === 'Media mañana' ? 'Media mañ.' : ml}

@@ -207,7 +207,7 @@ De arriba hacia abajo:
 - **Un aviso a la vez** (el más importante): versión gratis → renovación → Premium de prueba → notificaciones → instalar la app.
   - **"ESTÁS EN LA VERSIÓN GRATIS"** ("Con Premium tienes foto inteligente en todas tus comidas.") sale cuando venció su prueba o su plan. El botón **"VER PREMIUM"** lleva a los planes.
 - **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora". Mientras falte la primera comida, el botón dice **"📷 Tómale foto a lo que vas a comer"** y abre la cámara directo (lo mismo al tocar el paso 1).
-- **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": tocando un ícono vas directo a esa comida.
+- **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": las comidas ya registradas llevan un **✓ verde** (igual que en Comidas); tocando un ícono vas directo a esa comida.
   - Si aparece **"Meta estimada. Ajústala a tu cuerpo en 30 segundos"**, faltan tus datos o tu objetivo (ver sección 10).
 - **"¿COMISTE PARECIDO A AYER?"** (solo si hoy no registraste nada y ayer sí): **"Repetir ayer"** copia todas las comidas de ayer.
 - **"📊 TU SEMANA EN NÚMEROS"** (solo los domingos): kcal promedio, días registrados y comparación con la semana pasada.

@@ -5682,7 +5682,7 @@ function VozParaVideosPanel() {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const [audio, setAudio] = useState(null); // { blob, url, nombre }
-  const [nivel, setNivel] = useState('criatura'); // ninguno | suave | medio | monstruo
+  const [nivel, setNivel] = useState('medio'); // ninguno | suave | medio | monstruo
   const [pecho, setPecho] = useState(true);
   const [nivelSuperado, setNivelSuperado] = useState(true);
   const [procesando, setProcesando] = useState(false);
@@ -5725,7 +5725,7 @@ function VozParaVideosPanel() {
         <span className="flex items-center gap-3 flex-wrap justify-end">
           <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
-          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('criatura'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('medio'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
       </div>
       <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
@@ -5753,8 +5753,8 @@ function VozParaVideosPanel() {
             <p className="jb-body text-[11px] text-zinc-500">"Criatura" y "Jefe final" reemplazan la voz por un gruñido de gorila que sigue el ritmo de las palabras, con un gruñido en cada frase fuerte, temblor de rugido, 8 bits y eco de cueva. Al inicio, golpes de pecho y rugido; al final, «nivel superado». Escucha y prueba hasta que te guste.</p>
             <select value={nivel} onChange={e => setNivel(e.target.value)}
               className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
-              <option value="criatura">🦍 Criatura de videojuego (no humana)</option>
-              <option value="jefe">🦍👑 Jefe final (criatura más grave)</option>
+              <option value="criatura">🦍 Criatura robótica (experimental)</option>
+              <option value="jefe">🦍👑 Jefe robótico (experimental)</option>
               <option value="suave">Voz humana grave · suave</option>
               <option value="medio">Voz humana grave · media</option>
               <option value="monstruo">Voz humana grave · monstruo</option>

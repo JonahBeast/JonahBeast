@@ -5452,8 +5452,8 @@ async function generarVozVideo(texto, voz) {
    pecho y un rugido; al final, un sonido de "nivel superado". Devuelve WAV. */
 const EFECTOS_GORILA = {
   // Criaturas: la voz se reemplaza por un gruñido sintético (vocoder).
-  criatura: { voc: { f0: 72, shift: 0.8, bandas: 22, ruido: 0.28 }, graves: 8, am: 0.3, amHz: 40, rugido: 0.45, bits: 40, reverb: 0.14 },
-  jefe: { voc: { f0: 56, shift: 0.64, bandas: 22, ruido: 0.3 }, graves: 11, am: 0.45, amHz: 48, rugido: 0.65, bits: 28, reverb: 0.22 },
+  criatura: { voc: { f0: 92, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0, amHz: 40, rugido: 0.15, bits: 0, reverb: 0.05 },
+  jefe: { voc: { f0: 72, shift: 0.95, bandas: 16, ruido: 0.15, ruidoAlto: 0.5, q: 5, envHz: 90, seco: 0.2, secoHz: 3500, pre: 0.9, subeTono: 0.1, vibrato: 0.02, jitter: 0.03 }, graves: 2, presencia: 4, am: 0.1, amHz: 44, rugido: 0.3, bits: 0, reverb: 0.05 },
   // Voz humana procesada (más grave).
   suave: { tono: 0.72, rugido: 0.3, graves: 8, am: 0.22, amHz: 38, bits: 0, reverb: 0.1 },
   medio: { tono: 0.6, rugido: 0.5, graves: 10, am: 0.38, amHz: 42, bits: 48, reverb: 0.16 },
@@ -5485,31 +5485,54 @@ function filtroBP(x, c) {
   }
   return y;
 }
-function vocoderCriatura(x, sr, { f0 = 72, shift = 0.8, bandas = 22, ruido = 0.28 }) {
+function vocoderCriatura(x, sr, { f0 = 95, shift = 0.88, bandas = 28, ruido = 0.18, ruidoAlto = 0.6, q = 3.5, envHz = 70, seco = 0.55, secoHz = 3200, pre = 0.95, subeTono = 0.35, vibrato = 0.03, jitter = 0.05 }) {
   const n = x.length;
+  // Pre-énfasis: realza las consonantes antes de medirlas.
+  const mod0 = new Float32Array(n); for (let i = 1; i < n; i++) mod0[i] = x[i] - pre * x[i - 1];
   const tot = new Float32Array(n);
   { const a = Math.exp((-2 * Math.PI * 12) / sr); let e = 0; for (let i = 0; i < n; i++) { e = a * e + (1 - a) * Math.abs(x[i]); tot[i] = e; } }
   let mx = 0; for (let i = 0; i < n; i += 64) mx = Math.max(mx, tot[i]); mx = mx || 1;
-  const car = new Float32Array(n); let fase = 0, jit = 0;
+  // Portadoras: diente de sierra grave (rica en armónicos) y ruido, por separado.
+  const sierra = new Float32Array(n), soplo = new Float32Array(n); let fase = 0, jit = 0;
   for (let i = 0; i < n; i++) {
-    const t = i / sr, v = tot[i] / mx; if (i % 441 === 0) jit = (Math.random() - 0.5) * 0.05;
-    const f = f0 * (1 + 0.35 * v + 0.03 * Math.sin(2 * Math.PI * 5.5 * t) + jit);
+    const t = i / sr, v = tot[i] / mx; if (i % 441 === 0) jit = (Math.random() - 0.5) * jitter;
+    const f = f0 * (1 + subeTono * v + vibrato * Math.sin(2 * Math.PI * 5.5 * t) + jit);
     fase += f / sr; fase -= Math.floor(fase);
-    car[i] = (1 - ruido) * (2 * fase - 1) + ruido * (Math.random() * 2 - 1);
+    sierra[i] = 2 * fase - 1; soplo[i] = Math.random() * 2 - 1;
   }
   const out = new Float32Array(n);
-  const fMin = 110, fMax = Math.min(7500, sr / 2 - 500), aEnv = Math.exp((-2 * Math.PI * 35) / sr);
+  const fMin = 120, fMax = Math.min(7600, sr / 2 - 500), aEnv = Math.exp((-2 * Math.PI * envHz) / sr);
+  const bp2 = (z, f) => { const c = coefBP(f, q, sr); return filtroBP(filtroBP(z, c), c); }; // dos filtros seguidos: bandas más afiladas
+  const rmsDe = z => { let r = 0; for (let i = 0; i < z.length; i += 4) r += z[i] * z[i]; return Math.sqrt(r / Math.ceil(z.length / 4)) || 1; };
   for (let k = 0; k < bandas; k++) {
-    const fc = fMin * Math.pow(fMax / fMin, k / (bandas - 1));
-    const mod = filtroBP(x, coefBP(fc, 5, sr)), por = filtroBP(car, coefBP(Math.max(80, fc * shift), 5, sr));
-    let e = 0;
-    for (let i = 0; i < n; i++) { e = aEnv * e + (1 - aEnv) * Math.abs(mod[i]); out[i] += por[i] * e; }
+    const pos = k / (bandas - 1), fc = fMin * Math.pow(fMax / fMin, pos);
+    const mezcla = Math.min(0.95, ruido + ruidoAlto * pos * pos); // más ruido en las bandas agudas (consonantes)
+    const mod = bp2(mod0, fc);
+    const fp = Math.max(90, fc * shift), ps = bp2(sierra, fp), pr = bp2(soplo, fp);
+    // portadora pareja: cada banda con el mismo volumen (la sierra se apagaría hacia los agudos)
+    const norma = 1 / Math.sqrt(Math.pow((1 - mezcla) * rmsDe(ps), 2) + Math.pow(mezcla * rmsDe(pr), 2));
+    let e1 = 0, e2 = 0;
+    for (let i = 0; i < n; i++) {
+      e1 = aEnv * e1 + (1 - aEnv) * Math.abs(mod[i]); e2 = aEnv * e2 + (1 - aEnv) * e1; // suavizado de dos etapas
+      out[i] += ((1 - mezcla) * ps[i] + mezcla * pr[i]) * norma * e2;
+    }
   }
   let rx = 0, ry = 0; for (let i = 0; i < n; i++) { rx += x[i] * x[i]; ry += out[i] * out[i]; }
-  const g = ry > 0 ? Math.sqrt(rx / ry) : 1; let pico = 0;
-  for (let i = 0; i < n; i++) { out[i] *= g; pico = Math.max(pico, Math.abs(out[i])); }
-  if (pico > 0.8) { const r = 0.8 / pico; for (let i = 0; i < n; i++) out[i] *= r; }
+  const g = ry > 0 ? Math.sqrt(rx / ry) : 1;
+  for (let i = 0; i < n; i++) out[i] *= g;
+  // Consonantes nítidas: un poco de la voz original solo en los agudos (no lleva el timbre humano).
+  if (seco > 0) {
+    const hp = filtroHP(x, secoHz, sr);
+    for (let i = 0; i < n; i++) out[i] += seco * hp[i];
+  }
   return out;
+}
+function filtroHP(x, fc, sr) {
+  const w = (2 * Math.PI * fc) / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.707), a0 = 1 + al;
+  const b0 = (1 + c) / 2 / a0, b1 = -(1 + c) / a0, b2 = b0, a1 = (-2 * c) / a0, a2 = (1 - al) / a0;
+  const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) { const xi = x[i], yi = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = xi; y2 = y1; y1 = yi; y[i] = yi; }
+  return y;
 }
 // Momentos en que arranca una sílaba fuerte (para ponerle un gruñido).
 function iniciosFuertes(x, sr) {
@@ -5548,7 +5571,7 @@ function cambiarTono(ctx, tono) {
   par(0.05); par(0.05 + buf - fade);
   return { entrada, salida };
 }
-function notaJuego(ctx, t, f, dur, vol = 0.16) {
+function notaJuego(ctx, t, f, dur, vol = 0.08) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = 'square'; o.frequency.setValueAtTime(f, t);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
@@ -5557,7 +5580,7 @@ function notaJuego(ctx, t, f, dur, vol = 0.16) {
 function golpePecho(ctx, t) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.2);
-  g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
   o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.32);
   const len = Math.floor(ctx.sampleRate * 0.09), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
@@ -5567,7 +5590,7 @@ function golpePecho(ctx, t) {
 }
 // Rugido de gorila inventado: diente de sierra grave con temblor, distorsión
 // y un filtro que se abre y se cierra, más un soplido de ruido.
-function rugidoGorila(ctx, t, dur = 0.9, vol = 0.4) {
+function rugidoGorila(ctx, t, dur = 0.9, vol = 0.25) {
   const o = ctx.createOscillator(); o.type = 'sawtooth';
   o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(68, t + dur);
   const vib = ctx.createOscillator(), vibG = ctx.createGain(); vib.frequency.value = 26; vibG.gain.value = 14; vib.connect(vibG).connect(o.frequency);
@@ -5611,25 +5634,26 @@ async function aplicarEfectoGorila(blob, { nivel, pecho, nivelSuperado }) {
     gruñidos = iniciosFuertes(x, buf.sampleRate);
   }
   const src = ctx.createBufferSource(); src.buffer = fuente;
-  const salida = ctx.createGain(); salida.gain.value = cfg ? (cfg.voc ? 0.5 : 0.6) : 0.9;
+  const salida = ctx.createGain(); salida.gain.value = 1;
   let nodo = src;
   const unir = n => { nodo.connect(n.entrada || n); nodo = n.salida || n; };
   if (cfg) {
     if (cfg.tono) unir(cambiarTono(ctx, cfg.tono));
-    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 55; unir(hp);
-    const graves = ctx.createBiquadFilter(); graves.type = 'lowshelf'; graves.frequency.value = 170; graves.gain.value = cfg.graves; unir(graves);
-    // temblor de rugido en la garganta (modulación de volumen grave)
-    const am = ctx.createGain(); am.gain.value = 1 - cfg.am;
-    const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = cfg.amHz; lfoG.gain.value = cfg.am; lfo.connect(lfoG).connect(am.gain); lfo.start(0); lfo.stop(total);
-    unir(am);
-    const sh = ctx.createWaveShaper(); sh.curve = curvaRugido(cfg.rugido); sh.oversample = '2x'; unir(sh);
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = cfg.voc ? 90 : 55; unir(hp);
+    if (cfg.graves) { const graves = ctx.createBiquadFilter(); graves.type = 'lowshelf'; graves.frequency.value = 170; graves.gain.value = cfg.graves; unir(graves); }
+    if (cfg.am > 0) { // temblor de rugido en la garganta (modulación de volumen grave)
+      const am = ctx.createGain(); am.gain.value = 1 - cfg.am;
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain(); lfo.frequency.value = cfg.amHz; lfoG.gain.value = cfg.am; lfo.connect(lfoG).connect(am.gain); lfo.start(0); lfo.stop(total);
+      unir(am);
+    }
+    if (cfg.rugido > 0) { const sh = ctx.createWaveShaper(); sh.curve = curvaRugido(cfg.rugido); sh.oversample = '2x'; unir(sh); }
     if (cfg.bits) { const bc = ctx.createWaveShaper(); bc.curve = curvaBits(cfg.bits); unir(bc); }
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; unir(lp);
-    const medios = ctx.createBiquadFilter(); medios.type = 'peaking'; medios.frequency.value = 1500; medios.Q.value = 0.9; medios.gain.value = 3; unir(medios);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cfg.voc ? 9500 : 5200; unir(lp);
+    const medios = ctx.createBiquadFilter(); medios.type = 'peaking'; medios.frequency.value = cfg.voc ? 1800 : 1500; medios.Q.value = 0.9; medios.gain.value = cfg.presencia ?? 3; unir(medios);
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -22; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18; unir(comp);
   }
   nodo.connect(salida); salida.connect(ctx.destination);
-  const eco = ctx.createDelay(0.5); eco.delayTime.value = 0.07; const ecoG = ctx.createGain(); ecoG.gain.value = cfg ? 0.14 : 0;
+  const eco = ctx.createDelay(0.5); eco.delayTime.value = 0.07; const ecoG = ctx.createGain(); ecoG.gain.value = cfg && !cfg.voc ? 0.14 : 0;
   salida.connect(eco); eco.connect(ecoG); ecoG.connect(ctx.destination);
   if (cfg && cfg.reverb > 0) { // eco de cueva
     const largo = Math.floor(SR * 0.8), ir = ctx.createBuffer(2, largo, SR);
@@ -5638,14 +5662,18 @@ async function aplicarEfectoGorila(blob, { nivel, pecho, nivelSuperado }) {
     salida.connect(conv); conv.connect(vg); vg.connect(ctx.destination);
   }
   src.start(pre);
-  if (pecho) { golpePecho(ctx, 0.1); golpePecho(ctx, 0.55); rugidoGorila(ctx, 0.95, 0.95); }
-  gruñidos.forEach(t => rugidoGorila(ctx, pre + Math.max(0, t - 0.03), 0.18, 0.16));
+  if (pecho) { golpePecho(ctx, 0.1); golpePecho(ctx, 0.55); rugidoGorila(ctx, 0.95, 0.95, 0.22); }
+  gruñidos.forEach(t => rugidoGorila(ctx, pre + Math.max(0, t - 0.03), 0.18, 0.05));
   if (nivelSuperado) {
     const t0 = pre + dur + 0.1;
     [523, 659, 784, 1047, 1319].forEach((f, i) => notaJuego(ctx, t0 + i * 0.09, f, 0.12));
-    notaJuego(ctx, t0 + 0.5, 1568, 0.5, 0.18);
+    notaJuego(ctx, t0 + 0.5, 1568, 0.5, 0.1);
   }
-  return audioBufferAWav(await ctx.startRendering());
+  const hecho = await ctx.startRendering();
+  // Volumen final parejo: lleva el pico a 0,9 (así se oye bien en el parlante del celular).
+  let pico = 0; for (let c = 0; c < hecho.numberOfChannels; c++) { const d = hecho.getChannelData(c); for (let i = 0; i < d.length; i++) pico = Math.max(pico, Math.abs(d[i])); }
+  if (pico > 0) { const g = 0.9 / pico; for (let c = 0; c < hecho.numberOfChannels; c++) { const d = hecho.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= g; } }
+  return audioBufferAWav(hecho);
 }
 
 function VozParaVideosPanel() {

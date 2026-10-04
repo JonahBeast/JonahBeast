@@ -5423,10 +5423,13 @@ const GUION_VIDEO_JARVIS = [
   'Pruébela gratis. El enlace está en el perfil de Jonah.',
 ].join(' ');
 
+// La versión de prueba de Vercel habla con una copia de prueba de la función de voz
+// (jarvis-voz-prueba), igual que Jarvis; el sitio real usa jarvis-voz.
+const funcionVoz = () => (HOSTS_PRODUCCION.includes(window.location.hostname) ? 'jarvis-voz' : 'jarvis-voz-prueba');
 async function generarVozVideo(texto, voz) {
   const pedir = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+    return fetch(`${supabaseUrl}/functions/v1/${funcionVoz()}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
       body: JSON.stringify({ texto, voz }),
@@ -5735,7 +5738,7 @@ function VozParaVideosPanel() {
         </select>
       </label>
       {voz.startsWith('gorila') && (
-        <p className="jb-body text-[11px] text-amber-400">🦍 Esta voz suena de verdad cuando se publica la función de voz nueva (después de unir el cambio). Mientras tanto, usa Onyx con el efecto de gorila de abajo.</p>
+        <p className="jb-body text-[11px] text-amber-400">🦍 Esta voz enérgica solo funciona en la versión de prueba hasta que se una el cambio y se publique la función de voz nueva en el sitio real.</p>
       )}
       <button onClick={generar} disabled={ocupado || !texto.trim()} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
         {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🎙️ Generar voz'}

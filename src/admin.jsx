@@ -42,7 +42,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
-import { alimentosParecidos } from './parecidos.js';
+import { alimentosParecidos, parecido } from './parecidos.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
@@ -1544,7 +1544,7 @@ function recomendacionPedido(p) {
    varios igual de parecidos, gana el de calorías más cercanas a lo que
    estima la IA ("Pollo sancochado" ≈ 165 kcal → "Pollo pechuga (cocida)").
    Devuelve { tipo: 'existe' | 'corregir' | 'para_todos' | null, texto, food?, cifras? }. */
-function recomendacionPropio(a, ri) {
+function recomendacionPropio(a, ri, candidato = false) {
   const base = FOODS.filter(f => !f.esPersonal && !f.esProducto).map(f => ({ etiqueta: etiquetaFood(f), f }));
   const kcalRef = Number(ri?.ia?.kcal) || Number(a.kcal) || 0;
   let food = null;
@@ -1555,6 +1555,16 @@ function recomendacionPropio(a, ri) {
     food = muy.filter(x => x.parecido === top).sort((x, y) => Math.abs(x.f.kcal - kcalRef) - Math.abs(y.f.kcal - kcalRef))[0]?.f || null;
   }
   if (food) return { tipo: 'existe', food, texto: `🔗 Ya está en la app como "${food.key}" (${Math.round(food.kcal)} kcal por 100 g). Únelo con ese: sus comidas usan los datos correctos y la base no se llena de repetidos.` };
+  // Por los números: comparte una palabra del nombre y tiene casi las mismas
+  // calorías y macros que uno de la app (ej. "Hamburguesa" 248 kcal =
+  // "Hamburguesa clásica (Bembos)" 248 kcal: lo copió de ahí).
+  const m = { k: Number(a.kcal) || 0, p: Number(a.proteina) || 0, c: Number(a.carbos) || 0, g: Number(a.grasas) || 0 };
+  const distancia = f => Math.abs(f.protein - m.p) + Math.abs(f.carbs - m.c) + Math.abs(f.fat - m.g);
+  const porNumeros = base
+    .filter(x => parecido(a.nombre, x.etiqueta) > 0 && Math.abs(x.f.kcal - m.k) <= Math.max(10, m.k * 0.1) && distancia(x.f) <= 6)
+    .sort((x, y) => distancia(x.f) - distancia(y.f))[0]?.f;
+  if (porNumeros) return { tipo: 'existe', food: porNumeros, texto: `🔗 Es lo mismo que "${porNumeros.key}": tiene el mismo nombre y casi los mismos números (${Math.round(m.k)} vs ${Math.round(porNumeros.kcal)} kcal por 100 g). Únelo con ese y la base no se llena de repetidos.` };
+  if (candidato) return { tipo: 'para_todos', texto: '➕ No está en la app y la IA ya revisó sus números. Si a otros alumnos les sirve, agrégalo para todos; si es algo muy suyo (una receta de casa), déjalo solo para él.' };
   if (!ri?.ia) return { tipo: null, texto: null };
   if (ri.veredicto === 'corregir') return { tipo: 'corregir', cifras: ri.ia, texto: `✏️ Sus números están mal. Corrígelos con los de la IA (${Math.round(ri.ia.kcal)} kcal por 100 g): sus comidas se recalculan solas.` };
   if (ri.veredicto === 'bien') return { tipo: 'para_todos', texto: `➕ Sus números están bien y no existe en la app. Agrégalo para todos: la base crece y su alimento pasa a ser el oficial.` };
@@ -1841,8 +1851,9 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
   const ri = a.revision_ia || null;
   // Por revisar: una sola acción grande (la recomendada) y el resto en
   // "Otras opciones", para no tener 5 botones iguales.
-  const pendiente = !candidato && (a.revision === 'dudoso' || !a.revision);
-  const rec = useMemo(() => recomendacionPropio(a, ri), [a.id, a.revision, a.revisado_en]); // eslint-disable-line react-hooks/exhaustive-deps
+  // También en los candidatos para la base: la app dice si ya existe.
+  const pendiente = candidato || a.revision === 'dudoso' || !a.revision;
+  const rec = useMemo(() => recomendacionPropio(a, ri, candidato), [a.id, a.revision, a.revisado_en]); // eslint-disable-line react-hooks/exhaustive-deps
   const [masOpciones, setMasOpciones] = useState(false);
   async function hacerRecomendado() {
     if (rec.tipo === 'existe') return marcar('existe', { reemplazo: rec.food.key }, { oficial: rec.food.key });

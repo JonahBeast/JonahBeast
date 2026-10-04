@@ -1514,8 +1514,54 @@ async function sincronizarComprasGoogle(servicio) {
    Cualquier componente puede llamar showToast('mensaje') sin necesidad
    de pasar props; se comunica vía CustomEvent y un solo <ToastHost/>
    montado en la raíz de la app se encarga de mostrarlas. */
-function showToast(message, tipo = 'success') {
-  window.dispatchEvent(new CustomEvent('jb-toast', { detail: { message, tipo, id: Math.random().toString(36).slice(2) } }));
+// accion (opcional): { texto: 'Deshacer', alHacer: () => … } → el aviso
+// lleva ese botón y dura más (5 s), para que alcance a tocarlo.
+function showToast(message, tipo = 'success', { accion = null } = {}) {
+  window.dispatchEvent(new CustomEvent('jb-toast', { detail: { message, tipo, accion, id: Math.random().toString(36).slice(2) } }));
+}
+
+// Error de una acción: aviso rojo en vez del cuadro gris del navegador.
+function avisarError(e, texto = 'No se pudo completar la acción. Revisa tu internet e intenta de nuevo.') {
+  if (e) console.error(texto, e);
+  showToast(texto, 'error');
+}
+
+/* "¿Seguro?" con el estilo de la app (una hoja que sube desde abajo), en
+   vez del cuadro gris del navegador. Devuelve una promesa: true si toca el
+   botón principal. Uso: if (!(await confirmar({ titulo, texto, si: 'Borrar', peligro: true }))) return; */
+function confirmar({ titulo, texto = '', si = 'Sí', no = 'Cancelar', peligro = false } = {}) {
+  return new Promise(resolve => {
+    window.dispatchEvent(new CustomEvent('jb-confirmar', { detail: { titulo, texto, si, no, peligro, resolve } }));
+  });
+}
+
+function ConfirmarHost() {
+  const [pedido, setPedido] = useState(null);
+  useEffect(() => {
+    const alPedir = e => setPedido(p => { p?.resolve(false); return e.detail; });
+    window.addEventListener('jb-confirmar', alPedir);
+    return () => window.removeEventListener('jb-confirmar', alPedir);
+  }, []);
+  if (!pedido) return null;
+  const responder = v => { pedido.resolve(v); setPedido(null); };
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/70" onClick={() => responder(false)} />
+      <div className="relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <p className="jb-display text-lg text-zinc-50 tracking-wide">{pedido.titulo}</p>
+        {pedido.texto && <p className="jb-body text-sm text-zinc-400 mt-1">{pedido.texto}</p>}
+        <div className="flex flex-col gap-2 mt-5">
+          <button onClick={() => { vibrar(15); responder(true); }}
+            className={`jb-display text-base tracking-wide rounded-xl py-3 ${pedido.peligro ? 'bg-red-500 text-zinc-950' : 'bg-orange-500 text-zinc-950'}`}>
+            {pedido.si}
+          </button>
+          <button onClick={() => responder(false)} className="jb-body text-sm text-zinc-300 rounded-xl py-3 border border-zinc-700">{pedido.no}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ToastHost() {
@@ -1525,7 +1571,7 @@ function ToastHost() {
     function onToast(e) {
       const t = e.detail;
       setToasts(list => [...list, t]);
-      setTimeout(() => setToasts(list => list.filter(x => x.id !== t.id)), 2800);
+      setTimeout(() => setToasts(list => list.filter(x => x.id !== t.id)), t.accion ? 5000 : 2800);
     }
     window.addEventListener('jb-toast', onToast);
     return () => window.removeEventListener('jb-toast', onToast);
@@ -1539,6 +1585,12 @@ function ToastHost() {
         <div key={t.id}
           className={`jb-body text-sm px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 ${t.tipo === 'error' ? 'bg-red-500 text-zinc-950' : 'bg-emerald-500 text-zinc-950'}`}>
           <span>{t.tipo === 'error' ? '⚠️' : '✓'}</span> {t.message}
+          {t.accion && (
+            <button onClick={() => { t.accion.alHacer(); setToasts(list => list.filter(x => x.id !== t.id)); }}
+              className="pointer-events-auto ml-1 jb-display text-xs tracking-wide bg-zinc-950 text-zinc-50 rounded-full px-3 py-1">
+              {t.accion.texto}
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -4886,14 +4938,14 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       const m = {};
       (data || []).forEach(c => { m[c.key] = c.value; });
       setPrecios(m); setDatosPago(m);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     let pagos = [];
     try {
       const { data } = await supabase.from('pagos').select('*')
         .eq('username', username).order('creado_en', { ascending: false }).limit(10);
       pagos = data || [];
       setMisPagos(pagos);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     // Descuento si entró con código de embajador, influencer o de un amigo.
     // El de un amigo ("Invita a un amigo", tipo alumno) es solo para su
     // primer plan: igual que en las funciones de pago.
@@ -4945,10 +4997,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       registrarPasoPago('pago_enviado', username, metodo);
 
       if (!userRecord?.telefono && tel.length >= 9) {
-        try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+        try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { avisarError(e); }
       }
       if (!userRecord?.fecha_nacimiento && fechaNac) {
-        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { avisarError(e); }
       }
 
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
@@ -4956,7 +5008,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       if (onPagoEnviado) onPagoEnviado();
       showToast('Pago enviado, lo revisamos en menos de 24h');
     } catch (e) {
-      if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); } }
+      if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch (e) { avisarError(e); } }
       setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
       showToast('No se pudo enviar el pago', 'error');
     }
@@ -4973,10 +5025,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     setCreandoMP(true);
     try {
       if (correo.trim() !== userRecord?.correo) {
-        try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+        try { await supabase.from('alumnos').update({ correo: correo.trim() }).eq('username', username); } catch (e) { avisarError(e); }
       }
       if (!userRecord?.fecha_nacimiento && fechaNac) {
-        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+        try { await supabase.from('alumnos').update({ fecha_nacimiento: fechaNac }).eq('username', username); } catch (e) { avisarError(e); }
       }
       const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
       const { data, error } = await supabase.functions.invoke(funcion, {
@@ -5761,7 +5813,7 @@ export default function App() {
         if (!membershipActive(u) && !yaVioPantallaGratis(u.username, u.fechaVencimiento)) { await mostrarVencido(a, p.nombre); return; }
       }
       await loadStudentSession(p.username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     finally { setSesionRevisada(true); setLoading(false); }
   }
 
@@ -5789,14 +5841,14 @@ export default function App() {
       const activityMap = {};
       (activityData || []).forEach(a => { activityMap[a.username] = a.updated_at; });
       usersList = usersList.map(u => ({ ...u, lastActivity: activityMap[u.username] || null }));
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     setUsers(usersList);
     setLoading(false);
   }
 
   async function handleAdminSetup(pass) {
     setBusy(true);
-    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch (e) { avisarError(e); }
     setAdminPass(pass);
     setBusy(false);
     setAdminAuthed(true);
@@ -5859,7 +5911,7 @@ export default function App() {
       const { data: row } = await supabase.from('datos_alumnos')
         .select('form, meal_plan, meal_plan_fecha, updated_at').eq('username', username).maybeSingle();
       data = row ? { form: row.form, mealPlan: row.meal_plan, fecha: row.meal_plan_fecha, updatedAt: row.updated_at } : null;
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
 
     const hoy = todayISO();
 
@@ -5912,7 +5964,7 @@ export default function App() {
         await supabase.from('historial')
           .update({ meal_plan: data.mealPlan })
           .eq('username', username).eq('fecha', data.fecha);
-      } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+      } catch (e) { avisarError(e); }
       plan = { ...plan, meals: EMPTY_MEALS() };
     }
 
@@ -5969,7 +6021,7 @@ export default function App() {
     try {
       const { data: p } = await supabase.from('profiles').select('username, nombre, role').eq('id', data.user.id).maybeSingle();
       perfil = p;
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
     if (!perfil) { setBusy(false); return setErr('No encontramos tu perfil. Escríbenos por WhatsApp.'); }
 
     if (perfil.role === 'admin') {
@@ -5985,7 +6037,7 @@ export default function App() {
     try {
       const { data: a } = await supabase.from('alumnos').select('*').eq('username', perfil.username).maybeSingle();
       cuenta = a;
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
 
     if (cuenta) {
       const u = {
@@ -6077,7 +6129,7 @@ export default function App() {
         nombre: u.nombre || null, telefono: u.telefono || null,
         fecha_inicio: u.fechaInicio || null, fecha_vencimiento: u.fechaVencimiento || null,
       });
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
 
   async function renewUser(username, meses) {
@@ -6089,7 +6141,7 @@ export default function App() {
     setUsers(prev => prev.map(u => u.username === username ? { ...u, fechaVencimiento: nuevo, enabled: true } : u));
     try {
       await supabase.from('alumnos').update({ fecha_vencimiento: nuevo, enabled: true }).eq('username', username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
   // desdeHoy: para quien ya venció hace tiempo ("Volver a invitar"): los
   // días se cuentan desde hoy y la cuenta se vuelve a encender.
@@ -6103,7 +6155,7 @@ export default function App() {
     try {
       await supabase.from('alumnos').update(cambios).eq('username', username);
       await supabase.from('ajustes_membresia').insert({ username, dias, motivo: motivo || null, fecha_resultante: nuevo });
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
   // Activa "Reconocimiento Inteligente" (fotos) para un alumno por N meses,
   // contados desde hoy — igual que renewUser, pero para el add-on de
@@ -6121,7 +6173,7 @@ export default function App() {
       await supabase.from('alumnos').update({
         reconocimiento_foto_desde: desde, reconocimiento_foto_hasta: hasta,
       }).eq('username', username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
   async function desactivarAddOnFoto(username) {
     setUsers(prev => prev.map(u => u.username === username
@@ -6130,13 +6182,13 @@ export default function App() {
       await supabase.from('alumnos').update({
         reconocimiento_foto_desde: null, reconocimiento_foto_hasta: null,
       }).eq('username', username);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e); }
   }
   async function toggleUser(username) {
     const target = users.find(u => u.username === username);
     const nextEnabled = target ? !target.enabled : true;
     setUsers(prev => prev.map(u => u.username === username ? { ...u, enabled: nextEnabled } : u));
-    try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    try { await supabase.from('alumnos').update({ enabled: nextEnabled }).eq('username', username); } catch (e) { avisarError(e); }
   }
   async function deleteUser(username) {
     try {
@@ -6153,11 +6205,11 @@ export default function App() {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Intenta de nuevo.');
       setUsers(prev => prev.filter(u => u.username !== username));
-    } catch (e) { alert('No se pudo eliminar: ' + (e?.message || 'Intenta de nuevo.')); }
+    } catch (e) { avisarError(e, 'No se pudo eliminar. Intenta de nuevo.'); }
   }
 
   async function logout() {
-    try { await supabase.auth.signOut(); } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
+    try { await supabase.auth.signOut(); } catch (e) { avisarError(e); }
     setAdminAuthed(false);
     setEstadoGuardado('ok');
     setCurrentUser(null);
@@ -6201,6 +6253,7 @@ export default function App() {
         style={{ height: 'env(safe-area-inset-top)', zIndex: 100 }}
       />
       <ToastHost />
+      <ConfirmarHost />
       {tokenRef && <PanelReferidor token={tokenRef} onSalir={() => {
         window.history.replaceState({}, '', '/');
         setTokenRef(null);
@@ -6330,6 +6383,8 @@ export {
   membershipActive,
   setFoodsPersonales,
   showToast,
+  avisarError,
+  confirmar,
   textoPorcion,
   tieneDatosBasicos,
   todayISO,

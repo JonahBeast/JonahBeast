@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
-import { btnPrimary, btnGhost, showToast, vibrar, todayISO, addDaysISO } from './App.jsx';
+import { btnPrimary, btnGhost, showToast, confirmar, vibrar, todayISO, addDaysISO } from './App.jsx';
 import { EquipoTab, MEDALLAS, CLAVE_INVITACION_EQUIPO, llamar, Tarjeta, haceCuanto } from './equipo.jsx';
 
 const CLAVE_VISTA = 'jb-comunidad-vista';
@@ -178,7 +178,7 @@ function Muro({ onIrEquipos, onVisto }) {
   }
 
   async function reportar(ev) {
-    if (!window.confirm('¿Reportar esta foto? Si la reportan 2 personas se oculta y Jonah la revisa.')) return;
+    if (!(await confirmar({ titulo: '¿REPORTAR ESTA FOTO?', texto: 'Si la reportan 2 personas se oculta y Jonah la revisa.', si: 'Reportar', peligro: true }))) return;
     const { ok } = await llamar('comunidad_foto_reportar', { p_id: ev.foto_id });
     if (!ok) { showToast('No se pudo enviar el reporte. Intenta de nuevo.', 'error'); return; }
     setReportadas(x => [...x, ev.id]);

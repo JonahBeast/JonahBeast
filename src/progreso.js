@@ -19,7 +19,32 @@ const fechaBonita = iso => { const [, m, d] = String(iso).slice(0, 10).split('-'
      actual: el actual se fecha con form.pesoFecha, que es cuando se pesó);
    - el peso actual (form.peso) en form.pesoFecha.
    Solo quedan los puntos donde el peso cambia. */
+/* Correcciones del alumno a sus pesajes (Progreso → "MIS PESAJES"):
+   form.pesosCorregidos = [{ f, kg, nuevo }] (nuevo null = lo borró). La
+   tabla historial copia el peso cada día, así que un peso mal anotado se
+   repite varios días seguidos: la corrección se aplica desde la fecha f a
+   todos los días seguidos que tienen ese mismo peso. */
+export function corregirHistorial(hist = [], form = {}) {
+  const corr = (Array.isArray(form?.pesosCorregidos) ? form.pesosCorregidos : []).filter(c => c?.f && Number(c.kg) > 0);
+  if (!corr.length || !Array.isArray(hist) || !hist.length) return hist;
+  const filas = hist.map(h => ({ ...h }));
+  const orden = filas.map((h, i) => i).sort((a, b) => String(filas[a].fecha).localeCompare(String(filas[b].fecha)));
+  corr.forEach(c => {
+    const kg = r1(c.kg);
+    const nuevo = Number(c.nuevo) > 0 ? r1(c.nuevo) : null;
+    let k = orden.findIndex(i => String(filas[i].fecha).slice(0, 10) >= c.f);
+    if (k < 0) return;
+    for (; k < orden.length; k++) {
+      const h = filas[orden[k]];
+      if (!(Number(h.peso) > 0) || r1(h.peso) !== kg) break;
+      h.peso = nuevo;
+    }
+  });
+  return filas;
+}
+
 export function historialDePeso(form = {}, hist = [], al = null) {
+  hist = corregirHistorial(hist, form);
   const actual = r1(form.peso);
   const inicio = String(al?.fecha_inicio || al?.created_at || (hist[0] && hist[0].fecha) || '').slice(0, 10);
   // Sin pesoFecha (alumnos de antes de guardarla), su peso actual se fecha

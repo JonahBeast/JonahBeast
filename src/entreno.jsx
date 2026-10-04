@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { btnPrimary, btnGhost, showToast, vibrar, todayISO, addDaysISO } from './App.jsx';
+import { btnPrimary, btnGhost, showToast, confirmar, vibrar, todayISO, addDaysISO } from './App.jsx';
 
 export const TIPOS_ENTRENO = [
   { id: 'pesas', label: 'Pesas', emoji: '🏋️' },
@@ -79,7 +79,7 @@ export function EntrenoHoy({ username, form, setForm }) {
     cargar();
   }
   async function borrar() {
-    if (!window.confirm('¿Borrar el entreno de hoy?')) return;
+    if (!(await confirmar({ titulo: '¿BORRAR EL ENTRENO DE HOY?', si: 'Borrar', peligro: true }))) return;
     const { error } = await supabase.from('entrenos').delete().eq('username', username).eq('fecha', hoy);
     if (error) { showToast('No se pudo borrar. Intenta de nuevo.', 'error'); return; }
     cargar();

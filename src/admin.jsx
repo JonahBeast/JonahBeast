@@ -8268,7 +8268,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
       const desde = addDaysISO(todayISO(), -30);
       const [{ data: hist }, { data: datos }] = await Promise.all([
         traerTodas(() => supabase.from('historial').select('username, fecha, peso, kcal_consumidas, kcal_objetivo').gte('fecha', desde).order('fecha'), 'id'),
-        traerTodas(() => supabase.from('datos_alumnos').select('username, objetivo:form->>objetivo, peso:form->>peso, pesoFecha:form->>pesoFecha, pesoInicial:form->>pesoInicial, pesajes:form->pesajes'), 'username'),
+        traerTodas(() => supabase.from('datos_alumnos').select('username, objetivo:form->>objetivo, peso:form->>peso, pesoFecha:form->>pesoFecha, pesoInicial:form->>pesoInicial, pesajes:form->pesajes, pesosCorregidos:form->pesosCorregidos'), 'username'),
       ]);
       if (cancelado) return;
       const porAlumno = {};

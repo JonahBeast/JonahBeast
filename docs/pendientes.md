@@ -13,6 +13,9 @@
 
 ## En curso
 
+- **Alimentos por revisar.** Revisar si "Chocolate con leche batido (taza)" (86 kcal) se confunde con "Chocolate con leche" de barra (535 kcal). En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
+- **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
+
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
 - **Voz en off del video "guía rápida" (41 s).** En el panel (📸 IA) está la tarjeta "🎙️ Voz para mis videos" con el guion cargado y la voz de Frida; también hay guiones de Jarvis y del gorila. Jonah eligió para el gorila la voz Onyx con el efecto "Voz humana grave · suave" (las voces enérgicas nuevas y el zumbido de criatura no le gustaron y se quitaron). Falta: Jonah genera el mp3, lo descarga y se lo pasa a Claude (por Google Drive), que lo ajusta a las escenas del video. Queda suelta en Supabase la función de prueba `jarvis-voz-prueba` (sin uso; Jonah puede borrarla). TikTok suele pedir marcar el contenido con voz sintética.

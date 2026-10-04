@@ -42,6 +42,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta } from './plazos.js';
+import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
@@ -607,13 +608,46 @@ function quienesPidieron(solicitantes) {
   return lista;
 }
 
-function FormAlimento({ form, setForm }) {
+/* "⚠️ Se parece a…": antes de agregar un alimento, los de la app que
+   podrían ser lo mismo con otro nombre (src/parecidos.js). onEsEste(food):
+   qué hacer si Jonah confirma que es ese (descartar el pedido con su nombre,
+   o unir el alimento del alumno). Sin onEsEste solo avisa. */
+function etiquetaFood(f) {
+  return f.state && f.state !== '-' ? `${f.name} (${String(f.state).toLowerCase()})` : f.name;
+}
+function ParecidosEnApp({ nombre, estado, onEsEste }) {
+  const etiqueta = String(nombre || '').trim() + (estado && estado.trim() !== '-' && estado.trim() ? ` (${estado.trim()})` : '');
+  const lista = useMemo(() => {
+    if (String(nombre || '').trim().length < 3) return [];
+    const base = FOODS.filter(f => !f.esPersonal && !f.esProducto).map(f => ({ etiqueta: etiquetaFood(f), f }));
+    return alimentosParecidos(etiqueta, base, 3);
+  }, [etiqueta]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!lista.length) return null;
+  const n = v => Math.round((Number(v) || 0) * 10) / 10;
+  return (
+    <div className="bg-amber-950/40 border border-amber-800 rounded-lg p-2.5 flex flex-col gap-1.5">
+      <p className="jb-body text-xs text-amber-300 font-semibold">⚠️ Se parece a {lista.length === 1 ? 'uno' : 'estos'} que ya está{lista.length === 1 ? '' : 'n'} en la app. ¿Es lo mismo?</p>
+      {lista.map(({ f }) => (
+        <div key={f.key} className="flex items-center justify-between gap-2 bg-zinc-950/60 rounded-md px-2 py-1.5">
+          <span className="jb-body text-xs text-zinc-200 min-w-0">
+            {f.key}<span className="text-zinc-500 tabular-nums"> · {Math.round(f.kcal)} kcal · P {n(f.protein)} · C {n(f.carbs)} · G {n(f.fat)}</span>
+          </span>
+          {onEsEste && <button type="button" onClick={() => onEsEste(f)} className={btnGhost + ' text-[11px] py-1 px-2.5 shrink-0'}>🔗 Es este</button>}
+        </div>
+      ))}
+      <p className="jb-body text-[10px] text-zinc-500">Si no es lo mismo, sigue normal{onEsEste ? '' : ' (o cámbiale el nombre para que se distinga)'}.</p>
+    </div>
+  );
+}
+
+function FormAlimento({ form, setForm, onEsEste }) {
   const campo = (k) => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const num = (k) => Number(form[k]) || 0;
   const kcalCalculadas = Math.round(4 * num('proteina') + 4 * num('carbos') + 9 * num('grasa'));
   const desvio = num('kcal') > 0 && Math.abs(kcalCalculadas - num('kcal')) > Math.max(25, num('kcal') * 0.15);
   return (
     <div className="flex flex-col gap-2">
+      <ParecidosEnApp nombre={form.nombre} estado={form.estado} onEsEste={onEsEste} />
       <div className="grid grid-cols-2 gap-2">
         <label className="col-span-2 jb-body text-[11px] text-zinc-500">Nombre
           <input value={form.nombre} onChange={campo('nombre')} className={inputCls + ' w-full text-sm mt-0.5'} maxLength={80} />
@@ -786,7 +820,10 @@ function PedidoAlimento({ pedido, onResuelto }) {
               🧩 Al aprobar, te quedan para revisar estas variantes: {propuesta.variantes.map(v => v.nombre).join(' · ')}
             </p>
           )}
-          <FormAlimento form={form} setForm={setForm} />
+          <FormAlimento form={form} setForm={setForm} onEsEste={f => {
+            setRespuesta(`Ya estaba en la app como "${etiquetaFood(f)}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`);
+            setDescartando(true);
+          }} />
           <div className="flex gap-2">
             <button onClick={aprobar} disabled={!listo || guardando} className={btnPrimary + ' flex-1 text-sm py-2'}>
               {guardando ? <Loader2 size={15} className="animate-spin" /> : '✅ Aprobar y avisar'}
@@ -967,6 +1004,7 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
           {v.estado === 'sugerida' && v.cuadra === false && <span className="text-amber-400"> · ⚠️ las calorías no cuadran con los macros</span>}
         </p>
       )}
+      {v.estado === 'sugerida' && <div className="mt-1"><ParecidosEnApp nombre={v.nombre} estado={v.estado_alimento} /></div>}
       {v.estado === 'sugerida' && (
         <label className="jb-body text-[10px] text-zinc-500 block mt-1">Menú del día{v.menu_uso ? ' (la IA sugiere lo elegido)' : ''}:
           <SelectUsoMenu valor={menuUso} onCambiar={setMenuUso} className="mt-0.5 text-xs" />
@@ -1468,6 +1506,7 @@ function RelojPlazo({ desde }) {
 function recomendacionPedido(p) {
   if (!p || p.kcal == null) return null;
   if (p.ya_existe) return `🔗 Ya existe como "${p.ya_existe}". Descártalo: el mensaje le dice con qué nombre buscarlo.`;
+  if (p.parecidos?.length) return `🔎 Se parece a "${p.parecidos[0]}"${p.parecidos.length > 1 ? ` (o ${p.parecidos.slice(1).map(x => `"${x}"`).join(', ')})` : ''}. Si es lo mismo, toca "🔗 Es este" abajo; si no, apruébalo con un nombre que lo distinga.`;
   if (p.por_partes?.length) return `🧩 Que lo registre por partes: ${p.por_partes.join(' + ')}. Descártalo: el mensaje le explica cómo.`;
   const cuadra = Math.abs(4 * (+p.proteina || 0) + 4 * (+p.carbos || 0) + 9 * (+p.grasa || 0) - (+p.kcal || 0)) <= Math.max(25, (+p.kcal || 0) * 0.15);
   return cuadra
@@ -1864,7 +1903,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
               </button>
             ))}
           </div>
-          <FormAlimento form={paraTodos} setForm={setParaTodos} />
+          <FormAlimento form={paraTodos} setForm={setParaTodos} onEsEste={marcarExiste} />
           <div className="flex gap-2">
             <button onClick={agregarParaTodos} disabled={ocupado || !paraTodos.nombre.trim() || paraTodos.kcal === ''} className={btnPrimary + ' text-sm py-2 flex-1'}>
               {ocupado ? <Loader2 size={15} className="animate-spin" /> : '✅ Agregar a la app'}

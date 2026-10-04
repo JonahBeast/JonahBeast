@@ -210,6 +210,7 @@ Reglas:
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
 - Mezclas caseras (por_partes): si lo pedido es una combinación que cada persona arma a su gusto con ingredientes que YA están en la lista (ej. "avena con proteína" = avena en hojuelas + leche + proteína en polvo; "batido de plátano con whey"), pon esos ingredientes en "por_partes" con su nombre exacto. Así el alumno lo registra por partes con sus cantidades y la app no se llena de mezclas personales. NO lo uses para platos con receta estándar de restaurante o comida típica (lomo saltado, ají de gallina, jugo surtido de juguería): esos se agregan como plato. Si falta algún ingrediente en la lista, deja "por_partes" vacío. Igual calcula los macros de la mezcla típica, por si Jonah decide agregarla.
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
+- Regla de nombres (para que la base quede pareja): mayúscula solo al inicio (y en nombres propios), sin el estado ni la medida dentro del nombre (bien: "Linaza" con estado "Crudo"; mal: "Linaza (semillas)", "Chocolate batido (taza)"). El estado concuerda con el nombre: "Papa" → "Cocida", "Pollo pechuga" → "Cocida", "Huevo" → "Cocido".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
 - En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
 - Alimentos SIMPLES de un solo ingrediente con valores conocidos (semillas, frutas, verduras, menestras, carnes o pescados al natural, lácteos, productos básicos): pon "alta" aunque el pedido esté mal escrito o sin tildes, SIEMPRE QUE el nombre correcto sea obvio (ej. "linasa" → Linaza, "brocoli" → Brócoli, "kiwisha" → Kiwicha) y uses valores de la Tabla Peruana o USDA. Si el nombre se presta a dos alimentos distintos, no es "alta".
@@ -278,6 +279,43 @@ async function llamarClaude(cuerpo: string, tipo = "alimento") {
 async function nombresExtra() {
   const { data } = await supabase.from("alimentos_extra").select("nombre, estado");
   return (data || []).map((a: any) => a.estado && a.estado !== "-" ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre);
+}
+
+// ------------------------------------------------- detector de parecidos
+// Copia de src/parecidos.js (esta función no puede leer archivos de src/):
+// si cambias algo allá, cámbialo aquí. Busca si un alimento ya está en la
+// app con otro nombre ("Pollo sancochado" → "Pollo pechuga (cocida)").
+const RELLENO = new Set(["de", "del", "la", "el", "los", "las", "con", "y", "a", "al", "en", "para", "tipo", "estilo", "un", "una", "mi"]);
+const SINONIMOS: Record<string, string> = {
+  sancochado: "cocido", sancochada: "cocido", hervido: "cocido", hervida: "cocido", cocida: "cocido", sancocho: "cocido",
+  frita: "frito", fritos: "frito", fritas: "frito", horneada: "horneado", asada: "asado", crudo: "crudo", cruda: "crudo",
+  sangre: "sangrecita",
+};
+function palabrasAlimento(texto: string) {
+  return [...new Set(String(texto || "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+    .split(/[^a-zñ0-9]+/).filter(Boolean)
+    // "sin azúcar" no es lo mismo que "con azúcar": lo que va después de "sin" se marca.
+    .map((p: string, i: number, t: string[]) => (t[i - 1] === "sin" ? "sin_" + p : p)).filter((p: string) => p !== "sin")
+    .map((p) => SINONIMOS[p] || (p.length > 4 && p.endsWith("s") ? p.slice(0, -1) : p))
+    .map((p) => SINONIMOS[p] || p)
+    .filter((p) => !RELLENO.has(p) && p !== "-"))];
+}
+function parecido(a: string, b: string) {
+  const A = palabrasAlimento(a), B = palabrasAlimento(b);
+  if (!A.length || !B.length) return 0;
+  const comunes = A.filter((p) => B.includes(p)).length;
+  if (!comunes) return 0;
+  const jaccard = comunes / new Set([...A, ...B]).size;
+  const corto = Math.min(A.length, B.length);
+  return Math.max(jaccard, corto >= 2 && comunes === corto ? 0.75 : 0);
+}
+// Los que se parecen MUCHO (la IA no lo agrega sola: lo decide Jonah).
+async function muyParecidos(etiqueta: string) {
+  const propia = etiqueta.trim().toLowerCase();
+  const todos = [...ALIMENTOS_APP, ...await nombresExtra()];
+  return todos.filter((n) => n.toLowerCase() !== propia)
+    .map((n) => ({ n, p: parecido(etiqueta, n) })).filter((x) => x.p >= 0.75)
+    .sort((a, b) => b.p - a.p).slice(0, 3).map((x) => x.n);
 }
 
 // ------------------------------------------- revisar alimentos de alumnos
@@ -562,7 +600,15 @@ async function atenderPedido(pedido: any) {
   }
 
   // 2) No existe y la IA está segura de sus números: se agrega para todos.
-  if (segura && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+  // Salvo que se parezca mucho a uno que ya está con otro nombre: ahí puede
+  // ser un repetido, y lo decide Jonah (así la base no se llena de dobles).
+  const etiquetaPropuesta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
+  const parecidos = segura && !propuesta.ya_existe && !propuesta.por_partes.length ? await muyParecidos(etiquetaPropuesta) : [];
+  if (parecidos.length) {
+    propuesta.parecidos = parecidos;
+    propuesta.nota = `${propuesta.nota || ""} ⚠️ Se parece a: ${parecidos.join(", ")}. Revisa si es lo mismo antes de agregarlo.`.trim();
+  }
+  if (segura && !parecidos.length && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
     try {
       await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
       const r = await aprobar(propuesta, pedido.id);
@@ -592,11 +638,13 @@ function limpiarAlimento(a: any) {
     if (!Number.isFinite(n) || n < 0 || n > max) throw new ErrorDeDatos(`Revisa ${campo}: debe ser un número entre 0 y ${max}.`);
     return Math.round(n * 10) / 10;
   };
-  const nombre = texto(a?.nombre, 80);
+  // Regla de nombres: mayúscula al inicio (el resto como lo escribió).
+  const mayuscula = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  const nombre = mayuscula(texto(a?.nombre, 80));
   if (!nombre) throw new ErrorDeDatos("Falta el nombre del alimento.");
   const grupo = texto(a?.grupo, 40);
   if (!GRUPOS_APP.includes(grupo)) throw new ErrorDeDatos("Elige un grupo de la lista.");
-  const estado = texto(a?.estado, 30) || "-";
+  const estado = mayuscula(texto(a?.estado, 30)) || "-";
   const unidad = texto(a?.unidad, 30);
   const gramosUnidad = unidad ? num(a?.gramos_unidad, 2000, "los gramos de la medida casera") : 0;
   if (unidad && !gramosUnidad) throw new ErrorDeDatos("Pon cuántos gramos pesa la medida casera, o déjala vacía.");

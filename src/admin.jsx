@@ -42,7 +42,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
-import { alimentosParecidos, parecido } from './parecidos.js';
+import { alimentosParecidos, parecido, palabrasAlimento } from './parecidos.js';
 import { analizarProgreso, resumenProgreso, historialDePeso, historialComposicion } from './progreso.js';
 
 const btnDanger = "bg-transparent border border-red-900 hover:bg-red-950 text-red-400 jb-body rounded-lg px-3 py-2 transition-colors flex items-center justify-center gap-2 text-sm";
@@ -1547,28 +1547,71 @@ function recomendacionPedido(p) {
 function recomendacionPropio(a, ri, candidato = false) {
   const base = FOODS.filter(f => !f.esPersonal && !f.esProducto).map(f => ({ etiqueta: etiquetaFood(f), f }));
   const kcalRef = Number(ri?.ia?.kcal) || Number(a.kcal) || 0;
-  let food = null;
-  if (ri?.ya_existe) food = FOODS.find(f => f.key === ri.ya_existe || etiquetaFood(f).toLowerCase() === String(ri.ya_existe).toLowerCase()) || null;
-  if (!food) {
-    const muy = alimentosParecidos(a.nombre, base, 6).filter(x => x.parecido >= 0.75);
-    const top = muy.length ? muy[0].parecido : 0;
-    food = muy.filter(x => x.parecido === top).sort((x, y) => Math.abs(x.f.kcal - kcalRef) - Math.abs(y.f.kcal - kcalRef))[0]?.f || null;
+  const cercaEnKcal = f => Math.abs(f.kcal - kcalRef) <= Math.max(10, kcalRef * 0.1);
+  const unir = food => ({ tipo: 'existe', food, texto: `🔗 Ya está en la app como "${food.key}" (${Math.round(food.kcal)} kcal por 100 g). Únelo con ese: sus comidas usan los datos correctos y la base no se llena de repetidos.` });
+  // Varias opciones que no son lo mismo (una hamburguesa de carretilla no es
+  // la clásica de Bembos): la app no decide, pregunta.
+  const elegir = opciones => ({ tipo: 'elegir', opciones: opciones.slice(0, 4), texto: `🤔 "${a.nombre}" es muy general: en la app hay ${opciones.length} parecidos y no son lo mismo. Pregúntale a @${a.username} cuál fue y únelo con ese. Si no es ninguno (ej. uno casero), déjalo solo para él.` });
+
+  if (ri?.ya_existe) {
+    const f = FOODS.find(x => x.key === ri.ya_existe || etiquetaFood(x).toLowerCase() === String(ri.ya_existe).toLowerCase());
+    if (f) return unir(f);
   }
-  if (food) return { tipo: 'existe', food, texto: `🔗 Ya está en la app como "${food.key}" (${Math.round(food.kcal)} kcal por 100 g). Únelo con ese: sus comidas usan los datos correctos y la base no se llena de repetidos.` };
-  // Por los números: comparte una palabra del nombre y tiene casi las mismas
-  // calorías y macros que uno de la app (ej. "Hamburguesa" 248 kcal =
-  // "Hamburguesa clásica (Bembos)" 248 kcal: lo copió de ahí).
+  // 1) Mismo nombre (solo cambia cómo se come o le falta un detalle):
+  // "Sangrecita" = "Sangrecita (cocido)". Si hay varios, quedan los de
+  // calorías parecidas; si aún quedan varios, se pregunta.
+  const muy = alimentosParecidos(a.nombre, base, 8).filter(x => x.parecido >= 0.75);
+  if (muy.length) {
+    const top = muy[0].parecido;
+    const empatados = muy.filter(x => x.parecido === top).map(x => x.f);
+    const cerca = empatados.filter(cercaEnKcal);
+    if (cerca.length === 1) return unir(cerca[0]);
+    if (cerca.length > 1) return elegir(cerca);
+    if (empatados.length === 1) return unir(empatados[0]);
+  }
+  // 2) Nombre de una sola palabra que en la app tiene varias versiones
+  // ("Hamburguesa" → de carretilla, Bembos, McDonald's): se pregunta.
+  const palabras = palabrasAlimento(a.nombre);
+  if (palabras.length === 1) {
+    const versiones = base.filter(x => palabrasAlimento(x.etiqueta).includes(palabras[0])).map(x => x.f)
+      .sort((x, y) => Math.abs(x.kcal - kcalRef) - Math.abs(y.kcal - kcalRef));
+    if (versiones.length > 1) return elegir(versiones);
+    if (versiones.length === 1 && cercaEnKcal(versiones[0])) return unir(versiones[0]);
+  }
+  // 3) Por los números: comparte una palabra y tiene casi las mismas
+  // calorías y macros que uno de la app (lo copió de ahí). Solo si es uno.
   const m = { k: Number(a.kcal) || 0, p: Number(a.proteina) || 0, c: Number(a.carbos) || 0, g: Number(a.grasas) || 0 };
   const distancia = f => Math.abs(f.protein - m.p) + Math.abs(f.carbs - m.c) + Math.abs(f.fat - m.g);
   const porNumeros = base
     .filter(x => parecido(a.nombre, x.etiqueta) > 0 && Math.abs(x.f.kcal - m.k) <= Math.max(10, m.k * 0.1) && distancia(x.f) <= 6)
-    .sort((x, y) => distancia(x.f) - distancia(y.f))[0]?.f;
-  if (porNumeros) return { tipo: 'existe', food: porNumeros, texto: `🔗 Es lo mismo que "${porNumeros.key}": tiene el mismo nombre y casi los mismos números (${Math.round(m.k)} vs ${Math.round(porNumeros.kcal)} kcal por 100 g). Únelo con ese y la base no se llena de repetidos.` };
+    .map(x => x.f).sort((x, y) => distancia(x) - distancia(y));
+  if (porNumeros.length === 1) return unir(porNumeros[0]);
+  if (porNumeros.length > 1) return elegir(porNumeros);
+
   if (candidato) return { tipo: 'para_todos', texto: '➕ No está en la app y la IA ya revisó sus números. Si a otros alumnos les sirve, agrégalo para todos; si es algo muy suyo (una receta de casa), déjalo solo para él.' };
   if (!ri?.ia) return { tipo: null, texto: null };
   if (ri.veredicto === 'corregir') return { tipo: 'corregir', cifras: ri.ia, texto: `✏️ Sus números están mal. Corrígelos con los de la IA (${Math.round(ri.ia.kcal)} kcal por 100 g): sus comidas se recalculan solas.` };
   if (ri.veredicto === 'bien') return { tipo: 'para_todos', texto: `➕ Sus números están bien y no existe en la app. Agrégalo para todos: la base crece y su alimento pasa a ser el oficial.` };
   return { tipo: null, texto: '💬 La IA no reconoce bien el alimento. Pregúntale al alumno qué es exactamente (marca o cómo lo prepara) antes de decidir.' };
+}
+
+// "💬 Preguntarle por WhatsApp" cuál fue, con las opciones de la app.
+function PreguntarAlumno({ a, opciones }) {
+  const [alumno, setAlumno] = useState(undefined);
+  useEffect(() => {
+    supabase.from('alumnos').select('nombre, telefono').eq('username', a.username).maybeSingle()
+      .then(({ data }) => setAlumno(data || null), () => setAlumno(null));
+  }, [a.username]);
+  if (!alumno?.telefono) return null;
+  const n = String(alumno.nombre || '').trim().split(/\s+/)[0] || '';
+  const lista = opciones.map(f => `• ${f.key.replace(/ \(-\)$/, '')}`).join('\n');
+  const texto = `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah. Vi que creaste "${a.nombre}" en la app. Para que tus calorías salgan exactas, ¿cuál fue? En la app ya tenemos:\n${lista}\n¿Es alguno de estos o es otro (por ejemplo, casero)? Me cuentas y lo dejo listo 💪🦍`;
+  return (
+    <a href={enlaceWhatsApp(alumno.telefono, texto)} target="_blank" rel="noreferrer"
+      className={btnPrimary + ' text-sm py-2.5 w-full'}>
+      <MessageCircle size={15} /> Preguntarle a {alumno.nombre || a.username} cuál fue
+    </a>
+  );
 }
 
 function RecomendacionIA({ texto }) {
@@ -2010,6 +2053,19 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
                 className={btnPrimary + ' text-xs py-1.5 px-3'}>Guardar corrección</button>
               <button onClick={() => setEditando(false)} className={btnGhost + ' text-xs py-1.5 px-3'}>Cancelar</button>
             </>
+          ) : pendiente && rec.tipo === 'elegir' && !masOpciones ? (
+            <div className="flex flex-col gap-2 w-full">
+              <PreguntarAlumno a={a} opciones={rec.opciones} />
+              <p className="jb-body text-[11px] text-zinc-500">Cuando sepas cuál fue, tócalo:</p>
+              {rec.opciones.map(f => (
+                <button key={f.key} disabled={ocupado} onClick={() => marcar('existe', { reemplazo: f.key }, { oficial: f.key })}
+                  className={btnGhost + ' text-xs py-2 px-3 w-full justify-between'}>
+                  <span>🔗 Es "{f.key.replace(/ \(-\)$/, '')}"</span>
+                  <span className="text-zinc-500 tabular-nums">{Math.round(f.kcal)} kcal</span>
+                </button>
+              ))}
+              <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si no es ninguno)</button>
+            </div>
           ) : pendiente && rec.tipo && !masOpciones ? (
             <div className="flex flex-col gap-2 w-full">
               <button disabled={ocupado} onClick={hacerRecomendado} className={btnPrimary + ' text-sm py-2.5 w-full'}>

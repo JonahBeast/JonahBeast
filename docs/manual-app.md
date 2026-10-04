@@ -210,7 +210,9 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 
 De arriba hacia abajo:
 
-- **Un aviso a la vez** (el más importante): versión gratis → renovación → Premium de prueba → notificaciones → instalar la app.
+**Orden:** primero siempre el **Centro de mando** (cuánto te queda hoy y el botón **"REGISTRAR"**). Justo debajo, **un solo aviso a la vez**, el más importante que aplique en ese momento: "¿Cuánto pesas hoy?" (domingo) → novedades de tus pedidos de alimentos → "Tu semana" (lunes a miércoles) → versión gratis / renovación / Premium de prueba. Cuando lo resuelves o lo cierras, aparece el siguiente. Debajo, aparte, la tarjeta para **activar los avisos** o **instalar la app** (si hace falta). Después: Primeros pasos, Team Beast y "¿Entrenaste hoy?", fotos del día 1, y lo demás (resumen, racha, repetir ayer, Beast Score, invitar…). En el **modo fácil** es igual, debajo de sus botones grandes.
+
+- **Los avisos (uno a la vez):**
   - **"ESTÁS EN LA VERSIÓN GRATIS"** ("Con Premium tienes foto inteligente en todas tus comidas.") sale cuando venció su prueba o su plan. El botón **"VER PREMIUM"** lleva a los planes.
 - **"🚀 PRIMEROS PASOS"** ("X de 4"): 1) "Registra tu primera comida", 2) "Ajusta tu meta a tu cuerpo", 3) "Elige tu objetivo", 4) "Toma tus fotos de inicio". Botones "Continuar: …", "Ver guía", "Ocultar por ahora". Mientras falte la primera comida, el botón dice **"📷 Tómale foto a lo que vas a comer"** y abre la cámara directo (lo mismo al tocar el paso 1).
 - **Centro de mando:** saludo, medidor de calorías y macros del día y el botón grande **"REGISTRAR [COMIDA]"**, que elige la comida según la hora (ver 8.1). Si esa comida ya tiene algo, dice "AGREGAR MÁS AL [COMIDA]". "Tu día · X/5 comidas": las comidas ya registradas llevan un **✓ verde** (igual que en Comidas); tocando un ícono vas directo a esa comida.
@@ -221,7 +223,7 @@ De arriba hacia abajo:
 - **"TU SEMANA · [lunes] – [domingo]"** (lunes, martes y miércoles, si la semana pasada registró al menos 1 día): resumen de la semana que terminó: días registrados (X/7), días en su meta (entre 85% y 115% de sus calorías), cambio de peso o racha. Títulos: "¡SEMANA DE BESTIA! 🔥" (5 días o más), "BUENA SEMANA 💪" (3–4) o "ARRANCASTE: ESTA SEMANA VAMOS POR MÁS" (1–2).
   - **"📲 Compartir en historias"** crea una imagen vertical ("MI SEMANA", sus números, "NO ES QUÉ COMES. ES CUÁNTO.", una pastilla naranja **"Mi código: [su código] · 10% dcto"** y "Gratis en jonahbeast.com") y abre el menú de compartir del celular (Instagram, WhatsApp…). En WhatsApp va también un mensaje con su link de invitación. Quien entra con ese código tiene 10% de descuento, y el alumno gana 15 días de Premium cuando su amigo paga (sección 12). Al tocarlo, la app también **copia su link de invitación** y muestra: "🔗 Tu link de invitación quedó copiado. En Instagram agrega el sticker 'Enlace' y pégalo…". Las historias de Instagram y los estados de WhatsApp no llevan el mensaje, así que para que el link se pueda tocar hay que ponerlo con ese sticker. Si el celular no permite compartir, se descarga la imagen.
   - La **X** la cierra hasta la próxima semana.
-- **Racha "🔥 N días seguidos":** días seguidos con al menos una comida registrada. La racha de hoy no se rompe hasta que termina el día.
+- **Racha "🔥 N días seguidos":** días seguidos con al menos una comida registrada. La racha de hoy no se rompe hasta que termina el día. **Sube al instante** apenas registras la primera comida del día. Debajo, una barra con **"Te faltan N días para [insignia]"**. En "Esta semana", los días registrados salen en verde con ✓ y los que no, en gris (sin rojo). Si son más de las 7 pm, no registraste nada y tu racha es de 3 días o más, sale **"Aún estás a tiempo 💪"** con el botón **REGISTRAR**. Sin racha, sale **"EMPIEZA TU RACHA HOY"** con el botón **REGISTRAR**. El Beast Score usa la misma racha.
   - Insignias: 3 días Cebiche Starter 🐟 · 7 días Ají de Gallina Warrior 🌶️ · 14 días Lomo Saltado Master 🥩 · 30 días Pollo a la Brasa Legend 🍗 · 60 días Chicha Morada Beast 🟣 · 90 días Jonah Beast Elite 👑.
 - **Beast Score "¿CÓMO VAS HOY? N%":** qué tan cerca estás de tus calorías del día, más puntos por racha. Niveles: 🌱 "El día recién empieza" · 💪 "Aún puedes con más" · 🔥 "Vas con todo hoy" · 🦍 "¡Modo bestia total!". Al quedar entre 85% y 115% de tu meta cae confeti: "🔥 ¡Completaste tu objetivo de hoy!".
 - **"🎁 INVITA A UN AMIGO"** (sección 12).
@@ -261,7 +263,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 ### 8.1 Qué ves
 
-- **Medidor fijo arriba:** anillo con las **"kcal quedan"** (o "kcal de más" si te pasaste), "X de Y kcal" y barras de **Proteína**, **Carbos** y **Grasas**.
+- **Medidor fijo arriba:** anillo con las **"kcal quedan"** (o "kcal de más" si te pasaste; naranja = te falta, verde = cumpliste, ámbar = te pasaste, ver 8.7), "X de Y kcal" y barras de **Proteína**, **Carbos** y **Grasas**.
 - **5 comidas:** Desayuno ☀️, Media mañana 🍎, Almuerzo 🍽️, Media tarde 🥐, Cena 🌙. La que toca por la hora lleva **"AHORA"**:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
 - **Las comidas que ya pasaron se ven cerradas**, para llegar a la de AHORA sin bajar tanto:
@@ -427,9 +429,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ### 8.7 Qué significan los colores
 
-- **Anillo naranja:** dentro de tu meta. **Ámbar con "kcal de más":** te pasaste.
-- **Barras de macros:** ámbar = pasaste ese objetivo en más de 5%.
-- **"TOTAL DEL DÍA VS. OBJETIVO":** verde (menos de 85%, "Vas bien…"), ámbar (85–105%, "Ya casi llegas…"), naranja (más de 105%, "Pasaste tu objetivo de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.").
+**Una sola regla en toda la app:** "cumpliste tu meta del día" = comer **entre el 85% y el 115%** de tus calorías. La usan el anillo (aquí y en Inicio), "Total del día", el Beast Score, "Tu semana", Progreso y el coach.
+- **Anillo naranja:** aún te falta para tu meta (menos de 85%). **Verde:** cumpliste (85–115%). **Ámbar con "kcal de más":** te pasaste (más de 115%). Si comiste un poco más de tu meta pero sin pasar el 115%, el anillo sigue verde y dice "kcal de más".
+- **Barras de macros:** ámbar = pasaste ese objetivo en más de 15%.
+- **"TOTAL DEL DÍA VS. OBJETIVO":** naranja ("Vas bien — te faltan unas N kcal para entrar en tu meta del día."), verde ("¡Cumpliste tu meta de hoy! 💪 Así se hace, comida a comida.") o ámbar ("Pasaste tu meta de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.").
 
 ### 8.8 "Sin guardar": sin internet o sesión cerrada
 
@@ -730,8 +733,8 @@ Problemas:
 ### 13.2 Pagar con Yape, Plin o transferencia
 
 1. Toca **"Elegir"** en el plan.
-2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**.
-3. Paga desde tu app del banco.
+2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**. Al lado de cada dato (número de Yape/Plin, cuenta, CCI y monto) hay un botón **"Copiar"**: lo copia sin espacios y sale "✓ Copiado", para pegarlo en tu app del banco sin escribirlo.
+3. Paga desde tu app del banco (pega el número y el monto que copiaste).
 4. En "2 · CONFIRMA TU PAGO" llena: "Tu celular (WhatsApp)" (si falta, 9 dígitos), fecha de nacimiento (opcional, con las **ruedas de día, mes y año**), **"Número de operación"** y la **captura del pago** ("Toca para adjuntar tu captura", imagen o PDF).
 5. Toca **"ENVIAR MI PAGO"**.
 6. Verás **"Tu pago está en revisión"**: se confirma **en menos de 24 horas** y el acceso se activa solo.

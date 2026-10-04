@@ -1443,6 +1443,38 @@ const RACHA_HITOS = [
   { dias: 90, nombre: 'Jonah Beast Elite', emoji: '👑' },
 ];
 
+/* Racha: días seguidos con al menos una comida. Los días anteriores salen
+   del historial (se leen una vez); HOY se toma en vivo de lo que tiene
+   registrado ahora, así la racha sube apenas registra su primera comida
+   del día, sin volver a abrir la app. La de hoy no se rompe hasta que
+   termina el día. */
+function useDiasRegistrados(username) {
+  const [dias, setDias] = useState(null); // { [fechaISO]: comidas_count }
+  useEffect(() => {
+    if (!username) return;
+    let vivo = true;
+    supabase.from('historial').select('fecha, comidas_count').eq('username', username)
+      .gte('fecha', addDaysISO(todayISO(), -120)).order('fecha', { ascending: false })
+      .then(({ data }) => {
+        if (!vivo) return;
+        const m = {};
+        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
+        setDias(m);
+      }, () => { if (vivo) setDias({}); });
+    return () => { vivo = false; };
+  }, [username]);
+  return dias;
+}
+function calcularRacha(dias, hoyConComida) {
+  const hoy = todayISO();
+  const registro = iso => iso === hoy ? (hoyConComida || (dias?.[iso] || 0) > 0) : (dias?.[iso] || 0) > 0;
+  let r = 0;
+  let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
+  while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
+  return { racha: r, registro };
+}
+const tieneComidaHoy = plan => Object.values(plan?.meals || {}).some(l => (l || []).some(en => en.foodKey));
+
 function numeroDeSemana() {
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), 0, 1);
@@ -1531,40 +1563,28 @@ function ResumenSemanalCard({ username }) {
   );
 }
 
-function RachaCard({ username }) {
-  const [dias, setDias] = useState(null); // { [fechaISO]: comidas_count }
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const desde = addDaysISO(todayISO(), -60);
-        const { data } = await supabase.from('historial')
-          .select('fecha, comidas_count')
-          .eq('username', username).gte('fecha', desde)
-          .order('fecha', { ascending: false });
-        const m = {};
-        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
-        setDias(m);
-      } catch { setDias({}); }
-      setLoading(false);
-    })();
-  }, [username]);
-
-  if (loading || !dias) return null;
+function RachaCard({ username, mealPlan, onRegistrar }) {
+  const dias = useDiasRegistrados(username);
+  if (!dias) return null;
 
   const hoy = todayISO();
-  const registro = (iso) => (dias[iso] || 0) > 0;
+  const { racha, registro } = calcularRacha(dias, tieneComidaHoy(mealPlan));
 
-  // Racha: días consecutivos con registro, contando desde hoy hacia atrás.
-  // Si hoy todavía no registró, la racha se cuenta desde ayer (no se
-  // rompe hasta que termine el día).
-  let racha = 0;
-  let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
-  while (registro(cursor)) { racha++; cursor = addDaysISO(cursor, -1); }
-
-  if (racha === 0) return null; // sin racha activa: no mostramos la tarjeta
+  // Sin racha: una invitación a empezarla hoy (no desaparece).
+  if (racha === 0) {
+    return (
+      <div className="mb-6 bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 flex items-center gap-3">
+        <div className="text-3xl leading-none shrink-0">🔥</div>
+        <div className="flex-1 min-w-0">
+          <p className="jb-display text-base text-zinc-50">EMPIEZA TU RACHA HOY</p>
+          <p className="jb-body text-xs text-zinc-400">Registra una comida hoy y mañana otra. Así se arma, comida a comida.</p>
+        </div>
+        {onRegistrar && (
+          <button onClick={onRegistrar} className="jb-display text-sm text-zinc-950 bg-orange-500 rounded-full px-3.5 py-2 shrink-0">REGISTRAR</button>
+        )}
+      </div>
+    );
+  }
 
   // Semana actual (lunes a domingo) con estado de cada día
   const dow = new Date().getDay(); // 0=domingo..6=sábado
@@ -1579,6 +1599,8 @@ function RachaCard({ username }) {
   const totalPasados = semana.filter(d => d.estado !== null).length;
 
   const hitoActual = [...RACHA_HITOS].reverse().find(h => racha >= h.dias);
+  const proximoHito = RACHA_HITOS.find(h => h.dias > racha);
+  const desdeHito = hitoActual ? hitoActual.dias : 0;
   const horaActual = new Date().getHours();
   const enRiesgo = racha >= 3 && !registro(hoy) && horaActual >= 19;
 
@@ -1590,21 +1612,32 @@ function RachaCard({ username }) {
         <div className="flex-1">
           <div className="jb-display text-xl text-zinc-950">{racha} día{racha === 1 ? '' : 's'} seguidos</div>
           <div className="jb-body text-xs text-orange-950">
-            {racha >= 3 ? '¡No la rompas hoy!' : 'Sigue así, la racha recién empieza'}
+            {!registro(hoy) ? 'Registra hoy para sumar un día más' : racha >= 3 ? '¡No la rompas mañana!' : 'Sigue así, la racha recién empieza'}
           </div>
+          {proximoHito && (
+            <div className="mt-2">
+              <div className="h-1.5 rounded-full bg-orange-950/30 overflow-hidden">
+                <div className="h-full rounded-full bg-zinc-950" style={{ width: `${Math.round(((racha - desdeHito) / (proximoHito.dias - desdeHito)) * 100)}%` }} />
+              </div>
+              <div className="jb-body text-[11px] text-orange-950 mt-1">
+                Te {proximoHito.dias - racha === 1 ? 'falta 1 día' : `faltan ${proximoHito.dias - racha} días`} para {proximoHito.emoji} {proximoHito.nombre}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {enRiesgo && (
-        <div className="relative bg-red-950/30 border border-red-500/40 rounded-2xl p-3.5 flex items-center gap-3 overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
+        <div className="relative bg-amber-950/30 border border-amber-500/40 rounded-2xl p-3.5 flex items-center gap-3 overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500" />
           <span className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center">
             <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
               onError={(e) => { e.target.style.display = 'none'; }} />
           </span>
-          <p className="jb-body text-sm text-red-200">
-            <span className="font-semibold">Jonah está preocupado:</span> no has registrado nada hoy y tu racha de {racha} días está en riesgo. Aún estás a tiempo.
+          <p className="jb-body text-sm text-amber-100 flex-1">
+            <span className="font-semibold">Aún estás a tiempo 💪</span> Hoy no has registrado nada y tu racha de {racha} días te espera. Una comida y sigue viva.
           </p>
+          {onRegistrar && <button onClick={onRegistrar} className="jb-display text-xs text-zinc-950 bg-amber-400 rounded-full px-3 py-2 shrink-0">REGISTRAR</button>}
         </div>
       )}
 
@@ -1617,13 +1650,14 @@ function RachaCard({ username }) {
           {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((letra, i) => {
             const d = semana[i];
             const esHoy = d.fecha === hoy;
-            const bg = d.estado === true ? 'bg-emerald-500 border-emerald-500'
-              : d.estado === false ? 'bg-red-950/40 border-red-800/50'
-              : 'bg-zinc-800 border-zinc-700';
+            // Días sin registro: gris neutro (no rojo); lo que cuenta es seguir.
+            const bg = d.estado === true ? 'bg-emerald-500 border-emerald-500 text-zinc-950'
+              : d.estado === false ? 'bg-zinc-900 border-zinc-700 text-zinc-600'
+              : 'bg-zinc-800/40 border-zinc-800';
             return (
               <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
                 <div className={`w-full aspect-square max-w-9 rounded-lg border flex items-center justify-center text-xs ${bg} ${esHoy ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-zinc-900' : ''}`}>
-                  {d.estado === true ? '✓' : d.estado === false ? '✕' : ''}
+                  {d.estado === true ? '✓' : d.estado === false ? '·' : ''}
                 </div>
                 <span className={`jb-body text-[10px] ${esHoy ? 'text-orange-500 font-semibold' : 'text-zinc-500'}`}>{letra}</span>
               </div>
@@ -2916,7 +2950,7 @@ function resumenReto(dias, mealPlan) {
   const comidas = prom('comidas');
   const metaKcal = Math.round(mealPlan?.targetKcal || 0);
   const metaP = Math.round(((mealPlan?.targetKcal || 0) * (mealPlan?.macros?.p || 0)) / 4);
-  const enRango = metaKcal ? dias.filter(d => d.kcal >= metaKcal * 0.85 && d.kcal <= metaKcal * 1.15).length : 0;
+  const enRango = metaKcal ? dias.filter(d => estadoMeta(d.kcal, metaKcal) === 'cumplido').length : 0;
   let consejo;
   if (comidas < 2.5) {
     consejo = `En promedio registras ${comidas.toFixed(1).replace('.0', '')} comidas al día. Registra también desayuno y cena para que tus números sean reales.`;
@@ -2927,9 +2961,9 @@ function resumenReto(dias, mealPlan) {
     consejo = `Te faltan unos ${falta} g de proteína al día.` + (g
       ? (g > 150 ? ` Suma unos ${g} g de pechuga de pollo al día, repartidos entre almuerzo y cena.` : ` Suma ${g} g de pechuga de pollo en tu almuerzo o cena.`)
       : '');
-  } else if (metaKcal && kcal > metaKcal * 1.15) {
+  } else if (metaKcal && kcal > metaKcal * META_MAX) {
     consejo = `Comes unas ${kcal - metaKcal} kcal más que tu meta. Empieza por reducir la porción de arroz o pan en una comida.`;
-  } else if (metaKcal && kcal < metaKcal * 0.85) {
+  } else if (metaKcal && kcal < metaKcal * META_MIN) {
     consejo = `Comes unas ${metaKcal - kcal} kcal menos que tu meta. No te saltes comidas: una media mañana te ayuda a llegar.`;
   } else {
     consejo = 'Vas muy bien: tus calorías y tu proteína están cerca de tu meta. Mantén este ritmo.';
@@ -3220,7 +3254,7 @@ function resumenSemana(filas, lunes) {
   const conComida = enSemana.filter(r => Number(r.comidas_count) > 0);
   const enMeta = conComida.filter(r => {
     const obj = Number(r.kcal_objetivo), c = Number(r.kcal_consumidas);
-    return obj > 0 && c / obj >= 0.85 && c / obj <= 1.15;
+    return obj > 0 && c / obj >= META_MIN && c / obj <= META_MAX;
   }).length;
   const pesoDe = lista => { const p = lista.filter(r => Number(r.peso) > 0); return p.length ? Number(p[p.length - 1].peso) : null; };
   const pesoFin = pesoDe(enSemana);
@@ -4709,7 +4743,7 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
     // Adherencia: días dentro del ±15% de su objetivo
     const enRango = objetivos.filter(r => {
       const ratio = Number(r.kcal_consumidas) / Number(r.kcal_objetivo);
-      return ratio >= 0.85 && ratio <= 1.15;
+      return ratio >= META_MIN && ratio <= META_MAX;
     }).length;
     const adherencia = objetivos.length ? (enRango / objetivos.length) * 100 : null;
     return { promKcal, promProt, promObj, adherencia, diasRegistrados: conComida.length, totalDias: filtrados.length, enRango, objetivos: objetivos.length };
@@ -5355,31 +5389,14 @@ function Confetti() {
    revelar la respuesta — engancha la curiosidad y educa sin sentirse
    como una tarea más. */
 function BeastScoreCard({ totalsHoy, targets, username }) {
-  const [racha, setRacha] = useState(0);
+  // La misma racha de la tarjeta 🔥 (con lo de hoy en vivo).
+  const diasRacha = useDiasRegistrados(username);
+  const racha = diasRacha ? calcularRacha(diasRacha, totalsHoy.kcal > 0).racha : 0;
   const [celebrado, setCelebrado] = useState(false);
   const [mostrarConfeti, setMostrarConfeti] = useState(false);
   const [subioNivel, setSubioNivel] = useState(false);
   const nivelAnteriorRef = useRef(null);
 
-  useEffect(() => {
-    if (!username) return;
-    (async () => {
-      try {
-        const desde = addDaysISO(todayISO(), -60);
-        const { data } = await supabase.from('historial')
-          .select('fecha, comidas_count').eq('username', username).gte('fecha', desde)
-          .order('fecha', { ascending: false });
-        const m = {};
-        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
-        const hoy = todayISO();
-        const registro = (iso) => (m[iso] || 0) > 0;
-        let r = 0;
-        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
-        while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
-        setRacha(r);
-      } catch {}
-    })();
-  }, [username]);
 
   const objetivoKcal = targets ? targets.kcal : 0;
   const ratio = objetivoKcal ? Math.min(1.15, totalsHoy.kcal / objetivoKcal) : 0;
@@ -5388,7 +5405,8 @@ function BeastScoreCard({ totalsHoy, targets, username }) {
   const bonoRacha = Math.min(15, racha * 2);
   const score = Math.round(Math.min(100, cercania * 0.85 + bonoRacha));
 
-  const dentroDeRango = objetivoKcal && ratio >= 0.85 && ratio <= 1.15;
+  // Con el porcentaje real (el de arriba tiene tope de 115% para el puntaje).
+  const dentroDeRango = estadoMeta(totalsHoy.kcal, objetivoKcal) === 'cumplido';
 
   const nivel = score >= 90 ? { txt: '¡Modo bestia total!', emoji: '🦍', key: 'bestia' }
     : score >= 70 ? { txt: 'Vas con todo hoy', emoji: '🔥', key: 'fuego' }
@@ -5645,21 +5663,33 @@ function Dashboard({ form, setForm, results, mealPlan, targets, username, onVerC
   );
 }
 
+/* Una sola regla en toda la app para "cumpliste tu meta del día": entre el
+   85% y el 115% de tus calorías (igual que Tu semana, Progreso, el coach y
+   el Beast Score). Debajo: te falta; encima: te pasaste. Verde = cumpliste
+   (como el ✓ de las comidas registradas). */
+const META_MIN = 0.85, META_MAX = 1.15;
+function estadoMeta(consumido, meta) {
+  if (!(meta > 0) || !(consumido > 0)) return 'falta';
+  const r = consumido / meta;
+  return r < META_MIN ? 'falta' : r <= META_MAX ? 'cumplido' : 'pasado';
+}
+
 function CalorieStatus({ consumed, target }) {
   if (!target) return null;
   const ratio = consumed / target;
   let color, bg, border, text;
+  const estado = estadoMeta(consumed, target);
   if (consumed === 0) {
     return null;
-  } else if (ratio < 0.85) {
-    color = 'text-emerald-400'; bg = 'bg-emerald-950/40'; border = 'border-emerald-800/50';
-    text = 'Vas bien — aún tienes margen para tus próximas comidas.';
-  } else if (ratio <= 1.05) {
-    color = 'text-amber-400'; bg = 'bg-amber-950/40'; border = 'border-amber-800/50';
-    text = 'Ya casi llegas a tu objetivo del día.';
-  } else {
+  } else if (estado === 'falta') {
     color = 'text-orange-400'; bg = 'bg-orange-950/30'; border = 'border-orange-800/40';
-    text = 'Pasaste tu objetivo de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.';
+    text = `Vas bien — te faltan unas ${Math.round(target * META_MIN - consumed)} kcal para entrar en tu meta del día.`;
+  } else if (estado === 'cumplido') {
+    color = 'text-emerald-400'; bg = 'bg-emerald-950/40'; border = 'border-emerald-800/50';
+    text = '¡Cumpliste tu meta de hoy! 💪 Así se hace, comida a comida.';
+  } else {
+    color = 'text-amber-400'; bg = 'bg-amber-950/40'; border = 'border-amber-800/50';
+    text = 'Pasaste tu meta de hoy. Un día no define tu progreso — sigue normal mañana, sin compensar.';
   }
   const pctFill = Math.min(ratio * 100, 100);
   return (
@@ -5669,7 +5699,7 @@ function CalorieStatus({ consumed, target }) {
         <span className="jb-body text-[11px] text-zinc-400">{Math.round(ratio * 100)}%</span>
       </div>
       <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${ratio < 0.85 ? 'bg-emerald-500' : ratio <= 1.05 ? 'bg-amber-500' : 'bg-orange-500'}`}
+        <div className={`h-full rounded-full ${estado === 'falta' ? 'bg-orange-500' : estado === 'cumplido' ? 'bg-emerald-500' : 'bg-amber-500'}`}
           style={{ width: `${pctFill}%` }} />
       </div>
       <p className="jb-body text-xs text-zinc-400 mt-2">{text}</p>
@@ -7246,7 +7276,8 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
   const pasado = restante < 0;
   const avance = Math.min(1, totals.kcal / objetivo);
   const R = 32, C = 2 * Math.PI * R;
-  const colorAnillo = pasado ? '#f59e0b' : '#E8590C';
+  const estado = estadoMeta(totals.kcal, objetivo);
+  const colorAnillo = estado === 'pasado' ? '#f59e0b' : estado === 'cumplido' ? '#10b981' : '#E8590C';
   const macros = [
     ['Proteína', totals.protein, objP],
     ['Carbos', totals.carbs, objC],
@@ -7264,7 +7295,7 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
               style={{ transition: 'stroke-dashoffset .7s cubic-bezier(.2,.8,.3,1), stroke .3s' }} />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-            <span className={`jb-display text-xl tabular-nums ${pasado ? 'text-amber-400' : 'text-zinc-50'}`}>
+            <span className={`jb-display text-xl tabular-nums ${estado === 'pasado' ? 'text-amber-400' : estado === 'cumplido' ? 'text-emerald-400' : 'text-zinc-50'}`}>
               <AnimatedNumber value={Math.abs(restante)} />
             </span>
             <span className="jb-body text-[9px] text-zinc-400 mt-0.5">{pasado ? 'kcal de más' : 'kcal quedan'}</span>
@@ -7276,7 +7307,7 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
           </p>
           {macros.map(([nombre, val, obj]) => {
             const pct = obj > 0 ? Math.min(1, val / obj) : 0;
-            const excedido = obj > 0 && val > obj * 1.05;
+            const excedido = obj > 0 && val > obj * META_MAX;
             return (
               <div key={nombre}>
                 <div className="flex justify-between jb-body text-[10px] text-zinc-400 mb-0.5 tabular-nums">
@@ -10608,29 +10639,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             onAjustar={() => { setAjustarMeta(false); setRegistrarAl(null); setTab(tieneDatosBasicos(form) ? 'goal' : 'calc'); window.scrollTo({ top: 0 }); }}
             onCerrar={() => setAjustarMeta(false)} />
         )}
-        {tab === 'dash' && (
-          versionGratis ? (
-            <>
-              <GratisBanner onVerPremium={() => setTab('planes')} />
-              <RecordatorioBanner username={username} soloSiFalta />
-            </>
-          ) : renewalElegible ? (
-            <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
-          ) : trialElegible ? (
-            <>
-              <TrialBanner user={userRecord} mealPlan={mealPlan} onVerPlanes={() => setTab('planes')} />
-              <RecordatorioBanner username={username} soloSiFalta />
-            </>
-          ) : (
-            <>
-              <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
-              {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
-            </>
-          )
-        )}
-        <PedidosResueltosCard username={username} oculto={tab === 'planes'} />
-        {tab === 'dash' && <PesajeCard form={form} setForm={setForm} />}
-        {tab === 'dash' && <TuSemanaCard username={username} nombre={userRecord?.nombre} />}
+        {/* En Inicio, las novedades de pedidos van con los demás avisos
+            (debajo del anillo); en las otras pestañas, arriba. */}
+        {tab !== 'dash' && <PedidosResueltosCard username={username} oculto={tab === 'planes'} />}
       </div>
 
       <main key={tab} className="max-w-4xl mx-auto px-6 pb-24 jb-tab-fade">
@@ -10651,11 +10662,36 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               <EntrenoHoy username={username} form={form} setForm={setForm} />
             </>
           );
+          /* Avisos de Inicio: van DEBAJO del anillo y de REGISTRAR, y se ve
+             uno solo a la vez (el primero que aplique, en este orden de
+             importancia). Cada uno decide si aparece; los que no aplican no
+             ocupan lugar, así que siempre se ve el más importante. */
+          const avisos = (
+            <div className="jb-avisos-inicio">
+              <PesajeCard form={form} setForm={setForm} />
+              <PedidosResueltosCard username={username} />
+              <TuSemanaCard username={username} nombre={userRecord?.nombre} />
+              {versionGratis ? <GratisBanner onVerPremium={() => setTab('planes')} />
+                : renewalElegible ? <RenewalBanner user={userRecord} onRenovar={() => setTab('planes')} />
+                : trialElegible ? <TrialBanner user={userRecord} mealPlan={mealPlan} onVerPlanes={() => setTab('planes')} />
+                : null}
+            </div>
+          );
+          // Activar avisos / instalar la app: aparte, debajo del aviso
+          // principal (igual que antes: también durante la prueba).
+          const avisoNotif = (versionGratis || trialElegible)
+            ? <RecordatorioBanner username={username} soloSiFalta />
+            : !renewalElegible && (
+              <>
+                <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
+                {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
+              </>
+            );
           const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;
           const resto = (
             <>
               <ResumenSemanalCard username={username} />
-              <RachaCard username={username} />
+              <RachaCard username={username} mealPlan={mealPlan} onRegistrar={() => irARegistrar(comidaDeAhora())} />
               <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
               <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={() => { setTab('progress'); window.scrollTo({ top: 0 }); }} />
             </>
@@ -10670,9 +10706,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  {centro}
+                  {avisos}
+                  {avisoNotif}
                   {invitacionComunidad}
                   {fotoDia1}
-                  {centro}
                   <button onClick={() => setVerMasFacil(v => !v)}
                     className={btnGhost + ' w-full py-3 mb-6 text-base'}>
                     {verMasFacil ? 'Ocultar ▴' : 'Ver más de mi día ▾'}
@@ -10689,8 +10727,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                       🔠 Ver la app más grande y sencilla
                     </button>
                   )}
+                  {centro}
+                  {avisos}
+                  {avisoNotif}
+                  {primeros}
                   {invitacionComunidad}
-                  {fotoDia1}{primeros}{centro}{resto}
+                  {fotoDia1}{resto}
                 </>
               )}
             </>

@@ -892,19 +892,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
           <div>
             <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
-            <div className="flex gap-2 flex-wrap">
-              {MEAL_NAMES.map(m => {
-                const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
-                return (
-                  <button key={m} onClick={() => setMealDestino(m)}
-                    className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${mealDestino === m
-                      ? 'bg-violet-500 border-violet-500 text-zinc-950 font-semibold'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
-                    <span>{mealIcon}</span>{m}
-                  </button>
-                );
-              })}
-            </div>
+            <SelectorComida valor={mealDestino} onCambio={setMealDestino} ahora={comidaDeAhora()} />
           </div>
 
           {platos.length === 0 ? (
@@ -1014,19 +1002,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
         <div className="mt-4 flex flex-col gap-3">
           <div>
             <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
-            <div className="flex gap-2 flex-wrap">
-              {MEAL_NAMES.map(m => {
-                const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
-                return (
-                  <button key={m} onClick={() => setMealDestino(m)}
-                    className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${mealDestino === m
-                      ? 'bg-violet-500 border-violet-500 text-zinc-950 font-semibold'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
-                    <span>{mealIcon}</span>{m}
-                  </button>
-                );
-              })}
-            </div>
+            <SelectorComida valor={mealDestino} onCambio={setMealDestino} ahora={comidaDeAhora()} />
           </div>
 
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
@@ -1234,19 +1210,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
               </div>
               <div>
                 <label className="jb-body text-xs text-zinc-500 uppercase tracking-wider mb-2 block">¿Para qué comida?</label>
-                <div className="flex gap-2 flex-wrap">
-                  {MEAL_NAMES.map(m => {
-                    const mealIcon = { 'Desayuno': '☀️', 'Media mañana': '🍎', 'Almuerzo': '🍽️', 'Media tarde': '🥐', 'Cena': '🌙' }[m] || '🍴';
-                    return (
-                      <button key={m} onClick={() => setTargetMeal(m)}
-                        className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 transition-colors border ${targetMeal === m
-                          ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
-                          : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
-                        <span>{mealIcon}</span>{m}
-                      </button>
-                    );
-                  })}
-                </div>
+                <SelectorComida valor={targetMeal} onCambio={setTargetMeal} ahora={comidaDeAhora()} />
               </div>
               {!esSnack && (
                 <div>
@@ -4986,7 +4950,7 @@ function AyudaTab({ texto, id }) {
       <span className="w-6 h-6 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-xs shrink-0">💡</span>
       <p className="jb-body text-xs text-zinc-400 flex-1">{texto}</p>
       {key && (
-        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1"><X size={14} /></button>
+        <button onClick={cerrar} className="text-zinc-600 hover:text-zinc-400 shrink-0 p-2.5 -m-1.5" aria-label="Cerrar"><X size={16} /></button>
       )}
     </div>
   );
@@ -6814,7 +6778,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         <style>{ESTILOS_ESCANER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
-          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-1"><X size={18} /></button>
+          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5"><X size={18} /></button>
         </div>
         {estado === 'elegir' && (
           <div className="text-center">
@@ -6965,11 +6929,11 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
                     <button type="button" aria-label="Una menos"
                       onClick={() => setConteos(v => ({ ...v, [id]: pasoConteo(food, conteo, -1) }))}
-                      className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">−</button>
+                      className="w-9 h-9 rounded-full border border-zinc-700 text-zinc-200 jb-body text-base leading-none hover:border-orange-500">−</button>
                     <span className="jb-display text-sm text-zinc-100 min-w-[1.25rem] text-center tabular-nums">{textoConteo(conteo)}</span>
                     <button type="button" aria-label="Una más"
                       onClick={() => setConteos(v => ({ ...v, [id]: pasoConteo(food, conteo, 1) }))}
-                      className="w-7 h-7 rounded-full border border-zinc-700 text-zinc-200 jb-body text-sm leading-none hover:border-orange-500">+</button>
+                      className="w-9 h-9 rounded-full border border-zinc-700 text-zinc-200 jb-body text-base leading-none hover:border-orange-500">+</button>
                   </div>
                 ) : (
                   <div className="flex gap-1.5 mt-2" role="group" aria-label="Tamaño de la porción">
@@ -7298,7 +7262,7 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
             <span className={`jb-display text-xl tabular-nums ${estado === 'pasado' ? 'text-amber-400' : estado === 'cumplido' ? 'text-emerald-400' : 'text-zinc-50'}`}>
               <AnimatedNumber value={Math.abs(restante)} />
             </span>
-            <span className="jb-body text-[9px] text-zinc-400 mt-0.5">{pasado ? 'kcal de más' : 'kcal quedan'}</span>
+            <span className="jb-body text-[10px] text-zinc-400 mt-0.5">{pasado ? 'kcal de más' : 'kcal quedan'}</span>
           </div>
         </div>
         <div className="flex-1 min-w-0 flex flex-col gap-1.5">
@@ -7606,7 +7570,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         <style>{ESTILOS_ESCANER + ESTILOS_LASER}</style>
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
-          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+          <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
         {estado === 'camara' && (
@@ -8062,6 +8026,25 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   );
 }
 
+/* Selector de comida (Desayuno, Media mañana…): el mismo en toda la app
+   (Registrar, Restaurantes aliados, "¿Qué puedo comer?"…). Naranja el
+   elegido; el puntito marca la comida de la hora. */
+function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
+  return (
+    <div className={'flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ' + className} role="group" aria-label="Comida">
+      {MEAL_NAMES.map(m => (
+        <button key={m} type="button" onClick={() => { vibrar(8); onCambio(m); }} aria-pressed={valor === m}
+          className={`jb-body text-xs px-3 py-2 min-h-[36px] rounded-full flex items-center gap-1.5 shrink-0 border transition-colors ${valor === m
+            ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
+            : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
+          <span>{ICONO_COMIDA[m] || '🍴'}</span>{m}
+          {m === ahora && <span className={`w-1.5 h-1.5 rounded-full ${valor === m ? 'bg-zinc-950' : 'bg-orange-500'}`} title="Ahora" />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
@@ -8087,20 +8070,10 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <div className="flex items-center justify-between mb-3">
           <h3 className="jb-display text-lg text-zinc-50 tracking-wide">REGISTRAR</h3>
-          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-5 px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {MEAL_NAMES.map(m => (
-            <button key={m} onClick={() => setMeal(m)}
-              className={`jb-body text-xs px-3 py-2 rounded-full flex items-center gap-1.5 shrink-0 border transition-colors ${meal === m
-                ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold'
-                : 'bg-zinc-950 border-zinc-800 text-zinc-400'}`}>
-              <span>{ICONO_COMIDA[m]}</span>{m}
-              {m === ahora && <span className={`w-1.5 h-1.5 rounded-full ${meal === m ? 'bg-zinc-950' : 'bg-orange-500'}`} title="Ahora" />}
-            </button>
-          ))}
-        </div>
+        <SelectorComida valor={meal} onCambio={setMeal} ahora={ahora} className="mb-4 -mx-5 px-5" />
 
         {/* Escribir es como registra casi todo el mundo: va primero y grande. */}
         <button onClick={() => onEscribir(meal)}
@@ -8164,7 +8137,7 @@ function porcionDeEntrada(en) {
 function BotonPaso({ onClick, children, grande = false, etiqueta }) {
   return (
     <button type="button" onClick={e => { e.stopPropagation(); vibrar(8); onClick(); }} aria-label={etiqueta}
-      className={`${grande ? 'w-12 h-12 text-2xl' : 'w-7 h-7 text-base'} rounded-full bg-zinc-900 border border-orange-500/40 text-orange-400 hover:bg-orange-500/15 active:scale-95 flex items-center justify-center shrink-0 transition-transform jb-display leading-none`}>
+      className={`${grande ? 'w-12 h-12 text-2xl' : 'w-8 h-8 text-base'} relative after:absolute after:-inset-1.5 after:content-[''] rounded-full bg-zinc-900 border border-orange-500/40 text-orange-400 hover:bg-orange-500/15 active:scale-95 flex items-center justify-center shrink-0 transition-transform jb-display leading-none`}>
       {children}
     </button>
   );
@@ -8331,7 +8304,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
             <p className="jb-body text-xs text-zinc-500">{meal}</p>
           </div>
-          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
         {/* En gramos se elige con la regla (de 5 en 5 g) o escribiéndolo; en
@@ -9030,7 +9003,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Los platos preparados (ají de gallina, ceviche, pollo a la brasa…) son estimaciones promedio — úsalos como referencia, no como medida exacta.</p>
           </div>
           <button onClick={() => { setAyudaCerrada(true); try { localStorage.setItem('jb_ayuda_no_comidas', '1'); } catch {} }}
-            className="text-zinc-600 hover:text-zinc-400 shrink-0 p-1"><X size={14} /></button>
+            className="text-zinc-600 hover:text-zinc-400 shrink-0 p-2.5 -m-1.5" aria-label="Cerrar"><X size={16} /></button>
         </div>
       )}
 
@@ -9287,7 +9260,7 @@ function GustosMenuModal({ inicial, onGuardar, onCerrar }) {
         <AsaHoja onCerrar={onCerrar} />
         <div className="flex items-center justify-between mb-1">
           <h3 className="jb-display text-lg text-zinc-50">🍽️ TUS GUSTOS</h3>
-          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-1" aria-label="Cerrar"><X size={18} /></button>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
         <p className="jb-body text-xs text-zinc-400 mb-4">Con esto Jonah te arma el menú del día, justo para tu meta.</p>
 
@@ -9673,12 +9646,13 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
   );
 }
 
-function WhatsAppButton() {
+// arriba: en Comidas sube un poco para no chocar con el botón REGISTRAR.
+function WhatsAppButton({ arriba = false }) {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
   // se entiende como soporte, y el globo tapaba la pantalla.
   return (
-    <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-2">
+    <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
       <a
         href={url}
         target="_blank"
@@ -10484,6 +10458,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     if (pull.y >= PULL_UMBRAL) {
       setPull({ y: 60, refrescando: true });
       vibrar(15);
+      // Si la pantalla sabe actualizarse sola (ej. el muro de la comunidad),
+      // se actualiza ahí mismo sin recargar toda la app.
+      const ev = new CustomEvent('jb-recargar', { cancelable: true });
+      if (!window.dispatchEvent(ev)) { setTimeout(() => setPull({ y: 0, refrescando: false }), 700); return; }
       setTimeout(() => window.location.reload(), 350);
     } else {
       setPull({ y: 0, refrescando: false });
@@ -10787,7 +10765,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
-      <WhatsAppButton />
+      <WhatsAppButton arriba={tab === 'meal'} />
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[
@@ -10803,7 +10781,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />
               {item.aviso && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-500" />}
             </span>
-            <span className="jb-body text-[10px]">{item.label}</span>
+            <span className="jb-body text-[11px] whitespace-nowrap">{item.label}</span>
           </button>
         ))}
       </nav>

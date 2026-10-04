@@ -1677,8 +1677,10 @@ const COLUMNAS_PROPIOS = 'id, username, nombre, kcal, proteina, carbos, grasas, 
    darle más libertad (o quitársela). La IA revisa pedidos desde el 29 de
    setiembre de 2026. */
 const IA_ALIMENTOS_DESDE = '2026-09-29T00:00:00Z';
-function ReporteIAAlimentos() {
-  const [abierto, setAbierto] = useState(false);
+// grande: como tarjeta de la pestaña 📸 IA (abierta); si no, como parte de
+// "Más herramientas" en Alimentos por revisar (cerrada).
+function ReporteIAAlimentos({ grande = false }) {
+  const [abierto, setAbierto] = useState(grande);
   const [periodo, setPeriodo] = useState('30'); // '30' | 'todo'
   const [datos, setDatos] = useState(null);
 
@@ -1728,13 +1730,15 @@ function ReporteIAAlimentos() {
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
   const d = datos;
   return (
-    <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
-      <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
-        <span className="jb-body text-xs text-zinc-300">📊 Cómo le va a la IA con los alimentos</span>
+    <div className={grande ? 'bg-zinc-900 border border-zinc-800 rounded-2xl' : 'bg-zinc-950 border border-zinc-800 rounded-xl'}>
+      <button onClick={() => setAbierto(v => !v)} className={`w-full flex items-center justify-between text-left ${grande ? 'px-5 py-4' : 'px-3.5 py-3'}`}>
+        {grande
+          ? <h2 className="jb-display text-base text-zinc-200">📊 CÓMO LE VA A LA IA CON LOS ALIMENTOS</h2>
+          : <span className="jb-body text-xs text-zinc-300">📊 Cómo le va a la IA con los alimentos</span>}
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
-        <div className="px-3.5 pb-3.5 flex flex-col gap-3">
+        <div className={`${grande ? 'px-5 pb-5' : 'px-3.5 pb-3.5'} flex flex-col gap-3`}>
           <div className="flex gap-1.5">
             {[['30', 'Últimos 30 días'], ['todo', 'Desde el inicio']].map(([v, t]) => (
               <button key={v} onClick={() => setPeriodo(v)}
@@ -9619,6 +9623,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         {tabActiva === 'ia' && (
           <>
             <PrecisionIAPanel />
+            <ReporteIAAlimentos grande />
             <ManualJarvisPanel />
             <VozParaVideosPanel />
             <MemoriaJarvisPanel />

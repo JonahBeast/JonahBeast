@@ -24,7 +24,7 @@ const CORS_HEADERS = {
 // es una voz aparte: es la voz masculina "cedar" (la más natural de OpenAI)
 // con instrucciones de estilo de mayordomo inteligente (no imita la voz de
 // ningún actor real). Si "cedar" no respondiera, se usa "onyx".
-const VOCES = ["jarvis", "friday", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+const VOCES = ["jarvis", "friday", "gorila", "gorila_fuego", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
 const VOZ_JARVIS = "cedar";
 const VOZ_JARVIS_RESPALDO = "onyx";
 // "friday": voz femenina "marin" con estilo de asistente de laboratorio
@@ -54,6 +54,34 @@ const INSTRUCCIONES_FRIDAY =
   "Relajada y segura, un poco informal, con un toque de picardía y humor rápido apenas insinuado. " +
   "Pronuncia nombres y cifras con claridad pero sin frenar. Nunca suenes robótica, lenta ni teatral.";
 
+// "gorila" y "gorila_fuego": Jonah el gorila, la mascota de Jonah Beast
+// Fuel. Voz grave y potente que empuja con cariño, motivadora y enérgica.
+// No hace sonidos de animal ni presiona con culpa. Son personajes
+// inventados: no imitan la voz de ninguna persona.
+const VOZ_GORILA = "onyx";
+const VOZ_GORILA_RESPALDO = "ash";
+const VOZ_GORILA_FUEGO = "ash";
+const VOZ_GORILA_FUEGO_RESPALDO = "echo";
+const INSTRUCCIONES_GORILA =
+  "Eres Jonah el gorila, la mascota de una app de alimentación peruana: un gorila fuerte, simpático y muy motivador, " +
+  "que habla español latinoamericano neutro. Voz masculina GRAVE y potente, llena de energía y entusiasmo, como un entrenador " +
+  "que te empuja con cariño a seguir adelante y a ir por tus metas: '¡vamos, tú puedes!'. Ritmo ágil y con fuerza, frases cortas, " +
+  "énfasis en las palabras clave, buen humor. Cálido y cercano, nunca regañes ni hagas sentir culpa. " +
+  "No hagas gruñidos ni sonidos de animal: solo la voz. Pronuncia nombres y cifras con claridad. Nunca suenes robótico.";
+const INSTRUCCIONES_GORILA_FUEGO =
+  "Eres Jonah el gorila, la mascota de una app de alimentación peruana, en su versión más EXPLOSIVA: un gorila con muchísima " +
+  "energía, que habla español latinoamericano neutro. Voz masculina potente y vibrante, como un entrenador que grita de emoción " +
+  "para animarte a no rendirte y a ir por tus metas: '¡vamos, vamos, tú puedes!'. Ritmo RÁPIDO, frases cortas y contundentes, " +
+  "mucho énfasis y alegría contagiosa. Siempre con cariño, nunca regañes ni hagas sentir culpa. " +
+  "No hagas gruñidos ni sonidos de animal: solo la voz. Pronuncia nombres y cifras con claridad. Nunca suenes robótico.";
+// Personajes con voz y estilo propios (voz base, respaldo y estilo).
+const PERSONAJES: Record<string, { voz: string; respaldo: string; instrucciones: string }> = {
+  jarvis: { voz: VOZ_JARVIS, respaldo: VOZ_JARVIS_RESPALDO, instrucciones: INSTRUCCIONES_JARVIS },
+  friday: { voz: VOZ_FRIDAY, respaldo: VOZ_FRIDAY_RESPALDO, instrucciones: INSTRUCCIONES_FRIDAY },
+  gorila: { voz: VOZ_GORILA, respaldo: VOZ_GORILA_RESPALDO, instrucciones: INSTRUCCIONES_GORILA },
+  gorila_fuego: { voz: VOZ_GORILA_FUEGO, respaldo: VOZ_GORILA_FUEGO_RESPALDO, instrucciones: INSTRUCCIONES_GORILA_FUEGO },
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
@@ -75,16 +103,16 @@ Deno.serve(async (req) => {
     const input = String(texto || "").replace(/\s+/g, " ").trim().slice(0, MAX_CARACTERES);
     if (!input) return json({ error: "Falta el texto." }, 400);
     const elegida = VOCES.includes(voz) ? voz : VOCES[0];
-    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : elegida === "friday" ? INSTRUCCIONES_FRIDAY : INSTRUCCIONES;
+    const personaje = PERSONAJES[elegida];
+    const instructions = personaje ? personaje.instrucciones : INSTRUCCIONES;
     const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "authorization": `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
     });
-    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida === "friday" ? VOZ_FRIDAY : elegida);
+    let r = await pedir(personaje ? personaje.voz : elegida);
     // Si OpenAI no acepta la voz nueva, sigue hablando con la de respaldo.
-    if (r.status === 400 && elegida === "jarvis") r = await pedir(VOZ_JARVIS_RESPALDO);
-    if (r.status === 400 && elegida === "friday") r = await pedir(VOZ_FRIDAY_RESPALDO);
+    if (r.status === 400 && personaje) r = await pedir(personaje.respaldo);
     if (!r.ok || !r.body) {
       console.error("jarvis-voz: OpenAI respondió", r.status, (await r.text().catch(() => "")).slice(0, 300));
       return json({ error: "No se pudo generar la voz." }, 502);

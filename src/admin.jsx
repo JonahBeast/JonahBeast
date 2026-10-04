@@ -5386,6 +5386,28 @@ const GUION_VIDEO_GUIA = [
   'Pruébala gratis: el link está en mi perfil.',
 ].join(' ');
 const MAX_CARACTERES_VOZ_VIDEO = 1500;
+// Jonah el gorila (mascota): motivador y enérgico, en primera persona.
+const GUION_VIDEO_GORILA = [
+  '¡Soy Jonah, el gorila! Y hoy te enseño cómo funciona la app. ¡Vamos!',
+  'Primero, respondes cinco preguntas rápidas. ¡Fácil!',
+  'Recibes tu plan, con comida peruana.',
+  'Cada día ves tus calorías, proteína, carbos y grasas.',
+  'Registras en segundos: escribiendo, con foto, con código o con voz.',
+  'Escribe lomo saltado, elige la porción y listo.',
+  '¿Prefieres foto? Tómale foto a tu plato y la inteligencia artificial lo reconoce.',
+  '¿Compraste algo empacado? Escanea el código de barras.',
+  'Mira a la comunidad: rachas, medallas y platos de otros.',
+  '¡Invita a un amigo! Él gana siete días de Premium, y tú, quince si él paga.',
+  'Poco a poco, comida a comida. ¡Vamos por tus metas, tú puedes!',
+  'Pruébala gratis: el link está en mi perfil.',
+].join(' ');
+// Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
+// (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
+const vocesVideo = () => [
+  { id: 'gorila', nombre: '🦍 Jonah el gorila · grave y motivador' },
+  { id: 'gorila_fuego', nombre: '🦍🔥 Jonah el gorila · explosivo' },
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+];
 // Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
 const GUION_VIDEO_JARVIS = [
   'Permítame mostrarle cómo funciona esta app.',
@@ -5445,18 +5467,22 @@ function VozParaVideosPanel() {
       <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, MAX_CARACTERES_VOZ_VIDEO))} rows={9}
         className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 jb-body text-sm text-zinc-100 outline-none focus:border-orange-500" />
       <div className="flex items-center justify-between gap-2">
-        <span className="jb-body text-[11px] text-zinc-500 tabular-nums">{n} / {MAX_CARACTERES_VOZ_VIDEO} letras</span>
-        <span className="flex items-center gap-3">
+        <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
+        <span className="flex items-center gap-3 flex-wrap justify-end">
           <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('gorila'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
       </div>
       <label className="jb-body text-xs text-zinc-400 flex flex-col gap-1">Voz
         <select value={voz} onChange={e => setVoz(e.target.value)}
           className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none">
-          {VOCES_PREMIUM_JARVIS.map(v => <option key={v.id} value={v.id.replace('premium:', '')}>{v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre}</option>)}
+          {vocesVideo().map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
         </select>
       </label>
+      {voz.startsWith('gorila') && (
+        <p className="jb-body text-[11px] text-amber-400">🦍 Las voces del gorila suenan de verdad cuando se publica la función de voz nueva (después de unir el cambio). Antes de eso, sonarán como Jarvis.</p>
+      )}
       <button onClick={generar} disabled={ocupado || !texto.trim()} className={btnPrimary + ' text-sm py-2.5 self-start disabled:opacity-50'}>
         {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🎙️ Generar voz'}
       </button>

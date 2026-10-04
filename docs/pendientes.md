@@ -15,7 +15,7 @@
 
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
-- **Voz en off del video "guía rápida" (41 s).** En el panel (📸 IA) está la tarjeta "🎙️ Voz para mis videos" con el guion cargado y la voz de Frida. Jonah genera el mp3, lo descarga y se lo pasa a Claude (por Google Drive), que lo ajusta a las escenas del video. También hay guiones y voces de Jarvis y de "Jonah el gorila" (motivador y enérgico, personaje de la marca, estilo videojuego). La tarjeta trae un efecto de "gorila de videojuego" (voz más grave y rugido, golpes de pecho y sonido de nivel superado) que Jonah escucha y afina; se descarga en WAV. Las voces del gorila necesitan publicar la función `jarvis-voz` actualizada DESPUÉS del merge (Claude la publica y dice la versión). TikTok suele pedir marcar el contenido con voz sintética.
+- **Voz en off del video "guía rápida" (41 s).** En el panel (📸 IA) está la tarjeta "🎙️ Voz para mis videos" con el guion cargado y la voz de Frida; también hay guiones de Jarvis y del gorila. Jonah eligió para el gorila la voz Onyx con el efecto "Voz humana grave · suave" (las voces enérgicas nuevas y el zumbido de criatura no le gustaron y se quitaron). Falta: Jonah genera el mp3, lo descarga y se lo pasa a Claude (por Google Drive), que lo ajusta a las escenas del video. Queda suelta en Supabase la función de prueba `jarvis-voz-prueba` (sin uso; Jonah puede borrarla). TikTok suele pedir marcar el contenido con voz sintética.
 
 ## Anuncios (análisis del 4 de octubre, últimos 30 días)
 

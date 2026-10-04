@@ -8650,7 +8650,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
               className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
               <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
                 {ICONO_COMIDA[meal] || '🍴'}
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
               </span>
               <span className="flex-1 min-w-0">
                 <span className="jb-display text-sm tracking-wide text-orange-500 block">{meal.toUpperCase()}</span>
@@ -8667,7 +8667,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
             <div key={destellos[meal] || 0} className={`relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border ${vacia ? 'bg-zinc-800/60 border-zinc-700' : 'bg-orange-500/20 border-orange-500/40'} ${destellos[meal] ? 'jbm-completa' : ''}`}>
               {ICONO_COMIDA[meal] || '🍴'}
               {!vacia && (
-                <span className="jbm-check absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
+                <span className="jbm-check absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
               )}
               {destellos[meal] && <span className="jbm-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />}
             </div>

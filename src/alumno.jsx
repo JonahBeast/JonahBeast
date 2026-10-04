@@ -8542,7 +8542,136 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
   );
 }
 
-function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null }) {
+/* Comidas con la tira de días de arriba: hoy y los 6 días anteriores. Un
+   día anterior se ve y se corrige igual que hoy; lo que cambie se guarda
+   en el historial de ese día (solo sus comidas: su peso de ese día no se
+   toca). */
+function nombreDia(iso, hoy) {
+  if (iso === hoy) return 'hoy';
+  if (iso === addDaysISO(hoy, -1)) return 'ayer';
+  const [y, m, d] = iso.split('-').map(Number);
+  const dia = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][new Date(y, m - 1, d).getDay()];
+  return `el ${dia} ${d}`;
+}
+function totalesDelPlan(plan) {
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  let comidas = 0, alimentos = 0;
+  Object.values(plan?.meals || {}).forEach(lista => {
+    const con = (lista || []).filter(en => en.foodKey);
+    if (con.length) comidas += 1;
+    alimentos += con.length;
+    (lista || []).forEach(en => { const m = entryMacros(en); t.kcal += m.kcal; t.protein += m.protein; t.carbs += m.carbs; t.fat += m.fat; });
+  });
+  return { t, comidas, alimentos };
+}
+function MealTab(props) {
+  const { mealPlan, username, hojaInicial } = props;
+  const hoy = todayISO();
+  const [fecha, setFecha] = useState(hoy);
+  const [resumen, setResumen] = useState({}); // fecha -> kcal del día (para la tira)
+  const [plan, setPlan] = useState(null); // plan del día anterior abierto
+  const [cargando, setCargando] = useState(false);
+  const espera = useRef(null);
+  const pendiente = useRef(null); // { f, p } cambio de un día anterior aún sin subir
+  const dias = Array.from({ length: 7 }, (_, i) => addDaysISO(hoy, i - 6));
+  // Si cambia de día (o sale de Comidas) con un cambio sin subir, se sube ya.
+  function subirPendiente() {
+    clearTimeout(espera.current);
+    const x = pendiente.current;
+    pendiente.current = null;
+    if (x) guardarDia(x.f, x.p);
+  }
+
+  // Un pedido de registrar (desde Inicio o un aviso) siempre es para hoy.
+  useEffect(() => { if (hojaInicial?.meal) setFecha(hoy); }, [hojaInicial?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!username) return;
+    supabase.from('historial').select('fecha, kcal_consumidas, comidas_count').eq('username', username)
+      .gte('fecha', dias[0]).lt('fecha', hoy)
+      .then(({ data }) => setResumen(Object.fromEntries((data || []).map(r => [String(r.fecha).slice(0, 10), Number(r.comidas_count) > 0 ? Math.round(Number(r.kcal_consumidas) || 0) : 0]))))
+      .catch(() => {});
+  }, [username, hoy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function abrirDia(f) {
+    vibrar(8);
+    subirPendiente();
+    setFecha(f);
+    if (f === hoy) { setPlan(null); return; }
+    setCargando(true); setPlan(null);
+    try {
+      const { data } = await supabase.from('historial').select('meal_plan').eq('username', username).eq('fecha', f).maybeSingle();
+      const guardado = data?.meal_plan;
+      const vacias = Object.fromEntries(MEAL_NAMES.map(ml => [ml, []]));
+      setPlan(guardado?.meals
+        ? { ...mealPlan, ...guardado, meals: { ...vacias, ...guardado.meals } }
+        : { ...mealPlan, meals: vacias });
+    } catch {
+      showToast('No se pudo abrir ese día. Revisa tu internet.', 'error');
+      setFecha(hoy);
+    }
+    setCargando(false);
+  }
+
+  async function guardarDia(f, p) {
+    const { t, comidas, alimentos } = totalesDelPlan(p);
+    const { error } = await supabase.from('historial').upsert({
+      username, fecha: f, meal_plan: p,
+      kcal_consumidas: Math.round(t.kcal), proteina_g: Math.round(t.protein), carbos_g: Math.round(t.carbs), grasas_g: Math.round(t.fat),
+      kcal_objetivo: Math.round(p.targetKcal) || null, comidas_count: comidas, alimentos_count: alimentos,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'username,fecha' });
+    if (error) { showToast(`No se pudo guardar ${nombreDia(f, hoy)}. Revisa tu internet e intenta de nuevo.`, 'error'); return; }
+    setResumen(r => ({ ...r, [f]: comidas ? Math.round(t.kcal) : 0 }));
+  }
+
+  // Cambios en un día anterior: se guardan solos (al segundo de dejar de tocar).
+  function setPlanDia(cambio) {
+    setPlan(p => {
+      const nuevo = typeof cambio === 'function' ? cambio(p) : cambio;
+      clearTimeout(espera.current);
+      pendiente.current = { f: fecha, p: nuevo };
+      espera.current = setTimeout(subirPendiente, 800);
+      return nuevo;
+    });
+  }
+  useEffect(() => () => subirPendiente(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const esHoy = fecha === hoy;
+  const kcalHoy = Math.round(totalesDelPlan(mealPlan).t.kcal);
+  return (
+    <div className="flex flex-col gap-3 min-w-0">
+      <div className="grid grid-cols-7 gap-1" role="tablist" aria-label="Elegir día">
+        {dias.map(f => {
+          const [y, m, d] = f.split('-').map(Number);
+          const activo = f === fecha;
+          const kcal = f === hoy ? kcalHoy : resumen[f] || 0;
+          return (
+            <button key={f} role="tab" aria-selected={activo} onClick={() => abrirDia(f)}
+              className={`rounded-xl py-1.5 flex flex-col items-center border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}`}>
+              <span className={`jb-body text-[10px] uppercase ${activo ? 'text-zinc-900' : 'text-zinc-500'}`}>{f === hoy ? 'Hoy' : ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][new Date(y, m - 1, d).getDay()]}</span>
+              <span className="jb-display text-base leading-tight tabular-nums">{d}</span>
+              <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${kcal > 0 ? (activo ? 'bg-zinc-950' : 'bg-emerald-500') : 'bg-transparent'}`} />
+            </button>
+          );
+        })}
+      </div>
+      {!esHoy && (
+        <div className="bg-orange-500/10 border border-orange-500/40 rounded-xl px-3 py-2.5 flex items-center gap-2">
+          <p className="jb-body text-xs text-orange-200 flex-1">Estás viendo <b>{nombreDia(fecha, hoy)}</b>. Lo que agregues o cambies se guarda en ese día.</p>
+          <button onClick={() => abrirDia(hoy)} className="jb-body text-xs font-semibold text-zinc-950 bg-orange-500 rounded-full px-3 py-1.5 shrink-0">Volver a hoy</button>
+        </div>
+      )}
+      {esHoy ? <MealTabDia {...props} /> : cargando || !plan ? (
+        <div className="flex flex-col gap-3">{[0, 1, 2].map(i => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}</div>
+      ) : (
+        <MealTabDia key={fecha} {...props} mealPlan={plan} setMealPlan={setPlanDia} esHoy={false} hojaInicial={null} />
+      )}
+    </div>
+  );
+}
+
+function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true }) {
   const [personales, setPersonales] = useState([]);
   const [editarPropio, setEditarPropio] = useState(null);
   const [escribiendo, setEscribiendo] = useState(false);
@@ -8585,7 +8714,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
-  const mealAhora = comidaDeAhora();
+  const mealAhora = esHoy ? comidaDeAhora() : null;
   // Comidas que ya pasaron: las registradas se ven cerradas en una línea
   // (se abren tocándolas) y las que no se registraron se juntan en una sola
   // línea delgada, para llegar a la comida de AHORA sin bajar tanto.
@@ -8787,7 +8916,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
-      <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />
+      {esHoy && <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />}
       {hojaMeal && (
         <HojaRegistrar
           meal={hojaMeal} setMeal={setHojaMeal} onCerrar={() => setHojaMeal(null)}
@@ -8806,7 +8935,7 @@ function MealTab({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial =
       {/* Botón principal para registrar: uno solo, siempre a mano (se
           esconde mientras escribe, para no tapar la lista del buscador). */}
       {!hojaMeal && !fotoPara && !codigoPara && !crearPara && !editando && !escribiendo && !escribirPara && (
-        <button onClick={() => { vibrar(10); setHojaMeal(mealAhora); }}
+        <button onClick={() => { vibrar(10); setHojaMeal(mealAhora || comidaDeAhora()); }}
           className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
           aria-label="Registrar comida">
           <Plus size={20} strokeWidth={2.6} />

@@ -69,6 +69,7 @@ import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
+import { ReglaDeslizable } from './regla.jsx';
 import { analizarProgreso, historialDePeso } from './progreso.js';
 
 /* Restaurantes aliados: negocios con convenio real (comisión de
@@ -1968,16 +1969,11 @@ function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas, mealPlan
 
 // Campo numérico con − / + grandes; también se puede tocar el número y
 // escribirlo. Si está vacío, el primer + / − parte de un valor típico.
+// El número se elige deslizando la regla (o se toca y se escribe).
 function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, inicial, unidad, placeholder, ayuda }) {
   const n = Number(valor);
   const vacio = valor === '' || valor === null || valor === undefined || !Number.isFinite(n) || n === 0;
   const decimales = paso < 1 ? 1 : 0;
-  const mover = (dir) => {
-    vibrar(8);
-    const base = vacio ? (inicial ?? min) : n;
-    const nuevo = vacio ? base : Math.round((base + dir * paso) / paso) * paso;
-    onCambio(Math.min(max, Math.max(min, Number(nuevo.toFixed(decimales)))));
-  };
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-3 pt-2.5 pb-3">
       <div className="flex items-center justify-between mb-1.5">
@@ -1986,16 +1982,12 @@ function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, ini
           <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <BotonPaso etiqueta={`Menos ${label}`} onClick={() => mover(-1)}>−</BotonPaso>
-        <div className="flex-1 min-w-0 flex items-baseline justify-center gap-1">
-          <input type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
-            onChange={e => onCambio(e.target.value === '' ? '' : Number(e.target.value))}
-            className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-        </div>
-        <BotonPaso etiqueta={`Más ${label}`} onClick={() => mover(1)}>+</BotonPaso>
-      </div>
-      <p className="jb-body text-[11px] text-zinc-500 text-center mt-0.5">{unidad}</p>
+      <input type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
+        onChange={e => onCambio(e.target.value === '' ? '' : Number(e.target.value))}
+        aria-label={label}
+        className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+      <p className="jb-body text-[11px] text-zinc-500 text-center -mt-0.5">{unidad}</p>
+      <ReglaDeslizable valor={vacio ? '' : n} onCambio={onCambio} paso={paso} min={min} max={max} inicial={inicial ?? placeholder} etiqueta={label.toLowerCase()} />
     </div>
   );
 }
@@ -2068,7 +2060,7 @@ function CalculatorTab({ form, setForm, results, onSiguiente }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
           <CampoNumero label="Edad" valor={form.edad} onCambio={fijar('edad')} paso={1} min={12} max={99} inicial={30} unidad="años" placeholder="30" />
           <CampoNumero label="Estatura" valor={form.estatura} onCambio={fijar('estatura')} paso={1} min={120} max={220} inicial={esMujer ? 158 : 168} unidad="centímetros" placeholder={esMujer ? '158' : '168'} />
-          <CampoNumero label="Peso" valor={form.peso} onCambio={fijar('peso')} paso={0.5} min={30} max={250} inicial={esMujer ? 62 : 75} unidad="kilos" placeholder={esMujer ? '62' : '75'} />
+          <CampoNumero label="Peso" valor={form.peso} onCambio={fijar('peso')} paso={0.1} min={30} max={250} inicial={esMujer ? 62 : 75} unidad="kilos" placeholder={esMujer ? '62' : '75'} />
         </div>
         <p className="jb-body text-[11px] uppercase tracking-wider text-zinc-400 mb-2">Actividad física</p>
         <div className="flex flex-wrap gap-2 mb-2">

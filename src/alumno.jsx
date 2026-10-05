@@ -1176,7 +1176,9 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 // embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
 // su selector de comida, porque la comida ya se eligió en la hoja).
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues }) {
+// onAgregado(meal, ids): en la hoja "Registrar", al agregar se cierra la hoja
+// y se lleva al alumno a lo que acaba de registrar.
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues, onAgregado }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -1186,12 +1188,14 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
   function agregarDirecta(food) {
     const d = unidadPorDefecto(food);
+    const id = uid();
     setMealPlan(v => ({
       ...v,
-      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id: uid(), foodKey: food.key, qty: d.qty, unit: d.unit }] },
+      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id, foodKey: food.key, qty: d.qty, unit: d.unit }] },
     }));
     vibrar(15);
     showToast(`✅ ${food.name} agregado a ${mealDestino}`);
+    onAgregado?.(mealDestino, [id]);
   }
 
   function agregarCombo(opt) {
@@ -1221,6 +1225,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
     vibrar(20);
     showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
+    onAgregado?.(mealDestino, nuevas.map(n => n.id));
   }
 
   // En la hoja Registrar el botón "Voz" ya graba directo (un solo toque).
@@ -6615,7 +6620,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
   );
 }
 
-function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
+function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
   const [abierto, setAbierto] = useState(null); // 'ayer' | 'guardadas' | 'frecuentes'
   const [ayer, setAyer] = useState(null);
   const [guardadas, setGuardadas] = useState([]);
@@ -6685,6 +6690,9 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     }));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], ...nuevos] } }));
     setAbierto(null);
+    vibrar(15);
+    showToast(`✅ ${nuevos.length === 1 ? '1 alimento agregado' : `${nuevos.length} alimentos agregados`} a ${meal}`);
+    onAgregado?.(meal, nuevos.map(n => n.id));
   }
 
   async function guardarComida() {
@@ -8741,7 +8749,7 @@ function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
   );
 }
 
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, onAgregado, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
   const ahora = comidaDeAhora();
@@ -8804,14 +8812,15 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
               restricciones={mealPlan.restricciones || []} embebido meal={meal}
-              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined} />
+              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined}
+              onAgregado={onAgregado} />
           </div>
         )}
 
         {username && (
           <div>
             <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Atajos para {meal.toLowerCase()}</p>
-            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} onAgregado={onAgregado} />
           </div>
         )}
       </div>
@@ -9421,6 +9430,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     else setHojaMeal(hojaInicial.meal);
   }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
+  const [recien, setRecien] = useState([]); // ids recién registrados desde la hoja (se resaltan 3 segundos)
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = esHoy ? comidaDeAhora() : null;
@@ -9634,6 +9644,17 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onAgregado={(m, ids) => {
+            // Recién registrado: se cierra la hoja y se ve en su comida, resaltado.
+            setHojaMeal(null);
+            const ultimo = ids[ids.length - 1];
+            setRecien(ids);
+            setTimeout(() => setRecien([]), 3000);
+            if (ultimo) setTimeout(() => {
+              const el = document.getElementById('entrada-' + ultimo);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 120);
+          }}
           onBuscarDespues={(m, textos) => {
             // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
             // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).
@@ -9845,7 +9866,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 const porcion = porcionDeEntrada(en);
                 const muyAlta = entryGrams(en) >= MAX_GRAMOS_ENTRADA;
                 return (
-                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-xl">
+                  <div key={en.id} id={'entrada-' + en.id} className={`relative rounded-xl transition-shadow duration-700 ${recien.includes(en.id) ? 'ring-2 ring-emerald-400' : ''}`}>
                     <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
@@ -11509,7 +11530,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
           { id: 'equipo', icon: Users, label: 'Comunidad', activo: tab === 'equipo', aviso: (avisoEquipo || avisoMuro) && tab !== 'equipo' },
         ].map(item => (
-          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); if (item.id === 'equipo') revisarAvisoEquipo(); }}
+          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); window.scrollTo({ top: 0 }); if (item.id === 'equipo') revisarAvisoEquipo(); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
             <span className="relative">
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />

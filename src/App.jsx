@@ -4904,7 +4904,7 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 const PLANES = [
   { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 24.90, badge: null },
   { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 64.90, badge: null },
-  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 114.90, badge: 'MÁS ELEGIDO' },
+  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 114.90, badge: 'RECOMENDADO' },
   { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 209.90, badge: 'MEJOR PRECIO' },
 ];
 
@@ -5365,7 +5365,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                 ? Math.round((1 - porMes / precioDe(PLANES[0])) * 100) : 0;
               return (
                 <div key={plan.meses}
-                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.badge === 'MÁS ELEGIDO'
+                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.badge === 'RECOMENDADO'
                     ? 'bg-zinc-900 border-orange-500 shadow-lg shadow-orange-500/10'
                     : 'bg-zinc-900 border-zinc-800'}`}>
                   {plan.badge && (
@@ -5387,7 +5387,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   )}
                   {ahorro === 0 && <div className="mb-3" />}
                   <button onClick={() => { setSeleccion(plan); registrarPasoPago('eligio_plan', username, plan.meses); }}
-                    className={(plan.badge === 'MÁS ELEGIDO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
+                    className={(plan.badge === 'RECOMENDADO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
                     Elegir
                   </button>
                 </div>

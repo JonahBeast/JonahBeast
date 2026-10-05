@@ -750,7 +750,7 @@ Problemas:
 |---|---|
 | Mensual | S/24.90 |
 | Trimestral | S/64.90 |
-| Semestral | S/114.90 ("MÁS ELEGIDO") |
+| Semestral | S/114.90 ("RECOMENDADO") |
 | Anual | S/209.90 ("MEJOR PRECIO") |
 
 - El precio vigente es el que muestra la app (el asistente lo lee de la configuración).

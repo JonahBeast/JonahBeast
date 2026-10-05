@@ -9430,7 +9430,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     else setHojaMeal(hojaInicial.meal);
   }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
-  const [recien, setRecien] = useState([]); // ids recién registrados desde la hoja (se resaltan 3 segundos)
+  const [recien, setRecien] = useState([]); // ids recién registrados (se resaltan 3 segundos)
+  // Al terminar de registrar por cualquier camino (hoja, voz, foto, código,
+  // escribir), la pantalla va a lo que se agregó y lo marca en verde: antes,
+  // con la foto, quedaba más abajo (en Cena o Agua) y no se veía.
+  const flujo = useRef(null); // { meal, antes: Set de ids que ya estaban }
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = esHoy ? comidaDeAhora() : null;
@@ -9443,6 +9447,27 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   const saltadas = MEAL_NAMES.filter((m, i) => i < idxAhora && !(mealPlan.meals[m] || []).length);
   // La comida a la que se le está agregando algo queda abierta, para ver lo
   // que se agregó.
+  useEffect(() => {
+    const m = hojaMeal || fotoPara || codigoPara || escribirPara;
+    if (m) {
+      if (!flujo.current || flujo.current.meal !== m) flujo.current = { meal: m, antes: new Set((mealPlan.meals[m] || []).map(e => e.id)) };
+      return;
+    }
+    if (!flujo.current) return;
+    const { meal, antes } = flujo.current;
+    flujo.current = null;
+    const agregadas = (mealPlan.meals[meal] || []).filter(e => !antes.has(e.id));
+    const nuevos = agregadas.filter(e => e.foodKey).map(e => e.id);
+    if (!nuevos.length) return;
+    setRecien(nuevos);
+    setTimeout(() => setRecien([]), 3000);
+    // Si quedó una fila por buscar (voz: "No es ninguna"), la vista va a esa.
+    if (agregadas.some(e => !e.foodKey)) return;
+    setTimeout(() => {
+      const el = document.getElementById('entrada-' + nuevos[nuevos.length - 1]);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
   // Al terminar de registrar, esa comida pasada se cierra sola a los 6
   // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
   // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
@@ -9666,17 +9691,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
-          onAgregado={(m, ids) => {
-            // Recién registrado: se cierra la hoja y se ve en su comida, resaltado.
-            setHojaMeal(null);
-            const ultimo = ids[ids.length - 1];
-            setRecien(ids);
-            setTimeout(() => setRecien([]), 3000);
-            if (ultimo) setTimeout(() => {
-              const el = document.getElementById('entrada-' + ultimo);
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 120);
-          }}
+          onAgregado={() => setHojaMeal(null)} // al cerrarse, la vista baja a lo agregado (ver "flujo")
           onBuscarDespues={(m, textos) => {
             // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
             // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).

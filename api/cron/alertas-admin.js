@@ -34,7 +34,13 @@ export default async function handler(req, res) {
     const { data: pendientes } = await supabase.from('pagos')
       .select('id, username, nombre, monto, creado_en').eq('estado', 'pendiente').range(0, 999);
     const edad = p => ahora - new Date(p.creado_en).getTime();
-    const nuevos = (pendientes || []).filter(p => edad(p) < HORA_MS);
+    // Los que ya se avisaron al toque (api/pago-enviado.js, al tocar "Ya
+    // pagué") no se repiten aquí.
+    const { data: cfgAvisados } = await supabase.from('config').select('value').eq('key', 'pagos_avisados').maybeSingle();
+    let yaAvisados = [];
+    try { yaAvisados = JSON.parse(cfgAvisados?.value || '[]'); } catch {}
+    if (!Array.isArray(yaAvisados)) yaAvisados = [];
+    const nuevos = (pendientes || []).filter(p => edad(p) < HORA_MS && !yaAvisados.includes(p.id));
     // Cumplieron 12 h en la última hora (o entre 12 h y 13 h si la hora de
     // la noche se saltó: entonces se avisa a las 7am).
     const hueco = hora === 7 ? 10 * HORA_MS : HORA_MS;

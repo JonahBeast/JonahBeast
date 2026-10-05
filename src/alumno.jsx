@@ -2957,6 +2957,101 @@ function InstalarBanner({ onEligible }) {
 
 // Últimos 3 días de la prueba: cuenta regresiva grande, lo que logró y
 // un botón directo a los planes con el precio más bajo por día.
+/* FIN DE PRUEBA (pantalla completa): el penúltimo y el último día del
+   Premium de prueba, la primera vez que abre la app ese día, Jonah le
+   muestra lo que logró y le pregunta si siguen juntos. Antes solo había un
+   aviso en Inicio que quedaba detrás de otros: 3 de cada 4 nunca veían los
+   planes. Una vez por día (localStorage jb-fin-prueba:<usuario>). Lo que
+   toca queda en el embudo (evento "fin_prueba") para verlo en el panel. */
+function claveFinPrueba(username) { return 'jb-fin-prueba:' + username; }
+function finPruebaPendiente(user) {
+  if (!user || user.plan !== 'trial') return false;
+  const quedan = daysLeft(user.fechaVencimiento);
+  if (quedan === null || quedan < 0 || quedan > 1) return false;
+  try { return localStorage.getItem(claveFinPrueba(user.username)) !== todayISO(); } catch { return false; }
+}
+
+function FinPruebaModal({ user, onPlan, onCerrar }) {
+  const [stats, setStats] = useState(null);
+  const [precio1, setPrecio1] = useState(null);
+  useEffect(() => {
+    fetchTrialStats(user.username).then(setStats);
+    supabase.from('config').select('value').eq('key', PLANES[0].configKey).maybeSingle()
+      .then(({ data }) => setPrecio1(Number(data?.value) > 0 ? Number(data.value) : PLANES[0].precioDefault), () => setPrecio1(PLANES[0].precioDefault));
+    registrarPasoPago('fin_prueba', user.username, 'vio');
+    try { localStorage.setItem(claveFinPrueba(user.username), todayISO()); } catch {}
+  }, [user.username]);
+
+  const quedan = Math.max(0, daysLeft(user.fechaVencimiento) ?? 0);
+  const n = String(user.nombre || '').trim().split(/\s+/)[0];
+  const nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+  const cuando = quedan === 0 ? 'Hoy' : 'Mañana';
+  const uso = stats && stats.dias > 0;
+  const logros = uso ? [
+    [stats.dias, stats.dias === 1 ? 'día registrado' : 'días registrados'],
+    [stats.comidas, stats.comidas === 1 ? 'comida' : 'comidas'],
+    stats.deltaPeso !== null && stats.deltaPeso <= -0.1
+      ? [`−${Math.abs(stats.deltaPeso).toFixed(1)}`, 'kg']
+      : [stats.adherencia !== null ? `${stats.adherencia}%` : '—', 'días en tu meta'],
+  ] : null;
+  const elegir = (detalle, meses) => { registrarPasoPago('fin_prueba', user.username, detalle); onPlan(meses); };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/80" onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 max-h-[92vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.22)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <div className="flex items-center gap-3 mb-3">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500 shrink-0"
+            onError={e => { e.target.style.display = 'none'; }} />
+          <div className="min-w-0">
+            <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">{quedan === 0 ? 'Último día de tu Premium' : 'Te queda 1 día de Premium'}</p>
+            <h3 className="jb-display text-2xl text-zinc-50 leading-none">{nombre ? `${nombre.toUpperCase()}, ` : ''}¿SEGUIMOS JUNTOS?</h3>
+          </div>
+        </div>
+        <p className="jb-body text-sm text-zinc-300 leading-snug mb-4">
+          {uso
+            ? `Soy Jonah. ${cuando} termina tu Premium de prueba y quiero que veas lo que ya hiciste 💪 Así empecé yo también: poco a poco, comida a comida.`
+            : `Soy Jonah. ${cuando} termina tu Premium de prueba. Todavía no vimos tus comidas juntos, y es lo que más ayuda: anota tu próxima comida con una foto y vamos paso a paso.`}
+        </p>
+        {logros && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {logros.map(([valor, texto]) => (
+              <div key={texto} className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+                <p className="jb-display text-2xl text-orange-500 tabular-nums leading-none">{valor}</p>
+                <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{texto}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 mb-4 jb-body text-xs text-zinc-300 flex flex-col gap-1">
+          <p>Con Premium sigues con:</p>
+          <p>📸 La foto inteligente en todas tus comidas</p>
+          <p>🍽️ Tu menú del día y de la semana, con comida peruana</p>
+          <p>💬 Mi acompañamiento por WhatsApp</p>
+        </div>
+        {esTWA() ? (
+          <button onClick={() => elegir('planes', null)} className={btnPrimary + ' w-full py-3.5 rounded-2xl'}>
+            <span className="jb-display text-base tracking-wide">SEGUIR CON PREMIUM</span>
+          </button>
+        ) : (
+          <>
+            <button onClick={() => elegir('1mes', 1)} className={btnPrimary + ' w-full py-3.5 rounded-2xl flex-col gap-0'}>
+              <span className="jb-display text-base tracking-wide">SEGUIR CON 1 MES{precio1 ? ` · ${fmtS(precio1)}` : ''}</span>
+              <span className="jb-body text-[11px] font-normal">Menos de S/1 al día · pagas con Yape o Plin</span>
+            </button>
+            <button onClick={() => elegir('planes', null)} className="w-full jb-body text-sm text-orange-400 py-2.5 mt-1">Ver todos los planes (ahorras con más meses)</button>
+          </>
+        )}
+        <button onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }}
+          className="w-full jb-body text-xs text-zinc-500 py-2">Ahora no · sigo con la versión gratis</button>
+      </div>
+    </div>
+  );
+}
+
 function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
   const [precioDia, setPrecioDia] = useState(null);
   useEffect(() => {
@@ -10726,6 +10821,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  // Fin de la prueba: pantalla de Jonah (FinPruebaModal) y, si elige "1 mes",
+  // los planes se abren con ese plan ya marcado.
+  const [verFinPrueba, setVerFinPrueba] = useState(false);
+  const [planDirecto, setPlanDirecto] = useState(null);
+  useEffect(() => { if (finPruebaPendiente(userRecord)) setVerFinPrueba(true); }, [userRecord?.username, userRecord?.fechaVencimiento, userRecord?.plan]);
+  useEffect(() => { if (tab !== 'planes') setPlanDirecto(null); }, [tab]);
   const [ajustarMeta, setAjustarMeta] = useState(false);
 
   // Anota en su ficha si le llegan los avisos (o por qué no), una vez al
@@ -10968,6 +11069,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
         {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {verFinPrueba && tab === 'dash' && !verGuia && !ofrecerNotif && !verPrimeraComida && !ajustarMeta && !abrirEnNavegador && userRecord && (
+          <FinPruebaModal user={userRecord} onCerrar={() => setVerFinPrueba(false)}
+            onPlan={meses => { setVerFinPrueba(false); setPlanDirecto(meses); setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
+        )}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
@@ -11102,7 +11207,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
-        {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
+        {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} planInicial={planDirecto} />}
         {tab === 'perfil' && (
           <PerfilTab userRecord={userRecord} username={username} form={form} setForm={setForm}
             modoFacil={modoFacil} onModoFacil={v => elegirModoFacil(v)}

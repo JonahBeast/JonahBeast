@@ -100,7 +100,7 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
    - Debajo hay un botón **"¿Ya tienes cuenta? ENTRAR"** (también al final, debajo de "CREAR MI CUENTA GRATIS"): es para quien ya tiene cuenta y llegó aquí por un enlace de invitación (de un amigo o de un equipo). Que entre con su cuenta de siempre: **no debe crear otra**.
    - **Lo más rápido:** toca **"Continuar con Google"** (botón blanco), elige tu cuenta de Google y listo: entras directo a tu prueba, sin escribir correo ni contraseña. Tu nombre se toma de Google.
    - Si abriste la página desde **Instagram, Facebook, Messenger o TikTok** (por ejemplo, tocando un anuncio), en lugar del botón de Google sale: "Estás dentro de [app]: ahí Google no deja entrar." Esas apps no permiten el ingreso con Google. Regístrate con tu correo, o toca **⋯** arriba y elige **"Abrir en el navegador"** para usar Google. Lo mismo pasa en "Entrar con Google" al ingresar.
-2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"**, una **"Contraseña"** (mínimo 6 caracteres; el ojito sirve para verla) y **"Tu WhatsApp"** (obligatorio, 9 dígitos; "Para acompañarte y avisarte si se te pasa una comida. Nada de spam."). Si falta o está incompleto: "Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.".
+2. O, debajo de "o con tu correo", escribe tu **"Correo electrónico"**, una **"Contraseña"** (mínimo 6 letras o números; el ojito sirve para verla. Mientras la escribes, debajo dice cuántas te faltan, "Te faltan 2 letras o números", y cambia a "✓ Lista" en verde cuando llega a 6) y **"Tu WhatsApp"** (obligatorio, 9 dígitos; "Para acompañarte y avisarte si se te pasa una comida. Nada de spam."). Si falta o está incompleto: "Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.".
 3. (Opcional) Si alguien te invitó: toca **"¿Tienes un código?"** y escríbelo en "Código de referido (opcional)". Si es válido verás "✓ Código válido · te recomendó [nombre]". Si llegaste por el link de un amigo, el código ya viene puesto.
 4. Toca **"CREAR MI CUENTA GRATIS"**.
 5. Puede que entres directo o que veas "Revisa tu correo y confirma tu cuenta para entrar. Si no lo ves, mira en spam."
@@ -111,14 +111,14 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 - Quien se registra con el código **RETO** (Reto Beast, 12.1) tiene 15 días de Premium.
 - Quien escribió en la calculadora un código de live con premio (2.1) suma esos días a su prueba al entrar por primera vez.
 
-Errores del registro y qué hacer:
+Errores del registro y qué hacer (cada error sale **debajo de la casilla que hay que corregir**, marcada en rojo; abajo, junto al botón, dice "Revisa lo marcado en rojo arriba ☝️"):
 
 | Mensaje | Qué hacer |
 |---|---|
-| "Escribe un correo válido." | Revisar el correo (sin espacios). |
-| "La contraseña debe tener al menos 6 caracteres." / "La contraseña es muy corta…" | Usar una más larga. |
+| "Escribe tu correo." / "Ese correo no parece completo. Revísalo (ej. tunombre@gmail.com)." | Revisar el correo (sin espacios). |
+| "Tu contraseña necesita al menos 6 letras o números." / "La contraseña es muy corta…" | Usar una más larga. |
 | "Esa contraseña es muy común o ya se filtró en internet. Elige otra." / "…muy fácil de adivinar…" | Elegir una contraseña más única. |
-| "Ese correo ya tiene una cuenta. Inicia sesión." | Entrar por "¿Ya tienes cuenta? ENTRAR". Si no recuerda la contraseña, recuperarla (sección 5). |
+| "👋 Ya tienes una cuenta con este correo. No necesitas crear otra: entra con ella." | Tocar **"Entrar con este correo"**: abre el ingreso con el correo ya escrito. Si no recuerda la contraseña, recuperarla (sección 5). |
 | "Ese código de referido no existe o ya no está activo…" | Revisar cómo está escrito. Si toca de nuevo el botón, la cuenta se crea sin código (sin descuento). |
 | "No se pudo preparar tu cuenta…" / "No se pudo crear tu cuenta: …" | Intentar de nuevo; si sigue, pasar a Jonah. |
 | "No se pudo abrir Google. Intenta de nuevo o usa tu correo." | Intentar de nuevo o registrarse con correo y contraseña. |
@@ -149,7 +149,7 @@ Errores del registro y qué hacer:
 
 1. En "ENTRAR A MI CUENTA" toca **"¿Olvidaste tu contraseña?"**.
 2. Escribe tu correo y toca **"Enviar código"**.
-3. Revisa tu correo (y spam). Escribe el **"Código de verificación"**, la **"Contraseña nueva"** y **"Repite la contraseña"**.
+3. Revisa tu correo (y spam). Escribe el **"Código de verificación"**, la **"Contraseña nueva"** y **"Repite la contraseña"**. Debajo de la contraseña nueva dice cuántas letras o números faltan ("✓ Lista" al llegar a 6), y debajo de la repetida, "✓ Coinciden" o "Todavía no coincide con la de arriba". Igual al cambiar la contraseña con el enlace del correo.
 4. Toca **"Cambiar contraseña y entrar"**. Entras directo.
 5. Si no llegó: **"¿No te llegó? Pedir otro código"**.
 
@@ -759,18 +759,18 @@ Problemas:
 
 ### 13.2 Pagar con Yape, Plin o transferencia
 
-1. Toca **"Elegir"** en el plan.
+1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra").
 2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**. Al lado de cada dato (número de Yape/Plin, cuenta, CCI y monto) hay un botón **"Copiar"**: lo copia sin espacios y sale "✓ Copiado", para pegarlo en tu app del banco sin escribirlo.
 3. Paga desde tu app del banco (pega el número y el monto que copiaste).
-4. En "2 · CONFIRMA TU PAGO" llena: "Tu celular (WhatsApp)" (si falta, 9 dígitos), fecha de nacimiento (opcional, con las **ruedas de día, mes y año**), **"Número de operación"** y la **captura del pago** ("Toca para adjuntar tu captura", imagen o PDF).
-5. Toca **"ENVIAR MI PAGO"**.
-6. Verás **"Tu pago está en revisión"**: se confirma **en menos de 24 horas** y el acceso se activa solo.
+4. En **"2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA"** toca **"📸 Toca aquí y elige la captura de tu pago"** (imagen o PDF). **Con la captura basta.** Si no tienes la captura, escribe el **"Número de operación"** (sale solo mientras no hay captura). Si falta, también pide "Tu celular (WhatsApp)" (9 dígitos) y la fecha de nacimiento (opcional, con las **ruedas de día, mes y año**).
+5. Toca **"YA PAGUÉ · ENVIAR"**. Sale "¡Listo! Ya le llegó el aviso a Jonah 💪": a Jonah le llega un aviso al celular en ese momento (de 7am a 10pm).
+6. Verás **"Tu pago está en revisión"**: Jonah lo activa **apenas lo ve** (de 7am a 10pm; si pagas de noche, a primera hora) y el acceso se activa solo.
 7. Cuando se aprueba, llega una notificación: "✅ ¡Listo! Tu pago fue aprobado y tu plan está activo hasta el DD/MM/AAAA." (solo si activaste las notificaciones; si no, lo ves en "MIS PAGOS").
 
 - En **"MIS PAGOS"** ves cada pago: "En revisión" (amarillo), "Aprobado" (verde) o "Rechazado" (rojo).
 - Si sale **"Rechazado"**, la app no muestra el motivo → pasar a Jonah.
 
-Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número de operación de tu pago." · "Adjunta la captura de tu pago." · "No se pudo enviar el pago".
+Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de tu pago (o escribe el número de operación)." · "No se pudo enviar el pago".
 
 ### 13.3 Pagar con Mercado Pago (tarjeta o saldo)
 
@@ -794,7 +794,8 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Escribe el número d
 ### 13.5 Los 7 días de Premium de prueba dentro de la app
 
 - **Días 1 a 5: "Premium de prueba · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
-- **Días 6 y 7:** cuenta regresiva ("TE QUEDA 1 DÍA DE PREMIUM" / "HOY TERMINA TU PREMIUM", con "Después sigues gratis…") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
+- **Días 6 y 7, al abrir la app (una vez por día):** sale una pantalla desde abajo con la foto de Jonah: **"[NOMBRE], ¿SEGUIMOS JUNTOS?"** ("Te queda 1 día de Premium" / "Último día de tu Premium"). Muestra lo que logró en la prueba (días registrados, comidas y kilos bajados o % de días en su meta), lo que sigue con Premium y tres opciones: **"SEGUIR CON 1 MES · S/24.90"** (abre los planes con el mensual ya elegido, directo a pagar), **"Ver todos los planes (ahorras con más meses)"** y **"Ahora no · sigo con la versión gratis"**. Si todavía no registró nada, en vez de los logros le invita a anotar su próxima comida con foto. En la app de Play Store sale un solo botón, "SEGUIR CON PREMIUM".
+- **Días 6 y 7, en Inicio:** cuenta regresiva ("TE QUEDA 1 DÍA DE PREMIUM" / "HOY TERMINA TU PREMIUM", con "Después sigues gratis…") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
 - En "Planes" y en el ícono de tarjeta dice "PREMIUM DE PRUEBA · N día(s) restantes".
 - Quienes se registraron antes de este cambio tienen su prueba de 15 días hasta su fecha, con la cuenta regresiva en sus 2 últimos días.
 
@@ -942,7 +943,7 @@ Tocar un aviso de comida abre la app directo en esa comida.
 | ¿La prueba pide tarjeta? | No. La app es gratis para siempre y trae 7 días de Premium, sin tarjeta. |
 | ¿Qué pasa cuando terminan mis 7 días? | Sigues gratis, no se bloquea nada de lo gratis (13.8). Premium se activa con un plan. |
 | ¿Pierdo mis datos si no renuevo? | No, el historial y las fotos se guardan. |
-| ¿Cuánto tarda la aprobación de Yape/Plin? | Menos de 24 horas; el acceso se activa solo. |
+| ¿Cuánto tarda la aprobación de Yape/Plin? | A Jonah le llega el aviso al momento y lo activa apenas lo ve (de 7am a 10pm; de noche, a primera hora). El acceso se activa solo. |
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |
 | ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. |
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |

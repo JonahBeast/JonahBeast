@@ -9,6 +9,7 @@
 ## Con fecha
 
 - **10 de octubre:** revisar en qué paso se quedan los nuevos antes de su primera comida (eventos `primera_comida`, `foto_comida`, `abrir_navegador`). Hay un recordatorio programado en la sesión donde se pidió.
+- **Que paguen más (desde el 5 de octubre):** salió la pantalla "¿Seguimos juntos?" de fin de prueba (evento `fin_prueba`), el pago con solo la captura + aviso al toque a Jonah (`api/pago-enviado.js`) y el registro con avisos en vivo. Punto de partida: 59 registros, 15 vieron planes, 3 eligieron plan, 1 envió pago, 2 pagando. Revisar el 10 de octubre y el 19 de octubre si sube "vieron planes" y "pagaron". Siguiente idea si no basta: QR de Yape en la pantalla de pago (falta que Jonah mande la imagen).
 - **11 de octubre:** contar cuántos se registraron con código de alumno tras el flyer. Punto de partida: 39 alumnos con código, 1 registro en total, 0 pagos. Si funciona, proponer el botón "Compartir en mi estado" dentro de la app.
 
 ## En curso

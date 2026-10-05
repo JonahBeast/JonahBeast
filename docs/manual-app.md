@@ -179,6 +179,8 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
 
+**Al cambiar de pestaña** con la barra de abajo (Inicio, Comidas, Mi cuerpo, Progreso, Comunidad), la pantalla siempre empieza **desde arriba**.
+
 **Mientras carga** (muro, equipos, fotos, atajos), se ve la forma gris de las tarjetas latiendo suavemente hasta que aparece lo real.
 
 **Buscador de alimentos** (cuando buscas un alimento en una fila de Comidas, en "¿Era otro alimento?" o en la foto): antes de escribir muestra **"⭐ Lo que comes seguido"** (tus alimentos más registrados); un toque y listo. Si escribes, busca en todos los alimentos.
@@ -293,7 +295,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 ### 8.2 Cómo registrar (paso común)
 
-Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos.
+Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos. Cuando agregas algo por voz, favoritos o los atajos, **la hoja se cierra sola y te lleva a lo que acabas de registrar**, marcado con un borde verde por unos segundos.
 
 **A) Escribir (lo más usado)**
 1. Toca **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"**. Se abre una pantalla con el nombre de la comida (ej. "🍽️ ALMUERZO").

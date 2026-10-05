@@ -500,6 +500,13 @@ function ModoFavoritos({ favoritos, onElegir }) {
    alimento con cantidad estimada por cada parte reconocida. No es IA:
    es una búsqueda por coincidencia de texto contra tu propia base de
    230 alimentos, priorizando la coincidencia más larga y específica. */
+// ¿"aguja" contiene "frase" como palabras enteras? ("pan francés" sí tiene
+// "pan"; "arroz con ají panca" no.)
+function contienePalabras(aguja, frase) {
+  const esc = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
+}
+
 function interpretarVarios(textoCompleto) {
   const NUM_PALABRAS = {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -552,8 +559,19 @@ function interpretarVarios(textoCompleto) {
       resto = mPeso[2];
     }
 
-    const restoLower = resto.toLowerCase();
+    // Cómo se dice en casa → cómo está en la app.
+    const restoLower = resto.toLowerCase()
+      .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
+      .replace(/\byogurt\b/g, 'yogur')
+      .replace(/\bqueques?\b/g, 'keke');
     const restoVariantes = variantesSingular(restoLower);
+    // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
+    // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
+    // porque contaba la palabra "azúcar").
+    const pideSinAzucar = /\bsin\s+az[uú]car\b|\bnatural\b/i.test(resto);
+    // Palabras que vienen después de "sin" no cuentan para el estado.
+    const tokensResto = restoLower.split(/\s+/);
+    const palabrasEstado = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
 
     // Se calculan TODAS las coincidencias razonables (no solo la
     // mejor), para poder detectar cuando hay varias parecidas y no
@@ -565,16 +583,19 @@ function interpretarVarios(textoCompleto) {
       else if (nombreLower.includes('queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
+      // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
+      // es "papaya".
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && nombreLower.includes(rv)) score = Math.max(score, 50 + rv.length);
-        else if (nombreLower.length > 2 && rv.includes(nombreLower)) score = Math.max(score, 30 + nombreLower.length);
+        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
+        else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
       }
       if (score === 0) {
         const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
         let coincidencias = 0;
         for (const w of palabrasResto) {
-          if (variantesSingular(w).some(v => nombreLower.includes(v))) coincidencias++;
+          if (variantesSingular(w).some(v => palabrasNombre.has(v))) coincidencias++;
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
@@ -583,17 +604,30 @@ function interpretarVarios(textoCompleto) {
       if (estadoLower && score > 0) {
         // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
         // con un plátano" no es el jugo "Con azúcar".
-        const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
-        for (const w of palabrasResto) {
+        for (const w of palabrasEstado) {
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
             break;
           }
         }
       }
+      if (score > 0 && pideSinAzucar) {
+        const textoFood = `${nombreLower} ${estadoLower}`;
+        if (/con az[uú]car/.test(textoFood)) score = 1;
+        else if (score >= 10 && /sin az[uú]car|natural/.test(textoFood)) score += 45;
+      }
       if (score > 0) candidatas.push({ food: f, score });
     }
     candidatas.sort((a, b) => b.score - a.score);
+    // Lo que es solo un ingrediente del mejor no compite con él: con "jugo
+    // de papaya" no se pregunta por "Papaya (cruda)".
+    if (candidatas.length > 1) {
+      const nombreMejor = candidatas[0].food.name.toLowerCase();
+      for (let k = candidatas.length - 1; k > 0; k--) {
+        const n = candidatas[k].food.name.toLowerCase();
+        if (n !== nombreMejor && n.length < nombreMejor.length && contienePalabras(nombreMejor, n)) candidatas.splice(k, 1);
+      }
+    }
 
     // Nada parecido en la app: no se pierde en silencio, queda para
     // buscarlo (o pedírselo a Jonah) después.
@@ -609,8 +643,18 @@ function interpretarVarios(textoCompleto) {
     // de todas es. Se compara por "key" (nombre + estado), no solo el
     // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
     // entre sí por compartir el mismo nombre base.
-    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
-    const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
+    let empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
+    // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
+    // la app tiene las dos versiones (la natural o "Sin azúcar").
+    let preguntarAzucar = false;
+    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
+      const base = mejor.name.toLowerCase();
+      const sinAz = FOODS.find(f => f.key !== mejor.key && (
+        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
+        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
+      if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
+    }
+    const necesitaAclarar = empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar); // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
       : null;

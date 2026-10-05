@@ -297,7 +297,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 ### 8.2 Cómo registrar (paso común)
 
-Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos. Cuando agregas algo por voz, favoritos o los atajos, **la hoja se cierra sola y te lleva a lo que acabas de registrar**, marcado con un borde verde por unos segundos.
+Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos. Cuando terminas de agregar, por cualquier camino (**foto, código, escribir, voz, favoritos o atajos**), **la pantalla te lleva a lo que acabas de registrar**, marcado con un borde verde por unos segundos. Con voz, favoritos y atajos, además la hoja se cierra sola.
 
 **A) Escribir (lo más usado)**
 1. Toca **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"**. Se abre una pantalla con el nombre de la comida (ej. "🍽️ ALMUERZO").

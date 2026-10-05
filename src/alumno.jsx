@@ -579,8 +579,8 @@ function interpretarVarios(textoCompleto) {
     const candidatas = [];
     for (const f of FOODS) {
       let nombreLower = f.name.toLowerCase();
-      if (nombreLower.includes('keke')) nombreLower += ' queque';
-      else if (nombreLower.includes('queque')) nombreLower += ' keke';
+      if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
+      else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
       // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
@@ -654,7 +654,15 @@ function interpretarVarios(textoCompleto) {
         f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
       if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
     }
-    const necesitaAclarar = empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar); // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
+    // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
+    // "Avena (cocida)": sobra "pan". Si sobra una palabra, se pregunta (con
+    // "No es ninguna") en vez de anotar otra cosa en silencio.
+    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso']);
+    const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
+    const parcial = mejorScore < 100 && restoLower.split(/\s+/)
+      .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
+      .some(w => !variantesSingular(w).some(v => palabrasFood.has(v) || [...palabrasFood].some(pf => pf.startsWith(v) || v.startsWith(pf) && pf.length > 3)));
+    const necesitaAclarar = (empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar)) || parcial; // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
       : null;
@@ -721,6 +729,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
   useEffect(() => () => {
     clearInterval(reloj.current);
     descartar.current = true;
+    pararSilencio();
     try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {}
     try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {}
   }, []);
@@ -752,6 +761,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
     rec.ondataavailable = e => { if (e.data?.size) partes.current.push(e.data); };
     rec.onstop = async () => {
       clearInterval(reloj.current);
+      pararSilencio();
       stream.getTracks().forEach(t => t.stop());
       if (descartar.current) { setFase('listo'); return; }
       const blob = new Blob(partes.current, { type: rec.mimeType || tipo || 'audio/webm' });
@@ -771,6 +781,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
     };
     grabador.current = rec;
     rec.start();
+    vigilarSilencio(stream);
     setSegundos(0);
     setFase('grabando');
     vibrar(20);
@@ -780,8 +791,53 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
     }), 1000);
   }
 
-  function terminar() { try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {} }
-  function cancelar() { descartar.current = true; terminar(); setSegundos(0); }
+  function terminar() {
+    pararSilencio();
+    try {
+      if (grabador.current?.state === 'recording') {
+        // Se ve al toque que ya dejó de escuchar (antes parecía que el ✓ no respondía).
+        if (!descartar.current) { setFase('procesando'); vibrar(15); }
+        grabador.current.stop();
+      }
+    } catch {}
+  }
+  // Deja de escuchar sola: cuando la persona ya habló y se queda callada
+  // 2 segundos. Mide el volumen del micrófono (no se graba nada aparte).
+  const silencio = useRef(null);
+  function pararSilencio() {
+    if (!silencio.current) return;
+    clearInterval(silencio.current.intervalo);
+    try { silencio.current.ctx.close(); } catch {}
+    silencio.current = null;
+  }
+  function vigilarSilencio(stream) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const analizador = ctx.createAnalyser();
+      analizador.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analizador);
+      const datos = new Float32Array(analizador.fftSize);
+      let fondo = null, hablo = false, callado = 0, t = 0;
+      const intervalo = setInterval(() => {
+        analizador.getFloatTimeDomainData(datos);
+        let suma = 0;
+        for (let k = 0; k < datos.length; k++) suma += datos[k] * datos[k];
+        const vol = Math.sqrt(suma / datos.length);
+        t += 100;
+        if (t <= 400) { fondo = fondo === null ? vol : Math.min(fondo, vol); return; } // ruido de fondo
+        const umbral = Math.max(0.02, (fondo || 0) * 3);
+        if (vol > umbral) { hablo = true; callado = 0; }
+        else if (hablo) {
+          callado += 100;
+          if (callado >= 2000) terminar();
+        }
+      }, 100);
+      silencio.current = { ctx, intervalo };
+    } catch {}
+  }
+  function cancelar() { descartar.current = true; terminar(); setSegundos(0); setFase('listo'); }
 
   // Respaldo: dictado del navegador (Chrome de Android).
   function dictar() {
@@ -836,8 +892,8 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
       <div className="relative my-2">
         {grabando && (
           <>
-            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping" />
-            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping" style={{ animationDelay: '0.35s' }} />
+            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping pointer-events-none" />
+            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping pointer-events-none" style={{ animationDelay: '0.35s' }} />
           </>
         )}
         <button onClick={grabando ? terminar : empezar} disabled={fase === 'procesando'}
@@ -850,10 +906,10 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
         </button>
       </div>
       {grabando && puedeGrabar ? (
-        <div className="flex items-center justify-center gap-8 w-full">
+        <div className="relative z-10 flex items-center justify-center gap-8 w-full mt-3">
           <button onClick={cancelar} aria-label="Borrar y empezar de nuevo" className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-lg">🗑️</button>
           <span className="jb-display text-xl text-zinc-100 tabular-nums w-16 text-center">{reloj2}</span>
-          <button onClick={terminar} aria-label="Listo" className="w-12 h-12 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+          <button onClick={terminar} aria-label="Listo" className="w-14 h-14 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={26} strokeWidth={3} /></button>
         </div>
       ) : (
         <p className="jb-body text-sm text-zinc-400 text-center">
@@ -901,6 +957,8 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
                 <span className="jb-body text-xs text-zinc-200 flex-1">
                   {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
                 </span>
+                <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
+                  className="jb-body text-[10px] text-zinc-500 underline underline-offset-2 shrink-0 px-1">No es esto</span>
               </button>
             )
           ))}

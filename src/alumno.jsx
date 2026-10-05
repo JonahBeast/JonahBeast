@@ -9447,11 +9447,15 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
   // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
   // haciendo algo (editando, escribiendo) o si quedó un alimento por buscar.
+  // También al abrirla tocándola: se cierra sola a los 8 segundos sin tocar
+  // nada (cada cambio de cantidad vuelve a contar).
   const abiertaPorRegistro = useRef(null);
+  const esperaCierre = useRef(6000);
   useEffect(() => {
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
     if (m && MEAL_NAMES.indexOf(m) < idxAhora) {
       abiertaPorRegistro.current = m;
+      esperaCierre.current = 6000;
       setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
     }
   }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -9462,9 +9466,9 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       if ((mealPlan.meals[m] || []).some(en => !en.foodKey)) return; // falta elegir un alimento
       abiertaPorRegistro.current = null;
       setAbiertas(a => ({ ...a, [m]: false }));
-    }, 6000);
+    }, esperaCierre.current);
     return () => clearTimeout(t);
-  }, [hojaMeal, fotoPara, codigoPara, escribirPara, crearPara, editando, escribiendo, mealPlan]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara, crearPara, editando, escribiendo, mealPlan, abiertas]); // eslint-disable-line react-hooks/exhaustive-deps
   // Al entrar a Comidas, si la comida de AHORA quedó fuera de la pantalla,
   // se baja hasta ella.
   useEffect(() => {
@@ -9806,7 +9810,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         // Ya pasó y tiene lo registrado: cerrada en una línea; se abre al tocarla.
         if (pasada && !abiertas[meal]) {
           return (
-            <button key={meal} onClick={() => { vibrar(8); setAbiertas(a => ({ ...a, [meal]: true })); }}
+            <button key={meal} onClick={() => { vibrar(8); abiertaPorRegistro.current = meal; esperaCierre.current = 8000; setAbiertas(a => ({ ...a, [meal]: true })); }}
               aria-label={`Ver ${meal}`}
               className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
               <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
@@ -9842,7 +9846,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
             </div>
             {pasada && !vacia && (
-              <button onClick={() => setAbiertas(a => ({ ...a, [meal]: false }))} aria-label={`Cerrar ${meal}`}
+              <button onClick={() => { abiertaPorRegistro.current = null; setAbiertas(a => ({ ...a, [meal]: false })); }} aria-label={`Cerrar ${meal}`}
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-500 hover:text-zinc-300">
                 <ChevronDown size={18} />
               </button>

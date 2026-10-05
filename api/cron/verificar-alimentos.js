@@ -50,14 +50,28 @@ export default async function handler(req, res) {
         && r.nombre === (a.estado && a.estado !== '-' ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre)));
     repetidos.forEach(r => malos.push(r));
 
+    // Lo que Jonah ya marcó "Están bien, son distintos" en el panel no se
+    // repite. El resultado queda en config para que el panel lo muestre en
+    // HOY → Alimentos por revisar ("🔎 Revisión del lunes").
+    const { data: cfgOk } = await supabase.from('config').select('value').eq('key', 'alimentos_revision_ok').maybeSingle();
+    let yaOk = [];
+    try { yaOk = JSON.parse(cfgOk?.value || '[]'); } catch {}
+    if (!Array.isArray(yaOk)) yaOk = [];
+    const pendientes = malos.filter(m => !yaOk.includes(m.nombre));
+    const nRepetidos = repetidos.filter(r => !yaOk.includes(r.nombre)).length;
+    await supabase.from('config').upsert({
+      key: 'alimentos_revision_lunes',
+      value: JSON.stringify({ fecha: new Date().toISOString(), items: pendientes.slice(0, 50).map(m => ({ nombre: m.nombre, problemas: m.problemas })) }),
+    });
+
     const revisados = (extras || []).length + (productos || []).length;
-    if (!malos.length) return res.status(200).json({ ok: true, revisados, problemas: 0 });
+    if (!pendientes.length) return res.status(200).json({ ok: true, revisados, problemas: 0 });
 
     const { data: admins } = await supabase.from('profiles').select('username').eq('role', 'admin');
-    const lista = malos.slice(0, 3).map(m => m.nombre).join(', ');
-    const body = `🔎 Revisión de alimentos: ${malos.length} ${malos.length === 1 ? 'alimento para revisar' : 'alimentos para revisar'} (${lista}${malos.length > 3 ? '…' : ''})${repetidos.length ? `, ${repetidos.length} ${repetidos.length === 1 ? 'puede estar repetido' : 'pueden estar repetidos'}` : ''}. Revísalos en "Alimentos por revisar" o pregúntale a Jarvis.`;
+    const lista = pendientes.slice(0, 3).map(m => m.nombre).join(', ');
+    const body = `🔎 Revisión de alimentos: ${pendientes.length} ${pendientes.length === 1 ? 'alimento para revisar' : 'alimentos para revisar'} (${lista}${pendientes.length > 3 ? '…' : ''})${nRepetidos ? `, ${nRepetidos} ${nRepetidos === 1 ? 'puede estar repetido' : 'pueden estar repetidos'}` : ''}. Están en HOY → Alimentos por revisar → "🔎 Revisión del lunes". Nadie está esperando.`;
     const r = await enviarPushA(supabase, (admins || []).map(a => a.username).filter(Boolean), { title: 'Jarvis 🦍', body, url: '/' });
-    return res.status(200).json({ ok: true, revisados, problemas: malos.length, detalle: malos, avisado: r.enviados });
+    return res.status(200).json({ ok: true, revisados, problemas: pendientes.length, detalle: pendientes, avisado: r.enviados });
   } catch (e) {
     console.error('Error en verificar-alimentos:', e);
     return res.status(500).json({ ok: false, error: e.message });

@@ -1794,6 +1794,9 @@ function esperaDesde(pedido) {
   return fechas[0] || null;
 }
 
+const CLAVE_REVISION_LUNES = 'alimentos_revision_lunes';
+const CLAVE_REVISION_OK = 'alimentos_revision_ok';
+
 function PedidosAlimentosPanel() {
   const [pedidos, setPedidos] = useState([]);
   const [propios, setPropios] = useState([]);
@@ -1805,8 +1808,36 @@ function PedidosAlimentosPanel() {
   const [resueltos, setResueltos] = useState([]); // resueltos en esta sesión, con su botón de WhatsApp
   const [porEscribir, setPorEscribir] = useState(0); // respuestas para mandar por WhatsApp
   const [version, setVersion] = useState(0);
+  // Lo que encontró la revisión de los lunes (api/cron/verificar-alimentos.js):
+  // alimentos de la base que pueden estar repetidos o con números raros.
+  const [lunes, setLunes] = useState([]);
 
   useEffect(() => { cargar(); }, []);
+
+  async function cargarLunes() {
+    try {
+      const { data } = await supabase.from('config').select('key, value').in('key', [CLAVE_REVISION_LUNES, CLAVE_REVISION_OK]);
+      const m = Object.fromEntries((data || []).map(c => [c.key, c.value]));
+      let items = [], ok = [];
+      try { items = JSON.parse(m[CLAVE_REVISION_LUNES] || '{}').items || []; } catch {}
+      try { ok = JSON.parse(m[CLAVE_REVISION_OK] || '[]'); } catch {}
+      const lista = items.filter(i => !ok.includes(i.nombre));
+      setLunes(lista);
+      if (lista.length) setAbierto(true);
+    } catch { setLunes([]); }
+  }
+  useEffect(() => { cargarLunes(); }, []);
+  // "Están bien": no vuelve a salir aquí ni en el aviso de los lunes.
+  async function lunesOk(nombre) {
+    setLunes(l => l.filter(i => i.nombre !== nombre));
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', CLAVE_REVISION_OK).maybeSingle();
+      let ok = [];
+      try { ok = JSON.parse(data?.value || '[]'); } catch {}
+      if (!ok.includes(nombre)) ok.push(nombre);
+      await supabase.from('config').upsert({ key: CLAVE_REVISION_OK, value: JSON.stringify(ok.slice(-300)) });
+    } catch {}
+  }
 
   async function cargar() {
     setCargando(true);
@@ -1847,7 +1878,7 @@ function PedidosAlimentosPanel() {
     ...pedidos.map(p => ({ tipo: 'pedido', id: 'p' + p.id, p, desde: esperaDesde(p) })),
     ...propios.map(a => ({ tipo: 'propio', id: 'a' + a.id, a, desde: a.editado_en || a.created_at })),
   ].map(i => ({ ...i, desde: tienePlazo(i.desde) ? i.desde : null })).sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
-  const total = items.length;
+  const total = items.length + lunes.length;
   const tarde = items.some(i => i.desde && minutosHasta(horaLimiteAlimento(i.desde)) < 0);
   const idsResueltos = resueltos.filter(r => r.tipo === 'pedido').map(r => r.id);
 
@@ -1868,8 +1899,29 @@ function PedidosAlimentosPanel() {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <p className="jb-body text-xs text-zinc-500">Todo lo que un alumno no encontró en la app: lo que pide (🙋 app, 💬 WhatsApp) y lo que crea con "+ Crear mi alimento" (🍴). La IA atiende todo apenas llega; aquí te queda solo lo que no pudo decidir, con su recomendación. Tienes <b className="text-zinc-300">1 hora</b> para responder (de noche, hasta las 8am): el alumno ve esa hora en su app. Al decidir, te sale el botón para mandarle la respuesta por WhatsApp.</p>
-            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
+            <button onClick={() => { cargar(); cargarLunes(); }} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
+
+          {lunes.length > 0 && (
+            <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 flex flex-col gap-2.5">
+              <div>
+                <p className="jb-display text-sm text-amber-300">🔎 REVISIÓN DEL LUNES · {lunes.length}</p>
+                <p className="jb-body text-[11px] text-zinc-400 mt-0.5">Alimentos de la base que pueden estar repetidos o con números raros. Nadie está esperando: revísalos cuando puedas.</p>
+              </div>
+              {lunes.map(i => (
+                <div key={i.nombre} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                  <p className="jb-body text-sm text-zinc-100 font-semibold">{i.nombre}</p>
+                  <ul className="jb-body text-xs text-zinc-400 mt-1 flex flex-col gap-0.5">
+                    {(i.problemas || []).map((t, k) => <li key={k}>• {t}</li>)}
+                  </ul>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button onClick={() => lunesOk(i.nombre)} className={btnPrimary + ' py-1.5 px-3 text-xs'}>✓ Están bien, son distintos</button>
+                    <span className="jb-body text-[11px] text-zinc-500">¿Hay que corregirlo? Pídeselo a Jarvis o a Claude.</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {resueltos.map((r, i) => r.tipo === 'propio' ? (
             <div key={'r' + i} className="rounded-xl p-3 border bg-emerald-950/30 border-emerald-900 flex flex-col gap-1">

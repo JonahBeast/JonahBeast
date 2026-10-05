@@ -14,6 +14,9 @@
 
 ## En curso
 
+- **Aviso de pagos a Meta (evento Purchase).** Código listo en este PR (`api/_lib/meta-compra.js`, llamado desde `api/pago-aprobado.js` y la verificación de Google Play). Falta que Jonah genere el token de la API de conversiones (Administrador de eventos → conjunto "Jonah Beast Fuel" 1084905720987308 → Configuración) y lo guarde en Vercel como `META_CAPI_TOKEN`; luego merge y probar con "Probar eventos" (`META_TEST_EVENT_CODE`). Recordatorio programado para la noche del 5 de octubre.
+- **Anuncios Meta (desde el 5 de octubre).** Campaña "Gratis para siempre · Lead" a S/13 diarios, sin tope ni fecha de fin (≈S/390 al mes), con 2 anuncios compitiendo: "Tómale foto" con la oferta corregida y "Jonah fundador" (sin antes/después ni kilos). Los 8 anuncios viejos con "15 días gratis" quedaron archivados. La agencia todavía no empieza: arrancará aparte con S/600 al mes. Comparar los dos anuncios en el resumen del lunes 12 de octubre; después, pasar la campaña a optimizar "Registro" y, cuando haya pagos medidos, "Compra".
+
 - **Alimentos por revisar.** Revisar si "Chocolate con leche batido (taza)" (86 kcal) se confunde con "Chocolate con leche" de barra (535 kcal). En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
 - **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
 

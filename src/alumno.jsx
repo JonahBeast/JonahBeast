@@ -707,11 +707,37 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
 
 // autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
 // hoja Registrar), para registrar en un solo toque.
+/* Pedido de un alimento desde la voz ("🙋 No está en la lista: pedirlo"):
+   lo mismo que "Pedirle a Jonah" del buscador (pedir_alimento_app + la IA
+   lo atiende al instante), pero sin salir de la pantalla de voz. Devuelve
+   { estado: agregado | existe | partes | jonah | error, food?, ... }. */
+function buscarPorNombre(nombre) {
+  const n = String(nombre || '').trim().toLowerCase();
+  if (!n) return null;
+  return FOODS.find(f => f.key.toLowerCase() === n || f.name.toLowerCase() === n
+    || (f.state && f.state !== '-' && `${f.name} (${f.state})`.toLowerCase() === n)) || null;
+}
+async function pedirAlimentoDesdeVoz(nombre, username) {
+  const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
+  if (error) return { estado: 'error', error: error.message?.startsWith('Ya enviaste') ? error.message : 'No se pudo enviar el pedido. Intenta de nuevo.' };
+  try {
+    const { data } = await supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } });
+    if (data?.estado === 'agregado') {
+      await cargarAlimentosExtra(true);
+      return { estado: 'agregado', alimento: data.alimento, food: buscarPorNombre(data.alimento) };
+    }
+    if (data?.estado === 'descartado' && data.ya_existe) return { estado: 'existe', alimento: data.ya_existe, food: buscarPorNombre(data.ya_existe) };
+    if (data?.estado === 'descartado' && data.por_partes?.length) return { estado: 'partes', partes: data.por_partes };
+  } catch {}
+  anotarPedidoEnCamino(username, nombre);
+  return { estado: 'jonah', limite: horaLimiteAlimento(Date.now()) };
+}
+
 // onBuscarDespues(textos): lo que no está en la app (o "No es ninguna") se
 // abre en el buscador de la comida con lo que dijo ya escrito, donde puede
 // buscarlo de otra forma o pedírselo a Jonah. Sin él (fuera de la hoja
 // Registrar), solo se le avisa qué le faltó.
-function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) {
+function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, username = null }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -865,11 +891,26 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
   function ningunaOpcion(i) {
     setItems(v => v.map((it, idx) => idx === i ? { ...it, necesitaAclarar: false, buscar: true, activo: false } : it));
   }
+  // "No está en la lista: pedirlo": se le pide a Jonah ahí mismo. Si la IA
+  // lo agrega (o ya existía), queda elegido; si no, Jonah responde en 1 hora.
+  async function pedirItem(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, idx) => idx === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, idx) => {
+      if (idx !== i) return x;
+      if (r.food) return { ...x, food: r.food, buscar: false, activo: true, pedido: r };
+      return { ...x, pedido: r };
+    }));
+  }
 
   function agregarSeleccionados() {
     if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
     const activos = items.filter(it => it.activo && !it.buscar);
-    const porBuscar = items.filter(it => it.buscar).map(it => it.textoBuscar || it.textoOriginal);
+    // Lo que ya se pidió a Jonah no se vuelve a buscar (llega con el aviso).
+    const porBuscar = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).map(it => it.textoBuscar || it.textoOriginal);
     if (!activos.length && !porBuscar.length) return;
     if (activos.length) onElegirVarios(activos);
     if (porBuscar.length) {
@@ -937,18 +978,42 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
                       {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
-                  <button onClick={() => ningunaOpcion(i)}
-                    className="jb-body text-[11px] border border-dashed border-zinc-600 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-400">
-                    🔎 No es ninguna
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                  <button onClick={() => pedirItem(i)}
+                    className="jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 No está en la lista: pedirlo
+                  </button>
+                  <button onClick={() => ningunaOpcion(i)} className="jb-body text-[11px] text-zinc-400 underline underline-offset-2">
+                    o buscarlo yo
                   </button>
                 </div>
               </div>
             ) : it.buscar ? (
-              <div key={i} className="w-full flex items-center gap-2 rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
-                <span className="text-lg shrink-0">🔎</span>
-                <span className="jb-body text-xs text-zinc-300 flex-1">
-                  "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo para buscarlo o pedírselo a Jonah</span>
-                </span>
+              <div key={i} className="w-full rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg shrink-0">{it.pedido ? '🙋' : '🔎'}</span>
+                  <span className="jb-body text-xs text-zinc-300 flex-1">
+                    "{it.textoBuscar || it.textoOriginal}"
+                    {!it.pedido && <span className="text-zinc-500"> · {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo en tu comida para buscarlo</span>}
+                  </span>
+                </div>
+                {!it.pedido && (
+                  <button onClick={() => pedirItem(i)}
+                    className="mt-2 jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 Pedírselo a Jonah
+                  </button>
+                )}
+                {it.pedido && (
+                  <p className={`jb-body text-[11px] mt-1.5 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+                    {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+                    {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Lo reviso yo mismo y te respondo antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>. Lo ves en "Tus pedidos en camino" en Inicio 💪</>}
+                    {it.pedido.estado === 'agregado' && <>✅ Ya está en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo en tu comida y elígelo 💪</>}
+                    {it.pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo así en tu comida 🙌</>}
+                    {it.pedido.estado === 'partes' && <>🧩 Regístralo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+                    {it.pedido.estado === 'error' && it.pedido.error}
+                  </p>
+                )}
               </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
@@ -957,21 +1022,29 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) 
                 <span className="jb-body text-xs text-zinc-200 flex-1">
                   {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
                 </span>
+                {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
                 <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
                   className="jb-body text-[10px] text-zinc-500 underline underline-offset-2 shrink-0 px-1">No es esto</span>
               </button>
             )
           ))}
-          {items.some(it => it.necesitaAclarar) ? (
-            <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
-          ) : (
-            <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-              {(() => {
-                const n = items.filter(it => it.activo && !it.buscar).length, b = items.filter(it => it.buscar).length;
-                return n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`;
-              })()}
-            </button>
-          )}
+          {(() => {
+            if (items.some(it => it.necesitaAclarar)) {
+              return <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba, o toca "No está en la lista: pedirlo"</p>;
+            }
+            const n = items.filter(it => it.activo && !it.buscar).length;
+            const b = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).length;
+            if (!n && !b) {
+              return items.some(it => it.pedido?.estado === 'enviando') ? null : (
+                <button onClick={() => { setItems([]); setTexto(''); }} className={btnGhost + ' mt-1 py-2 text-sm'}>Listo</button>
+              );
+            }
+            return (
+              <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
+                {n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
+              </button>
+            );
+          })()}
         </div>
       ) : texto ? (
         <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>
@@ -1121,7 +1194,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} autoGrabar />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} username={username} autoGrabar />}
       </div>
     );
   }
@@ -1158,7 +1231,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} username={username} />}
         </div>
       )}
     </div>

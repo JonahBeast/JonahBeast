@@ -896,6 +896,16 @@ const ACEITE_POCO_MENOS_GRASA = 0.3;
 function esFritoOSaltado(food) {
   return /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
 }
+// Carnes, pollo, pescado y huevos que no son fritos en la app ("Pollo pierna
+// (con piel) · cocida"): se pregunta cómo los cocinó. Si los frió, se suma
+// el aceite que absorbieron (en cucharadas de aceite vegetal, ≈124 kcal):
+// "poquito" ¼, "frito" ½ y "muyfrito" 1. Un frito casero absorbe poco aceite
+// (unos 5 g por presa), por eso no se suma una cucharada entera.
+const GRUPOS_SE_FRIEN = ['Carnes y aves', 'Pescados', 'Pescados y mariscos', 'Huevos'];
+const ACEITE_COCINA = { poquito: 0.25, frito: 0.5, muyfrito: 1 };
+function sePuedeFreir(food) {
+  return !!food && !esFritoOSaltado(food) && GRUPOS_SE_FRIEN.includes(food.group) && !/crud/i.test(food.state || '');
+}
 
 function entryMacros(entry) {
   const food = buscarFood(entry.foodKey);
@@ -903,6 +913,11 @@ function entryMacros(entry) {
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
   const m = { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
+  if (entry.aceite && ACEITE_COCINA[entry.aceite] && sePuedeFreir(food)) {
+    const a = entryMacros({ foodKey: CLAVE_ACEITE_VEGETAL, unit: 'cucharada', qty: ACEITE_COCINA[entry.aceite] });
+    m.kcal += a.kcal; m.protein += a.protein; m.carbs += a.carbs; m.fat += a.fat;
+    return m;
+  }
   if (!entry.aceite || !esFritoOSaltado(food)) return m;
   if (entry.aceite === 'poco') {
     const menos = m.fat * ACEITE_POCO_MENOS_GRASA;
@@ -6539,6 +6554,7 @@ export {
   entryGrams,
   entryMacros,
   esFritoOSaltado,
+  sePuedeFreir,
   esTWA,
   fechaLocalISO,
   fetchTrialStats,

@@ -507,6 +507,45 @@ function contienePalabras(aguja, frase) {
   return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
 }
 
+// "ciento cincuenta" → 150, "noventa y dos" → 92, "veintidós" → 22.
+// Solo números de 11 en adelante: "un", "dos"… (cantidades) se leen aparte.
+const UNIDADES_LETRAS = { uno: 1, un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+const NUMEROS_LETRAS = {
+  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+};
+const CENTENAS_LETRAS = { cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500 };
+function numerosEnCifras(texto) {
+  const sinTilde = w => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const palabras = String(texto || '').split(/(\s+)/);
+  const salida = [];
+  for (let i = 0; i < palabras.length; i++) {
+    const w = sinTilde(palabras[i]);
+    let valor = null, j = i;
+    if (CENTENAS_LETRAS[w]) {
+      valor = CENTENAS_LETRAS[w];
+      // "ciento cincuenta", "doscientos veinte"
+      const sig = sinTilde(palabras[i + 2] || '');
+      if (NUMEROS_LETRAS[sig]) { valor += NUMEROS_LETRAS[sig]; j = i + 2; }
+      else if (UNIDADES_LETRAS[sig] && sig !== 'un' && sig !== 'una') { valor += UNIDADES_LETRAS[sig]; j = i + 2; }
+    } else if (NUMEROS_LETRAS[w]) {
+      valor = NUMEROS_LETRAS[w];
+    }
+    if (valor === null) { salida.push(palabras[i]); continue; }
+    // "noventa y dos": decena + "y" + unidad
+    const base = NUMEROS_LETRAS[sinTilde(palabras[j] || '')] || 0;
+    if (base >= 30 && base % 10 === 0 && sinTilde(palabras[j + 2] || '') === 'y' && UNIDADES_LETRAS[sinTilde(palabras[j + 4] || '')]) {
+      valor += UNIDADES_LETRAS[sinTilde(palabras[j + 4])];
+      j += 4;
+    }
+    salida.push(String(valor));
+    i = j;
+  }
+  return salida.join('');
+}
+
 function interpretarVarios(textoCompleto) {
   const NUM_PALABRAS = {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -516,7 +555,10 @@ function interpretarVarios(textoCompleto) {
   // además, cada vez que aparece una nueva cantidad (un número o "dos",
   // "tres"...) se asume que empieza un alimento distinto — así no hace
   // falta decir "más" entre cada uno para que se registren todos.
-  let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
+  // Primero los números dichos en letras pasan a cifras ("noventa y dos
+  // gramos" → "92 gramos"): antes la "y" del número partía la frase y
+  // "noventa" quedaba como si fuera un alimento.
+  let marcado = numerosEnCifras(textoCompleto).replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
   marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
   // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
   // reconocer la última palabra ("redondas.").

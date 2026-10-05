@@ -840,6 +840,16 @@ function PedidoAlimento({ pedido, onResuelto }) {
             <button onClick={() => setVerForm(true)} className={btnGhost + ' text-sm py-2 w-full'}>No: agregarlo como plato</button>
           </>
         );
+        // Sin calorías no es un alimento que se pueda agregar (ej. la IA
+        // recibió "noventa" de un audio mal cortado): solo descartar o ajustar.
+        if (!(Number(form.kcal) > 0)) return (
+          <>
+            <p className="jb-display text-base text-orange-400">Esto no parece un alimento</p>
+            <p className="jb-body text-xs text-zinc-400">"{form.nombre}" llegó sin calorías: puede ser un error del audio o del texto. Lo normal es no agregarlo.</p>
+            <button onClick={abrirDescarte} className={btnPrimary + ' text-sm py-2.5 w-full'}>🗑️ No agregarlo</button>
+            <button onClick={() => setVerForm(true)} className={btnGhost + ' text-xs py-2 w-full'}>✏️ Sí es un alimento: poner sus números</button>
+          </>
+        );
         return (
           <>
             <p className="jb-display text-base text-orange-400">¿Lo agregamos a la app?</p>

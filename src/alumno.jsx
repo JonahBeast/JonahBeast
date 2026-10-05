@@ -9443,10 +9443,28 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   const saltadas = MEAL_NAMES.filter((m, i) => i < idxAhora && !(mealPlan.meals[m] || []).length);
   // La comida a la que se le está agregando algo queda abierta, para ver lo
   // que se agregó.
+  // Al terminar de registrar, esa comida pasada se cierra sola a los 6
+  // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
+  // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
+  // haciendo algo (editando, escribiendo) o si quedó un alimento por buscar.
+  const abiertaPorRegistro = useRef(null);
   useEffect(() => {
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
-    if (m && MEAL_NAMES.indexOf(m) < idxAhora) setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    if (m && MEAL_NAMES.indexOf(m) < idxAhora) {
+      abiertaPorRegistro.current = m;
+      setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    }
   }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const m = abiertaPorRegistro.current;
+    if (!m || hojaMeal || fotoPara || codigoPara || escribirPara || crearPara || editando || escribiendo) return;
+    const t = setTimeout(() => {
+      if ((mealPlan.meals[m] || []).some(en => !en.foodKey)) return; // falta elegir un alimento
+      abiertaPorRegistro.current = null;
+      setAbiertas(a => ({ ...a, [m]: false }));
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara, crearPara, editando, escribiendo, mealPlan]); // eslint-disable-line react-hooks/exhaustive-deps
   // Al entrar a Comidas, si la comida de AHORA quedó fuera de la pantalla,
   // se baja hasta ella.
   useEffect(() => {

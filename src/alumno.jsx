@@ -66,6 +66,7 @@ import {
   ventanaBono,
   vibrar,
   esFritoOSaltado,
+  sePuedeFreir,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
@@ -7009,7 +7010,30 @@ const OPCIONES_ACEITE = [
 const CLAVE_ACEITE = 'Aceite vegetal (-)';
 
 function esConAceite(food, aceiteIA) {
-  return !!aceiteIA || esFritoOSaltado(food);
+  // Carnes, pollo, pescado y huevo cocidos van con "¿Cómo lo cocinaste?"
+  // (preguntaAceite), aunque la IA haya visto aceite.
+  return esFritoOSaltado(food) || (!!aceiteIA && !sePuedeFreir(food));
+}
+// Carnes, pollo, pescado y huevos cocidos: "¿Cómo lo cocinaste?". Si lo
+// frió, se suma el aceite que absorbió (ver sePuedeFreir en App.jsx).
+// "normal" = sin aceite (no se anota nada).
+const OPCIONES_ACEITE_COCINA = [
+  { key: 'normal', label: 'Sin aceite' },
+  { key: 'poquito', label: 'Un poco' },
+  { key: 'frito', label: 'Frito' },
+  { key: 'muyfrito', label: 'Con mucho aceite' },
+];
+// Qué preguntar del aceite para este alimento (o null si no aplica).
+function preguntaAceite(food, aceiteIA) {
+  if (esConAceite(food, aceiteIA)) return {
+    opciones: OPCIONES_ACEITE, titulo: '🍳 ¿Cuánto aceite tenía?',
+    ayuda: 'Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.',
+  };
+  if (sePuedeFreir(food)) return {
+    opciones: OPCIONES_ACEITE_COCINA, titulo: '🍳 ¿Cómo lo cocinaste?',
+    ayuda: '"Sin aceite": sancochado, al horno, a la olla o a la plancha sin aceite. Si lo freíste, se suma el aceite que absorbe: "Un poco" (¼ de cucharada), "Frito" (½) o "Con mucho aceite" (1 cucharada, ≈124 kcal).',
+  };
+  return null;
 }
 
 function macrosDeFoto(food, porcion, aceite) {
@@ -7100,6 +7124,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   // cuando la IA dijo ese alimento (viene del servidor). { [foodKey]: [foodKey] }
   const [alternativasIA, setAlternativasIA] = useState({});
   const [aceite, setAceite] = useState('normal');
+  // Carnes, pollo, pescado o huevo cocidos: ¿los frió? (ver preguntaAceite)
+  const [aceiteCocina, setAceiteCocina] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   // Lo que la IA vio y no está en la app ya no se pide solo (la IA puede
@@ -7259,6 +7285,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       setPesados({});
       setPesando(null);
       setAceite('normal');
+      // Si la IA vio que la carne, el pollo o el pescado estaba frito, ya
+      // viene marcado "Frito" (el alumno lo puede cambiar).
+      setAceiteCocina(encontrados.some(f => f._aceiteIA && (f.esOpciones ? f.alternativas.some(sePuedeFreir) : sePuedeFreir(f))) ? 'frito' : 'normal');
       setEstado('resultados');
     } catch (e) {
       setMensajeError(e?.message || '');
@@ -7331,7 +7360,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
       const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
-      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
+      const frito = !poco && aceiteCocina !== 'normal' && sePuedeFreir(food) ? aceiteCocina : null;
+      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : frito ? { aceite: frito } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -7400,7 +7430,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
           tamano: tamanos[id] || 'normal',
           pesado: e.porcion.pesado ? true : null,
           piezas_corregidas: conteos[id] !== undefined && conteos[id] !== (f._cantidadIA || 1) ? conteos[id] : null,
-          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : null,
+          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : sePuedeFreir(e.food) ? aceiteCocina : null,
         };
       };
       items.forEach(f => {
@@ -7737,10 +7767,37 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               );
             })()}
             {(() => {
+              // Carne, pollo, pescado o huevo cocidos: "¿Cómo lo cocinaste?".
+              const elegidos = elegidosConPorcion();
+              const cuales = elegidos.filter(e => sePuedeFreir(e.food));
+              if (!cuales.length) return null;
+              const p = preguntaAceite(cuales[0].food);
+              const nombres = cuales.map(e => nombreAlimento(e.food)).join(', ');
+              return (
+                <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
+                  <p className="jb-body text-sm text-zinc-200">{p.titulo} <span className="text-zinc-500 text-xs">({nombres})</span></p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">{p.ayuda}</p>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cómo lo cocinaste">
+                    {p.opciones.map(o => {
+                      const activo = aceiteCocina === o.key;
+                      return (
+                        <button key={o.key} type="button" aria-pressed={activo} onClick={() => setAceiteCocina(o.key)}
+                          className={`jb-body text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            {(() => {
               // Total de lo que está marcado, con los ajustes y el aceite extra.
               const elegidos = elegidosConPorcion();
               if (!elegidos.length) return null;
-              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion, aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco' : null));
+              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion,
+                aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco'
+                  : aceiteCocina !== 'normal' && sePuedeFreir(e.food) ? aceiteCocina : null));
               const cucharadas = extraAceite(elegidos);
               const aceiteFood = cucharadas ? buscarFood(CLAVE_ACEITE) : null;
               if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
@@ -8518,7 +8575,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 
   function agregar(food, porcion, aceiteElegido) {
     const entry = { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty };
-    if (aceiteElegido && aceiteElegido !== 'normal' && esConAceite(food)) entry.aceite = aceiteElegido;
+    if (aceiteElegido && aceiteElegido !== 'normal' && preguntaAceite(food)?.opciones.some(o => o.key === aceiteElegido)) entry.aceite = aceiteElegido;
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
@@ -8600,11 +8657,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 </form>
               );
             })()}
-            {esConAceite(elegido) && (
+            {preguntaAceite(elegido) && (
               <div>
-                <p className="jb-body text-sm text-zinc-300 mb-1.5">🍳 ¿Cuánto aceite tenía?</p>
+                <p className="jb-body text-sm text-zinc-300 mb-1.5">{preguntaAceite(elegido).titulo}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {OPCIONES_ACEITE.map(o => (
+                  {preguntaAceite(elegido).opciones.map(o => (
                     <button key={o.key} onClick={() => setAceite(o.key)}
                       className={`jb-body text-sm px-3 py-2 rounded-full border ${aceite === o.key ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
                       {o.label}
@@ -9061,12 +9118,12 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
-        {esConAceite(food) && (
+        {preguntaAceite(food) && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">
-            <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+            <p className="jb-body text-sm text-zinc-200">{preguntaAceite(food).titulo}</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">{preguntaAceite(food).ayuda}</p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
-              {OPCIONES_ACEITE.map(o => {
+              {preguntaAceite(food).opciones.map(o => {
                 const activo = (en.aceite || 'normal') === o.key;
                 return (
                   <button key={o.key} type="button" aria-pressed={activo}

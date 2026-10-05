@@ -511,7 +511,9 @@ function interpretarVarios(textoCompleto) {
   // falta decir "más" entre cada uno para que se registren todos.
   let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
   marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
-  const partes = marcado.split('|||').map(s => s.trim()).filter(Boolean);
+  // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
+  // reconocer la última palabra ("redondas.").
+  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre
@@ -579,7 +581,9 @@ function interpretarVarios(textoCompleto) {
       // El estado (frito, cocido, crudo...) también cuenta — así "huevo
       // frito" distingue de "huevo cocido", no los deja empatados.
       if (estadoLower && score > 0) {
-        const palabrasResto = restoLower.split(/\s+/);
+        // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
+        // con un plátano" no es el jugo "Con azúcar".
+        const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
         for (const w of palabrasResto) {
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
@@ -591,7 +595,11 @@ function interpretarVarios(textoCompleto) {
     }
     candidatas.sort((a, b) => b.score - a.score);
 
-    if (candidatas.length === 0) return null;
+    // Nada parecido en la app: no se pierde en silencio, queda para
+    // buscarlo (o pedírselo a Jonah) después.
+    if (candidatas.length === 0) {
+      return resto.trim().length > 1 ? { textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, sinCoincidencia: true } : null;
+    }
 
     const mejor = candidatas[0].food;
     const mejorScore = candidatas[0].score;
@@ -608,7 +616,7 @@ function interpretarVarios(textoCompleto) {
       : null;
 
     return {
-      textoOriginal: parte.trim(), cantidad, gramosExplicitos,
+      textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, gramosExplicitos,
       food: mejor, necesitaAclarar, opciones,
     };
   }).filter(Boolean);
@@ -647,7 +655,11 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
 
 // autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
 // hoja Registrar), para registrar en un solo toque.
-function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
+// onBuscarDespues(textos): lo que no está en la app (o "No es ninguna") se
+// abre en el buscador de la comida con lo que dijo ya escrito, donde puede
+// buscarlo de otra forma o pedírselo a Jonah. Sin él (fuera de la hoja
+// Registrar), solo se le avisa qué le faltó.
+function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -674,7 +686,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
 
   function interpretar(dicho) {
     setTexto(dicho);
-    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia }));
     setItems(encontrados);
     if (!encontrados.length) setAviso('No reconocí alimentos en lo que dijiste. Intenta de nuevo, por ejemplo: "2 huevos y 1 pan".');
   }
@@ -747,14 +759,23 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   }
 
   function elegirOpcion(i, food) {
-    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false } : it));
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false, buscar: false, activo: true } : it));
+  }
+  // "No es ninguna": ese alimento se busca después (no traba el resto).
+  function ningunaOpcion(i) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, necesitaAclarar: false, buscar: true, activo: false } : it));
   }
 
   function agregarSeleccionados() {
     if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
-    const activos = items.filter(it => it.activo);
-    if (!activos.length) return;
-    onElegirVarios(activos);
+    const activos = items.filter(it => it.activo && !it.buscar);
+    const porBuscar = items.filter(it => it.buscar).map(it => it.textoBuscar || it.textoOriginal);
+    if (!activos.length && !porBuscar.length) return;
+    if (activos.length) onElegirVarios(activos);
+    if (porBuscar.length) {
+      if (onBuscarDespues) onBuscarDespues(porBuscar);
+      else showToast(`Búscalo en el buscador de la comida: ${porBuscar.join(', ')}`);
+    }
     setItems([]);
     setTexto('');
   }
@@ -816,7 +837,18 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
                       {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
+                  <button onClick={() => ningunaOpcion(i)}
+                    className="jb-body text-[11px] border border-dashed border-zinc-600 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-400">
+                    🔎 No es ninguna
+                  </button>
                 </div>
+              </div>
+            ) : it.buscar ? (
+              <div key={i} className="w-full flex items-center gap-2 rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
+                <span className="text-lg shrink-0">🔎</span>
+                <span className="jb-body text-xs text-zinc-300 flex-1">
+                  "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo para buscarlo o pedírselo a Jonah</span>
+                </span>
               </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
@@ -832,7 +864,10 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
             <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
           ) : (
             <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-              Agregar {items.filter(it => it.activo).length} alimento(s)
+              {(() => {
+                const n = items.filter(it => it.activo && !it.buscar).length, b = items.filter(it => it.buscar).length;
+                return n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`;
+              })()}
             </button>
           )}
         </div>
@@ -924,7 +959,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 // embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
 // su selector de comida, porque la comida ya se eligió en la hoja).
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -984,7 +1019,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} autoGrabar />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} autoGrabar />}
       </div>
     );
   }
@@ -8489,7 +8524,7 @@ function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
   );
 }
 
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
   const ahora = comidaDeAhora();
@@ -8551,7 +8586,8 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
         {modo === 'voz' && premium && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-              restricciones={mealPlan.restricciones || []} embebido meal={meal} />
+              restricciones={mealPlan.restricciones || []} embebido meal={meal}
+              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined} />
           </div>
         )}
 
@@ -9381,6 +9417,14 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onBuscarDespues={(m, textos) => {
+            // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
+            // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).
+            setHojaMeal(null);
+            let ultimo = null;
+            textos.forEach(t => { const id = addEntry(m); ultimo = id; setTextoInicial(v => ({ ...v, [id]: t })); });
+            if (ultimo) setEnfocar(ultimo);
+          }}
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}

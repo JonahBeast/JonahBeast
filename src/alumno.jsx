@@ -500,6 +500,13 @@ function ModoFavoritos({ favoritos, onElegir }) {
    alimento con cantidad estimada por cada parte reconocida. No es IA:
    es una búsqueda por coincidencia de texto contra tu propia base de
    230 alimentos, priorizando la coincidencia más larga y específica. */
+// ¿"aguja" contiene "frase" como palabras enteras? ("pan francés" sí tiene
+// "pan"; "arroz con ají panca" no.)
+function contienePalabras(aguja, frase) {
+  const esc = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
+}
+
 function interpretarVarios(textoCompleto) {
   const NUM_PALABRAS = {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -511,7 +518,9 @@ function interpretarVarios(textoCompleto) {
   // falta decir "más" entre cada uno para que se registren todos.
   let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
   marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
-  const partes = marcado.split('|||').map(s => s.trim()).filter(Boolean);
+  // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
+  // reconocer la última palabra ("redondas.").
+  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre
@@ -550,8 +559,19 @@ function interpretarVarios(textoCompleto) {
       resto = mPeso[2];
     }
 
-    const restoLower = resto.toLowerCase();
+    // Cómo se dice en casa → cómo está en la app.
+    const restoLower = resto.toLowerCase()
+      .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
+      .replace(/\byogurt\b/g, 'yogur')
+      .replace(/\bqueques?\b/g, 'keke');
     const restoVariantes = variantesSingular(restoLower);
+    // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
+    // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
+    // porque contaba la palabra "azúcar").
+    const pideSinAzucar = /\bsin\s+az[uú]car\b|\bnatural\b/i.test(resto);
+    // Palabras que vienen después de "sin" no cuentan para el estado.
+    const tokensResto = restoLower.split(/\s+/);
+    const palabrasEstado = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
 
     // Se calculan TODAS las coincidencias razonables (no solo la
     // mejor), para poder detectar cuando hay varias parecidas y no
@@ -563,35 +583,57 @@ function interpretarVarios(textoCompleto) {
       else if (nombreLower.includes('queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
+      // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
+      // es "papaya".
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && nombreLower.includes(rv)) score = Math.max(score, 50 + rv.length);
-        else if (nombreLower.length > 2 && rv.includes(nombreLower)) score = Math.max(score, 30 + nombreLower.length);
+        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
+        else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
       }
       if (score === 0) {
         const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
         let coincidencias = 0;
         for (const w of palabrasResto) {
-          if (variantesSingular(w).some(v => nombreLower.includes(v))) coincidencias++;
+          if (variantesSingular(w).some(v => palabrasNombre.has(v))) coincidencias++;
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
       // El estado (frito, cocido, crudo...) también cuenta — así "huevo
       // frito" distingue de "huevo cocido", no los deja empatados.
       if (estadoLower && score > 0) {
-        const palabrasResto = restoLower.split(/\s+/);
-        for (const w of palabrasResto) {
+        // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
+        // con un plátano" no es el jugo "Con azúcar".
+        for (const w of palabrasEstado) {
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
             break;
           }
         }
       }
+      if (score > 0 && pideSinAzucar) {
+        const textoFood = `${nombreLower} ${estadoLower}`;
+        if (/con az[uú]car/.test(textoFood)) score = 1;
+        else if (score >= 10 && /sin az[uú]car|natural/.test(textoFood)) score += 45;
+      }
       if (score > 0) candidatas.push({ food: f, score });
     }
     candidatas.sort((a, b) => b.score - a.score);
+    // Lo que es solo un ingrediente del mejor no compite con él: con "jugo
+    // de papaya" no se pregunta por "Papaya (cruda)".
+    if (candidatas.length > 1) {
+      const nombreMejor = candidatas[0].food.name.toLowerCase();
+      for (let k = candidatas.length - 1; k > 0; k--) {
+        const n = candidatas[k].food.name.toLowerCase();
+        if (n !== nombreMejor && n.length < nombreMejor.length && contienePalabras(nombreMejor, n)) candidatas.splice(k, 1);
+      }
+    }
 
-    if (candidatas.length === 0) return null;
+    // Nada parecido en la app: no se pierde en silencio, queda para
+    // buscarlo (o pedírselo a Jonah) después.
+    if (candidatas.length === 0) {
+      return resto.trim().length > 1 ? { textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, sinCoincidencia: true } : null;
+    }
 
     const mejor = candidatas[0].food;
     const mejorScore = candidatas[0].score;
@@ -601,14 +643,24 @@ function interpretarVarios(textoCompleto) {
     // de todas es. Se compara por "key" (nombre + estado), no solo el
     // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
     // entre sí por compartir el mismo nombre base.
-    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
-    const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
+    let empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
+    // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
+    // la app tiene las dos versiones (la natural o "Sin azúcar").
+    let preguntarAzucar = false;
+    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
+      const base = mejor.name.toLowerCase();
+      const sinAz = FOODS.find(f => f.key !== mejor.key && (
+        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
+        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
+      if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
+    }
+    const necesitaAclarar = empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar); // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
       : null;
 
     return {
-      textoOriginal: parte.trim(), cantidad, gramosExplicitos,
+      textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, gramosExplicitos,
       food: mejor, necesitaAclarar, opciones,
     };
   }).filter(Boolean);
@@ -647,7 +699,11 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
 
 // autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
 // hoja Registrar), para registrar en un solo toque.
-function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
+// onBuscarDespues(textos): lo que no está en la app (o "No es ninguna") se
+// abre en el buscador de la comida con lo que dijo ya escrito, donde puede
+// buscarlo de otra forma o pedírselo a Jonah. Sin él (fuera de la hoja
+// Registrar), solo se le avisa qué le faltó.
+function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -674,7 +730,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
 
   function interpretar(dicho) {
     setTexto(dicho);
-    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia }));
     setItems(encontrados);
     if (!encontrados.length) setAviso('No reconocí alimentos en lo que dijiste. Intenta de nuevo, por ejemplo: "2 huevos y 1 pan".');
   }
@@ -747,14 +803,23 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   }
 
   function elegirOpcion(i, food) {
-    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false } : it));
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false, buscar: false, activo: true } : it));
+  }
+  // "No es ninguna": ese alimento se busca después (no traba el resto).
+  function ningunaOpcion(i) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, necesitaAclarar: false, buscar: true, activo: false } : it));
   }
 
   function agregarSeleccionados() {
     if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
-    const activos = items.filter(it => it.activo);
-    if (!activos.length) return;
-    onElegirVarios(activos);
+    const activos = items.filter(it => it.activo && !it.buscar);
+    const porBuscar = items.filter(it => it.buscar).map(it => it.textoBuscar || it.textoOriginal);
+    if (!activos.length && !porBuscar.length) return;
+    if (activos.length) onElegirVarios(activos);
+    if (porBuscar.length) {
+      if (onBuscarDespues) onBuscarDespues(porBuscar);
+      else showToast(`Búscalo en el buscador de la comida: ${porBuscar.join(', ')}`);
+    }
     setItems([]);
     setTexto('');
   }
@@ -816,7 +881,18 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
                       {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
+                  <button onClick={() => ningunaOpcion(i)}
+                    className="jb-body text-[11px] border border-dashed border-zinc-600 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-400">
+                    🔎 No es ninguna
+                  </button>
                 </div>
+              </div>
+            ) : it.buscar ? (
+              <div key={i} className="w-full flex items-center gap-2 rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
+                <span className="text-lg shrink-0">🔎</span>
+                <span className="jb-body text-xs text-zinc-300 flex-1">
+                  "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo para buscarlo o pedírselo a Jonah</span>
+                </span>
               </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
@@ -832,7 +908,10 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
             <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
           ) : (
             <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-              Agregar {items.filter(it => it.activo).length} alimento(s)
+              {(() => {
+                const n = items.filter(it => it.activo && !it.buscar).length, b = items.filter(it => it.buscar).length;
+                return n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`;
+              })()}
             </button>
           )}
         </div>
@@ -924,7 +1003,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 // embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
 // su selector de comida, porque la comida ya se eligió en la hoja).
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -984,7 +1063,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} autoGrabar />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} autoGrabar />}
       </div>
     );
   }
@@ -8489,7 +8568,7 @@ function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
   );
 }
 
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
   const ahora = comidaDeAhora();
@@ -8551,7 +8630,8 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
         {modo === 'voz' && premium && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-              restricciones={mealPlan.restricciones || []} embebido meal={meal} />
+              restricciones={mealPlan.restricciones || []} embebido meal={meal}
+              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined} />
           </div>
         )}
 
@@ -9381,6 +9461,14 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onBuscarDespues={(m, textos) => {
+            // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
+            // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).
+            setHojaMeal(null);
+            let ultimo = null;
+            textos.forEach(t => { const id = addEntry(m); ultimo = id; setTextoInicial(v => ({ ...v, [id]: t })); });
+            if (ultimo) setEnfocar(ultimo);
+          }}
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}

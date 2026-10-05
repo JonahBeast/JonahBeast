@@ -179,6 +179,8 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
 
+**La app se actualiza sola:** si la tenías abierta en segundo plano y vuelves a ella después de un rato (1 minuto o más), revisa si hay una versión nueva y, si la hay, se recarga sola en un segundo. No se pierde nada de lo registrado. Si un alumno no ve una mejora, que cierre y vuelva a abrir la app.
+
 **Al cambiar de pestaña** con la barra de abajo (Inicio, Comidas, Mi cuerpo, Progreso, Comunidad), la pantalla siempre empieza **desde arriba**.
 
 **Mientras carga** (muro, equipos, fotos, atajos), se ve la forma gris de las tarjetas latiendo suavemente hasta que aparece lo real.

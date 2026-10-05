@@ -5793,7 +5793,45 @@ function avisarRegistroTikTok(userId) {
   } catch {}
 }
 
+/* Versión nueva sin cerrar la app: cuando el alumno (o Jonah en el panel)
+   vuelve a la app después de tenerla un rato en segundo plano, se compara
+   esta versión con la publicada (/version.json, la genera vite.config.js).
+   Si hay una nueva, se recarga sola. Solo al volver tras 1 minuto o más
+   afuera: así nunca se recarga en medio de algo que está haciendo. Lo que
+   faltaba subir queda guardado en el celular y se sube al recargar. */
+const VERSION_APP = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '';
+function usarVersionNueva() {
+  useEffect(() => {
+    if (!VERSION_APP) return;
+    let ocultaDesde = document.visibilityState === 'hidden' ? Date.now() : null;
+    let revisando = false;
+    const alCambiar = async () => {
+      if (document.visibilityState === 'hidden') { ocultaDesde = Date.now(); return; }
+      const fuera = ocultaDesde ? Date.now() - ocultaDesde : 0;
+      ocultaDesde = null;
+      if (fuera < 60 * 1000 || revisando || navigator.onLine === false) return;
+      revisando = true;
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const { v } = r.ok ? await r.json() : {};
+        // Una sola vez por versión: si después de recargar sigue distinta
+        // (publicación a medias), no se queda recargando.
+        let yaIntentada = null;
+        try { yaIntentada = sessionStorage.getItem('jb-version-recarga'); } catch {}
+        if (v && v !== VERSION_APP && yaIntentada !== v) {
+          try { sessionStorage.setItem('jb-version-recarga', v); } catch {}
+          window.location.reload();
+        }
+      } catch {}
+      revisando = false;
+    };
+    document.addEventListener('visibilitychange', alCambiar);
+    return () => document.removeEventListener('visibilitychange', alCambiar);
+  }, []);
+}
+
 export default function App() {
+  usarVersionNueva();
   const [view, setView] = useState(() => {
     try {
       if (window.location.pathname.startsWith('/tienda')) return 'tienda';

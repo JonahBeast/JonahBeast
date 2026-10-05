@@ -2703,7 +2703,7 @@ const PASOS_PAGO = ['vio_planes', 'eligio_plan', 'eligio_metodo', 'pago_enviado'
 // Qué hacen los nuevos en "¡TU PLAN ESTÁ LISTO!", con la foto y con el
 // aviso de abrir en Chrome/Safari. Se mide desde este día.
 const INICIO_PRIMERA_COMIDA = '2026-10-02';
-const EVENTOS_PRIMERA = ['primera_comida', 'foto_comida', 'abrir_navegador'];
+const EVENTOS_PRIMERA = ['primera_comida', 'foto_comida', 'abrir_navegador', 'fin_prueba'];
 const FILAS_PRIMERA = [
   { titulo: 'Primera comida', filas: [
     ['primera_comida', 'vio', 'Vieron "¡Tu plan está listo!"'],
@@ -2724,6 +2724,12 @@ const FILAS_PRIMERA = [
     ['abrir_navegador', 'vio', 'Vieron el aviso'],
     ['abrir_navegador', 'toco', 'Tocaron "Abrir en…"'],
     ['abrir_navegador', 'seguir', 'Tocaron "Seguir aquí por ahora"'],
+  ] },
+  { titulo: 'Pantalla "¿Seguimos juntos?" (fin de la prueba)', filas: [
+    ['fin_prueba', 'vio', 'La vieron'],
+    ['fin_prueba', '1mes', 'Tocaron "Seguir con 1 mes"'],
+    ['fin_prueba', 'planes', 'Tocaron "Ver todos los planes"'],
+    ['fin_prueba', 'ahora_no', 'Tocaron "Ahora no"'],
   ] },
 ];
 
@@ -11648,7 +11654,7 @@ function PagosPanel({ onAprobado }) {
                         {p.nombre ? `${p.nombre} · ${p.username}` : p.username}
                       </div>
                       <div className="text-zinc-500 text-xs jb-body mt-0.5">
-                        {p.metodo} · Op. {p.operacion} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {p.metodo}{p.operacion ? ` · Op. ${p.operacion}` : ' · solo captura'} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                       {p.estado === 'pendiente' && (
                         <div className={`text-xs jb-body mt-0.5 ${horasEsperando(p) >= 12 ? 'text-red-400 font-semibold' : 'text-amber-400'}`}>

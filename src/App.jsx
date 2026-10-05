@@ -2118,6 +2118,37 @@ function Field({ label, helpHref, children }) {
 }
 
 const inputCls = "bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 jb-body";
+
+/* Aviso en vivo debajo de una contraseña nueva: cuántas letras o números
+   faltan para llegar a 6, y "✓ Lista" cuando ya alcanza. Así nadie se
+   entera recién al tocar el botón (se usa en el registro y en cambiar o
+   recuperar la contraseña). */
+const MIN_CONTRASENA = 6;
+function AyudaRepetir({ valor, otra }) {
+  if (!valor) return null;
+  return valor === otra
+    ? <span className="jb-body text-[11px] text-emerald-400 block mt-1">✓ Coinciden</span>
+    : <span className="jb-body text-[11px] text-amber-400 block mt-1">Todavía no coincide con la de arriba.</span>;
+}
+function AyudaContrasena({ valor }) {
+  const n = String(valor || '').length;
+  const falta = MIN_CONTRASENA - n;
+  if (!n) return <span className="jb-body text-[11px] text-zinc-500 block mt-1">Mínimo {MIN_CONTRASENA} letras o números.</span>;
+  if (falta > 0) return <span className="jb-body text-[11px] text-amber-400 block mt-1">Te {falta === 1 ? 'falta 1 letra o número' : `faltan ${falta} letras o números`} (mínimo {MIN_CONTRASENA}).</span>;
+  return <span className="jb-body text-[11px] text-emerald-400 block mt-1">✓ Lista</span>;
+}
+
+// Error pegado a la casilla que falló (no abajo del todo, donde en el
+// celular a veces no se ve).
+function ErrorCampo({ texto, children }) {
+  if (!texto) return null;
+  return (
+    <span className="jb-body text-xs text-red-400 flex items-start gap-1.5 mt-1">
+      <AlertTriangle size={13} className="shrink-0 mt-0.5" /><span>{texto}{children}</span>
+    </span>
+  );
+}
+const conError = malo => malo ? ' !border-red-500' : '';
 const btnPrimary = "bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold jb-body rounded px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2";
 const btnGhost = "bg-transparent border border-zinc-700 hover:border-orange-500 text-zinc-100 jb-body rounded px-4 py-2.5 transition-colors flex items-center justify-center gap-2";
 
@@ -3606,6 +3637,9 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   const [f, setF] = useState({ email: '', password: '', telefono: '', referido: refDesdeURL });
   const [verPass, setVerPass] = useState(false);
   const [err, setErr] = useState('');
+  // Qué casilla falló ('correo' | 'contrasena' | 'telefono' | 'existe'),
+  // para mostrar el error justo debajo de ella.
+  const [campoErr, setCampoErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
   const [refEstado, setRefEstado] = useState(null); // {ok, nombre} | {ok:false}
@@ -3642,17 +3676,18 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
 
   async function submit(e) {
     e.preventDefault();
-    setErr(''); setAviso('');
+    setErr(''); setAviso(''); setCampoErr('');
     const email = f.email.trim().toLowerCase();
     // Cada tropiezo queda anotado en el embudo ("error_registro"), para
-    // saber qué frena a quien quiere registrarse.
-    const tropiezo = (detalle, texto) => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); };
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', 'Escribe un correo válido.');
-    if (f.password.length < 6) return tropiezo('contrasena_corta', 'La contraseña debe tener al menos 6 caracteres.');
+    // saber qué frena a quien quiere registrarse. "campo" dice debajo de
+    // qué casilla se muestra el error.
+    const tropiezo = (detalle, texto, campo = '') => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo); };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', email ? 'Ese correo no parece completo. Revísalo (ej. tunombre@gmail.com).' : 'Escribe tu correo.', 'correo');
+    if (f.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
     // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
     // con quien llega desde un anuncio), es la única forma de escribirle.
     const tel = f.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
-    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.');
+    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
       return tropiezo('referido_invalido', 'Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
@@ -3675,9 +3710,9 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     if (error) {
       setBusy(false);
       if ((error.message || '').toLowerCase().includes('already registered'))
-        return tropiezo('correo_existente', 'Ese correo ya tiene una cuenta. Inicia sesión.');
+        return tropiezo('correo_existente', 'Ya tienes una cuenta con este correo.', 'existe');
       const rechazo = mensajeContrasenaRechazada(error);
-      if (rechazo) return tropiezo('contrasena_rechazada', rechazo);
+      if (rechazo) return tropiezo('contrasena_rechazada', rechazo, 'contrasena');
       return tropiezo('error_sistema: ' + String(error.message || '').slice(0, 80), 'No se pudo crear tu cuenta: ' + error.message);
     }
 
@@ -3775,23 +3810,36 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               <button onClick={onBack} className={btnGhost + ' w-full'}>Volver al inicio</button>
             </div>
           ) : (
-            <form onSubmit={submit} className="flex flex-col gap-3">
+            <form onSubmit={submit} noValidate className="flex flex-col gap-3">
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
+                <ErrorCampo texto={campoErr === 'correo' ? err : ''} />
+                {campoErr === 'existe' && (
+                  <span className="jb-body text-xs text-zinc-200 bg-zinc-950 border border-orange-500/50 rounded-lg p-2.5 mt-1 flex flex-col gap-2">
+                    <span>👋 {err} No necesitas crear otra: entra con ella.</span>
+                    {onEntrar && (
+                      <button type="button" onClick={() => { try { sessionStorage.setItem('jb-correo-entrar', f.email.trim().toLowerCase()); } catch {} onEntrar(); }}
+                        className={btnPrimary + ' py-2 text-sm'}>Entrar con este correo</button>
+                    )}
+                  </span>
+                )}
               </Field>
               <Field label="Contraseña">
                 <div className="relative">
-                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls + ' pr-10'} placeholder="Mínimo 6 caracteres" />
+                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
                   <button type="button" onClick={() => setVerPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
                     <Eye size={16} />
                   </button>
                 </div>
+                {campoErr === 'contrasena' ? <ErrorCampo texto={err} /> : <AyudaContrasena valor={f.password} />}
               </Field>
               <Field label="Tu WhatsApp">
-                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => setF(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="9XX XXX XXX" />
-                <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>
+                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
+                {campoErr === 'telefono'
+                  ? <ErrorCampo texto={err} />
+                  : <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>}
               </Field>
               {verReferido ? (
                 <Field label="Código de referido (opcional)">
@@ -3817,7 +3865,8 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
                   </p>
                 )
               )}
-              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              {err && !campoErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              {err && campoErr && <p className="text-red-400 text-xs jb-body text-center">Revisa lo marcado en rojo arriba ☝️</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
                 {busy ? <Loader2 className="animate-spin" size={18} /> : 'CREAR MI CUENTA GRATIS'}
               </button>
@@ -3873,7 +3922,7 @@ function AdminAuth({ onBack, onLogin, busy }) {
     e.preventDefault();
     setErr('');
     if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
-    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva.length < 6) return setErr('Tu contraseña nueva necesita al menos 6 letras o números.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
     const { error: errCodigo } = await supabase.auth.verifyOtp({
@@ -3911,10 +3960,12 @@ function AdminAuth({ onBack, onLogin, busy }) {
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
-                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 letras o números" />
+                <AyudaContrasena valor={passNueva} />
               </Field>
               <Field label="Repite la contraseña">
                 <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+                <AyudaRepetir valor={passNueva2} otra={passNueva} />
               </Field>
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busyCodigo} className={btnPrimary}>
@@ -3962,7 +4013,7 @@ function ResetPassword({ onDone }) {
   async function submit(e) {
     e.preventDefault();
     setErr('');
-    if (pass.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
+    if (pass.length < 6) return setErr('Tu contraseña necesita al menos 6 letras o números.');
     if (pass !== pass2) return setErr('Las contraseñas no coinciden.');
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pass });
@@ -3991,10 +4042,12 @@ function ResetPassword({ onDone }) {
               <p className="jb-body text-sm text-zinc-500 mb-5">Elige una que recuerdes fácilmente.</p>
               <form onSubmit={submit} className="flex flex-col gap-4">
                 <Field label="Contraseña nueva">
-                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus placeholder="Mínimo 6 caracteres" />
+                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus placeholder="Mínimo 6 letras o números" />
+                  <AyudaContrasena valor={pass} />
                 </Field>
                 <Field label="Repite la contraseña">
                   <input type="password" value={pass2} onChange={e => setPass2(e.target.value)} className={inputCls} />
+                  <AyudaRepetir valor={pass2} otra={pass} />
                 </Field>
                 {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
                 <button type="submit" disabled={busy} className={btnPrimary + ' py-3'}>
@@ -4067,7 +4120,11 @@ function EncuestaSalida({ username }) {
 }
 
 function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva, onSeguirGratis }) {
-  const [email, setEmail] = useState('');
+  // Si viene del registro con "Ya tienes una cuenta con este correo", el
+  // correo ya sale escrito.
+  const [email, setEmail] = useState(() => {
+    try { const c = sessionStorage.getItem('jb-correo-entrar') || ''; sessionStorage.removeItem('jb-correo-entrar'); return c; } catch { return ''; }
+  });
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [modo, setModo] = useState('login');
@@ -4098,7 +4155,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
     e.preventDefault();
     setErr('');
     if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
-    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva.length < 6) return setErr('Tu contraseña nueva necesita al menos 6 letras o números.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
     const { error: errCodigo } = await supabase.auth.verifyOtp({
@@ -4247,10 +4304,12 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
-                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 letras o números" />
+                <AyudaContrasena valor={passNueva} />
               </Field>
               <Field label="Repite la contraseña">
                 <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+                <AyudaRepetir valor={passNueva2} otra={passNueva} />
               </Field>
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busyCodigo} className={btnPrimary}>
@@ -4896,13 +4955,15 @@ const BENEFICIOS = [
 
 
 
-function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false }) {
+function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false, planInicial = null }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
   const [datosPago, setDatosPago] = useState({});
-  const [seleccion, setSeleccion] = useState(null);
+  // "planInicial" (meses): llega con un plan ya marcado, por ejemplo desde
+  // el aviso de fin de prueba ("Seguir con 1 mes"), y va directo a pagar.
+  const [seleccion, setSeleccion] = useState(() => (planInicial && PLANES.find(p => p.meses === planInicial)) || null);
   const [metodo, setMetodo] = useState('Yape');
   const [operacion, setOperacion] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -4925,7 +4986,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [playMsg, setPlayMsg] = useState('');
 
   useEffect(() => { cargar(); }, [username]);
-  useEffect(() => { registrarPasoPago('vio_planes', username); }, [username]);
+  useEffect(() => {
+    registrarPasoPago('vio_planes', username);
+    if (planInicial) registrarPasoPago('eligio_plan', username, planInicial);
+  }, [username]);
 
   useEffect(() => {
     if (!esTWA()) return;
@@ -5017,25 +5081,34 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     if (!seleccion) return setErr('Elige un plan.');
     const tel = telefono.replace(/\D/g, '');
     if (!userRecord?.telefono && tel.length < 9) return setErr('Escribe tu celular de WhatsApp (9 dígitos).');
-    if (!operacion.trim()) return setErr('Escribe el número de operación de tu pago.');
-    if (!archivo) return setErr('Adjunta la captura de tu pago.');
+    // Basta la captura o el número de operación (antes pedía los dos y
+    // varios se quedaban a mitad de camino).
+    if (!archivo && !operacion.trim()) return setErr('Sube la captura de tu pago (o escribe el número de operación).');
     setEnviando(true);
     let ruta = null;
     try {
-      const blob = archivo.type === 'application/pdf' ? archivo : await comprimirImagen(archivo, 1400, 0.8);
-      const ext = archivo.type === 'application/pdf' ? 'pdf' : 'jpg';
-      ruta = `${username}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('comprobantes')
-        .upload(ruta, blob, { contentType: archivo.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg' });
-      if (upErr) throw new Error('Al subir el comprobante: ' + upErr.message);
+      if (archivo) {
+        const blob = archivo.type === 'application/pdf' ? archivo : await comprimirImagen(archivo, 1400, 0.8);
+        const ext = archivo.type === 'application/pdf' ? 'pdf' : 'jpg';
+        ruta = `${username}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('comprobantes')
+          .upload(ruta, blob, { contentType: archivo.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg' });
+        if (upErr) throw new Error('Al subir el comprobante: ' + upErr.message);
+      }
 
       const { error: dbErr } = await supabase.from('pagos').insert({
         username, nombre: nombre || '', plan_meses: seleccion.meses,
-        monto: precioDe(seleccion), metodo, operacion: operacion.trim(),
+        monto: precioDe(seleccion), metodo, operacion: operacion.trim() || null,
         comprobante_ruta: ruta, estado: 'pendiente',
       });
       if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
       registrarPasoPago('pago_enviado', username, metodo);
+      // Aviso al toque al celular de Jonah (api/pago-enviado.js). Si falla,
+      // la revisión de cada hora lo avisa igual.
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        fetch('/api/pago-enviado', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` }, body: '{}' }).catch(() => {});
+      } catch {}
 
       if (!userRecord?.telefono && tel.length >= 9) {
         try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { avisarError(e); }
@@ -5047,7 +5120,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
       await cargar();
       if (onPagoEnviado) onPagoEnviado();
-      showToast('Pago enviado, lo revisamos en menos de 24h');
+      showToast('¡Listo! Ya le llegó el aviso a Jonah 💪');
     } catch (e) {
       if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch (e) { avisarError(e); } }
       setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
@@ -5243,7 +5316,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
             <p className="jb-body text-xs text-amber-300/80 mt-0.5">
               Recibimos tu comprobante por {fmtS(pendiente.monto)} ({pendiente.plan_meses} mes(es)).
-              Lo confirmamos en menos de 24 horas y tu acceso se activa solo.
+              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 10pm). Te llega una notificación cuando esté listo.
             </p>
           </div>
         </div>
@@ -5261,6 +5334,18 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </div>
             <div className="mt-3"><PruebaSocialMini size={22} /></div>
           </div>
+
+          {/* Atajo: la mayoría empieza con 1 mes. Un toque y pasa directo a
+              pagar (el resto de planes sigue abajo). */}
+          <button type="button" onClick={() => { setSeleccion(PLANES[0]); registrarPasoPago('eligio_plan', username, PLANES[0].meses); }}
+            className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-4 text-left flex items-center justify-between gap-3 shadow-lg shadow-orange-500/20">
+            <span>
+              <span className="jb-display text-lg text-zinc-950 block leading-tight">EMPEZAR CON 1 MES</span>
+              <span className="jb-body text-xs text-zinc-900">{fmtS(precioDe(PLANES[0]))} · menos de S/1 al día · pagas con Yape o Plin</span>
+            </span>
+            <ChevronRight size={22} className="text-zinc-950 shrink-0" />
+          </button>
+          <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra:</p>
 
           {dcto > 0 && (
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
@@ -5437,7 +5522,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </div>
           ) : (
           <>
-          <h3 className="jb-display text-sm text-zinc-300 mb-3">2 · CONFIRMA TU PAGO</h3>
+          <h3 className="jb-display text-sm text-zinc-300 mb-1">2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA</h3>
+          <p className="jb-body text-xs text-zinc-500 mb-3">Con la captura basta. Me llega el aviso y activo tu plan apenas lo vea.</p>
           <div className="flex flex-col gap-3">
             {faltaTelefono && (
               <Field label="Tu celular (WhatsApp)">
@@ -5451,30 +5537,32 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                 <RuedaFecha valor={fechaNac} onCambio={setFechaNac} inicial="1990-06-15" />
               </Field>
             )}
-            <Field label="Número de operación">
-              <input value={operacion} onChange={e => setOperacion(e.target.value)}
-                className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
-            </Field>
-
             <label className="cursor-pointer">
               <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">Captura del pago</span>
               <input type="file" accept="image/*,application/pdf" className="hidden"
                 onChange={e => setArchivo(e.target.files[0] || null)} />
-              <div className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${archivo
-                ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'}`}>
-                <p className="jb-body text-sm text-zinc-300">
-                  {archivo ? `✓ ${archivo.name}` : 'Toca para adjuntar tu captura'}
+              <div className={`rounded-lg border-2 border-dashed p-5 text-center transition-colors ${archivo
+                ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-orange-500/60 hover:border-orange-500 bg-zinc-950'}`}>
+                <p className="jb-body text-sm text-zinc-200">
+                  {archivo ? `✓ ${archivo.name}` : '📸 Toca aquí y elige la captura de tu pago'}
                 </p>
               </div>
             </label>
 
+            {!archivo && (
+              <Field label="¿No tienes la captura? Número de operación">
+                <input value={operacion} onChange={e => setOperacion(e.target.value)}
+                  className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
+              </Field>
+            )}
+
             {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
 
             <button onClick={enviarPago} disabled={enviando} className={btnPrimary + ' py-3 text-base'}>
-              {enviando ? <Loader2 className="animate-spin" size={18} /> : 'ENVIAR MI PAGO'}
+              {enviando ? <Loader2 className="animate-spin" size={18} /> : 'YA PAGUÉ · ENVIAR'}
             </button>
-            <p className="jb-body text-[11px] text-zinc-600 text-center">
-              Revisamos tu pago en menos de 24 horas. Te avisamos con una notificación en tu celular apenas se active.
+            <p className="jb-body text-[11px] text-zinc-500 text-center">
+              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 10pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
             </p>
           </div>
           </>

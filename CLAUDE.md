@@ -24,6 +24,8 @@
 ## Alimentos nuevos
 
 - **Cada plato que se agregue a la app debe decir si lleva arroz o no.** Si es un guiso que en Perú se come con arroz y sus calorías no lo incluyen, va en `PLATOS_SIN_ARROZ` (`src/alumno.jsx`), para que salga "🍚 Sin arroz: agrégalo aparte". Si las calorías sí incluyen el arroz, el nombre lo dice (ej. "Pollo a la olla con arroz"). Al agregarlo, dile a Jonah cuál de las dos es.
+- **Los pedidos de alimentos que la IA deja para revisar los resuelve Claude** (encargo de Jonah del 6 de octubre): cada hora de 8 am a 9 pm (rutina `trig_016oFFyssqxaTuMpWpAq8PBv`) los agrega o los responde con los mismos criterios (números que cuadran, sin repetidos, regla de nombres, fuente, medida casera y regla del arroz). A Jonah solo le avisa, con un mensaje de WhatsApp listo para cada alumno, hasta que el asistente de WhatsApp lo haga solo.
+- **Cada lunes Claude revisa que la base de alimentos siga limpia** (rutina `trig_01CBY8prRNz3CQ7mYWHY8KkV`) y le pasa a Jonah una lista numerada; renombrar, unir o quitar alimentos solo con su OK.
 
 ## Estilo de la app
 

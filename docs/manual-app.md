@@ -403,6 +403,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Elige la comida y toca el plato → "✅ [plato] agregado a [comida]".
 - Estos platos **no salen en el buscador normal**, solo desde esta tarjeta.
 
+### 8.2.0 Bebidas: en vaso o en ml
+
+- Las bebidas (gaseosas, jugos, chicha, refrescos…) se registran por **vaso** (≈ 200 ml) de entrada, no por taza. También se puede elegir **taza**, **jarra** o **ml** (para quien sabe la medida exacta, ej. "500 ml" de una botella).
+- Las gaseosas tienen además **lata** (355 ml) y **botella personal** (500 ml).
+- En la foto, un vaso de bebida sale como **1 vaso** (con Poco / Normal / Mucho para ajustarlo).
+
 ### 8.2.1 Guisos "sin arroz"
 
 - Los guisos que se comen con arroz **no incluyen el arroz** en sus calorías: debajo del nombre sale **"🍚 Sin arroz: agrégalo aparte"** (en el buscador, al elegir la cantidad, en la foto, en la voz y al editarlo). Si comiste arroz, regístralo aparte ("Arroz blanco · cocido").

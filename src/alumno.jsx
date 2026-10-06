@@ -287,7 +287,8 @@ function unidadPorDefecto(food) {
     'porción', 'taza', 'vaso', 'rebanada', 'bola', 'scoop', 'puñado',
     'lata pequeña', 'cucharada', 'palito', 'mitad',
   ];
-  for (const pref of preferidas) {
+  // Bebidas: en Perú se toman en vaso, no en taza.
+  for (const pref of food.group === 'Bebidas' ? ['vaso', ...preferidas] : preferidas) {
     const encontrada = lista.find(u => u[0] === pref);
     if (!encontrada) continue;
     // Descartar medidas demasiado pequeñas para ser una porción real
@@ -7021,7 +7022,10 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
   const normal = d.qty * porUnidad;
-  const calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  let calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  // Bebidas: un vaso servido es al menos 1 vaso (la IA suele calcular menos
+  // por la foto: salía "½ taza" para un vaso de gaseosa).
+  if (food.group === 'Bebidas' && d.unit === 'vaso') calculado = Math.max(calculado, normal);
   const gramos = calculado * ((TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1);
   if (d.unit === 'gramos') return { unit: 'gramos', qty: Math.max(10, Math.round(gramos / 10) * 10) };
   return { unit: d.unit, qty: Math.max(0.25, Math.round((gramos / porUnidad) * 4) / 4) };
@@ -7031,6 +7035,7 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
 function textoPorcionFoto(food, porcion) {
   if (porcion.pesado) return `${Math.round(porcion.qty)} g ⚖️`;
   if (porcion.unit === 'gramos') return `≈ ${Math.round(porcion.qty)} g`;
+  if (porcion.unit === 'ml') return `≈ ${Math.round(porcion.qty)} ml`;
   const entero = Math.floor(porcion.qty);
   const resto = Math.round((porcion.qty - entero) * 4);
   const fr = ['', '¼', '½', '¾'][resto] || '';
@@ -7039,7 +7044,8 @@ function textoPorcionFoto(food, porcion) {
     ? (porcion.unit === 'porción' ? 'porciones' : porcion.unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
     : porcion.unit;
   const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
-  return `${numero} ${plural} (≈ ${gramos} g)`;
+  // Bebidas en ml ("1 vaso (≈ 200 ml)"): así se compran y se miden.
+  return `${numero} ${plural} (≈ ${gramos} ${food.group === 'Bebidas' ? 'ml' : 'g'})`;
 }
 
 /* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos
@@ -8577,7 +8583,7 @@ function opcionesCantidad(food, unidad) {
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));
 }
 const textoCantidad = ({ unit, qty }) => {
-  if (unit === 'gramos' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
+  if (unit === 'gramos' || unit === 'ml' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
   if (/[\s/]/.test(unit)) return qty === 1 ? `1 ${unit}` : `${fraccion(qty)} × ${unit}`;
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };

@@ -225,7 +225,7 @@ Reglas:
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - Regla de nombres (para que la base quede pareja): mayúscula solo al inicio (y en nombres propios), sin el estado ni la medida dentro del nombre (bien: "Linaza" con estado "Crudo"; mal: "Linaza (semillas)", "Chocolate batido (taza)"). El estado concuerda con el nombre: "Papa" → "Cocida", "Pollo pechuga" → "Cocida", "Huevo" → "Cocido".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
-- En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
+- En "seguridad" sé honesto: "alta" y "media" se agregan a la app de todos sin que Jonah lo revise primero (él lo ve después y lo puede corregir), siempre que los números cuadren y no se parezca a nada de la lista. "media" = plato conocido con receta típica, aunque las calorías varíen algo según la casa. "baja" = no sabes bien qué es, el nombre es vago o ambiguo, es una mezcla rara o no es comida (lo revisa Jonah antes).
 - Alimentos SIMPLES de un solo ingrediente con valores conocidos (semillas, frutas, verduras, menestras, carnes o pescados al natural, lácteos, productos básicos): pon "alta" aunque el pedido esté mal escrito o sin tildes, SIEMPRE QUE el nombre correcto sea obvio (ej. "linasa" → Linaza, "brocoli" → Brócoli, "kiwisha" → Kiwicha) y uses valores de la Tabla Peruana o USDA. Si el nombre se presta a dos alimentos distintos, no es "alta".
 - Frituras, apanados, salteados y platos caseros cuyas calorías dependen mucho del aceite o la receta (chicharrones, jaleas, apanados, saltados): nunca "alta"; los revisa Jonah.
 - Menú del día (menu_uso): la app arma menús para bajar grasa con estos usos:
@@ -593,6 +593,12 @@ async function atenderPedido(pedido: any) {
   }
   const ahora = new Date().toISOString();
   const segura = propuesta.seguridad === "alta";
+  // Para AGREGAR basta "media" (desde el 6 de octubre): en el último mes,
+  // de los pedidos "media" que Jonah aprobó, 15 de 16 los dejó con los
+  // mismos números. Igual se exige que cuadren, que tengan fuente y que no
+  // se parezcan a nada de la app; Jonah los ve en "Lo que hizo la IA" y le
+  // llega un aviso para corregirlos o quitarlos.
+  const agregable = segura || (propuesta.seguridad === "media" && !!propuesta.fuente);
   const guardar = (estadoIA: string, extra: any = {}) => ({ ...propuesta, ...extra, ia_estado: estadoIA, ia_en: ahora });
 
   // 1) Ya existe en la app: se le responde con qué nombre buscarlo.
@@ -622,16 +628,20 @@ async function atenderPedido(pedido: any) {
   // Salvo que se parezca mucho a uno que ya está con otro nombre: ahí puede
   // ser un repetido, y lo decide Jonah (así la base no se llena de dobles).
   const etiquetaPropuesta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
-  const parecidos = segura && !propuesta.ya_existe && !propuesta.por_partes.length ? await muyParecidos(etiquetaPropuesta) : [];
+  const parecidos = agregable && !propuesta.ya_existe && !propuesta.por_partes.length ? await muyParecidos(etiquetaPropuesta) : [];
   if (parecidos.length) {
     propuesta.parecidos = parecidos;
     propuesta.nota = `${propuesta.nota || ""} ⚠️ Se parece a: ${parecidos.join(", ")}. Revisa si es lo mismo antes de agregarlo.`.trim();
   }
-  if (segura && !parecidos.length && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+  if (agregable && !parecidos.length && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
     try {
       await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
       const r = await aprobar(propuesta, pedido.id);
       const etiqueta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
+      // Jonah se entera de lo que agregó sola, para revisarlo cuando pueda.
+      if (!horaDeSilencio()) {
+        await enviarPush({ admin: true, body: `🤖 La IA agregó "${etiqueta}" (${propuesta.kcal} kcal por 100 g${propuesta.sin_arroz ? ", sin arroz" : ""}). Si algo no cuadra, corrígelo o quítalo en IA → "Lo que hizo la IA".` });
+      }
       return { estado: "agregado", alimento: etiqueta, avisos: r.avisos };
     } catch (e) {
       // ej. ya había uno con ese nombre: que lo vea Jonah

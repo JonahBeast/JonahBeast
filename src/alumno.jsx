@@ -8956,15 +8956,17 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
 
 // Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen:
 // se avisa "Sin arroz: agrégalo aparte" para que no se olvide de anotarlo.
+// Los de la lista fija (RAW_FOODS) van aquí; los agregados desde el panel o
+// por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
 // Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
-// olla con arroz") no van aquí.
+// olla con arroz") no van.
 const PLATOS_SIN_ARROZ = new Set([
-  'Pollo a la mostaza', 'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
+  'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
   'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
   'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
-  'Sangrecita salteada', 'Sudado de pescado',
+  'Sudado de pescado',
 ]);
-const esPlatoSinArroz = food => !!food && PLATOS_SIN_ARROZ.has(food.name);
+const esPlatoSinArroz = food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
 function NotaSinArroz({ food, className = '' }) {
   if (!esPlatoSinArroz(food)) return null;
   return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;

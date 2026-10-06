@@ -132,6 +132,9 @@ const VALORES_MENU = ["", ...USOS_MENU.map((u) => u.valor)];
 // que FUENTES_ALIMENTO en src/admin.jsx.
 const FUENTES = ["Tabla Peruana (CENAN)", "Etiqueta del producto", "USDA", "Receta promedio"];
 const DESCRIPCION_FUENTE = "De dónde salen los números: \"Tabla Peruana (CENAN)\" si está en esa tabla (úsala primero), \"Etiqueta del producto\" si es un producto de marca, \"USDA\" si no está en la tabla peruana, o \"Receta promedio\" si es un plato calculado sumando sus ingredientes.";
+// Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen
+// (columna alimentos_extra.sin_arroz): la app avisa "🍚 Sin arroz: agrégalo aparte".
+const DESCRIPCION_SIN_ARROZ = "true si es un guiso o plato de fondo que en Perú se sirve con arroz (ají de gallina, estofado, seco, saltado, picante, sudado…) y tus números NO incluyen el arroz. false si no se come con arroz o si los números ya lo incluyen (en ese caso el nombre debe decirlo, ej. \"… con arroz\").";
 const DESCRIPCION_MENU = "Para qué serviría en el menú del día (una sugerencia que revisa Jonah): uno de los valores de la lista de usos del menú, o \"\" si no va en el menú.";
 
 const ESQUEMA_PROPUESTA = {
@@ -176,15 +179,17 @@ const ESQUEMA_PROPUESTA = {
           seguridad: { type: "string", enum: ["alta", "media", "baja"] },
           menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
           fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
+          sin_arroz: { type: "boolean", description: DESCRIPCION_SIN_ARROZ },
         },
-        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso", "fuente"],
+        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso", "fuente", "sin_arroz"],
         additionalProperties: false,
       },
     },
     menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
     fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
+    sin_arroz: { type: "boolean", description: DESCRIPCION_SIN_ARROZ },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes", "fuente"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes", "fuente", "sin_arroz"],
   additionalProperties: false,
 };
 
@@ -212,6 +217,7 @@ async function calcular(nombre: string, id?: number, tipo = "alimento", modelo =
       text: `Eres nutricionista y armas la base de alimentos de Jonah Beast Fuel, una app peruana de nutrición. Te piden agregar un alimento o plato. Calcula sus macros POR CADA 100 g, tal como se come (cocido si se come cocido), con porciones y recetas típicas de Perú. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS) y, si no está, USDA o recetas caseras promedio.
 
 Reglas:
+- Arroz (sin_arroz): calcula los guisos y platos de fondo SIN el arroz (el alumno lo registra aparte) y marca sin_arroz = true. Solo si lo pedido trae el arroz en el nombre (ej. "arroz con pollo", "seco con arroz") inclúyelo en los números y pon false. En variantes, igual.
 - Fuente: anota de dónde salen los números (Tabla Peruana CENAN primero; si no está, USDA; si es un producto de marca, su etiqueta; si es un plato, receta promedio sumando sus ingredientes). Así la base queda validada.
 - Números por 100 g, con un decimal como máximo. kcal ≈ 4·proteína + 4·carbos + 9·grasa (acepta un pequeño desvío por fibra o alcohol).
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
@@ -247,6 +253,8 @@ ${lista}`,
   propuesta.por_partes = (Array.isArray(propuesta.por_partes) ? propuesta.por_partes : []).map((n: unknown) => String(n || "").trim()).filter(Boolean).slice(0, 5);
   propuesta.variantes.forEach((v: any) => { v.menu_uso = usoValido(v.menu_uso); v.fuente = FUENTES.includes(v.fuente) ? v.fuente : ""; });
   propuesta.fuente = FUENTES.includes(propuesta.fuente) ? propuesta.fuente : "";
+  propuesta.sin_arroz = propuesta.sin_arroz === true;
+  propuesta.variantes.forEach((v: any) => { v.sin_arroz = v.sin_arroz === true; });
 
   if (id) {
     await supabase.from("pedidos_alimentos").update({ propuesta, actualizado_en: new Date().toISOString() }).eq("id", id);
@@ -669,6 +677,7 @@ function limpiarAlimento(a: any) {
     unidad: unidad || null,
     gramos_unidad: unidad ? gramosUnidad : null,
     fuente: FUENTES.includes(texto(a?.fuente, 40)) ? texto(a?.fuente, 40) : null,
+    sin_arroz: a?.sin_arroz === true,
   };
 }
 

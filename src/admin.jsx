@@ -565,7 +565,7 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '', sin_arroz: false };
 // De dónde salen los números de un alimento (columna alimentos_extra.fuente;
 // misma lista que FUENTES en supabase/functions/alimentos-pedidos). Es
 // obligatoria para agregar uno nuevo: así cada alimento queda validado.
@@ -578,6 +578,14 @@ async function guardarUsoMenu(alimentoId, menuUso) {
   if (!alimentoId) return;
   const { error } = await supabase.from('alimentos_extra').update({ menu_uso: menuUso || null }).eq('id', alimentoId);
   if (error) throw new Error('El alimento se agregó, pero no se pudo guardar su uso en el menú: ' + error.message);
+}
+
+/* Guisos que se comen con arroz pero cuyas calorías no lo incluyen: en la
+   app sale "🍚 Sin arroz: agrégalo aparte" (columna alimentos_extra.sin_arroz). */
+async function guardarSinArroz(alimentoId, sinArroz) {
+  if (!alimentoId) return;
+  const { error } = await supabase.from('alimentos_extra').update({ sin_arroz: !!sinArroz }).eq('id', alimentoId);
+  if (error) throw new Error('El alimento se agregó, pero no se pudo guardar si lleva arroz: ' + error.message);
 }
 
 function SelectUsoMenu({ valor, onCambiar, className = '' }) {
@@ -598,6 +606,8 @@ function formDesdePropuesta(p, nombre) {
     // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
     menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
     fuente: FUENTES_ALIMENTO.includes(p.fuente) ? p.fuente : '',
+    // La IA dice si es un guiso que se come con arroz (sin incluirlo).
+    sin_arroz: p.sin_arroz === true,
   };
 }
 
@@ -694,6 +704,12 @@ function FormAlimento({ form, setForm, onEsEste }) {
         </select>
         {!form.fuente && <span className="block text-[10px] text-amber-400 mt-0.5">Elígela para poder agregarlo: así cada alimento de la base queda validado.</span>}
       </label>
+      <label className="flex items-start gap-2 jb-body text-xs text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+        <input type="checkbox" checked={!!form.sin_arroz} onChange={e => setForm(f => ({ ...f, sin_arroz: e.target.checked }))} className="mt-0.5 accent-orange-500" />
+        <span>🍚 Se come con arroz y estas calorías <b>no</b> lo incluyen
+          <span className="block text-[10px] text-zinc-500 mt-0.5">Márcalo en guisos (ej. ají de gallina, estofado): en la app saldrá "Sin arroz: agrégalo aparte". Si las calorías ya incluyen el arroz, que lo diga el nombre (ej. "… con arroz").</span>
+        </span>
+      </label>
       <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
         <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
         <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
@@ -756,6 +772,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', id: pedido.id, alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onResuelto(pedido.id, { nombre: form.nombre.trim(), avisos: r.avisos });
     } catch (e) { setError(e.message); }
@@ -1051,6 +1068,7 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
       const r = await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
       if (accion === 'agregar_variante') {
         if (menuUso) await guardarUsoMenu(r.alimento_id, menuUso);
+        if (v.sin_arroz === true) await guardarSinArroz(r.alimento_id, true);
         await cargarAlimentosExtraDeNuevo();
       }
       await onListo();
@@ -1358,6 +1376,7 @@ function AgregarAlimentoSuelto({ onListo }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onListo(form.nombre.trim());
       setNombre(''); setForm(null); setNota('');
@@ -2097,6 +2116,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: paraTodos });
       if (paraTodos.menu_uso) await guardarUsoMenu(r.alimento_id, paraTodos.menu_uso);
+      if (paraTodos.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       // Su alimento pasa a ser el oficial (mismo nombre que le da la app:
       // "Nombre (estado)"): deja de salir repetido en su buscador y sus
@@ -2414,7 +2434,7 @@ function AlimentosEnMenu() {
   const [error, setError] = useState('');
 
   async function cargar() {
-    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso').order('nombre');
+    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso, sin_arroz').order('nombre');
     if (e) { setError('No se pudo cargar la lista: ' + e.message); setLista([]); return; }
     setLista(data || []);
   }
@@ -2430,17 +2450,27 @@ function AlimentosEnMenu() {
     setGuardando(null);
   }
 
+  async function cambiarArroz(a, valor) {
+    setGuardando(a.id); setError('');
+    try {
+      await guardarSinArroz(a.id, valor);
+      setLista(l => l.map(x => x.id === a.id ? { ...x, sin_arroz: valor } : x));
+      await cargarAlimentosExtraDeNuevo();
+    } catch (e) { setError(e.message); }
+    setGuardando(null);
+  }
+
   const visibles = (lista || []).filter(a => !filtro.trim() || a.nombre.toLowerCase().includes(filtro.trim().toLowerCase()));
   const enMenu = (lista || []).filter(a => a.menu_uso).length;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
-        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados en el menú del día{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
+        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados: menú del día y arroz{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
         <div className="px-3.5 pb-3.5 flex flex-col gap-2">
-          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar.</p>
+          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar. Marca 🍚 en los guisos que se comen con arroz: la app avisa "Sin arroz: agrégalo aparte".</p>
           <input value={filtro} onChange={e => setFiltro(e.target.value)} className={inputCls + ' text-sm'} placeholder="Buscar…" />
           {lista === null ? <Loader2 className="animate-spin text-orange-500" size={18} /> : visibles.length === 0 ? (
             <p className="jb-body text-xs text-zinc-500">No hay alimentos agregados{filtro ? ' con ese nombre' : ''}.</p>
@@ -2449,6 +2479,10 @@ function AlimentosEnMenu() {
               <p className="jb-body text-sm text-zinc-200">{a.nombre}{a.estado && a.estado !== '-' ? ` (${a.estado.toLowerCase()})` : ''} <span className="text-[11px] text-zinc-500">· {a.grupo}</span>
                 {guardando === a.id && <Loader2 size={12} className="inline animate-spin text-orange-500 ml-1" />}</p>
               <SelectUsoMenu valor={a.menu_uso} onCambiar={v => cambiar(a, v)} />
+              <label className="flex items-center gap-2 jb-body text-[11px] text-zinc-400">
+                <input type="checkbox" checked={!!a.sin_arroz} disabled={guardando === a.id} onChange={e => cambiarArroz(a, e.target.checked)} className="accent-orange-500" />
+                🍚 Se come con arroz (sus calorías no lo incluyen)
+              </label>
             </div>
           ))}
           {error && <p className="jb-body text-xs text-red-400">{error}</p>}

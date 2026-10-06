@@ -7097,6 +7097,29 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [pesados, setPesados] = useState({}); // { [key o id]: gramos }
   const [pesando, setPesando] = useState(null); // id con el cuadro de gramos abierto
   const [gramosEscritos, setGramosEscritos] = useState('');
+  // Gramos que tenía antes de abrir el cuadro, para "Cancelar". Lo escrito
+  // se aplica al toque (antes había que tocar "Listo" y, si se tocaba
+  // "Agregar" o se abría otro alimento, los gramos se perdían sin aviso).
+  const pesoAntesRef = useRef(null);
+  function abrirPeso(id) {
+    pesoAntesRef.current = pesados[id] > 0 ? pesados[id] : null;
+    setGramosEscritos(pesados[id] > 0 ? String(pesados[id]) : '');
+    setPesando(id);
+  }
+  function escribirPeso(id, valor) {
+    setGramosEscritos(valor);
+    const g = Math.round(Number(String(valor).replace(',', '.')));
+    setPesados(v => {
+      const n = { ...v };
+      if (g > 0 && g <= 3000) n[id] = g; else delete n[id];
+      return n;
+    });
+  }
+  function cancelarPeso(id) {
+    const antes = pesoAntesRef.current;
+    setPesados(v => { const n = { ...v }; if (antes) n[id] = antes; else delete n[id]; return n; });
+    setPesando(null);
+  }
   function porcionFinal(food, f, id) {
     if (pesados[id] > 0) return { unit: 'gramos', qty: pesados[id], pesado: true };
     return porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
@@ -7611,11 +7634,6 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
                 const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
-                const guardarPeso = () => {
-                  const g = Math.round(Number(String(gramosEscritos).replace(',', '.')));
-                  if (g > 0 && g <= 3000) setPesados(v => ({ ...v, [id]: g }));
-                  setPesando(null);
-                };
                 const ajusteIA = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
@@ -7642,19 +7660,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                 ));
                 const ajuste = food && marcado && (pesando === id ? (
-                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); guardarPeso(); }}>
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
                     <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
-                      onChange={e => setGramosEscritos(e.target.value)}
+                      onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
                     <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
-                    <button type="button" onClick={() => setPesando(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                    <button type="button" onClick={() => cancelarPeso(id)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
                   </form>
                 ) : pesados[id] > 0 ? (
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="jb-body text-xs text-emerald-400">⚖️ Pesado en tu balanza</span>
-                    <button type="button" onClick={() => { setGramosEscritos(String(pesados[id])); setPesando(id); }}
+                    <span className="jb-body text-xs text-emerald-400">⚖️ {pesados[id]} g pesados en tu balanza</span>
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="jb-body text-[11px] text-zinc-400 hover:text-zinc-200 underline">Cambiar</button>
                     <button type="button" onClick={() => setPesados(v => { const n = { ...v }; delete n[id]; return n; })}
                       className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
@@ -7662,7 +7680,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-3">
                     {ajusteIA}
-                    <button type="button" onClick={() => { setGramosEscritos(''); setPesando(id); }}
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="mt-2 jb-body text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-2.5 py-1">
                       ⚖️ Lo pesé
                     </button>

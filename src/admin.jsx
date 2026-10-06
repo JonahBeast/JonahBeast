@@ -9225,6 +9225,24 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // Si la sesión de admin se cierra con el panel abierto (por ejemplo, otro
+  // inicio o cierre de sesión en otra pestaña), la base responde vacío y el
+  // panel mostraba "0" o "No se pudo revisar" sin decir por qué. Ahora avisa
+  // y ofrece volver a entrar.
+  const [sesionCerrada, setSesionCerrada] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    const revisar = () => supabase.auth.getSession()
+      .then(({ data }) => { if (vivo) setSesionCerrada(!data?.session); }).catch(() => {});
+    revisar();
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, sesion) => {
+      if (evento === 'SIGNED_OUT' || !sesion) setSesionCerrada(true);
+      else setSesionCerrada(false);
+    });
+    const alVolver = () => { if (document.visibilityState === 'visible') revisar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { vivo = false; sub?.subscription?.unsubscribe(); document.removeEventListener('visibilitychange', alVolver); };
+  }, []);
   // NEGOCIO se divide en 3 partes para no bajar tanto en el celular. Se
   // recuerda la última que abrió (solo en este navegador).
   const [subNegocio, setSubNegocioCrudo] = useState(() => {
@@ -9312,6 +9330,16 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
+      {sesionCerrada && (
+        <div className="relative mx-3 sm:mx-6 mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-3 jb-body">
+          <span className="text-lg leading-none mt-0.5">🔒</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-zinc-50 font-semibold text-sm">Tu sesión de admin se cerró</div>
+            <div className="text-zinc-300 text-sm">Por eso el panel puede mostrar datos vacíos o "No se pudo revisar". Vuelve a entrar y todo carga normal.</div>
+            <button onClick={onLogout} className="mt-2 bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-sm rounded-lg px-3 py-1.5">Volver a entrar</button>
+          </div>
+        </div>
+      )}
       {!mostrarJarvis && <BotonJarvis onClick={() => { prepararAudioJarvis(); setMostrarJarvis(true); }} />}
       {mostrarJarvis && <JarvisPanel users={users} onClose={() => setMostrarJarvis(false)} />}
       <main className="relative max-w-4xl mx-auto px-6 pt-8 pb-32 flex flex-col gap-8">

@@ -6051,7 +6051,9 @@ export default function App() {
       const { data: perfil } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
       if (perfil?.role !== 'admin') {
         setErr('Esta cuenta no tiene permisos de administrador.');
-        await supabase.auth.signOut();
+        // Solo en este equipo: sin "local", cierra la sesión de esa cuenta en
+        // todos sus equipos.
+        await supabase.auth.signOut({ scope: 'local' });
         setBusy(false);
         return;
       }
@@ -6477,7 +6479,7 @@ export default function App() {
           expiredInfo={expiredInfo}
           onClearExpired={async () => {
             // Cierra la sesión del alumno vencido para poder entrar con otra cuenta.
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             setExpiredInfo(null);
           }}
           onMembresiaActiva={() => loadStudentSession(expiredInfo.username)}

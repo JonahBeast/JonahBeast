@@ -8,6 +8,8 @@
 
 ## Con fecha
 
+- **20 de octubre: revisar la prueba de "la IA agrega sola los pedidos de seguridad media"** (salió el 6 de octubre). Antes: la IA pasaba a Jonah 25 de 30 pedidos; de los "media" que aprobó, 15 de 16 con los mismos números. Ver en `pedidos_alimentos` cuántos agregó sola (`propuesta->>ia_estado = 'agregado'` y `seguridad = 'media'`), cuántos corrigió o quitó Jonah y si se coló algún repetido. Si salió mal, volver a exigir "alta" (`agregable` en `alimentos-pedidos`).
+
 - **27 de octubre: revisar las páginas de calorías** (jonahbeast.com/calorias, publicadas el 3 de octubre). Pedir a Jonah capturas de Search Console ("Páginas" y "Rendimiento") y ver en `embudo_landing_eventos` las visitas y registros con fuente `calorias` (y qué plato los trajo en `campana`). Hay un recordatorio programado en la sesión donde se pidió. **Si traen gente, proponer las ideas en espera** (6 de octubre), en este orden:
   1. Páginas "Qué pedir en…" (Bembos, KFC, pollería, chifa, menú del día) con los alimentos de la app.
   2. Calculadoras gratis como páginas propias (calorías para bajar de peso, IMC, proteína) que invitan a la app.

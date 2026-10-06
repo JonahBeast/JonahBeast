@@ -1019,6 +1019,9 @@ function PedidoIA({ p, onListo }) {
       <p className="jb-body text-sm text-zinc-100">
         {p.estado === 'agregado' ? '✅ ' : '🔎 '}<b>{p.nombre}</b>
         <span className="text-[11px] text-zinc-500"> · {quienes.slice(0, 3).join(', ')} · {fechaHoraCorta(p.resuelto_en)}</span>
+        {p.propuesta?.ia_estado === 'agregado' && p.propuesta?.seguridad === 'media' && (
+          <span className="ml-1.5 jb-body text-[10px] text-amber-300 bg-amber-950/50 border border-amber-800 rounded-full px-1.5 py-0.5 align-middle">seguridad media · revísalo</span>
+        )}
       </p>
       {p.estado === 'agregado' && a ? (
         <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">

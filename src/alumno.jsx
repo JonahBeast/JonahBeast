@@ -7877,7 +7877,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             })()}
             <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {elegidosConPorcion().length || ''} a esta comida
+              Agregar {elegidosConPorcion().length || ''} a {comida ? comida.toLowerCase() : 'esta comida'}
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
@@ -7956,6 +7956,21 @@ function comidaDeAhora(d = new Date()) {
   if (min >= 12 * 60 + 30 && min < 15 * 60 + 30) return 'Almuerzo';
   if (min >= 15 * 60 + 30 && min < 18 * 60 + 30) return 'Media tarde';
   return 'Cena';
+}
+
+// A qué comida va lo que se registra con los botones grandes (REGISTRAR,
+// foto, escribir): la de ahora, salvo que recién empezó una media mañana o
+// media tarde y la comida de antes está vacía. Ej.: a las 10:50 sin
+// desayuno anotado, lo más seguro es que esté registrando su desayuno
+// tarde (le pasó a Jonah: se le fue a "Media mañana"). Igual puede
+// cambiarla en la hoja o en la foto.
+const COMIDA_ANTERIOR = { 'Media mañana': ['Desayuno', 10 * 60 + 30], 'Media tarde': ['Almuerzo', 15 * 60 + 30] };
+function comidaParaRegistrar(meals, d = new Date()) {
+  const ahora = comidaDeAhora(d);
+  const antes = COMIDA_ANTERIOR[ahora];
+  if (!antes || !meals) return ahora;
+  const min = d.getHours() * 60 + d.getMinutes();
+  return min - antes[1] < 90 && !(meals[antes[0]] || []).length ? antes[0] : ahora;
 }
 
 // "?registrar=Almuerzo" (o "ahora") en el link de un aviso: a qué comida
@@ -9829,7 +9844,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       {/* Botón principal para registrar: uno solo, siempre a mano (se
           esconde mientras escribe, para no tapar la lista del buscador). */}
       {!hojaMeal && !fotoPara && !codigoPara && !crearPara && !editando && !escribiendo && !escribirPara && (
-        <button onClick={() => { vibrar(10); setHojaMeal(mealAhora || comidaDeAhora()); }}
+        <button onClick={() => { vibrar(10); setHojaMeal(esHoy ? comidaParaRegistrar(mealPlan.meals) : comidaDeAhora()); }}
           className="jbm-fab fixed left-1/2 -translate-x-1/2 bottom-24 z-40 bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full pl-4 pr-5 py-3 flex items-center gap-2 transition-colors"
           aria-label="Registrar comida">
           <Plus size={20} strokeWidth={2.6} />
@@ -11546,7 +11561,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           );
           const primeros = (
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
-              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
+              onIr={t => (t === 'foto' ? irARegistrar(comidaParaRegistrar(mealPlan.meals), { foto: true }) : t === 'registrar' ? irARegistrar(comidaParaRegistrar(mealPlan.meals)) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
           );
           const invitacionComunidad = (
             <>
@@ -11585,7 +11600,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           const resto = (
             <>
               <ResumenSemanalCard username={username} />
-              <RachaCard username={username} mealPlan={mealPlan} onRegistrar={() => irARegistrar(comidaDeAhora())} />
+              <RachaCard username={username} mealPlan={mealPlan} onRegistrar={() => irARegistrar(comidaParaRegistrar(mealPlan.meals))} />
               <RepetirAyerCard username={username} mealPlan={mealPlan} setMealPlan={setMealPlan} />
               <Dashboard form={form} setForm={setForm} results={results} mealPlan={mealPlan} targets={goalTargets(form, results.tdee)} username={username} onVerComposicion={() => setTab('calc')} onIrProgreso={(ancla) => {
                 setTab('progress'); window.scrollTo({ top: 0 });
@@ -11601,8 +11616,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
               {modoFacil ? (
                 <>
                   <InicioFacil nombre={userRecord?.nombre}
-                    onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
-                    onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
+                    onFoto={() => irARegistrar(comidaParaRegistrar(mealPlan.meals), { foto: true })}
+                    onEscribir={() => irARegistrar(comidaParaRegistrar(mealPlan.meals), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
                   {centro}
                   {avisos}

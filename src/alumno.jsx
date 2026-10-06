@@ -7044,7 +7044,8 @@ function textoPorcionFoto(food, porcion) {
     ? (porcion.unit === 'porción' ? 'porciones' : porcion.unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
     : porcion.unit;
   const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
-  return `${numero} ${plural} (≈ ${gramos} g)`;
+  // Bebidas en ml ("1 vaso (≈ 200 ml)"): así se compran y se miden.
+  return `${numero} ${plural} (≈ ${gramos} ${food.group === 'Bebidas' ? 'ml' : 'g'})`;
 }
 
 /* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos

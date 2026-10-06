@@ -2788,7 +2788,7 @@ function Landing({ onChoose }) {
         <div className="absolute inset-0 overflow-hidden lg:relative lg:inset-auto lg:h-[84vh] lg:max-h-[820px] lg:rounded-3xl lg:border lg:border-orange-500/40"
           style={{ boxShadow: '0 20px 60px -20px rgba(232,89,12,.55)' }}>
           {BIENVENIDA_FOTOS.map((f, i) => (
-            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0 }}>
+            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0, clipPath: 'inset(0)' }}>
               <img key={i === fotoIdx ? `on-${ciclo}` : 'off'} src={f.src} alt={i === fotoIdx ? f.nombre : ''} className="w-full h-full object-cover"
                 style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
@@ -3589,14 +3589,24 @@ function Bienvenida({ onEmpezar, onEntrar }) {
     return () => clearTimeout(t);
   }, [fase, idx]);
 
+  // Esta pantalla no se desplaza: en iPhone, al arrastrar el dedo se movía
+  // la página de atrás y por abajo asomaba la foto sin el degradado.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const antes = [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior];
+    html.style.overflow = 'hidden'; body.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none'; body.style.overscrollBehavior = 'none';
+    return () => { [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior] = antes; };
+  }, []);
+
   if (fase === 'splash') return <SplashMarca />;
   const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
   return (
-    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden" style={{ touchAction: 'none', overscrollBehavior: 'none', clipPath: 'inset(0)' }}>
       <style>{ESTILOS_BIENVENIDA}</style>
       <div className="absolute inset-0 max-w-md mx-auto">
         {BIENVENIDA_FOTOS.map((f, i) => (
-          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0 }}>
+          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0, clipPath: 'inset(0)' }}>
             <img key={i === idx ? `on-${ciclo}` : 'off'} src={f.src} alt="" className="w-full h-full object-cover"
               style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
           </div>

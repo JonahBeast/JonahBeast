@@ -5951,7 +5951,7 @@ const GUION_VIDEO_GORILA = [
 // Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
 // (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
 const vocesVideo = () => [
-  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.nombre })),
 ];
 // Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
 const GUION_VIDEO_JARVIS = [
@@ -6268,7 +6268,7 @@ function VozParaVideosPanel() {
       <div className="flex items-center justify-between gap-2">
         <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
         <span className="flex items-center gap-3 flex-wrap justify-end">
-          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Viernes</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
           <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
@@ -7711,7 +7711,7 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
-  { id: 'premium:friday', nombre: 'Estilo FRIDAY · femenina, directa' },
+  { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },

@@ -559,6 +559,8 @@ const UNITS_BY_NAME = {
   'Granola': [['taza', 110], ['cucharada', 10]],
   'Mantequilla de maní': [['cucharada', 16]],
   'Refresco de cebada': [['vaso', 250]],
+  'Gaseosa regular': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
+  'Gaseosa dietética': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
   'Cerveza': [['vaso', 300], ['lata', 355], ['botella grande', 620]],
   'Quinua': [['taza', 185]],
   'Fresa': [['unidad', 15]],
@@ -714,7 +716,9 @@ const UNITS_BY_NAME = {
   'Parfait (PECAFIT)': [['porción', 350]],
 };
 const UNITS_BY_GROUP = {
-  'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
+  // En Perú las bebidas se toman en vaso (o se compran en ml): vaso primero
+  // y "ml" para quien sabe la medida exacta (1 ml ≈ 1 g).
+  'Bebidas': [['vaso', 200], ['taza', 240], ['jarra', 500], ['ml', 1]],
   'Lácteos': [['taza', 240], ['vaso', 200]],
   'Menestras': [['taza', 180]],
   'Postres': [['porción', 150]],
@@ -5693,6 +5697,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
+  if (unit === 'ml') return `${Math.round(qty)} ml`;
   if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${qty} ${plural}`;
@@ -5736,6 +5741,7 @@ const ESTILOS_ESCANER = `
 // Cuánto sube o baja cada toque de − / + según la medida.
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
+  if (unit === 'ml') return 50;
   if (UNIDADES_DISCRETAS.includes(unit)) return 1;
   return 0.5;
 }

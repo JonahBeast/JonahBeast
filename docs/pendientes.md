@@ -8,6 +8,13 @@
 
 ## Con fecha
 
+- **27 de octubre: revisar las páginas de calorías** (jonahbeast.com/calorias, publicadas el 3 de octubre). Pedir a Jonah capturas de Search Console ("Páginas" y "Rendimiento") y ver en `embudo_landing_eventos` las visitas y registros con fuente `calorias` (y qué plato los trajo en `campana`). Hay un recordatorio programado en la sesión donde se pidió. **Si traen gente, proponer las ideas en espera** (6 de octubre), en este orden:
+  1. Páginas "Qué pedir en…" (Bembos, KFC, pollería, chifa, menú del día) con los alimentos de la app.
+  2. Calculadoras gratis como páginas propias (calorías para bajar de peso, IMC, proteína) que invitan a la app.
+  3. Carruseles para Instagram/Facebook con los datos de calorías (Jonah solo publica; sirven para la prueba de sus redes personales).
+  4. Menú de 7 días descargable a cambio del WhatsApp: solo cuando el asistente de WhatsApp esté activo.
+  Si no traen gente, no hacer más páginas.
+
 - **10 de octubre:** revisar en qué paso se quedan los nuevos antes de su primera comida (eventos `primera_comida`, `foto_comida`, `abrir_navegador`). Hay un recordatorio programado en la sesión donde se pidió.
 - **Que paguen más (desde el 5 de octubre):** salió la pantalla "¿Seguimos juntos?" de fin de prueba (evento `fin_prueba`), el pago con solo la captura + aviso al toque a Jonah (`api/pago-enviado.js`) y el registro con avisos en vivo. Punto de partida: 59 registros, 15 vieron planes, 3 eligieron plan, 1 envió pago, 2 pagando. Revisar el 10 de octubre y el 19 de octubre si sube "vieron planes" y "pagaron". Siguiente idea si no basta: QR de Yape en la pantalla de pago (falta que Jonah mande la imagen).
 - **11 de octubre:** contar cuántos se registraron con código de alumno tras el flyer. Punto de partida: 39 alumnos con código, 1 registro en total, 0 pagos. Si funciona, proponer el botón "Compartir en mi estado" dentro de la app.

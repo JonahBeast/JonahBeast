@@ -19,7 +19,7 @@
 
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
-- **Videos de la guía rápida (Gorila 53 s, Frida 43 s).** Listos y entregados a Jonah (el 4 de octubre). Falta que Jonah los publique (marcar "contenido generado por IA"; sin cifras de peso). La función de prueba `jarvis-voz-prueba` quedó suelta en Supabase (sin uso; Jonah puede borrarla).
+- **Videos de la guía rápida (Gorila 53 s, Viernes (antes "Frida") 43 s).** Listos y entregados a Jonah (el 4 de octubre). Falta que Jonah los publique (marcar "contenido generado por IA"; sin cifras de peso). La función de prueba `jarvis-voz-prueba` quedó suelta en Supabase (sin uso; Jonah puede borrarla).
 
 ## Anuncios (análisis del 4 de octubre, últimos 30 días)
 

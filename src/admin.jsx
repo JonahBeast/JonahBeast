@@ -5951,7 +5951,7 @@ const GUION_VIDEO_GORILA = [
 // Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
 // (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
 const vocesVideo = () => [
-  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.nombre })),
 ];
 // Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
 const GUION_VIDEO_JARVIS = [
@@ -6268,7 +6268,7 @@ function VozParaVideosPanel() {
       <div className="flex items-center justify-between gap-2">
         <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
         <span className="flex items-center gap-3 flex-wrap justify-end">
-          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Viernes</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
           <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
@@ -7457,14 +7457,29 @@ function prepararAudioJarvis() {
 }
 
 /* Palabra de activación: en modo micrófono continuo Jarvis solo responde
-   cuando le hablan empezando con "Jarvis" (o "oye Jarvis"). El
-   reconocimiento de voz a veces escribe el nombre distinto, por eso se
-   aceptan variantes. Devuelve lo que se dijo después del nombre, o null si
-   no se lo llamó. */
-const PALABRA_JARVIS = /^\s*(?:(?:oye|hey|ok|okay|hola)[\s,]+)?(?:jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi)\b[\s,.:;!¡¿?-]*/i;
+   cuando le hablan empezando con "Jarvis" o "Viernes" (o "hola Jarvis",
+   "oye Viernes"). El reconocimiento de voz a veces escribe el nombre
+   distinto, por eso se aceptan variantes. Devuelve lo que se dijo después
+   del nombre, o null si no se lo llamó. Con "Viernes" responde Viernes:
+   su voz femenina y su nombre (quienLlamo). */
+const NOMBRES_JARVIS = '(jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi|viernes|biernes|vierne|bierne)';
+const PALABRA_JARVIS = new RegExp(`^\\s*(?:(?:oye|hey|ok|okay|hola)[\\s,]+)?${NOMBRES_JARVIS}\\b[\\s,.:;!¡¿?-]*`, 'i');
 function quitarPalabraJarvis(texto) {
   const m = String(texto || '').match(PALABRA_JARVIS);
   return m ? texto.slice(m[0].length).trim() : null;
+}
+// 'viernes' o 'jarvis' según el nombre con que lo llamaron; null si no lo llamaron.
+function quienLlamo(texto) {
+  const m = String(texto || '').match(PALABRA_JARVIS);
+  if (!m) return null;
+  return /^[vb]ierne/i.test(m[1]) ? 'viernes' : 'jarvis';
+}
+// Voz con que responde: con "Viernes", la de Viernes; con "Jarvis", la que
+// Jonah eligió (salvo que sea la de Viernes: entonces la de Jarvis).
+function vozDeAsistente(asistente, vozGuardada) {
+  if (asistente === 'viernes') return 'premium:friday';
+  if (asistente === 'jarvis' && vozGuardada === 'premium:friday') return 'premium:jarvis';
+  return vozGuardada;
 }
 // Frases con las que se cierra la conversación por voz ("no, gracias, no es
 // necesario", "eso es todo"): Jarvis responde y apaga el micrófono.
@@ -7711,7 +7726,7 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
-  { id: 'premium:friday', nombre: 'Estilo FRIDAY · femenina, directa' },
+  { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -8002,6 +8017,12 @@ function JarvisPanel({ onClose, users }) {
     } catch {}
   }
   const despiertoHastaRef = useRef(0);
+  // Quién responde: null (Jarvis con la voz elegida), 'jarvis' o 'viernes'
+  // según el nombre con que Jonah lo llamó la última vez.
+  const [asistente, setAsistente] = useState(null);
+  const asistenteRef = useRef(null);
+  function llamarA(quien) { if (quien) { asistenteRef.current = quien; setAsistente(quien); } }
+  const conQuien = () => asistenteRef.current === 'viernes' ? { quien: 'viernes' } : {};
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
   const [vozOn, setVozOn] = useState(true);
@@ -8195,10 +8216,12 @@ function JarvisPanel({ onClose, users }) {
       return;
     }
     callarVozPremium();
-    if (esVozPremium(vozGuardadaRef.current) && !vozPremiumCaida) {
+    // Si lo llamaron por su nombre, responde con la voz de ese asistente.
+    const vozAhora = vozDeAsistente(asistenteRef.current, vozGuardadaRef.current);
+    if (esVozPremium(vozAhora) && !vozPremiumCaida) {
       pausarMic();
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
-      const voz = (vozGuardadaRef.current || VOCES_PREMIUM_JARVIS[0].id).slice(8);
+      const voz = (vozAhora || VOCES_PREMIUM_JARVIS[0].id).slice(8);
       hablarPremium(texto, voz, () => { setHablando(false); reanudarMicSiCorresponde(); })
         .catch(() => hablarConCelular(texto));
       return;
@@ -8273,6 +8296,7 @@ function JarvisPanel({ onClose, users }) {
   async function enviar(texto) {
     const t = (texto || '').trim();
     if (!t || pensando) return;
+    llamarA(quienLlamo(t)); // también al escribir "Viernes, …"
     setInput('');
     const nuevosTurnos = [...turnos, { role: 'user', content: t }];
     setTurnos(nuevosTurnos);
@@ -8287,18 +8311,18 @@ function JarvisPanel({ onClose, users }) {
       // La respuesta aparece mientras se escribe; la voz espera al final
       // para leerla completa. "reiniciar" = Jarvis va a consultar datos:
       // se borra lo escrito y se muestra solo la respuesta final.
-      const data = await llamarJarvis({ pregunta: t, historial, stream: true }, (ev) => {
+      const data = await llamarJarvis({ pregunta: t, historial, stream: true, asistente: asistenteRef.current === 'viernes' ? 'Viernes' : undefined }, (ev) => {
         if (ev.tipo === 'reiniciar') enCurso = '';
         else if (ev.tipo === 'texto') enCurso += ev.texto;
-        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true }]);
+        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true, ...conQuien() }]);
       });
       const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...conQuien(), ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
       sonidoJarvis('respuesta');
       hablar(data.respuesta);
     } catch (e) {
       const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr, ...conQuien() }]);
       hablar(msgErr);
     } finally {
       setPensando(false);
@@ -8313,7 +8337,7 @@ function JarvisPanel({ onClose, users }) {
     if (!accion || accion.estado !== 'pendiente') return;
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
-    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
+    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg, ...conQuien() }]); hablar(msg); };
     if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no hice ningún cambio.'); return; }
     marcar('enviando');
     try {
@@ -8396,10 +8420,11 @@ function JarvisPanel({ onClose, users }) {
       if (pausadoParaHablarRef.current) return;
       const dicho = ultimo[0].transcript.trim();
       const pedido = quitarPalabraJarvis(dicho);
+      llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
       if (pedido === null && !enConversacion) {
         // No lo llamaron: no responde (puedes hablar con otras personas).
-        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» primero para hablarme.`);
+        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» o «Viernes» primero para hablarme.`);
         return;
       }
       setAvisoMic('');
@@ -8408,7 +8433,7 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?' }]);
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?', ...conQuien() }]);
         hablarRef.current('¿Sí, señor?');
         return;
       }
@@ -8493,7 +8518,7 @@ function JarvisPanel({ onClose, users }) {
           {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                {m.role === 'user' ? 'TÚ' : 'JARVIS'}
+                {m.role === 'user' ? 'TÚ' : m.quien === 'viernes' ? 'VIERNES' : 'JARVIS'}
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
@@ -8568,8 +8593,8 @@ function JarvisPanel({ onClose, users }) {
     <>
 <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
           {avisoMic || (modoContinuo
-            ? (escuchando ? 'Escuchando… di «Jarvis» y tu pregunta' : 'Modo continuo activo')
-            : 'Toca el micrófono y háblame diciendo «Jarvis, …»')}
+            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta' : 'Modo continuo activo')
+            : 'Toca el micrófono y háblame diciendo «Jarvis, …» o «Viernes, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
           <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
@@ -8629,7 +8654,7 @@ function JarvisPanel({ onClose, users }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
             </div>
             <div className="text-[9px] tracking-[0.25em] mt-0.5 hidden sm:block" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>PANEL DE OPERACIONES · JONAH BEAST FUEL</div>
           </div>
@@ -8692,7 +8717,7 @@ function JarvisPanel({ onClose, users }) {
         <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
           </div>
           <div className="flex items-center gap-2">
             {botonesCabecera}

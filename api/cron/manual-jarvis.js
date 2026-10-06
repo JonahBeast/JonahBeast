@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     if (!admin?.username) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin admin' });
     setupWebPush();
     const r = await enviarPushA(supabase, [admin.username], {
-      title: '📘 Jarvis tiene el manual desactualizado',
+      title: '📘 Jarvis y Viernes tienen el manual desactualizado',
       body: 'Salió una versión nueva de la app y Jarvis y Viernes aún leen el manual anterior. Entra al panel → pestaña 📸 IA y toca "🔄 Actualizar manual de Jarvis y Viernes" (es un toque).',
       url: '/',
     });

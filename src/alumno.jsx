@@ -9585,7 +9585,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 150);
   }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Al terminar de registrar, esa comida pasada se cierra sola a los 6
+  // Al terminar de registrar, esa comida (pasada o la de AHORA) se cierra sola a los 6
   // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
   // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
   // haciendo algo (editando, escribiendo) o si quedó un alimento por buscar.
@@ -9595,7 +9595,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   const esperaCierre = useRef(6000);
   useEffect(() => {
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
-    if (m && MEAL_NAMES.indexOf(m) < idxAhora) {
+    if (m && esHoy) {
       abiertaPorRegistro.current = m;
       esperaCierre.current = 6000;
       setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
@@ -9907,6 +9907,10 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         const vacia = entradas.length === 0;
         const esAhora = meal === mealAhora;
         const pasada = idx < idxAhora;
+        // Hoy, toda comida con algo registrado se ve cerrada en una línea
+        // (también la de AHORA: si ya la registró, ya está hecha; para
+        // agregar más la abre). No se cierra si quedó un alimento por buscar.
+        const plegable = esHoy && !vacia && !entradas.some(en => !en.foodKey);
         const kcalComida = entradas.reduce((a, en) => a + entryMacros(en).kcal, 0);
         // Ya pasó y no se registró: todas juntas en una línea delgada, en el
         // lugar de la última.
@@ -9939,18 +9943,21 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             </div>
           );
         }
-        // Ya pasó y tiene lo registrado: cerrada en una línea; se abre al tocarla.
-        if (pasada && !abiertas[meal]) {
+        // Tiene lo registrado: cerrada en una línea; se abre al tocarla.
+        if (plegable && !abiertas[meal]) {
           return (
-            <button key={meal} onClick={() => { vibrar(8); abiertaPorRegistro.current = meal; esperaCierre.current = 8000; setAbiertas(a => ({ ...a, [meal]: true })); }}
+            <button key={meal} id={esAhora ? 'comida-ahora' : undefined} onClick={() => { vibrar(8); abiertaPorRegistro.current = meal; esperaCierre.current = 8000; setAbiertas(a => ({ ...a, [meal]: true })); }}
               aria-label={`Ver ${meal}`}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
+              className={`w-full bg-zinc-900 border rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40 ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}>
               <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
                 {ICONO_COMIDA[meal] || '🍴'}
                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
               </span>
               <span className="flex-1 min-w-0">
-                <span className="jb-display text-sm tracking-wide text-orange-500 block">{meal.toUpperCase()}</span>
+                <span className="jb-display text-sm tracking-wide text-orange-500 flex items-center gap-2">
+                  {meal.toUpperCase()}
+                  {esAhora && <span className="jb-body text-[9px] font-semibold tracking-wider text-zinc-950 bg-orange-500 rounded-full px-1.5 py-0.5">AHORA</span>}
+                </span>
                 <span className="jb-body text-[11px] text-zinc-500 tabular-nums block">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></span>
               </span>
               <ChevronRight size={18} className="text-zinc-500 shrink-0" />
@@ -9977,7 +9984,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 ? <p className="jb-body text-[11px] text-zinc-600">{esAhora ? 'Es hora de registrar — toca +' : 'Sin registrar'}</p>
                 : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
             </div>
-            {pasada && !vacia && (
+            {plegable && (
               <button onClick={() => { abiertaPorRegistro.current = null; setAbiertas(a => ({ ...a, [meal]: false })); }} aria-label={`Cerrar ${meal}`}
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-500 hover:text-zinc-300">
                 <ChevronDown size={18} />

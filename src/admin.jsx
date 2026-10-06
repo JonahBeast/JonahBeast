@@ -5865,7 +5865,7 @@ function ProductosPanel() {
 
 // Memoria de Jarvis: las notas que Jonah le pidió recordar ("recuerda
 // que..."). Jarvis solo guarda cuando se lo piden; aquí se ven y se borran.
-/* "🔄 Actualizar manual de Jarvis": copia a la base (manual_app) el manual
+/* "🔄 Actualizar manual de Jarvis y Viernes": copia a la base (manual_app) el manual
    que viene dentro de esta versión publicada. Solo en la versión de main
    (la real): en una versión de prueba el manual podría no ser el de main.
    Compara por huella (sha256) para saber si ya está al día. */

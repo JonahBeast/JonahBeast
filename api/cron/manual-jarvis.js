@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     await supabase.from('config').upsert({ key: CLAVE, value: marca });
     return res.status(200).json({ ok: true, enviado: true, enviados: r.enviados || 0, commit });
   } catch (e) {
-    console.error('Error al revisar el manual de Jarvis:', e);
+    console.error('Error al revisar el manual de Jarvis y Viernes:', e);
     return res.status(500).json({ ok: false, error: 'No se pudo revisar el manual' });
   }
 }

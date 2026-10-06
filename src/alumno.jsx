@@ -7134,7 +7134,7 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -7334,11 +7334,21 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
             // sola clave, mostramos las alternativas para que el alumno
             // toque la correcta.
-            const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
-            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true } : null;
+            let alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
+            // Un líquido servido para tomar es una bebida: nunca "Aceite de
+            // oliva" u otra grasa como opción junto a gaseosas o jugos (a
+            // Jonah le salió para un vaso de gaseosa; 1 vaso de aceite son
+            // ~1.000 kcal).
+            if (alternativas.some(f => f.group === 'Bebidas')) alternativas = alternativas.filter(f => f.group !== 'Grasas');
+            const gramosIA = Number(it.gramos) > 0 ? Number(it.gramos) : null;
+            if (alternativas.length === 1) return { ...alternativas[0], _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: 'media' };
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true } : null;
           }
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
+          // Aceites y grasas solas: como mucho 2 cucharadas por foto (la IA
+          // no puede ver cuánto aceite hay; un error aquí suma cientos de kcal).
+          const gramosIA = Number(it.gramos) > 0 ? (food?.group === 'Grasas' ? Math.min(Number(it.gramos), 30) : Number(it.gramos)) : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);
@@ -7887,6 +7897,14 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 </div>
               );
             })()}
+            {/* A qué comida va: se puede cambiar aquí mismo antes de agregar
+                (ej. un almuerzo tarde, después de las 3:30). */}
+            {onCambiarComida && (
+              <div className="mb-3">
+                <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A qué comida va?</p>
+                <SelectorComida valor={comida} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="-mx-1 px-1" />
+              </div>
+            )}
             <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
               Agregar {elegidosConPorcion().length || ''} a {comida ? comida.toLowerCase() : 'esta comida'}
@@ -8588,7 +8606,7 @@ const textoCantidad = ({ unit, qty }) => {
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
-function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar }) {
+function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar, onCambiarComida }) {
   const [texto, setTexto] = useState('');
   const [elegido, setElegido] = useState(null); // food
   const [unidad, setUnidad] = useState(null);
@@ -8670,6 +8688,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
           <h3 className="jb-display text-xl text-zinc-50 tracking-wide">{ICONO_COMIDA[meal]} {meal.toUpperCase()}</h3>
           <button onClick={onCerrar} className={btnPrimary + ' px-4 py-2 text-sm shrink-0'}>{agregados.length ? 'Listo ✅' : 'Cerrar'}</button>
         </div>
+        {/* La comida se puede cambiar aquí mismo (ej. un almuerzo tarde,
+            después de las 3:30). Una vez que anotó algo, queda fija. */}
+        {onCambiarComida && !agregados.length && (
+          <SelectorComida valor={meal} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="mb-3 -mx-5 px-5" />
+        )}
 
         {agregados.length > 0 && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-3">
@@ -9858,7 +9881,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         <RegistroEscritoModal meal={escribirPara} username={username} todosLosAlimentos={todosLosAlimentos}
           mealPlan={mealPlan} setMealPlan={setMealPlan}
           onOtraForma={texto => { const m = escribirPara; setEscribirPara(null); const id = addEntry(m); setTextoInicial(t => ({ ...t, [id]: texto })); setEnfocar(id); }}
-          onCerrar={() => setEscribirPara(null)} />
+          onCerrar={() => setEscribirPara(null)}
+          onCambiarComida={m => { if (m !== escribirPara) setAbiertas(a => ({ ...a, [escribirPara]: false })); setEscribirPara(m); }} />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano (se
           esconde mientras escribe, para no tapar la lista del buscador). */}
@@ -9919,6 +9943,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEscribirPara(m); }}
+          onCambiarComida={m => { if (m !== fotoPara) setAbiertas(a => ({ ...a, [fotoPara]: false })); setFotoPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
         />

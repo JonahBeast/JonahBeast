@@ -284,7 +284,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **Medidor fijo arriba:** anillo con las **"kcal quedan"** (o "kcal de más" si te pasaste; naranja = te falta, verde = cumpliste, ámbar = te pasaste, ver 8.7), "X de Y kcal" y barras de **Proteína**, **Carbos** y **Grasas**.
 - **5 comidas:** Desayuno ☀️, Media mañana 🍎, Almuerzo 🍽️, Media tarde 🥐, Cena 🌙. La que toca por la hora lleva **"AHORA"**:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
-  - **A qué comida va lo que registras** con el botón grande **"REGISTRAR"** (y la foto o "escribir" de Inicio): la de AHORA. Se puede cambiar arriba en "REGISTRAR", y en la foto el botón dice a cuál va (ej. **"Agregar 3 a media mañana"**).
+  - **A qué comida va lo que registras** con el botón grande **"REGISTRAR"** (y la foto o "escribir" de Inicio): la de AHORA. Se puede cambiar arriba en "REGISTRAR" y también **ahí mismo**: en la foto, encima del botón, sale **"¿A qué comida va?"** con las 5 comidas (el botón dice a cuál va, ej. **"Agregar 3 a almuerzo"**), y en "Escribir" las comidas salen arriba hasta que anotas el primer alimento. Sirve, por ejemplo, para un almuerzo tarde después de las 3:30.
 - **Las comidas ya registradas se ven cerradas** (las que ya pasaron y también la de AHORA), para que la pantalla quede ordenada:
   - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"** (la de ahora lleva además **"AHORA"**). Para agregarle más, tócala y usa su **+**. El **✓ verde** junto al ícono de la comida (abierta o cerrada) significa que ya registraste esa comida. Tócala para abrirla y ver o cambiar sus alimentos; **se cierra sola a los 8 segundos** sin tocar nada (cada cambio de cantidad vuelve a contar), o al momento con la flecha **⌄** de arriba a la derecha. Si le agregas algo, se abre para que veas lo registrado (en verde) y **se cierra sola a los 6 segundos**, para que la pantalla quede ordenada. Si mientras tanto estás cambiando una cantidad o quedó un alimento por buscar, espera a que termines.
   - Si no registraste nada, se juntan en una línea gris: ej. **"Media mañana y Media tarde — no registradas"** con un **+**. Si te olvidaste de anotar algo, toca **+** y elige a cuál ("¿A cuál?").
@@ -408,6 +408,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - Las bebidas (gaseosas, jugos, chicha, refrescos…) se registran por **vaso** (≈ 200 ml) de entrada, no por taza. También se puede elegir **taza**, **jarra** o **ml** (para quien sabe la medida exacta, ej. "500 ml" de una botella).
 - Las gaseosas tienen además **lata** (355 ml) y **botella personal** (500 ml).
 - En la foto, un vaso de bebida sale como **1 vaso** (con Poco / Normal / Mucho para ajustarlo).
+- Si la foto no distingue la bebida (ej. gaseosa regular o dietética), pregunta "¿cuál es?" con las opciones. Nunca propone aceite para un vaso de bebida, y un aceite suelto en la foto se cuenta como máximo 2 cucharadas (30 g).
 
 ### 8.2.1 Guisos "sin arroz"
 

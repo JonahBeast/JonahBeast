@@ -408,6 +408,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - Las bebidas (gaseosas, jugos, chicha, refrescos…) se registran por **vaso** (≈ 200 ml) de entrada, no por taza. También se puede elegir **taza**, **jarra** o **ml** (para quien sabe la medida exacta, ej. "500 ml" de una botella).
 - Las gaseosas tienen además **lata** (355 ml) y **botella personal** (500 ml).
 - En la foto, un vaso de bebida sale como **1 vaso** (con Poco / Normal / Mucho para ajustarlo).
+- Si la foto no distingue la bebida (ej. gaseosa regular o dietética), pregunta "¿cuál es?" con las opciones. Nunca propone aceite para un vaso de bebida, y un aceite suelto en la foto se cuenta como máximo 2 cucharadas (30 g).
 
 ### 8.2.1 Guisos "sin arroz"
 

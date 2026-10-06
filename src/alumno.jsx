@@ -7334,11 +7334,21 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
             // sola clave, mostramos las alternativas para que el alumno
             // toque la correcta.
-            const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
-            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true } : null;
+            let alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
+            // Un líquido servido para tomar es una bebida: nunca "Aceite de
+            // oliva" u otra grasa como opción junto a gaseosas o jugos (a
+            // Jonah le salió para un vaso de gaseosa; 1 vaso de aceite son
+            // ~1.000 kcal).
+            if (alternativas.some(f => f.group === 'Bebidas')) alternativas = alternativas.filter(f => f.group !== 'Grasas');
+            const gramosIA = Number(it.gramos) > 0 ? Number(it.gramos) : null;
+            if (alternativas.length === 1) return { ...alternativas[0], _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: 'media' };
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true } : null;
           }
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
+          // Aceites y grasas solas: como mucho 2 cucharadas por foto (la IA
+          // no puede ver cuánto aceite hay; un error aquí suma cientos de kcal).
+          const gramosIA = Number(it.gramos) > 0 ? (food?.group === 'Grasas' ? Math.min(Number(it.gramos), 30) : Number(it.gramos)) : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);

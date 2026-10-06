@@ -403,6 +403,12 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Elige la comida y toca el plato → "✅ [plato] agregado a [comida]".
 - Estos platos **no salen en el buscador normal**, solo desde esta tarjeta.
 
+### 8.2.1 Guisos "sin arroz"
+
+- Los guisos que se comen con arroz **no incluyen el arroz** en sus calorías: debajo del nombre sale **"🍚 Sin arroz: agrégalo aparte"** (en el buscador, al elegir la cantidad, en la foto, en la voz y al editarlo). Si comiste arroz, regístralo aparte ("Arroz blanco · cocido").
+- Son, entre otros: pollo a la mostaza, ají de gallina, ají de pollo, pollo al sillao, estofado de pollo, escabeche de pollo, estofado de carne, estofado de costillar, seco de res con frejoles, lomo saltado, saltado de pollo, picante de carne, de pollo y de mariscos, adobo de cerdo, carapulcra, olluquito con charqui, cau cau, chanfainita, sangrecita salteada y sudado de pescado. Cada plato nuevo que se agrega a la app (lo agregue Jonah o la IA) dice si lleva arroz o no.
+- Los que ya dicen el arroz en el nombre (ej. "Arroz con pollo", "Pollo a la olla con arroz", "Frejolada (frejol con arroz)") ya lo incluyen.
+
 ### 8.3 Editar o borrar un alimento
 
 - **Cantidad rápida:** −/+ en la fila. Si ya está en lo mínimo (ej. 10 g o 1 unidad), **"−" lo quita** (es como ponerle cero) y sale "🗑️ Quitaste [alimento]" con el botón **"DESHACER"** (5 segundos) por si fue sin querer: el alimento vuelve a su lugar con su misma cantidad. Sirve, por ejemplo, para dejar tu pan con pollo separado sin lechuga.

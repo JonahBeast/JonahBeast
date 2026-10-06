@@ -1106,6 +1106,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
                   {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  <NotaSinArroz food={it.food} />
                 </span>
                 {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
                 <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
@@ -6456,7 +6457,10 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
               onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
               className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
               <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{emojiAlimento(f)}</span>
-              <span className="jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+              <span className="min-w-0">
+                <span className="block jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+                <NotaSinArroz food={f} />
+              </span>
             </button>
           ))}
           <p className="jb-body text-[11px] text-zinc-600 px-3 py-2">O escribe para buscar cualquier alimento.</p>
@@ -6498,6 +6502,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                       cortarlo con "…" hacía fácil elegir el equivocado. */}
                   <div className="min-w-0">
                     <div className="jb-body text-sm text-zinc-100 break-words leading-snug">{f.name}</div>
+                    <NotaSinArroz food={f} />
                     <div className="jb-body text-[11px] text-zinc-500">
                       {f.group && !f.esPersonal ? f.group + ' · ' : ''}{f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
                       {f.esPersonal ? ' · tuyo' : ''}
@@ -7774,6 +7779,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                         className="w-4 h-4 accent-orange-500 shrink-0" />
                       <span className="flex-1 min-w-0">
                         <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{food.name}</span>
+                        <NotaSinArroz food={food} />
                         <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                       </span>
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
@@ -8677,6 +8683,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             <button onClick={() => setElegido(null)} className="jb-body text-sm text-zinc-400 self-start">← Elegir otro</button>
             <div>
               <p className="jb-display text-2xl text-zinc-50 leading-tight">{nombreAlimento(elegido).toUpperCase()}</p>
+              <NotaSinArroz food={elegido} className="!text-sm mt-1" />
               <p className="jb-body text-base text-zinc-400 mt-1">¿Cuánto comiste?</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -8767,6 +8774,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                       <span className="text-xl shrink-0">{emojiAlimento(fr.food)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(fr.food)}</span>
+                        <NotaSinArroz food={fr.food} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad({ unit: fr.unit, qty: fr.qty })} · ≈ {kcalDe(fr.food, fr)} kcal</span>
                       </span>
                       <span className="jb-display text-orange-400 text-xl shrink-0">+</span>
@@ -8786,6 +8794,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                       <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}{clavesFrecuentes.has(f.key) ? ' ⭐' : ''}</span>
+                        <NotaSinArroz food={f} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad(d)} ≈ {kcalDe(f, d)} kcal{f.esPersonal ? ' · tuyo' : ''}</span>
                       </span>
                       <ChevronRight size={18} className="text-zinc-600 shrink-0" />
@@ -8943,6 +8952,24 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
       </div>
     </div>
   );
+}
+
+// Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen:
+// se avisa "Sin arroz: agrégalo aparte" para que no se olvide de anotarlo.
+// Los de la lista fija (RAW_FOODS) van aquí; los agregados desde el panel o
+// por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
+// Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
+// olla con arroz") no van.
+const PLATOS_SIN_ARROZ = new Set([
+  'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
+  'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
+  'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
+  'Sudado de pescado',
+]);
+const esPlatoSinArroz = food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
+function NotaSinArroz({ food, className = '' }) {
+  if (!esPlatoSinArroz(food)) return null;
+  return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;
 }
 
 // Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
@@ -9125,6 +9152,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{emojiAlimento(food)}</span>
           <div className="flex-1 min-w-0">
             <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
+            <NotaSinArroz food={food} />
             <p className="jb-body text-xs text-zinc-500">{meal}</p>
           </div>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>

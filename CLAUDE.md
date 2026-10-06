@@ -21,6 +21,10 @@
 - **Jarvis (`jarvis-chat`) se publica con `verify_jwt` en `false`**, porque el candado de admin está dentro del código.
 - **Viernes** es Jarvis con voz femenina y otro nombre (se activa diciendo "Viernes" o "Hola Viernes"): usa la misma función `jarvis-chat` y la misma memoria.
 
+## Alimentos nuevos
+
+- **Cada plato que se agregue a la app debe decir si lleva arroz o no.** Si es un guiso que en Perú se come con arroz y sus calorías no lo incluyen, va en `PLATOS_SIN_ARROZ` (`src/alumno.jsx`), para que salga "🍚 Sin arroz: agrégalo aparte". Si las calorías sí incluyen el arroz, el nombre lo dice (ej. "Pollo a la olla con arroz"). Al agregarlo, dile a Jonah cuál de las dos es.
+
 ## Estilo de la app
 
 - Fondo **carbón**, acentos **naranja ají** y textos en **crema**.

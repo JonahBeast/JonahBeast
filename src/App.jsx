@@ -436,7 +436,7 @@ function cargarAlimentosExtra(forzar = false) {
         const key = `${a.nombre} (${state})`;
         if (FOODS.some(f => f.key === key)) continue;
         FOODS.push({
-          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null,
+          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null, sinArroz: !!a.sin_arroz,
           kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos), fat: Number(a.grasa), fiber: Number(a.fibra) || 0,
         });
         if (a.unidad && Number(a.gramos_unidad) > 0 && !UNITS_BY_NAME[a.nombre]) {

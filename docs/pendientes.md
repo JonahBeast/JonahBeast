@@ -15,7 +15,7 @@
 ## En curso
 
 - **Tres frentes nuevos para traer gente (6 de octubre):**
-  1. **Reto en grupo en el banco de Jonah** (con "Mis equipos"): elegido para empezar ya. Claude prepara el plan y los mensajes; falta que Jonah confirme fecha de inicio, premio y si su trabajo permite promoverlo ahí.
+  1. **Reto en grupo en el banco de Jonah** (con "Mis equipos", no hay que construir nada): **en pausa, Jonah lo retoma cuando quiera.** Al retomarlo: confirmar si su trabajo permite promoverlo, fecha (se propuso lunes + 28 días), premio y si quiere un código con 15 días de Premium (fila nueva: pedir su OK); luego armar el mensaje de invitación con su voz.
   2. **"Mándame la foto de tu plato" por WhatsApp** (el asistente responde las calorías e invita a la app): esperar a que el asistente de WhatsApp esté activo.
   3. **Videos "¿Cuántas calorías tiene…?"** con los platos de jonahbeast.com/calorias (narrados por Viernes o el gorila, o Jonah): **Jonah avisa** cuándo quiere los guiones; no empezar antes.
 

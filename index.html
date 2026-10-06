@@ -3,6 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      // iPhone/iPad: al tocar una casilla con letra pequeña, Safari acerca la
+      // pantalla y la deja agrandada. Con maximum-scale=1 no lo hace (y en
+      // iPhone igual se puede agrandar con dos dedos). Solo en iPhone/iPad:
+      // en Android eso bloquearía el zoom con los dedos.
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover');
+      }
+    </script>
     <title>Jonah Beast Fuel — Baja de peso sin dejar la comida peruana</title>
     <meta name="description" content="App de nutrición para bajar de peso sin dejar la comida peruana: registra tus comidas con una foto, mide tu cuerpo y sigue tu progreso día a día." />
 

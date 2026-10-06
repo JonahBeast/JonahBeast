@@ -327,10 +327,52 @@ const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 /* ------------------------------------------------------------------ */
 
 const GROUP_EMOJI = {
-  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
-  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
+  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Pescados y mariscos': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
+  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛', 'Verduras': '🥬',
+  'Grasas': '🫒', 'Platos preparados': '🍽️', 'Postres': '🍰', 'Galletas y snacks': '🍪', 'Bebidas': '🥤',
   'Productos': '📦',
 };
+/* Ícono de cada alimento: primero por su nombre (la palta con 🥑, el
+   churrasco con 🥩) y, si no hay uno propio, el de su grupo. Va en orden:
+   gana la primera regla que calza (por eso los platos van antes que sus
+   ingredientes: "Pan con palta" es 🍞, no 🥑; "Keke de plátano" es 🍰). */
+const EMOJI_POR_NOMBRE = [
+  [/hamburguesa/, '🍔'], [/pizza/, '🍕'], [/salchipapa|papas? fritas|papas? al hilo/, '🍟'],
+  [/cancha de cine|canchita|pop ?corn/, '🍿'], [/jugo|limonada|smoothie|batido/, '🧃'],
+  [/waf+le|panqueque/, '🧇'], [/keke|torta|queque|pastel|panet[oó]n|alfajor|\bcake|cheesecake|pie\b/, '🍰'],
+  [/mazamorra|arroz con leche|suspiro|flan|gelatina|manjar|turr[oó]n|cocada|parfait|combinado/, '🍮'],
+  [/picar[oó]n|churro|donut|dona\b/, '🍩'], [/helado/, '🍨'],
+  [/ceviche|tiradito|sudado|parihuela/, '🐟'], [/sopa|caldo|chupe|aguadito|sancochado|patasca|menestr[oó]n|locro/, '🍲'],
+  [/pollo a la brasa|broaster|pollada/, '🍗'], [/tamal|humita|juane/, '🫔'], [/wrap|twister/, '🌯'],
+  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
+  [/tallar[ií]n|fideo|spaghetti|espagueti|pasta\b|lasa[ñn]a/, '🍝'],
+  [/chaufa|arroz/, '🍚'], [/avena|quinua|granola|cereal|kiwicha|ca[ñn]ihua/, '🥣'],
+  [/huevo|clara|yema|omelette|tortilla de/, '🥚'],
+  [/jam[oó]n|tocino|salchicha|hot ?dog|chorizo|jamonada/, '🥓'],
+  [/\bpollo|pavo|pavita|gallina|\bpato|\balas?\b|alitas|nuggets/, '🍗'],
+  [/\bres\b|bistec|churrasco|lomo|carne|cerdo|chuleta|costilla|chancho|lech[oó]n|cordero|h[ií]gado|anticucho|asado|sangrecita|cabrito|milanesa|adobo|chicharr[oó]n|seco de/, '🥩'],
+  [/camar[oó]n|langostino|marisco/, '🦐'], [/pulpo/, '🐙'], [/at[uú]n|pescado|bonito|caballa|jurel|trucha|salm[oó]n|tilapia|merluza|perico|sardina|anchoveta/, '🐟'],
+  [/caf[eé]|capuchino|expreso/, '☕'], [/(^|\s)t[eé](\s|$)|infusi[oó]n|an[ií]s|manzanilla/, '🍵'],
+  [/chocolate|chocolatada|cacao/, '🍫'], [/galleta/, '🍪'],
+  [/cerveza/, '🍺'], [/vino|espumante|champ[aá]n/, '🍷'], [/pisco|\bron\b|whisky|vodka/, '🥃'],
+  [/gaseosa|refresco|chicha|emoliente|bebida/, '🥤'], [/^agua\b/, '💧'],
+  [/palta/, '🥑'], [/pl[aá]tano|guineo/, '🍌'], [/mandarina|naranja/, '🍊'], [/fresa/, '🍓'], [/ar[aá]ndano/, '🫐'],
+  [/\buvas?\b/, '🍇'], [/\bpi[ñn]a\b/, '🍍'], [/sand[ií]a/, '🍉'], [/mango/, '🥭'], [/\bpera\b/, '🍐'],
+  [/lim[oó]n/, '🍋'], [/durazno|melocot[oó]n/, '🍑'], [/papaya|mel[oó]n/, '🍈'], [/\bcoco\b/, '🥥'], [/\bkiwi\b/, '🥝'], [/cereza/, '🍒'],
+  [/camote/, '🍠'], [/choclo|ma[ií]z|cancha|mote\b/, '🌽'], [/\bpapas?\b|yuca|olluco/, '🥔'],
+  [/tomate/, '🍅'], [/zanahoria/, '🥕'], [/br[oó]coli|coliflor/, '🥦'], [/cebolla/, '🧅'], [/pepino|zapallito/, '🥒'],
+  [/pimiento|aj[ií]\b|rocoto/, '🌶️'], [/champi[ñn][oó]n/, '🍄'], [/lechuga|espinaca|acelga|repollo|\bcol\b|apio|verdura/, '🥬'],
+  [/queso/, '🧀'], [/leche|yogur/, '🥛'], [/miel/, '🍯'],
+  [/caramelo|az[uú]car|mermelada|dulce/, '🍬'], [/man[ií](?![a-zñáéíóú])|almendra|nuez|nueces|pecana|frutos secos|ch[ií]a/, '🥜'],
+  [/aceite|oliva|mantequilla|mayonesa/, '🫒'], [/prote[ií]na en polvo|whey/, '💪'],
+  [/manzana/, '🍎'],
+];
+function emojiAlimento(food) {
+  if (!food) return '🍴';
+  const nombre = String(food.name || '').toLowerCase();
+  const regla = EMOJI_POR_NOMBRE.find(([re]) => re.test(nombre));
+  return regla ? regla[1] : (GROUP_EMOJI[food.group] || '🍴');
+}
 
 /* Aprendizaje de patrones: recuerda qué sustituto elige más seguido el
    alumno para cada alimento, guardado localmente en su dispositivo. */
@@ -488,7 +530,7 @@ function ModoFavoritos({ favoritos, onElegir }) {
       {favoritos.map(f => (
         <button key={f.key} onClick={() => onElegir(f)}
           className="bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+          <span className="text-2xl">{emojiAlimento(f)}</span>
           <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
         </button>
       ))}
@@ -1018,7 +1060,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
                   {it.opciones.map((op, j) => (
                     <button key={j} onClick={() => elegirOpcion(i, op)}
                       className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
-                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
+                      {emojiAlimento(op)} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
                 </div>
@@ -1063,7 +1105,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
-                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
                 </span>
                 {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
                 <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
@@ -1163,7 +1205,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
               {platos.map(f => (
                 <button key={f.key} onClick={() => agregarPlato(f)}
                   className="bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-                  <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                  <span className="text-2xl">{emojiAlimento(f)}</span>
                   <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
                 </button>
               ))}
@@ -1565,7 +1607,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                                     showToast(`🔄 ${sub.name} en vez de ${it.food.name}`);
                                   }}
                                   className="jb-body text-[11px] bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-lg px-2 py-1.5 text-left text-zinc-200 flex items-center justify-between gap-2">
-                                  <span>{GROUP_EMOJI[sub.group] || '🍴'} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
+                                  <span>{emojiAlimento(sub)} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
                                   <span className="text-zinc-600">{explicarSustituto(it.food, it.grams, sub, eq, macro)}</span>
                                 </button>
                               );
@@ -6413,7 +6455,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
             <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
               onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
               className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
-              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
+              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{emojiAlimento(f)}</span>
               <span className="jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
             </button>
           ))}
@@ -6449,7 +6491,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                   onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
                   className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
                   <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
-                    {GROUP_EMOJI[f.group] || '🍴'}
+                    {emojiAlimento(f)}
                   </span>
                   {/* El nombre completo, en varias líneas si hace falta: con nombres
                       parecidos ("Chocolate con leche" en barra o batido en taza)
@@ -7097,6 +7139,29 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [pesados, setPesados] = useState({}); // { [key o id]: gramos }
   const [pesando, setPesando] = useState(null); // id con el cuadro de gramos abierto
   const [gramosEscritos, setGramosEscritos] = useState('');
+  // Gramos que tenía antes de abrir el cuadro, para "Cancelar". Lo escrito
+  // se aplica al toque (antes había que tocar "Listo" y, si se tocaba
+  // "Agregar" o se abría otro alimento, los gramos se perdían sin aviso).
+  const pesoAntesRef = useRef(null);
+  function abrirPeso(id) {
+    pesoAntesRef.current = pesados[id] > 0 ? pesados[id] : null;
+    setGramosEscritos(pesados[id] > 0 ? String(pesados[id]) : '');
+    setPesando(id);
+  }
+  function escribirPeso(id, valor) {
+    setGramosEscritos(valor);
+    const g = Math.round(Number(String(valor).replace(',', '.')));
+    setPesados(v => {
+      const n = { ...v };
+      if (g > 0 && g <= 3000) n[id] = g; else delete n[id];
+      return n;
+    });
+  }
+  function cancelarPeso(id) {
+    const antes = pesoAntesRef.current;
+    setPesados(v => { const n = { ...v }; if (antes) n[id] = antes; else delete n[id]; return n; });
+    setPesando(null);
+  }
   function porcionFinal(food, f, id) {
     if (pesados[id] > 0) return { unit: 'gramos', qty: pesados[id], pesado: true };
     return porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
@@ -7611,11 +7676,6 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
                 const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
-                const guardarPeso = () => {
-                  const g = Math.round(Number(String(gramosEscritos).replace(',', '.')));
-                  if (g > 0 && g <= 3000) setPesados(v => ({ ...v, [id]: g }));
-                  setPesando(null);
-                };
                 const ajusteIA = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
@@ -7642,19 +7702,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                 ));
                 const ajuste = food && marcado && (pesando === id ? (
-                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); guardarPeso(); }}>
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
                     <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
-                      onChange={e => setGramosEscritos(e.target.value)}
+                      onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
                     <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
-                    <button type="button" onClick={() => setPesando(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                    <button type="button" onClick={() => cancelarPeso(id)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
                   </form>
                 ) : pesados[id] > 0 ? (
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="jb-body text-xs text-emerald-400">⚖️ Pesado en tu balanza</span>
-                    <button type="button" onClick={() => { setGramosEscritos(String(pesados[id])); setPesando(id); }}
+                    <span className="jb-body text-xs text-emerald-400">⚖️ {pesados[id]} g pesados en tu balanza</span>
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="jb-body text-[11px] text-zinc-400 hover:text-zinc-200 underline">Cambiar</button>
                     <button type="button" onClick={() => setPesados(v => { const n = { ...v }; delete n[id]; return n; })}
                       className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
@@ -7662,7 +7722,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-3">
                     {ajusteIA}
-                    <button type="button" onClick={() => { setGramosEscritos(''); setPesando(id); }}
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="mt-2 jb-body text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-2.5 py-1">
                       ⚖️ Lo pesé
                     </button>
@@ -8704,7 +8764,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   {frecuentes.map(fr => (
                     <button key={fr.food.key} onClick={() => agregar(fr.food, { unit: fr.unit, qty: fr.qty })}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[fr.food.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(fr.food)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(fr.food)}</span>
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad({ unit: fr.unit, qty: fr.qty })} · ≈ {kcalDe(fr.food, fr)} kcal</span>
@@ -8723,7 +8783,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   return (
                     <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit); }}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}{clavesFrecuentes.has(f.key) ? ' ⭐' : ''}</span>
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad(d)} ≈ {kcalDe(f, d)} kcal{f.esPersonal ? ' · tuyo' : ''}</span>
@@ -9062,7 +9122,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <div className="flex items-start gap-3 mb-5">
-          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{emojiAlimento(food)}</span>
           <div className="flex-1 min-w-0">
             <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
             <p className="jb-body text-xs text-zinc-500">{meal}</p>
@@ -9186,7 +9246,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
                           }}
                           className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
                           <span className="text-zinc-200">
-                            {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                            {emojiAlimento(opt)} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
                             {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
                           </span>
                           <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
@@ -9977,7 +10037,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                       <div className="flex-1 min-w-[8.5rem]">
                       <button type="button" onClick={() => setEditando({ meal, id: en.id })}
                         className="w-full min-w-0 flex items-center gap-2.5 text-left">
-                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{emojiAlimento(food)}</span>
                         <span className="min-w-0">
                           <span className="block jb-body text-sm text-zinc-100 leading-snug line-clamp-2 break-words">{nombreAlimento(food)}</span>
                           <span className="block jb-body text-[11px] text-orange-400 font-semibold tabular-nums">{Math.round(m.kcal)} kcal</span>

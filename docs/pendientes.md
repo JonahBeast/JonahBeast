@@ -14,6 +14,11 @@
 
 ## En curso
 
+- **Tres frentes nuevos para traer gente (6 de octubre):**
+  1. **Reto en grupo en el banco de Jonah** (con "Mis equipos"): elegido para empezar ya. Claude prepara el plan y los mensajes; falta que Jonah confirme fecha de inicio, premio y si su trabajo permite promoverlo ahí.
+  2. **"Mándame la foto de tu plato" por WhatsApp** (el asistente responde las calorías e invita a la app): esperar a que el asistente de WhatsApp esté activo.
+  3. **Videos "¿Cuántas calorías tiene…?"** con los platos de jonahbeast.com/calorias (narrados por Viernes o el gorila, o Jonah): **Jonah avisa** cuándo quiere los guiones; no empezar antes.
+
 - **Alimentos por revisar.** En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
 - **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
 

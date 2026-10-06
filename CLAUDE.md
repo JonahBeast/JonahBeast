@@ -19,6 +19,7 @@
 - **Las edge functions solo se publican después del merge**, y siempre con el código que quedó en `main`, para que GitHub y Supabase nunca tengan versiones distintas. Después de publicar, dime qué versión quedó.
   - **Única excepción:** la copia de prueba de Jarvis, `jarvis-chat-prueba`, se puede publicar desde la rama de un PR para probarlo en la versión de prueba de Vercel (que llama a esa copia). El Jarvis real, `jarvis-chat`, solo se publica después del merge.
 - **Jarvis (`jarvis-chat`) se publica con `verify_jwt` en `false`**, porque el candado de admin está dentro del código.
+- **Viernes** es Jarvis con voz femenina y otro nombre (se activa diciendo "Viernes" o "Hola Viernes"): usa la misma función `jarvis-chat` y la misma memoria.
 
 ## Estilo de la app
 
@@ -43,7 +44,7 @@
 
 - `docs/manual-app.md` es el manual de la app (pantallas, botones y mensajes). Lo usan Jarvis y el asistente de WhatsApp.
 - **Cada cambio que el alumno vea en la app se anota en el manual en el mismo PR.**
-- Jarvis y el asistente de WhatsApp leen el manual de la tabla `manual_app` de la base (una sola fila), no de su código. Esa fila **la actualizo yo** después de cada merge con el botón **"🔄 Actualizar manual de Jarvis"** del panel (pestaña 📸 IA, tarjeta "📘 MANUAL DE JARVIS"), que copia el manual de `main` con su commit y comprueba que quedó idéntico. Si se me olvida, la app me avisa al celular.
+- Jarvis y el asistente de WhatsApp leen el manual de la tabla `manual_app` de la base (una sola fila), no de su código. Esa fila **la actualizo yo** después de cada merge con el botón **"🔄 Actualizar manual de Jarvis y Viernes"** del panel (pestaña 📸 IA, tarjeta "📘 MANUAL DE JARVIS Y VIERNES"), que copia el manual de `main` con su commit y comprueba que quedó idéntico. Si se me olvida, la app me avisa al celular.
 - **Claude no escribe en `manual_app`.** Si el PR toca el manual, después del merge solo me recuerda que toque ese botón. Si le pido revisar, puede leer la fila y comparar su huella con la del archivo de `main`, sin cambiarla.
 - Un cambio que solo toca el manual ya **no** obliga a volver a publicar `jarvis-chat` ni `whatsapp-webhook`.
 - `npm run manual-jarvis` sigue copiando la lista de alimentos de `src/App.jsx` a `whatsapp-webhook` y `alimentos-pedidos` (`alimentos.ts`). Si se olvida, `npm run build` falla y avisa.

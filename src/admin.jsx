@@ -5889,23 +5889,23 @@ function ManualJarvisPanel() {
     try {
       const { data, error } = await supabase.rpc('actualizar_manual_app', { p_texto: MANUAL_APP, p_commit: __COMMIT__ });
       if (error || data?.error || !data?.iguales) throw new Error(error?.message || data?.error || 'no quedó igual');
-      setMensaje(`✅ Listo: Jarvis y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
+      setMensaje(`✅ Listo: Jarvis, Viernes y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
       await revisar();
     } catch (e) { setMensaje('No se pudo actualizar: ' + (e.message || 'error')); }
     setOcupado(false);
   }
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-2">
-      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS</h2>
-      <p className="jb-body text-[11px] text-zinc-500">Jarvis y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
+      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS Y VIERNES</h2>
+      <p className="jb-body text-[11px] text-zinc-500">Jarvis, Viernes y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
       {estado === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : estado.error ? <p className="jb-body text-xs text-red-400">No se pudo revisar el manual.</p>
         : estado.alDia
           ? <p className="jb-body text-sm text-emerald-400">✅ Al día{estado.commit ? ` (commit ${String(estado.commit).slice(0, 7)})` : ''}.</p>
-          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis está desactualizado: la app tiene cambios que Jarvis todavía no conoce.</p>}
+          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis y Viernes está desactualizado: la app tiene cambios que todavía no conocen.</p>}
       {estado && !estado.error && !estado.alDia && (esMain ? (
         <button onClick={actualizar} disabled={ocupado} className={btnPrimary + ' text-sm py-2 self-start'}>
-          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis'}
+          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis y Viernes'}
         </button>
       ) : (
         <p className="jb-body text-[11px] text-zinc-500">El botón solo sale en jonahbeast.com (la versión real), no en las versiones de prueba.</p>
@@ -6328,7 +6328,7 @@ function MemoriaJarvisPanel() {
   }
   useEffect(() => { cargar().catch(() => setNotas([])); }, []);
   async function borrar(n) {
-    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis?\n\n"${n.texto}"`)) return;
+    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis y Viernes?\n\n"${n.texto}"`)) return;
     const { error } = await supabase.from('jarvis_memoria').delete().eq('id', n.id);
     if (error) { alert('No se pudo borrar: ' + error.message); return; }
     cargar();
@@ -6336,8 +6336,8 @@ function MemoriaJarvisPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
       <div>
-        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS RECUERDA</h2>
-        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis "recuerda que…" para enseñarle algo, u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
+        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS Y VIERNES RECUERDAN</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis o a Viernes "recuerda que…" para enseñarles algo (los dos comparten la memoria), u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
       </div>
       {notas === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : notas.length === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no recuerda nada.</p>
@@ -7971,7 +7971,7 @@ function ReactorJarvis({ estado = 'reposo', tam = 120, pulso = 0 }) {
 // Botón flotante para abrir a Jarvis desde cualquier pestaña del panel.
 function BotonJarvis({ onClick }) {
   return (
-    <button onClick={onClick} aria-label="Abrir a Jarvis"
+    <button onClick={onClick} aria-label="Abrir a Jarvis y Viernes"
       className="fixed z-40 flex flex-col items-center gap-1 group"
       style={{ right: 'max(1rem, env(safe-area-inset-right))', bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
       <style>{ESTILOS_JARVIS}</style>
@@ -7979,9 +7979,9 @@ function BotonJarvis({ onClick }) {
         style={{ background: 'radial-gradient(circle, rgba(10,22,32,0.95) 55%, rgba(10,22,32,0) 72%)', filter: 'drop-shadow(0 0 14px rgba(77,217,255,0.55))' }}>
         <ReactorJarvis estado="reposo" tam={72} />
       </span>
-      <span className="text-[10px] tracking-[0.3em] px-2 py-0.5 rounded"
+      <span className="text-[10px] tracking-[0.2em] px-2 py-0.5 rounded whitespace-nowrap"
         style={{ fontFamily: 'monospace', color: '#4dd9ff', background: 'rgba(10,22,32,0.85)', border: '1px solid #1c6b85', textShadow: '0 0 6px #4dd9ff' }}>
-        JARVIS
+        JARVIS · VIERNES
       </span>
     </button>
   );
@@ -8552,7 +8552,7 @@ function JarvisPanel({ onClose, users }) {
                       // Acción que esta versión del panel no conoce (Jarvis se
                       // actualizó y la página no se recargó): nunca mostrarla
                       // como otra cosa.
-                      <>Jarvis preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
+                      <>{asistente === 'viernes' ? 'Viernes' : 'Jarvis'} preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
                     )}
                   </div>
                   {a.tipo === 'whatsapp' ? (
@@ -8603,7 +8603,7 @@ function JarvisPanel({ onClose, users }) {
             {escuchando && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#ff5c5c', boxShadow: '0 0 6px #ff5c5c' }} />}
           </button>
           <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (desbloquearVoz(), enviar(input))}
-            placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
+            placeholder={asistente === 'viernes' ? 'Pregúntale algo a Viernes…' : 'Pregúntale algo a Jarvis o a Viernes…'} className="flex-1 rounded px-3 text-sm outline-none"
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
           <button onClick={() => { desbloquearVoz(); enviar(input); }} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
         </div>
@@ -8618,7 +8618,7 @@ function JarvisPanel({ onClose, users }) {
         style={{ border: '1px solid ' + (hud ? '#4dd9ff' : '#163244'), color: hud ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
         {hud ? '⤡ VENTANA' : '⛶ HUD'}
       </button>
-      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
+      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar"><X size={18} /></button>
     </>
   );
 

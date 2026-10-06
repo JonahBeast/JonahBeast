@@ -4,7 +4,7 @@
 // que quedó en main (docs/manual-app.md, el que viene con esta versión
 // publicada) con el que leen Jarvis y el asistente de WhatsApp (tabla
 // manual_app). Si no son iguales, le avisa al celular de Jonah que toque
-// "🔄 Actualizar manual de Jarvis" en el panel.
+// "🔄 Actualizar manual de Jarvis y Viernes" en el panel.
 //   - Solo en la versión real (production), que es la de main.
 //   - Un aviso apenas sale la versión nueva y, si sigue sin actualizarse,
 //     uno por día (config → manual_jarvis_avisado).
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     setupWebPush();
     const r = await enviarPushA(supabase, [admin.username], {
       title: '📘 Jarvis tiene el manual desactualizado',
-      body: 'Salió una versión nueva de la app y Jarvis aún lee el manual anterior. Entra al panel → pestaña 📸 IA y toca "🔄 Actualizar manual de Jarvis" (es un toque).',
+      body: 'Salió una versión nueva de la app y Jarvis y Viernes aún leen el manual anterior. Entra al panel → pestaña 📸 IA y toca "🔄 Actualizar manual de Jarvis y Viernes" (es un toque).',
       url: '/',
     });
     await supabase.from('config').upsert({ key: CLAVE, value: marca });

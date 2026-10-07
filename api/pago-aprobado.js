@@ -16,8 +16,12 @@
 // Cuando el pago se aprobó solo (Mercado Pago, vía el webhook), también
 // avisa a Jonah Beast (admin) en su celular: "💰 Pago recibido: ...".
 // Si lo aprobó él mismo desde el panel, no hace falta avisarle.
+//
+// También le avisa a Meta "Compra" con el monto (API de conversiones),
+// para que los anuncios aprendan a buscar gente que paga.
 
 import { getSupabase, setupWebPush, enviarPushA } from './_lib/push.js';
+import { avisarCompraMeta } from './_lib/meta-compra.js';
 
 const VENTANA_MS = 30 * 60 * 1000;
 
@@ -65,6 +69,10 @@ export default async function handler(req, res) {
       .select('nombre, fecha_vencimiento, reconocimiento_foto_hasta').eq('username', pago.username).maybeSingle();
     if (!alumno) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin alumno' });
 
+    const meta = await avisarCompraMeta(supabase, {
+      username: pago.username, monto: pago.monto, eventoId: pagoId, cuando: pago.revisado_en || pago.creado_en,
+    });
+
     const nombre = (alumno.nombre || '').trim().split(/\s+/)[0];
     const saludo = nombre ? `¡Listo, ${nombre}! ` : '¡Listo! ';
     const esAddon = /add-on/i.test(pago.metodo || '');
@@ -92,7 +100,7 @@ export default async function handler(req, res) {
         }
       } catch (e) { console.error('No se pudo avisar al admin del pago:', e); }
     }
-    return res.status(200).json({ ok: true, enviados: r.enviados, avisoAdmin });
+    return res.status(200).json({ ok: true, enviados: r.enviados, avisoAdmin, meta: meta.ok });
   } catch (e) {
     console.error('Error enviando aviso de pago aprobado:', e);
     return res.status(500).json({ ok: false, error: 'No se pudo enviar el aviso' });

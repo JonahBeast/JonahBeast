@@ -15,6 +15,26 @@
     <title>Jonah Beast Fuel — Baja de peso sin dejar la comida peruana</title>
     <meta name="description" content="App de nutrición para bajar de peso sin dejar la comida peruana: registra tus comidas con una foto, mide tu cuerpo y sigue tu progreso día a día." />
 
+    <!-- Dirección oficial para Google (sin "www" y sin ?fuente=…), la misma
+         de las páginas de calorías y del sitemap. Así Google no ve como
+         repetidas jonahbeast.com, www.jonahbeast.com ni los links de los
+         anuncios. Una ruta que no existe cuenta como la portada, y el panel
+         privado de cada embajador (/r/…) no se muestra en Google. -->
+    <link rel="canonical" href="https://jonahbeast.com/" />
+    <script>
+      (function () {
+        var ruta = location.pathname.replace(/\/+$/, '') || '/';
+        if (/^\/r\//.test(ruta)) {
+          var m = document.createElement('meta');
+          m.name = 'robots'; m.content = 'noindex';
+          document.head.appendChild(m);
+        }
+        var propias = ['/calculadora', '/reto', '/tienda'];
+        var oficial = 'https://jonahbeast.com' + (propias.indexOf(ruta) >= 0 ? ruta : '/');
+        document.querySelector('link[rel=canonical]').setAttribute('href', oficial);
+      })();
+    </script>
+
     <!-- App instalable -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0D0D0F" />

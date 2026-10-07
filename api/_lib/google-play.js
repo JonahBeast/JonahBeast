@@ -10,6 +10,7 @@
 // la variable de Vercel GOOGLE_PLAY_CUENTA_SERVICIO.
 
 import crypto from 'node:crypto';
+import { avisarCompraMeta } from './meta-compra.js';
 
 export const PAQUETE_ANDROID = 'com.jonahbeast.twa';
 
@@ -221,6 +222,9 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
   await supabase.from('alumnos')
     .update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: 'pago' })
     .eq('username', dueno);
+
+  // Avisa a Meta la compra (no frena la activación si falla).
+  await avisarCompraMeta(supabase, { username: dueno, monto, eventoId: `gp_${pedido}` });
 
   return { ok: true, activado: true, estado, fechaVencimiento: nuevaFecha, bono };
 }

@@ -1,6 +1,22 @@
 {
+  "redirects": [
+    {
+      "source": "/:ruta((?!api/|\\.well-known/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.jonahbeast.com"
+        }
+      ],
+      "destination": "https://jonahbeast.com/:ruta",
+      "permanent": true
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
     {

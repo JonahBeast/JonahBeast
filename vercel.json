@@ -10,11 +10,36 @@
       ],
       "destination": "https://jonahbeast.com/:ruta",
       "permanent": true
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/privacidad.html",
+      "permanent": true
     }
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/calculadora",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reto",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reto/:ruta*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tienda",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tienda/:ruta*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/r/:ruta*",
       "destination": "/index.html"
     }
   ],

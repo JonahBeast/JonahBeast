@@ -565,7 +565,7 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '', sin_arroz: false };
 // De dónde salen los números de un alimento (columna alimentos_extra.fuente;
 // misma lista que FUENTES en supabase/functions/alimentos-pedidos). Es
 // obligatoria para agregar uno nuevo: así cada alimento queda validado.
@@ -578,6 +578,14 @@ async function guardarUsoMenu(alimentoId, menuUso) {
   if (!alimentoId) return;
   const { error } = await supabase.from('alimentos_extra').update({ menu_uso: menuUso || null }).eq('id', alimentoId);
   if (error) throw new Error('El alimento se agregó, pero no se pudo guardar su uso en el menú: ' + error.message);
+}
+
+/* Guisos que se comen con arroz pero cuyas calorías no lo incluyen: en la
+   app sale "🍚 Sin arroz: agrégalo aparte" (columna alimentos_extra.sin_arroz). */
+async function guardarSinArroz(alimentoId, sinArroz) {
+  if (!alimentoId) return;
+  const { error } = await supabase.from('alimentos_extra').update({ sin_arroz: !!sinArroz }).eq('id', alimentoId);
+  if (error) throw new Error('El alimento se agregó, pero no se pudo guardar si lleva arroz: ' + error.message);
 }
 
 function SelectUsoMenu({ valor, onCambiar, className = '' }) {
@@ -598,6 +606,8 @@ function formDesdePropuesta(p, nombre) {
     // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
     menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
     fuente: FUENTES_ALIMENTO.includes(p.fuente) ? p.fuente : '',
+    // La IA dice si es un guiso que se come con arroz (sin incluirlo).
+    sin_arroz: p.sin_arroz === true,
   };
 }
 
@@ -694,6 +704,12 @@ function FormAlimento({ form, setForm, onEsEste }) {
         </select>
         {!form.fuente && <span className="block text-[10px] text-amber-400 mt-0.5">Elígela para poder agregarlo: así cada alimento de la base queda validado.</span>}
       </label>
+      <label className="flex items-start gap-2 jb-body text-xs text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+        <input type="checkbox" checked={!!form.sin_arroz} onChange={e => setForm(f => ({ ...f, sin_arroz: e.target.checked }))} className="mt-0.5 accent-orange-500" />
+        <span>🍚 Se come con arroz y estas calorías <b>no</b> lo incluyen
+          <span className="block text-[10px] text-zinc-500 mt-0.5">Márcalo en guisos (ej. ají de gallina, estofado): en la app saldrá "Sin arroz: agrégalo aparte". Si las calorías ya incluyen el arroz, que lo diga el nombre (ej. "… con arroz").</span>
+        </span>
+      </label>
       <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
         <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
         <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
@@ -756,6 +772,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', id: pedido.id, alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onResuelto(pedido.id, { nombre: form.nombre.trim(), avisos: r.avisos });
     } catch (e) { setError(e.message); }
@@ -838,6 +855,16 @@ function PedidoAlimento({ pedido, onResuelto }) {
             <button onClick={() => responder(`Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${propuesta.por_partes.join(' + ')}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`)}
               className={btnPrimary + ' text-sm py-2.5 w-full'}>✅ Sí: explicarle cómo</button>
             <button onClick={() => setVerForm(true)} className={btnGhost + ' text-sm py-2 w-full'}>No: agregarlo como plato</button>
+          </>
+        );
+        // Sin calorías no es un alimento que se pueda agregar (ej. la IA
+        // recibió "noventa" de un audio mal cortado): solo descartar o ajustar.
+        if (!(Number(form.kcal) > 0)) return (
+          <>
+            <p className="jb-display text-base text-orange-400">Esto no parece un alimento</p>
+            <p className="jb-body text-xs text-zinc-400">"{form.nombre}" llegó sin calorías: puede ser un error del audio o del texto. Lo normal es no agregarlo.</p>
+            <button onClick={abrirDescarte} className={btnPrimary + ' text-sm py-2.5 w-full'}>🗑️ No agregarlo</button>
+            <button onClick={() => setVerForm(true)} className={btnGhost + ' text-xs py-2 w-full'}>✏️ Sí es un alimento: poner sus números</button>
           </>
         );
         return (
@@ -992,6 +1019,9 @@ function PedidoIA({ p, onListo }) {
       <p className="jb-body text-sm text-zinc-100">
         {p.estado === 'agregado' ? '✅ ' : '🔎 '}<b>{p.nombre}</b>
         <span className="text-[11px] text-zinc-500"> · {quienes.slice(0, 3).join(', ')} · {fechaHoraCorta(p.resuelto_en)}</span>
+        {p.propuesta?.ia_estado === 'agregado' && p.propuesta?.seguridad === 'media' && (
+          <span className="ml-1.5 jb-body text-[10px] text-amber-300 bg-amber-950/50 border border-amber-800 rounded-full px-1.5 py-0.5 align-middle">seguridad media · revísalo</span>
+        )}
       </p>
       {p.estado === 'agregado' && a ? (
         <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">
@@ -1041,6 +1071,7 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
       const r = await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
       if (accion === 'agregar_variante') {
         if (menuUso) await guardarUsoMenu(r.alimento_id, menuUso);
+        if (v.sin_arroz === true) await guardarSinArroz(r.alimento_id, true);
         await cargarAlimentosExtraDeNuevo();
       }
       await onListo();
@@ -1348,6 +1379,7 @@ function AgregarAlimentoSuelto({ onListo }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onListo(form.nombre.trim());
       setNombre(''); setForm(null); setNota('');
@@ -1794,6 +1826,9 @@ function esperaDesde(pedido) {
   return fechas[0] || null;
 }
 
+const CLAVE_REVISION_LUNES = 'alimentos_revision_lunes';
+const CLAVE_REVISION_OK = 'alimentos_revision_ok';
+
 function PedidosAlimentosPanel() {
   const [pedidos, setPedidos] = useState([]);
   const [propios, setPropios] = useState([]);
@@ -1805,8 +1840,36 @@ function PedidosAlimentosPanel() {
   const [resueltos, setResueltos] = useState([]); // resueltos en esta sesión, con su botón de WhatsApp
   const [porEscribir, setPorEscribir] = useState(0); // respuestas para mandar por WhatsApp
   const [version, setVersion] = useState(0);
+  // Lo que encontró la revisión de los lunes (api/cron/verificar-alimentos.js):
+  // alimentos de la base que pueden estar repetidos o con números raros.
+  const [lunes, setLunes] = useState([]);
 
   useEffect(() => { cargar(); }, []);
+
+  async function cargarLunes() {
+    try {
+      const { data } = await supabase.from('config').select('key, value').in('key', [CLAVE_REVISION_LUNES, CLAVE_REVISION_OK]);
+      const m = Object.fromEntries((data || []).map(c => [c.key, c.value]));
+      let items = [], ok = [];
+      try { items = JSON.parse(m[CLAVE_REVISION_LUNES] || '{}').items || []; } catch {}
+      try { ok = JSON.parse(m[CLAVE_REVISION_OK] || '[]'); } catch {}
+      const lista = items.filter(i => !ok.includes(i.nombre));
+      setLunes(lista);
+      if (lista.length) setAbierto(true);
+    } catch { setLunes([]); }
+  }
+  useEffect(() => { cargarLunes(); }, []);
+  // "Están bien": no vuelve a salir aquí ni en el aviso de los lunes.
+  async function lunesOk(nombre) {
+    setLunes(l => l.filter(i => i.nombre !== nombre));
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', CLAVE_REVISION_OK).maybeSingle();
+      let ok = [];
+      try { ok = JSON.parse(data?.value || '[]'); } catch {}
+      if (!ok.includes(nombre)) ok.push(nombre);
+      await supabase.from('config').upsert({ key: CLAVE_REVISION_OK, value: JSON.stringify(ok.slice(-300)) });
+    } catch {}
+  }
 
   async function cargar() {
     setCargando(true);
@@ -1847,7 +1910,7 @@ function PedidosAlimentosPanel() {
     ...pedidos.map(p => ({ tipo: 'pedido', id: 'p' + p.id, p, desde: esperaDesde(p) })),
     ...propios.map(a => ({ tipo: 'propio', id: 'a' + a.id, a, desde: a.editado_en || a.created_at })),
   ].map(i => ({ ...i, desde: tienePlazo(i.desde) ? i.desde : null })).sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
-  const total = items.length;
+  const total = items.length + lunes.length;
   const tarde = items.some(i => i.desde && minutosHasta(horaLimiteAlimento(i.desde)) < 0);
   const idsResueltos = resueltos.filter(r => r.tipo === 'pedido').map(r => r.id);
 
@@ -1868,8 +1931,29 @@ function PedidosAlimentosPanel() {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <p className="jb-body text-xs text-zinc-500">Todo lo que un alumno no encontró en la app: lo que pide (🙋 app, 💬 WhatsApp) y lo que crea con "+ Crear mi alimento" (🍴). La IA atiende todo apenas llega; aquí te queda solo lo que no pudo decidir, con su recomendación. Tienes <b className="text-zinc-300">1 hora</b> para responder (de noche, hasta las 8am): el alumno ve esa hora en su app. Al decidir, te sale el botón para mandarle la respuesta por WhatsApp.</p>
-            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
+            <button onClick={() => { cargar(); cargarLunes(); }} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
+
+          {lunes.length > 0 && (
+            <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 flex flex-col gap-2.5">
+              <div>
+                <p className="jb-display text-sm text-amber-300">🔎 REVISIÓN DEL LUNES · {lunes.length}</p>
+                <p className="jb-body text-[11px] text-zinc-400 mt-0.5">Alimentos de la base que pueden estar repetidos o con números raros. Nadie está esperando: revísalos cuando puedas.</p>
+              </div>
+              {lunes.map(i => (
+                <div key={i.nombre} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                  <p className="jb-body text-sm text-zinc-100 font-semibold">{i.nombre}</p>
+                  <ul className="jb-body text-xs text-zinc-400 mt-1 flex flex-col gap-0.5">
+                    {(i.problemas || []).map((t, k) => <li key={k}>• {t}</li>)}
+                  </ul>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button onClick={() => lunesOk(i.nombre)} className={btnPrimary + ' py-1.5 px-3 text-xs'}>✓ Están bien, son distintos</button>
+                    <span className="jb-body text-[11px] text-zinc-500">¿Hay que corregirlo? Pídeselo a Jarvis o a Claude.</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {resueltos.map((r, i) => r.tipo === 'propio' ? (
             <div key={'r' + i} className="rounded-xl p-3 border bg-emerald-950/30 border-emerald-900 flex flex-col gap-1">
@@ -2035,6 +2119,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: paraTodos });
       if (paraTodos.menu_uso) await guardarUsoMenu(r.alimento_id, paraTodos.menu_uso);
+      if (paraTodos.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       // Su alimento pasa a ser el oficial (mismo nombre que le da la app:
       // "Nombre (estado)"): deja de salir repetido en su buscador y sus
@@ -2352,7 +2437,7 @@ function AlimentosEnMenu() {
   const [error, setError] = useState('');
 
   async function cargar() {
-    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso').order('nombre');
+    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso, sin_arroz').order('nombre');
     if (e) { setError('No se pudo cargar la lista: ' + e.message); setLista([]); return; }
     setLista(data || []);
   }
@@ -2368,17 +2453,27 @@ function AlimentosEnMenu() {
     setGuardando(null);
   }
 
+  async function cambiarArroz(a, valor) {
+    setGuardando(a.id); setError('');
+    try {
+      await guardarSinArroz(a.id, valor);
+      setLista(l => l.map(x => x.id === a.id ? { ...x, sin_arroz: valor } : x));
+      await cargarAlimentosExtraDeNuevo();
+    } catch (e) { setError(e.message); }
+    setGuardando(null);
+  }
+
   const visibles = (lista || []).filter(a => !filtro.trim() || a.nombre.toLowerCase().includes(filtro.trim().toLowerCase()));
   const enMenu = (lista || []).filter(a => a.menu_uso).length;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
-        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados en el menú del día{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
+        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados: menú del día y arroz{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
         <div className="px-3.5 pb-3.5 flex flex-col gap-2">
-          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar.</p>
+          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar. Marca 🍚 en los guisos que se comen con arroz: la app avisa "Sin arroz: agrégalo aparte".</p>
           <input value={filtro} onChange={e => setFiltro(e.target.value)} className={inputCls + ' text-sm'} placeholder="Buscar…" />
           {lista === null ? <Loader2 className="animate-spin text-orange-500" size={18} /> : visibles.length === 0 ? (
             <p className="jb-body text-xs text-zinc-500">No hay alimentos agregados{filtro ? ' con ese nombre' : ''}.</p>
@@ -2387,6 +2482,10 @@ function AlimentosEnMenu() {
               <p className="jb-body text-sm text-zinc-200">{a.nombre}{a.estado && a.estado !== '-' ? ` (${a.estado.toLowerCase()})` : ''} <span className="text-[11px] text-zinc-500">· {a.grupo}</span>
                 {guardando === a.id && <Loader2 size={12} className="inline animate-spin text-orange-500 ml-1" />}</p>
               <SelectUsoMenu valor={a.menu_uso} onCambiar={v => cambiar(a, v)} />
+              <label className="flex items-center gap-2 jb-body text-[11px] text-zinc-400">
+                <input type="checkbox" checked={!!a.sin_arroz} disabled={guardando === a.id} onChange={e => cambiarArroz(a, e.target.checked)} className="accent-orange-500" />
+                🍚 Se come con arroz (sus calorías no lo incluyen)
+              </label>
             </div>
           ))}
           {error && <p className="jb-body text-xs text-red-400">{error}</p>}
@@ -5803,7 +5902,7 @@ function ProductosPanel() {
 
 // Memoria de Jarvis: las notas que Jonah le pidió recordar ("recuerda
 // que..."). Jarvis solo guarda cuando se lo piden; aquí se ven y se borran.
-/* "🔄 Actualizar manual de Jarvis": copia a la base (manual_app) el manual
+/* "🔄 Actualizar manual de Jarvis y Viernes": copia a la base (manual_app) el manual
    que viene dentro de esta versión publicada. Solo en la versión de main
    (la real): en una versión de prueba el manual podría no ser el de main.
    Compara por huella (sha256) para saber si ya está al día. */
@@ -5827,23 +5926,23 @@ function ManualJarvisPanel() {
     try {
       const { data, error } = await supabase.rpc('actualizar_manual_app', { p_texto: MANUAL_APP, p_commit: __COMMIT__ });
       if (error || data?.error || !data?.iguales) throw new Error(error?.message || data?.error || 'no quedó igual');
-      setMensaje(`✅ Listo: Jarvis y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
+      setMensaje(`✅ Listo: Jarvis, Viernes y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
       await revisar();
     } catch (e) { setMensaje('No se pudo actualizar: ' + (e.message || 'error')); }
     setOcupado(false);
   }
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-2">
-      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS</h2>
-      <p className="jb-body text-[11px] text-zinc-500">Jarvis y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
+      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS Y VIERNES</h2>
+      <p className="jb-body text-[11px] text-zinc-500">Jarvis, Viernes y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
       {estado === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : estado.error ? <p className="jb-body text-xs text-red-400">No se pudo revisar el manual.</p>
         : estado.alDia
           ? <p className="jb-body text-sm text-emerald-400">✅ Al día{estado.commit ? ` (commit ${String(estado.commit).slice(0, 7)})` : ''}.</p>
-          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis está desactualizado: la app tiene cambios que Jarvis todavía no conoce.</p>}
+          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis y Viernes está desactualizado: la app tiene cambios que todavía no conocen.</p>}
       {estado && !estado.error && !estado.alDia && (esMain ? (
         <button onClick={actualizar} disabled={ocupado} className={btnPrimary + ' text-sm py-2 self-start'}>
-          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis'}
+          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis y Viernes'}
         </button>
       ) : (
         <p className="jb-body text-[11px] text-zinc-500">El botón solo sale en jonahbeast.com (la versión real), no en las versiones de prueba.</p>
@@ -5889,7 +5988,7 @@ const GUION_VIDEO_GORILA = [
 // Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
 // (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
 const vocesVideo = () => [
-  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.nombre })),
 ];
 // Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
 const GUION_VIDEO_JARVIS = [
@@ -6206,7 +6305,7 @@ function VozParaVideosPanel() {
       <div className="flex items-center justify-between gap-2">
         <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
         <span className="flex items-center gap-3 flex-wrap justify-end">
-          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Viernes</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
           <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
@@ -6266,7 +6365,7 @@ function MemoriaJarvisPanel() {
   }
   useEffect(() => { cargar().catch(() => setNotas([])); }, []);
   async function borrar(n) {
-    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis?\n\n"${n.texto}"`)) return;
+    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis y Viernes?\n\n"${n.texto}"`)) return;
     const { error } = await supabase.from('jarvis_memoria').delete().eq('id', n.id);
     if (error) { alert('No se pudo borrar: ' + error.message); return; }
     cargar();
@@ -6274,8 +6373,8 @@ function MemoriaJarvisPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
       <div>
-        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS RECUERDA</h2>
-        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis "recuerda que…" para enseñarle algo, u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
+        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS Y VIERNES RECUERDAN</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis o a Viernes "recuerda que…" para enseñarles algo (los dos comparten la memoria), u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
       </div>
       {notas === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : notas.length === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no recuerda nada.</p>
@@ -7395,14 +7494,29 @@ function prepararAudioJarvis() {
 }
 
 /* Palabra de activación: en modo micrófono continuo Jarvis solo responde
-   cuando le hablan empezando con "Jarvis" (o "oye Jarvis"). El
-   reconocimiento de voz a veces escribe el nombre distinto, por eso se
-   aceptan variantes. Devuelve lo que se dijo después del nombre, o null si
-   no se lo llamó. */
-const PALABRA_JARVIS = /^\s*(?:(?:oye|hey|ok|okay|hola)[\s,]+)?(?:jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi)\b[\s,.:;!¡¿?-]*/i;
+   cuando le hablan empezando con "Jarvis" o "Viernes" (o "hola Jarvis",
+   "oye Viernes"). El reconocimiento de voz a veces escribe el nombre
+   distinto, por eso se aceptan variantes. Devuelve lo que se dijo después
+   del nombre, o null si no se lo llamó. Con "Viernes" responde Viernes:
+   su voz femenina y su nombre (quienLlamo). */
+const NOMBRES_JARVIS = '(jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi|viernes|biernes|vierne|bierne)';
+const PALABRA_JARVIS = new RegExp(`^\\s*(?:(?:oye|hey|ok|okay|hola)[\\s,]+)?${NOMBRES_JARVIS}\\b[\\s,.:;!¡¿?-]*`, 'i');
 function quitarPalabraJarvis(texto) {
   const m = String(texto || '').match(PALABRA_JARVIS);
   return m ? texto.slice(m[0].length).trim() : null;
+}
+// 'viernes' o 'jarvis' según el nombre con que lo llamaron; null si no lo llamaron.
+function quienLlamo(texto) {
+  const m = String(texto || '').match(PALABRA_JARVIS);
+  if (!m) return null;
+  return /^[vb]ierne/i.test(m[1]) ? 'viernes' : 'jarvis';
+}
+// Voz con que responde: con "Viernes", la de Viernes; con "Jarvis", la que
+// Jonah eligió (salvo que sea la de Viernes: entonces la de Jarvis).
+function vozDeAsistente(asistente, vozGuardada) {
+  if (asistente === 'viernes') return 'premium:friday';
+  if (asistente === 'jarvis' && vozGuardada === 'premium:friday') return 'premium:jarvis';
+  return vozGuardada;
 }
 // Frases con las que se cierra la conversación por voz ("no, gracias, no es
 // necesario", "eso es todo"): Jarvis responde y apaga el micrófono.
@@ -7649,7 +7763,7 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
-  { id: 'premium:friday', nombre: 'Estilo FRIDAY · femenina, directa' },
+  { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -7894,7 +8008,7 @@ function ReactorJarvis({ estado = 'reposo', tam = 120, pulso = 0 }) {
 // Botón flotante para abrir a Jarvis desde cualquier pestaña del panel.
 function BotonJarvis({ onClick }) {
   return (
-    <button onClick={onClick} aria-label="Abrir a Jarvis"
+    <button onClick={onClick} aria-label="Abrir a Jarvis y Viernes"
       className="fixed z-40 flex flex-col items-center gap-1 group"
       style={{ right: 'max(1rem, env(safe-area-inset-right))', bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
       <style>{ESTILOS_JARVIS}</style>
@@ -7902,9 +8016,9 @@ function BotonJarvis({ onClick }) {
         style={{ background: 'radial-gradient(circle, rgba(10,22,32,0.95) 55%, rgba(10,22,32,0) 72%)', filter: 'drop-shadow(0 0 14px rgba(77,217,255,0.55))' }}>
         <ReactorJarvis estado="reposo" tam={72} />
       </span>
-      <span className="text-[10px] tracking-[0.3em] px-2 py-0.5 rounded"
+      <span className="text-[10px] tracking-[0.2em] px-2 py-0.5 rounded whitespace-nowrap"
         style={{ fontFamily: 'monospace', color: '#4dd9ff', background: 'rgba(10,22,32,0.85)', border: '1px solid #1c6b85', textShadow: '0 0 6px #4dd9ff' }}>
-        JARVIS
+        JARVIS · VIERNES
       </span>
     </button>
   );
@@ -7940,6 +8054,12 @@ function JarvisPanel({ onClose, users }) {
     } catch {}
   }
   const despiertoHastaRef = useRef(0);
+  // Quién responde: null (Jarvis con la voz elegida), 'jarvis' o 'viernes'
+  // según el nombre con que Jonah lo llamó la última vez.
+  const [asistente, setAsistente] = useState(null);
+  const asistenteRef = useRef(null);
+  function llamarA(quien) { if (quien) { asistenteRef.current = quien; setAsistente(quien); } }
+  const conQuien = () => asistenteRef.current === 'viernes' ? { quien: 'viernes' } : {};
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
   const [vozOn, setVozOn] = useState(true);
@@ -8133,10 +8253,12 @@ function JarvisPanel({ onClose, users }) {
       return;
     }
     callarVozPremium();
-    if (esVozPremium(vozGuardadaRef.current) && !vozPremiumCaida) {
+    // Si lo llamaron por su nombre, responde con la voz de ese asistente.
+    const vozAhora = vozDeAsistente(asistenteRef.current, vozGuardadaRef.current);
+    if (esVozPremium(vozAhora) && !vozPremiumCaida) {
       pausarMic();
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
-      const voz = (vozGuardadaRef.current || VOCES_PREMIUM_JARVIS[0].id).slice(8);
+      const voz = (vozAhora || VOCES_PREMIUM_JARVIS[0].id).slice(8);
       hablarPremium(texto, voz, () => { setHablando(false); reanudarMicSiCorresponde(); })
         .catch(() => hablarConCelular(texto));
       return;
@@ -8211,6 +8333,7 @@ function JarvisPanel({ onClose, users }) {
   async function enviar(texto) {
     const t = (texto || '').trim();
     if (!t || pensando) return;
+    llamarA(quienLlamo(t)); // también al escribir "Viernes, …"
     setInput('');
     const nuevosTurnos = [...turnos, { role: 'user', content: t }];
     setTurnos(nuevosTurnos);
@@ -8225,18 +8348,18 @@ function JarvisPanel({ onClose, users }) {
       // La respuesta aparece mientras se escribe; la voz espera al final
       // para leerla completa. "reiniciar" = Jarvis va a consultar datos:
       // se borra lo escrito y se muestra solo la respuesta final.
-      const data = await llamarJarvis({ pregunta: t, historial, stream: true }, (ev) => {
+      const data = await llamarJarvis({ pregunta: t, historial, stream: true, asistente: asistenteRef.current === 'viernes' ? 'Viernes' : undefined }, (ev) => {
         if (ev.tipo === 'reiniciar') enCurso = '';
         else if (ev.tipo === 'texto') enCurso += ev.texto;
-        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true }]);
+        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true, ...conQuien() }]);
       });
       const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...conQuien(), ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
       sonidoJarvis('respuesta');
       hablar(data.respuesta);
     } catch (e) {
       const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr, ...conQuien() }]);
       hablar(msgErr);
     } finally {
       setPensando(false);
@@ -8251,7 +8374,7 @@ function JarvisPanel({ onClose, users }) {
     if (!accion || accion.estado !== 'pendiente') return;
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
-    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
+    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg, ...conQuien() }]); hablar(msg); };
     if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no hice ningún cambio.'); return; }
     marcar('enviando');
     try {
@@ -8334,10 +8457,11 @@ function JarvisPanel({ onClose, users }) {
       if (pausadoParaHablarRef.current) return;
       const dicho = ultimo[0].transcript.trim();
       const pedido = quitarPalabraJarvis(dicho);
+      llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
       if (pedido === null && !enConversacion) {
         // No lo llamaron: no responde (puedes hablar con otras personas).
-        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» primero para hablarme.`);
+        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» o «Viernes» primero para hablarme.`);
         return;
       }
       setAvisoMic('');
@@ -8346,7 +8470,7 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?' }]);
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?', ...conQuien() }]);
         hablarRef.current('¿Sí, señor?');
         return;
       }
@@ -8431,7 +8555,7 @@ function JarvisPanel({ onClose, users }) {
           {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                {m.role === 'user' ? 'TÚ' : 'JARVIS'}
+                {m.role === 'user' ? 'TÚ' : m.quien === 'viernes' ? 'VIERNES' : 'JARVIS'}
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
@@ -8465,7 +8589,7 @@ function JarvisPanel({ onClose, users }) {
                       // Acción que esta versión del panel no conoce (Jarvis se
                       // actualizó y la página no se recargó): nunca mostrarla
                       // como otra cosa.
-                      <>Jarvis preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
+                      <>{asistente === 'viernes' ? 'Viernes' : 'Jarvis'} preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
                     )}
                   </div>
                   {a.tipo === 'whatsapp' ? (
@@ -8506,8 +8630,8 @@ function JarvisPanel({ onClose, users }) {
     <>
 <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
           {avisoMic || (modoContinuo
-            ? (escuchando ? 'Escuchando… di «Jarvis» y tu pregunta' : 'Modo continuo activo')
-            : 'Toca el micrófono y háblame diciendo «Jarvis, …»')}
+            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta' : 'Modo continuo activo')
+            : 'Toca el micrófono y háblame diciendo «Jarvis, …» o «Viernes, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
           <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
@@ -8516,7 +8640,7 @@ function JarvisPanel({ onClose, users }) {
             {escuchando && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#ff5c5c', boxShadow: '0 0 6px #ff5c5c' }} />}
           </button>
           <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (desbloquearVoz(), enviar(input))}
-            placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
+            placeholder={asistente === 'viernes' ? 'Pregúntale algo a Viernes…' : 'Pregúntale algo a Jarvis o a Viernes…'} className="flex-1 rounded px-3 text-sm outline-none"
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
           <button onClick={() => { desbloquearVoz(); enviar(input); }} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
         </div>
@@ -8531,7 +8655,7 @@ function JarvisPanel({ onClose, users }) {
         style={{ border: '1px solid ' + (hud ? '#4dd9ff' : '#163244'), color: hud ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
         {hud ? '⤡ VENTANA' : '⛶ HUD'}
       </button>
-      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
+      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar"><X size={18} /></button>
     </>
   );
 
@@ -8567,7 +8691,7 @@ function JarvisPanel({ onClose, users }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
             </div>
             <div className="text-[9px] tracking-[0.25em] mt-0.5 hidden sm:block" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>PANEL DE OPERACIONES · JONAH BEAST FUEL</div>
           </div>
@@ -8630,7 +8754,7 @@ function JarvisPanel({ onClose, users }) {
         <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
           </div>
           <div className="flex items-center gap-2">
             {botonesCabecera}
@@ -9138,6 +9262,24 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // Si la sesión de admin se cierra con el panel abierto (por ejemplo, otro
+  // inicio o cierre de sesión en otra pestaña), la base responde vacío y el
+  // panel mostraba "0" o "No se pudo revisar" sin decir por qué. Ahora avisa
+  // y ofrece volver a entrar.
+  const [sesionCerrada, setSesionCerrada] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    const revisar = () => supabase.auth.getSession()
+      .then(({ data }) => { if (vivo) setSesionCerrada(!data?.session); }).catch(() => {});
+    revisar();
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, sesion) => {
+      if (evento === 'SIGNED_OUT' || !sesion) setSesionCerrada(true);
+      else setSesionCerrada(false);
+    });
+    const alVolver = () => { if (document.visibilityState === 'visible') revisar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { vivo = false; sub?.subscription?.unsubscribe(); document.removeEventListener('visibilitychange', alVolver); };
+  }, []);
   // NEGOCIO se divide en 3 partes para no bajar tanto en el celular. Se
   // recuerda la última que abrió (solo en este navegador).
   const [subNegocio, setSubNegocioCrudo] = useState(() => {
@@ -9225,6 +9367,16 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
+      {sesionCerrada && (
+        <div className="relative mx-3 sm:mx-6 mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-3 jb-body">
+          <span className="text-lg leading-none mt-0.5">🔒</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-zinc-50 font-semibold text-sm">Tu sesión de admin se cerró</div>
+            <div className="text-zinc-300 text-sm">Por eso el panel puede mostrar datos vacíos o "No se pudo revisar". Vuelve a entrar y todo carga normal.</div>
+            <button onClick={onLogout} className="mt-2 bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-sm rounded-lg px-3 py-1.5">Volver a entrar</button>
+          </div>
+        </div>
+      )}
       {!mostrarJarvis && <BotonJarvis onClick={() => { prepararAudioJarvis(); setMostrarJarvis(true); }} />}
       {mostrarJarvis && <JarvisPanel users={users} onClose={() => setMostrarJarvis(false)} />}
       <main className="relative max-w-4xl mx-auto px-6 pt-8 pb-32 flex flex-col gap-8">

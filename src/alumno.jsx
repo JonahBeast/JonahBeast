@@ -66,6 +66,7 @@ import {
   ventanaBono,
   vibrar,
   esFritoOSaltado,
+  sePuedeFreir,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
@@ -286,7 +287,8 @@ function unidadPorDefecto(food) {
     'porción', 'taza', 'vaso', 'rebanada', 'bola', 'scoop', 'puñado',
     'lata pequeña', 'cucharada', 'palito', 'mitad',
   ];
-  for (const pref of preferidas) {
+  // Bebidas: en Perú se toman en vaso, no en taza.
+  for (const pref of food.group === 'Bebidas' ? ['vaso', ...preferidas] : preferidas) {
     const encontrada = lista.find(u => u[0] === pref);
     if (!encontrada) continue;
     // Descartar medidas demasiado pequeñas para ser una porción real
@@ -326,10 +328,52 @@ const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 /* ------------------------------------------------------------------ */
 
 const GROUP_EMOJI = {
-  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
-  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
+  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Pescados y mariscos': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
+  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛', 'Verduras': '🥬',
+  'Grasas': '🫒', 'Platos preparados': '🍽️', 'Postres': '🍰', 'Galletas y snacks': '🍪', 'Bebidas': '🥤',
   'Productos': '📦',
 };
+/* Ícono de cada alimento: primero por su nombre (la palta con 🥑, el
+   churrasco con 🥩) y, si no hay uno propio, el de su grupo. Va en orden:
+   gana la primera regla que calza (por eso los platos van antes que sus
+   ingredientes: "Pan con palta" es 🍞, no 🥑; "Keke de plátano" es 🍰). */
+const EMOJI_POR_NOMBRE = [
+  [/hamburguesa/, '🍔'], [/pizza/, '🍕'], [/salchipapa|papas? fritas|papas? al hilo/, '🍟'],
+  [/cancha de cine|canchita|pop ?corn/, '🍿'], [/jugo|limonada|smoothie|batido/, '🧃'],
+  [/waf+le|panqueque/, '🧇'], [/keke|torta|queque|pastel|panet[oó]n|alfajor|\bcake|cheesecake|pie\b/, '🍰'],
+  [/mazamorra|arroz con leche|suspiro|flan|gelatina|manjar|turr[oó]n|cocada|parfait|combinado/, '🍮'],
+  [/picar[oó]n|churro|donut|dona\b/, '🍩'], [/helado/, '🍨'],
+  [/ceviche|tiradito|sudado|parihuela/, '🐟'], [/sopa|caldo|chupe|aguadito|sancochado|patasca|menestr[oó]n|locro/, '🍲'],
+  [/pollo a la brasa|broaster|pollada/, '🍗'], [/tamal|humita|juane/, '🫔'], [/wrap|twister/, '🌯'],
+  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
+  [/tallar[ií]n|fideo|spaghetti|espagueti|pasta\b|lasa[ñn]a/, '🍝'],
+  [/chaufa|arroz/, '🍚'], [/avena|quinua|granola|cereal|kiwicha|ca[ñn]ihua/, '🥣'],
+  [/huevo|clara|yema|omelette|tortilla de/, '🥚'],
+  [/jam[oó]n|tocino|salchicha|hot ?dog|chorizo|jamonada/, '🥓'],
+  [/\bpollo|pavo|pavita|gallina|\bpato|\balas?\b|alitas|nuggets/, '🍗'],
+  [/\bres\b|bistec|churrasco|lomo|carne|cerdo|chuleta|costilla|chancho|lech[oó]n|cordero|h[ií]gado|anticucho|asado|sangrecita|cabrito|milanesa|adobo|chicharr[oó]n|seco de/, '🥩'],
+  [/camar[oó]n|langostino|marisco/, '🦐'], [/pulpo/, '🐙'], [/at[uú]n|pescado|bonito|caballa|jurel|trucha|salm[oó]n|tilapia|merluza|perico|sardina|anchoveta/, '🐟'],
+  [/caf[eé]|capuchino|expreso/, '☕'], [/(^|\s)t[eé](\s|$)|infusi[oó]n|an[ií]s|manzanilla/, '🍵'],
+  [/chocolate|chocolatada|cacao/, '🍫'], [/galleta/, '🍪'],
+  [/cerveza/, '🍺'], [/vino|espumante|champ[aá]n/, '🍷'], [/pisco|\bron\b|whisky|vodka/, '🥃'],
+  [/gaseosa|refresco|chicha|emoliente|bebida/, '🥤'], [/^agua\b/, '💧'],
+  [/palta/, '🥑'], [/pl[aá]tano|guineo/, '🍌'], [/mandarina|naranja/, '🍊'], [/fresa/, '🍓'], [/ar[aá]ndano/, '🫐'],
+  [/\buvas?\b/, '🍇'], [/\bpi[ñn]a\b/, '🍍'], [/sand[ií]a/, '🍉'], [/mango/, '🥭'], [/\bpera\b/, '🍐'],
+  [/lim[oó]n/, '🍋'], [/durazno|melocot[oó]n/, '🍑'], [/papaya|mel[oó]n/, '🍈'], [/\bcoco\b/, '🥥'], [/\bkiwi\b/, '🥝'], [/cereza/, '🍒'],
+  [/camote/, '🍠'], [/choclo|ma[ií]z|cancha|mote\b/, '🌽'], [/\bpapas?\b|yuca|olluco/, '🥔'],
+  [/tomate/, '🍅'], [/zanahoria/, '🥕'], [/br[oó]coli|coliflor/, '🥦'], [/cebolla/, '🧅'], [/pepino|zapallito/, '🥒'],
+  [/pimiento|aj[ií]\b|rocoto/, '🌶️'], [/champi[ñn][oó]n/, '🍄'], [/lechuga|espinaca|acelga|repollo|\bcol\b|apio|verdura/, '🥬'],
+  [/queso/, '🧀'], [/leche|yogur/, '🥛'], [/miel/, '🍯'],
+  [/caramelo|az[uú]car|mermelada|dulce/, '🍬'], [/man[ií](?![a-zñáéíóú])|almendra|nuez|nueces|pecana|frutos secos|ch[ií]a/, '🥜'],
+  [/aceite|oliva|mantequilla|mayonesa/, '🫒'], [/prote[ií]na en polvo|whey/, '💪'],
+  [/manzana/, '🍎'],
+];
+function emojiAlimento(food) {
+  if (!food) return '🍴';
+  const nombre = String(food.name || '').toLowerCase();
+  const regla = EMOJI_POR_NOMBRE.find(([re]) => re.test(nombre));
+  return regla ? regla[1] : (GROUP_EMOJI[food.group] || '🍴');
+}
 
 /* Aprendizaje de patrones: recuerda qué sustituto elige más seguido el
    alumno para cada alimento, guardado localmente en su dispositivo. */
@@ -487,7 +531,7 @@ function ModoFavoritos({ favoritos, onElegir }) {
       {favoritos.map(f => (
         <button key={f.key} onClick={() => onElegir(f)}
           className="bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+          <span className="text-2xl">{emojiAlimento(f)}</span>
           <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
         </button>
       ))}
@@ -500,6 +544,52 @@ function ModoFavoritos({ favoritos, onElegir }) {
    alimento con cantidad estimada por cada parte reconocida. No es IA:
    es una búsqueda por coincidencia de texto contra tu propia base de
    230 alimentos, priorizando la coincidencia más larga y específica. */
+// ¿"aguja" contiene "frase" como palabras enteras? ("pan francés" sí tiene
+// "pan"; "arroz con ají panca" no.)
+function contienePalabras(aguja, frase) {
+  const esc = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
+}
+
+// "ciento cincuenta" → 150, "noventa y dos" → 92, "veintidós" → 22.
+// Solo números de 11 en adelante: "un", "dos"… (cantidades) se leen aparte.
+const UNIDADES_LETRAS = { uno: 1, un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+const NUMEROS_LETRAS = {
+  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+};
+const CENTENAS_LETRAS = { cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500 };
+function numerosEnCifras(texto) {
+  const sinTilde = w => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const palabras = String(texto || '').split(/(\s+)/);
+  const salida = [];
+  for (let i = 0; i < palabras.length; i++) {
+    const w = sinTilde(palabras[i]);
+    let valor = null, j = i;
+    if (CENTENAS_LETRAS[w]) {
+      valor = CENTENAS_LETRAS[w];
+      // "ciento cincuenta", "doscientos veinte"
+      const sig = sinTilde(palabras[i + 2] || '');
+      if (NUMEROS_LETRAS[sig]) { valor += NUMEROS_LETRAS[sig]; j = i + 2; }
+      else if (UNIDADES_LETRAS[sig] && sig !== 'un' && sig !== 'una') { valor += UNIDADES_LETRAS[sig]; j = i + 2; }
+    } else if (NUMEROS_LETRAS[w]) {
+      valor = NUMEROS_LETRAS[w];
+    }
+    if (valor === null) { salida.push(palabras[i]); continue; }
+    // "noventa y dos": decena + "y" + unidad
+    const base = NUMEROS_LETRAS[sinTilde(palabras[j] || '')] || 0;
+    if (base >= 30 && base % 10 === 0 && sinTilde(palabras[j + 2] || '') === 'y' && UNIDADES_LETRAS[sinTilde(palabras[j + 4] || '')]) {
+      valor += UNIDADES_LETRAS[sinTilde(palabras[j + 4])];
+      j += 4;
+    }
+    salida.push(String(valor));
+    i = j;
+  }
+  return salida.join('');
+}
+
 function interpretarVarios(textoCompleto) {
   const NUM_PALABRAS = {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -509,9 +599,14 @@ function interpretarVarios(textoCompleto) {
   // además, cada vez que aparece una nueva cantidad (un número o "dos",
   // "tres"...) se asume que empieza un alimento distinto — así no hace
   // falta decir "más" entre cada uno para que se registren todos.
-  let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
+  // Primero los números dichos en letras pasan a cifras ("noventa y dos
+  // gramos" → "92 gramos"): antes la "y" del número partía la frase y
+  // "noventa" quedaba como si fuera un alimento.
+  let marcado = numerosEnCifras(textoCompleto).replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
   marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
-  const partes = marcado.split('|||').map(s => s.trim()).filter(Boolean);
+  // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
+  // reconocer la última palabra ("redondas.").
+  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre
@@ -550,8 +645,19 @@ function interpretarVarios(textoCompleto) {
       resto = mPeso[2];
     }
 
-    const restoLower = resto.toLowerCase();
+    // Cómo se dice en casa → cómo está en la app.
+    const restoLower = resto.toLowerCase()
+      .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
+      .replace(/\byogurt\b/g, 'yogur')
+      .replace(/\bqueques?\b/g, 'keke');
     const restoVariantes = variantesSingular(restoLower);
+    // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
+    // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
+    // porque contaba la palabra "azúcar").
+    const pideSinAzucar = /\bsin\s+az[uú]car\b|\bnatural\b/i.test(resto);
+    // Palabras que vienen después de "sin" no cuentan para el estado.
+    const tokensResto = restoLower.split(/\s+/);
+    const palabrasEstado = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
 
     // Se calculan TODAS las coincidencias razonables (no solo la
     // mejor), para poder detectar cuando hay varias parecidas y no
@@ -559,39 +665,61 @@ function interpretarVarios(textoCompleto) {
     const candidatas = [];
     for (const f of FOODS) {
       let nombreLower = f.name.toLowerCase();
-      if (nombreLower.includes('keke')) nombreLower += ' queque';
-      else if (nombreLower.includes('queque')) nombreLower += ' keke';
+      if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
+      else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
+      // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
+      // es "papaya".
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && nombreLower.includes(rv)) score = Math.max(score, 50 + rv.length);
-        else if (nombreLower.length > 2 && rv.includes(nombreLower)) score = Math.max(score, 30 + nombreLower.length);
+        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
+        else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
       }
       if (score === 0) {
         const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
         let coincidencias = 0;
         for (const w of palabrasResto) {
-          if (variantesSingular(w).some(v => nombreLower.includes(v))) coincidencias++;
+          if (variantesSingular(w).some(v => palabrasNombre.has(v))) coincidencias++;
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
       // El estado (frito, cocido, crudo...) también cuenta — así "huevo
       // frito" distingue de "huevo cocido", no los deja empatados.
       if (estadoLower && score > 0) {
-        const palabrasResto = restoLower.split(/\s+/);
-        for (const w of palabrasResto) {
+        // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
+        // con un plátano" no es el jugo "Con azúcar".
+        for (const w of palabrasEstado) {
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
             break;
           }
         }
       }
+      if (score > 0 && pideSinAzucar) {
+        const textoFood = `${nombreLower} ${estadoLower}`;
+        if (/con az[uú]car/.test(textoFood)) score = 1;
+        else if (score >= 10 && /sin az[uú]car|natural/.test(textoFood)) score += 45;
+      }
       if (score > 0) candidatas.push({ food: f, score });
     }
     candidatas.sort((a, b) => b.score - a.score);
+    // Lo que es solo un ingrediente del mejor no compite con él: con "jugo
+    // de papaya" no se pregunta por "Papaya (cruda)".
+    if (candidatas.length > 1) {
+      const nombreMejor = candidatas[0].food.name.toLowerCase();
+      for (let k = candidatas.length - 1; k > 0; k--) {
+        const n = candidatas[k].food.name.toLowerCase();
+        if (n !== nombreMejor && n.length < nombreMejor.length && contienePalabras(nombreMejor, n)) candidatas.splice(k, 1);
+      }
+    }
 
-    if (candidatas.length === 0) return null;
+    // Nada parecido en la app: no se pierde en silencio, queda para
+    // buscarlo (o pedírselo a Jonah) después.
+    if (candidatas.length === 0) {
+      return resto.trim().length > 1 ? { textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, sinCoincidencia: true } : null;
+    }
 
     const mejor = candidatas[0].food;
     const mejorScore = candidatas[0].score;
@@ -601,14 +729,32 @@ function interpretarVarios(textoCompleto) {
     // de todas es. Se compara por "key" (nombre + estado), no solo el
     // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
     // entre sí por compartir el mismo nombre base.
-    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
-    const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
+    let empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
+    // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
+    // la app tiene las dos versiones (la natural o "Sin azúcar").
+    let preguntarAzucar = false;
+    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
+      const base = mejor.name.toLowerCase();
+      const sinAz = FOODS.find(f => f.key !== mejor.key && (
+        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
+        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
+      if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
+    }
+    // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
+    // "Avena (cocida)": sobra "pan". Si sobra una palabra, se pregunta (con
+    // "No es ninguna") en vez de anotar otra cosa en silencio.
+    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso']);
+    const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
+    const parcial = mejorScore < 100 && restoLower.split(/\s+/)
+      .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
+      .some(w => !variantesSingular(w).some(v => palabrasFood.has(v) || [...palabrasFood].some(pf => pf.startsWith(v) || v.startsWith(pf) && pf.length > 3)));
+    const necesitaAclarar = (empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar)) || parcial; // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
       : null;
 
     return {
-      textoOriginal: parte.trim(), cantidad, gramosExplicitos,
+      textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, gramosExplicitos,
       food: mejor, necesitaAclarar, opciones,
     };
   }).filter(Boolean);
@@ -647,7 +793,37 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
 
 // autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
 // hoja Registrar), para registrar en un solo toque.
-function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
+/* Pedido de un alimento desde la voz ("🙋 No está en la lista: pedirlo"):
+   lo mismo que "Pedirle a Jonah" del buscador (pedir_alimento_app + la IA
+   lo atiende al instante), pero sin salir de la pantalla de voz. Devuelve
+   { estado: agregado | existe | partes | jonah | error, food?, ... }. */
+function buscarPorNombre(nombre) {
+  const n = String(nombre || '').trim().toLowerCase();
+  if (!n) return null;
+  return FOODS.find(f => f.key.toLowerCase() === n || f.name.toLowerCase() === n
+    || (f.state && f.state !== '-' && `${f.name} (${f.state})`.toLowerCase() === n)) || null;
+}
+async function pedirAlimentoDesdeVoz(nombre, username) {
+  const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
+  if (error) return { estado: 'error', error: error.message?.startsWith('Ya enviaste') ? error.message : 'No se pudo enviar el pedido. Intenta de nuevo.' };
+  try {
+    const { data } = await supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } });
+    if (data?.estado === 'agregado') {
+      await cargarAlimentosExtra(true);
+      return { estado: 'agregado', alimento: data.alimento, food: buscarPorNombre(data.alimento) };
+    }
+    if (data?.estado === 'descartado' && data.ya_existe) return { estado: 'existe', alimento: data.ya_existe, food: buscarPorNombre(data.ya_existe) };
+    if (data?.estado === 'descartado' && data.por_partes?.length) return { estado: 'partes', partes: data.por_partes };
+  } catch {}
+  anotarPedidoEnCamino(username, nombre);
+  return { estado: 'jonah', limite: horaLimiteAlimento(Date.now()) };
+}
+
+// onBuscarDespues(textos): lo que no está en la app (o "No es ninguna") se
+// abre en el buscador de la comida con lo que dijo ya escrito, donde puede
+// buscarlo de otra forma o pedírselo a Jonah. Sin él (fuera de la hoja
+// Registrar), solo se le avisa qué le faltó.
+function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, username = null }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -665,6 +841,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   useEffect(() => () => {
     clearInterval(reloj.current);
     descartar.current = true;
+    pararSilencio();
     try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {}
     try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {}
   }, []);
@@ -674,7 +851,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
 
   function interpretar(dicho) {
     setTexto(dicho);
-    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia }));
     setItems(encontrados);
     if (!encontrados.length) setAviso('No reconocí alimentos en lo que dijiste. Intenta de nuevo, por ejemplo: "2 huevos y 1 pan".');
   }
@@ -696,6 +873,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     rec.ondataavailable = e => { if (e.data?.size) partes.current.push(e.data); };
     rec.onstop = async () => {
       clearInterval(reloj.current);
+      pararSilencio();
       stream.getTracks().forEach(t => t.stop());
       if (descartar.current) { setFase('listo'); return; }
       const blob = new Blob(partes.current, { type: rec.mimeType || tipo || 'audio/webm' });
@@ -715,6 +893,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     };
     grabador.current = rec;
     rec.start();
+    vigilarSilencio(stream);
     setSegundos(0);
     setFase('grabando');
     vibrar(20);
@@ -724,8 +903,53 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     }), 1000);
   }
 
-  function terminar() { try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {} }
-  function cancelar() { descartar.current = true; terminar(); setSegundos(0); }
+  function terminar() {
+    pararSilencio();
+    try {
+      if (grabador.current?.state === 'recording') {
+        // Se ve al toque que ya dejó de escuchar (antes parecía que el ✓ no respondía).
+        if (!descartar.current) { setFase('procesando'); vibrar(15); }
+        grabador.current.stop();
+      }
+    } catch {}
+  }
+  // Deja de escuchar sola: cuando la persona ya habló y se queda callada
+  // 2 segundos. Mide el volumen del micrófono (no se graba nada aparte).
+  const silencio = useRef(null);
+  function pararSilencio() {
+    if (!silencio.current) return;
+    clearInterval(silencio.current.intervalo);
+    try { silencio.current.ctx.close(); } catch {}
+    silencio.current = null;
+  }
+  function vigilarSilencio(stream) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const analizador = ctx.createAnalyser();
+      analizador.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analizador);
+      const datos = new Float32Array(analizador.fftSize);
+      let fondo = null, hablo = false, callado = 0, t = 0;
+      const intervalo = setInterval(() => {
+        analizador.getFloatTimeDomainData(datos);
+        let suma = 0;
+        for (let k = 0; k < datos.length; k++) suma += datos[k] * datos[k];
+        const vol = Math.sqrt(suma / datos.length);
+        t += 100;
+        if (t <= 400) { fondo = fondo === null ? vol : Math.min(fondo, vol); return; } // ruido de fondo
+        const umbral = Math.max(0.02, (fondo || 0) * 3);
+        if (vol > umbral) { hablo = true; callado = 0; }
+        else if (hablo) {
+          callado += 100;
+          if (callado >= 2000) terminar();
+        }
+      }, 100);
+      silencio.current = { ctx, intervalo };
+    } catch {}
+  }
+  function cancelar() { descartar.current = true; terminar(); setSegundos(0); setFase('listo'); }
 
   // Respaldo: dictado del navegador (Chrome de Android).
   function dictar() {
@@ -747,14 +971,38 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   }
 
   function elegirOpcion(i, food) {
-    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false } : it));
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false, buscar: false, activo: true } : it));
+  }
+  // "No es ninguna": ese alimento se busca después (no traba el resto).
+  function ningunaOpcion(i) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, necesitaAclarar: false, buscar: true, activo: false } : it));
+  }
+  // "No está en la lista: pedirlo": se le pide a Jonah ahí mismo. Si la IA
+  // lo agrega (o ya existía), queda elegido; si no, Jonah responde en 1 hora.
+  async function pedirItem(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, idx) => idx === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, idx) => {
+      if (idx !== i) return x;
+      if (r.food) return { ...x, food: r.food, buscar: false, activo: true, pedido: r };
+      return { ...x, pedido: r };
+    }));
   }
 
   function agregarSeleccionados() {
     if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
-    const activos = items.filter(it => it.activo);
-    if (!activos.length) return;
-    onElegirVarios(activos);
+    const activos = items.filter(it => it.activo && !it.buscar);
+    // Lo que ya se pidió a Jonah no se vuelve a buscar (llega con el aviso).
+    const porBuscar = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).map(it => it.textoBuscar || it.textoOriginal);
+    if (!activos.length && !porBuscar.length) return;
+    if (activos.length) onElegirVarios(activos);
+    if (porBuscar.length) {
+      if (onBuscarDespues) onBuscarDespues(porBuscar);
+      else showToast(`Búscalo en el buscador de la comida: ${porBuscar.join(', ')}`);
+    }
     setItems([]);
     setTexto('');
   }
@@ -771,8 +1019,8 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
       <div className="relative my-2">
         {grabando && (
           <>
-            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping" />
-            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping" style={{ animationDelay: '0.35s' }} />
+            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping pointer-events-none" />
+            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping pointer-events-none" style={{ animationDelay: '0.35s' }} />
           </>
         )}
         <button onClick={grabando ? terminar : empezar} disabled={fase === 'procesando'}
@@ -785,10 +1033,10 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
         </button>
       </div>
       {grabando && puedeGrabar ? (
-        <div className="flex items-center justify-center gap-8 w-full">
+        <div className="relative z-10 flex items-center justify-center gap-8 w-full mt-3">
           <button onClick={cancelar} aria-label="Borrar y empezar de nuevo" className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-lg">🗑️</button>
           <span className="jb-display text-xl text-zinc-100 tabular-nums w-16 text-center">{reloj2}</span>
-          <button onClick={terminar} aria-label="Listo" className="w-12 h-12 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+          <button onClick={terminar} aria-label="Listo" className="w-14 h-14 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={26} strokeWidth={3} /></button>
         </div>
       ) : (
         <p className="jb-body text-sm text-zinc-400 text-center">
@@ -813,28 +1061,77 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
                   {it.opciones.map((op, j) => (
                     <button key={j} onClick={() => elegirOpcion(i, op)}
                       className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
-                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
+                      {emojiAlimento(op)} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
                 </div>
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                  <button onClick={() => pedirItem(i)}
+                    className="jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 No está en la lista: pedirlo
+                  </button>
+                  <button onClick={() => ningunaOpcion(i)} className="jb-body text-[11px] text-zinc-400 underline underline-offset-2">
+                    o buscarlo yo
+                  </button>
+                </div>
+              </div>
+            ) : it.buscar ? (
+              <div key={i} className="w-full rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg shrink-0">{it.pedido ? '🙋' : '🔎'}</span>
+                  <span className="jb-body text-xs text-zinc-300 flex-1">
+                    "{it.textoBuscar || it.textoOriginal}"
+                    {!it.pedido && <span className="text-zinc-500"> · {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo en tu comida para buscarlo</span>}
+                  </span>
+                </div>
+                {!it.pedido && (
+                  <button onClick={() => pedirItem(i)}
+                    className="mt-2 jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 Pedírselo a Jonah
+                  </button>
+                )}
+                {it.pedido && (
+                  <p className={`jb-body text-[11px] mt-1.5 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+                    {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+                    {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Lo reviso yo mismo y te respondo antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>. Lo ves en "Tus pedidos en camino" en Inicio 💪</>}
+                    {it.pedido.estado === 'agregado' && <>✅ Ya está en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo en tu comida y elígelo 💪</>}
+                    {it.pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo así en tu comida 🙌</>}
+                    {it.pedido.estado === 'partes' && <>🧩 Regístralo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+                    {it.pedido.estado === 'error' && it.pedido.error}
+                  </p>
+                )}
               </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
-                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  <NotaSinArroz food={it.food} />
                 </span>
+                {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
+                <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
+                  className="jb-body text-[10px] text-zinc-500 underline underline-offset-2 shrink-0 px-1">No es esto</span>
               </button>
             )
           ))}
-          {items.some(it => it.necesitaAclarar) ? (
-            <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
-          ) : (
-            <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-              Agregar {items.filter(it => it.activo).length} alimento(s)
-            </button>
-          )}
+          {(() => {
+            if (items.some(it => it.necesitaAclarar)) {
+              return <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba, o toca "No está en la lista: pedirlo"</p>;
+            }
+            const n = items.filter(it => it.activo && !it.buscar).length;
+            const b = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).length;
+            if (!n && !b) {
+              return items.some(it => it.pedido?.estado === 'enviando') ? null : (
+                <button onClick={() => { setItems([]); setTexto(''); }} className={btnGhost + ' mt-1 py-2 text-sm'}>Listo</button>
+              );
+            }
+            return (
+              <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
+                {n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
+              </button>
+            );
+          })()}
         </div>
       ) : texto ? (
         <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>
@@ -910,7 +1207,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
               {platos.map(f => (
                 <button key={f.key} onClick={() => agregarPlato(f)}
                   className="bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-                  <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                  <span className="text-2xl">{emojiAlimento(f)}</span>
                   <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
                 </button>
               ))}
@@ -924,7 +1221,9 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 // embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
 // su selector de comida, porque la comida ya se eligió en la hoja).
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
+// onAgregado(meal, ids): en la hoja "Registrar", al agregar se cierra la hoja
+// y se lleva al alumno a lo que acaba de registrar.
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues, onAgregado }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -934,12 +1233,14 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
   function agregarDirecta(food) {
     const d = unidadPorDefecto(food);
+    const id = uid();
     setMealPlan(v => ({
       ...v,
-      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id: uid(), foodKey: food.key, qty: d.qty, unit: d.unit }] },
+      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id, foodKey: food.key, qty: d.qty, unit: d.unit }] },
     }));
     vibrar(15);
     showToast(`✅ ${food.name} agregado a ${mealDestino}`);
+    onAgregado?.(mealDestino, [id]);
   }
 
   function agregarCombo(opt) {
@@ -969,6 +1270,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
     vibrar(20);
     showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
+    onAgregado?.(mealDestino, nuevas.map(n => n.id));
   }
 
   // En la hoja Registrar el botón "Voz" ya graba directo (un solo toque).
@@ -984,7 +1286,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} autoGrabar />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} username={username} autoGrabar />}
       </div>
     );
   }
@@ -1021,7 +1323,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} username={username} />}
         </div>
       )}
     </div>
@@ -1307,7 +1609,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                                     showToast(`🔄 ${sub.name} en vez de ${it.food.name}`);
                                   }}
                                   className="jb-body text-[11px] bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-lg px-2 py-1.5 text-left text-zinc-200 flex items-center justify-between gap-2">
-                                  <span>{GROUP_EMOJI[sub.group] || '🍴'} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
+                                  <span>{emojiAlimento(sub)} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
                                   <span className="text-zinc-600">{explicarSustituto(it.food, it.grams, sub, eq, macro)}</span>
                                 </button>
                               );
@@ -6155,8 +6457,11 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
             <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
               onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
               className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
-              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
-              <span className="jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{emojiAlimento(f)}</span>
+              <span className="min-w-0">
+                <span className="block jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+                <NotaSinArroz food={f} />
+              </span>
             </button>
           ))}
           <p className="jb-body text-[11px] text-zinc-600 px-3 py-2">O escribe para buscar cualquier alimento.</p>
@@ -6191,13 +6496,14 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                   onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
                   className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
                   <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
-                    {GROUP_EMOJI[f.group] || '🍴'}
+                    {emojiAlimento(f)}
                   </span>
                   {/* El nombre completo, en varias líneas si hace falta: con nombres
                       parecidos ("Chocolate con leche" en barra o batido en taza)
                       cortarlo con "…" hacía fácil elegir el equivocado. */}
                   <div className="min-w-0">
                     <div className="jb-body text-sm text-zinc-100 break-words leading-snug">{f.name}</div>
+                    <NotaSinArroz food={f} />
                     <div className="jb-body text-[11px] text-zinc-500">
                       {f.group && !f.esPersonal ? f.group + ' · ' : ''}{f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
                       {f.esPersonal ? ' · tuyo' : ''}
@@ -6363,7 +6669,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
   );
 }
 
-function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
+function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
   const [abierto, setAbierto] = useState(null); // 'ayer' | 'guardadas' | 'frecuentes'
   const [ayer, setAyer] = useState(null);
   const [guardadas, setGuardadas] = useState([]);
@@ -6433,6 +6739,9 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     }));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], ...nuevos] } }));
     setAbierto(null);
+    vibrar(15);
+    showToast(`✅ ${nuevos.length === 1 ? '1 alimento agregado' : `${nuevos.length} alimentos agregados`} a ${meal}`);
+    onAgregado?.(meal, nuevos.map(n => n.id));
   }
 
   async function guardarComida() {
@@ -6713,7 +7022,10 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
   const normal = d.qty * porUnidad;
-  const calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  let calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  // Bebidas: un vaso servido es al menos 1 vaso (la IA suele calcular menos
+  // por la foto: salía "½ taza" para un vaso de gaseosa).
+  if (food.group === 'Bebidas' && d.unit === 'vaso') calculado = Math.max(calculado, normal);
   const gramos = calculado * ((TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1);
   if (d.unit === 'gramos') return { unit: 'gramos', qty: Math.max(10, Math.round(gramos / 10) * 10) };
   return { unit: d.unit, qty: Math.max(0.25, Math.round((gramos / porUnidad) * 4) / 4) };
@@ -6723,6 +7035,7 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
 function textoPorcionFoto(food, porcion) {
   if (porcion.pesado) return `${Math.round(porcion.qty)} g ⚖️`;
   if (porcion.unit === 'gramos') return `≈ ${Math.round(porcion.qty)} g`;
+  if (porcion.unit === 'ml') return `≈ ${Math.round(porcion.qty)} ml`;
   const entero = Math.floor(porcion.qty);
   const resto = Math.round((porcion.qty - entero) * 4);
   const fr = ['', '¼', '½', '¾'][resto] || '';
@@ -6731,7 +7044,8 @@ function textoPorcionFoto(food, porcion) {
     ? (porcion.unit === 'porción' ? 'porciones' : porcion.unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
     : porcion.unit;
   const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
-  return `${numero} ${plural} (≈ ${gramos} g)`;
+  // Bebidas en ml ("1 vaso (≈ 200 ml)"): así se compran y se miden.
+  return `${numero} ${plural} (≈ ${gramos} ${food.group === 'Bebidas' ? 'ml' : 'g'})`;
 }
 
 /* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos
@@ -6749,7 +7063,30 @@ const OPCIONES_ACEITE = [
 const CLAVE_ACEITE = 'Aceite vegetal (-)';
 
 function esConAceite(food, aceiteIA) {
-  return !!aceiteIA || esFritoOSaltado(food);
+  // Carnes, pollo, pescado y huevo cocidos van con "¿Cómo lo cocinaste?"
+  // (preguntaAceite), aunque la IA haya visto aceite.
+  return esFritoOSaltado(food) || (!!aceiteIA && !sePuedeFreir(food));
+}
+// Carnes, pollo, pescado y huevos cocidos: "¿Cómo lo cocinaste?". Si lo
+// frió, se suma el aceite que absorbió (ver sePuedeFreir en App.jsx).
+// "normal" = sin aceite (no se anota nada).
+const OPCIONES_ACEITE_COCINA = [
+  { key: 'normal', label: 'Sin aceite' },
+  { key: 'poquito', label: 'Un poco' },
+  { key: 'frito', label: 'Frito' },
+  { key: 'muyfrito', label: 'Con mucho aceite' },
+];
+// Qué preguntar del aceite para este alimento (o null si no aplica).
+function preguntaAceite(food, aceiteIA) {
+  if (esConAceite(food, aceiteIA)) return {
+    opciones: OPCIONES_ACEITE, titulo: '🍳 ¿Cuánto aceite tenía?',
+    ayuda: 'Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.',
+  };
+  if (sePuedeFreir(food)) return {
+    opciones: OPCIONES_ACEITE_COCINA, titulo: '🍳 ¿Cómo lo cocinaste?',
+    ayuda: '"Sin aceite": sancochado, al horno, a la olla o a la plancha sin aceite. Si lo freíste, se suma el aceite que absorbe: "Un poco" (¼ de cucharada), "Frito" (½) o "Con mucho aceite" (1 cucharada, ≈124 kcal).',
+  };
+  return null;
 }
 
 function macrosDeFoto(food, porcion, aceite) {
@@ -6797,7 +7134,7 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -6813,6 +7150,29 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [pesados, setPesados] = useState({}); // { [key o id]: gramos }
   const [pesando, setPesando] = useState(null); // id con el cuadro de gramos abierto
   const [gramosEscritos, setGramosEscritos] = useState('');
+  // Gramos que tenía antes de abrir el cuadro, para "Cancelar". Lo escrito
+  // se aplica al toque (antes había que tocar "Listo" y, si se tocaba
+  // "Agregar" o se abría otro alimento, los gramos se perdían sin aviso).
+  const pesoAntesRef = useRef(null);
+  function abrirPeso(id) {
+    pesoAntesRef.current = pesados[id] > 0 ? pesados[id] : null;
+    setGramosEscritos(pesados[id] > 0 ? String(pesados[id]) : '');
+    setPesando(id);
+  }
+  function escribirPeso(id, valor) {
+    setGramosEscritos(valor);
+    const g = Math.round(Number(String(valor).replace(',', '.')));
+    setPesados(v => {
+      const n = { ...v };
+      if (g > 0 && g <= 3000) n[id] = g; else delete n[id];
+      return n;
+    });
+  }
+  function cancelarPeso(id) {
+    const antes = pesoAntesRef.current;
+    setPesados(v => { const n = { ...v }; if (antes) n[id] = antes; else delete n[id]; return n; });
+    setPesando(null);
+  }
   function porcionFinal(food, f, id) {
     if (pesados[id] > 0) return { unit: 'gramos', qty: pesados[id], pesado: true };
     return porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
@@ -6840,6 +7200,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   // cuando la IA dijo ese alimento (viene del servidor). { [foodKey]: [foodKey] }
   const [alternativasIA, setAlternativasIA] = useState({});
   const [aceite, setAceite] = useState('normal');
+  // Carnes, pollo, pescado o huevo cocidos: ¿los frió? (ver preguntaAceite)
+  const [aceiteCocina, setAceiteCocina] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   // Lo que la IA vio y no está en la app ya no se pide solo (la IA puede
@@ -6972,11 +7334,21 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
             // sola clave, mostramos las alternativas para que el alumno
             // toque la correcta.
-            const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
-            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true } : null;
+            let alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
+            // Un líquido servido para tomar es una bebida: nunca "Aceite de
+            // oliva" u otra grasa como opción junto a gaseosas o jugos (a
+            // Jonah le salió para un vaso de gaseosa; 1 vaso de aceite son
+            // ~1.000 kcal).
+            if (alternativas.some(f => f.group === 'Bebidas')) alternativas = alternativas.filter(f => f.group !== 'Grasas');
+            const gramosIA = Number(it.gramos) > 0 ? Number(it.gramos) : null;
+            if (alternativas.length === 1) return { ...alternativas[0], _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: 'media' };
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true } : null;
           }
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
+          // Aceites y grasas solas: como mucho 2 cucharadas por foto (la IA
+          // no puede ver cuánto aceite hay; un error aquí suma cientos de kcal).
+          const gramosIA = Number(it.gramos) > 0 ? (food?.group === 'Grasas' ? Math.min(Number(it.gramos), 30) : Number(it.gramos)) : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);
@@ -6999,6 +7371,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       setPesados({});
       setPesando(null);
       setAceite('normal');
+      // Si la IA vio que la carne, el pollo o el pescado estaba frito, ya
+      // viene marcado "Frito" (el alumno lo puede cambiar).
+      setAceiteCocina(encontrados.some(f => f._aceiteIA && (f.esOpciones ? f.alternativas.some(sePuedeFreir) : sePuedeFreir(f))) ? 'frito' : 'normal');
       setEstado('resultados');
     } catch (e) {
       setMensajeError(e?.message || '');
@@ -7071,7 +7446,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
       const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
-      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
+      const frito = !poco && aceiteCocina !== 'normal' && sePuedeFreir(food) ? aceiteCocina : null;
+      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : frito ? { aceite: frito } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -7140,7 +7516,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
           tamano: tamanos[id] || 'normal',
           pesado: e.porcion.pesado ? true : null,
           piezas_corregidas: conteos[id] !== undefined && conteos[id] !== (f._cantidadIA || 1) ? conteos[id] : null,
-          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : null,
+          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : sePuedeFreir(e.food) ? aceiteCocina : null,
         };
       };
       items.forEach(f => {
@@ -7321,11 +7697,6 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
                 const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
-                const guardarPeso = () => {
-                  const g = Math.round(Number(String(gramosEscritos).replace(',', '.')));
-                  if (g > 0 && g <= 3000) setPesados(v => ({ ...v, [id]: g }));
-                  setPesando(null);
-                };
                 const ajusteIA = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
@@ -7352,19 +7723,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                 ));
                 const ajuste = food && marcado && (pesando === id ? (
-                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); guardarPeso(); }}>
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
                     <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
-                      onChange={e => setGramosEscritos(e.target.value)}
+                      onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
                     <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
-                    <button type="button" onClick={() => setPesando(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                    <button type="button" onClick={() => cancelarPeso(id)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
                   </form>
                 ) : pesados[id] > 0 ? (
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="jb-body text-xs text-emerald-400">⚖️ Pesado en tu balanza</span>
-                    <button type="button" onClick={() => { setGramosEscritos(String(pesados[id])); setPesando(id); }}
+                    <span className="jb-body text-xs text-emerald-400">⚖️ {pesados[id]} g pesados en tu balanza</span>
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="jb-body text-[11px] text-zinc-400 hover:text-zinc-200 underline">Cambiar</button>
                     <button type="button" onClick={() => setPesados(v => { const n = { ...v }; delete n[id]; return n; })}
                       className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
@@ -7372,7 +7743,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-3">
                     {ajusteIA}
-                    <button type="button" onClick={() => { setGramosEscritos(''); setPesando(id); }}
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="mt-2 jb-body text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-2.5 py-1">
                       ⚖️ Lo pesé
                     </button>
@@ -7424,6 +7795,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                         className="w-4 h-4 accent-orange-500 shrink-0" />
                       <span className="flex-1 min-w-0">
                         <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{food.name}</span>
+                        <NotaSinArroz food={food} />
                         <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                       </span>
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
@@ -7477,10 +7849,37 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               );
             })()}
             {(() => {
+              // Carne, pollo, pescado o huevo cocidos: "¿Cómo lo cocinaste?".
+              const elegidos = elegidosConPorcion();
+              const cuales = elegidos.filter(e => sePuedeFreir(e.food));
+              if (!cuales.length) return null;
+              const p = preguntaAceite(cuales[0].food);
+              const nombres = cuales.map(e => nombreAlimento(e.food)).join(', ');
+              return (
+                <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
+                  <p className="jb-body text-sm text-zinc-200">{p.titulo} <span className="text-zinc-500 text-xs">({nombres})</span></p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">{p.ayuda}</p>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cómo lo cocinaste">
+                    {p.opciones.map(o => {
+                      const activo = aceiteCocina === o.key;
+                      return (
+                        <button key={o.key} type="button" aria-pressed={activo} onClick={() => setAceiteCocina(o.key)}
+                          className={`jb-body text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            {(() => {
               // Total de lo que está marcado, con los ajustes y el aceite extra.
               const elegidos = elegidosConPorcion();
               if (!elegidos.length) return null;
-              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion, aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco' : null));
+              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion,
+                aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco'
+                  : aceiteCocina !== 'normal' && sePuedeFreir(e.food) ? aceiteCocina : null));
               const cucharadas = extraAceite(elegidos);
               const aceiteFood = cucharadas ? buscarFood(CLAVE_ACEITE) : null;
               if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
@@ -7498,9 +7897,17 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 </div>
               );
             })()}
+            {/* A qué comida va: se puede cambiar aquí mismo antes de agregar
+                (ej. un almuerzo tarde, después de las 3:30). */}
+            {onCambiarComida && (
+              <div className="mb-3">
+                <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A qué comida va?</p>
+                <SelectorComida valor={comida} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="-mx-1 px-1" />
+              </div>
+            )}
             <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {elegidosConPorcion().length || ''} a esta comida
+              Agregar {elegidosConPorcion().length || ''} a {comida ? comida.toLowerCase() : 'esta comida'}
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
@@ -8194,12 +8601,12 @@ function opcionesCantidad(food, unidad) {
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));
 }
 const textoCantidad = ({ unit, qty }) => {
-  if (unit === 'gramos' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
+  if (unit === 'gramos' || unit === 'ml' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
   if (/[\s/]/.test(unit)) return qty === 1 ? `1 ${unit}` : `${fraccion(qty)} × ${unit}`;
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
-function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar }) {
+function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar, onCambiarComida }) {
   const [texto, setTexto] = useState('');
   const [elegido, setElegido] = useState(null); // food
   const [unidad, setUnidad] = useState(null);
@@ -8258,7 +8665,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 
   function agregar(food, porcion, aceiteElegido) {
     const entry = { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty };
-    if (aceiteElegido && aceiteElegido !== 'normal' && esConAceite(food)) entry.aceite = aceiteElegido;
+    if (aceiteElegido && aceiteElegido !== 'normal' && preguntaAceite(food)?.opciones.some(o => o.key === aceiteElegido)) entry.aceite = aceiteElegido;
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
@@ -8281,6 +8688,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
           <h3 className="jb-display text-xl text-zinc-50 tracking-wide">{ICONO_COMIDA[meal]} {meal.toUpperCase()}</h3>
           <button onClick={onCerrar} className={btnPrimary + ' px-4 py-2 text-sm shrink-0'}>{agregados.length ? 'Listo ✅' : 'Cerrar'}</button>
         </div>
+        {/* La comida se puede cambiar aquí mismo (ej. un almuerzo tarde,
+            después de las 3:30). Una vez que anotó algo, queda fija. */}
+        {onCambiarComida && !agregados.length && (
+          <SelectorComida valor={meal} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="mb-3 -mx-5 px-5" />
+        )}
 
         {agregados.length > 0 && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-3">
@@ -8300,6 +8712,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             <button onClick={() => setElegido(null)} className="jb-body text-sm text-zinc-400 self-start">← Elegir otro</button>
             <div>
               <p className="jb-display text-2xl text-zinc-50 leading-tight">{nombreAlimento(elegido).toUpperCase()}</p>
+              <NotaSinArroz food={elegido} className="!text-sm mt-1" />
               <p className="jb-body text-base text-zinc-400 mt-1">¿Cuánto comiste?</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -8340,11 +8753,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 </form>
               );
             })()}
-            {esConAceite(elegido) && (
+            {preguntaAceite(elegido) && (
               <div>
-                <p className="jb-body text-sm text-zinc-300 mb-1.5">🍳 ¿Cuánto aceite tenía?</p>
+                <p className="jb-body text-sm text-zinc-300 mb-1.5">{preguntaAceite(elegido).titulo}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {OPCIONES_ACEITE.map(o => (
+                  {preguntaAceite(elegido).opciones.map(o => (
                     <button key={o.key} onClick={() => setAceite(o.key)}
                       className={`jb-body text-sm px-3 py-2 rounded-full border ${aceite === o.key ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
                       {o.label}
@@ -8387,9 +8800,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   {frecuentes.map(fr => (
                     <button key={fr.food.key} onClick={() => agregar(fr.food, { unit: fr.unit, qty: fr.qty })}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[fr.food.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(fr.food)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(fr.food)}</span>
+                        <NotaSinArroz food={fr.food} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad({ unit: fr.unit, qty: fr.qty })} · ≈ {kcalDe(fr.food, fr)} kcal</span>
                       </span>
                       <span className="jb-display text-orange-400 text-xl shrink-0">+</span>
@@ -8406,9 +8820,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   return (
                     <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit); }}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}{clavesFrecuentes.has(f.key) ? ' ⭐' : ''}</span>
+                        <NotaSinArroz food={f} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad(d)} ≈ {kcalDe(f, d)} kcal{f.esPersonal ? ' · tuyo' : ''}</span>
                       </span>
                       <ChevronRight size={18} className="text-zinc-600 shrink-0" />
@@ -8489,7 +8904,7 @@ function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
   );
 }
 
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, onAgregado, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
   const ahora = comidaDeAhora();
@@ -8551,19 +8966,39 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
         {modo === 'voz' && premium && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-              restricciones={mealPlan.restricciones || []} embebido meal={meal} />
+              restricciones={mealPlan.restricciones || []} embebido meal={meal}
+              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined}
+              onAgregado={onAgregado} />
           </div>
         )}
 
         {username && (
           <div>
             <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Atajos para {meal.toLowerCase()}</p>
-            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} onAgregado={onAgregado} />
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen:
+// se avisa "Sin arroz: agrégalo aparte" para que no se olvide de anotarlo.
+// Los de la lista fija (RAW_FOODS) van aquí; los agregados desde el panel o
+// por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
+// Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
+// olla con arroz") no van.
+const PLATOS_SIN_ARROZ = new Set([
+  'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
+  'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
+  'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
+  'Sudado de pescado',
+]);
+const esPlatoSinArroz = food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
+function NotaSinArroz({ food, className = '' }) {
+  if (!esPlatoSinArroz(food)) return null;
+  return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;
 }
 
 // Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
@@ -8743,9 +9178,10 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <div className="flex items-start gap-3 mb-5">
-          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{emojiAlimento(food)}</span>
           <div className="flex-1 min-w-0">
             <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
+            <NotaSinArroz food={food} />
             <p className="jb-body text-xs text-zinc-500">{meal}</p>
           </div>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
@@ -8799,12 +9235,12 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
-        {esConAceite(food) && (
+        {preguntaAceite(food) && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">
-            <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+            <p className="jb-body text-sm text-zinc-200">{preguntaAceite(food).titulo}</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">{preguntaAceite(food).ayuda}</p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
-              {OPCIONES_ACEITE.map(o => {
+              {preguntaAceite(food).opciones.map(o => {
                 const activo = (en.aceite || 'normal') === o.key;
                 return (
                   <button key={o.key} type="button" aria-pressed={activo}
@@ -8867,7 +9303,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
                           }}
                           className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
                           <span className="text-zinc-200">
-                            {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                            {emojiAlimento(opt)} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
                             {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
                           </span>
                           <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
@@ -9168,6 +9604,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     else setHojaMeal(hojaInicial.meal);
   }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
+  const [recien, setRecien] = useState([]); // ids recién registrados (se resaltan 3 segundos)
+  // Al terminar de registrar por cualquier camino (hoja, voz, foto, código,
+  // escribir), la pantalla va a lo que se agregó y lo marca en verde: antes,
+  // con la foto, quedaba más abajo (en Cena o Agua) y no se veía.
+  const flujo = useRef(null); // { meal, antes: Set de ids que ya estaban }
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = esHoy ? comidaDeAhora() : null;
@@ -9182,8 +9623,51 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   // que se agregó.
   useEffect(() => {
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
-    if (m && MEAL_NAMES.indexOf(m) < idxAhora) setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    if (m) {
+      if (!flujo.current || flujo.current.meal !== m) flujo.current = { meal: m, antes: new Set((mealPlan.meals[m] || []).map(e => e.id)) };
+      return;
+    }
+    if (!flujo.current) return;
+    const { meal, antes } = flujo.current;
+    flujo.current = null;
+    const agregadas = (mealPlan.meals[meal] || []).filter(e => !antes.has(e.id));
+    const nuevos = agregadas.filter(e => e.foodKey).map(e => e.id);
+    if (!nuevos.length) return;
+    setRecien(nuevos);
+    setTimeout(() => setRecien([]), 3000);
+    // Si quedó una fila por buscar (voz: "No es ninguna"), la vista va a esa.
+    if (agregadas.some(e => !e.foodKey)) return;
+    setTimeout(() => {
+      const el = document.getElementById('entrada-' + nuevos[nuevos.length - 1]);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
   }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Al terminar de registrar, esa comida (pasada o la de AHORA) se cierra sola a los 6
+  // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
+  // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
+  // haciendo algo (editando, escribiendo) o si quedó un alimento por buscar.
+  // También al abrirla tocándola: se cierra sola a los 8 segundos sin tocar
+  // nada (cada cambio de cantidad vuelve a contar).
+  const abiertaPorRegistro = useRef(null);
+  const esperaCierre = useRef(6000);
+  useEffect(() => {
+    const m = hojaMeal || fotoPara || codigoPara || escribirPara;
+    if (m && esHoy) {
+      abiertaPorRegistro.current = m;
+      esperaCierre.current = 6000;
+      setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    }
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const m = abiertaPorRegistro.current;
+    if (!m || hojaMeal || fotoPara || codigoPara || escribirPara || crearPara || editando || escribiendo) return;
+    const t = setTimeout(() => {
+      if ((mealPlan.meals[m] || []).some(en => !en.foodKey)) return; // falta elegir un alimento
+      abiertaPorRegistro.current = null;
+      setAbiertas(a => ({ ...a, [m]: false }));
+    }, esperaCierre.current);
+    return () => clearTimeout(t);
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara, crearPara, editando, escribiendo, mealPlan, abiertas]); // eslint-disable-line react-hooks/exhaustive-deps
   // Al entrar a Comidas, si la comida de AHORA quedó fuera de la pantalla,
   // se baja hasta ella.
   useEffect(() => {
@@ -9381,6 +9865,15 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onAgregado={() => setHojaMeal(null)} // al cerrarse, la vista baja a lo agregado (ver "flujo")
+          onBuscarDespues={(m, textos) => {
+            // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
+            // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).
+            setHojaMeal(null);
+            let ultimo = null;
+            textos.forEach(t => { const id = addEntry(m); ultimo = id; setTextoInicial(v => ({ ...v, [id]: t })); });
+            if (ultimo) setEnfocar(ultimo);
+          }}
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}
@@ -9388,7 +9881,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         <RegistroEscritoModal meal={escribirPara} username={username} todosLosAlimentos={todosLosAlimentos}
           mealPlan={mealPlan} setMealPlan={setMealPlan}
           onOtraForma={texto => { const m = escribirPara; setEscribirPara(null); const id = addEntry(m); setTextoInicial(t => ({ ...t, [id]: texto })); setEnfocar(id); }}
-          onCerrar={() => setEscribirPara(null)} />
+          onCerrar={() => setEscribirPara(null)}
+          onCambiarComida={m => { if (m !== escribirPara) setAbiertas(a => ({ ...a, [escribirPara]: false })); setEscribirPara(m); }} />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano (se
           esconde mientras escribe, para no tapar la lista del buscador). */}
@@ -9449,6 +9943,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEscribirPara(m); }}
+          onCambiarComida={m => { if (m !== fotoPara) setAbiertas(a => ({ ...a, [fotoPara]: false })); setFotoPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
         />
@@ -9471,6 +9966,10 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         const vacia = entradas.length === 0;
         const esAhora = meal === mealAhora;
         const pasada = idx < idxAhora;
+        // Hoy, toda comida con algo registrado se ve cerrada en una línea
+        // (también la de AHORA: si ya la registró, ya está hecha; para
+        // agregar más la abre). No se cierra si quedó un alimento por buscar.
+        const plegable = esHoy && !vacia && !entradas.some(en => !en.foodKey);
         const kcalComida = entradas.reduce((a, en) => a + entryMacros(en).kcal, 0);
         // Ya pasó y no se registró: todas juntas en una línea delgada, en el
         // lugar de la última.
@@ -9503,18 +10002,21 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             </div>
           );
         }
-        // Ya pasó y tiene lo registrado: cerrada en una línea; se abre al tocarla.
-        if (pasada && !abiertas[meal]) {
+        // Tiene lo registrado: cerrada en una línea; se abre al tocarla.
+        if (plegable && !abiertas[meal]) {
           return (
-            <button key={meal} onClick={() => { vibrar(8); setAbiertas(a => ({ ...a, [meal]: true })); }}
+            <button key={meal} id={esAhora ? 'comida-ahora' : undefined} onClick={() => { vibrar(8); abiertaPorRegistro.current = meal; esperaCierre.current = 8000; setAbiertas(a => ({ ...a, [meal]: true })); }}
               aria-label={`Ver ${meal}`}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
+              className={`w-full bg-zinc-900 border rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40 ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}>
               <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
                 {ICONO_COMIDA[meal] || '🍴'}
                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
               </span>
               <span className="flex-1 min-w-0">
-                <span className="jb-display text-sm tracking-wide text-orange-500 block">{meal.toUpperCase()}</span>
+                <span className="jb-display text-sm tracking-wide text-orange-500 flex items-center gap-2">
+                  {meal.toUpperCase()}
+                  {esAhora && <span className="jb-body text-[9px] font-semibold tracking-wider text-zinc-950 bg-orange-500 rounded-full px-1.5 py-0.5">AHORA</span>}
+                </span>
                 <span className="jb-body text-[11px] text-zinc-500 tabular-nums block">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></span>
               </span>
               <ChevronRight size={18} className="text-zinc-500 shrink-0" />
@@ -9541,8 +10043,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 ? <p className="jb-body text-[11px] text-zinc-600">{esAhora ? 'Es hora de registrar — toca +' : 'Sin registrar'}</p>
                 : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
             </div>
-            {pasada && !vacia && (
-              <button onClick={() => setAbiertas(a => ({ ...a, [meal]: false }))} aria-label={`Cerrar ${meal}`}
+            {plegable && (
+              <button onClick={() => { abiertaPorRegistro.current = null; setAbiertas(a => ({ ...a, [meal]: false })); }} aria-label={`Cerrar ${meal}`}
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-500 hover:text-zinc-300">
                 <ChevronDown size={18} />
               </button>
@@ -9584,7 +10086,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 const porcion = porcionDeEntrada(en);
                 const muyAlta = entryGrams(en) >= MAX_GRAMOS_ENTRADA;
                 return (
-                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-xl">
+                  <div key={en.id} id={'entrada-' + en.id} className={`relative rounded-xl transition-shadow duration-700 ${recien.includes(en.id) ? 'ring-2 ring-emerald-400' : ''}`}>
                     <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
@@ -9601,7 +10103,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                       <div className="flex-1 min-w-[8.5rem]">
                       <button type="button" onClick={() => setEditando({ meal, id: en.id })}
                         className="w-full min-w-0 flex items-center gap-2.5 text-left">
-                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{emojiAlimento(food)}</span>
                         <span className="min-w-0">
                           <span className="block jb-body text-sm text-zinc-100 leading-snug line-clamp-2 break-words">{nombreAlimento(food)}</span>
                           <span className="block jb-body text-[11px] text-orange-400 font-semibold tabular-nums">{Math.round(m.kcal)} kcal</span>
@@ -11248,7 +11750,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
           { id: 'equipo', icon: Users, label: 'Comunidad', activo: tab === 'equipo', aviso: (avisoEquipo || avisoMuro) && tab !== 'equipo' },
         ].map(item => (
-          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); if (item.id === 'equipo') revisarAvisoEquipo(); }}
+          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); window.scrollTo({ top: 0 }); if (item.id === 'equipo') revisarAvisoEquipo(); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
             <span className="relative">
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />

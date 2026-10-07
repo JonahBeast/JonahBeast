@@ -179,6 +179,10 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
 
+**La app se actualiza sola:** si la tenías abierta en segundo plano y vuelves a ella después de un rato (1 minuto o más), revisa si hay una versión nueva y, si la hay, se recarga sola en un segundo. No se pierde nada de lo registrado. Si un alumno no ve una mejora, que cierre y vuelva a abrir la app.
+
+**Al cambiar de pestaña** con la barra de abajo (Inicio, Comidas, Mi cuerpo, Progreso, Comunidad), la pantalla siempre empieza **desde arriba**.
+
 **Mientras carga** (muro, equipos, fotos, atajos), se ve la forma gris de las tarjetas latiendo suavemente hasta que aparece lo real.
 
 **Buscador de alimentos** (cuando buscas un alimento en una fila de Comidas, en "¿Era otro alimento?" o en la foto): antes de escribir muestra **"⭐ Lo que comes seguido"** (tus alimentos más registrados); un toque y listo. Si escribes, busca en todos los alimentos.
@@ -280,10 +284,11 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **Medidor fijo arriba:** anillo con las **"kcal quedan"** (o "kcal de más" si te pasaste; naranja = te falta, verde = cumpliste, ámbar = te pasaste, ver 8.7), "X de Y kcal" y barras de **Proteína**, **Carbos** y **Grasas**.
 - **5 comidas:** Desayuno ☀️, Media mañana 🍎, Almuerzo 🍽️, Media tarde 🥐, Cena 🌙. La que toca por la hora lleva **"AHORA"**:
   - Desayuno 5:00–10:30 · Media mañana 10:30–12:30 · Almuerzo 12:30–15:30 · Media tarde 15:30–18:30 · Cena el resto.
-- **Las comidas que ya pasaron se ven cerradas**, para llegar a la de AHORA sin bajar tanto:
-  - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"**. El **✓ verde** junto al ícono de la comida (abierta o cerrada) significa que ya registraste esa comida. Tócala para abrirla y ver o cambiar sus alimentos; la flecha **⌄** de arriba a la derecha la vuelve a cerrar. Si le agregas algo, se queda abierta.
+  - **A qué comida va lo que registras** con el botón grande **"REGISTRAR"** (y la foto o "escribir" de Inicio): la de AHORA. Se puede cambiar arriba en "REGISTRAR" y también **ahí mismo**: en la foto, encima del botón, sale **"¿A qué comida va?"** con las 5 comidas (el botón dice a cuál va, ej. **"Agregar 3 a almuerzo"**), y en "Escribir" las comidas salen arriba hasta que anotas el primer alimento. Sirve, por ejemplo, para un almuerzo tarde después de las 3:30.
+- **Las comidas ya registradas se ven cerradas** (las que ya pasaron y también la de AHORA), para que la pantalla quede ordenada:
+  - Si registraste algo, la comida queda en una sola línea: ej. **"☀️ DESAYUNO ✓ · 3 alimentos · 520 kcal ›"** (la de ahora lleva además **"AHORA"**). Para agregarle más, tócala y usa su **+**. El **✓ verde** junto al ícono de la comida (abierta o cerrada) significa que ya registraste esa comida. Tócala para abrirla y ver o cambiar sus alimentos; **se cierra sola a los 8 segundos** sin tocar nada (cada cambio de cantidad vuelve a contar), o al momento con la flecha **⌄** de arriba a la derecha. Si le agregas algo, se abre para que veas lo registrado (en verde) y **se cierra sola a los 6 segundos**, para que la pantalla quede ordenada. Si mientras tanto estás cambiando una cantidad o quedó un alimento por buscar, espera a que termines.
   - Si no registraste nada, se juntan en una línea gris: ej. **"Media mañana y Media tarde — no registradas"** con un **+**. Si te olvidaste de anotar algo, toca **+** y elige a cuál ("¿A cuál?").
-  - La comida de **AHORA** y las que todavía no llegan se ven completas, como siempre.
+  - La comida de **AHORA** sin nada registrado y las que todavía no llegan se ven completas, con su **+**. Si quedó un alimento por buscar, la comida se queda abierta hasta que lo elijas.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
 - Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
@@ -293,7 +298,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 
 ### 8.2 Cómo registrar (paso común)
 
-Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos.
+Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la hoja "REGISTRAR": arriba eliges la comida (ya viene la de la hora). Primero, grande, está **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"** (así registra casi todo el mundo); debajo, los otros métodos: **"Foto"**, **"Código"** (código de barras de productos empacados) y **"Voz"**. Abajo están los atajos. Cuando terminas de agregar, por cualquier camino (**foto, código, escribir, voz, favoritos o atajos**), **la pantalla te lleva a lo que acabas de registrar**, marcado con un borde verde por unos segundos. Con voz, favoritos y atajos, además la hoja se cierra sola.
 
 **A) Escribir (lo más usado)**
 1. Toca **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"**. Se abre una pantalla con el nombre de la comida (ej. "🍽️ ALMUERZO").
@@ -314,13 +319,14 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
    - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
    - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?"). Se puede bajar hasta **½** (media pieza). En las piezas grandes (palta, mango, camote…) el − / + va de **½ en ½** (½, 1, 1½…), y si la foto muestra solo media, ya sale **½ unidad**.
-   - **"⚖️ Lo pesé"** (en cada alimento): para quien pesa su comida en balanza. Escribe los gramos exactos (ej. 100) y toca **"Listo"**: las calorías se calculan con ese peso y sale "100 g ⚖️" y "⚖️ Pesado en tu balanza", con **"Cambiar"** y **"Quitar"** (vuelve al cálculo de la foto). Así queda registrado y en la foto que comparta en la Comunidad.
+   - **"⚖️ Lo pesé"** (en cada alimento): para quien pesa su comida en balanza. Escribe los gramos exactos (ej. 100): se aplican al toque, mientras escribe (las calorías cambian ahí mismo), aunque no toque **"Listo"** y pase directo a otro alimento o a agregar. **"Listo"** solo cierra el cuadro; **"Cancelar"** deja el peso que tenía antes. Queda "100 g ⚖️" y "⚖️ 100 g pesados en tu balanza", con **"Cambiar"** y **"Quitar"** (vuelve al cálculo de la foto). Así queda registrado y en la foto que comparta en la Comunidad.
    - **La IA aprende tus porciones:** si en 2 fotos o más le cambias la porción de un mismo alimento siempre hacia el mismo lado (por ejemplo, siempre bajas el arroz), en tus próximas fotos ya parte de tu porción de siempre. Si un día te sirves más o menos, igual calcula lo que ve en la foto.
    - La **pollada / pollo frito** sale en **"cuarto de pollo"** (≈ 220 g de carne) u **"octavo de pollo"** (≈ 110 g), según lo que calcula la IA. Es **solo el pollo**: las papas, la ensalada o la yuca van aparte como otros alimentos (el chicharrón de pollo sale en "porción" ≈ 200 g y el filete de pollo frito en "filete" ≈ 150 g).
 5. Si hay algo **frito o saltado**, aparece **"🍳 ¿Cuánto aceite tenía?"**.
    - **"Air fryer / poco"**: si lo hiciste en air fryer (freidora de aire) o con muy poco aceite, le resta un 30% de grasa al plato frito o saltado.
    - **"Normal"** no suma nada, porque esos platos ya incluyen el aceite normal.
    - **"Bastante"** agrega 1 cucharada de aceite vegetal y **"Mucho"**, 2.
+6. Si hay **carne, pollo, pescado o huevo que no es frito en la app** (ej. "Pollo pierna (con piel) · cocida"), aparece **"🍳 ¿Cómo lo cocinaste?"** con su nombre: **"Sin aceite"** (sancochado, al horno, a la olla o a la plancha sin aceite; no suma nada), **"Un poco"** (suma ¼ de cucharada de aceite), **"Frito"** (½ cucharada) o **"Con mucho aceite"** (1 cucharada, ≈124 kcal). Si la IA vio que estaba frito, ya viene marcado "Frito". Así se registra, por ejemplo, una **pierna de pollo frita**: eliges "Pollo pierna (con piel) · cocida" y tocas "Frito".
 6. Mira el **"TOTAL APROXIMADO"** y toca **"Agregar N a esta comida"**. Después también puedes cambiar la cantidad exacta de cada uno.
 - La foto da un **cálculo aproximado**: la porción se calcula a ojo desde la foto, y lo que no se ve (aceite, azúcar, salsas escondidas) no se puede medir. Por eso conviene revisar la porción antes de agregar.
 - Límite de fotos: ver sección 9.1 (con plan, 5 por día incluidas).
@@ -344,10 +350,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 **C) Voz**
 1. Toca **"Voz"**: **empieza a grabar al toque** (un solo toque, sin entrar a otra pestaña). Sale **"¿QUÉ COMISTE?"** con el micrófono naranja grande latiendo; habla de una vez. La primera vez el celular pide permiso para el micrófono: tócale **"Permitir"**. Si el celular no deja grabar audio y usa el dictado del navegador, ahí sí tienes que tocar el micrófono ("Toca el micrófono y dilo como se lo contarías a un amigo").
-2. Mientras graba, el círculo late y abajo salen **🗑️** (borrar y empezar de nuevo), el **tiempo** (máximo 30 segundos) y **✅** (listo). También puedes tocar el círculo para terminar. Si lo borraste con 🗑️ o quieres decir algo más, toca el micrófono para grabar de nuevo.
+2. Mientras graba, el círculo late y abajo salen **🗑️** (borrar y empezar de nuevo), el **tiempo** (máximo 30 segundos) y **✅** (listo). **Deja de escuchar sola** cuando terminas de hablar y te quedas callado unos 2 segundos; no hace falta tocar nada. Si quieres terminar antes, toca **✅** o el círculo: al toque sale "Escuchando lo que dijiste…". Si lo borraste con 🗑️ o quieres decir algo más, toca el micrófono para grabar de nuevo.
 3. Di varios alimentos juntos, ej.: "2 huevos sancochados, 1 pan francés con palta y un café con leche" o "150 g de yogurt". Sale "Escuchando lo que dijiste…" y luego lo que entendió, entre comillas.
-4. Revisa la lista (✅ se agrega, ⬜ no). Si algo no quedó claro, elige la opción correcta.
-5. Toca **"Agregar N alimento(s)"**.
+4. Revisa la lista (✅ se agrega, ⬜ no). Si algo no quedó claro ("🤔 Dijiste "…" — ¿cuál de estas es?"), elige la opción correcta. Si encontró algo que no cubre todo lo que dijiste (ej. dijiste "pan de avena" y solo encontró "Avena (cocida)"), también te pregunta, en vez de anotarlo solo. **Si no es ninguna, toca el botón naranja "🙋 No está en la lista: pedirlo"**: el pedido le llega a Jonah ahí mismo, sin salir de la pantalla. Si la IA lo agrega al instante (o ya existía con otro nombre), queda elegido con "✓ agregado" y con la cantidad que dijiste (ej. "92 gramos"); si no, sale "🕐 ¡Recibido! Lo reviso yo mismo y te respondo antes de las…" y lo ves en "Tus pedidos en camino". Si prefieres buscarlo tú con otras palabras, toca **"o buscarlo yo"**: queda marcado con 🔎 y el resto se agrega igual. Lo que no está en la app también sale con 🔎 ("no lo encontré en la app") y el botón **"🙋 Pedírselo a Jonah"**, en vez de perderse. Si lo único que dijiste lo pediste a Jonah, abajo sale **"Listo"**. Y si algo que ya salió con ✅ no es lo que comiste, toca **"No es esto"** a su derecha: pasa a 🔎 para buscarlo. Si dices **"sin azúcar"** o **"natural"**, elige la versión sin azúcar ("jugo de papaya sin azúcar" → "Jugo de papaya natural"). Si dices un jugo o bebida a secas y la app tiene las dos versiones, te pregunta cuál fue. También entiende "sancochado/hervido" (= cocido), "yogurt" (= yogur) y "queque" (= keke), y los números dichos en letras ("noventa y dos gramos" = 92 g, "ciento cincuenta" = 150).
+5. Toca el botón de abajo: **"Agregar N alimento(s)"**, **"Agregar N y buscar M"** o **"Buscar el alimento"**. Lo que tenía 🔎 aparece en tu comida como una fila con el buscador **ya escrito** con lo que dijiste: ahí lo buscas con otras palabras o tocas **"Pedirle a Jonah"** para que lo agreguemos.
 - **Funciona en iPhone y en Android**, también dentro de Instagram o Facebook: el audio lo escucha la inteligencia artificial. Si el micrófono está bloqueado sale "Para registrar por voz, permite el micrófono…". Si no se escuchó o no reconoció alimentos, lo dice para que lo intentes de nuevo. Se puede usar hasta 30 veces al día.
 - **Es Premium.** En la versión gratis, el botón "Voz" dice "👑 Premium" y al tocarlo sale **"Registrar por voz es Premium"** con **"VER PREMIUM"**. Los atajos de abajo (repetir ayer, mis comidas, frecuentes) sí son gratis.
 
@@ -397,10 +403,24 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 2. Elige la comida y toca el plato → "✅ [plato] agregado a [comida]".
 - Estos platos **no salen en el buscador normal**, solo desde esta tarjeta.
 
+### 8.2.0 Bebidas: en vaso o en ml
+
+- Las bebidas (gaseosas, jugos, chicha, refrescos…) se registran por **vaso** (≈ 200 ml) de entrada, no por taza. También se puede elegir **taza**, **jarra** o **ml** (para quien sabe la medida exacta, ej. "500 ml" de una botella).
+- Las gaseosas tienen además **lata** (355 ml) y **botella personal** (500 ml).
+- En la foto, un vaso de bebida sale como **1 vaso** (con Poco / Normal / Mucho para ajustarlo).
+- Si la foto no distingue la bebida (ej. gaseosa regular o dietética), pregunta "¿cuál es?" con las opciones. Nunca propone aceite para un vaso de bebida, y un aceite suelto en la foto se cuenta como máximo 2 cucharadas (30 g).
+
+### 8.2.1 Guisos "sin arroz"
+
+- Los guisos que se comen con arroz **no incluyen el arroz** en sus calorías: debajo del nombre sale **"🍚 Sin arroz: agrégalo aparte"** (en el buscador, al elegir la cantidad, en la foto, en la voz y al editarlo). Si comiste arroz, regístralo aparte ("Arroz blanco · cocido").
+- Son, entre otros: pollo a la mostaza, ají de gallina, ají de pollo, pollo al sillao, estofado de pollo, escabeche de pollo, estofado de carne, estofado de costillar, seco de res con frejoles, lomo saltado, saltado de pollo, picante de carne, de pollo y de mariscos, adobo de cerdo, carapulcra, olluquito con charqui, cau cau, chanfainita, sangrecita salteada y sudado de pescado. Cada plato nuevo que se agrega a la app (lo agregue Jonah o la IA) dice si lleva arroz o no.
+- Los que ya dicen el arroz en el nombre (ej. "Arroz con pollo", "Pollo a la olla con arroz", "Frejolada (frejol con arroz)") ya lo incluyen.
+
 ### 8.3 Editar o borrar un alimento
 
 - **Cantidad rápida:** −/+ en la fila. Si ya está en lo mínimo (ej. 10 g o 1 unidad), **"−" lo quita** (es como ponerle cero) y sale "🗑️ Quitaste [alimento]" con el botón **"DESHACER"** (5 segundos) por si fue sin querer: el alimento vuelve a su lugar con su misma cantidad. Sirve, por ejemplo, para dejar tu pan con pollo separado sin lechuga.
 - **Editar a fondo:** toca el nombre o la cantidad. Puedes cambiar cantidad y medida (en unidades, tazas, platos… con − / +; en **gramos** con la **regla deslizable** de 5 en 5 g; o **tocando el número grande para escribirlo**, ej. 37 g), **"🔄 Cambiar por otro equivalente"**, **"¿Era otro alimento?"**, **"Quitar"** o **"Listo"**.
+- **Carne, pollo, pescado o huevo cocinados con aceite (🍳):** al elegir uno que no es frito en la app (ej. "Pollo pierna (con piel) · cocida"), sale **"🍳 ¿Cómo lo cocinaste?"**: "Sin aceite", "Un poco" (¼ de cucharada de aceite), "Frito" (½) o "Con mucho aceite" (1 cucharada). También se cambia después tocando el alimento.
 - **Aceite en fritos y saltados (🍳):** si registras escribiendo un frito o saltado (chaufa, lomo saltado, chicharrón, pollo broaster, apanados, papas fritas…), al elegirlo se abre su panel con **"🍳 ¿Cuánto aceite tenía?"**: **"Air fryer / poco"** (hecho en air fryer o con muy poco aceite) le resta un 30% de grasa, **"Normal"** no cambia nada (ya incluye el aceite normal), **"Bastante"** suma 1 cucharada de aceite y **"Mucho"**, 2. Las calorías del alimento ya muestran el cambio. Puedes cambiarlo después tocando el alimento.
 - **Borrar rápido:** desliza la fila hacia la izquierda.
 - **Siempre se puede deshacer:** al quitar un alimento de cualquier forma (deslizando, con "−" en lo mínimo o con "Quitar"), abajo sale "🗑️ Quitaste [alimento]" con **"DESHACER"** durante 5 segundos.

@@ -8,6 +8,17 @@
 
 ## Con fecha
 
+- **Cada lunes 8:52 am: revisión semanal de la base de alimentos** (rutina "Revisión semanal de la base de alimentos", `trig_01CBY8prRNz3CQ7mYWHY8KkV`, pedida por Jonah el 6 de octubre; se dispara en la sesión donde se pidió, que tiene acceso a Supabase). Claude revisa repetidos, números que no cuadran, nombres, medidas, regla del arroz y lo que agregó la IA sola, y le manda a Jonah una lista numerada para aprobar. No cambia nada sin su OK.
+
+- **20 de octubre: revisar la prueba de "la IA agrega sola los pedidos de seguridad media"** (salió el 6 de octubre). Antes: la IA pasaba a Jonah 25 de 30 pedidos; de los "media" que aprobó, 15 de 16 con los mismos números. Ver en `pedidos_alimentos` cuántos agregó sola (`propuesta->>ia_estado = 'agregado'` y `seguridad = 'media'`), cuántos corrigió o quitó Jonah y si se coló algún repetido. Si salió mal, volver a exigir "alta" (`agregable` en `alimentos-pedidos`).
+
+- **27 de octubre: revisar las páginas de calorías** (jonahbeast.com/calorias, publicadas el 3 de octubre). Pedir a Jonah capturas de Search Console ("Páginas" y "Rendimiento") y ver en `embudo_landing_eventos` las visitas y registros con fuente `calorias` (y qué plato los trajo en `campana`). Hay un recordatorio programado en la sesión donde se pidió. **Si traen gente, proponer las ideas en espera** (6 de octubre), en este orden:
+  1. Páginas "Qué pedir en…" (Bembos, KFC, pollería, chifa, menú del día) con los alimentos de la app.
+  2. Calculadoras gratis como páginas propias (calorías para bajar de peso, IMC, proteína) que invitan a la app.
+  3. Carruseles para Instagram/Facebook con los datos de calorías (Jonah solo publica; sirven para la prueba de sus redes personales).
+  4. Menú de 7 días descargable a cambio del WhatsApp: solo cuando el asistente de WhatsApp esté activo.
+  Si no traen gente, no hacer más páginas.
+
 - **10 de octubre:** revisar en qué paso se quedan los nuevos antes de su primera comida (eventos `primera_comida`, `foto_comida`, `abrir_navegador`). Hay un recordatorio programado en la sesión donde se pidió.
 - **Que paguen más (desde el 5 de octubre):** salió la pantalla "¿Seguimos juntos?" de fin de prueba (evento `fin_prueba`), el pago con solo la captura + aviso al toque a Jonah (`api/pago-enviado.js`) y el registro con avisos en vivo. Punto de partida: 59 registros, 15 vieron planes, 3 eligieron plan, 1 envió pago, 2 pagando. Revisar el 10 de octubre y el 19 de octubre si sube "vieron planes" y "pagaron". Siguiente idea si no basta: QR de Yape en la pantalla de pago (falta que Jonah mande la imagen).
 - **11 de octubre:** contar cuántos se registraron con código de alumno tras el flyer. Punto de partida: 39 alumnos con código, 1 registro en total, 0 pagos. Si funciona, proponer el botón "Compartir en mi estado" dentro de la app.
@@ -18,12 +29,17 @@
 - **Anuncios Meta (desde el 5 de octubre).** Campaña "Gratis para siempre · Lead" a S/13 diarios, sin tope ni fecha de fin (≈S/390 al mes), con 2 anuncios compitiendo: "Tómale foto" con la oferta corregida y "Jonah fundador" (sin antes/después ni kilos). Los 8 anuncios viejos con "15 días gratis" quedaron archivados. La agencia todavía no empieza: arrancará aparte con S/600 al mes. Comparar los dos anuncios en el resumen del lunes 12 de octubre; después, pasar la campaña a optimizar "Registro" y, cuando haya pagos medidos, "Compra".
 - **Video corto "Tómale foto" (voz de Frida, 16,5 s).** Listo en `public/anuncios/video-corto-tomale-foto.mp4`. Meta: Jonah lo sube a la Biblioteca de contenido multimedia de "Jonah Beast Fuel - Anuncios" y Claude lo agrega como 3.er anuncio de "Gratis para siempre" (mismos S/13, marcar IA). TikTok: Claude no puede crear campañas ni subir archivos ahí hasta diciembre; Jonah publica el video en @jonah.beast_fuel y arma a mano la prueba de S/10 diarios por 7 días (cuenta "Jonah Beast Corp 0913", objetivo registros con el píxel, link `?fuente=tiktok`). Revisar resultados en el resumen del lunes.
 
-- **Alimentos por revisar.** Revisar si "Chocolate con leche batido (taza)" (86 kcal) se confunde con "Chocolate con leche" de barra (535 kcal). En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
+- **Tres frentes nuevos para traer gente (6 de octubre):**
+  1. **Reto en grupo en el banco de Jonah** (con "Mis equipos", no hay que construir nada): **en pausa, Jonah lo retoma cuando quiera.** Al retomarlo: confirmar si su trabajo permite promoverlo, fecha (se propuso lunes + 28 días), premio y si quiere un código con 15 días de Premium (fila nueva: pedir su OK); luego armar el mensaje de invitación con su voz.
+  2. **"Mándame la foto de tu plato" por WhatsApp** (el asistente responde las calorías e invita a la app): esperar a que el asistente de WhatsApp esté activo.
+  3. **Videos "¿Cuántas calorías tiene…?"** con los platos de jonahbeast.com/calorias (narrados por Viernes o el gorila, o Jonah): **Jonah avisa** cuándo quiere los guiones; no empezar antes.
+
+- **Alimentos por revisar.** En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
 - **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
 
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 
-- **Videos de la guía rápida (Gorila 53 s, Frida 43 s).** Listos y entregados a Jonah (el 4 de octubre). Falta que Jonah los publique (marcar "contenido generado por IA"; sin cifras de peso). La función de prueba `jarvis-voz-prueba` quedó suelta en Supabase (sin uso; Jonah puede borrarla).
+- **Videos de la guía rápida (Gorila 53 s, Viernes (antes "Frida") 43 s).** Listos y entregados a Jonah (el 4 de octubre). Falta que Jonah los publique (marcar "contenido generado por IA"; sin cifras de peso). La función de prueba `jarvis-voz-prueba` quedó suelta en Supabase (sin uso; Jonah puede borrarla).
 
 ## Anuncios (análisis del 4 de octubre, últimos 30 días)
 

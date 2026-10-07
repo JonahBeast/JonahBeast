@@ -436,7 +436,7 @@ function cargarAlimentosExtra(forzar = false) {
         const key = `${a.nombre} (${state})`;
         if (FOODS.some(f => f.key === key)) continue;
         FOODS.push({
-          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null,
+          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null, sinArroz: !!a.sin_arroz,
           kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos), fat: Number(a.grasa), fiber: Number(a.fibra) || 0,
         });
         if (a.unidad && Number(a.gramos_unidad) > 0 && !UNITS_BY_NAME[a.nombre]) {
@@ -559,6 +559,8 @@ const UNITS_BY_NAME = {
   'Granola': [['taza', 110], ['cucharada', 10]],
   'Mantequilla de maní': [['cucharada', 16]],
   'Refresco de cebada': [['vaso', 250]],
+  'Gaseosa regular': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
+  'Gaseosa dietética': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
   'Cerveza': [['vaso', 300], ['lata', 355], ['botella grande', 620]],
   'Quinua': [['taza', 185]],
   'Fresa': [['unidad', 15]],
@@ -714,7 +716,9 @@ const UNITS_BY_NAME = {
   'Parfait (PECAFIT)': [['porción', 350]],
 };
 const UNITS_BY_GROUP = {
-  'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
+  // En Perú las bebidas se toman en vaso (o se compran en ml): vaso primero
+  // y "ml" para quien sabe la medida exacta (1 ml ≈ 1 g).
+  'Bebidas': [['vaso', 200], ['taza', 240], ['jarra', 500], ['ml', 1]],
   'Lácteos': [['taza', 240], ['vaso', 200]],
   'Menestras': [['taza', 180]],
   'Postres': [['porción', 150]],
@@ -896,6 +900,16 @@ const ACEITE_POCO_MENOS_GRASA = 0.3;
 function esFritoOSaltado(food) {
   return /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
 }
+// Carnes, pollo, pescado y huevos que no son fritos en la app ("Pollo pierna
+// (con piel) · cocida"): se pregunta cómo los cocinó. Si los frió, se suma
+// el aceite que absorbieron (en cucharadas de aceite vegetal, ≈124 kcal):
+// "poquito" ¼, "frito" ½ y "muyfrito" 1. Un frito casero absorbe poco aceite
+// (unos 5 g por presa), por eso no se suma una cucharada entera.
+const GRUPOS_SE_FRIEN = ['Carnes y aves', 'Pescados', 'Pescados y mariscos', 'Huevos'];
+const ACEITE_COCINA = { poquito: 0.25, frito: 0.5, muyfrito: 1 };
+function sePuedeFreir(food) {
+  return !!food && !esFritoOSaltado(food) && GRUPOS_SE_FRIEN.includes(food.group) && !/crud/i.test(food.state || '');
+}
 
 function entryMacros(entry) {
   const food = buscarFood(entry.foodKey);
@@ -903,6 +917,11 @@ function entryMacros(entry) {
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
   const m = { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
+  if (entry.aceite && ACEITE_COCINA[entry.aceite] && sePuedeFreir(food)) {
+    const a = entryMacros({ foodKey: CLAVE_ACEITE_VEGETAL, unit: 'cucharada', qty: ACEITE_COCINA[entry.aceite] });
+    m.kcal += a.kcal; m.protein += a.protein; m.carbs += a.carbs; m.fat += a.fat;
+    return m;
+  }
   if (!entry.aceite || !esFritoOSaltado(food)) return m;
   if (entry.aceite === 'poco') {
     const menos = m.fat * ACEITE_POCO_MENOS_GRASA;
@@ -2773,7 +2792,7 @@ function Landing({ onChoose }) {
         <div className="absolute inset-0 overflow-hidden lg:relative lg:inset-auto lg:h-[84vh] lg:max-h-[820px] lg:rounded-3xl lg:border lg:border-orange-500/40"
           style={{ boxShadow: '0 20px 60px -20px rgba(232,89,12,.55)' }}>
           {BIENVENIDA_FOTOS.map((f, i) => (
-            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0 }}>
+            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0, clipPath: 'inset(0)' }}>
               <img key={i === fotoIdx ? `on-${ciclo}` : 'off'} src={f.src} alt={i === fotoIdx ? f.nombre : ''} className="w-full h-full object-cover"
                 style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
@@ -3574,14 +3593,24 @@ function Bienvenida({ onEmpezar, onEntrar }) {
     return () => clearTimeout(t);
   }, [fase, idx]);
 
+  // Esta pantalla no se desplaza: en iPhone, al arrastrar el dedo se movía
+  // la página de atrás y por abajo asomaba la foto sin el degradado.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const antes = [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior];
+    html.style.overflow = 'hidden'; body.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none'; body.style.overscrollBehavior = 'none';
+    return () => { [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior] = antes; };
+  }, []);
+
   if (fase === 'splash') return <SplashMarca />;
   const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
   return (
-    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden" style={{ touchAction: 'none', overscrollBehavior: 'none', clipPath: 'inset(0)' }}>
       <style>{ESTILOS_BIENVENIDA}</style>
       <div className="absolute inset-0 max-w-md mx-auto">
         {BIENVENIDA_FOTOS.map((f, i) => (
-          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0 }}>
+          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0, clipPath: 'inset(0)' }}>
             <img key={i === idx ? `on-${ciclo}` : 'off'} src={f.src} alt="" className="w-full h-full object-cover"
               style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
           </div>
@@ -5668,6 +5697,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
+  if (unit === 'ml') return `${Math.round(qty)} ml`;
   if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${qty} ${plural}`;
@@ -5711,6 +5741,7 @@ const ESTILOS_ESCANER = `
 // Cuánto sube o baja cada toque de − / + según la medida.
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
+  if (unit === 'ml') return 50;
   if (UNIDADES_DISCRETAS.includes(unit)) return 1;
   return 0.5;
 }
@@ -5793,7 +5824,45 @@ function avisarRegistroTikTok(userId) {
   } catch {}
 }
 
+/* Versión nueva sin cerrar la app: cuando el alumno (o Jonah en el panel)
+   vuelve a la app después de tenerla un rato en segundo plano, se compara
+   esta versión con la publicada (/version.json, la genera vite.config.js).
+   Si hay una nueva, se recarga sola. Solo al volver tras 1 minuto o más
+   afuera: así nunca se recarga en medio de algo que está haciendo. Lo que
+   faltaba subir queda guardado en el celular y se sube al recargar. */
+const VERSION_APP = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '';
+function usarVersionNueva() {
+  useEffect(() => {
+    if (!VERSION_APP) return;
+    let ocultaDesde = document.visibilityState === 'hidden' ? Date.now() : null;
+    let revisando = false;
+    const alCambiar = async () => {
+      if (document.visibilityState === 'hidden') { ocultaDesde = Date.now(); return; }
+      const fuera = ocultaDesde ? Date.now() - ocultaDesde : 0;
+      ocultaDesde = null;
+      if (fuera < 60 * 1000 || revisando || navigator.onLine === false) return;
+      revisando = true;
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const { v } = r.ok ? await r.json() : {};
+        // Una sola vez por versión: si después de recargar sigue distinta
+        // (publicación a medias), no se queda recargando.
+        let yaIntentada = null;
+        try { yaIntentada = sessionStorage.getItem('jb-version-recarga'); } catch {}
+        if (v && v !== VERSION_APP && yaIntentada !== v) {
+          try { sessionStorage.setItem('jb-version-recarga', v); } catch {}
+          window.location.reload();
+        }
+      } catch {}
+      revisando = false;
+    };
+    document.addEventListener('visibilitychange', alCambiar);
+    return () => document.removeEventListener('visibilitychange', alCambiar);
+  }, []);
+}
+
 export default function App() {
+  usarVersionNueva();
   const [view, setView] = useState(() => {
     try {
       if (window.location.pathname.startsWith('/tienda')) return 'tienda';
@@ -5998,7 +6067,9 @@ export default function App() {
       const { data: perfil } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
       if (perfil?.role !== 'admin') {
         setErr('Esta cuenta no tiene permisos de administrador.');
-        await supabase.auth.signOut();
+        // Solo en este equipo: sin "local", cierra la sesión de esa cuenta en
+        // todos sus equipos.
+        await supabase.auth.signOut({ scope: 'local' });
         setBusy(false);
         return;
       }
@@ -6424,7 +6495,7 @@ export default function App() {
           expiredInfo={expiredInfo}
           onClearExpired={async () => {
             // Cierra la sesión del alumno vencido para poder entrar con otra cuenta.
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             setExpiredInfo(null);
           }}
           onMembresiaActiva={() => loadStudentSession(expiredInfo.username)}
@@ -6501,6 +6572,7 @@ export {
   entryGrams,
   entryMacros,
   esFritoOSaltado,
+  sePuedeFreir,
   esTWA,
   fechaLocalISO,
   fetchTrialStats,

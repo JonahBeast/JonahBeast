@@ -10,6 +10,7 @@
 - Cuando termines un cambio, súbelo a la rama de trabajo y **espera a que Vercel construya la versión de prueba**. Luego dame el **link directo** a esa versión con `?preview=1` al final (por ejemplo `https://...vercel.app/?preview=1`). Ese parámetro hace que mis propias visitas no cuenten en las métricas de la landing.
 - **Nunca hagas el merge** de un pull request sin que yo lo pida explícitamente.
 - Cuando hagas una mejora, **busca todos los lugares de la app donde pasa lo mismo y propónmelos juntos en el mismo cambio**, para que la experiencia del alumno quede pareja (ej. si el peso pasa a regla deslizable, que sea en todas las pantallas donde se pone el peso).
+- **Los detalles importan: queremos dar la mejor experiencia.** Antes de dar un cambio por terminado, recórrelo como lo haría el alumno, de principio a fin: qué ve justo después de tocar cada botón, si queda claro que se guardó, si la pantalla lo lleva a lo que acaba de hacer, si algo queda abierto o desordenado, y si todas las formas de hacer lo mismo (foto, código, escribir, voz, atajos…) se comportan igual. Si encuentras un detalle así, arréglalo en el mismo cambio o propónmelo.
 
 ## Base de datos y Supabase (proyecto `jnhvpjrxilubkyhculoh`)
 
@@ -18,6 +19,13 @@
 - **Las edge functions solo se publican después del merge**, y siempre con el código que quedó en `main`, para que GitHub y Supabase nunca tengan versiones distintas. Después de publicar, dime qué versión quedó.
   - **Única excepción:** la copia de prueba de Jarvis, `jarvis-chat-prueba`, se puede publicar desde la rama de un PR para probarlo en la versión de prueba de Vercel (que llama a esa copia). El Jarvis real, `jarvis-chat`, solo se publica después del merge.
 - **Jarvis (`jarvis-chat`) se publica con `verify_jwt` en `false`**, porque el candado de admin está dentro del código.
+- **Viernes** es Jarvis con voz femenina y otro nombre (se activa diciendo "Viernes" o "Hola Viernes"): usa la misma función `jarvis-chat` y la misma memoria.
+
+## Alimentos nuevos
+
+- **Cada plato que se agregue a la app debe decir si lleva arroz o no.** Si es un guiso que en Perú se come con arroz y sus calorías no lo incluyen, va en `PLATOS_SIN_ARROZ` (`src/alumno.jsx`), para que salga "🍚 Sin arroz: agrégalo aparte". Si las calorías sí incluyen el arroz, el nombre lo dice (ej. "Pollo a la olla con arroz"). Al agregarlo, dile a Jonah cuál de las dos es.
+- **Los pedidos de alimentos que la IA deja para revisar los resuelve Claude** (encargo de Jonah del 6 de octubre): cada hora de 8 am a 9 pm (rutina `trig_016oFFyssqxaTuMpWpAq8PBv`) los agrega o los responde con los mismos criterios (números que cuadran, sin repetidos, regla de nombres, fuente, medida casera y regla del arroz). A Jonah solo le avisa, con un mensaje de WhatsApp listo para cada alumno, hasta que el asistente de WhatsApp lo haga solo.
+- **Cada lunes Claude revisa que la base de alimentos siga limpia** (rutina `trig_01CBY8prRNz3CQ7mYWHY8KkV`) y le pasa a Jonah una lista numerada; renombrar, unir o quitar alimentos solo con su OK.
 
 ## Estilo de la app
 
@@ -42,7 +50,7 @@
 
 - `docs/manual-app.md` es el manual de la app (pantallas, botones y mensajes). Lo usan Jarvis y el asistente de WhatsApp.
 - **Cada cambio que el alumno vea en la app se anota en el manual en el mismo PR.**
-- Jarvis y el asistente de WhatsApp leen el manual de la tabla `manual_app` de la base (una sola fila), no de su código. Esa fila **la actualizo yo** después de cada merge con el botón **"🔄 Actualizar manual de Jarvis"** del panel (pestaña 📸 IA, tarjeta "📘 MANUAL DE JARVIS"), que copia el manual de `main` con su commit y comprueba que quedó idéntico. Si se me olvida, la app me avisa al celular.
+- Jarvis y el asistente de WhatsApp leen el manual de la tabla `manual_app` de la base (una sola fila), no de su código. Esa fila **la actualizo yo** después de cada merge con el botón **"🔄 Actualizar manual de Jarvis y Viernes"** del panel (pestaña 📸 IA, tarjeta "📘 MANUAL DE JARVIS Y VIERNES"), que copia el manual de `main` con su commit y comprueba que quedó idéntico. Si se me olvida, la app me avisa al celular.
 - **Claude no escribe en `manual_app`.** Si el PR toca el manual, después del merge solo me recuerda que toque ese botón. Si le pido revisar, puede leer la fila y comparar su huella con la del archivo de `main`, sin cambiarla.
 - Un cambio que solo toca el manual ya **no** obliga a volver a publicar `jarvis-chat` ni `whatsapp-webhook`.
 - `npm run manual-jarvis` sigue copiando la lista de alimentos de `src/App.jsx` a `whatsapp-webhook` y `alimentos-pedidos` (`alimentos.ts`). Si se olvida, `npm run build` falla y avisa.

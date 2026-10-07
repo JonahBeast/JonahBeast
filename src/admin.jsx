@@ -2275,6 +2275,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           <>
             <PreguntarAlumno a={a} />
             {botonNo(<>Ya sé qué es: decidir</>, () => setEsOtro(true))}
+            {botonNo(<>🙋 Es algo suyo: dejarlo solo para él</>, esAlgoSuyo)}
           </>
         )}
         {error && <p className="jb-body text-xs text-red-400">{error}</p>}
@@ -2397,6 +2398,15 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
                 </button>
               ))}
               <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si no es ninguno)</button>
+            </div>
+          ) : pendiente && rec.tipo === 'preguntar' && !masOpciones ? (
+            // La IA no sabe qué es: preguntarle al alumno o dejarlo solo para él.
+            <div className="flex flex-col gap-2 w-full">
+              <PreguntarAlumno a={a} />
+              <button disabled={ocupado} onClick={esAlgoSuyo} className={btnGhost + ' text-sm py-2.5 w-full'}>
+                {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🙋 Es algo suyo: dejarlo solo para él'}
+              </button>
+              <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si ya sabes qué es)</button>
             </div>
           ) : pendiente && rec.tipo && !masOpciones ? (
             <div className="flex flex-col gap-2 w-full">

@@ -46,6 +46,8 @@
 
 ## 2. La portada (jonahbeast.com)
 
+La dirección oficial es **jonahbeast.com** (sin "www"): si alguien entra con "www.jonahbeast.com", la web lo pasa sola a jonahbeast.com (quien tenía la sesión abierta con "www" vuelve a entrar una vez). Si el link está mal escrito o la página no existe, sale **"ESTA PÁGINA NO EXISTE"** con el botón **"Ir a Jonah Beast Fuel"** (lleva a la portada) y "Ver las calorías de la comida peruana →".
+
 La portada web se ve igual que la bienvenida de la app instalada:
 
 - **Al abrirla**, sale el logo animado (el gorila, "JONAH BEAST FUEL", una línea naranja y "NO ES QUÉ COMES. ES CUÁNTO."). Dura poco más de un segundo, solo sale la primera vez en esa visita y se salta tocando la pantalla.

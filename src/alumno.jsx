@@ -2434,7 +2434,7 @@ function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, ini
           <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>
         )}
       </div>
-      <input type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
+      <input autoComplete="off" type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
         onChange={e => onCambio(e.target.value === '' ? '' : Number(e.target.value))}
         aria-label={label}
         className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
@@ -3929,7 +3929,7 @@ function PesajeCard({ form, setForm }) {
       <p className="jb-display text-lg text-zinc-50 leading-tight mt-0.5">¿CUÁNTO PESAS HOY? ⚖️</p>
       <p className="jb-body text-xs text-zinc-400 mt-1">En ayunas, después del baño y sin ropa pesada. Toma 10 segundos.</p>
       <div className="flex items-baseline justify-center gap-1 mt-3">
-        <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+        <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
           onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
           className="jb-display text-4xl text-orange-400 bg-transparent w-28 text-center tabular-nums focus:outline-none" />
         <span className="jb-body text-sm text-zinc-400">kg</span>
@@ -5199,7 +5199,7 @@ function MisPesajesCard({ form, setForm, rows }) {
             <p className="jb-display text-xl text-zinc-50">{editando.inicial ? 'TU PESO INICIAL' : `PESAJE DEL ${fechaCorta(editando.f).toUpperCase()}`}</p>
             <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para corregirlo.</p>
             <div className="flex items-baseline justify-center gap-1 mt-4">
-              <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+              <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
                 onChange={e => setValor(e.target.value)} aria-label="Peso de ese día en kilos"
                 className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
               <span className="jb-body text-base text-zinc-400">kg</span>
@@ -6441,7 +6441,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
 
   return (
     <div className="relative flex-1 sm:flex-[3] min-w-0">
-      <input
+      <input autoComplete="off"
         autoFocus={autoFocus}
         value={texto}
         onChange={e => { setTexto(e.target.value); setAbierto(true); setPedido(null); }}
@@ -6623,7 +6623,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
 
         <div className="flex flex-col gap-3">
           <Field label="Nombre">
-            <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
+            <input autoComplete="off" value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
               className={inputCls + (editar ? ' opacity-60' : '')} placeholder="Ej. Barra proteica marca X" />
           </Field>
           {yaEnApp.length > 0 && (
@@ -6641,21 +6641,21 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
             </div>
           )}
           <Field label="Calorías por 100 g">
-            <input type="number" inputMode="decimal" value={f.kcal}
+            <input autoComplete="off" type="number" inputMode="decimal" value={f.kcal}
               onChange={e => setF(v => ({ ...v, kcal: e.target.value }))}
               className={inputCls} placeholder="Ej. 350" />
           </Field>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Proteína g">
-              <input type="number" inputMode="decimal" value={f.proteina}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.proteina}
                 onChange={e => setF(v => ({ ...v, proteina: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
             <Field label="Carbos g">
-              <input type="number" inputMode="decimal" value={f.carbos}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.carbos}
                 onChange={e => setF(v => ({ ...v, carbos: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
             <Field label="Grasas g">
-              <input type="number" inputMode="decimal" value={f.grasas}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.grasas}
                 onChange={e => setF(v => ({ ...v, grasas: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
           </div>
@@ -6874,7 +6874,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
           ) : (
             <div className="flex items-end gap-2 flex-wrap">
               <Field label={`Nombre para tu ${meal.toLowerCase()}`}>
-                <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value)}
+                <input autoComplete="off" value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value)}
                   className={inputCls + ' py-2'} placeholder="Ej. Mi desayuno de siempre" />
               </Field>
               <button onClick={guardarComida} disabled={guardando || !nombreNuevo.trim()}
@@ -7725,7 +7725,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 const ajuste = food && marcado && (pesando === id ? (
                   <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
-                    <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
+                    <input autoComplete="off" type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
                       onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
@@ -8455,7 +8455,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             {unidad === 'gramos' ? (
               // En gramos: regla (de 5 en 5 g) o tocar el número y escribirlo.
               <div className="mb-3 text-center">
-                <input type="number" inputMode="decimal" min="1" step="any" value={cantidad} aria-label="Gramos"
+                <input autoComplete="off" type="number" inputMode="decimal" min="1" step="any" value={cantidad} aria-label="Gramos"
                   onChange={e => setCantidad(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
                   className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[140px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
                 <p className="jb-body text-sm text-zinc-400 mt-1">gramos</p>
@@ -8526,10 +8526,10 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             <p className="jb-body text-sm text-zinc-200 mb-1 flex items-center gap-1.5"><Check size={16} strokeWidth={3} className="text-orange-400" /> Leímos la etiqueta.</p>
             <p className="jb-body text-xs text-zinc-500 mb-3">Revisa el nombre y toca <span className="text-orange-400 font-semibold">Guardar producto</span> para que quede registrado.</p>
             <label className="jb-body text-[11px] text-zinc-500">Nombre del producto
-              <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
+              <input autoComplete="off" value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
             </label>
             <label className="jb-body text-[11px] text-zinc-500">Marca (opcional)
-              <input value={marcaNueva} onChange={e => setMarcaNueva(e.target.value.slice(0, 40))} placeholder="Ej. Gloria" className={inputCls + ' w-full text-sm mt-0.5 mb-3'} />
+              <input autoComplete="off" value={marcaNueva} onChange={e => setMarcaNueva(e.target.value.slice(0, 40))} placeholder="Ej. Gloria" className={inputCls + ' w-full text-sm mt-0.5 mb-3'} />
             </label>
             <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4 jb-body text-xs text-zinc-400 tabular-nums">
               Por 100 g: <span className="text-zinc-100 font-semibold">{Math.round(producto.kcal)} kcal</span> · P {producto.proteina} g · C {producto.carbos} g · G {producto.grasa} g
@@ -8734,7 +8734,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 <form className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onSubmit={e => { e.preventDefault(); if (valida) agregar(elegido, porcion, aceite); }}>
                   <p className="jb-body text-sm text-zinc-300 mb-2">✏️ ¿Sabes la cantidad exacta? Escríbela:</p>
                   <div className="flex items-center gap-2">
-                    <input type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
+                    <input autoComplete="off" type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
                       placeholder="Ej. 120" aria-label="Cantidad exacta"
                       className="flex-1 min-w-0 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
                     <button type="submit" disabled={!valida} className={btnPrimary + ' px-4 py-2.5 text-sm shrink-0 disabled:opacity-40'}>Agregar</button>
@@ -8789,7 +8789,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             <label className="jb-display text-lg text-zinc-50" htmlFor="jb-que-comiste">
               {agregados.length ? `¿ALGO MÁS EN TU ${meal.toUpperCase()}?` : '¿QUÉ COMISTE?'}
             </label>
-            <input id="jb-que-comiste" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
+            <input autoComplete="off" id="jb-que-comiste" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
               placeholder="Escríbelo aquí: arroz, pollo, pan…"
               className="w-full jb-body text-lg rounded-2xl px-4 py-3.5 bg-zinc-950 border-2 border-orange-500/60 text-zinc-50 focus:outline-none focus:border-orange-500" />
 
@@ -9197,7 +9197,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             fijar({ unit: porcion.unit, qty: nueva });
           }}>−</BotonPaso>}
           <div className="text-center min-w-[120px]">
-            <input type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
+            <input autoComplete="off" type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
               value={escribiendo ?? porcion.qty}
               onFocus={e => { setEscribiendo(String(porcion.qty)); e.target.select(); }}
               onChange={e => setEscribiendo(e.target.value)}
@@ -10698,7 +10698,7 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
             <p className="jb-body text-sm text-zinc-300 mb-3">
               Escribe <strong className="text-white">ELIMINAR</strong> para confirmar que quieres borrar tu cuenta para siempre.
             </p>
-            <input value={confirmacion} onChange={e => setConfirmacion(e.target.value)}
+            <input autoComplete="off" value={confirmacion} onChange={e => setConfirmacion(e.target.value)}
               className={inputCls + ' w-full mb-2'} placeholder="ELIMINAR" autoFocus />
             {error && <p className="text-red-400 text-xs jb-body mb-2">{error}</p>}
             <div className="flex gap-2 mt-3">
@@ -11084,7 +11084,7 @@ function PesoRapidoModal({ form, setForm, onCerrar }) {
         <p className="jb-display text-xl text-zinc-50">¿CUÁNTO PESAS HOY? ⚖️</p>
         <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para escribirlo.</p>
         <div className="flex items-baseline justify-center gap-1 mt-4">
-          <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+          <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
             onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
             className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
           <span className="jb-body text-base text-zinc-400">kg</span>
@@ -11168,7 +11168,7 @@ function EncuestaFacilidad({ username, form, setForm }) {
             </button>
           );
         })}
-        <input value={otro} onChange={e => setOtro(e.target.value)} maxLength={200} placeholder="Otra cosa (opcional)"
+        <input autoComplete="off" value={otro} onChange={e => setOtro(e.target.value)} maxLength={200} placeholder="Otra cosa (opcional)"
           className="w-full jb-body text-sm rounded-xl px-3 py-2.5 bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-orange-500" />
       </div>
       <button onClick={enviar} className={btnPrimary + ' w-full py-3 mt-3'}>Enviar</button>

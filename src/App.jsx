@@ -2997,7 +2997,7 @@ function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
             {verCodigo ? (
               <div className="mt-4">
                 <Field label="Código del live (opcional)">
-                  <input value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
+                  <input autoComplete="off" value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
                 </Field>
               </div>
             ) : (
@@ -3284,7 +3284,7 @@ function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, plac
         <p className="jb-body text-xs text-zinc-400">{label}</p>
         {ayuda && <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>}
       </div>
-      <input type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
+      <input autoComplete="off" type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
         onChange={e => onCambio(e.target.value)}
         className="w-full min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
       <p className="jb-body text-[11px] text-zinc-500 text-center">{unidad}</p>
@@ -3872,7 +3872,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               </Field>
               {verReferido ? (
                 <Field label="Código de referido (opcional)">
-                  <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
+                  <input autoComplete="off" value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
                     autoFocus={!refDesdeURL}
                     className={inputCls + ' uppercase'} placeholder="Escribe tu código" />
                 </Field>
@@ -3985,7 +3985,7 @@ function AdminAuth({ onBack, onLogin, busy }) {
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
               <Field label="Código de verificación">
-                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                <input autoComplete="one-time-code" type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
@@ -4138,7 +4138,7 @@ function EncuestaSalida({ username }) {
       </div>
       {otro && (
         <div className="mt-3 flex gap-2">
-          <input value={detalle} onChange={e => setDetalle(e.target.value)} maxLength={300} autoFocus
+          <input autoComplete="off" value={detalle} onChange={e => setDetalle(e.target.value)} maxLength={300} autoFocus
             placeholder="Cuéntanos en pocas palabras" className={inputCls + ' flex-1 text-sm'} />
           <button type="button" disabled={enviando || !detalle.trim()} onClick={() => enviar('otro', detalle)}
             className={btnPrimary + ' px-4 text-sm'}>Enviar</button>
@@ -4329,7 +4329,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
               <Field label="Código de verificación">
-                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                <input autoComplete="one-time-code" type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
@@ -5580,7 +5580,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
             {!archivo && (
               <Field label="¿No tienes la captura? Número de operación">
-                <input value={operacion} onChange={e => setOperacion(e.target.value)}
+                <input autoComplete="off" value={operacion} onChange={e => setOperacion(e.target.value)}
                   className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
               </Field>
             )}

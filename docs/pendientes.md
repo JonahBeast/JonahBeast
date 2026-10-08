@@ -21,6 +21,7 @@
 
 - **10 de octubre:** revisar en qué paso se quedan los nuevos antes de su primera comida (eventos `primera_comida`, `foto_comida`, `abrir_navegador`). Hay un recordatorio programado en la sesión donde se pidió.
 - **Que paguen más (desde el 5 de octubre):** salió la pantalla "¿Seguimos juntos?" de fin de prueba (evento `fin_prueba`), el pago con solo la captura + aviso al toque a Jonah (`api/pago-enviado.js`) y el registro con avisos en vivo. Punto de partida: 59 registros, 15 vieron planes, 3 eligieron plan, 1 envió pago, 2 pagando. Revisar el 10 de octubre y el 19 de octubre si sube "vieron planes" y "pagaron". Siguiente idea si no basta: QR de Yape en la pantalla de pago (falta que Jonah mande la imagen).
+- **19 de octubre: ¿sirven los 3 especialistas?** (`.claude/agents/`, armados el 8 de octubre). Usarlos en la revisión de pagos del 10 de octubre (`especialista-que-paguen`), en el resumen de anuncios del 12 de octubre (`especialista-anuncios`) y en la prueba de redes personales (`especialista-contenido`). El 19, junto con la revisión de pagos, decir a Jonah cuáles ayudaron y proponer quitar el que no.
 - **11 de octubre:** contar cuántos se registraron con código de alumno tras el flyer. Punto de partida: 39 alumnos con código, 1 registro en total, 0 pagos. Si funciona, proponer el botón "Compartir en mi estado" dentro de la app.
 
 ## En curso

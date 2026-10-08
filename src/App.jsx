@@ -2437,6 +2437,23 @@ function registrarPasoPago(evento, username, detalle = null) {
     .then(() => {}, () => {});
 }
 
+/* Píxel de Meta: "Lead" (tocó "prueba gratis") y "CompleteRegistration"
+   (creó su cuenta) van con moneda y un valor estimado en soles, como pide
+   Meta (sin eso avisaba "datos de divisa con problemas" y optimizaba
+   peor). Los valores son una estimación de cuánto vale cada paso: un pago
+   promedia ~S/36 y, por ahora, paga aprox. 1 de cada 40 o 50 registros
+   (si eso cambia mucho, ajustarlos). La compra real (Purchase, con el
+   monto pagado) la avisa el servidor: api/_lib/meta-compra.js. */
+const VALOR_META = { Lead: 0.5, CompleteRegistration: 1 };
+function avisarMeta(evento) {
+  try {
+    if (!window.fbq) return;
+    const valor = VALOR_META[evento];
+    if (valor) window.fbq('track', evento, { value: valor, currency: 'PEN' });
+    else window.fbq('track', evento);
+  } catch (e) {}
+}
+
 function registrarEventoEmbudo(evento, extra = {}) {
   if (!embudoDebeContar()) return;
   supabase.from('embudo_landing_eventos')
@@ -2732,15 +2749,13 @@ function Landing({ onChoose }) {
   const [demoAbierta, setDemoAbierta] = useState(false);
   function abrirDemo() {
     registrarEventoEmbudo('demo_abrir');
-    try { if (window.fbq) window.fbq('track', 'ViewContent'); } catch (e) {}
+    avisarMeta('ViewContent');
     setDemoAbierta(true);
   }
   function registrarClicCTA() {
     registrarEventoEmbudo('clic_cta');
     // Avisa a Meta que alguien mostró interés (tocó "prueba gratis").
-    try {
-      if (window.fbq) window.fbq('track', 'Lead');
-    } catch (e) {}
+    avisarMeta('Lead');
     // Antes de crear la cuenta: su objetivo y sus datos (Recorrido). Si ya
     // lo hizo en este celular, va directo a crear la cuenta.
     onChoose(leerRecorrido() ? 'trial' : 'recorrido');
@@ -3754,9 +3769,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     // Avisa a TikTok y a Meta que se completó un registro exitoso, para
     // que puedan optimizar las campañas hacia este evento de conversión.
     avisarRegistroTikTok(data?.user?.id);
-    try {
-      if (window.fbq) window.fbq('track', 'CompleteRegistration');
-    } catch (e) {}
+    avisarMeta('CompleteRegistration');
 
     // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el
     // usuario para poder seguir a esta persona hasta la prueba y el pago.
@@ -5980,7 +5993,7 @@ export default function App() {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
       registrarRegistroEmbudo(perfil.username, 'google');
       avisarRegistroTikTok(user?.id);
-      try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
+      avisarMeta('CompleteRegistration');
     }
     try { localStorage.setItem('jb-conocido', '1'); } catch {}
   }
@@ -6465,7 +6478,7 @@ export default function App() {
         ? (instalada
           ? <Bienvenida onEntrar={() => irA('studentAuth')} onEmpezar={() => {
               registrarEventoEmbudo('clic_cta', { detalle: 'app' });
-              try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+              avisarMeta('Lead');
               irA(leerRecorrido() ? 'trial' : 'recorrido');
             }} />
           : <Landing onChoose={irA} />)
@@ -6482,7 +6495,7 @@ export default function App() {
         volver();
       }} onEmpezar={() => {
         registrarEventoEmbudo('clic_cta', { detalle: 'calculadora' });
-        try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+        avisarMeta('Lead');
         irA(leerRecorrido() ? 'trial' : 'recorrido');
       }} />}
       {!tokenRef && view === 'recorrido' && <Recorrido onBack={volver} onListo={() => irA('trial')} />}

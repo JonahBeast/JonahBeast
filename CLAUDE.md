@@ -63,7 +63,7 @@ Cinco ayudantes de Claude con las reglas y datos del proyecto (pedidos por Jonah
 - `especialista-anuncios`: planea y arma campañas de Meta y TikTok, resumen de los lunes y costo por alumno que paga. En Meta crea las campañas **en pausa**; nada se enciende, gasta ni cambia sin el OK explícito de Jonah.
 - `especialista-contenido`: guiones, textos para redes, WhatsApp y anuncios con la voz de Jonah.
 - `especialista-diseno`: imágenes de anuncios, carruseles, flyers y portadas con el estilo de la marca y en los tamaños de cada red. No inventa fotos realistas de personas ni usa antes/después en anuncios.
-- `especialista-video`: videos publicitarios desde cero y edición de los videos que graba Jonah (subtítulos, cierre del gorila, voz de Viernes o del gorila, formato de cada red). No crea videos realistas de personas ni publica nada.
+- `especialista-video`: videos publicitarios desde cero y edición de los videos que graba Jonah (subtítulos, cierre del gorila, formato de cada red), con todo el audio: voz de Viernes o del gorila, limpiar la voz de Jonah, música con permiso, efectos y volumen parejo. No crea videos realistas de personas ni publica nada.
 
 Si cambia una regla o un dato que ellos usan (precios, voz, historia de Jonah, eventos del embudo), actualízalo también en su archivo.
 

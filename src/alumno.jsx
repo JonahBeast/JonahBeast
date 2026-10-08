@@ -3942,6 +3942,45 @@ function PesajeCard({ form, setForm }) {
   );
 }
 
+/* 📣 Mensaje de Jonah a todos (saludo de Navidad, avisos...). Lo escribe
+   Jonah en el panel (HOY → "📣 MENSAJE A TODOS"); a quien tiene avisos
+   también le llega como notificación. Sale aquí, primero entre los avisos
+   de Inicio, hasta que el alumno lo cierra (como mucho 14 días). */
+function MensajeJonahCard({ username }) {
+  const [mensaje, setMensaje] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    supabase.rpc('mi_mensaje_masivo').then(({ data }) => {
+      const m = Array.isArray(data) ? data[0] : data;
+      if (!vivo || !m?.id) return;
+      try { if (localStorage.getItem(`jb-mensaje-cerrado-${m.id}`)) return; } catch {}
+      setMensaje(m);
+      registrarPasoPago('mensaje_visto', username, m.id);
+    }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  if (!mensaje) return null;
+  function cerrar() {
+    try { localStorage.setItem(`jb-mensaje-cerrado-${mensaje.id}`, '1'); } catch {}
+    registrarPasoPago('mensaje_cerrado', username, mensaje.id);
+    setMensaje(null);
+  }
+  return (
+    <div className="relative bg-zinc-900 border border-orange-500/50 rounded-2xl p-4 mb-6 overflow-hidden"
+      style={{ boxShadow: '0 0 30px -12px rgba(232,89,12,.5)' }}>
+      <div className="flex items-center gap-3">
+        <img src="/jonah-avatar.png" alt="" className="w-11 h-11 rounded-full object-cover border-2 border-orange-500/60 shrink-0" />
+        <div className="min-w-0">
+          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+          <p className="jb-display text-lg text-zinc-50 leading-tight">{mensaje.titulo}</p>
+        </div>
+      </div>
+      <p className="jb-body text-sm text-zinc-200 mt-3 whitespace-pre-line leading-relaxed">{mensaje.texto}</p>
+      <button onClick={cerrar} className={btnPrimary + ' w-full py-2.5 mt-4'}>¡Gracias, Jonah! 💪</button>
+    </div>
+  );
+}
+
 function TuSemanaCard({ username, nombre }) {
   const hoy = todayISO();
   const lunesPasado = addDaysISO(lunesDe(hoy), -7);
@@ -11633,6 +11672,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
              ocupan lugar, así que siempre se ve el más importante. */
           const avisos = (
             <div className="jb-avisos-inicio">
+              <MensajeJonahCard username={username} />
               <PesajeCard form={form} setForm={setForm} />
               <PedidosEnCaminoCard username={username} />
               <PedidosResueltosCard username={username} />

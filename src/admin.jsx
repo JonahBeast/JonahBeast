@@ -9458,6 +9458,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <ComunidadHoyPanel users={users} />
             <ListosParaPagarPanel />
             <AvisoMejoras40Panel />
+            <MensajeATodosPanel />
             {/* Las listas completas: lo urgente de cada una ya sale arriba en
                 "Mensajes del día"; aquí quedan juntas y cerradas, para cuando
                 quieras ver a todos o usar sus botones (+7 días, renovar…). */}
@@ -10622,6 +10623,245 @@ function mensajeMejoras40(nombre) {
 2️⃣ Registrar tu comida es más fácil: tocas REGISTRAR → "¿Qué comiste?", escribes por ejemplo "arroz" y eliges cuánto con botones grandes (½ plato, 1 plato…). Lo que comes siempre ya te aparece listo, con un toque.
 
 Cierra y vuelve a abrir la app para ver los cambios. Si algo se te complica, escríbeme aquí y lo vemos juntos. Vamos poco a poco, comida a comida 🦍`;
+}
+
+/* 📣 MENSAJE A TODOS: Jonah escribe un mensaje (saludo de Navidad, aviso,
+   "te extrañamos"), elige a quién va y cuándo sale. Llega como notificación
+   a quien tiene avisos y como tarjeta en Inicio a todos los del público
+   (api/mensaje-masivo.js; los programados los saca
+   api/cron/mensajes-programados.js). Como mucho uno por día y nunca de
+   noche (10 p.m. a 8 a.m.: queda para las 8 a.m.). */
+const PUBLICOS_MENSAJE = [
+  ['todos', 'Todos'],
+  ['pagan', 'Los que pagan'],
+  ['prueba', 'En prueba'],
+  ['gratis', 'Versión gratis'],
+  ['inactivos', 'Sin registrar 3+ días'],
+];
+const IDEAS_MENSAJE = [
+  { nombre: '🎄 Navidad', titulo: '¡Feliz Navidad! 🎄', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por ser parte de esta familia. Disfruta la cena con los tuyos, sin culpa: mañana seguimos, comida a comida. Un abrazo grande 🦍' },
+  { nombre: '🎆 Año nuevo', titulo: '¡Feliz Año Nuevo! 🎆', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por confiar en mí este año. En el que empieza vamos juntos por tu meta, poco a poco, comida a comida 💪' },
+  { nombre: '👋 Te extrañamos', titulo: 'Te extraño por aquí 👋', publico: 'inactivos',
+    texto: 'Soy Jonah. Hace unos días no registras tus comidas y no pasa nada: hoy es un buen día para retomar. Anota tu próxima comida y seguimos juntos 💪' },
+];
+async function llamarMensajeMasivo(cuerpo) {
+  const session = await sesionFresca();
+  const r = await fetch('/api/mensaje-masivo', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(cuerpo),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'No se pudo completar. Intenta de nuevo.');
+  return j;
+}
+const fechaHoraPeru = iso => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+
+function MensajeATodosPanel() {
+  const [abierto, setAbierto] = useState(false);
+  const [titulo, setTitulo] = useState('');
+  const [texto, setTexto] = useState('');
+  const [publico, setPublico] = useState('todos');
+  const [cuando, setCuando] = useState('ahora'); // 'ahora' | 'programar'
+  const [fecha, setFecha] = useState(''); // AAAA-MM-DDTHH:MM, hora de Perú
+  const [enMuro, setEnMuro] = useState(false);
+  const [cuenta, setCuenta] = useState(null);
+  const [lista, setLista] = useState(null);
+  const [vistos, setVistos] = useState({});
+  const [ocupado, setOcupado] = useState('');
+  const [error, setError] = useState('');
+
+  async function cargar() {
+    const { data } = await supabase.from('mensajes_masivos')
+      .select('id, titulo, texto, publico, en_muro, estado, programado_para, enviado_en, destinatarios, push_enviados')
+      .neq('estado', 'cancelado').order('programado_para', { ascending: false }).limit(10);
+    setLista(data || []);
+    const ids = (data || []).filter(m => m.estado === 'enviado').map(m => String(m.id));
+    if (!ids.length) return;
+    const { data: ev } = await supabase.from('embudo_landing_eventos').select('evento, username, detalle')
+      .in('evento', ['mensaje_visto', 'mensaje_cerrado']).in('detalle', ids);
+    const v = {};
+    (ev || []).forEach(e => {
+      const x = v[e.detalle] = v[e.detalle] || { vieron: new Set(), cerraron: new Set() };
+      (e.evento === 'mensaje_visto' ? x.vieron : x.cerraron).add(e.username);
+    });
+    setVistos(v);
+  }
+  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    if (!abierto) return;
+    let vivo = true;
+    setCuenta(null);
+    llamarMensajeMasivo({ accion: 'contar', publico }).then(c => { if (vivo) setCuenta(c); }, () => {});
+    return () => { vivo = false; };
+  }, [publico, abierto]);
+
+  const programados = (lista || []).filter(m => m.estado === 'programado');
+  const enviados = (lista || []).filter(m => m.estado === 'enviado');
+  const listo = titulo.trim() && texto.trim() && (cuando === 'ahora' || fecha);
+  const fechaISO = cuando === 'programar' && fecha ? new Date(`${fecha}:00-05:00`).toISOString() : null;
+  const etiquetaPublico = (PUBLICOS_MENSAJE.find(p => p[0] === publico) || [])[1];
+
+  async function probar() {
+    setOcupado('probar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'probar', titulo, texto });
+      showToast(r.enviados ? '📲 Te llegó la prueba al celular (solo a ti).' : 'No te llegó: activa los avisos en este celular para ver la prueba.');
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function enviar() {
+    const n = cuenta?.total;
+    const pregunta = cuando === 'ahora'
+      ? `¿Enviar "${titulo.trim()}" ahora a ${n ?? 'los'} alumnos (${etiquetaPublico})?\n\nLe llega a todos como tarjeta en Inicio y como notificación a los que tienen avisos.${enMuro ? ' También sale en el Muro.' : ''}`
+      : `¿Programar "${titulo.trim()}" para el ${fechaHoraPeru(fechaISO)} (${etiquetaPublico})?`;
+    if (!confirm(pregunta)) return;
+    setOcupado('enviar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'enviar', titulo, texto, publico, en_muro: enMuro, programado_para: fechaISO });
+      const m = r.mensaje;
+      showToast(r.enviadoAhora
+        ? `📣 Enviado a ${m.destinatarios.length} alumnos · ${m.push_enviados} notificaciones`
+        : `🗓️ Programado para el ${fechaHoraPeru(m.programado_para)}${r.movidoA8 ? ' (de noche no suena: sale a las 8 a.m.)' : ''}`);
+      setTitulo(''); setTexto(''); setFecha(''); setCuando('ahora'); setEnMuro(false);
+      await cargar();
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function cancelar(m) {
+    if (!confirm(`¿Cancelar "${m.titulo}"? No saldrá.`)) return;
+    try { await llamarMensajeMasivo({ accion: 'cancelar', id: m.id }); showToast('Mensaje cancelado.'); await cargar(); }
+    catch (e) { showToast(e.message); }
+  }
+
+  const resumen = programados.length
+    ? `🗓️ Programado: "${programados[programados.length - 1].titulo}" · ${fechaHoraPeru(programados[programados.length - 1].programado_para)}`
+    : enviados.length ? `Último: "${enviados[0].titulo}" · ${fechaHoraPeru(enviados[0].enviado_en)}`
+    : 'Saludo de Navidad, avisos o "te extrañamos": notificación + tarjeta en la app.';
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
+      <button type="button" onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <span className="min-w-0">
+          <span className="jb-display text-base text-zinc-200 block">📣 MENSAJE A TODOS</span>
+          <span className="jb-body text-[11px] text-zinc-500 block truncate">{resumen}</span>
+        </span>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            <span className="jb-body text-[11px] text-zinc-500 self-center">Ideas:</span>
+            {IDEAS_MENSAJE.map(i => (
+              <button key={i.nombre} type="button" onClick={() => { setTitulo(i.titulo); setTexto(i.texto); setPublico(i.publico); }}
+                className="jb-body text-xs px-3 py-1 rounded-full border border-zinc-700 text-zinc-300 hover:border-orange-500">{i.nombre}</button>
+            ))}
+          </div>
+          <Field label={`Título (${titulo.length}/60)`}>
+            <input autoComplete="off" value={titulo} onChange={e => setTitulo(e.target.value.slice(0, 60))} className={inputCls} placeholder="Ej. ¡Feliz Navidad! 🎄" />
+          </Field>
+          <Field label={`Mensaje (${texto.length}/300) · en tu voz: cercano y motivador`}>
+            <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, 300))} rows={4} className={inputCls + ' resize-none'}
+              placeholder="Soy Jonah. …" />
+          </Field>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A quién?</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PUBLICOS_MENSAJE.map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setPublico(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${publico === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-400 mt-1.5">
+              {cuenta ? <>Le llega a <b className="text-zinc-100">{cuenta.total}</b> alumnos en la app · notificación a <b className="text-zinc-100">{cuenta.conAvisos}</b> (tienen avisos activados)</> : 'Contando…'}
+            </p>
+          </div>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿Cuándo?</p>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {[['ahora', 'Ahora'], ['programar', '🗓️ Programar']].map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setCuando(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${cuando === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+              {cuando === 'programar' && (
+                <input type="datetime-local" value={fecha} onChange={e => setFecha(e.target.value)} className={inputCls + ' text-sm py-1.5 w-auto'} />
+              )}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1">Hora de Perú. De noche (10 p.m. a 8 a.m.) no suena: sale a las 8 a.m. Como mucho un mensaje por día.</p>
+          </div>
+
+          <label className="flex items-center gap-2 jb-body text-xs text-zinc-300">
+            <input type="checkbox" checked={enMuro} onChange={e => setEnMuro(e.target.checked)} className="accent-orange-500" />
+            Publicarlo también en el Muro de la Comunidad
+          </label>
+
+          {(titulo.trim() || texto.trim()) && (
+            <div className="flex flex-col gap-2">
+              <p className="jb-body text-[11px] text-zinc-500">Así se verá:</p>
+              <div className="bg-zinc-100 text-zinc-900 rounded-xl px-3 py-2 flex gap-2 items-start">
+                <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold leading-tight">{titulo || 'Título'}</p>
+                  <p className="text-[12px] leading-snug line-clamp-3">{texto || 'Mensaje'}</p>
+                </div>
+              </div>
+              <div className="bg-zinc-950 border border-orange-500/50 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500/60 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-base text-zinc-50 leading-tight">{titulo || 'Título'}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-sm text-zinc-200 mt-2 whitespace-pre-line">{texto || 'Mensaje'}</p>
+                <div className={btnPrimary + ' w-full py-2 mt-3 pointer-events-none text-sm'}>¡Gracias, Jonah! 💪</div>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={!titulo.trim() || !texto.trim() || !!ocupado} onClick={probar} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              {ocupado === 'probar' ? <Loader2 size={15} className="animate-spin" /> : '📲 Enviarme una prueba'}
+            </button>
+            <button type="button" disabled={!listo || !!ocupado} onClick={enviar} className={btnPrimary + ' text-sm py-2.5 px-4 flex-1'}>
+              {ocupado === 'enviar' ? <Loader2 size={15} className="animate-spin" />
+                : cuando === 'ahora' ? `📣 Enviar a ${cuenta?.total ?? '…'} alumnos` : '🗓️ Programar'}
+            </button>
+          </div>
+
+          {(programados.length > 0 || enviados.length > 0) && (
+            <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
+              {programados.map(m => (
+                <div key={m.id} className="bg-zinc-950 border border-amber-600/40 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="jb-body text-sm text-zinc-100 truncate">🗓️ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500">Sale el {fechaHoraPeru(m.programado_para)} · {(PUBLICOS_MENSAJE.find(p => p[0] === m.publico) || [])[1]}{m.en_muro ? ' · también en el Muro' : ''}</p>
+                  </div>
+                  <button type="button" onClick={() => cancelar(m)} className="jb-body text-xs text-zinc-400 underline shrink-0">Cancelar</button>
+                </div>
+              ))}
+              {enviados.map(m => {
+                const v = vistos[String(m.id)];
+                return (
+                  <div key={m.id} className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                    <p className="jb-body text-sm text-zinc-100 truncate">✅ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                      {fechaHoraPeru(m.enviado_en)} · {m.destinatarios.length} alumnos · {m.push_enviados} notificaciones · la vieron en la app {v ? v.vieron.size : 0}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AvisoMejoras40Panel() {

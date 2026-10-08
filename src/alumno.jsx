@@ -6891,7 +6891,8 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
 
 /* Alimentos que en una foto se ven casi iguales pero cambian mucho en
    calorías (café negro o con leche, gaseosa normal o cero, leche entera o
-   descremada, atún en agua o en aceite, jugo con o sin azúcar...): si la
+   descremada, atún en agua o en aceite, jugo con o sin azúcar, mayonesa
+   normal o light...): si la
    IA reconoce cualquiera, se muestran todas las variantes para que el
    alumno toque la suya — primero las que sugirió la IA. No se aplica a lo
    que la foto sí distingue (pan, huevo, arroz), para no sumarle pasos. */
@@ -6910,8 +6911,13 @@ const FAMILIAS_FOTO = [
     claves: () => ['Atún en lata en agua (escurrido) (-)', 'Atún en lata en aceite (escurrido) (-)', 'Atún en lata en aceite (sin escurrir) (-)'] },
   { id: 'yogur', es: f => /^Yogur/.test(f.name),
     claves: () => ['Yogur natural (-)', 'Yogur griego natural (-)', 'Yogur saborizado (Con azúcar)', 'Yogur bebible (-)'] },
-  // Jugos, chicha, limonada, refrescos: cada sabor con sus versiones con y sin azúcar.
-  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco)/.test(f.name),
+  // Mayonesa normal o light: en la foto se ven iguales y la light tiene la
+  // mitad de calorías. Entran todas las de la app (también las light de
+  // marca que se agreguen después).
+  { id: 'mayonesa', es: f => /^Mayonesa/.test(f.name),
+    claves: () => FOODS.filter(x => /^Mayonesa/.test(x.name)).map(x => x.key) },
+  // Jugos, chicha, limonada, refrescos, emoliente: cada sabor con sus versiones con y sin azúcar.
+  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco|Emoliente)/.test(f.name),
     claves: f => FOODS.filter(x => x.group === 'Bebidas' && baseBebida(x.name) === baseBebida(f.name)).map(x => x.key) },
 ];
 

@@ -548,8 +548,21 @@ function ReferidosPanel({ users, onCambio }) {
 // IA vio en sus fotos y no están en la app. La IA propone los macros, Jonah
 // revisa y aprueba: el alimento aparece al momento en la app y se avisa a
 // quienes lo pidieron (función alimentos-pedidos).
-async function llamarPedidosAlimentos(cuerpo) {
+// Sesión del admin lista para llamar a las funciones del servidor. En el
+// celular, si el panel quedó en segundo plano, la sesión guardada puede estar
+// vencida (las funciones responden "no autorizado" y, por ejemplo, Jarvis y
+// Viernes pierden la voz realista): si vence en menos de un minuto, se renueva.
+async function sesionFresca() {
   const { data: { session } } = await supabase.auth.getSession();
+  if (session?.expires_at && session.expires_at * 1000 - Date.now() < 60000) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data?.session) return data.session;
+  }
+  return session;
+}
+
+async function llamarPedidosAlimentos(cuerpo) {
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/alimentos-pedidos`, {
     method: 'POST',
     headers: {
@@ -6017,7 +6030,7 @@ const GUION_VIDEO_JARVIS = [
 
 async function generarVozVideo(texto, voz) {
   const pedir = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
@@ -7362,7 +7375,7 @@ function funcionJarvis() {
    se pasa a `alEvento` apenas llega. Si la función responde en el formato
    de siempre (un JSON completo), también funciona. */
 async function llamarJarvis(cuerpo, alEvento) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/${funcionJarvis()}`, {
     method: 'POST',
     headers: {
@@ -7794,13 +7807,22 @@ let vozPremiumCaida = false;
 async function audioPremiumJarvis(texto, voz) {
   const clave = `${voz}|${texto}`;
   if (cacheVozJarvis.has(clave)) return cacheVozJarvis.get(clave);
-  const { data: { session } } = await supabase.auth.getSession();
-  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ texto, voz }),
-  });
-  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) { vozPremiumCaida = true; throw new Error('sin voz premium'); }
+  const pedir = async () => {
+    const session = await sesionFresca();
+    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+      body: JSON.stringify({ texto, voz }),
+    });
+  };
+  let r = await pedir();
+  // Sesión vieja: se renueva y se reintenta una vez. Un "no autorizado" no
+  // apaga la voz realista para el resto de la visita (solo esta frase).
+  if (r.status === 401) { const { error } = await supabase.auth.refreshSession(); if (!error) r = await pedir(); }
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    if (r.status !== 401 && r.status !== 403) vozPremiumCaida = true;
+    throw new Error('sin voz premium');
+  }
   const bytes = await r.arrayBuffer();
   if (cacheVozJarvis.size > 30) cacheVozJarvis.delete(cacheVozJarvis.keys().next().value);
   cacheVozJarvis.set(clave, bytes);
@@ -8807,7 +8829,7 @@ const WA_CONFIG_ID = '1069612025663283'; // "Registro insertado de WhatsApp" (la
 const WA_GRAPH_VERSION = 'v23.0';
 
 async function llamarWhatsApp(cuerpo) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-conectar`, {
     method: 'POST',
     headers: {
@@ -9018,7 +9040,7 @@ function WhatsAppPanel() {
     const lista = [...simMensajes, { role: 'user', content: t }];
     setSimMensajes(lista); setSimTexto(''); setSimEnviando(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await sesionFresca();
       const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
@@ -10142,7 +10164,7 @@ function ordenMedias(h) {
 async function traerCorreosAlumnos(usernames) {
   if (!usernames.length) return {};
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     const r = await fetch('/api/correos-alumnos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
@@ -11659,7 +11681,7 @@ function PagosPanel({ onAprobado }) {
       // Aviso al celular del alumno: "tu pago fue aprobado". Si falla, la
       // aprobación igual queda hecha.
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await sesionFresca();
         fetch('/api/pago-aprobado', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },

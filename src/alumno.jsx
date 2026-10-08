@@ -11458,8 +11458,22 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [mostrarNotif, setMostrarNotif] = useState(false);
 
   const PULL_UMBRAL = 70;
+  // "Jalar para actualizar" es solo para la pantalla de fondo. Si el dedo
+  // empieza dentro de una ventana u hoja abierta (foto, registrar, editar…,
+  // que están fijas en la pantalla) o de una lista que se desliza, no cuenta:
+  // antes, deslizar hacia abajo dentro de la foto recargaba la app y se
+  // perdía lo que el alumno estaba revisando.
+  function dentroDeVentanaOLista(el) {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const st = window.getComputedStyle(n);
+      if (st.position === 'fixed') return true;
+      if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+    }
+    return false;
+  }
   function onPullStart(e) {
     if (window.scrollY > 4) return;
+    if (dentroDeVentanaOLista(e.target)) { pullStartY.current = null; return; }
     pullStartY.current = e.touches[0].clientY;
   }
   function onPullMove(e) {

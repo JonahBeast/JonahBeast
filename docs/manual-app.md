@@ -177,7 +177,7 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Elegir la comida** (Desayuno, Media mañana, Almuerzo, Media tarde, Cena): en toda la app se ve igual, una fila de botones que se desliza de lado; el elegido en naranja y un puntito en la comida de la hora.
 
-**Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄).
+**Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄). Solo funciona en la pantalla de fondo: **dentro de una ventana abierta** (foto, registrar, editar…) o de una lista que se desliza, deslizar hacia abajo **no recarga la app**, así no se pierde lo que estás revisando.
 
 **Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
 

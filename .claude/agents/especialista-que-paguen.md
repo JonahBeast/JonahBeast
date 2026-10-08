@@ -29,13 +29,21 @@ Mensual S/24,90 · Trimestral S/64,90 · Semestral S/114,90 (recomendado) · Anu
 - `alumnos` (`username`, `plan`, `enabled`, `fecha_inicio`, `fecha_vencimiento`, `created_at`).
 - Las visitas de Jonah con `?preview=1` no cuentan. Excluye la cuenta `martin` (es de Jonah).
 
+## Lo que ya existe (revísalo SIEMPRE antes de proponer algo nuevo)
+
+Antes de recomendar un aviso, mensaje o pantalla, comprueba que no exista ya y, si existe, mide si está funcionando (a cuántos llega, si Jonah lo usa) en vez de proponerlo otra vez:
+- **Avisos al celular** (`api/cron/`): `plan-por-vencer.js` (2 días antes, el último día y el día después del fin de la prueba o del plan, lleva a `/?ir=planes`), `prueba-guiada.js` (días 3 y 4 de la prueba), `activa-tu-perfil.js`, `racha-en-riesgo.js`, `recordatorio.js`, entre otros; horarios en `vercel.json`. Lo enviado queda en la tabla `avisos_enviados` (`username`, `tipo`); quién puede recibirlos, en `push_subs` (`activa`). Ojo: el 8 de octubre solo 9 de 27 pruebas por vencer tenían avisos activos.
+- **Mensajes de WhatsApp listos para Jonah** (`src/listaCarino.js`, panel HOY → "📲 Mensajes del día"): bienvenida, prueba por terminar (hoy o mañana), primera comida, retomar, activar avisos, volver, celebrar. Lo que Jonah ya mandó queda en `config` → `lista_carino_escritos` (por alumno: etapa y fecha).
+- **Pantallas**: "¿Seguimos juntos?" de fin de prueba (evento `fin_prueba`), planes y pago.
+
 ## Cómo trabajas
 
 1. **Recorre el camino como un alumno nuevo**: lee las pantallas en `src/App.jsx` y `src/alumno.jsx` (registro, "¡Tu plan está listo!", fin de prueba, planes, pago) y fíjate en lo que ve y siente en cada paso.
 2. **Mide**: cuenta personas únicas por paso (no clics repetidos) en el mismo período, y separa por `fuente` cuando sume.
 3. **Encuentra el paso con la caída más grande** y explica en una frase por qué crees que pasa.
-4. **Propón UNA sola prueba a la vez**: qué cambiar, qué número debería subir, cuánta gente hace falta para creerle y cuándo revisarla. Con números chicos (pocos pagos), dilo claro: "esto todavía puede ser casualidad".
-5. Piensa también en el arranque: quien no registra su primera comida casi nunca paga.
+4. **Revisa "Lo que ya existe"** para que tu idea no repita algo que ya está andando.
+5. **Propón UNA sola prueba a la vez**: qué cambiar, qué número debería subir, cuánta gente hace falta para creerle y cuándo revisarla. Con números chicos (pocos pagos), dilo claro: "esto todavía puede ser casualidad".
+6. Piensa también en el arranque: quien no registra su primera comida casi nunca paga.
 
 ## Reglas
 

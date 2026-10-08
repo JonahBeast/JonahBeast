@@ -40,6 +40,7 @@
 
 - **Alimentos por revisar.** En "Candidatos para la base" quedan "Refresco cebada" (@jerch_2004) y "Hamburguesa" (@yara1701): la recomendación es unirlos con "Refresco de cebada (con azúcar)" y "Hamburguesa clásica (Bembos)".
 - **Idea sin pedir:** que Jarvis también pueda revisar los pedidos de alimentos ("analízalos") desde el panel.
+- **Idea para más adelante (Jonah, 8 de octubre): rediseñar la tienda** (`src/tienda.jsx`, `/tienda`) con referencias de Refero Styles (styles.refero.design: "recetas" de diseño de páginas reales; la conexión directa a Claude es de pago, Refero Pro). Plan: elegir 2 o 3 tiendas de referencia (Gymshark, Nike, Myprotein), sacar su receta (orden de productos, fotos, precios y descuentos, botón de comprar, paso a pagar) y aplicarla **con la marca de Jonah** (carbón, naranja ají, crema, Anton y Work Sans, el gorila), con el `especialista-diseno`. Pedir a Jonah fotos claras de cada producto con fondo limpio. Recorrerla como alumno: producto → elegir → pagar → confirmación. Solo cuando Jonah lo pida.
 
 - **Flyer de estados de WhatsApp.** Jonah se lo manda a Joselyn Flores y a Yanet (alumnas con resultados y constancia). No usar a Jimena ni a Irvin: sus pesos parecen errores.
 

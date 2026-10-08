@@ -57,11 +57,12 @@
 
 ## Especialistas (`.claude/agents/`)
 
-Tres ayudantes de Claude con las reglas y datos del proyecto (pedidos por Jonah el 8 de octubre). Úsalos cuando el tema calce y pásale a Jonah su resultado en palabras simples:
+Cuatro ayudantes de Claude con las reglas y datos del proyecto (pedidos por Jonah el 8 de octubre). Úsalos cuando el tema calce y pásale a Jonah su resultado en palabras simples:
 
 - `especialista-que-paguen`: por qué los registros no pagan y qué probar (revisiones de pagos, embudo).
-- `especialista-anuncios`: anuncios de Meta y TikTok, resumen de los lunes y costo por alumno que paga. No cambia campañas sin el OK de Jonah.
+- `especialista-anuncios`: planea y arma campañas de Meta y TikTok, resumen de los lunes y costo por alumno que paga. En Meta crea las campañas **en pausa**; nada se enciende, gasta ni cambia sin el OK explícito de Jonah.
 - `especialista-contenido`: guiones, textos para redes, WhatsApp y anuncios con la voz de Jonah.
+- `especialista-diseno`: imágenes de anuncios, carruseles, flyers y portadas con el estilo de la marca y en los tamaños de cada red. No inventa fotos realistas de personas ni usa antes/después en anuncios.
 
 Si cambia una regla o un dato que ellos usan (precios, voz, historia de Jonah, eventos del embudo), actualízalo también en su archivo.
 

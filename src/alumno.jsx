@@ -9610,6 +9610,10 @@ function MealTab(props) {
 
 function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null }) {
   const [personales, setPersonales] = useState([]);
+  // Aviso de que se revisó un alimento suyo (tarjeta arriba, no un toast:
+  // así alcanza a leerlo y, en la versión gratis, ve lo que da Premium).
+  const [avisoPropio, setAvisoPropio] = useState(null);
+  const { premium, onVerPremium } = usePremium();
   const [editarPropio, setEditarPropio] = useState(null);
   const [escribiendo, setEscribiendo] = useState(false);
   useEffect(() => {
@@ -9753,11 +9757,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         if (nuevos.length) {
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
-          showToast(oficial && a.revision === 'aprobado'
+          setAvisoPropio(oficial && a.revision === 'aprobado'
             ? `➕ ¡Gracias! Jonah revisó "${a.nombre}" y ya está en la app para todos. Tus comidas ya se actualizaron.`
             : oficial
             ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
-            : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+            : `✏️ Revisamos "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''} y corregimos sus calorías. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
@@ -9903,6 +9907,22 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      {avisoPropio && (
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 flex flex-col gap-2">
+          <p className="jb-body text-sm text-zinc-100">{avisoPropio}</p>
+          {!premium && onVerPremium && (
+            <p className="jb-body text-xs text-zinc-400">👑 Con Premium no tienes ni que crearlos: me pides lo que no encuentres y yo te lo agrego con todo calculado. — Jonah</p>
+          )}
+          <div className="flex gap-2 mt-1">
+            {!premium && onVerPremium && (
+              <button onClick={() => { registrarPasoPago('alimento_revisado', username, 'ver_premium'); setAvisoPropio(null); onVerPremium(); }}
+                className={btnPrimary + ' flex-1 py-2.5 text-sm'}>Ver Premium</button>
+            )}
+            <button onClick={() => setAvisoPropio(null)}
+              className={(!premium && onVerPremium ? btnGhost : btnPrimary) + ' flex-1 py-2.5 text-sm'}>Entendido</button>
+          </div>
+        </div>
+      )}
       {esHoy && <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />}
       {hojaMeal && (
         <HojaRegistrar

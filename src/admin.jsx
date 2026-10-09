@@ -7807,7 +7807,8 @@ const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
   // El gorila como compañero de los alumnos (docs/idea-beast.md): para
   // escuchar cómo sonaría Beast.
-  { id: 'premium:beast', nombre: '🦍 Beast · el gorila, tu compañero' },
+  { id: 'premium:beast', nombre: '🦍 Beast · el gorila, voz grave' },
+  { id: 'premium:beast2', nombre: '🦍 Beast · el gorila, voz más expresiva' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -8262,8 +8263,8 @@ function JarvisPanel({ onClose, users }) {
   // Frase de prueba con la voz elegida en el selector. Se dispara dentro del
   // mismo toque del botón, así el navegador no bloquea el audio.
   function probarVoz() {
-    const frase = vozGuardada === 'premium:beast'
-      ? '¡Hola Jonah! Soy Beast, tu compañero. Cuéntame qué almorzaste hoy y te digo cuántas calorías tiene. ¿Te pasaste con el arroz? Tranqui, pata, eso se arregla con la siguiente comida. ¡Vamos con todo!'
+    const frase = String(vozGuardada).startsWith('premium:beast')
+      ? '¡Qué tal, causa! Soy Beast, tu pata de esta aventura. A ver, cuéntame, ¿qué almorzaste hoy? ¿Te mandaste con el arroz? Jaja, tranqui, a todos nos pasa… ¡hasta a mí, y eso que soy un gorila! Eso se arregla con la siguiente comida, ps. ¡Vamos con todo, comida a comida!'
       : 'Hola Jonah Beast, así sonaré cuando te responda.';
     if (esVozPremium(vozGuardada)) {
       contextoAudioJarvis();

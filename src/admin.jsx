@@ -3763,7 +3763,7 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz'];
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz', 'conversacion'];
 
 // Partes de la app que usan IA, para comparar su costo con el mes anterior.
 const PARTES_IA = [
@@ -3772,6 +3772,7 @@ const PARTES_IA = [
   { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
   { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
   { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
+  { funcion: 'beast-chat', label: 'Beast · tu compañero', uso: 'mensaje' },
 ];
 
 // El mismo momento del mes pasado (si hoy es 15 a las 10 am, el 15 del mes
@@ -5947,6 +5948,99 @@ async function huellaTexto(t) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+/* 🦍 BEAST: si tiene acogida y si sirve (docs/idea-beast.md, "Cómo medir
+   si Beast funciona"). Solo números y nombres con cuentas: Jonah no lee las
+   conversaciones, salvo las respuestas que el alumno marcó con 👎. */
+function BeastPanel() {
+  const [dias, setDias] = useState(7);
+  const [d, setD] = useState(null);
+  const [error, setError] = useState('');
+  const [verReportados, setVerReportados] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    setD(null); setError('');
+    supabase.rpc('beast_resumen', { p_dias: dias }).then(({ data, error: e }) => {
+      if (!vivo) return;
+      if (e) setError(e.message?.includes('beast_resumen') ? 'Beast todavía no está activado en la base.' : 'No se pudo leer.');
+      else setD(data);
+    });
+    return () => { vivo = false; };
+  }, [dias]);
+  const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+  const valoradas = d ? d.buenas + d.malas : 0;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="jb-display text-base text-zinc-200">🦍 BEAST · TU COMPAÑERO</h2>
+        <select value={dias} onChange={e => setDias(Number(e.target.value))} className="jb-body text-xs bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300">
+          <option value={7}>Últimos 7 días</option><option value={14}>Últimos 14 días</option><option value={30}>Últimos 30 días</option>
+        </select>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500">Solo números: no se ven las conversaciones (son privadas), salvo las respuestas que el alumno marcó con 👎.</p>
+      {error && <p className="jb-body text-xs text-zinc-400">{error}</p>}
+      {!d && !error && <Loader2 size={18} className="text-orange-500 animate-spin" />}
+      {d && (
+        <>
+          {d.apoyo?.length > 0 && (
+            <p className="jb-body text-xs text-amber-200 bg-amber-950/40 border border-amber-500/40 rounded-lg p-2.5">
+              ⚠️ Podrían necesitar apoyo (lo aceptaron; Beast ya les dio la Línea 113): <b>{d.apoyo.map(a => a.nombre || a.username).join(', ')}</b>. Escríbeles cuando puedas.
+            </p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              ['Le hablaron', d.usaron, `${d.aceptaron} aceptaron usarlo`],
+              ['Volvieron otro día', d.volvieron, `${pct(d.volvieron, d.usaron)} de los que lo probaron`],
+              ['3 días o más', d.tres_dias, `${pct(d.tres_dias, d.usaron)} · meta 30%`],
+              ['Mensajes', d.mensajes, d.usaron ? `${(d.mensajes / d.usaron).toFixed(1)} por alumno` : ''],
+              ['Comidas anotadas', d.comidas, `${d.deshacer} veces "Deshacer"`],
+              ['Agua · peso', `${d.agua} · ${d.peso}`, 'veces vía Beast'],
+              ['¿Qué como?', d.que_como, 'sugerencias vistas'],
+              ['👍 / 👎', `${d.buenas} / ${d.malas}`, valoradas ? `${pct(d.buenas, valoradas)} buenas · meta 80%` : 'sin valorar'],
+            ].map(([t, v, s]) => (
+              <div key={t} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">{t}</p>
+                <p className="jb-display text-xl text-zinc-50">{v}</p>
+                <p className="jb-body text-[10px] text-zinc-500">{s}</p>
+              </div>
+            ))}
+          </div>
+          {Object.keys(d.temas || {}).length > 0 && (
+            <p className="jb-body text-xs text-zinc-400">De qué hablan: {Object.entries(d.temas).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} ${n}`).join(' · ')}</p>
+          )}
+          {d.ranking?.length > 0 && (
+            <div>
+              <p className="jb-body text-xs text-zinc-300 font-semibold mb-1">Los que más lo usan</p>
+              <div className="flex flex-col gap-1">
+                {d.ranking.map((r, i) => (
+                  <p key={r.username} className="jb-body text-xs text-zinc-400">{i + 1}. <span className="text-zinc-200">{r.nombre || r.username}</span> · {r.dias} {r.dias === 1 ? 'día' : 'días'} · {r.mensajes} mensajes · {r.comidas} comidas</p>
+                ))}
+              </div>
+            </div>
+          )}
+          {d.reportados?.length > 0 && (
+            <div>
+              <button onClick={() => setVerReportados(v => !v)} className="jb-body text-xs text-orange-400 underline">
+                {verReportados ? 'Ocultar' : 'Ver'} las {d.reportados.length} respuestas marcadas con 👎
+              </button>
+              {verReportados && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {d.reportados.map(r => (
+                    <div key={r.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                      <p className="jb-body text-[11px] text-zinc-500">{new Date(r.fecha).toLocaleString('es-PE')}</p>
+                      {r.alumno && <p className="jb-body text-xs text-zinc-300 mt-1"><b>Alumno:</b> {r.alumno}</p>}
+                      <p className="jb-body text-xs text-zinc-300 mt-1"><b>Beast:</b> {r.beast}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ManualJarvisPanel() {
   const [estado, setEstado] = useState(null); // { alDia, commit, actualizado_en } | { error }
   const [ocupado, setOcupado] = useState(false);
@@ -9771,6 +9865,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <ReporteIAAlimentos grande />
             <PrecisionIAPanel />
             <ReconocimientoFotoPanel />
+            <BeastPanel />
             <ManualJarvisPanel />
             <MemoriaJarvisPanel />
           </>

@@ -4988,6 +4988,7 @@ function fmtS(n) {
 
 // Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
+  'Beast, tu compañero, contigo todos los días: le hablas y te anota todo. Sin monedas, sin cobros extra',
   'Tu menú del día y de la semana, armado con lo que te gusta y justo para tu meta',
   'Tu lista de compras de la semana, lista para compartir',
   'Foto inteligente en todas tus comidas',

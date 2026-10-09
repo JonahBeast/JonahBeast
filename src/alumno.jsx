@@ -18,6 +18,7 @@ import {
   ESTILOS_ESCANER,
   FOODS,
   Field,
+  HOSTS_PRODUCCION,
   Logo,
   MAX_GRAMOS_ENTRADA,
   MEAL_NAMES,
@@ -10685,28 +10686,673 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 }
 
 // arriba: en Comidas sube un poco para no chocar con el botón REGISTRAR.
-function WhatsAppButton({ arriba = false }) {
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
-  // se entiende como soporte, y el globo tapaba la pantalla.
+/* ------------------------------------------------------------------ */
+/* BEAST · TU COMPAÑERO (docs/idea-beast.md)                           */
+/* ------------------------------------------------------------------ */
+/* El gorila de la app conversa con el alumno (edge function
+   beast-chat). Beast nunca guarda nada solo: propone una acción y aquí
+   se muestra una tarjeta para confirmar. Las comidas se buscan con el
+   mismo motor del registro por voz (interpretarVarios) y se guardan
+   igual que desde Registrar, así el resultado es el mismo por cualquier
+   camino. La versión de prueba de Vercel habla con beast-chat-prueba. */
+function funcionBeast() {
+  return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';
+}
+async function llamarBeast(body) {
+  const { data, error } = await supabase.functions.invoke(funcionBeast(), { body });
+  if (!error) return data || {};
+  let cuerpo = null;
+  try { cuerpo = await error.context?.json(); } catch {}
+  return { ...(cuerpo || {}), error: cuerpo?.error || 'sin_conexion', status: error.context?.status };
+}
+// Una sola nota de voz suena a la vez; tocar ▶️ otra vez la para.
+let audioBeast = null;
+async function escucharBeast(texto, { bienvenida = false } = {}) {
+  if (audioBeast) { const a = audioBeast; audioBeast = null; a.pause(); if (a.dataset?.texto === texto) return 'parado'; }
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/${funcionBeast()}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+    body: JSON.stringify({ accion: 'voz', texto, bienvenida }),
+  });
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    let e = '';
+    try { e = (await r.json())?.error || ''; } catch {}
+    return e === 'limite_voz' ? 'limite' : e === 'premium' ? 'premium' : 'error';
+  }
+  const url = URL.createObjectURL(await r.blob());
+  const a = new Audio(url);
+  a.dataset.texto = texto;
+  audioBeast = a;
+  a.onended = () => { URL.revokeObjectURL(url); if (audioBeast === a) audioBeast = null; };
+  await a.play().catch(() => {});
+  return 'ok';
+}
+
+function BeastBurbuja({ arriba, punto, globo, onAbrir, onCerrarGlobo }) {
   return (
     <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Consultar por WhatsApp"
-        className="relative flex items-center justify-center"
-      >
-        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
-        <span className="relative w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 overflow-hidden border-2 border-emerald-400/50">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center">
-            <MessageCircle size={26} strokeWidth={2.2} className="text-white" />
-          </span>
+      {globo && (
+        <div className="relative max-w-[220px] bg-zinc-900 border border-orange-500/50 rounded-2xl rounded-br-sm pl-3 pr-7 py-2 shadow-lg shadow-black/40">
+          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">¡Oe! Soy <b className="text-orange-400">Beast</b>, tu compañero 🦍 Cuéntame qué comiste y te ayudo.</button>
+          <button onClick={onCerrarGlobo} aria-label="Cerrar" className="absolute top-1 right-1 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
+        </div>
+      )}
+      <button onClick={onAbrir} aria-label="Hablar con Beast, tu compañero" className="relative flex flex-col items-center">
+        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-500 shadow-lg shadow-orange-900/40 bg-zinc-900">
+          <img src="/jonah-avatar.png" alt="Beast" className="w-full h-full object-cover" />
         </span>
-      </a>
+        {punto && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-zinc-950" />}
+        <span className="jb-display text-[10px] tracking-widest text-orange-400 -mt-1.5 bg-zinc-950 border border-orange-500/60 rounded-full px-1.5 leading-4">BEAST</span>
+      </button>
+    </div>
+  );
+}
+
+const PRIVACIDAD_BEAST = [
+  'Tus conversaciones conmigo son privadas: Jonah no las lee.',
+  'Se borran solas a los 90 días, y puedes borrarlas antes cuando quieras.',
+  'Me acuerdo de lo importante que me cuentes; lo ves y lo borras en "Lo que Beast sabe de ti".',
+  'Soy inteligencia artificial: no soy nutricionista ni médico.',
+];
+
+function BeastConsentimiento({ onAceptar, onCerrar }) {
+  const [alerta, setAlerta] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center text-center gap-4">
+      <img src="/jonah-avatar.png" alt="Beast" className="w-24 h-24 rounded-full border-2 border-orange-500" />
+      <div>
+        <p className="jb-display text-3xl text-zinc-50 tracking-wide">BEAST</p>
+        <p className="jb-body text-sm text-orange-400">tu compañero · IA de Jonah Beast Fuel</p>
+      </div>
+      <p className="jb-body text-sm text-zinc-300 max-w-sm">Te acompaño todos los días: me cuentas qué comiste y te lo anoto, te digo cómo vas y te echo una mano cuando el día se pone difícil. Antes de empezar:</p>
+      <ul className="jb-body text-sm text-zinc-300 text-left max-w-sm flex flex-col gap-2">
+        {PRIVACIDAD_BEAST.map(t => <li key={t} className="flex gap-2"><span className="text-orange-400">•</span><span>{t}</span></li>)}
+      </ul>
+      <label className="flex items-start gap-3 text-left max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-3 cursor-pointer">
+        <input type="checkbox" checked={alerta} onChange={e => setAlerta(e.target.checked)} className="mt-1 w-4 h-4 accent-orange-500" />
+        <span className="jb-body text-xs text-zinc-300">Si me ves muy mal, <b className="text-zinc-100">avísale a Jonah</b> para que me escriba. (Solo le llega tu nombre, nunca lo que conversamos.)</span>
+      </label>
+      <button disabled={guardando} onClick={async () => { setGuardando(true); await onAceptar(alerta); setGuardando(false); }}
+        className={btnPrimary + ' w-full max-w-sm py-3'}>
+        {guardando ? <Loader2 size={18} className="animate-spin" /> : 'EMPEZAR CON BEAST'}
+      </button>
+      <div className="flex items-center gap-3">
+        <button onClick={onCerrar} className="jb-body text-xs text-zinc-500 underline">Ahora no</button>
+        <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer" className="jb-body text-xs text-zinc-500 underline">Política de privacidad</a>
+      </div>
+    </div>
+  );
+}
+
+// Arma las entradas de comida igual que agregarVarios (registro por voz).
+function entradasDeItems(items, extra = {}) {
+  return items.map(it => {
+    if (it.gramos) return { id: uid(), foodKey: it.food.key, qty: Math.round(it.gramos), unit: 'gramos', ...extra };
+    if (it.gramosExplicitos) return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos', ...extra };
+    const d = unidadPorDefecto(it.food);
+    return { id: uid(), foodKey: it.food.key, qty: d.qty * (it.cantidad || 1), unit: d.unit, ...extra };
+  });
+}
+const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
+
+// Tarjeta de comida: lo que Beast entendió, buscado en la base de la app.
+function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar }) {
+  const [items, setItems] = useState(() => interpretarVarios(accion.texto)
+    .map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia })));
+  const [comida, setComida] = useState(accion.comida || comidaDeAhora());
+  const [hecho, setHecho] = useState(false);
+  const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food);
+  const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
+  const pendiente = items.some(it => it.necesitaAclarar);
+  const propuesta = accion.tipo === 'proponer_comida';
+
+  async function pedir(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, j) => j === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, j) => j !== i ? x : r.food ? { ...x, food: r.food, buscar: false, activo: true, pedido: r } : { ...x, pedido: r }));
+  }
+
+  if (!items.length) {
+    return <p className="jb-body text-xs text-zinc-400 mt-2">No encontré eso en la app. Búscalo en <button onClick={onRegistrar} className="text-orange-400 underline">Registrar</button>.</p>;
+  }
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-1.5">
+      {items.map((it, i) => it.necesitaAclarar ? (
+        <div key={i} className="bg-orange-950/30 border border-orange-500/40 rounded-lg p-2">
+          <p className="jb-body text-[11px] text-orange-300 mb-1.5">🤔 "{it.textoOriginal}", ¿cuál fue?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {it.opciones.map((op, j) => (
+              <button key={j} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, food: op, necesitaAclarar: false, buscar: false, activo: true } : x))}
+                className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
+                {emojiAlimento(op)} {nombreFood(op)}
+              </button>
+            ))}
+            <button disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false } : x))}
+              className="jb-body text-[11px] text-zinc-400 underline px-1">Ninguna</button>
+          </div>
+        </div>
+      ) : it.buscar ? (
+        <div key={i} className="rounded-lg px-2.5 py-1.5 border border-dashed border-zinc-700">
+          <p className="jb-body text-xs text-zinc-300">🔎 "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· no lo encontré en la app</span></p>
+          {!it.pedido && !hecho && (premium
+            ? <button onClick={() => pedir(i)} className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">🙋 Pedírselo a Jonah</button>
+            : <button onClick={onRegistrar} className="mt-1 jb-body text-[11px] text-orange-400 underline">Búscalo en Registrar</button>)}
+          {it.pedido && (
+            <p className={`jb-body text-[11px] mt-1 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+              {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+              {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Te respondemos antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>.</>}
+              {it.pedido.estado === 'partes' && <>🧩 Anótalo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+              {it.pedido.estado === 'error' && it.pedido.error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <button key={i} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, activo: !x.activo } : x))}
+          className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'border-zinc-800 opacity-50'}`}>
+          <span className="shrink-0">{it.activo ? '✅' : '⬜'}</span>
+          <span className="jb-body text-xs text-zinc-200 flex-1">
+            {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos} g ` : it.cantidad > 1 ? `${it.cantidad} × ` : ''}{nombreFood(it.food)}
+            <NotaSinArroz food={it.food} />
+          </span>
+          <span className="jb-body text-[11px] text-zinc-400 shrink-0 tabular-nums">{Math.round(entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0))} kcal</span>
+        </button>
+      ))}
+      {!hecho && (
+        <>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <select value={comida} onChange={e => setComida(e.target.value)}
+              className="jb-body text-xs bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-zinc-200">
+              {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <span className="jb-display text-lg text-orange-400 tabular-nums">{Math.round(total)} kcal</span>
+          </div>
+          {pendiente
+            ? <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba</p>
+            : activos.length > 0 && (
+              <button onClick={() => { setHecho(true); onGuardar(activos, comida, Math.round(total)); }} className={btnPrimary + ' py-2 text-sm'}>
+                ✅ {propuesta ? 'Anotar esta' : `Agregar al ${comida.toLowerCase()}`}
+              </button>
+            )}
+          <p className="jb-body text-[10px] text-zinc-500 text-center">¿Algo no cuadra? Escríbeme la corrección ("eran 80 g de pollo", "quita el pan").</p>
+        </>
+      )}
+      {hecho && <p className="jb-body text-[11px] text-emerald-400">✓ Anotado en {comida}</p>}
+    </div>
+  );
+}
+
+// "¿Qué como?": las mismas sugerencias del botón "¿Qué puedo comer?".
+function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
+  const [pagina, setPagina] = useState(0);
+  const [hecho, setHecho] = useState(null);
+  const opciones = useMemo(() => {
+    const t = totalesDePlan(mealPlan);
+    const kcalMeta = Number(mealPlan.targetKcal) || 2000;
+    const protMeta = (kcalMeta * (mealPlan.macros?.p || 0.3)) / 4;
+    const parte = { 'Desayuno': 0.25, 'Media mañana': 0.10, 'Almuerzo': 0.35, 'Media tarde': 0.10, 'Cena': 0.20 }[comida] || 0.25;
+    const objetivo = {
+      kcal: Math.max(0, Math.min(kcalMeta - t.kcal, Math.max(kcalMeta * parte, 150))),
+      protein: Math.max(0, Math.min(protMeta - t.protein, protMeta * parte)),
+    };
+    return sugerenciasComida({ objetivo, comida, restricciones: mealPlan.restricciones || [], preferidos: new Set(), proteinas: [] });
+  }, [comida, mealPlan.targetKcal]);
+  if (!opciones.length) return <p className="jb-body text-xs text-zinc-400 mt-2">Por hoy ya casi llegaste a tu meta: si tienes hambre, algo ligero como una fruta 🍎</p>;
+  const vista = opciones.slice((pagina * 3) % opciones.length, (pagina * 3) % opciones.length + 3);
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {vista.map(op => (
+        <div key={op.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="jb-body text-xs text-zinc-100 font-semibold">{op.emoji} {op.name}</p>
+            <span className="jb-body text-[11px] text-orange-400 tabular-nums shrink-0">{Math.round(op.kcal)} kcal · P {Math.round(op.protein)} g</span>
+          </div>
+          <p className="jb-body text-[11px] text-zinc-400 mt-0.5">{op.items.map(x => `${nombreFood(x.food)} ${Math.round(x.grams)} g`).join(' + ')}</p>
+          {hecho === op.id
+            ? <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ Anotado en {comida}</p>
+            : !hecho && <button onClick={() => { setHecho(op.id); onGuardar(op.items.map(x => ({ food: x.food, gramos: x.grams })), comida, Math.round(op.kcal)); }}
+                className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">✅ Anotar esta</button>}
+        </div>
+      ))}
+      {!hecho && opciones.length > 3 && (
+        <button onClick={() => setPagina(p => p + 1)} className="jb-body text-[11px] text-zinc-400 underline self-start">🔄 Ver otras opciones</button>
+      )}
+    </div>
+  );
+}
+
+function BeastTarjetaPeso({ kg, pesoAntes, onGuardar }) {
+  const [hecho, setHecho] = useState(false);
+  const raro = Number(pesoAntes) > 0 && Math.abs(kg - Number(pesoAntes)) >= 3;
+  if (hecho) return <p className="jb-body text-[11px] text-emerald-400 mt-2">✓ Peso anotado: {kg} kg</p>;
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-2">
+      <p className="jb-body text-xs text-zinc-200">⚖️ ¿Anoto <b className="text-orange-400">{String(kg).replace('.', ',')} kg</b> como tu peso de hoy?</p>
+      {raro && <p className="jb-body text-[11px] text-amber-300">Ojo: son {String(Math.round(Math.abs(kg - Number(pesoAntes)) * 10) / 10).replace('.', ',')} kg de diferencia con tu último peso ({String(pesoAntes).replace('.', ',')} kg). ¿Lo escribiste bien?</p>}
+      <button onClick={() => { setHecho(true); onGuardar(kg); }} className={btnPrimary + ' py-2 text-sm'}>{raro ? 'Sí, está bien' : '✅ Sí, anotar'}</button>
+    </div>
+  );
+}
+
+function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, versionGratis, onCerrar, onRegistrar, onVerPlanes }) {
+  const premium = !versionGratis;
+  const [estado, setEstado] = useState('cargando'); // cargando | consentir | listo | error
+  const [mensajes, setMensajes] = useState([]);
+  const [libreta, setLibreta] = useState(null);
+  const [cuenta, setCuenta] = useState(null);
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [menu, setMenu] = useState(null); // null | 'menu' | 'libreta'
+  const [grabando, setGrabando] = useState(null); // null | 'grabando' | 'procesando'
+  const [deshacer, setDeshacer] = useState(null); // { id, fn, hasta }
+  const [sonando, setSonando] = useState(null);
+  const finRef = useRef(null);
+  const inputRef = useRef(null);
+  const grabadorRef = useRef(null);
+  const mealPlanRef = useRef(mealPlan);
+  mealPlanRef.current = mealPlan;
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  async function cargar() {
+    setEstado('cargando');
+    const r = await llamarBeast({ accion: 'cargar' });
+    if (r.error) { setEstado('error'); return; }
+    setMensajes(r.mensajes || []);
+    setLibreta(r.libreta);
+    setCuenta(r.cuenta);
+    setEstado(r.libreta?.consentimiento_en ? 'listo' : 'consentir');
+  }
+  useEffect(() => { cargar(); }, []);
+  useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes.length, estado, enviando]);
+  useEffect(() => {
+    if (!deshacer) return;
+    const t = setTimeout(() => setDeshacer(d => (d && d.id === deshacer.id ? null : d)), Math.max(0, deshacer.hasta - Date.now()));
+    return () => clearTimeout(t);
+  }, [deshacer]);
+  useEffect(() => () => { if (audioBeast) { audioBeast.pause(); audioBeast = null; } grabadorRef.current?.cancelar?.(); }, []);
+
+  const local = (texto, extra = {}) => setMensajes(v => [...v, { id: `l${Date.now()}${Math.random()}`, rol: 'beast', texto, local: true, nuevo: true, ...extra }]);
+  const evento = (tipo, datos) => { llamarBeast({ accion: 'evento', tipo, datos }); };
+
+  function bienvenida() {
+    const comida = comidaDeAhora();
+    const qué = comida === 'Desayuno' ? 'desayunaste' : comida === 'Almuerzo' ? 'almorzaste' : comida === 'Cena' ? 'cenaste' : 'comiste';
+    return `¡Hola${nombre ? `, ${String(nombre).split(' ')[0]}` : ''}! Soy Beast, el compañero que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué ${qué} hoy y te digo cuántas calorías tiene. ${premium ? 'Háblame o escríbeme' : 'Escríbeme'} 💪`;
+  }
+
+  function hoyParaBeast() {
+    const mp = mealPlanRef.current;
+    const t = totalesDePlan(mp);
+    const meta = Number(mp.targetKcal) || 0;
+    const comidas = Object.entries(mp.meals || {}).map(([m, l]) => [m, (l || []).filter(e => e.foodKey)])
+      .filter(([, l]) => l.length).map(([m, l]) => `${m}: ${l.map(e => buscarFood(e.foodKey)?.name).filter(Boolean).slice(0, 6).join(', ')}`).join('; ');
+    return {
+      kcal: t.kcal, metaKcal: meta, proteina: t.protein, metaProteina: (meta * (mp.macros?.p || 0.3)) / 4,
+      agua: mp.agua || 0, metaAgua: metaAgua(formRef.current.peso),
+      alimentos: Object.values(mp.meals || {}).reduce((n, l) => n + (l || []).filter(e => e.foodKey).length, 0),
+      comidas,
+    };
+  }
+
+  async function enviar(contenido, via = 'texto') {
+    const limpio = String(contenido || '').trim();
+    if (!limpio || enviando) return;
+    if (audioBeast) { audioBeast.pause(); audioBeast = null; setSonando(null); }
+    const idLocal = `a${Date.now()}`;
+    setMensajes(v => [...v, { id: idLocal, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+    setTexto('');
+    setEnviando(true);
+    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast() });
+    setEnviando(false);
+    if (r.error === 'consentimiento') { setEstado('consentir'); return; }
+    if (r.error) {
+      const mensaje = r.status === 429 ? r.error : 'Uy, se me fue la señal, causa 😅 Dame un toque y lo intento de nuevo.';
+      setMensajes(v => v.map(m => m.id === idLocal ? { ...m, fallo: r.status !== 429, via } : m));
+      local(mensaje, { sistema: true });
+      return;
+    }
+    if (r.cuenta) setCuenta(r.cuenta);
+    setMensajes(v => [...v, { id: r.id, rol: 'beast', texto: r.respuesta, datos: r.accion ? { accion: r.accion } : null, nuevo: true }]);
+    // Agua: directo (con Deshacer), como en la app.
+    if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
+  }
+
+  function reintentar(m) {
+    setMensajes(v => v.filter(x => x.id !== m.id && !(x.sistema && x.local)));
+    enviar(m.texto, m.via || 'texto');
+  }
+
+  function ofrecerAvisos() {
+    const marca = 'jb_notif_tras_comida_' + username;
+    try { if (localStorage.getItem(marca)) return; } catch { return; }
+    estadoPushEquipo().then(e => {
+      if (e !== 'disponible') return;
+      try { localStorage.setItem(marca, '1'); } catch {}
+      const manana = comidaDeAhora() === 'Cena' ? 'tu desayuno' : 'tu siguiente comida';
+      local(`¿Te aviso ${comidaDeAhora() === 'Cena' ? 'mañana' : 'más tarde'} para anotar ${manana}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+    });
+  }
+
+  function guardarComida(items, comida, kcal, msgId) {
+    // Si es su primera comida del día y puede activar avisos, Beast se los
+    // ofrece en el chat (y no sale además la ventana de la app).
+    let ofrecer = false;
+    try { ofrecer = !localStorage.getItem('jb_notif_tras_comida_' + username); } catch {}
+    const nuevas = entradasDeItems(items, { viaBeast: true });
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: [...(v.meals[comida] || []), ...nuevas] } }));
+    vibrar(20);
+    const ids = new Set(nuevas.map(n => n.id));
+    const meta = Number(mealPlanRef.current.targetKcal) || 0;
+    const queda = Math.round(meta - totalesDePlan(mealPlanRef.current).kcal - kcal);
+    local(meta ? (queda > 0 ? `Listo 🦍 Te quedan ${queda} kcal para hoy.` : `Listo 🦍 Con esto llegaste a tu meta de hoy${queda < -150 ? ', te pasaste un poquito, tranqui: mañana seguimos' : ''}.`) : 'Listo 🦍 Anotado.');
+    evento('comida_anotada', { comida, alimentos: nuevas.length, kcal, msg: msgId });
+    setDeshacer({ id: `c${Date.now()}`, hasta: Date.now() + 12000, texto: `${nuevas.length} alimento(s) en ${comida}`,
+      fn: () => { setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: (v.meals[comida] || []).filter(e => !ids.has(e.id)) } })); evento('deshacer', { que: 'comida' }); } });
+    if (ofrecer) setTimeout(ofrecerAvisos, 600);
+  }
+
+  function sumarAgua(vasos, msgId) {
+    const antes = mealPlanRef.current.agua || 0;
+    const nuevo = Math.min(30, antes + vasos);
+    setMealPlan(v => ({ ...v, agua: nuevo }));
+    vibrar(15);
+    evento('agua', { vasos, msg: msgId });
+    local(`💧 Listo: ${nuevo} de ${metaAgua(formRef.current.peso)} vasos hoy.`);
+    setDeshacer({ id: `w${Date.now()}`, hasta: Date.now() + 12000, texto: `${vasos} vaso(s) de agua`,
+      fn: () => { setMealPlan(v => ({ ...v, agua: Math.max(0, (v.agua || 0) - vasos) })); evento('deshacer', { que: 'agua' }); } });
+  }
+
+  function guardarPeso(kg, msgId) {
+    const antes = { peso: formRef.current.peso, pesoFecha: formRef.current.pesoFecha, pesajes: formRef.current.pesajes };
+    setForm(v => ({ ...v, peso: kg, pesoFecha: todayISO() }));
+    vibrar(20);
+    evento('peso', { msg: msgId });
+    local(`⚖️ Listo, anoté ${String(kg).replace('.', ',')} kg. Lo ves en Progreso.`);
+    setDeshacer({ id: `p${Date.now()}`, hasta: Date.now() + 12000, texto: 'tu peso',
+      fn: () => { setForm(v => ({ ...v, ...antes })); evento('deshacer', { que: 'peso' }); } });
+  }
+
+  async function queComo(comida) {
+    if (!premium) {
+      const r = await usarSugerenciaGratis(username);
+      if (!r.ok) {
+        local('Ya usaste tus 3 sugerencias gratis de esta semana 🦍 Se renuevan el lunes. Con Premium te digo qué comer todos los días 👑', { accion: { tipo: 'ver_planes' } });
+        return;
+      }
+    }
+    evento('que_como', { comida });
+    local(`Mira, para tu ${comida.toLowerCase()} con lo que te queda hoy:`, { queComo: comida });
+  }
+
+  async function valorar(m, valor) {
+    const nuevo = m.valoracion === valor ? null : valor;
+    setMensajes(v => v.map(x => x.id === m.id ? { ...x, valoracion: nuevo } : x));
+    await llamarBeast({ accion: 'valorar', id: m.id, valor: nuevo });
+    if (nuevo === -1) showToast('Gracias, con esto Beast mejora 🦍');
+  }
+
+  async function escuchar(m) {
+    setSonando(m.id);
+    const r = await escucharBeast(m.texto, { bienvenida: m.bienvenida });
+    if (r !== 'ok') setSonando(null);
+    else if (audioBeast) audioBeast.addEventListener('ended', () => setSonando(s => (s === m.id ? null : s)));
+    if (r === 'limite') showToast(cuenta?.tipo === 'prueba' ? 'Por hoy ya te mandé mis 5 notas de voz 🦍' : 'Por hoy ya te mandé muchas notas de voz 🦍 Mañana seguimos.');
+    if (r === 'premium') showToast('Escuchar a Beast es de Premium 👑');
+    if (r === 'error') showToast('No pude mandarte el audio ahora, inténtalo en un rato.');
+  }
+
+  async function empezarGrabar() {
+    const mime = tipoAudioGrabable();
+    if (mime === null || !navigator.mediaDevices?.getUserMedia) { showToast('Tu celular no deja grabar audio aquí: escríbeme 🦍'); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { showToast('Necesito permiso del micrófono para escucharte.'); return; }
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const partes = [];
+    let cancelado = false;
+    rec.ondataavailable = e => { if (e.data?.size) partes.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearTimeout(grabadorRef.current?.tope);
+      grabadorRef.current = null;
+      if (cancelado) { setGrabando(null); return; }
+      const blob = new Blob(partes, { type: rec.mimeType || mime || 'audio/webm' });
+      if (blob.size < 1500) { setGrabando(null); showToast('No se escuchó nada, intenta de nuevo.'); return; }
+      setGrabando('procesando');
+      try {
+        const audioBase64 = await blobABase64(blob);
+        const { data } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'transcribir_voz', audioBase64, mimeType: blob.type } });
+        setGrabando(null);
+        if (data?.texto) enviar(data.texto, 'voz');
+        else showToast(data?.error === 'premium' ? 'Hablarle a Beast es de Premium 👑' : 'No te entendí bien, ¿me lo repites o me lo escribes?');
+      } catch { setGrabando(null); showToast('No te entendí bien, ¿me lo repites o me lo escribes?'); }
+    };
+    rec.start();
+    setGrabando('grabando');
+    grabadorRef.current = {
+      parar: () => { try { rec.stop(); } catch {} },
+      cancelar: () => { cancelado = true; try { rec.stop(); } catch {} },
+      tope: setTimeout(() => { try { rec.stop(); } catch {} }, MAX_SEGUNDOS_VOZ * 1000),
+    };
+  }
+
+  const irRegistrar = () => { evento('registrar'); onCerrar(); onRegistrar(); };
+  const irPlanes = () => { evento('planes'); onCerrar(); onVerPlanes(); };
+  const urlJonah = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+
+  function acciones(m) {
+    const a = m.datos?.accion || m.accion;
+    if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, null)} />;
+    if (m.ofrecerAvisos) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex gap-2 mt-2">
+          <button onClick={async () => {
+            setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+            const r = await activarPushAlumno(username);
+            evento('avisos_si', { resultado: String(r) });
+            local(r === 'activo' ? '¡Listo! Te aviso para que no se te pase ninguna comida 🦍' : 'No pude activar los avisos en este celular. Puedes intentarlo en Mi perfil → Avisos.');
+          }} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">Sí, avísame</button>
+          <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x)); evento('avisos_no'); }}
+            className="jb-body text-xs text-zinc-400 border border-zinc-700 rounded-full px-3 py-1.5">No, gracias</button>
+        </div>
+      );
+    }
+    if (!a) return null;
+    // Las tarjetas que guardan algo solo se usan en el momento (no al volver
+    // a abrir el chat), para que nada se anote dos veces.
+    if (a.tipo === 'anotar_comida' || a.tipo === 'proponer_comida') {
+      if (!m.nuevo) return <p className="jb-body text-[11px] text-zinc-500 mt-1.5">🍽️ {a.texto}</p>;
+      return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar}
+        onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
+    }
+    if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)} /> : null;
+    if (a.tipo === 'que_como') {
+      if (!m.nuevo) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, nuevo: false } : x)); queComo(a.comida || comidaDeAhora()); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ Ver opciones</button>
+      );
+    }
+    const botones = [];
+    if (a.tipo === 'ir_registrar') botones.push(<button key="r" onClick={irRegistrar} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Ir a Registrar</button>);
+    if (a.tipo === 'ver_planes' || a.planes) botones.push(<button key="p" onClick={irPlanes} className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">👑 Ver Premium</button>);
+    if (a.tipo === 'hablar_jonah') botones.push(<a key="j" href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-xs font-semibold bg-emerald-600 text-white rounded-full px-3 py-1.5">🙋 Escribirle a Jonah</a>);
+    return botones.length ? <div className="flex flex-wrap gap-2 mt-2">{botones}</div> : null;
+  }
+
+  const lista = estado === 'listo' && mensajes.length === 0
+    ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }]
+    : mensajes;
+  const quedan = cuenta?.quedan;
+  const contador = cuenta && cuenta.limite < 100000 && (cuenta.tipo === 'gratis' || quedan <= 5)
+    ? (quedan > 0 ? `Hoy te quedan ${quedan} ${quedan === 1 ? 'mensaje' : 'mensajes'}${cuenta.tipo === 'gratis' ? ` de ${cuenta.limite}` : ''}` : 'Por hoy ya conversamos: tus comidas las sigues anotando en Registrar')
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col min-h-0">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+          <img src="/jonah-avatar.png" alt="Beast" className="w-10 h-10 rounded-full border-2 border-orange-500" />
+          <div className="flex-1 min-w-0">
+            <p className="jb-display text-lg text-zinc-50 tracking-wide leading-5">BEAST · TU COMPAÑERO</p>
+            <p className="jb-body text-[11px] text-zinc-500">IA de Jonah Beast Fuel</p>
+          </div>
+          {estado === 'listo' && (
+            <button onClick={() => setMenu(menu ? null : 'menu')} aria-label="Opciones" className="p-2 text-zinc-400 hover:text-zinc-200 text-xl leading-none">⋮</button>
+          )}
+          <button onClick={onCerrar} aria-label="Cerrar" className="p-2 text-zinc-400 hover:text-zinc-200"><X size={22} /></button>
+        </header>
+
+        {menu === 'menu' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
+            <button onClick={() => setMenu('libreta')} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">📒 Lo que Beast sabe de ti</button>
+            <a href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-sm text-zinc-200 px-4 py-3 hover:bg-zinc-800">🙋 Hablar con Jonah (persona) por WhatsApp</a>
+            <button onClick={async () => {
+              if (!(await confirmar('¿Borrar toda tu conversación con Beast? No se puede deshacer.'))) return;
+              await llamarBeast({ accion: 'borrar' });
+              setMensajes([]); setMenu(null); showToast('Conversación borrada');
+            }} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">🗑️ Borrar conversación</button>
+            <p className="jb-body text-[11px] text-zinc-500 px-4 py-2 border-t border-zinc-800">🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días.</p>
+          </div>
+        )}
+        {menu === 'libreta' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+            <p className="jb-display text-base text-zinc-50 tracking-wide">📒 LO QUE BEAST SABE DE TI</p>
+            {libreta?.notas
+              ? <ul className="jb-body text-xs text-zinc-300 flex flex-col gap-1">{libreta.notas.split('\n').filter(Boolean).map((l, i) => <li key={i}>• {l}</li>)}</ul>
+              : <p className="jb-body text-xs text-zinc-500">Todavía nada. Cuando me cuentes cosas de tu día (tu trabajo, tus horarios, lo que te cuesta), me acuerdo de lo importante.</p>}
+            <p className="jb-body text-[11px] text-zinc-500">Además sé tu nombre, tu meta, tu peso y lo que anotas en la app.</p>
+            <div className="flex gap-2 mt-1">
+              {libreta?.notas && (
+                <button onClick={async () => {
+                  if (!(await confirmar('¿Borrar lo que Beast sabe de ti?'))) return;
+                  await llamarBeast({ accion: 'olvidar' });
+                  setLibreta(l => ({ ...(l || {}), notas: '' })); showToast('Listo, Beast lo olvidó');
+                }} className="jb-body text-xs text-red-300 border border-red-500/40 rounded-full px-3 py-1.5">Borrar todo</button>
+              )}
+              <button onClick={() => setMenu(null)} className="jb-body text-xs text-zinc-300 border border-zinc-700 rounded-full px-3 py-1.5">Cerrar</button>
+            </div>
+          </div>
+        )}
+
+        {estado === 'cargando' && <div className="flex-1 flex items-center justify-center"><Loader2 size={28} className="text-orange-500 animate-spin" /></div>}
+        {estado === 'error' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="jb-body text-sm text-zinc-300">Uy, se me fue la señal, causa 😅</p>
+            <button onClick={cargar} className={btnPrimary + ' px-5 py-2 text-sm'}>Intentar de nuevo</button>
+          </div>
+        )}
+        {estado === 'consentir' && (
+          <BeastConsentimiento onCerrar={onCerrar} onAceptar={async alerta => {
+            const r = await llamarBeast({ accion: 'consentir', alerta_jonah: alerta });
+            if (r.error) { showToast('No se pudo guardar, intenta de nuevo.'); return; }
+            setLibreta(l => ({ ...(l || {}), consentimiento_en: new Date().toISOString(), alerta_jonah: alerta }));
+            setEstado('listo');
+          }} />
+        )}
+
+        {estado === 'listo' && (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5" onClick={() => menu && setMenu(null)}>
+              {lista.map(m => m.rol === 'alumno' ? (
+                <div key={m.id} className="self-end max-w-[85%] flex flex-col items-end">
+                  <p className="jb-body text-sm text-zinc-950 bg-orange-400 rounded-2xl rounded-br-sm px-3 py-2 whitespace-pre-wrap">{m.tipo === 'voz' ? '🎤 ' : ''}{m.texto}</p>
+                  {m.fallo && <button onClick={() => reintentar(m)} className="jb-body text-[11px] text-amber-300 mt-1">⚠️ No se envió · Reintentar</button>}
+                </div>
+              ) : (
+                <div key={m.id} className="self-start max-w-[92%] flex gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3 py-2">
+                      <p className="jb-body text-sm text-zinc-100 whitespace-pre-wrap">{m.texto}</p>
+                      {acciones(m)}
+                    </div>
+                    {!m.sistema && (
+                      <div className="flex items-center gap-3 mt-1 ml-1">
+                        {(m.bienvenida || (premium && typeof m.id === 'number')) && (
+                          <button onClick={() => escuchar(m)} className="jb-body text-[11px] text-zinc-500 hover:text-orange-400">
+                            {sonando === m.id ? '⏹ Parar' : '▶️ Escuchar'}
+                          </button>
+                        )}
+                        {typeof m.id === 'number' && (
+                          <>
+                            <button onClick={() => valorar(m, 1)} aria-label="Me sirvió" className={`text-xs ${m.valoracion === 1 ? '' : 'opacity-40 hover:opacity-80'}`}>👍</button>
+                            <button onClick={() => valorar(m, -1)} aria-label="Beast se equivocó" className={`text-xs ${m.valoracion === -1 ? '' : 'opacity-40 hover:opacity-80'}`}>👎</button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {enviando && (
+                <div className="self-start flex items-center gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60" />
+                  <p className="jb-body text-xs text-zinc-500 italic">Beast está escribiendo…</p>
+                </div>
+              )}
+              <div ref={finRef} />
+            </div>
+
+            {deshacer && (
+              <div className="mx-4 mb-2 flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2">
+                <span className="jb-body text-xs text-zinc-300">✓ Anoté {deshacer.texto}</span>
+                <button onClick={() => { deshacer.fn(); setDeshacer(null); local('Listo, lo quité 👍', { sistema: true }); }}
+                  className="jb-body text-xs font-semibold text-orange-400">Deshacer</button>
+              </div>
+            )}
+
+            <div className="border-t border-zinc-800 px-3 pt-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                {[
+                  ['📈 ¿Cómo voy?', () => enviar('¿Cómo voy?')],
+                  ['🍽️ ¿Qué como?', () => queComo(comidaDeAhora())],
+                  ['💧 +1 vaso', () => sumarAgua(1, null)],
+                  ['📝 Anotar comida', () => premium ? (setTexto('Comí '), inputRef.current?.focus()) : irRegistrar()],
+                ].map(([t, fn]) => (
+                  <button key={t} onClick={fn} disabled={enviando}
+                    className="jb-body text-xs text-zinc-200 bg-zinc-900 border border-zinc-700 hover:border-orange-500/60 rounded-full px-3 py-1.5 whitespace-nowrap shrink-0">{t}</button>
+                ))}
+              </div>
+              {contador && <p className={`jb-body text-[11px] mb-1.5 ${quedan > 0 ? 'text-zinc-500' : 'text-orange-400'}`}>{contador}{quedan === 0 && cuenta.tipo === 'gratis' && <> · <button onClick={irPlanes} className="underline">Premium 👑</button></>}</p>}
+              {grabando ? (
+                <div className="flex items-center gap-3 py-1">
+                  {grabando === 'grabando' ? (
+                    <>
+                      <button onClick={() => grabadorRef.current?.cancelar()} aria-label="Cancelar" className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">🗑️</button>
+                      <p className="jb-body text-sm text-orange-400 flex-1 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Te escucho… toca ✓ cuando termines</p>
+                      <button onClick={() => grabadorRef.current?.parar()} aria-label="Enviar nota de voz" className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+                    </>
+                  ) : <p className="jb-body text-sm text-zinc-400 flex items-center gap-2 py-2"><Loader2 size={16} className="animate-spin" /> Escuchando lo que dijiste…</p>}
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <textarea ref={inputRef} value={texto} onChange={e => setTexto(e.target.value.slice(0, 1200))} rows={1}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(texto); } }}
+                    placeholder={premium ? 'Escríbele a Beast…' : 'Escríbele a Beast…'}
+                    className="flex-1 resize-none bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-2xl px-3 py-2.5 jb-body text-sm text-zinc-100 placeholder-zinc-500 outline-none max-h-28" />
+                  {texto.trim() ? (
+                    <button onClick={() => enviar(texto)} disabled={enviando} aria-label="Enviar"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><ChevronRight size={24} strokeWidth={3} /></button>
+                  ) : premium ? (
+                    <button onClick={empezarGrabar} disabled={enviando} aria-label="Mandar nota de voz"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><Mic size={22} strokeWidth={2.4} /></button>
+                  ) : (
+                    <button onClick={() => showToast('Hablarle a Beast con tu voz es de Premium 👑 Por ahora escríbeme.')} aria-label="Nota de voz (Premium)"
+                      className="w-11 h-11 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center shrink-0"><Mic size={22} /></button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -11285,6 +11931,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setVistaComunidad(ir === 'equipo' ? 'equipos' : 'muro'); setTab('equipo'); window.scrollTo({ top: 0 });
         return true;
       }
+      if (ir === 'beast') { abrirBeast(); return true; }
     } catch {}
     return false;
   }
@@ -11399,6 +12046,23 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  // Beast · tu compañero: la burbuja del gorila (donde estaba el botón de
+  // WhatsApp) abre su chat. El globito de presentación sale una sola vez,
+  // en Inicio, cuando no hay otra ventana encima.
+  const [beastAbierto, setBeastAbierto] = useState(false);
+  const beastAbiertoRef = useRef(false);
+  beastAbiertoRef.current = beastAbierto;
+  const [beastVisto, setBeastVisto] = useState(() => { try { return !!localStorage.getItem('jb_beast_visto_' + username); } catch { return true; } });
+  const [globoBeastCerrado, setGloboBeastCerrado] = useState(false);
+  function abrirBeast() {
+    setBeastAbierto(true);
+    if (!beastVisto) { setBeastVisto(true); try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {} }
+  }
+  function cerrarGloboBeast() {
+    setGloboBeastCerrado(true);
+    setBeastVisto(true);
+    try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {}
+  }
   // Fin de la prueba: pantalla de Jonah (FinPruebaModal) y, si elige "1 mes",
   // los planes se abren con ese plan ya marcado.
   const [verFinPrueba, setVerFinPrueba] = useState(false);
@@ -11429,6 +12093,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       const marcaMeta = 'jb_ajusta_meta_' + username + '_' + todayISO();
       try { if (!localStorage.getItem(marcaMeta)) { localStorage.setItem(marcaMeta, '1'); setAjustarMeta(true); return; } } catch {}
     }
+    // Si anotó con Beast, Beast mismo le ofrece los avisos en el chat.
+    if (beastAbiertoRef.current) return;
     const marca = 'jb_notif_tras_comida_' + username;
     try { if (localStorage.getItem(marca)) return; } catch { return; }
     estadoPushEquipo().then(estado => {
@@ -11840,7 +12506,18 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
-      <WhatsAppButton arriba={tab === 'meal'} />
+      {!beastAbierto && (
+        <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto} onAbrir={abrirBeast} onCerrarGlobo={cerrarGloboBeast}
+          globo={!beastVisto && !globoBeastCerrado && tab === 'dash' && nuncaRegistro === false && !verGuia && !verPrimeraComida
+            && !primeraEnCurso && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
+      )}
+      {beastAbierto && (
+        <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} versionGratis={versionGratis}
+          onCerrar={() => setBeastAbierto(false)}
+          onRegistrar={() => irARegistrar(comidaDeAhora())}
+          onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
+      )}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[

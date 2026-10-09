@@ -1,6 +1,6 @@
 # Beast · tu compañero (idea de Jonah, 9 de octubre)
 
-Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propone después de la revisión de pagos del 10 de octubre, si se ve que la gente se va por perder la motivación.
+Todo lo conversado con Jonah sobre Beast. **Parte 1 construida el 9 de octubre** (Jonah pidió empezar ya): chat en la app, anotar comidas/agua/peso con tarjeta, "¿cómo voy?", "¿qué como?", voz, límites, libreta, privacidad y tarjeta 🦍 BEAST del panel (código: `supabase/functions/beast-chat`, `src/alumno.jsx` → BeastChat, tablas `beast_mensajes` y `beast_libreta`). Lo que falta está en `docs/pendientes.md` (parte 2).
 
 ## Qué es
 

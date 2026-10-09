@@ -23,7 +23,7 @@ import { getSupabase } from './_lib/push.js';
 const TABLAS_DEL_ALUMNO = [
   'historial', 'datos_alumnos', 'fotos_progreso', 'alimentos_personales',
   'comidas_guardadas', 'push_subs', 'ajustes_membresia', 'estado_avisos',
-  'avisos_enviados', 'retos_semanales',
+  'avisos_enviados', 'retos_semanales', 'beast_mensajes', 'beast_libreta',
 ];
 
 export default async function handler(req, res) {

@@ -8264,7 +8264,7 @@ function JarvisPanel({ onClose, users }) {
   // mismo toque del botón, así el navegador no bloquea el audio.
   function probarVoz() {
     const frase = String(vozGuardada).startsWith('premium:beast')
-      ? '¡Qué tal, causa! Soy Beast, tu pata de esta aventura. A ver, cuéntame, ¿qué almorzaste hoy? ¿Te mandaste con el arroz? Jaja, tranqui, a todos nos pasa… ¡hasta a mí, y eso que soy un gorila! Eso se arregla con la siguiente comida, ps. ¡Vamos con todo, comida a comida!'
+      ? '¡Oe, causita! ¿Qué fue, mi pata? Habla Beast. A ver, cuéntame, ¿qué te bajaste hoy en el almuerzo? ¿Te mandaste tu doble de arroz, no? Jajaja, ya fue, tranqui, ni te roches, a todos nos pasa… ¡hasta a mí, y eso que soy un gorila, pe! Eso lo arreglamos al toque en la siguiente comida. ¡Vamos con todo, mi causa, comida a comida!'
       : 'Hola Jonah Beast, así sonaré cuando te responda.';
     if (esVozPremium(vozGuardada)) {
       contextoAudioJarvis();

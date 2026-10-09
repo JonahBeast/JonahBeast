@@ -10772,8 +10772,30 @@ function horasAprendidas(horasComida) {
   return aprendidas;
 }
 
+// La siguiente comida principal por anotar: la de ahora si sigue vacía; si
+// no, el almuerzo o la cena. null si ya anotó la cena.
+function siguienteComida(mealPlan) {
+  const vacia = c => !(mealPlan?.meals?.[c] || []).some(e => e.foodKey);
+  const ahora = comidaDeAhora();
+  if (vacia(ahora)) return ahora;
+  const orden = ['Desayuno', 'Media mañana', 'Almuerzo', 'Media tarde', 'Cena'];
+  return ['Almuerzo', 'Cena'].find(c => orden.indexOf(c) > orden.indexOf(ahora) && vacia(c)) || null;
+}
+
 // Logros que Beast celebra (una vez cada uno, form.beastLogros).
 const LOGROS_BEAST = [
+  // Su primera comida anotada en la app (form.primeraComidaEn, hoy o ayer):
+  // Beast lo felicita con sus números y lo lleva a la siguiente comida.
+  { id: 'primera', cumple: d => d.primera, titulo: '¡Mi primera comida anotada!', primera: true,
+    texto: (n, h = {}) => {
+      const yo = h.presentarse ? ` Soy ${h.compa || 'Beast'}, tu compañero 🦍` : '';
+      const quedan = Math.round((h.metaKcal || 0) - (h.kcal || 0));
+      if (!h.metaKcal) return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada.${yo} Vamos juntos, comida a comida 💪`;
+      return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada: llevas ${Math.round(h.kcal || 0)} de tus ${Math.round(h.metaKcal)} kcal de hoy.${yo} `
+        + (quedan > 80 && h.siguiente ? `Para tu ${h.siguiente.toLowerCase()} te quedan unas ${quedan} kcal: ¿te digo qué puedes comer? 🍽️`
+          : quedan > 80 ? `Te quedan unas ${quedan} kcal para lo que queda del día 💪`
+          : 'Hoy ya llegaste a tu meta: mañana seguimos con todo 💪');
+    } },
   { id: 'racha7', cumple: d => d.racha >= 7, titulo: '¡7 días seguidos!', texto: n => `¡${n}, 7 días seguidos anotando! 🔥 Eso ya no es suerte, es constancia de verdad. Así se construye el cambio, comida a comida 🦍` },
   { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: n => `¡Oe, ${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
   { id: 'mitad', cumple: d => d.total >= 2 && d.bajo >= d.total / 2, titulo: '¡Ya voy por la mitad!', texto: n => `¡${n}, ya vas por la mitad de tu meta! 🏆 Lo que falta lo hacemos igual: comida a comida 🦍` },
@@ -10788,6 +10810,7 @@ function logroPendiente(form, racha) {
     racha: racha || 0,
     bajo: perder && pi && p ? Math.round((pi - p) * 10) / 10 : 0,
     total: perder && pi && meta && pi > meta ? pi - meta : 0,
+    primera: !!form?.primeraComidaEn && form.primeraComidaEn >= addDaysISO(todayISO(), -1),
   };
   const ya = new Set(Array.isArray(form?.beastLogros) ? form.beastLogros : []);
   return LOGROS_BEAST.find(l => !ya.has(l.id) && l.cumple(d)) || null;
@@ -11202,11 +11225,27 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     arranqueHecho.current = true;
     if (inicio?.texto) { setTexto(inicio.texto); setTimeout(() => inputRef.current?.focus(), 300); }
     if (logro) {
-      local(logro.texto(String(nombre || '').split(' ')[0] || 'causa'), { logro, celebracion: true });
+      const mp = mealPlanRef.current;
+      const siguiente = logro.primera ? siguienteComida(mp) : null;
+      local(logro.texto(String(nombre || '').split(' ')[0] || 'causa', {
+        kcal: totalesDePlan(mp).kcal, metaKcal: Number(mp.targetKcal) || 0, siguiente,
+        presentarse: !teniaHistoria, compa: nombreCompa,
+      }), { logro, celebracion: true, siguiente });
       onLogroVisto?.(logro.id);
+      if (logro.primera) {
+        registrarPasoPago('primera_comida', username, 'beast');
+        // Si todavía no activó los avisos, se los ofrece aquí (segunda
+        // oportunidad, aunque haya dicho "ahora no" en la ventana).
+        estadoPushEquipo().then(e => {
+          if (e !== 'disponible') return;
+          const cena = comidaDeAhora() === 'Cena';
+          local(`¿Te aviso ${cena ? 'mañana' : 'más tarde'} para anotar ${cena ? 'tu desayuno' : 'tu siguiente comida'}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+        }).catch(() => {});
+      }
     }
     // El aviso que tocó va al final, justo encima de donde se escribe.
-    metaDeLaSemana().finally(() => {
+    // El día de su primera comida no se le pregunta la mini meta (una cosa a la vez).
+    (logro?.primera ? Promise.resolve() : metaDeLaSemana()).finally(() => {
       if (!inicio?.aviso) return;
       avisoRef.current = inicio.aviso;
       local(inicio.aviso, { avisoDe: { comida: inicio.comida || null, foto: !!inicio.foto } });
@@ -11495,6 +11534,13 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
         </div>
       );
     }
+    if (m.logro?.primera) {
+      if (!m.siguiente) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, siguiente: null } : x)); queComo(m.siguiente); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ ¿Qué como en {m.siguiente === 'Almuerzo' || m.siguiente === 'Desayuno' ? 'el' : 'la'} {m.siguiente.toLowerCase()}?</button>
+      );
+    }
     if (m.logro) {
       return (
         <button onClick={async () => {
@@ -11546,7 +11592,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     return botones.length ? <div className="flex flex-wrap gap-2 mt-2">{botones}</div> : null;
   }
 
-  const lista = estado === 'listo' && !teniaHistoria
+  const lista = estado === 'listo' && !teniaHistoria && !logro?.primera
     ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }, ...mensajes]
     : mensajes;
   const quedan = cuenta?.quedan;
@@ -12527,6 +12573,12 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const antes = alimentosAntes.current;
     alimentosAntes.current = alimentosHoy;
     if (!(antes === 0 && alimentosHoy > 0)) return;
+    // Su primera comida en la app: Beast lo felicita (logro "primera"),
+    // después de las ventanas de siempre (meta, avisos, abrir en Chrome).
+    if (nuncaAlAbrir.current === true && !form.primeraComidaEn) {
+      nuncaAlAbrir.current = false;
+      setForm(v => (v.primeraComidaEn ? v : { ...v, primeraComidaEn: todayISO() }));
+    }
     // Sin datos u objetivo: primero se le ofrece ajustar su meta (una vez
     // al día); los recordatorios se le ofrecen otro día.
     if (metaEstimada) {
@@ -12548,13 +12600,19 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // nunca registró una comida y ya tiene su meta lista. "Ahora no" la
   // guarda hasta el día siguiente.
   const [nuncaRegistro, setNuncaRegistro] = useState(null); // null = aún no se sabe
+  const nuncaAlAbrir = useRef(null); // lo que dijo la base al abrir (no cambia al empezar a registrar)
   const [primeraDescartada, setPrimeraDescartada] = useState(() => {
     try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
   });
   useEffect(() => {
     let vivo = true;
     supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).limit(1)
-      .then(({ data, error }) => { if (vivo) setNuncaRegistro(error ? false : (data || []).length === 0); })
+      .then(({ data, error }) => {
+        if (!vivo) return;
+        const nunca = error ? false : (data || []).length === 0;
+        nuncaAlAbrir.current = nunca;
+        setNuncaRegistro(nunca);
+      })
       .then(null, () => { if (vivo) setNuncaRegistro(false); });
     return () => { vivo = false; };
   }, [username]);
@@ -12951,9 +13009,10 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto} />
       {!beastAbierto && (
         <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
-          textoGlobo={beastVisto && logroBeast ? <>¡Oe! Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
-          globo={(!beastVisto || logroBeast) && !globoBeastCerrado && tab === 'dash' && nuncaRegistro === false && !verGuia && !verPrimeraComida
-            && !primeraEnCurso && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
+          textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
+            : beastVisto && logroBeast ? <>¡Oe! Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
+          globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
+            && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
       )}
       {beastAbierto && (
         <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}

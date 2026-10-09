@@ -10832,6 +10832,7 @@ function MensajeATodosPanel() {
   const [cuando, setCuando] = useState('ahora'); // 'ahora' | 'programar'
   const [fecha, setFecha] = useState(''); // AAAA-MM-DDTHH:MM, hora de Perú
   const [enMuro, setEnMuro] = useState(false);
+  const [verEnApp, setVerEnApp] = useState(false); // vista previa de la ventana del alumno
   const [cuenta, setCuenta] = useState(null);
   const [lista, setLista] = useState(null);
   const [vistos, setVistos] = useState({});
@@ -10988,8 +10989,32 @@ function MensajeATodosPanel() {
             </div>
           )}
 
+          {/* La misma ventana que ve el alumno al abrir la app
+              (MensajeJonahCard en src/alumno.jsx), sin enviar nada. */}
+          {verEnApp && (
+            <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true" onClick={() => setVerEnApp(false)}>
+              <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+                style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }} onClick={e => e.stopPropagation()}>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mb-3">👁️ Vista previa: así lo verán al abrir la app (no se envió a nadie)</p>
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-2xl text-zinc-50 leading-tight">{titulo}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{texto}</p>
+                <button onClick={() => setVerEnApp(false)} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mt-2">Toca el botón o fuera de la ventana para volver.</p>
+              </div>
+            </div>
+          )}
+
           {error && <p className="jb-body text-xs text-red-400">{error}</p>}
           <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={!titulo.trim() || !texto.trim()} onClick={() => setVerEnApp(true)} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              👁️ Ver cómo se ve en la app
+            </button>
             <button type="button" disabled={!titulo.trim() || !texto.trim() || !!ocupado} onClick={probar} className={btnGhost + ' text-sm py-2.5 px-4'}>
               {ocupado === 'probar' ? <Loader2 size={15} className="animate-spin" /> : '📲 Enviarme una prueba'}
             </button>

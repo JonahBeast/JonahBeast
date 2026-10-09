@@ -77,7 +77,7 @@ begin
     'malas', (select count(*) from beast_mensajes where valoracion = -1 and creado_en >= v_desde),
     'temas', (select coalesce(jsonb_object_agg(tema, n), '{}'::jsonb) from (
         select tema, count(*) n from beast_mensajes where rol = 'beast' and tema is not null and creado_en >= v_desde group by tema) t),
-    'ranking', (select coalesce(jsonb_agg(r order by r->>'dias' desc, r->>'mensajes' desc), '[]'::jsonb) from (
+    'ranking', (select coalesce(jsonb_agg(r order by (r->>'dias')::int desc, (r->>'mensajes')::int desc), '[]'::jsonb) from (
         select jsonb_build_object('username', m.username, 'nombre', max(a.nombre),
           'dias', count(distinct (m.creado_en at time zone 'America/Lima')::date) filter (where m.rol = 'alumno'),
           'mensajes', count(*) filter (where m.rol = 'alumno'),

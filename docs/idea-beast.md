@@ -151,6 +151,23 @@ Aun usándolo al máximo todos los días, un alumno cuesta ≈ S/3 al mes, y la 
 - Necesita tabla nueva para la memoria (explicársela a Jonah antes).
 - **Ley 29733 de Protección de Datos Personales** (peso, comidas y salud son datos sensibles): pedir permiso la primera vez que abre a Beast, actualizar `public/privacidad.html` y no usar esos datos para anuncios ni compartirlos.
 
+## Conversaciones personales: qué ve Jonah (9 de octubre)
+
+Los alumnos le van a contar cosas personales ("me siento mal", "estoy triste", "peleé con mi pareja y me comí todo"). **Jonah no lee las conversaciones personales:** si el alumno sabe que alguien lo lee, no se abre; además la Ley 29733 trata salud y ánimo como datos sensibles (solo para lo que aceptó y lo mínimo).
+
+| Qué | ¿Jonah lo ve? |
+|---|---|
+| Números generales (cuántos usan a Beast, temas más hablados, comidas anotadas vía Beast) | Sí, sin nombres |
+| Conversaciones que el alumno marca con 👎 ("Beast se equivocó") | Sí: el alumno mismo la manda para mejorar |
+| Pedidos de alimentos, errores de calorías, temas de la app | Sí, como hoy |
+| Conversaciones personales (tristeza, pareja, problemas) | No. Quedan entre el alumno y Beast y se borran a los 90 días |
+
+- **Si alguien está mal de verdad** (hacerse daño, no querer vivir): Beast responde con tacto, no corta la conversación y da ayuda real: **Línea 113, opción 5** (salud mental del MINSA, gratis).
+- **Alerta a Jonah solo con permiso:** al empezar con Beast se le pregunta "Si te veo muy mal, ¿quieres que le avise a Jonah para que te escriba?". Sin ese sí, no le llega nada.
+- **Beast no es psicólogo:** escucha, anima y, si el tema es fuerte, sugiere hablar con alguien de confianza o un profesional.
+- **"Estoy triste y me comí todo":** sin culpa; una comida no borra su avance, seguimos en la siguiente.
+- **Se le dice clarito al empezar** (dos líneas): sus conversaciones son privadas, Jonah no las lee, se borran a los 90 días y puede borrarlas antes. También va en `public/privacidad.html`.
+
 ## Cuidados
 
 Que siempre diga que es IA. Protocolo si alguien habla de depresión, hacerse daño o trastornos de la alimentación (responder con tacto y dar un contacto de ayuda real). Sin consejos médicos ni promesas de kilos. Si mencionan una enfermedad o un embarazo, recomendar ver a un profesional.

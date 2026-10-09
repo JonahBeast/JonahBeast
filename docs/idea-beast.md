@@ -67,9 +67,22 @@ Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace
 | 💧 Sumar agua | Directo |
 | 🙋 Pedir un alimento | Premium, igual que hoy. Entra a `pedidos_alimentos` con la misma revisión de la IA y la misma rutina de cada hora. En la versión gratis lo ayuda a crearlo |
 | ➕ Crear su alimento | Igual que hoy |
-| 📈 Ver su progreso | Solo lee |
+| 📈 Ver su progreso ("¿cómo voy?") | Solo lee. Ver la sección "¿Cómo voy?" |
 
 **Lo que no hace:** pagos y planes (lo lleva a planes o al WhatsApp de Jonah), cambiar la meta o el perfil (lo lleva a esa pantalla), borrar comidas o la cuenta (solo desde la app). **Nunca agrega alimentos a la base por su cuenta.** Las calorías siempre salen de la base de alimentos de la app, nunca "de memoria".
+
+## "¿Cómo voy?" (9 de octubre)
+
+Una de las preguntas que más le harán ("¿cómo voy con mi plan?", "¿cómo van mis resultados?"). Beast solo lee; no cambia nada.
+
+- **Qué mira** (datos que la app ya guarda): peso de inicio, peso de hoy y cuánto falta para su meta; cuántos días anotó esta semana y en cuántos quedó dentro de sus calorías; promedio de proteína y agua; racha de días seguidos anotando; su plan (hasta cuándo es Premium o cuántos días de prueba le quedan).
+- **Cómo responde:** números reales, corto y con su estilo. Primero lo bueno, luego **una sola** cosa por mejorar y un empujón. Ejemplo: "¡Oe, mi pata, vas bien! Empezaste en 82 y ya estás en 79,4: 2,6 kilos menos en 3 semanas. Esta semana anotaste 5 de 7 días y en 4 te quedaste en tu meta. Lo único: la proteína anda flojita, métele un huevito más en el desayuno. ¡Comida a comida, causa!"
+- **Si no baja o subió:** nunca lo reta. Le explica que el peso sube y baja día a día, mira la tendencia de varias semanas y busca la causa con él (ej. "anotaste solo 2 días").
+- **Si un peso se ve raro** (ej. 5 kg en un día): primero pregunta si lo anotó bien, antes de felicitar o preocupar.
+- **Si baja muy rápido:** se lo dice con cariño y le recomienda no bajar tanto de golpe y consultarlo con un profesional de salud.
+- **Sin promesas:** nunca "en un mes llegas a tu meta". Como mucho "a este ritmo te faltarían unas 6 semanas", aclarando que es un cálculo.
+- **Si casi no hay datos:** no inventa; lo anima a anotar unos días para poder decirle cómo va.
+- **Prueba por terminar:** si le quedan pocos días, se lo cuenta con naturalidad junto con su avance y lo invita a Premium (ayuda a que no se caigan en el arranque).
 
 ## Qué IA usa
 

@@ -25,6 +25,14 @@ Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propo
 - **Más adelante:** conversación en vivo, como una llamada (como Jarvis y Viernes), quizás como plus de Premium ("📞 Habla con Beast"), si se ve que usan mucho la voz. Cuesta más y es más trabajo.
 - **Costo:** escuchar una nota cuesta fracciones de céntimo y que Beast hable una respuesta, alrededor de 1 céntimo. Un alumno que usa mucho la voz suma ≈ S/0,20 a S/0,30 al mes (≈ S/1 al mes en total con Beast).
 
+## Cómo saluda y conversa (9 de octubre)
+
+- **Bienvenida con nota de voz** (como en WhatsApp) y el texto debajo: "¡Hola Pedro! Soy Beast, tu compañero. Cuéntame qué almorzaste hoy y te digo cuántas calorías tiene. Háblame o escríbeme 💪". La voz hace que se sienta persona; el texto sirve a quien no puede escuchar. El audio no suena solo (los celulares no lo permiten sin un toque): sale con su botón ▶️.
+- **El alumno responde como quiera:** hablando (mantener apretado 🎤), escribiendo o con la foto del plato.
+- **Beast contesta** en texto por defecto, con su tarjeta de calorías para confirmar; con voz si el alumno lo prefiere o si le habló por voz ("si me hablas, te hablo").
+- **En WhatsApp (más adelante):** nota de voz real con la voz de gorila. A quien dejó de entrar le cuesta más ignorar un audio que un aviso escrito.
+- Cada nota de voz de Beast cuesta ≈ 1 céntimo.
+
 ## Anotar comidas hablándole (la función estrella, según Jonah)
 
 El alumno casi no escribe: le habla a Beast y Beast anota.
@@ -71,6 +79,21 @@ Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace
 - El riesgo son los gratis: con 2 de cada 100 pagando se queda a mano; con 5 de cada 100 se gana bien.
 - **Límites** (detalle en "Cómo se manejan los límites"): pocos mensajes gratis al día (3 a 5), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
 - Confirmar el gasto real el primer mes en la tabla `ia_uso`.
+
+## Impacto esperado (análisis del 9 de octubre, con la revisión de pagos de ese día)
+
+| Paso | Hoy | ¿Lo ataca Beast? |
+|---|---|---|
+| Registro → 1.ª comida | 10 de 20 | Sí: bienvenida por voz y "cuéntame qué almorzaste" sin buscar nada |
+| Vuelven el 2.º día | 1 de 20 (la caída más grande) | Sí, pero sobre todo con la puerta de WhatsApp (los avisos de la app llegan a 1 de 20) |
+| Usan la app → pagan | 9 usaron 10+ días y no pagaron | Sí: razón concreta para pagar ("Premium: Beast sin límite y anotar por voz"), como el coach de Fitia |
+| Los que pagan se quedan | Sin datos (Joselyn renueva el 23 de octubre) | Sí: si te conoce y acompaña, cuesta irse |
+
+Escenarios (no promesas), con ≈ 150 registros al mes: si pagan 2, 4 o 6 de cada 100 → 3, 6 o 9 alumnos nuevos que pagan al mes (≈ S/75, S/150 o S/225 más al mes en mensual, y se acumula si se quedan). Costo ≈ S/0,70 por alumno activo al mes.
+
+Lo que no arregla solo: al que nunca vuelve no le llega sin WhatsApp (hoy el asistente de WhatsApp está apagado); no trae más gente; es un trabajo grande (chat, memoria, voz, anotar, límites, permiso de datos), por partes.
+
+**Plan:** 1) medir el 17 de octubre el arreglo de la primera comida y los precios nuevos; 2) Beast básico en la app (chat, memoria y anotar por voz); 3) probarlo con la mitad de los nuevos y comparar a las 2 semanas quién vuelve el día 2 y quién paga; 4) si funciona, conectarle WhatsApp.
 
 ## Cómo se manejan los límites (9 de octubre)
 

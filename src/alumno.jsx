@@ -3997,16 +3997,27 @@ function AbreDesdeIconoAviso({ username }) {
    hay otra ventana abierta (guía, primera comida, etc.). */
 function MensajeJonahCard({ username, esperar = false }) {
   const [mensaje, setMensaje] = useState(null);
+  // Se revisa al abrir la app y cada vez que el alumno vuelve a ella (casi
+  // nadie la cierra del todo: queda en segundo plano y no se vuelve a abrir
+  // desde cero), como mucho una vez por minuto.
   useEffect(() => {
     let vivo = true;
-    supabase.rpc('mi_mensaje_masivo').then(({ data }) => {
-      const m = Array.isArray(data) ? data[0] : data;
-      if (!vivo || !m?.id) return;
-      try { if (localStorage.getItem(`jb-mensaje-cerrado-${m.id}`)) return; } catch {}
-      setMensaje(m);
-      registrarPasoPago('mensaje_visto', username, m.id);
-    }, () => {});
-    return () => { vivo = false; };
+    let ultima = 0;
+    const revisar = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - ultima < 60_000) return;
+      ultima = Date.now();
+      supabase.rpc('mi_mensaje_masivo').then(({ data }) => {
+        const m = Array.isArray(data) ? data[0] : data;
+        if (!vivo || !m?.id) return;
+        try { if (localStorage.getItem(`jb-mensaje-cerrado-${m.id}`)) return; } catch {}
+        setMensaje(v => (v?.id === m.id ? v : m));
+        registrarPasoPago('mensaje_visto', username, m.id);
+      }, () => {});
+    };
+    revisar();
+    document.addEventListener('visibilitychange', revisar);
+    window.addEventListener('focus', revisar);
+    return () => { vivo = false; document.removeEventListener('visibilitychange', revisar); window.removeEventListener('focus', revisar); };
   }, [username]);
   if (!mensaje) return null;
   function cerrar() {

@@ -10951,7 +10951,7 @@ function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo
         </div>
       )}
       <button onClick={onAbrir} aria-label={`Hablar con ${nombre}, tu ${compa}`} className="relative flex flex-col items-center">
-        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-400 bg-zinc-900 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] motion-safe:animate-jb-brillo">
+        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-400 bg-zinc-900 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
           <img src={IMAGEN_BEAST} alt={nombre} className="w-full h-full object-cover scale-[1.6]" />
         </span>
         {punto && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-zinc-950" />}
@@ -10973,7 +10973,7 @@ function BeastConsentimiento({ onAceptar, onCerrar }) {
   const [guardando, setGuardando] = useState(false);
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center text-center gap-4">
-      <span className="w-24 h-24 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] motion-safe:animate-jb-brillo">
+      <span className="w-24 h-24 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
         <img src={IMAGEN_BEAST} alt="Beast" className="w-full h-full object-cover scale-[1.6]" />
       </span>
       <div>

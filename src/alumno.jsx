@@ -12831,26 +12831,26 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
       )}
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
           <Logo compacto />
           <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           {/* En el celular no entra junto al logo (tapaba "FUEL"): ahí está en el pie de la pantalla. */}
           <span className="hidden sm:inline-flex"><SoundToggleButton /></span>
           <button onClick={() => setTab('planes')}
-            className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi plan" aria-label="Mi plan">
             <CreditCard size={18} />
           </button>
           <button onClick={() => { setRegistrarAl(null); setTab('perfil'); window.scrollTo({ top: 0 }); }}
-            className={`p-2 rounded-lg transition-colors ${tab === 'perfil' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${tab === 'perfil' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi perfil y ajustes" aria-label="Mi perfil y ajustes">
             <Settings size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
           <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
-          <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
+          <button onClick={onLogout} className={btnGhost + ' px-2 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
 

@@ -2181,7 +2181,7 @@ function Logo({ size = 'md', compacto = false }) {
       </div>
       {/* compacto (barra de arriba de la app): en celulares angostos la letra se
           achica sola para que "FUEL" no quede tapado por los botones. */}
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(13px,4.1vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(12px,3.9vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }

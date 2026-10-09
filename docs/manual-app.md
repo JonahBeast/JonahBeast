@@ -38,7 +38,7 @@
 
 - App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
-- **Gratis para siempre, con 7 días de Premium incluidos, sin tarjeta.** Al terminar los 7 días la cuenta no se bloquea: sigue en la versión gratis. Premium se paga con planes de 1, 3, 6 o 12 meses (qué incluye cada versión: 13.8).
+- **Gratis para siempre, con 7 días de Premium incluidos, sin tarjeta.** Al terminar los 7 días la cuenta no se bloquea: sigue en la versión gratis. Premium se paga con planes de 1, 3 o 12 meses (qué incluye cada versión: 13.8).
 - **Todos los planes incluyen** (en Planes, bajo "TODOS LOS PLANES INCLUYEN"): registro de comida en segundos con foto con IA (5 fotos al día), código de barras o voz, composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
 - **La captura inteligente (reconocer la comida con una foto) ya viene incluida en todos los planes.** No hay que pagar nada aparte (ver sección 9).
 
@@ -834,7 +834,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 ### 13.7 Bono: +7 días gratis por suscribirse a tiempo
 
-- **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3, 6 o 12 meses).
+- **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3 o 12 meses).
 - **Hasta cuándo:** si envían el pago **antes de que termine su prueba o hasta 48 horas después**. Con Yape, Plin o transferencia cuenta **cuándo enviaron el comprobante**, aunque Jonah lo apruebe después.
 - **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
 - **Dónde se ve:** un reloj en vivo arriba de "Planes" en los 3 últimos días de la prueba (desde el día 5) y en "Inicio" en los 2 últimos: **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.

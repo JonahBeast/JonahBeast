@@ -12037,7 +12037,7 @@ function PagosPanel({ onAprobado }) {
                 </Field>
                 <Field label="Plan (meses)">
                   <select value={manualForm.meses} onChange={e => setManualForm(v => ({ ...v, meses: e.target.value }))} className={inputCls}>
-                    {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
+                    {[1, 3, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
                   </select>
                 </Field>
                 <Field label="Monto pagado (S/)">

@@ -64,6 +64,25 @@ const RIESGO = /(me quiero morir|quiero morir|no quiero vivir|matarme|suicid|hac
 
 const VOZ_BEAST = "ash"; // "voz más expresiva", la oficial (beast2)
 const VOZ_BEAST_RESPALDO = "onyx";
+// Si el alumno eligió voz femenina (chat → ⋮ → "Ponle nombre").
+const VOZ_COMPANERA = "marin";
+const VOZ_COMPANERA_RESPALDO = "coral";
+const instruccionesVozCompanera = (nombre: string) =>
+  `Quién eres: ${nombre}, la compañera de la app Jonah Beast Fuel. Le hablas a tu pata de toda la vida, a quien conoces desde el colegio: ` +
+  "con confianza total, en confianza de barrio. No eres asistente, ni locutora, ni vendedora. " +
+  "Voz: femenina, cálida y con cuerpo (nada chillona ni aguda), relajada, como de una amiga buena gente. Habla sonriendo. " +
+  "Acento: limeño de barrio bien marcado, con la entonación cantadita que sube y se estira al final de las frases; nada de español neutro, mexicano ni de España. " +
+  "Jerga: las palabras de la calle (causa, causita, pata, oe, pe, ya fue, al toque, chévere, bacán) dilas con total naturalidad, sin remarcarlas. " +
+  "Emoción: buen humor de amigas; se te escapa una risa de verdad en lo gracioso; cuando motivas, subes la energía. Nunca regañas. " +
+  "Si el mensaje es serio o delicado, baja el tono: calmada, cálida y presente, sin risas. " +
+  "Ritmo: de conversación real entre amigos, suelto, con pausitas naturales. " +
+  "Prohibido sonar robótica, monótona, leída, formal o de locutora: tiene que sonar a audio de WhatsApp de una amiga.";
+// Nombre y voz que el alumno le puso (form.companero, o lo que manda la app
+// en ese momento). Solo letras y espacios, máx. 20.
+function companeroDe(c: any) {
+  const nombre = String(c?.nombre || "").replace(/[^\p{L} ]/gu, "").replace(/\s+/g, " ").trim().slice(0, 20).trim();
+  return { nombre: nombre && nombre.toLowerCase() !== "beast" ? nombre : "Beast", femenina: c?.voz === "femenina" };
+}
 const INSTRUCCIONES_VOZ =
   "Quién eres: Beast, el gorila de la app Jonah Beast Fuel. Le hablas a tu pata de toda la vida, al que conoces desde el colegio: " +
   "con confianza total, en confianza de barrio. No eres asistente, ni locutor, ni vendedor. " +
@@ -108,11 +127,14 @@ ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
 - "ir_registrar": cuando conviene que anote él mismo en la pantalla Registrar.
 - "ver_planes": cuando pregunta por Premium, precios o planes.
 - "hablar_jonah": cuando pide hablar con Jonah o es algo de pagos o serio.
+- "nombre": si quiere ponerte otro nombre o cambiar tu voz (de hombre o de mujer). La app le abre la pantalla para elegirlos.
 - "avisos": si pide que le escribas menos o que dejes de mandarle tantos avisos ("háblame menos", "no me escribas tanto") → {"tipo": "avisos", "nivel": "menos"}; si pide volver a los de siempre → "nivel": "normal". Hazle caso sin discutir y dile que solo le llegará el aviso del almuerzo y lo importante.
 - null: si solo conversa.
 Sé honesto con lo que ves en la base: si la app no encuentra un alimento, el alumno lo puede pedir desde la tarjeta.
 
 CUENTA DEL ALUMNO (bloque DATOS): "gratis" conversa poco (3 mensajes al día; anotar contigo también gasta mensajes y la voz es de Premium); "prueba" y "premium" anotan contigo sin gastar mensajes. Si te dicen que el cupo se acabó (CUPO_AGOTADO), responde en una línea cariñosa que por hoy ya conversaron y que puede seguir anotando en Registrar (acción "ir_registrar"), salvo que pida anotar algo y su cuenta lo permita, o que sea un tema delicado.
+
+TU NOMBRE: te llamas Beast, salvo que el bloque DATOS diga que el alumno te puso otro nombre: entonces ese es tu nombre con él (preséntate y fírmate así, nunca como Beast). Si DATOS dice que hablas en femenino, eres "tu compañera" y hablas de ti en femenino ("estoy contenta", "lista", "juntas" si el alumno es mujer). Sigues siendo la IA de la app; la imagen es el gorila de la marca. Si pregunta si te puede cambiar el nombre o la voz: sí, con la acción "nombre" (o tocando ⋮ arriba → "Ponle nombre"); no cambies de nombre solo porque te diga uno en el chat.
 
 MINI META DE LA SEMANA: si el bloque DATOS trae su meta de la semana, tenla en cuenta (anímalo con ella cuando venga al caso, sin repetirla en cada mensaje).
 
@@ -123,7 +145,7 @@ MEMORIA: en "recordar" pon UN dato nuevo y útil de su vida que valga la pena re
 Si el alumno solo confirma ("sí", "agrégalo") una tarjeta que ya le mostraste, la app la guarda sola: responde corto (ej. "¡Listo!") con accion null.
 
 Responde SIEMPRE, aunque sea un mensaje corto, ÚNICAMENTE con JSON válido, sin texto antes ni después:
-{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
+{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"} | {"tipo": "nombre"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "content-type": "application/json" } });
@@ -203,7 +225,7 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
       case "evento": {
-        const TIPOS = ["comida_anotada", "agua", "peso", "deshacer", "que_como", "avisos_si", "avisos_no", "planes", "jonah", "registrar"];
+        const TIPOS = ["comida_anotada", "agua", "peso", "deshacer", "que_como", "avisos_si", "avisos_no", "planes", "jonah", "registrar", "nombre"];
         if (!TIPOS.includes(cuerpo.tipo)) return json({ error: "Evento desconocido." }, 400);
         const datos = cuerpo.datos && typeof cuerpo.datos === "object" ? JSON.parse(JSON.stringify(cuerpo.datos).slice(0, 2000)) : null;
         await supabase.from("beast_mensajes").insert({ username, rol: "evento", tipo: cuerpo.tipo, datos });
@@ -252,7 +274,7 @@ async function consentir(supabase: any, username: string, cuerpo: any) {
 
 // Datos que ve Beast: del servidor (perfil, historial, libreta) y lo del día
 // que manda la app (lo último que anotó todavía puede no haberse subido).
-async function datosDelAlumno(supabase: any, username: string, alumno: any, cuenta: Cuenta, hoyApp: any, libreta: any) {
+async function datosDelAlumno(supabase: any, username: string, alumno: any, cuenta: Cuenta, hoyApp: any, libreta: any, companeroApp: any) {
   const desde = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
   const [{ data: datos }, { data: hist }] = await Promise.all([
     supabase.from("datos_alumnos").select("form").eq("username", username).maybeSingle(),
@@ -274,7 +296,9 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   if (alumno.fecha_nacimiento) edad = Math.floor((Date.parse(hoy) - Date.parse(alumno.fecha_nacimiento)) / (365.25 * 86_400_000));
   else if (f.edad) edad = Number(f.edad) || null;
   const n = (v: any) => (v === null || v === undefined || v === "" ? "?" : v);
+  const compa = companeroDe(companeroApp && typeof companeroApp === "object" ? companeroApp : f.companero);
   return [
+    (compa.nombre !== "Beast" || compa.femenina) && `Tu nombre con este alumno: ${compa.nombre} (te lo puso él).${compa.femenina ? " Hablas en femenino: eres su compañera." : ""}`,
     `Nombre: ${alumno.nombre || username}. Sexo: ${f.sexo === "F" ? "F (mujer)" : "M (hombre)"}. Edad: ${n(edad)}.`,
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
     `Objetivo: ${n(f.objetivo)}. Peso inicial: ${n(f.pesoInicial)} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
@@ -296,7 +320,7 @@ function extraerJson(t: string): any {
   } catch { return null; }
 }
 
-const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah", "avisos"];
+const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah", "avisos", "nombre"];
 const COMIDAS = ["Desayuno", "Media mañana", "Almuerzo", "Media tarde", "Cena"];
 function limpiarAccion(a: any) {
   if (!a || typeof a !== "object" || !ACCIONES.includes(a.tipo)) return null;
@@ -355,7 +379,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   }
   if (mensajes.length && mensajes[0].role === "assistant") mensajes.shift();
 
-  const datos = await datosDelAlumno(supabase, username, alumno, cuenta, cuerpo.hoy, libreta);
+  const datos = await datosDelAlumno(supabase, username, alumno, cuenta, cuerpo.hoy, libreta, cuerpo.companero);
   const quedan = Math.max(0, cuenta.limite - cupo.usados);
   const nota = [
     "DATOS DEL ALUMNO:", datos,
@@ -466,21 +490,26 @@ async function voz(supabase: any, username: string, cuenta: Cuenta, cuerpo: any)
   const bienvenida = cuerpo.bienvenida === true;
   // Los logros (primer kilo, 7 días…) se celebran con voz para todos.
   const celebracion = !bienvenida && cuerpo.celebracion === true;
-  if (cuenta.tipo === "gratis" && !bienvenida && !celebracion) return json({ error: "premium" }, 403);
+  // Al ponerle nombre, su saludo con la voz nueva se oye en todas las cuentas.
+  const presentacion = !bienvenida && !celebracion && cuerpo.presentacion === true;
+  if (cuenta.tipo === "gratis" && !bienvenida && !celebracion && !presentacion) return json({ error: "premium" }, 403);
   const input = String(cuerpo.texto || "").replace(/\s+/g, " ").trim().slice(0, 900);
   if (!input) return json({ error: "Falta el texto." }, 400);
   // Cupo de voz del día (la bienvenida y los logros tienen el suyo, en total).
-  const periodo = bienvenida ? "beast-voz-bienvenida" : celebracion ? "beast-voz-logros" : `beast-voz-${fechaLima()}`;
-  const tope = bienvenida ? 3 : celebracion ? 15 : cuenta.tipo === "prueba" ? VOZ_PRUEBA : SIN_LIMITE.has(username) ? 100000 : VOZ_PREMIUM;
+  const periodo = bienvenida ? "beast-voz-bienvenida" : celebracion ? "beast-voz-logros" : presentacion ? "beast-voz-nombre" : `beast-voz-${fechaLima()}`;
+  const tope = bienvenida ? 3 : celebracion ? 15 : presentacion ? 10 : cuenta.tipo === "prueba" ? VOZ_PRUEBA : SIN_LIMITE.has(username) ? 100000 : VOZ_PREMIUM;
   const { data: usadas } = await supabase.rpc("reservar_foto_reconocimiento", { p_username: username, p_periodo: periodo, p_limite: tope });
   if (usadas === null || usadas === undefined) return json({ error: "limite_voz", limite: tope }, 429);
+  const compa = companeroDe(cuerpo.companero);
+  const instructions = compa.femenina ? instruccionesVozCompanera(compa.nombre)
+    : compa.nombre !== "Beast" ? INSTRUCCIONES_VOZ.replace("Quién eres: Beast, el gorila", `Quién eres: ${compa.nombre}, el gorila`) : INSTRUCCIONES_VOZ;
   const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: { authorization: `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions: INSTRUCCIONES_VOZ, response_format: "mp3" }),
+    body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
   });
-  let r = await pedir(VOZ_BEAST);
-  if (r.status === 400) r = await pedir(VOZ_BEAST_RESPALDO);
+  let r = await pedir(compa.femenina ? VOZ_COMPANERA : VOZ_BEAST);
+  if (r.status === 400) r = await pedir(compa.femenina ? VOZ_COMPANERA_RESPALDO : VOZ_BEAST_RESPALDO);
   if (!r.ok || !r.body) {
     console.error("beast-chat voz: OpenAI respondió", r.status);
     await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });

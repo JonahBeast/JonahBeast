@@ -21,7 +21,7 @@
 // Mismo patrón de envío en paralelo que api/cron/recordatorio.js, para
 // no repetir el problema de timeout de Vercel con muchos alumnos.
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados, nombresCompanero, tituloDe } from '../_lib/push.js';
 import { traerTodas } from '../../src/traerTodas.js';
 
 const INTERVALO_DIAS = 15;
@@ -48,9 +48,11 @@ async function enviarLote(supabase, targets) {
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
   const webpush = (await import('web-push')).default;
+  // El título lleva el nombre que el alumno le puso a su compañero.
+  const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
   for (const { username, mensaje } of targets) {
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: '/' });
+    const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)

@@ -107,13 +107,15 @@ export async function enviarPushA(supabase, usernames, { title, body, url = '/' 
 
   let enviados = 0;
   const fallidos = [];
-  // El Service Worker (public/sw.js) espera las claves en español
-  // (titulo, cuerpo, url) — deben coincidir exactamente o el mensaje
-  // no se muestra y cae al texto genérico por defecto.
-  const payload = JSON.stringify({ titulo: title, cuerpo: body, url });
+  // Los avisos de Beast llevan el nombre que cada alumno le puso.
+  const nombres = title === TITULO_BEAST ? await nombresCompanero(supabase, usernames) : {};
 
   for (const sub of subs || []) {
     try {
+      // El Service Worker (public/sw.js) espera las claves en español
+      // (titulo, cuerpo, url) — deben coincidir exactamente o el mensaje
+      // no se muestra y cae al texto genérico por defecto.
+      const payload = JSON.stringify({ titulo: tituloDe(nombres, sub.username, title), cuerpo: body, url });
       const webpush = (await import('web-push')).default;
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -246,6 +248,23 @@ export function hablaMenos(prefs, username) {
    comida: la del aviso (la tarjeta trae "Anotar en Registrar" y "Foto").
    Nunca llevan nada privado: se ven en la pantalla bloqueada. */
 export const TITULO_BEAST = 'Beast 🦍';
+// El alumno le puede poner otro nombre a su compañero (chat → ⋮ → "Ponle
+// nombre a tu compañero"; datos_alumnos.form.companero = { nombre, voz }).
+// Sus avisos de Beast llegan firmados con ese nombre.
+export async function nombresCompanero(supabase, usernames) {
+  const lista = [...new Set(usernames || [])];
+  if (!lista.length) return {};
+  const { data } = await supabase.from('datos_alumnos').select('username, companero:form->companero').in('username', lista);
+  const nombres = {};
+  (data || []).forEach(d => {
+    const n = String(d.companero?.nombre || '').trim().slice(0, 20);
+    if (n && n.toLowerCase() !== 'beast') nombres[d.username] = `${n} 🦍`;
+  });
+  return nombres;
+}
+export function tituloDe(nombres, username, title) {
+  return title === TITULO_BEAST && nombres?.[username] ? nombres[username] : title;
+}
 export function urlBeast(texto, { comida = null, foto = false, extra = '' } = {}) {
   return `/?ir=beast&aviso=${encodeURIComponent(String(texto || '').slice(0, 300))}`
     + (comida ? `&comida=${encodeURIComponent(comida)}` : '') + (foto ? '&foto=1' : '') + extra;

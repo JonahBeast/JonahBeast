@@ -34,7 +34,7 @@
 // comida en los últimos 14 días: le dice cuántas fotos gratis le quedan
 // esta semana (ver alumnosGratis en api/_lib/push.js).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, VENTANAS_AVISOS, hablaMenos, TITULO_BEAST, urlBeast } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, VENTANAS_AVISOS, hablaMenos, TITULO_BEAST, urlBeast, nombresCompanero, tituloDe } from '../_lib/push.js';
 
 const FOTOS_GRATIS_SEMANA = 3;
 
@@ -122,11 +122,12 @@ async function enviarLote(supabase, targets) {
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
   const webpush = (await import('web-push')).default;
+  const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
   for (const { username, mensaje } of targets) {
-    // url: al tocar el aviso, la app se abre directo en el registro de esa
-    // comida (ver leerRegistrarDeUrl en src/App.jsx).
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: mensaje.url || '/' });
+    // url: al tocar el aviso se abre el chat de Beast con ese mensaje
+    // (urlBeast); el título lleva el nombre que el alumno le puso.
+    const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: mensaje.url || '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)

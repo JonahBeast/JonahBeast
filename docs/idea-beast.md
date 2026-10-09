@@ -236,6 +236,15 @@ Los alumnos le van a contar cosas personales ("me siento mal", "estoy triste", "
 - **"Estoy triste y me comí todo":** sin culpa; una comida no borra su avance, seguimos en la siguiente.
 - **Se le dice clarito al empezar** (dos líneas): sus conversaciones son privadas, Jonah no las lee, se borran a los 90 días y puede borrarlas antes. También va en `public/privacidad.html`.
 
+## Ponerle otro nombre y elegir la voz (9 de octubre)
+
+Una alumna preguntó si podía llamarlo "Lolita". Jonah: "Sí, hazlo con la opción de elegir la voz".
+- Chat → ⋮ → "✏️ Ponle nombre a tu compañero" (o pedírselo a Beast, que responde con el botón). Nombre de hasta 20 letras (sin números, emojis ni groserías) y voz **masculina** (la de siempre, `ash`) o **femenina** (`marin`, respaldo `coral`, con acento limeño y en confianza, igual que Beast).
+- Con voz femenina habla en femenino ("tu compañera"). La imagen sigue siendo el gorila.
+- El nombre sale en el chat, la burbuja, los botones de "¿Qué puedo comer?", la imagen de logros y el título de los avisos del día a día ("Lolita 🦍"). La primera pantalla (permiso) y el panel de Jonah siguen diciendo Beast.
+- Se guarda en el perfil del alumno (`form.companero`); no hace falta tabla nueva. "Volver a llamarlo Beast" lo deshace.
+- Al guardar, se presenta con su nombre nuevo y "▶️ Escuchar" (en todas las cuentas, hasta 10 veces en total).
+
 ## Cuidados
 
 Que siempre diga que es IA. Protocolo si alguien habla de depresión, hacerse daño o trastornos de la alimentación (responder con tacto y dar un contacto de ayuda real). Sin consejos médicos ni promesas de kilos. Si mencionan una enfermedad o un embarazo, recomendar ver a un profesional.

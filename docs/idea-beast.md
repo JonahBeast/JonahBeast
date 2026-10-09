@@ -25,6 +25,21 @@ Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propo
 - **Más adelante:** conversación en vivo, como una llamada (como Jarvis y Viernes), quizás como plus de Premium ("📞 Habla con Beast"), si se ve que usan mucho la voz. Cuesta más y es más trabajo.
 - **Costo:** escuchar una nota cuesta fracciones de céntimo y que Beast hable una respuesta, alrededor de 1 céntimo. Un alumno que usa mucho la voz suma ≈ S/0,20 a S/0,30 al mes (≈ S/1 al mes en total con Beast).
 
+## Anotar comidas hablándole (la función estrella, según Jonah)
+
+El alumno casi no escribe: le habla a Beast y Beast anota.
+
+- Ejemplo: 🎤 "Beast, en el almuerzo comí 150 gramos de arroz, 120 de pollo a la plancha y una ensalada. Agrégalo." Beast responde con una **tarjeta en el chat**: la comida y el día, cada alimento con su cantidad y calorías (✅), las dudas con opciones (🤔 "Ensalada, ¿cuál fue?"), el total y los botones **"✅ Agregar al almuerzo"** y **"Cambiar"**. Al guardar: "Listo 🦍 Te quedan 640 kcal para la cena."
+- Entiende la comida ("en el desayuno…"; si no la dice, usa la de la hora, como la app), varias comidas de una vez, el día ("ayer en la cena…"), medidas caseras ("un plato", "media taza", "2 cucharadas") y correcciones antes de guardar ("no, eran 80 gramos de pollo", "quita el pan").
+- **Usa el mismo motor que el registro por voz de hoy** (manual 8, "C) Voz"): mismo buscador y calorías de la base, mismas preguntas 🤔 cuando hay duda, mismo "🙋 Pedirlo" cuando no existe y siempre confirma antes de guardar. Que el resultado sea igual anote por la pantalla de voz o por Beast.
+- **Regla de Premium:** registrar por voz es Premium hoy; Beast no puede ser una puerta trasera. Gratis: conversa un poco y anota escribiendo. Premium: anota por voz con Beast sin límite. Si un gratis le habla para anotar: "Anotar con tu voz es de Premium 👑 Por ahora escríbemelo y lo anoto igual."
+
+## Competencia (revisado el 9 de octubre)
+
+**No decir "ninguna app en Perú hace esto": no es cierto.** Fitia (muy usada en Latinoamérica y Perú) ya tiene un coach con IA por chat que ayuda a anotar comidas y registro por voz, con Premium de ≈ US$19,99 al mes (≈ S/75). MyNetDiary y Caloa también juntan voz y coach con IA.
+
+Lo que diferencia a Beast: es un personaje con historia (el gorila de la marca) que se acuerda de tu vida; detrás hay una persona real (Jonah, a un toque por WhatsApp); comida peruana revisada a mano, con medidas caseras y la regla del arroz; cuesta S/24,90 (casi la tercera parte); y tendrá WhatsApp. Frase que sí es cierta: "Beast te conoce, habla como peruano y tiene detrás a Jonah, una persona real. Y cuesta la tercera parte que otras apps." Antes de usar el precio de la competencia en un anuncio, volver a revisarlo en su tienda.
+
 ## Lo que Beast puede hacer (por los mismos caminos de la app)
 
 Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace Beast queda igual que lo hecho a mano (aparece en "Tu día", llega la tarjeta de novedades) y en el panel se marca "vía Beast" para medir cuánto lo usan. **Siempre confirma con una tarjeta y botones antes de guardar.**

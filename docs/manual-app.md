@@ -173,7 +173,7 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Pie de la pantalla:** **"⚙️ Mi perfil y ajustes"** · "Política de Privacidad". (Letra grande, sonidos, avisos, celular y eliminar cuenta están en Mi perfil.)
 
-**Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan." En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**.
+**Burbuja de Beast** (abajo a la derecha: la cara del gorila con borde naranja y la palabra "BEAST"; reemplazó al botón verde de WhatsApp): abre el chat con **Beast · tu compañero** (ver 6.4). La primera vez tiene un puntito naranja y, en Inicio, un globito "¡Oe! Soy Beast, tu compañero 🦍 Cuéntame qué comiste y te ayudo." (se cierra con la ×). En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**. **WhatsApp con Jonah** (persona) sigue a un toque: en el chat de Beast → **⋮** → "🙋 Hablar con Jonah (persona) por WhatsApp", y Beast lo ofrece solo cuando es de pagos o algo serio.
 
 **Elegir la comida** (Desayuno, Media mañana, Almuerzo, Media tarde, Cena): en toda la app se ve igual, una fila de botones que se desliza de lado; el elegido en naranja y un puntito en la comida de la hora.
 
@@ -225,6 +225,40 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 - **"Ahora no"** la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
 
 ---
+
+### 6.4 🦍 Beast · tu compañero (chat con el gorila)
+
+Beast es la inteligencia artificial de la app, con la personalidad del gorila: conversa como un pata (con jerga limeña si el alumno escribe suelto; con mujeres, en femenino y sin piropos), anota comidas, agua y peso, dice cómo vas y ayuda cuando el día se pone difícil. No es nutricionista ni médico, y lo dice si le preguntan. Se abre con la burbuja de abajo a la derecha (6).
+
+**La primera vez:** pantalla "BEAST · tu compañero · IA de Jonah Beast Fuel" con lo que hace y 4 puntos: "Tus conversaciones conmigo son privadas: Jonah no las lee." · "Se borran solas a los 90 días, y puedes borrarlas antes cuando quieras." · "Me acuerdo de lo importante que me cuentes; lo ves y lo borras en 'Lo que Beast sabe de ti'." · "Soy inteligencia artificial: no soy nutricionista ni médico." Una casilla opcional: **"Si me ves muy mal, avísale a Jonah para que me escriba"** (solo le llega el nombre, nunca lo que conversaron). Botón **"EMPEZAR CON BEAST"**, o "Ahora no" y "Política de privacidad".
+
+**El chat:** arriba "BEAST · TU COMPAÑERO", la **⋮** (menú) y la **×** (cerrar). La primera vez Beast saluda: "¡Hola, [nombre]! Soy Beast, el compañero que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué [desayunaste/almorzaste/cenaste] hoy y te digo cuántas calorías tiene. Háblame o escríbeme 💪" (en la gratis: "Escríbeme"), con **"▶️ Escuchar"** para oírlo con su voz.
+- **Botones rápidos** (encima de donde se escribe): **"📈 ¿Cómo voy?"**, **"🍽️ ¿Qué como?"**, **"💧 +1 vaso"** y **"📝 Anotar comida"** (en la gratis lleva a Registrar).
+- **Escribir** o, en Premium y la prueba, **🎤 nota de voz** (toca el micrófono, habla y toca ✓; 🗑️ cancela). Lo que dijo sale en su globo con 🎤. En la gratis el micrófono sale gris: "Hablarle a Beast con tu voz es de Premium 👑 Por ahora escríbeme."
+- Debajo de cada respuesta: **"▶️ Escuchar"** (Premium y prueba; la prueba tiene 5 notas de voz al día) y **👍 / 👎** ("Beast se equivocó": esa respuesta sí la puede ver Jonah para mejorar a Beast).
+- Mientras piensa: "Beast está escribiendo…". Sin señal: "Uy, se me fue la señal, causa 😅 Dame un toque y lo intento de nuevo." y en el mensaje "⚠️ No se envió · Reintentar".
+
+**Lo que Beast hace (siempre con una tarjeta para confirmar, nada se guarda solo):**
+- **Anotar una comida:** "En el almuerzo comí 150 g de arroz, 120 de pollo y una ensalada". Sale una tarjeta con cada alimento de la base de la app y sus calorías (✅ para quitar o poner; 🤔 "¿cuál fue?" con opciones cuando hay dudas; 🔎 "no lo encontré en la app" con "🙋 Pedírselo a Jonah" en Premium o "Búscalo en Registrar" en la gratis), la comida (se puede cambiar) y el total. Botón **"✅ Agregar al [comida]"**, o decirle (escrito o por voz) **"sí", "agrégalo", "dale", "confirmo"…**: la tarjeta se guarda igual, sin gastar mensajes (si falta elegir algo: "Primero dime cuál fue en la tarjeta ☝️"). Lo mismo con la tarjeta del peso. Usa el mismo buscador que el registro por voz: el resultado es el mismo por cualquier camino. Si algo no cuadra, se le escribe la corrección ("eran 80 g de pollo", "quita el pan") y propone otra tarjeta. Solo anota en el día de hoy.
+- **En la calle** ("estoy en una pollería y me quedan 600 calorías"): propone una opción con las calorías reales de la app y **"✅ Anotar esta"**.
+- **"¿Qué como?":** las mismas sugerencias de "¿Qué puedo comer?" (8.2 F) para la comida de la hora, con **"✅ Anotar esta"** y "🔄 Ver otras opciones". En la gratis cuenta dentro de las 3 por semana.
+- **Agua:** "tomé 2 vasos" se suma directo. **Peso:** "hoy pesé 79,4" → tarjeta "¿Anoto 79,4 kg como tu peso de hoy?"; si cambia 3 kg o más contra el último: "Ojo: son X kg de diferencia… ¿Lo escribiste bien?".
+- Después de anotar: "Listo 🦍 Te quedan X kcal para hoy." y abajo **"✓ Anoté … · Deshacer"** por unos segundos.
+- **"¿Cómo voy?":** con sus datos reales (peso de inicio y de hoy, días anotados, días en su meta, racha, proteína, agua): primero lo bueno, una cosa por mejorar y un empujón. Sin promesas de kilos ni fechas.
+- Si es su primera comida anotada y puede activar avisos: "¿Te aviso … para anotar tu …? Así no se te pasa 🦍" **[Sí, avísame] [No, gracias]**.
+- Planes y pagos: botón **"👑 Ver Premium"**; algo serio o pagos: **"🙋 Escribirle a Jonah"** (WhatsApp).
+- Temas delicados (tristeza, ansiedad, atracones…): deja el humor y escucha. Si alguien habla de hacerse daño o no querer vivir, da la **Línea 113, opción 5** (salud mental del MINSA, gratis). Si el alumno aceptó la casilla, a Jonah le llega solo su nombre para que le escriba.
+
+**Mensajes por día** (los temas delicados nunca cuentan; cuando Beast escribe primero, tampoco):
+| Cuenta | Conversar | Anotar con Beast |
+|---|---|---|
+| Prueba, días 1 a 3 | 20 al día | No gasta mensajes |
+| Prueba, días 4 a 7 | 15 al día | No gasta mensajes |
+| Gratis | 3 al día ("Hoy te quedan N mensajes de 3", siempre a la vista) | Cuenta dentro de los 3 (sin límite en Registrar) |
+| Premium | ≈ 60 al día | No gasta mensajes |
+En la prueba y Premium el contador sale recién cuando quedan 5. Al acabarse en la gratis: "Por hoy ya conversamos, causa 🦍 Tus comidas las puedes seguir anotando en Registrar. Con Premium conversamos todo lo que quieras y te las anoto yo 👑" con **"📝 Ir a Registrar"** y **"👑 Ver Premium"**.
+
+**Menú ⋮:** **"📒 Lo que Beast sabe de ti"** (lo que Beast recuerda de su vida, con "Borrar todo"; además sabe su nombre, meta, peso y lo que anota) · **"🙋 Hablar con Jonah (persona) por WhatsApp"** · **"🗑️ Borrar conversación"** · "🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días."
 
 ## 7. Pestaña "Inicio"
 
@@ -844,7 +878,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 ### 13.8 Versión gratis y Premium
 
-En "Planes", la lista **"👑 PREMIUM INCLUYE"**: tu menú del día y de la semana, con tu lista de compras · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
+En "Planes", la lista **"👑 PREMIUM INCLUYE"**: Beast, tu compañero, contigo todos los días (le hablas y te anota todo; sin monedas, sin cobros extra) · tu menú del día y de la semana, con tu lista de compras · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
 
 Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
 
@@ -866,6 +900,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | % de grasa | Se mide 1 vez | Cuando quiera, con historial y masa muscular |
 | Fotos de progreso | — | ✓ |
 | Asistente de WhatsApp para nutrición | — | ✓ (a todos se les responde sobre planes, pagos, cuenta y problemas de la app) |
+| 🦍 Beast · tu compañero (6.4) | 3 mensajes al día, escribiendo | ≈ 60 al día (prueba: 20 los días 1 a 3 y 15 después), con voz y anotar sin gastar mensajes |
 | Avisos al celular | Almuerzo, "Tu semana", pesaje y "te extrañé" (14.4) | Todos (14.4) |
 
 ---

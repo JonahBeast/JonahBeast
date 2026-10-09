@@ -1,6 +1,6 @@
 # Beast · tu compañero (idea de Jonah, 9 de octubre)
 
-Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propone después de la revisión de pagos del 10 de octubre, si se ve que la gente se va por perder la motivación.
+Todo lo conversado con Jonah sobre Beast. **Parte 1 construida el 9 de octubre** (Jonah pidió empezar ya): chat en la app, anotar comidas/agua/peso con tarjeta, "¿cómo voy?", "¿qué como?", voz, límites, libreta, privacidad y tarjeta 🦍 BEAST del panel (código: `supabase/functions/beast-chat`, `src/alumno.jsx` → BeastChat, tablas `beast_mensajes` y `beast_libreta`). Lo que falta está en `docs/pendientes.md` (parte 2).
 
 ## Qué es
 
@@ -25,7 +25,7 @@ Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propo
 - **Voz oficial (elegida por Jonah el 9 de octubre): "🦍 Beast · el gorila, voz más expresiva"** (`beast2` en `jarvis-voz`: voz `ash`, con `INSTRUCCIONES_BEAST`). Habla como tu pata de toda la vida: grave, acento de barrio limeño, se ríe de verdad, suena a audio de WhatsApp de un amigo. Se prueba en el panel: Jarvis → VOZ → ▶ Probar.
 - **Lo que dice lo escribe la IA; la voz solo le da el tono.** La jerga y el humor salen del texto de cada respuesta ("causita", "mi pata", "ni te roches", "al toque", "pe"), escrito con la personalidad de Beast. La voz pone el acento, la risa y las ganas. Por eso Beast **escribe igual que habla**, también en el chat sin audio.
 - **Se adapta a cada alumno:** con quien escribe suelto, más jerga y bromas; con quien escribe formal o es mayor, igual de cercano pero con menos jerga. Nunca burla del peso ni del cuerpo, y en temas delicados (salud, ánimo bajo) baja el humor y habla en serio.
-- **Con mujeres (9 de octubre):** la cantidad de jerga depende de cómo escribe cada persona, no de si es hombre o mujer. Lo que cambia son las palabras: en femenino ("causita", "mi causa", "amiga", "¡vamos, campeona!"), nunca "hermano", "compadre" ni "broder". **Prohibido el piropo o lo que suene a coqueteo:** nada de "mamita", "reina", "linda", "preciosa" ni comentarios sobre su cuerpo; tampoco "flaca" ni "gordita" (en una app de bajar de peso pueden caer mal). Mismo cariño y humor: Beast es su pata, no su enamorado ni su papá. Sabe si es hombre o mujer por el perfil (`sexo`). En la prueba a ciegas, que alguna alumna (ej. Joselyn o Yanet) lea respuestas de Beast y diga si le suenan bien o le chocan.
+- **Con mujeres (9 de octubre):** la cantidad de jerga depende de cómo escribe cada persona, no de si es hombre o mujer. Lo que cambia son las palabras: en femenino ("causita", "mi causa", "amiga", "¡vamos, campeona!"), nunca "hermano", "compadre" ni "broder". **Prohibido el piropo o lo que suene a coqueteo:** nada de "mamita", "reina", "linda", "preciosa" ni comentarios sobre su cuerpo; tampoco "flaca" ni "gordita" (en una app de bajar de peso pueden caer mal). Mismo cariño y humor: Beast es su pata, no su enamorado ni su papá. Sabe si es hombre o mujer por el perfil (`sexo`). Antes de abrirlo a todos, que alguna alumna (ej. Joselyn o Yanet) lea respuestas de Beast y diga si le suenan bien o le chocan.
 - **Más adelante:** conversación en vivo, como una llamada (como Jarvis y Viernes), quizás como plus de Premium ("📞 Habla con Beast"), si se ve que usan mucho la voz. Cuesta más y es más trabajo.
 - **Costo:** escuchar una nota cuesta fracciones de céntimo y que Beast hable una respuesta, alrededor de 1 céntimo. Un alumno que usa mucho la voz suma ≈ S/0,20 a S/0,30 al mes (≈ S/1 al mes en total con Beast).
 
@@ -140,19 +140,18 @@ El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y 
 4. **"Deshacer" después de anotar:** "Listo 🦍 [Deshacer]" por unos segundos, y "Inicio" cambia al instante: el chat y la app nunca muestran números distintos.
 5. **Que no se repita:** variar las frases, emojis con medida; "¡Vamos con todo!" y "comida a comida" solo en momentos especiales, no en cada mensaje.
 6. **Si falla internet o la IA, no se pierde nada:** "Uy, se me fue la señal, causa 😅 Dame un toque y lo intento de nuevo", con el mensaje del alumno guardado para reenviarlo. Nunca una pantalla de error fría.
-7. **Entiende al peruano:** "lomo saltao", "chaufita", "un cuarto de pollo con papas", notas de voz con ruido de la calle o la combi. Va en la prueba a ciegas.
+7. **Entiende al peruano:** "lomo saltao", "chaufita", "un cuarto de pollo con papas", notas de voz con ruido de la calle o la combi. Jonah lo revisa al usarlo.
 8. **Contra estafas:** "Beast nunca te va a pedir tu clave, tu tarjeta ni que pagues por el chat; los pagos son solo en Planes". Clave cuando se fusione con WhatsApp.
 9. **Menores de edad:** si cuenta que tiene menos de 18, no le da consejos para bajar calorías; lo anima a comer sano y a hablar con sus papás o un profesional.
 10. **Si pide hablar con Jonah:** le dice la verdad de cuánto suele tardar ("Jonah responde normalmente en el día"), sin prometer "al toque".
 
 ## Qué IA usa
 
-- **Equipo de dos:** Haiku 5.5 (económico) para el día a día (~95% de los mensajes); Sonnet 5.5 (fino) para temas delicados (ánimo, trastornos de la alimentación, salud) y para ordenar la libreta una vez al día. El cambio es automático y el alumno no lo nota.
-- **Antes de lanzarlo, una prueba:** unas 30 conversaciones realistas (día normal, se pasó, día triste, preguntas difíciles) respondidas por Haiku y por Sonnet. Jonah las lee sin saber cuál es cuál y elige.
+- **Solo Haiku 5.5 (la económica), decisión de Jonah del 9 de octubre:** sin Sonnet para los temas delicados y sin prueba a ciegas. Jonah usa la app todo el día con su cuenta (`martin`, sin tope de mensajes ni de voz, como la captura inteligente) y avisa si hay que afinar a Beast.
 
 ## Costos (con S/24,90 al mes)
 
-- ≈ **S/0,70 al mes por alumno** con el equipo Haiku + Sonnet (≈ S/0,50 solo con Haiku; ≈ S/7,50 solo con Sonnet). Va de unos céntimos (entra poco) a ≈ S/3 (Premium que conversa muchísimo). Es menos del 3% de lo que paga.
+- ≈ **S/0,50 al mes por alumno** solo con Haiku. Va de unos céntimos (entra poco) a ≈ S/3 (Premium que conversa muchísimo). Es menos del 3% de lo que paga.
 - El riesgo son los gratis: con 2 de cada 100 pagando se queda a mano; con 5 de cada 100 se gana bien.
 - **Límites** (detalle en "Cómo se manejan los límites"): 3 mensajes al día en la versión gratis (15 a 20 en la prueba), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
 - Confirmar el gasto real el primer mes en la tabla `ia_uso`.

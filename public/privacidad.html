@@ -71,6 +71,7 @@
   <li><strong>Registro de comidas:</strong> los alimentos, cantidades y comidas que registras día a día.</li>
   <li><strong>Fotos de tus comidas y de etiquetas:</strong> si usas la foto para registrar un plato o leer la etiqueta de un producto, la foto se analiza para calcular las calorías (ver sección 3). <strong>No guardamos la foto</strong>: solo guardamos el resultado (los alimentos y cantidades) y, si lo corriges, lo que corregiste, para mejorar la app.</li>
   <li><strong>Alimentos que pides o creas:</strong> el nombre y los datos del alimento, y quién lo pidió, para revisarlo y responderte.</li>
+  <li><strong>Conversaciones con Beast (tu compañero en la app):</strong> si aceptas usar a Beast, guardamos tus mensajes y sus respuestas para que pueda seguir la conversación, y una libreta corta con lo importante que le cuentes de tu vida (por ejemplo, tu horario de trabajo). Ver sección 4.</li>
   <li><strong>Mensajes de WhatsApp:</strong> si nos escribes por WhatsApp, recibimos tus mensajes y notas de voz para responderte.</li>
   <li><strong>Fotos de progreso:</strong> si decides subir fotos para hacer seguimiento visual de tu progreso, estas se almacenan de forma privada y vinculada únicamente a tu cuenta.</li>
   <li><strong>Datos de uso y notificaciones:</strong> información técnica necesaria para enviarte notificaciones push (recordatorios, seguimiento de racha), como el identificador de suscripción de tu navegador o dispositivo.</li>
@@ -89,12 +90,22 @@
 <h2>3. Inteligencia artificial</h2>
 <p>Algunas funciones de la app usan inteligencia artificial de otras empresas, que procesan solo lo necesario para darte la respuesta:</p>
 <ul>
-  <li><strong>Anthropic (Claude):</strong> analiza las fotos de tus comidas y de etiquetas, revisa los alimentos que pides o creas, y responde los mensajes del asistente de WhatsApp.</li>
-  <li><strong>OpenAI:</strong> pasa a texto la voz cuando registras comidas hablando o envías una nota de voz por WhatsApp.</li>
+  <li><strong>Anthropic (Claude):</strong> analiza las fotos de tus comidas y de etiquetas, revisa los alimentos que pides o creas, responde como Beast en la app y responde los mensajes del asistente de WhatsApp.</li>
+  <li><strong>OpenAI:</strong> pasa a texto la voz cuando registras comidas hablando, le mandas una nota de voz a Beast o por WhatsApp, y pone la voz de Beast cuando lo escuchas.</li>
 </ul>
 <p>Según sus condiciones para empresas, estos servicios no usan lo que les enviamos para entrenar sus modelos. Los resultados de la inteligencia artificial son aproximados: siempre puedes revisarlos y corregirlos antes de guardar.</p>
 
-<h2>4. Cómo usamos tu información</h2>
+<h2>4. Beast, tu compañero</h2>
+<p>Beast es la inteligencia artificial de la app. Antes de usarlo te pedimos tu permiso. Lo que conversas con Beast:</p>
+<ul>
+  <li><strong>Es privado:</strong> Jonah no lee tus conversaciones. Solo puede ver números generales sin nombres (cuántas personas usan a Beast, de qué temas se habla), cuántas veces lo usa cada alumno (días, mensajes y comidas anotadas, nunca el contenido) y las respuestas de Beast que tú mismo marcas con 👎, junto con tu mensaje, para corregir sus errores.</li>
+  <li><strong>Se borra solo a los 90 días.</strong> Puedes borrar la conversación cuando quieras desde el chat (⋮ → "Borrar conversación"), y ver y borrar lo que Beast recuerda de ti en "Lo que Beast sabe de ti". Todo se borra al eliminar tu cuenta.</li>
+  <li><strong>Si aceptas que se avise a Jonah</strong> cuando Beast te vea muy mal, a Jonah le llega solo tu nombre, nunca lo que conversaron. Puedes no aceptarlo.</li>
+  <li>Para responderte, Beast usa tus datos de la app (nombre, sexo, edad, objetivo, peso, lo que anotaste y tu racha) y los envía a la inteligencia artificial de <strong>Anthropic</strong>; si escuchas a Beast, el texto de su respuesta pasa a voz con <strong>OpenAI</strong>.</li>
+  <li>Beast no es nutricionista, médico ni psicólogo. Si hablas de hacerte daño, te dará un contacto de ayuda real (Línea 113, opción 5).</li>
+</ul>
+
+<h2>5. Cómo usamos tu información</h2>
 <ul>
   <li>Calcular tus objetivos nutricionales personalizados y generar recomendaciones de comidas.</li>
   <li>Guardar tu historial de progreso y comidas registradas.</li>
@@ -105,16 +116,16 @@
 </ul>
 <p>No vendemos tu información a otras empresas, y tus datos de salud (peso, medidas, comidas, fotos) nunca se usan para publicidad.</p>
 
-<h2>5. Medición de anuncios</h2>
+<h2>6. Medición de anuncios</h2>
 <p>Nuestra página usa el píxel de <strong>Meta</strong> (Facebook e Instagram) y el de <strong>TikTok</strong> para saber qué anuncios traen personas a la app. Cuando creas tu cuenta o pagas un plan, les avisamos de ese hecho junto con tu correo, celular o nombre <strong>cifrados</strong> (convertidos en un código que no se puede leer), para que puedan relacionarlo con el anuncio que viste. No les enviamos tu peso, tus medidas, tus comidas ni tus fotos. Puedes limitar esto bloqueando las cookies de terceros en tu navegador o desde la configuración de anuncios de Meta y TikTok.</p>
 
-<h2>6. Dónde se almacena tu información</h2>
+<h2>7. Dónde se almacena tu información</h2>
 <p>Tus datos se almacenan de forma segura mediante <strong>Supabase</strong> (infraestructura de base de datos) y <strong>Vercel</strong> (infraestructura de hosting), ambos con cifrado en tránsito (HTTPS) y controles de acceso que garantizan que cada usuario solo pueda ver y modificar su propia información. Las empresas mencionadas en esta política (Supabase, Vercel, Anthropic, OpenAI, Meta, TikTok, Mercado Pago y Google) pueden procesar los datos fuera del Perú, siempre solo para la función que se describe aquí.</p>
 
-<h2>7. Notificaciones push</h2>
+<h2>8. Notificaciones push</h2>
 <p>Si activas las notificaciones, usamos servicios estándar de entrega push del sistema operativo de tu dispositivo (como Firebase Cloud Messaging de Google o el servicio de notificaciones de Apple) para hacerte llegar los mensajes. Estos servicios reciben únicamente la información técnica necesaria para la entrega (no el contenido de tu perfil).</p>
 
-<h2>8. Tus derechos</h2>
+<h2>9. Tus derechos</h2>
 <p>De acuerdo con la Ley N° 29733, Ley de Protección de Datos Personales del Perú, tienes derecho a:</p>
 <ul>
   <li><strong>Acceder</strong> a la información que tenemos sobre ti.</li>
@@ -122,15 +133,15 @@
   <li><strong>Solicitar la eliminación</strong> de tu cuenta y datos asociados.</li>
   <li><strong>Retirar tu consentimiento</strong> para el uso de tus datos en cualquier momento.</li>
 </ul>
-<p><strong>Cómo eliminar tu cuenta:</strong> puedes eliminarla tú mismo en cualquier momento, sin necesidad de contactarnos, desde dentro de la app — inicia sesión, ve al final de cualquier pantalla y toca "Eliminar mi cuenta", donde se te pedirá una confirmación antes de proceder. Esto borra de forma permanente e inmediata: tu cuenta, tu historial de comidas registradas, tu plan de alimentación, tus fotos de progreso y tus suscripciones de notificaciones. No conservamos ninguno de estos datos después de la eliminación. Si prefieres que lo hagamos nosotros por ti, también puedes solicitarlo escribiendo a los datos de contacto de la sección 11.</p>
+<p><strong>Cómo eliminar tu cuenta:</strong> puedes eliminarla tú mismo en cualquier momento, sin necesidad de contactarnos, desde dentro de la app — inicia sesión, ve al final de cualquier pantalla y toca "Eliminar mi cuenta", donde se te pedirá una confirmación antes de proceder. Esto borra de forma permanente e inmediata: tu cuenta, tu historial de comidas registradas, tu plan de alimentación, tus fotos de progreso, tus conversaciones con Beast y tus suscripciones de notificaciones. No conservamos ninguno de estos datos después de la eliminación. Si prefieres que lo hagamos nosotros por ti, también puedes solicitarlo escribiendo a los datos de contacto de la sección 12.</p>
 
-<h2>9. Menores de edad</h2>
+<h2>10. Menores de edad</h2>
 <p>Jonah Beast Fuel no está dirigida a menores de 18 años. No recopilamos intencionalmente información de menores de edad.</p>
 
-<h2>10. Cambios a esta política</h2>
+<h2>11. Cambios a esta política</h2>
 <p>Podemos actualizar esta Política de Privacidad ocasionalmente. Si hacemos cambios significativos, lo indicaremos actualizando la fecha al inicio de este documento.</p>
 
-<h2>11. Contacto</h2>
+<h2>12. Contacto</h2>
 <div class="contacto">
   <p style="margin:0 0 6px;"><strong>Jonah Beast Fuel</strong></p>
   <p style="margin:0 0 6px;">Correo: <a href="mailto:jonahbeastcorp@gmail.com">jonahbeastcorp@gmail.com</a></p>

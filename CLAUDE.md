@@ -17,7 +17,8 @@
 - **Nunca borres ni modifiques datos de alumnos, pagos o cuentas sin preguntarme antes**, y dime exactamente qué filas vas a tocar.
 - **Los cambios en la estructura de la base** (columnas o tablas nuevas) **me los explicas antes de hacerlos.**
 - **Las edge functions solo se publican después del merge**, y siempre con el código que quedó en `main`, para que GitHub y Supabase nunca tengan versiones distintas. Después de publicar, dime qué versión quedó.
-  - **Única excepción:** la copia de prueba de Jarvis, `jarvis-chat-prueba`, se puede publicar desde la rama de un PR para probarlo en la versión de prueba de Vercel (que llama a esa copia). El Jarvis real, `jarvis-chat`, solo se publica después del merge.
+  - **Excepciones:** las copias de prueba de Jarvis (`jarvis-chat-prueba`) y de Beast (`beast-chat-prueba`, autorizada por Jonah el 9 de octubre) se pueden publicar desde la rama de un PR para probarlas en la versión de prueba de Vercel (que llama a esas copias). Los reales, `jarvis-chat` y `beast-chat`, solo se publican después del merge.
+- **Beast (`beast-chat`) se publica con `verify_jwt` en `false`**: el alumno sale de su sesión dentro del código.
 - **Jarvis (`jarvis-chat`) se publica con `verify_jwt` en `false`**, porque el candado de admin está dentro del código.
 - **Viernes** es Jarvis con voz femenina y otro nombre (se activa diciendo "Viernes" o "Hola Viernes"): usa la misma función `jarvis-chat` y la misma memoria.
 

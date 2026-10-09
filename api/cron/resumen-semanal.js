@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     });
 
     const resultados = await Promise.all(envios.map(e =>
-      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: '/' }, { tipo: 'resumen_semanal', momento: 'manana', especial: true, hoyISO })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Beast 🦍', body: e.body, url: '/' }, { tipo: 'resumen_semanal', momento: 'manana', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
 

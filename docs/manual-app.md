@@ -244,6 +244,8 @@ Beast es la inteligencia artificial de la app, con la personalidad del gorila: c
 - **"¿Qué como?":** las mismas sugerencias de "¿Qué puedo comer?" (8.2 F) para la comida de la hora, con **"✅ Anotar esta"** y "🔄 Ver otras opciones". En la gratis cuenta dentro de las 3 por semana.
 - **Agua:** "tomé 2 vasos" se suma directo. **Peso:** "hoy pesé 79,4" → tarjeta "¿Anoto 79,4 kg como tu peso de hoy?"; si cambia 3 kg o más contra el último: "Ojo: son X kg de diferencia… ¿Lo escribiste bien?".
 - Después de anotar: "Listo 🦍 Te quedan X kcal para hoy." y abajo **"✓ Anoté … · Deshacer"** por unos segundos.
+- **"Beast, háblame menos":** le hace caso: solo le llega el aviso del almuerzo y lo importante (14.4).
+- **Lo que Beast sabe de ti** se ordena solo: cuando pasa de 12 datos, se resume en 6 a 10 sin repetidos.
 - **"¿Cómo voy?":** con sus datos reales (peso de inicio y de hoy, días anotados, días en su meta, racha, proteína, agua): primero lo bueno, una cosa por mejorar y un empujón. Sin promesas de kilos ni fechas.
 - Si es su primera comida anotada y puede activar avisos: "¿Te aviso … para anotar tu …? Así no se te pasa 🦍" **[Sí, avísame] [No, gracias]**.
 - Planes y pagos: botón **"👑 Ver Premium"**; algo serio o pagos: **"🙋 Escribirle a Jonah"** (WhatsApp).
@@ -257,6 +259,11 @@ Beast es la inteligencia artificial de la app, con la personalidad del gorila: c
 | Gratis | 3 al día ("Hoy te quedan N mensajes de 3", siempre a la vista) | Cuenta dentro de los 3 (sin límite en Registrar) |
 | Premium | ≈ 60 al día | No gasta mensajes |
 En la prueba y Premium el contador sale recién cuando quedan 5. Al acabarse en la gratis: "Por hoy ya conversamos, causa 🦍 Tus comidas las puedes seguir anotando en Registrar. Con Premium conversamos todo lo que quieras y te las anoto yo 👑" con **"📝 Ir a Registrar"** y **"👑 Ver Premium"**.
+
+**Al abrir el chat, Beast también trae:**
+- **El aviso que tocó** (14.4), al final y con "📝 Anotar en Registrar" / "📸 Foto"; lo que le responda va con ese aviso para que Beast siga el hilo.
+- **Logros** (una vez cada uno): 7 días seguidos anotando, su primer kilo menos, la mitad de su meta y 5 kilos menos (los de peso, si su objetivo es bajar). La burbuja tiene puntito y en Inicio el globito "¡Oe! Tengo algo para ti 🎉 Toca y te cuento". Beast lo felicita (con **"▶️ Escuchar"** también en la versión gratis) y el botón **"📲 Compartir en mi estado"** arma una imagen vertical (el gorila, "BEAST ME FELICITÓ 🦍", el logro, su nombre y JONAHBEAST.COM) para su estado de WhatsApp, con el link `jonahbeast.com/?fuente=estado` (si el celular no deja compartir, se descarga la imagen).
+- **La mini meta de la semana** (de lunes a miércoles, o al tocar el aviso del lunes): "¿Qué mini meta nos ponemos esta semana?" con **"💧 Tomar mis vasos de agua"**, **"📝 Anotar todos los días"** o **"🍗 Llegar a mi proteína"** (90% de su meta). El domingo: "Tu mini meta de esta semana: vas N de 7 días", y la semana siguiente le cuenta el resultado ("🏆 … ¡6 de 7 días!"). Beast la tiene en cuenta al conversar.
 
 **Menú ⋮:** **"📒 Lo que Beast sabe de ti"** (lo que Beast recuerda de su vida, con "Borrar todo"; además sabe su nombre, meta, peso y lo que anota) · **"🙋 Hablar con Jonah (persona) por WhatsApp"** · **"🗑️ Borrar conversación"** · "🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días."
 
@@ -327,7 +334,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - La comida de **AHORA** sin nada registrado y las que todavía no llegan se ven completas, con su **+**. Si quedó un alimento por buscar, la comida se queda abierta hasta que lo elijas.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
-- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
+- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Beast qué puedes comer"** (debajo: "💬 ¿Estás fuera de casa? Cuéntale a Beast", que abre su chat con "Estoy fuera de casa, en " ya escrito) y **"RESTAURANTES ALIADOS"**.
 - **Tira de días (arriba):** **"Hoy"** y los 6 días anteriores, cada uno con su número; un puntito verde marca los días que tienen comidas registradas. Toca un día anterior para **ver y corregir lo que comiste ese día** (por ejemplo, si olvidaste anotar la cena de ayer): sale "Estás viendo ayer / el lunes 29. Lo que agregues o cambies se guarda en ese día." con el botón **"Volver a hoy"**. En un día anterior se registra igual que hoy (foto, escribir, código, voz, atajos) y todas las comidas se ven abiertas; se guarda solo. Tu peso de ese día no cambia.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
@@ -402,7 +409,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - **"⟳ Frecuentes"**: tus 8 alimentos más usados con su cantidad.
 - **"+ Guardar esta comida"**: ponle nombre (ej. "Mi desayuno de siempre") → "Guardar".
 
-**F) "🦍 Pregúntale a Jonah qué puedes comer"**
+**F) "🦍 Pregúntale a Beast qué puedes comer"**
 1. Muestra lo que te queda del día (kcal, proteína, carbos, grasas).
 2. **"¿Para qué comida?"** ya viene con la comida de esa hora (en la noche, la cena). Puedes cambiarla.
 3. **"¿Qué tienes para cocinar?"** (opcional; no sale en media mañana ni media tarde): toca lo que tienes en casa (🍗 Pollo, 🥩 Carne, 🐟 Pescado, 🐖 Cerdo, 🦃 Pavita, 🥫 Atún, 🥚 Huevo) y solo salen opciones con eso. Si no eliges nada, salen de todo.
@@ -927,15 +934,21 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 ### 14.4 Qué avisos llegan (hora de Perú)
 
+**Quién firma:** los avisos del día a día los firma **"Beast 🦍"** y hablan con su voz (comidas, buenos días, racha, "¿todo bien?", hitos, pesaje, control, prueba guiada, ayuda de los primeros días, "Tu semana", reto, bienvenida al activar avisos). **Al tocar un aviso de Beast se abre su chat** (6.4) con ese mensaje y los botones **"📝 Anotar en Registrar"** y **"📸 Foto"** (Premium, o en la gratis si le quedan fotos), y en Premium "o cuéntamelo aquí abajo 👇": puede responderle ahí mismo ("comí un lomo saltado") y Beast lo anota. Los avisos que invitan a la foto o a ajustar la meta abren la cámara o la pantalla de datos. **Jonah firma** lo importante: vencimiento del plan, pagos y los "📣 Mensaje a todos". Ningún aviso dice nada privado (pesos, temas personales).
+
+**Hora de los avisos de comida:** la que el alumno eligió en "Tus avisos"; si no eligió, **la app aprende a qué hora suele anotar** desayuno, almuerzo y cena (con 3 días o más) y el aviso le llega una hora después de esa (mañana entre 6 y 11 am, mediodía entre 12 y 5 pm, noche entre 6 y 11 pm). Si no, la de siempre.
+
+**"Beast, háblame menos":** si se lo pide a Beast en el chat, solo le llega el aviso del almuerzo y los importantes (plan, pesaje, control, prueba). Se vuelve a lo de siempre pidiéndoselo ("ya puedes escribirme como antes").
+
 Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
 **Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, reacción a un logro o foto suya en el muro, foto aprobada por Jonah, fin del reto de su equipo) llegan siempre; los ánimos y las reacciones, como mucho 3 con aviso al día cada uno.
 
 | Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
 |---|---|---|
-| **Mañana** | 8:00 am · Buenos días + "Empieza registrando tu desayuno 🍳" (si aún no lo registró; cada 30 días de uso, felicitación; los lunes, "arrancamos la semana") | 7:00 am · Vencimiento de prueba o plan (2 días antes, el día que vence y el día después si era prueba) · Control quincenal (medirse con cinta y fotos, cada 15 días) · Domingo: pesaje de la semana (a quien ya tiene un peso anotado) · Lunes: "Tu semana" lista (solo si registró algo la semana pasada) |
+| **Mañana** | 8:00 am · Buenos días + "¿Qué desayunas hoy? Cuéntame 🍳" (si aún no lo registró; cada 30 días de uso, felicitación; los lunes, "¿qué mini meta nos ponemos esta semana?" y el chat abre con las opciones; el día 2, si anotó el día 1: "¡Buenos días! 🦍 Como quedamos: ¿qué desayunaste? Cuéntame y lo anotamos.") | 7:00 am · Vencimiento de prueba o plan (2 días antes, el día que vence y el día después si era prueba) · Control quincenal (medirse con cinta y fotos, cada 15 días) · Domingo: pesaje de la semana (a quien ya tiene un peso anotado) · Lunes: "Tu semana" lista (solo si registró algo la semana pasada) |
 | **Mediodía** | 2:00 pm · Registrar almuerzo (si falta) | 12:30 pm · Ayuda para alumnos nuevos (primeros 5 días): quien no registró nada, invitación a tomarle foto a su comida (días 1, 2, 3 y 5); quien registra pero nunca usó la foto, invitación a probar la captura inteligente (días 2 y 4). Al tocarlas se abre la cámara directo |
-| **Noche** | 8:00 pm · Racha en riesgo, "te extrañé" o felicitación por racha · si no le llegó ninguno, 9:00 pm · registrar cena (si falta) | 6:15 pm · Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah · Sábado 6:00 pm · Reto semanal |
+| **Noche** | 8:00 pm · **Cierre del día 1** (quien empezó hoy y anotó algo: "Hoy anotaste N comidas, ¡buen arranque! 🦍 Mañana te pregunto qué desayunaste, ¿ya?"), racha en riesgo, "¿todo bien?" o felicitación por racha · si no le llegó ninguno, 9:00 pm · registrar cena (si falta) | 6:15 pm · Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah · Sábado 6:00 pm · Reto semanal |
 
 Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm ni buenas noches.
 
@@ -947,7 +960,7 @@ Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm 
 
 No le llegan el buenos días, la cena, la racha en riesgo, los hitos de racha, el control quincenal ni el reto semanal (son de Premium).
 
-Tocar un aviso de comida abre la app directo en esa comida.
+Tocar un aviso de comida abre el chat de Beast con ese aviso y el botón "📝 Anotar en Registrar" de esa comida.
 
 ### 14.5 Problemas
 

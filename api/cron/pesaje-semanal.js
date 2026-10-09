@@ -9,12 +9,12 @@
 //
 // Cron en vercel.json: "0 12 * * 0" (12:00 UTC domingo = 7:00 Perú domingo)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos, alumnosGratis, addDaysISO, preferenciasAvisos, sinApagados } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, conPresupuesto, anotarAvisos, alumnosGratis, addDaysISO, preferenciasAvisos, sinApagados, TITULO_BEAST, urlBeast } from '../_lib/push.js';
 
 const MENSAJES = [
-  'Buenos días 🦍 Hoy toca pesaje: pésate en ayunas, después del baño, y anótalo en la app. Toma 10 segundos ⚖️',
-  'Domingo de pesaje ⚖️ En ayunas y después del baño. Anótalo en la app y mañana ves tu semana completa 📊',
-  'Hora de pesarte 🦍 Un dato por semana basta para ver tu avance real. Anótalo en Inicio ⚖️',
+  'Buenos días 🦍 Hoy toca pesaje: en ayunas, después del baño. Dime cuánto marcó y lo anoto ⚖️',
+  'Domingo de pesaje, causa ⚖️ En ayunas y después del baño. Cuéntame cuánto marcó y vemos tu semana 📊',
+  'Hora de pesarte 🦍 Un dato por semana basta para ver tu avance real. ¿Cuánto marcó? ⚖️',
 ];
 
 export default async function handler(req, res) {
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     const conCupo = await conPresupuesto(supabase, sinApagados(await preferenciasAvisos(supabase), destino, 'pesaje'), { momento: 'manana', especial: true, hoyISO });
     let enviados = 0; const fallidos = [];
     await Promise.all(conCupo.map(async u => {
-      const r = await enviarPushA(supabase, [u], { title: 'Jonah 🦍', body, url: '/' });
+      const r = await enviarPushA(supabase, [u], { title: TITULO_BEAST, body, url: urlBeast(body) });
       enviados += r.enviados; fallidos.push(...r.fallidos);
       if (r.enviados > 0) await anotarAvisos(supabase, [u], { tipo: 'pesaje', momento: 'manana', hoyISO });
     }));

@@ -224,8 +224,30 @@ export async function preferenciasAvisos(supabase) {
 export function sinApagados(prefs, usernames, categoria) {
   return (usernames || []).filter(u => !(Array.isArray(prefs?.[u]?.apagados) && prefs[u].apagados.includes(categoria)));
 }
+// La hora del aviso: la que eligió el alumno; si no eligió, la que la app
+// aprendió de cuándo suele anotar esa comida (form.avisos.aprendidas, ver
+// horasAprendidas en src/alumno.jsx: suele almorzar a las 2 → aviso a las
+// 3); si no hay, la de siempre.
+export const VENTANAS_AVISOS = { manana: [6, 7, 8, 9, 10, 11], mediodia: [12, 13, 14, 15, 16, 17], noche: [18, 19, 20, 21, 22, 23] };
 export function horaAviso(prefs, username, momento, defecto) {
   const h = Number(prefs?.[username]?.horas?.[momento]);
-  return HORAS_AVISOS[momento]?.includes(h) ? h : defecto;
+  if (HORAS_AVISOS[momento]?.includes(h)) return h;
+  const a = Number(prefs?.[username]?.aprendidas?.[momento]);
+  return VENTANAS_AVISOS[momento]?.includes(a) ? a : defecto;
+}
+// "Beast, háblame menos": solo el aviso del almuerzo y los importantes
+// (plan, pesaje, control, prueba). Se guarda en form.avisos.pocos.
+export function hablaMenos(prefs, username) {
+  return prefs?.[username]?.pocos === true;
+}
+
+/* Avisos de Beast (docs/idea-beast.md, "Notificaciones"): los del día a día
+   los firma Beast y al tocarlos se abre su chat con ese mensaje (?ir=beast).
+   comida: la del aviso (la tarjeta trae "Anotar en Registrar" y "Foto").
+   Nunca llevan nada privado: se ven en la pantalla bloqueada. */
+export const TITULO_BEAST = 'Beast 🦍';
+export function urlBeast(texto, { comida = null, foto = false, extra = '' } = {}) {
+  return `/?ir=beast&aviso=${encodeURIComponent(String(texto || '').slice(0, 300))}`
+    + (comida ? `&comida=${encodeURIComponent(comida)}` : '') + (foto ? '&foto=1' : '') + extra;
 }
 

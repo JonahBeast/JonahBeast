@@ -28,10 +28,10 @@ const INTERVALO_DIAS = 15;
 
 function mensajeControl() {
   const variantes = [
-    { title: 'Jonah 🦍', body: 'Hoy te toca tu control quincenal: mídete con la cinta (cuello, cintura, cadera) y sube tus fotos de progreso 📸' },
-    { title: 'Jonah 🦍', body: 'Cada 15 días es momento de ver cómo cambia tu cuerpo de verdad — mídete y actualiza tus fotos 💪' },
-    { title: 'Jonah 🦍', body: 'Toca control: anota tus medidas y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
-    { title: 'Jonah 🦍', body: 'Han pasado 15 días desde tu último control — buen momento para medirte y fotografiarte otra vez 📸' },
+    { title: 'Beast 🦍', body: 'Hoy te toca tu control quincenal: mídete con la cinta (cuello, cintura, cadera) y sube tus fotos de progreso 📸' },
+    { title: 'Beast 🦍', body: 'Cada 15 días es momento de ver cómo cambia tu cuerpo de verdad — mídete y actualiza tus fotos 💪' },
+    { title: 'Beast 🦍', body: 'Toca control: anota tus medidas y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
+    { title: 'Beast 🦍', body: 'Han pasado 15 días desde tu último control — buen momento para medirte y fotografiarte otra vez 📸' },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }

@@ -40,6 +40,11 @@ El alumno casi no escribe: le habla a Beast y Beast anota.
 
 Lo que diferencia a Beast: es un personaje con historia (el gorila de la marca) que se acuerda de tu vida; detrás hay una persona real (Jonah, a un toque por WhatsApp); comida peruana revisada a mano, con medidas caseras y la regla del arroz; cuesta S/24,90 (casi la tercera parte); y tendrá WhatsApp. Frase que sí es cierta: "Beast te conoce, habla como peruano y tiene detrás a Jonah, una persona real. Y cuesta la tercera parte que otras apps." Antes de usar el precio de la competencia en un anuncio, volver a revisarlo en su tienda.
 
+**Cómo venderlo (9 de octubre):** no decir "pioneros", "los primeros" ni "el único" (no es cierto, y INDECOPI sanciona la publicidad que no se puede probar). La meta es ser **los mejores para el peruano**: el que mejor conoce la comida peruana de verdad (con medidas de casa), el más cercano (se acuerda de tu vida y tiene una persona real detrás) y el más accesible (la tercera parte del precio). Frases aprobadas:
+- "Hecho en Perú, para el que come peruano."
+- "Beast te conoce. Y detrás está Jonah, una persona real."
+- "Tu compañero para bajar de peso sin dejar tu comida."
+
 ## Lo que Beast puede hacer (por los mismos caminos de la app)
 
 Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace Beast queda igual que lo hecho a mano (aparece en "Tu día", llega la tarjeta de novedades) y en el panel se marca "vía Beast" para medir cuánto lo usan. **Siempre confirma con una tarjeta y botones antes de guardar.**

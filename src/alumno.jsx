@@ -11632,7 +11632,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
             <img src={IMAGEN_BEAST} alt={nombreCompa} className="w-full h-full object-cover scale-[1.6]" />
           </span>
           <div className="flex-1 min-w-0">
-            <p className="jb-display text-lg text-zinc-50 tracking-wide leading-5 truncate">{nombreCompa.toUpperCase()} · TU {compa.toUpperCase()}</p>
+            <p className="jb-display text-lg text-zinc-50 tracking-wide leading-6 truncate">{nombreCompa.toUpperCase()} · TU {compa.toUpperCase()}</p>
             <p className="jb-body text-[11px] text-zinc-500">IA de Jonah Beast Fuel</p>
           </div>
           {estado === 'listo' && (

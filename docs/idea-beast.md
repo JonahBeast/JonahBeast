@@ -1,0 +1,104 @@
+# Beast · tu compañero (idea de Jonah, 9 de octubre)
+
+Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propone después de la revisión de pagos del 10 de octubre, si se ve que la gente se va por perder la motivación.
+
+## Qué es
+
+- Nació como una app aparte de "amigo digital". Se decidió que **viva dentro de Jonah Beast Fuel**.
+- Es **el gorila**, y se llama **"Beast"** para no confundirlo con Jonah persona.
+- En la app se presenta como **"Beast · tu compañero"** (Jonah lo prefiere a "coach" porque es más cercano). Siempre se ve que es la IA de la app ("IA de Jonah Beast Fuel"). **Nunca "nutricionista".**
+- Sabe nombre, meta y comidas, y lo que el alumno le cuente de su vida (trabajo, hijos, fines de semana). Se acuerda de todo, escribe primero ("ayer no anotaste nada, ¿todo bien?") y aconseja como amigo.
+- Cuenta la historia de Jonah en tercera persona ("Jonah, el que creó esta app, bajó 37 kg…"), nunca como si él la hubiera vivido.
+- **Hábito sano:** el alumno vuelve porque Beast le resuelve algo (lo conoce, le resuelve el "¿qué como?", lo rescata del mal día, lo celebra y le cuida el camino). Nada de culpa ni sentimientos fingidos ("me pones triste si no vienes").
+- **Para venderlo:** "Beast, tu compañero que te conoce y te lleva a tu meta", "No vas solo: Beast va contigo, comida a comida", "👑 Premium: tu compañero Beast sin límite".
+
+## Cómo se ve
+
+- La burbuja del gorila ocupa el lugar del botón de WhatsApp: borde naranja, el nombre "BEAST", un puntito cuando tiene algo que decir y un globito con su mensaje.
+- Al tocarla se abre un **chat estilo WhatsApp dentro de la app**, con botones rápidos, foto y voz, el aviso de los mensajes gratis que quedan y siempre **"🙋 Hablar con Jonah (persona) por WhatsApp"** para pagos o algo serio.
+- Imagen de la propuesta hecha el 9 de octubre (HTML + Playwright, sobre la captura de inicio de Carla, `public/anuncios/pantallas/1-inicio-calorias-del-dia.png`).
+
+## Voz
+
+- **Al lanzar: notas de voz como en WhatsApp.** El alumno mantiene apretado 🎤, habla y suelta. En el chat sale el texto que entendió Beast, para que vea que lo escuchó bien. Usa la misma transcripción que ya tiene la app para anotar comidas por voz (`gpt-4o-mini-transcribe`, en `reconocer-comida`).
+- **Beast responde por escrito**, con un botón **▶️ Escuchar** para oírlo con su voz de gorila (la de los videos, `gpt-4o-mini-tts`, como `jarvis-voz`). Opción para que siempre responda hablando. Idea: que la voz de Beast sea un gusto de Premium ("👑 Con Premium, Beast te habla").
+- **Más adelante:** conversación en vivo, como una llamada (como Jarvis y Viernes), quizás como plus de Premium ("📞 Habla con Beast"), si se ve que usan mucho la voz. Cuesta más y es más trabajo.
+- **Costo:** escuchar una nota cuesta fracciones de céntimo y que Beast hable una respuesta, alrededor de 1 céntimo. Un alumno que usa mucho la voz suma ≈ S/0,20 a S/0,30 al mes (≈ S/1 al mes en total con Beast).
+
+## Anotar comidas hablándole (la función estrella, según Jonah)
+
+El alumno casi no escribe: le habla a Beast y Beast anota.
+
+- Ejemplo: 🎤 "Beast, en el almuerzo comí 150 gramos de arroz, 120 de pollo a la plancha y una ensalada. Agrégalo." Beast responde con una **tarjeta en el chat**: la comida y el día, cada alimento con su cantidad y calorías (✅), las dudas con opciones (🤔 "Ensalada, ¿cuál fue?"), el total y los botones **"✅ Agregar al almuerzo"** y **"Cambiar"**. Al guardar: "Listo 🦍 Te quedan 640 kcal para la cena."
+- Entiende la comida ("en el desayuno…"; si no la dice, usa la de la hora, como la app), varias comidas de una vez, el día ("ayer en la cena…"), medidas caseras ("un plato", "media taza", "2 cucharadas") y correcciones antes de guardar ("no, eran 80 gramos de pollo", "quita el pan").
+- **Usa el mismo motor que el registro por voz de hoy** (manual 8, "C) Voz"): mismo buscador y calorías de la base, mismas preguntas 🤔 cuando hay duda, mismo "🙋 Pedirlo" cuando no existe y siempre confirma antes de guardar. Que el resultado sea igual anote por la pantalla de voz o por Beast.
+- **Regla de Premium:** registrar por voz es Premium hoy; Beast no puede ser una puerta trasera. Gratis: conversa un poco y anota escribiendo. Premium: anota por voz con Beast sin límite. Si un gratis le habla para anotar: "Anotar con tu voz es de Premium 👑 Por ahora escríbemelo y lo anoto igual."
+
+## Competencia (revisado el 9 de octubre)
+
+**No decir "ninguna app en Perú hace esto": no es cierto.** Fitia (muy usada en Latinoamérica y Perú) ya tiene un coach con IA por chat que ayuda a anotar comidas y registro por voz, con Premium que **en Perú cuesta S/31,90 el mes, S/96,90 el año (S/8,08 al mes) y el familiar (2 a 6 personas) S/145,90 el año (S/12,16 al mes)**, con 3 días gratis solo en los anuales y "Ahorra hasta 75%" (**confirmado** con capturas del celular de Jonah, App Store Perú, 9 de octubre de 2026). La pantalla de pago se llama "Desbloquea Fitia Coach": el coach es su gancho para vender Premium. Una reseña de 2026 (sin confirmar) dice que el coach tiene un límite de uso al mes y luego se compran monedas. MyNetDiary y Caloa también juntan voz y coach con IA.
+
+Lo que diferencia a Beast: es un personaje con historia (el gorila de la marca) que se acuerda de tu vida; detrás hay una persona real (Jonah, a un toque por WhatsApp); comida peruana revisada a mano, con medidas caseras y la regla del arroz; y tendrá WhatsApp. **El precio no es nuestra ventaja principal:** en el mes somos ≈ 22% más baratos (S/24,90 vs. S/31,90), pero en el año Fitia (S/96,90) cuesta menos de la mitad que nuestro anual (S/209,90). Frase que sí es cierta: "Beast te conoce, habla como peruano y tiene detrás a Jonah, una persona real." (Sin hablar de precio.) Antes de usar el precio de la competencia en un anuncio, volver a revisarlo en su tienda.
+
+**Cómo venderlo (9 de octubre):** no decir "pioneros", "los primeros" ni "el único" (no es cierto, y INDECOPI sanciona la publicidad que no se puede probar). La meta es ser **los mejores para el peruano**: el que mejor conoce la comida peruana de verdad (con medidas de casa) y el más cercano (se acuerda de tu vida y tiene una persona real detrás). Frases aprobadas:
+- "Hecho en Perú, para el que come peruano."
+- "Beast te conoce. Y detrás está Jonah, una persona real."
+- "Tu compañero para bajar de peso sin dejar tu comida."
+
+## Lo que Beast puede hacer (por los mismos caminos de la app)
+
+Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace Beast queda igual que lo hecho a mano (aparece en "Tu día", llega la tarjeta de novedades) y en el panel se marca "vía Beast" para medir cuánto lo usan. **Siempre confirma con una tarjeta y botones antes de guardar.**
+
+| Acción | Regla |
+|---|---|
+| 🍽️ Anotar una comida (texto o foto) | Tarjeta para confirmar antes de guardar |
+| ⚖️ Anotar el peso | Si el cambio es raro (ej. 5 kg en un día), pregunta "¿Seguro?" |
+| 💧 Sumar agua | Directo |
+| 🙋 Pedir un alimento | Premium, igual que hoy. Entra a `pedidos_alimentos` con la misma revisión de la IA y la misma rutina de cada hora. En la versión gratis lo ayuda a crearlo |
+| ➕ Crear su alimento | Igual que hoy |
+| 📈 Ver su progreso | Solo lee |
+
+**Lo que no hace:** pagos y planes (lo lleva a planes o al WhatsApp de Jonah), cambiar la meta o el perfil (lo lleva a esa pantalla), borrar comidas o la cuenta (solo desde la app). **Nunca agrega alimentos a la base por su cuenta.** Las calorías siempre salen de la base de alimentos de la app, nunca "de memoria".
+
+## Qué IA usa
+
+- **Equipo de dos:** Haiku 5.5 (económico) para el día a día (~95% de los mensajes); Sonnet 5.5 (fino) para temas delicados (ánimo, trastornos de la alimentación, salud) y para ordenar la libreta una vez al día. El cambio es automático y el alumno no lo nota.
+- **Antes de lanzarlo, una prueba:** unas 30 conversaciones realistas (día normal, se pasó, día triste, preguntas difíciles) respondidas por Haiku y por Sonnet. Jonah las lee sin saber cuál es cuál y elige.
+
+## Costos (con S/24,90 al mes)
+
+- ≈ **S/0,70 al mes por alumno** con el equipo Haiku + Sonnet (≈ S/0,50 solo con Haiku; ≈ S/7,50 solo con Sonnet). Va de unos céntimos (entra poco) a ≈ S/3 (Premium que conversa muchísimo). Es menos del 3% de lo que paga.
+- El riesgo son los gratis: con 2 de cada 100 pagando se queda a mano; con 5 de cada 100 se gana bien.
+- **Límites** (detalle en "Cómo se manejan los límites"): pocos mensajes gratis al día (3 a 5), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
+- Confirmar el gasto real el primer mes en la tabla `ia_uso`.
+
+## Cómo se manejan los límites (9 de octubre)
+
+Lección de Fitia (según una sola reseña de 2026, sin confirmar: su coach tiene un límite de uso al mes y después se compran monedas). Un límite mal manejado hace sentir engañado al que paga; bien manejado, nadie lo nota.
+
+1. **Anotar nunca tiene límite:** anotar comidas, agua o peso con Beast no gasta mensajes. El límite es solo para la conversación libre.
+2. **Límite por día, no por mes:** mañana vuelve completo; nadie se queda semanas sin su compañero.
+3. **Generoso en Premium:** ≈ 60 mensajes al día (lo normal es 5 a 15). Al llegar a 50: "Hoy conversamos un montón 🦍 Me quedan unos pocos mensajes, mañana seguimos con todo." Al llegar a 60: "Por hoy descanso, pero puedes seguir anotando tus comidas en la app. ¡Mañana seguimos!"
+4. **Claro en la versión gratis:** 3 a 5 mensajes al día con el contador a la vista ("Te quedan 2 mensajes hoy"); al terminarse invita a Premium sin regañar.
+5. **Sin monedas ni cobros extra:** Premium se paga una vez al mes y listo. Para vender, sin nombrar a la competencia: "Beast va contigo todo el mes. Sin monedas, sin cobros extra." No decir en anuncios que Fitia cobra monedas sin confirmarlo.
+6. **Ajustarlo con datos:** el primer mes, ver cuánto conversa la gente de verdad y subir o bajar el freno.
+
+Aun usándolo al máximo todos los días, un alumno cuesta ≈ S/3 al mes, y la alarma avisa si el gasto total se pasa.
+
+## Memoria y datos personales
+
+- **Libreta** resumida: dura mientras la cuenta esté activa, con tope de ≈ 1 página (al llenarse, Beast la resume; si crece sin tope, cada mensaje sale más caro).
+- **Conversaciones completas:** se borran solas a los 90 días.
+- Todo se borra al eliminar la cuenta; la libreta, tras 12 meses sin entrar.
+- Opción **"Lo que Beast sabe de ti"** en el chat para ver y borrar.
+- Guardarlo cuesta casi nada (1.000 alumnos ≈ 10 a 30 MB).
+- Necesita tabla nueva para la memoria (explicársela a Jonah antes).
+- **Ley 29733 de Protección de Datos Personales** (peso, comidas y salud son datos sensibles): pedir permiso la primera vez que abre a Beast, actualizar `public/privacidad.html` y no usar esos datos para anuncios ni compartirlos.
+
+## Cuidados
+
+Que siempre diga que es IA. Protocolo si alguien habla de depresión, hacerse daño o trastornos de la alimentación (responder con tacto y dar un contacto de ayuda real). Sin consejos médicos ni promesas de kilos. Si mencionan una enfermedad o un embarazo, recomendar ver a un profesional.
+
+## WhatsApp
+
+**Se fusiona con el asistente de WhatsApp:** un solo Beast con la misma memoria y dos puertas. La app es su casa; WhatsApp sirve para ir a buscar a quien deja de entrar (los avisos de la app solo llegan a 1 de cada 3). Orden: primero en la app y medir si suben los pagos; si funciona, conectarle WhatsApp en vez de hacer un asistente aparte.

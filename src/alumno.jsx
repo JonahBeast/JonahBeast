@@ -9133,7 +9133,7 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
    al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
    entra con su correo. */
-function AbrirEnNavegadorModal({ username, onCerrar }) {
+function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
   useEffect(() => { registrarPasoPago('abrir_navegador', username, 'vio'); }, [username]);
   const [correo, setCorreo] = useState('');
@@ -9163,6 +9163,7 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
       <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
         <AsaHoja />
         <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        {trasPrimeraComida && <p className="jb-body text-sm text-orange-400 font-semibold mb-1">¡Bien ahí, ya registraste tu primera comida! 💪</p>}
         <h2 className="jb-display text-xl text-zinc-50 mb-3">UN ÚLTIMO PASO PARA ACOMPAÑARTE</h2>
         <p className="jb-body text-sm text-zinc-300 leading-relaxed">
           Estás usando la app dentro de {app === 'otra app' ? 'otra app' : app}. Ahí <b className="text-zinc-100">no te llegan mis avisos</b> ni puedes instalarla.
@@ -11451,8 +11452,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       .then(null, () => { if (vivo) setNuncaRegistro(false); });
     return () => { vivo = false; };
   }, [username]);
+  // Eligió cómo registrar su primera comida (foto, buscar, un plato o el de
+  // la prueba de la portada): el aviso de abrir la app en Chrome/Safari
+  // espera a que la guarde, para no taparle la cámara ni el buscador.
+  const [primeraEnCurso, setPrimeraEnCurso] = useState(false);
   function registrarPrimeraComida(meal, p) {
     registrarPasoPago('primera_comida', username, 'plato');
+    setPrimeraEnCurso(true);
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
     setNuncaRegistro(false);
     vibrar(30);
@@ -11588,6 +11594,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const meal = comidaDeAhora(new Date(demo.hora));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), ...entradas] } }));
     setNuncaRegistro(false);
+    setPrimeraEnCurso(true);
     registrarPasoPago('primera_comida', username, 'demo');
     showToast(`📸 El plato de tu prueba ya quedó registrado en tu ${meal.toLowerCase()}`);
   }, [nuncaRegistro, alimentosHoy, verGuia, username]);
@@ -11655,8 +11662,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {/* Primero su primera comida (está motivado y ya está adentro); recién
             después se le pide abrir la app en Chrome/Safari, donde tiene que
-            volver a entrar con su correo. */}
-        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+            volver a entrar con su correo. Si eligió foto o buscar, espera a
+            que la guarde y vuelva a Inicio: antes salía encima de la cámara. */}
+        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida
+          && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta
+          && <AbrirEnNavegadorModal username={username} trasPrimeraComida={primeraEnCurso && alimentosHoy > 0} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
         {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
@@ -11667,8 +11677,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
-            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
-            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setNuncaRegistro(false); irARegistrar(meal); }}
+            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
+            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (

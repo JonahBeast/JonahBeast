@@ -7415,6 +7415,10 @@ async function llamarJarvis(cuerpo, alEvento) {
 }
 
 // Mensajes que muestra Jarvis cuando el micrófono no puede funcionar.
+// Silencio (en ms) que espera Jarvis después de que Jonah deja de hablar
+// antes de enviar la frase.
+const PAUSA_FIN_FRASE_MS = 1300;
+
 const AVISOS_MIC = {
   'not-allowed': 'No tengo permiso para usar el micrófono en esta página. Toca el ícono a la izquierda de la dirección web, permite el micrófono y vuelve a tocar 🎤. Mientras tanto puedes escribirme.',
   'service-not-allowed': 'Este navegador no me deja usar el reconocimiento de voz. Prueba en Google Chrome o Safari, o escríbeme.',
@@ -8100,6 +8104,11 @@ function JarvisPanel({ onClose, users }) {
   // Lo que el micrófono va entendiendo mientras Jonah habla (subtítulos en
   // vivo), para que vea al toque si lo está captando o no.
   const [oyendo, setOyendo] = useState('');
+  // El navegador corta la frase en cada pausa chiquita ("Viernes, cuáles…"
+  // llegaba solo como "cuáles"). Los pedazos se juntan aquí y se envían
+  // recién tras un silencio de PAUSA_FIN_FRASE_MS.
+  const fraseRef = useRef('');
+  const esperaFraseRef = useRef(null);
   const [hablando, setHablando] = useState(false);
   const [pulsoVoz, setPulsoVoz] = useState(0); // sube con cada palabra que dice Jarvis
   const logRef = useRef(null);
@@ -8482,24 +8491,13 @@ function JarvisPanel({ onClose, users }) {
     if (!SR) return;
     const recog = new SR();
     recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = true; recog.maxAlternatives = 1;
-    recog.onresult = (e) => {
-      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
-      // ignora: puede ser su propia voz.
-      if (pausadoParaHablarRef.current) { setOyendo(''); return; }
-      // Mientras habla llegan pedazos provisionales: se muestran en vivo. Se
-      // responde solo cuando el navegador da la frase por terminada.
-      let provisional = '';
-      let final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript;
-        else provisional += e.results[i][0].transcript;
-      }
-      if (!final) { setOyendo(provisional.trim()); return; }
+    // Frase completa (todos los pedazos juntos): decide si lo llamaron y la envía.
+    const procesarFrase = () => {
+      clearTimeout(esperaFraseRef.current);
+      const dicho = fraseRef.current.replace(/\s+/g, ' ').trim();
+      fraseRef.current = '';
       setOyendo('');
-      // Se usa siempre la versión más reciente de enviar() (con la
-      // conversación al día), no la del momento en que se prendió el micro.
-      const dicho = final.trim();
-      if (!dicho) return;
+      if (!dicho || pausadoParaHablarRef.current) return;
       const pedido = quitarPalabraJarvis(dicho);
       llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
@@ -8521,12 +8519,32 @@ function JarvisPanel({ onClose, users }) {
       despiertoHastaRef.current = 0;
       sonidoJarvis('despierto');
       cerrarMicTrasHablarRef.current = esDespedidaJarvis(texto);
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
       enviarRef.current(texto);
+    };
+    recog.onresult = (e) => {
+      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
+      // ignora: puede ser su propia voz.
+      if (pausadoParaHablarRef.current) { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); return; }
+      // Mientras habla llegan pedazos provisionales: se muestran en vivo,
+      // junto con lo que ya dijo antes de la última pausa.
+      let provisional = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fraseRef.current += ' ' + e.results[i][0].transcript;
+        else provisional += e.results[i][0].transcript;
+      }
+      setOyendo(`${fraseRef.current} ${provisional}`.replace(/\s+/g, ' ').trim());
+      // Cada vez que sigue hablando se vuelve a esperar: se envía cuando se
+      // calla de verdad, no en la primera pausa.
+      clearTimeout(esperaFraseRef.current);
+      if (fraseRef.current.trim() && !provisional.trim()) esperaFraseRef.current = setTimeout(procesarFrase, PAUSA_FIN_FRASE_MS);
     };
     recog.onerror = (e) => {
       micActivoRef.current = false;
       setEscuchando(false);
-      setOyendo('');
+      // Si se cortó con una frase a medias ya dicha, no se pierde.
+      if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); }
       // Errores que no se arreglan reintentando (sin permiso, sin micrófono
       // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
       // vez de seguir intentando en silencio.
@@ -8534,7 +8552,7 @@ function JarvisPanel({ onClose, users }) {
       if (aviso) { apagarMicConAviso(aviso); return; }
       if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
     };
-    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); setOyendo(''); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); } if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); micActivoRef.current = true; recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 

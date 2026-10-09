@@ -10804,7 +10804,7 @@ async function imagenLogro(titulo, nombre, nombreCompa = 'Beast') {
   g.fillStyle = 'rgba(232,89,12,0.18)';
   g.beginPath(); g.arc(540, 700, 430, 0, Math.PI * 2); g.fill();
   try { await document.fonts?.load?.('120px Anton'); } catch {}
-  const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = '/jonah-avatar.png'; });
+  const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = IMAGEN_BEAST; });
   if (img) {
     g.save(); g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.clip();
     g.drawImage(img, 210, 370, 660, 660); g.restore();
@@ -10869,6 +10869,10 @@ function companeroDe(form) {
 }
 const useCompanero = () => usePremium().companero || companeroDe(null);
 
+// El gorila con los puños encendidos (el ícono de la app): más llamativo que
+// la cara sola, para la burbuja, el chat y la tarjeta de logros.
+const IMAGEN_BEAST = '/icon-512.png';
+
 function funcionBeast() {
   return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';
 }
@@ -10914,8 +10918,8 @@ function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo
         </div>
       )}
       <button onClick={onAbrir} aria-label={`Hablar con ${nombre}, tu ${compa}`} className="relative flex flex-col items-center">
-        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-500 shadow-lg shadow-orange-900/40 bg-zinc-900">
-          <img src="/jonah-avatar.png" alt="Beast" className="w-full h-full object-cover" />
+        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-400 bg-zinc-900 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] motion-safe:animate-jb-brillo">
+          <img src={IMAGEN_BEAST} alt={nombre} className="w-full h-full object-cover scale-[1.6]" />
         </span>
         {punto && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-zinc-950" />}
         <span className="jb-display text-[10px] tracking-widest text-orange-400 -mt-1.5 bg-zinc-950 border border-orange-500/60 rounded-full px-1.5 leading-4 max-w-[72px] truncate">{nombre.toUpperCase()}</span>
@@ -10936,7 +10940,9 @@ function BeastConsentimiento({ onAceptar, onCerrar }) {
   const [guardando, setGuardando] = useState(false);
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center text-center gap-4">
-      <img src="/jonah-avatar.png" alt="Beast" className="w-24 h-24 rounded-full border-2 border-orange-500" />
+      <span className="w-24 h-24 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] motion-safe:animate-jb-brillo">
+        <img src={IMAGEN_BEAST} alt="Beast" className="w-full h-full object-cover scale-[1.6]" />
+      </span>
       <div>
         <p className="jb-display text-3xl text-zinc-50 tracking-wide">BEAST</p>
         <p className="jb-body text-sm text-orange-400">tu compañero · IA de Jonah Beast Fuel</p>
@@ -11552,7 +11558,9 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="w-full max-w-lg mx-auto flex-1 flex flex-col min-h-0">
         <header className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
-          <img src="/jonah-avatar.png" alt={nombreCompa} className="w-10 h-10 rounded-full border-2 border-orange-500" />
+          <span className="w-10 h-10 shrink-0 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_10px_2px_rgba(255,112,32,0.6)]">
+            <img src={IMAGEN_BEAST} alt={nombreCompa} className="w-full h-full object-cover scale-[1.6]" />
+          </span>
           <div className="flex-1 min-w-0">
             <p className="jb-display text-lg text-zinc-50 tracking-wide leading-5 truncate">{nombreCompa.toUpperCase()} · TU {compa.toUpperCase()}</p>
             <p className="jb-body text-[11px] text-zinc-500">IA de Jonah Beast Fuel</p>

@@ -85,6 +85,22 @@ Una de las preguntas que más le harán ("¿cómo voy con mi plan?", "¿cómo va
 - **Si casi no hay datos:** no inventa; lo anima a anotar unos días para poder decirle cómo va.
 - **Prueba por terminar:** si le quedan pocos días, se lo cuenta con naturalidad junto con su avance y lo invita a Premium (ayuda a que no se caigan en el arranque).
 
+## Notificaciones: quién firma cada aviso (9 de octubre)
+
+Hoy todos los avisos de la app llegan firmados "Jonah 🦍" y hablan como Jonah en primera persona (`api/cron/`: `recordatorio`, `racha-en-riesgo`, `pesaje-semanal`, `control-quincenal`, `activa-tu-perfil`, `prueba-guiada`, `plan-por-vencer`). Con Beast en la app serían dos "yo" y confundiría. Se reparten los papeles:
+
+| Quién firma | Avisos | Por qué |
+|---|---|---|
+| **Beast 🦍** | Del día a día (automáticos): recordatorios de comidas, racha en riesgo, "te extrañé", pesaje, control quincenal, agua, días de uso, arranque y prueba guiada | Es su compañero de todos los días |
+| **Jonah** | Momentos importantes: plan por vencer, "📣 MENSAJE A TODOS" (Navidad, Año Nuevo) y mensajes especiales suyos | Pesan más porque vienen de la persona real |
+
+- **Tocar un aviso de Beast abre su chat** con ese mensaje ya puesto, y el alumno le contesta ahí ("ya almorcé, un lomo saltado") y Beast se lo anota. El aviso pasa a ser una conversación.
+- **Más honesto:** lo automático lo dice el compañero que Jonah creó; cuando habla Jonah, es Jonah de verdad.
+- **Se le cuenta al alumno:** el primer saludo de Beast lo presenta ("Soy Beast, el compañero que Jonah armó para acompañarte todos los días. Él sigue aquí para lo importante").
+- **Sin avisos de más:** Beast y Jonah comparten el mismo límite diario de avisos (`avisoConPresupuesto`).
+- **Hasta que Beast salga, no se cambia nada:** los avisos siguen como "Jonah 🦍".
+- Ojo: hoy solo 1 de cada 20 nuevos tiene avisos activos; la puerta fuerte para ir a buscar a quien deja de entrar es WhatsApp (ver abajo).
+
 ## Qué IA usa
 
 - **Equipo de dos:** Haiku 5.5 (económico) para el día a día (~95% de los mensajes); Sonnet 5.5 (fino) para temas delicados (ánimo, trastornos de la alimentación, salud) y para ordenar la libreta una vez al día. El cambio es automático y el alumno no lo nota.
@@ -134,6 +150,23 @@ Aun usándolo al máximo todos los días, un alumno cuesta ≈ S/3 al mes, y la 
 - Guardarlo cuesta casi nada (1.000 alumnos ≈ 10 a 30 MB).
 - Necesita tabla nueva para la memoria (explicársela a Jonah antes).
 - **Ley 29733 de Protección de Datos Personales** (peso, comidas y salud son datos sensibles): pedir permiso la primera vez que abre a Beast, actualizar `public/privacidad.html` y no usar esos datos para anuncios ni compartirlos.
+
+## Conversaciones personales: qué ve Jonah (9 de octubre)
+
+Los alumnos le van a contar cosas personales ("me siento mal", "estoy triste", "peleé con mi pareja y me comí todo"). **Jonah no lee las conversaciones personales:** si el alumno sabe que alguien lo lee, no se abre; además la Ley 29733 trata salud y ánimo como datos sensibles (solo para lo que aceptó y lo mínimo).
+
+| Qué | ¿Jonah lo ve? |
+|---|---|
+| Números generales (cuántos usan a Beast, temas más hablados, comidas anotadas vía Beast) | Sí, sin nombres |
+| Conversaciones que el alumno marca con 👎 ("Beast se equivocó") | Sí: el alumno mismo la manda para mejorar |
+| Pedidos de alimentos, errores de calorías, temas de la app | Sí, como hoy |
+| Conversaciones personales (tristeza, pareja, problemas) | No. Quedan entre el alumno y Beast y se borran a los 90 días |
+
+- **Si alguien está mal de verdad** (hacerse daño, no querer vivir): Beast responde con tacto, no corta la conversación y da ayuda real: **Línea 113, opción 5** (salud mental del MINSA, gratis).
+- **Alerta a Jonah solo con permiso:** al empezar con Beast se le pregunta "Si te veo muy mal, ¿quieres que le avise a Jonah para que te escriba?". Sin ese sí, no le llega nada.
+- **Beast no es psicólogo:** escucha, anima y, si el tema es fuerte, sugiere hablar con alguien de confianza o un profesional.
+- **"Estoy triste y me comí todo":** sin culpa; una comida no borra su avance, seguimos en la siguiente.
+- **Se le dice clarito al empezar** (dos líneas): sus conversaciones son privadas, Jonah no las lee, se borran a los 90 días y puede borrarlas antes. También va en `public/privacidad.html`.
 
 ## Cuidados
 

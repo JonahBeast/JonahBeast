@@ -10802,6 +10802,9 @@ async function llamarMensajeMasivo(cuerpo) {
     body: JSON.stringify(cuerpo),
   });
   const j = await r.json().catch(() => ({}));
+  // Sesión cerrada (por ejemplo, tocó "Salir" en otro celular o pestaña):
+  // se le dice qué hacer; lo que escribió queda guardado en este equipo.
+  if (r.status === 401 || r.status === 403) throw new Error('Tu sesión de administrador se cerró (¿saliste en otro celular o pestaña?). Toca "Salir" y vuelve a entrar: lo que escribiste aquí no se pierde.');
   if (!r.ok) throw new Error(j.error || 'No se pudo completar. Intenta de nuevo.');
   return j;
 }
@@ -10809,8 +10812,13 @@ const fechaHoraPeru = iso => new Date(iso).toLocaleString('es-PE', { timeZone: '
 
 function MensajeATodosPanel() {
   const [abierto, setAbierto] = useState(false);
-  const [titulo, setTitulo] = useState('');
-  const [texto, setTexto] = useState('');
+  // El borrador se guarda en este equipo, por si la sesión se cierra o la
+  // página se recarga antes de enviarlo.
+  const [titulo, setTitulo] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-titulo') || ''; } catch { return ''; } });
+  const [texto, setTexto] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-texto') || ''; } catch { return ''; } });
+  useEffect(() => {
+    try { localStorage.setItem('jb-mensaje-borrador-titulo', titulo); localStorage.setItem('jb-mensaje-borrador-texto', texto); } catch {}
+  }, [titulo, texto]);
   const [publico, setPublico] = useState('todos');
   const [cuando, setCuando] = useState('ahora'); // 'ahora' | 'programar'
   const [fecha, setFecha] = useState(''); // AAAA-MM-DDTHH:MM, hora de Perú
@@ -10949,7 +10957,7 @@ function MensajeATodosPanel() {
 
           {(titulo.trim() || texto.trim()) && (
             <div className="flex flex-col gap-2">
-              <p className="jb-body text-[11px] text-zinc-500">Así se verá:</p>
+              <p className="jb-body text-[11px] text-zinc-500">Así se verá (la notificación, y la ventana que sale apenas abren la app):</p>
               <div className="bg-zinc-100 text-zinc-900 rounded-xl px-3 py-2 flex gap-2 items-start">
                 <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg shrink-0" />
                 <div className="min-w-0">

@@ -5,6 +5,7 @@
 ## Pendiente
 
 - **Frenar pesos mal escritos.** Si un alumno anota un cambio muy grande (ej. 5 kg en un día), la app le pregunta "¿Seguro?" antes de guardar. Casos vistos: Jimena (70 → 54,4 kg en una semana) e Irvin (−5 kg en un día). Jonah aún no lo ha pedido: espera su OK.
+- **Idea de Jonah (9 de octubre): "compañero que te conoce" dentro de la app del alumno** (nació como app aparte de "amigo digital"; se decidió que viva dentro de Jonah Beast Fuel). Un amigo con IA que sabe nombre, meta, comidas y la vida que el alumno le cuente (trabajo, hijos, fines de semana), se acuerda de todo, escribe primero ("ayer no anotaste nada, ¿todo bien?") y aconseja como amigo, con la voz e historia de Jonah. Unos mensajes gratis al día y sin límite en Premium. Cuidar: que diga que es IA, protocolo si alguien habla de depresión, hacerse daño o trastornos de la alimentación (contacto de ayuda real), sin consejos médicos ni promesas. Costo estimado: con Haiku 5.5 ≈ US$0,001 por mensaje (30 alumnos × 5 mensajes al día ≈ US$4 al mes); con Sonnet 5.5 unas 15 veces más. Necesita tabla nueva para la memoria (explicársela a Jonah antes). **Proponerlo después de la revisión de pagos del 10 de octubre**, si se ve que la gente se va por perder la motivación.
 
 ## Con fecha
 

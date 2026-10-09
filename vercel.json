@@ -122,7 +122,7 @@
     },
     {
       "path": "/api/cron/mensajes-programados",
-      "schedule": "2 * * * *"
+      "schedule": "2,17,32,47 * * * *"
     }
   ],
   "functions": {

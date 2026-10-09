@@ -1,6 +1,6 @@
 // api/cron/mensajes-programados.js
 //
-// Cada hora: saca los 📣 mensajes a todos que ya llegaron a su hora
+// Cada 15 minutos (a los :02, :17, :32 y :47; pedido de Jonah): saca los 📣 mensajes a todos que ya llegaron a su hora
 // (tabla mensajes_masivos, estado 'programado'). De noche no hace nada: los
 // mensajes guardados para esas horas ya quedan para las 8 a.m.
 

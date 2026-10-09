@@ -8097,6 +8097,9 @@ function JarvisPanel({ onClose, users }) {
   const [vozOn, setVozOn] = useState(true);
   const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
+  // Lo que el micrófono va entendiendo mientras Jonah habla (subtítulos en
+  // vivo), para que vea al toque si lo está captando o no.
+  const [oyendo, setOyendo] = useState('');
   const [hablando, setHablando] = useState(false);
   const [pulsoVoz, setPulsoVoz] = useState(0); // sube con cada palabra que dice Jarvis
   const logRef = useRef(null);
@@ -8478,16 +8481,25 @@ function JarvisPanel({ onClose, users }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const recog = new SR();
-    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
+    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = true; recog.maxAlternatives = 1;
     recog.onresult = (e) => {
-      const ultimo = e.results[e.results.length - 1];
-      // Se usa siempre la versión más reciente de enviar() (con la
-      // conversación al día), no la del momento en que se prendió el micro.
-      if (!ultimo.isFinal) return;
       // Lo que llega después de pausar el micro (mientras Jarvis habla) se
       // ignora: puede ser su propia voz.
-      if (pausadoParaHablarRef.current) return;
-      const dicho = ultimo[0].transcript.trim();
+      if (pausadoParaHablarRef.current) { setOyendo(''); return; }
+      // Mientras habla llegan pedazos provisionales: se muestran en vivo. Se
+      // responde solo cuando el navegador da la frase por terminada.
+      let provisional = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else provisional += e.results[i][0].transcript;
+      }
+      if (!final) { setOyendo(provisional.trim()); return; }
+      setOyendo('');
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
+      const dicho = final.trim();
+      if (!dicho) return;
       const pedido = quitarPalabraJarvis(dicho);
       llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
@@ -8514,6 +8526,7 @@ function JarvisPanel({ onClose, users }) {
     recog.onerror = (e) => {
       micActivoRef.current = false;
       setEscuchando(false);
+      setOyendo('');
       // Errores que no se arreglan reintentando (sin permiso, sin micrófono
       // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
       // vez de seguir intentando en silencio.
@@ -8521,7 +8534,7 @@ function JarvisPanel({ onClose, users }) {
       if (aviso) { apagarMicConAviso(aviso); return; }
       if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
     };
-    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); setOyendo(''); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); micActivoRef.current = true; recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
@@ -8661,8 +8674,10 @@ function JarvisPanel({ onClose, users }) {
   const bloqueEntrada = (
     <>
 <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
-          {avisoMic || (modoContinuo
-            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta' : 'Modo continuo activo')
+          {oyendo ? (
+            <span style={{ color: '#dff2ff' }}>🎙️ «{oyendo}…»</span>
+          ) : avisoMic || (modoContinuo
+            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta. Lo que te oigo sale aquí; si hablas y no aparece nada, el micrófono no te está captando.' : 'Modo continuo activo')
             : 'Toca el micrófono y háblame diciendo «Jarvis, …» o «Viernes, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>

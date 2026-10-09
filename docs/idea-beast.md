@@ -18,6 +18,13 @@ Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propo
 - Al tocarla se abre un **chat estilo WhatsApp dentro de la app**, con botones rápidos, foto y voz, el aviso de los mensajes gratis que quedan y siempre **"🙋 Hablar con Jonah (persona) por WhatsApp"** para pagos o algo serio.
 - Imagen de la propuesta hecha el 9 de octubre (HTML + Playwright, sobre la captura de inicio de Carla, `public/anuncios/pantallas/1-inicio-calorias-del-dia.png`).
 
+## Voz
+
+- **Al lanzar: notas de voz como en WhatsApp.** El alumno mantiene apretado 🎤, habla y suelta. En el chat sale el texto que entendió Beast, para que vea que lo escuchó bien. Usa la misma transcripción que ya tiene la app para anotar comidas por voz (`gpt-4o-mini-transcribe`, en `reconocer-comida`).
+- **Beast responde por escrito**, con un botón **▶️ Escuchar** para oírlo con su voz de gorila (la de los videos, `gpt-4o-mini-tts`, como `jarvis-voz`). Opción para que siempre responda hablando. Idea: que la voz de Beast sea un gusto de Premium ("👑 Con Premium, Beast te habla").
+- **Más adelante:** conversación en vivo, como una llamada (como Jarvis y Viernes), quizás como plus de Premium ("📞 Habla con Beast"), si se ve que usan mucho la voz. Cuesta más y es más trabajo.
+- **Costo:** escuchar una nota cuesta fracciones de céntimo y que Beast hable una respuesta, alrededor de 1 céntimo. Un alumno que usa mucho la voz suma ≈ S/0,20 a S/0,30 al mes (≈ S/1 al mes en total con Beast).
+
 ## Lo que Beast puede hacer (por los mismos caminos de la app)
 
 Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace Beast queda igual que lo hecho a mano (aparece en "Tu día", llega la tarjeta de novedades) y en el panel se marca "vía Beast" para medir cuánto lo usan. **Siempre confirma con una tarjeta y botones antes de guardar.**

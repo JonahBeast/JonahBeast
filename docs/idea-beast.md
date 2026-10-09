@@ -130,7 +130,7 @@ El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y 
 
 8. **Rápido y corto:** responde en 2 o 3 segundos con "Beast está escribiendo…", 2 a 4 líneas máximo y botones rápidos para no escribir.
 9. **Revisión semanal de errores:** Claude revisa las conversaciones marcadas con 👎, corrige y le pasa a Jonah un resumen corto ("esta semana Beast se equivocó en 3 cosas y ya están corregidas").
-10. **Lanzarlo de a pocos:** primero los Premium y la mitad de los nuevos, escuchar qué dicen y luego abrirlo a todos.
+10. **Para todos desde el primer día** (decisión de Jonah, 9 de octubre; antes se proponía solo la mitad de los nuevos), con el límite de cada tipo de cuenta (ver "Cómo se manejan los límites"). Escuchar qué dicen la primera semana y ajustar.
 
 ## Detalles que hacen la diferencia (9 de octubre)
 
@@ -170,11 +170,23 @@ Escenarios (no promesas), con ≈ 150 registros al mes: si pagan 2, 4 o 6 de cad
 
 Lo que no arregla solo: al que nunca vuelve no le llega sin WhatsApp (hoy el asistente de WhatsApp está apagado); no trae más gente; es un trabajo grande (chat, memoria, voz, anotar, límites, permiso de datos), por partes.
 
-**Plan:** 1) medir el 17 de octubre el arreglo de la primera comida y los precios nuevos; 2) Beast básico en la app (chat, memoria y anotar por voz); 3) probarlo con la mitad de los nuevos y comparar a las 2 semanas quién vuelve el día 2 y quién paga; 4) si funciona, conectarle WhatsApp.
+**Plan:** 1) medir el 17 de octubre el arreglo de la primera comida y los precios nuevos; 2) Beast básico en la app (chat, memoria y anotar por voz); 3) lanzarlo para todos y comparar a las 2 semanas con las semanas anteriores a Beast quién vuelve el día 2 y quién paga (ver "Cómo medir si Beast funciona"); 4) si funciona, conectarle WhatsApp.
 
 ## Cómo se manejan los límites (9 de octubre)
 
 Lección de Fitia (según una sola reseña de 2026, sin confirmar: su coach tiene un límite de uso al mes y después se compran monedas). Un límite mal manejado hace sentir engañado al que paga; bien manejado, nadie lo nota.
+
+**Por tipo de cuenta (decisión de Jonah, 9 de octubre: Beast para todos, más medido en la prueba gratis porque no se sabe si pasarán a Premium):**
+
+| Cuenta | Conversación con Beast | Notas de voz de Beast (▶️ Escuchar) |
+|---|---|---|
+| Prueba gratis (7 días de Premium) | ≈ 20 mensajes al día; el contador sale recién al quedar 5 ("Hoy te quedan 5 mensajes") | ≈ 5 al día |
+| Gratis (después de la prueba) | 3 a 5 mensajes al día, con contador a la vista | No (es gusto de Premium) |
+| Premium | ≈ 60 mensajes al día | Sin tope aparte (dentro de los 60) |
+
+- En la prueba, 20 al día alcanza de sobra (lo normal es 5 a 15) y cuesta poco: un alumno que conversa mucho los 7 días suma ≈ S/0,30 a S/0,50 en total.
+- **El día 8,** Beast se lo cuenta con naturalidad: "Desde mañana conversamos hasta 3 mensajes al día y te sigo anotando todo lo que me digas. Con Premium seguimos como hasta hoy 👑".
+- En todas las cuentas: anotar nunca gasta mensajes y los temas delicados no cuentan para el límite.
 
 1. **Anotar nunca tiene límite:** anotar comidas, agua o peso con Beast no gasta mensajes. El límite es solo para la conversación libre.
 2. **Límite por día, no por mes:** mañana vuelve completo; nadie se queda semanas sin su compañero.
@@ -184,6 +196,17 @@ Lección de Fitia (según una sola reseña de 2026, sin confirmar: su coach tien
 6. **Ajustarlo con datos:** el primer mes, ver cuánto conversa la gente de verdad y subir o bajar el freno.
 
 Aun usándolo al máximo todos los días, un alumno cuesta ≈ S/3 al mes, y la alarma avisa si el gasto total se pasa.
+
+## Cómo medir si Beast funciona (9 de octubre)
+
+Tarjeta nueva **"🦍 BEAST"** en el panel con los números de la semana; Jarvis también lo responde ("¿cómo va Beast?").
+
+1. **¿Lo usan? (acogida):** % de alumnos activos que le hablaron al menos una vez; de esos, cuántos **volvieron a hablarle otro día** (la señal más importante: probarlo es curiosidad, volver es que le sirve); mensajes por alumno al día.
+2. **¿Les sirve?:** comidas anotadas "vía Beast" (por voz, foto o texto), agua, peso, "¿qué como?" respondidos, alimentos pedidos; 👍 vs. 👎 y cuántas veces tocaron "Deshacer" (Beast anotó mal).
+3. **¿Ayuda al negocio?:** como Beast sale para todos (no hay grupo sin Beast), se compara con las semanas anteriores a Beast (hoy: 10 de 20 anotan su 1.ª comida, 1 de 20 vuelve el día 2) cuántos vuelven el día 2 y cuántos pagan. Al pagar, una pregunta de un toque "¿Qué te hizo decidirte?" con "Beast" como opción. Costo por alumno al mes (tabla `ia_uso`). Ojo: comparar con semanas anteriores es menos exacto (cambian los anuncios, la época), por eso se mira junto con la pregunta al pagar.
+4. **Ranking de los que más lo usan:** nombre, días que le habló y comidas anotadas con él. **Solo cuentas, nunca lo que conversaron.** Sirve para agradecerles, pedirles opinión o un testimonio. La política de privacidad debe decir que Jonah ve cuánto lo usa cada uno (no lo que hablan).
+
+**Metas a las 2 semanas:** al menos 4 de cada 10 nuevos le hablan en su primera semana; al menos 3 de cada 10 que lo probaron le hablan 3 días o más a la semana; al menos 8 de cada 10 valoraciones son 👍; y vuelven el día 2 y pagan bastante más que antes de Beast. Si se cumple, se le conecta WhatsApp; si no, se ajusta sin gastar de más.
 
 ## Memoria y datos personales
 

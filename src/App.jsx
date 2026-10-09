@@ -6438,7 +6438,10 @@ export default function App() {
   }
 
   async function logout() {
-    try { await supabase.auth.signOut(); } catch (e) { avisarError(e); }
+    // Solo en este equipo: antes "Salir" cerraba la sesión en todos los
+    // celulares y pestañas a la vez (y el panel abierto en otro lado quedaba
+    // "No autorizado" a mitad de un mensaje).
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { avisarError(e); }
     setAdminAuthed(false);
     setEstadoGuardado('ok');
     setCurrentUser(null);

@@ -3959,9 +3959,11 @@ function PesajeCard({ form, setForm }) {
 
 /* 📣 Mensaje de Jonah a todos (saludo de Navidad, avisos...). Lo escribe
    Jonah en el panel (HOY → "📣 MENSAJE A TODOS"); a quien tiene avisos
-   también le llega como notificación. Sale aquí, primero entre los avisos
-   de Inicio, hasta que el alumno lo cierra (como mucho 14 días). */
-function MensajeJonahCard({ username }) {
+   también le llega como notificación. Sale como ventana apenas el alumno
+   abre la app (pedido de Jonah: sus mensajes son importantes), encima de
+   todo, hasta que toca "¡Gracias, Jonah!" (como mucho 14 días). Espera si
+   hay otra ventana abierta (guía, primera comida, etc.). */
+function MensajeJonahCard({ username, esperar = false }) {
   const [mensaje, setMensaje] = useState(null);
   useEffect(() => {
     let vivo = true;
@@ -3980,18 +3982,21 @@ function MensajeJonahCard({ username }) {
     registrarPasoPago('mensaje_cerrado', username, mensaje.id);
     setMensaje(null);
   }
+  if (esperar) return null;
   return (
-    <div className="relative bg-zinc-900 border border-orange-500/50 rounded-2xl p-4 mb-6 overflow-hidden"
-      style={{ boxShadow: '0 0 30px -12px rgba(232,89,12,.5)' }}>
-      <div className="flex items-center gap-3">
-        <img src="/jonah-avatar.png" alt="" className="w-11 h-11 rounded-full object-cover border-2 border-orange-500/60 shrink-0" />
-        <div className="min-w-0">
-          <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
-          <p className="jb-display text-lg text-zinc-50 leading-tight">{mensaje.titulo}</p>
+    <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+      <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+        style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }}>
+        <div className="flex items-center gap-3">
+          <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+          <div className="min-w-0">
+            <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+            <p className="jb-display text-2xl text-zinc-50 leading-tight">{mensaje.titulo}</p>
+          </div>
         </div>
+        <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{mensaje.texto}</p>
+        <button onClick={cerrar} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
       </div>
-      <p className="jb-body text-sm text-zinc-200 mt-3 whitespace-pre-line leading-relaxed">{mensaje.texto}</p>
-      <button onClick={cerrar} className={btnPrimary + ' w-full py-2.5 mt-4'}>¡Gracias, Jonah! 💪</button>
     </div>
   );
 }
@@ -12696,7 +12701,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
              ocupan lugar, así que siempre se ve el más importante. */
           const avisos = (
             <div className="jb-avisos-inicio">
-              <MensajeJonahCard username={username} />
               <PesajeCard form={form} setForm={setForm} />
               <PedidosEnCaminoCard username={username} />
               <PedidosResueltosCard username={username} />
@@ -12810,6 +12814,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
+      <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto} />
       {!beastAbierto && (
         <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
           textoGlobo={beastVisto && logroBeast ? <>¡Oe! Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}

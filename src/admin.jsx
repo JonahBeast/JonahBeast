@@ -10809,6 +10809,15 @@ async function llamarMensajeMasivo(cuerpo) {
   return j;
 }
 const fechaHoraPeru = iso => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+// Los programados los saca el cron cada 15 minutos (a los :02, :17, :32 y
+// :47 de cada hora, ver vercel.json): esta es la hora real en que sale.
+function salidaReal(iso) {
+  const d = new Date(iso);
+  const m = d.getUTCMinutes();
+  const siguiente = [2, 17, 32, 47].find(x => x >= m && !(x === m && d.getUTCSeconds() > 0));
+  if (siguiente === undefined) { d.setUTCHours(d.getUTCHours() + 1, 2, 0, 0); } else d.setUTCMinutes(siguiente, 0, 0);
+  return d.toISOString();
+}
 
 function MensajeATodosPanel() {
   const [abierto, setAbierto] = useState(false);
@@ -10880,7 +10889,7 @@ function MensajeATodosPanel() {
       const m = r.mensaje;
       showToast(r.enviadoAhora
         ? `📣 Enviado a ${m.destinatarios.length} alumnos · ${m.push_enviados} notificaciones`
-        : `🗓️ Programado para el ${fechaHoraPeru(m.programado_para)}${r.movidoA8 ? ' (de noche no suena: sale a las 8 a.m.)' : ''}`);
+        : `🗓️ Programado: sale el ${fechaHoraPeru(salidaReal(m.programado_para))}${r.movidoA8 ? ' (de noche no suena: sale a las 8 a.m.)' : ''}`);
       setTitulo(''); setTexto(''); setFecha(''); setCuando('ahora'); setEnMuro(false);
       await cargar();
     } catch (e) { setError(e.message); }
@@ -10893,7 +10902,7 @@ function MensajeATodosPanel() {
   }
 
   const resumen = programados.length
-    ? `🗓️ Programado: "${programados[programados.length - 1].titulo}" · ${fechaHoraPeru(programados[programados.length - 1].programado_para)}`
+    ? `🗓️ Programado: "${programados[programados.length - 1].titulo}" · sale el ${fechaHoraPeru(salidaReal(programados[programados.length - 1].programado_para))}`
     : enviados.length ? `Último: "${enviados[0].titulo}" · ${fechaHoraPeru(enviados[0].enviado_en)}`
     : 'Saludo de Navidad, avisos o "te extrañamos": notificación + tarjeta en la app.';
 
@@ -10947,7 +10956,7 @@ function MensajeATodosPanel() {
                 <input type="datetime-local" value={fecha} onChange={e => setFecha(e.target.value)} className={inputCls + ' text-sm py-1.5 w-auto'} />
               )}
             </div>
-            <p className="jb-body text-[11px] text-zinc-500 mt-1">Hora de Perú. De noche (10 p.m. a 8 a.m.) no suena: sale a las 8 a.m. Como mucho un mensaje por día.</p>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1">Hora de Perú. Los programados salen en la siguiente revisión (cada 15 minutos: a los :02, :17, :32 y :47). De noche (10 p.m. a 8 a.m.) no suena: sale a las 8:02 a.m. Como mucho un mensaje por día.</p>
           </div>
 
           <label className="flex items-center gap-2 jb-body text-xs text-zinc-300">
@@ -10996,7 +11005,7 @@ function MensajeATodosPanel() {
                 <div key={m.id} className="bg-zinc-950 border border-amber-600/40 rounded-xl px-3 py-2 flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="jb-body text-sm text-zinc-100 truncate">🗓️ {m.titulo}</p>
-                    <p className="jb-body text-[11px] text-zinc-500">Sale el {fechaHoraPeru(m.programado_para)} · {(PUBLICOS_MENSAJE.find(p => p[0] === m.publico) || [])[1]}{m.en_muro ? ' · también en el Muro' : ''}</p>
+                    <p className="jb-body text-[11px] text-zinc-500">Sale el {fechaHoraPeru(salidaReal(m.programado_para))} · {(PUBLICOS_MENSAJE.find(p => p[0] === m.publico) || [])[1]}{m.en_muro ? ' · también en el Muro' : ''}</p>
                   </div>
                   <button type="button" onClick={() => cancelar(m)} className="jb-body text-xs text-zinc-400 underline shrink-0">Cancelar</button>
                 </div>

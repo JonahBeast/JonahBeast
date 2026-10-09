@@ -50,7 +50,9 @@ El alumno casi no escribe: le habla a Beast y Beast anota.
 
 **No decir "ninguna app en Perú hace esto": no es cierto.** Fitia (muy usada en Latinoamérica y Perú) ya tiene un coach con IA por chat que ayuda a anotar comidas y registro por voz, con Premium que **en Perú cuesta S/31,90 el mes, S/96,90 el año (S/8,08 al mes) y el familiar (2 a 6 personas) S/145,90 el año (S/12,16 al mes)**, con 3 días gratis solo en los anuales y "Ahorra hasta 75%" (**confirmado** con capturas del celular de Jonah, App Store Perú, 9 de octubre de 2026). La pantalla de pago se llama "Desbloquea Fitia Coach": el coach es su gancho para vender Premium. Una reseña de 2026 (sin confirmar) dice que el coach tiene un límite de uso al mes y luego se compran monedas. MyNetDiary y Caloa también juntan voz y coach con IA.
 
-Lo que diferencia a Beast: es un personaje con historia (el gorila de la marca) que se acuerda de tu vida; detrás hay una persona real (Jonah, a un toque por WhatsApp); comida peruana revisada a mano, con medidas caseras y la regla del arroz; y tendrá WhatsApp. **El precio no es nuestra ventaja principal:** en el mes somos ≈ 22% más baratos (S/24,90 vs. S/31,90), pero en el año Fitia (S/96,90) cuesta menos de la mitad que nuestro anual (S/209,90). Frase que sí es cierta: "Beast te conoce, habla como peruano y tiene detrás a Jonah, una persona real." (Sin hablar de precio.) Antes de usar el precio de la competencia en un anuncio, volver a revisarlo en su tienda.
+Lo que diferencia a Beast: es un personaje con historia (el gorila de la marca) que se acuerda de tu vida; detrás hay una persona real (Jonah, a un toque por WhatsApp); comida peruana revisada a mano, con medidas caseras y la regla del arroz; y tendrá WhatsApp. **El precio no es nuestra ventaja principal:** en el mes somos ≈ 22% más baratos (S/24,90 vs. S/31,90), pero en el año Fitia (S/96,90) cuesta poco más de la mitad que nuestro anual (S/179,90, desde el 9 de octubre). Frase que sí es cierta: "Beast te conoce, habla como peruano y tiene detrás a Jonah, una persona real." (Sin hablar de precio.) Antes de usar el precio de la competencia en un anuncio, volver a revisarlo en su tienda.
+
+**Prueba gratis (9 de octubre):** Fitia da 3 días, con tarjeta y solo con el anual: si no cancela, al día 4 se cobra el año. Es corto a propósito (cobrar cuando aún está entusiasmado y antes de que se acuerde de cancelar). Nosotros damos 7 días sin tarjeta y al día 8 pasa solo a gratis: aquí nadie "olvida cancelar", lo que vende es ver resultados y agarrar el hábito, y en Perú poca gente pone tarjeta. **Se quedan los 7 días sin tarjeta** ("7 días de Premium gratis, sin tarjeta", sin nombrar a Fitia). Hoy la gente se cae el día 1 y 2, no al final de la prueba: el esfuerzo va al arranque. Más adelante, con la app abierta al público en Google Play, se puede probar solo ahí "3 días gratis del anual" con la tarjeta de Google y medir.
 
 **Cómo venderlo (9 de octubre):** no decir "pioneros", "los primeros" ni "el único" (no es cierto, y INDECOPI sanciona la publicidad que no se puede probar). La meta es ser **los mejores para el peruano**: el que mejor conoce la comida peruana de verdad (con medidas de casa) y el más cercano (se acuerda de tu vida y tiene una persona real detrás). Frases aprobadas:
 - "Hecho en Perú, para el que come peruano."
@@ -100,6 +102,35 @@ Hoy todos los avisos de la app llegan firmados "Jonah 🦍" y hablan como Jonah 
 - **Sin avisos de más:** Beast y Jonah comparten el mismo límite diario de avisos (`avisoConPresupuesto`).
 - **Hasta que Beast salga, no se cambia nada:** los avisos siguen como "Jonah 🦍".
 - Ojo: hoy solo 1 de cada 20 nuevos tiene avisos activos; la puerta fuerte para ir a buscar a quien deja de entrar es WhatsApp (ver abajo).
+
+## "¿Qué puedo comer?": el botón se queda (9 de octubre)
+
+El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y Beast se complementan: el botón es para el que no quiere escribir (2 toques), para cocinar en casa, no gasta IA y funciona aunque Beast esté apagado o sin mensajes; Beast es para la calle (pollería, chifa, menú, pollada) y para el que prefiere conversar. Cuando salga Beast:
+
+1. **Mismo motor:** si en casa le preguntan a Beast "¿qué ceno?", responde con las mismas opciones, cantidades y calorías del botón (el motor de recomendaciones de `src/alumno.jsx`). Nunca se contradicen.
+2. **Mismo límite:** en la versión gratis, preguntarle a Beast "¿qué como?" cuenta dentro de las mismas 3 por semana del botón (no puede ser puerta trasera).
+3. **Nombre:** pasa a "🦍 Pregúntale a Beast qué puedes comer" (como los avisos del día a día). Abre las mismas tarjetas de siempre, con un botón extra "💬 ¿Estás fuera de casa? Cuéntale a Beast".
+
+## Ideas de Claude para la mejor experiencia (9 de octubre)
+
+**Prioridad (atacan la caída del arranque):**
+
+1. **Pedir permiso para los avisos en el momento justo.** Hoy solo 1 de 20 nuevos los activa (el celular pregunta sin contexto). Al terminar su primera comida, Beast: "¡Bien ahí, causa! ¿Te aviso mañana a las 8 para anotar tu desayuno? 🦍" [Sí, avísame] [No, gracias].
+2. **Cerrar el primer día con una promesa.** En la noche del día 1, resumen corto ("Hoy anotaste 2 comidas, ¡buen arranque!") y "Mañana te pregunto qué desayunaste, ¿ya?". Ataca la vuelta del día 2.
+3. **"¿Qué como?" en la calle con números de la app.** "Estoy en una pollería y me quedan 600 calorías" → "¼ de pollo sin piel con ensalada y papas pocas (≈ 520 kcal). ¿Te lo anoto?". También chifa, menú del día, Bembos, pollada. Calorías siempre de la base; anotar con un toque. Es la ventaja real frente a Fitia con comida peruana.
+
+**Que se sienta un amigo de verdad:**
+
+4. **Celebrar logros con nota de voz** (primer kilo menos, 7 días seguidos, mitad de la meta) y una tarjeta para compartir en el estado de WhatsApp ("Beast me felicitó: ¡7 días seguidos! 🦍") con el link de la app. Se junta con la idea pendiente "Compartir en mi estado".
+5. **Planear los días difíciles:** "El sábado tengo cumpleaños" → desayuno y almuerzo más ligeros y en la noche disfruta sin culpa. Si ya se pasó, plan para el día siguiente; nunca "no comas" ni castigo.
+6. **Una mini meta por semana elegida por el alumno:** el lunes "¿Qué meta nos ponemos: 2 litros de agua, anotar todos los días o más proteína?"; el domingo le dice cómo le fue. Una sola, pequeña y suya.
+7. **Aprender sus horarios:** si almuerza a las 2, no le recuerda a la 1. Si dice "Beast, háblame menos", le hace caso.
+
+**Que nunca decepcione:**
+
+8. **Rápido y corto:** responde en 2 o 3 segundos con "Beast está escribiendo…", 2 a 4 líneas máximo y botones rápidos para no escribir.
+9. **Revisión semanal de errores:** Claude revisa las conversaciones marcadas con 👎, corrige y le pasa a Jonah un resumen corto ("esta semana Beast se equivocó en 3 cosas y ya están corregidas").
+10. **Lanzarlo de a pocos:** primero los Premium y la mitad de los nuevos, escuchar qué dicen y luego abrirlo a todos.
 
 ## Qué IA usa
 

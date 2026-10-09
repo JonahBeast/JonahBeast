@@ -10797,9 +10797,9 @@ const LOGROS_BEAST = [
           : 'Hoy ya llegaste a tu meta: mañana seguimos con todo 💪');
     } },
   { id: 'racha7', cumple: d => d.racha >= 7, titulo: '¡7 días seguidos!', texto: n => `¡${n}, 7 días seguidos anotando! 🔥 Eso ya no es suerte, es constancia de verdad. Así se construye el cambio, comida a comida 🦍` },
-  { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: n => `¡Oe, ${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
+  { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: (n, h = {}) => `¡${h.suelto ? 'Oe, ' : ''}${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
   { id: 'mitad', cumple: d => d.total >= 2 && d.bajo >= d.total / 2, titulo: '¡Ya voy por la mitad!', texto: n => `¡${n}, ya vas por la mitad de tu meta! 🏆 Lo que falta lo hacemos igual: comida a comida 🦍` },
-  { id: 'kilos5', cumple: d => d.bajo >= 5, titulo: '¡5 kilos menos!', texto: n => `¡5 kilos menos, ${n}! 🔥 Eso es disciplina pura. Estoy orgulloso de ti, causa 🦍` },
+  { id: 'kilos5', cumple: d => d.bajo >= 5, titulo: '¡5 kilos menos!', texto: (n, h = {}) => `¡5 kilos menos, ${n}! 🔥 Eso es disciplina pura. ${h.suelto ? 'Estoy orgulloso de ti, causa 🦍' : 'Me siento orgulloso de ti 🦍'}` },
 ];
 function logroPendiente(form, racha) {
   const pi = Number(form?.pesoInicial) || 0;
@@ -10884,12 +10884,22 @@ function limpiarNombreCompanero(n) {
   const t = String(n || '').replace(/[^\p{L} ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 20).trim();
   return t && !NOMBRE_FEO.test(t) ? t : '';
 }
+// Estilo: cada alumno con el suyo (Yara, 9 de octubre: "suelto, pero no
+// tan de barrio"). Por defecto "tranquilo" (cercano, sin oe/causa/pata);
+// "suelto" (con jerga) si lo elige, se lo pide a Beast o escribe con jerga.
 function companeroDe(form) {
   const c = form?.companero || {};
   const nombre = limpiarNombreCompanero(c.nombre) || 'Beast';
   const femenina = c.voz === 'femenina';
-  return { nombre, femenina, voz: femenina ? 'femenina' : 'masculina', compa: femenina ? 'compañera' : 'compañero' };
+  const estilo = c.estilo === 'suelto' ? 'suelto' : 'tranquilo';
+  return { nombre, femenina, voz: femenina ? 'femenina' : 'masculina', compa: femenina ? 'compañera' : 'compañero',
+    estilo, suelto: estilo === 'suelto', estiloElegido: !!c.estiloElegido };
 }
+// Palabras de jerga de barrio: si el alumno escribe así (y no eligió su
+// estilo), Beast también se suelta.
+// Ojo: "causa" también es un plato (causa rellena) y "pata" puede ser de pollo,
+// así que solo cuentan como saludo o trato ("oe causa", "gracias causita").
+const JERGA_ALUMNO = /(^|[^a-záéíóúñ])oe([^a-záéíóúñ]|$)|\b(mi|oe|habla|hola|ya|gracias|dale|listo|si|sí|bien|tranqui)[ ,!]+(causa|causita|causón|pata|patita|broder|bro)\b|^(causa|causita|broder)\s*[,!]|\b(manyas?|chibolo|jato)\b/i;
 const useCompanero = () => usePremium().companero || companeroDe(null);
 
 // El gorila con los puños encendidos (el ícono de la app): más llamativo que
@@ -10914,7 +10924,7 @@ async function escucharBeast(texto, { bienvenida = false, celebracion = false, p
   const r = await fetch(`${supabaseUrl}/functions/v1/${funcionBeast()}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ accion: 'voz', texto, bienvenida, celebracion, presentacion, companero: companero && { nombre: companero.nombre, voz: companero.voz } }),
+    body: JSON.stringify({ accion: 'voz', texto, bienvenida, celebracion, presentacion, companero: companero && { nombre: companero.nombre, voz: companero.voz, estilo: companero.estilo } }),
   });
   if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
     let e = '';
@@ -10931,12 +10941,12 @@ async function escucharBeast(texto, { bienvenida = false, celebracion = false, p
 }
 
 function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo }) {
-  const { nombre, compa } = useCompanero();
+  const { nombre, compa, suelto } = useCompanero();
   return (
     <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
       {globo && (
         <div className="relative max-w-[220px] bg-zinc-900 border border-orange-500/50 rounded-2xl rounded-br-sm pl-3 pr-7 py-2 shadow-lg shadow-black/40">
-          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">{textoGlobo || <>¡Oe! Soy <b className="text-orange-400">{nombre}</b>, tu {compa} 🦍 Cuéntame qué comiste y te ayudo.</>}</button>
+          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">{textoGlobo || <>{suelto ? '¡Oe!' : '¡Hola!'} Soy <b className="text-orange-400">{nombre}</b>, tu {compa} 🦍 Cuéntame qué comiste y te ayudo.</>}</button>
           <button onClick={onCerrarGlobo} aria-label="Cerrar" className="absolute top-1 right-1 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
         </div>
       )}
@@ -11192,6 +11202,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   const { nombre: nombreCompa, femenina, compa } = companero;
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [vozNueva, setVozNueva] = useState('masculina');
+  const [estiloNuevo, setEstiloNuevo] = useState('tranquilo');
   const [errorNombre, setErrorNombre] = useState('');
   const [grabando, setGrabando] = useState(null); // null | 'grabando' | 'procesando'
   const [deshacer, setDeshacer] = useState(null); // { id, fn, hasta }
@@ -11227,9 +11238,9 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     if (logro) {
       const mp = mealPlanRef.current;
       const siguiente = logro.primera ? siguienteComida(mp) : null;
-      local(logro.texto(String(nombre || '').split(' ')[0] || 'causa', {
+      local(logro.texto(String(nombre || '').split(' ')[0] || (companero.suelto ? 'causa' : formRef.current.sexo === 'F' ? 'campeona' : 'campeón'), {
         kcal: totalesDePlan(mp).kcal, metaKcal: Number(mp.targetKcal) || 0, siguiente,
-        presentarse: !teniaHistoria, compa: nombreCompa,
+        presentarse: !teniaHistoria, compa: nombreCompa, suelto: companero.suelto,
       }), { logro, celebracion: true, siguiente });
       onLogroVisto?.(logro.id);
       if (logro.primera) {
@@ -11269,7 +11280,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       if (ms?.tipo && ms.semana < lunes && !ms.informada) {
         const n = await medir(ms.semana);
         const def = METAS_SEMANA[ms.tipo];
-        local(n >= 5 ? `🏆 Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ¡${n} de 7 días! Así se hace, causa 🔥`
+        local(n >= 5 ? `🏆 Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ¡${n} de 7 días! Así se hace${companero.suelto ? ', causa' : ''} 🔥`
           : n >= 3 ? `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días 💪 Bien ahí, esta semana vamos por más.`
           : `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días. Ya fue, tranqui: esta semana la sacamos 🦍`);
         setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), informada: true } }));
@@ -11339,11 +11350,17 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     setEnviando(true);
     const aviso = avisoRef.current;
     avisoRef.current = null;
-    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast(), aviso, companero: { nombre: nombreCompa, voz: companero.voz } });
+    // Si escribe con jerga (y no eligió su estilo), Beast también se suelta.
+    let estilo = companero.estilo;
+    if (estilo !== 'suelto' && !companero.estiloElegido && JERGA_ALUMNO.test(limpio)) {
+      estilo = 'suelto';
+      setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: 'suelto' } }));
+    }
+    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast(), aviso, companero: { nombre: nombreCompa, voz: companero.voz, estilo } });
     setEnviando(false);
     if (r.error === 'consentimiento') { setEstado('consentir'); return; }
     if (r.error) {
-      const mensaje = r.status === 429 ? r.error : 'Uy, se me fue la señal, causa 😅 Dame un toque y lo intento de nuevo.';
+      const mensaje = r.status === 429 ? r.error : `Uy, se me fue la señal${companero.suelto ? ', causa' : ''} 😅 Dame un toque y lo intento de nuevo.`;
       setMensajes(v => v.map(m => m.id === idLocal ? { ...m, fallo: r.status !== 429, via } : m));
       local(mensaje, { sistema: true });
       return;
@@ -11353,6 +11370,8 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     // Agua: directo (con Deshacer), como en la app.
     if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
     // "Beast, háblame menos": solo el aviso del almuerzo (y lo importante).
+    // Pidió que le hable distinto ("más tranqui", "no tan de barrio", "háblame suelto").
+    if (r.estilo === 'suelto' || r.estilo === 'tranquilo') setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: r.estilo, estiloElegido: true } }));
     if (r.accion?.tipo === 'avisos') setForm(v => ({ ...v, avisos: { ...(v.avisos || {}), pocos: r.accion.nivel === 'menos' } }));
   }
 
@@ -11482,6 +11501,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   function abrirNombre() {
     setNombreNuevo(nombreCompa === 'Beast' ? '' : nombreCompa);
     setVozNueva(companero.voz);
+    setEstiloNuevo(companero.estilo);
     setErrorNombre('');
     setMenu('nombre');
   }
@@ -11492,11 +11512,15 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     const voz = volverABeast ? 'masculina' : vozNueva;
     const n = limpio || 'Beast';
     const fem = voz === 'femenina';
+    const estilo = estiloNuevo;
     const cambio = n !== nombreCompa || voz !== companero.voz;
-    setForm(v => ({ ...v, companero: { nombre: n === 'Beast' ? '' : n, voz } }));
+    const cambioEstilo = estilo !== companero.estilo;
+    setForm(v => ({ ...v, companero: { ...(v.companero || {}), nombre: n === 'Beast' ? '' : n, voz,
+      ...(cambioEstilo || v.companero?.estiloElegido ? { estilo, estiloElegido: true } : {}) } }));
     setMenu(null);
-    if (!cambio) return;
-    evento('nombre', { propio: n !== 'Beast', voz });
+    if (!cambio && !cambioEstilo) return;
+    evento('nombre', { propio: n !== 'Beast', voz, estilo });
+    if (!cambio) { local(estilo === 'suelto' ? '¡Ya, causa! Desde ahora te hablo bien suelto 😎' : 'Listo, desde ahora te hablo más tranquilo 🙂', { presentacion: true }); return; }
     local(n === 'Beast' && !fem
       ? '¡Volví! Soy Beast otra vez, tu compañero de siempre 🦍 Cuéntame qué comes y seguimos, comida a comida 💪'
       : `¡Me encanta! Desde ahora soy ${n}, tu ${fem ? 'compañera' : 'compañero'} 🦍 Igual que siempre: cuéntame qué comes y vamos ${fem && formRef.current.sexo === 'F' ? 'juntas' : 'juntos'}, comida a comida 💪`,
@@ -11667,7 +11691,15 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
                     className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${vozNueva === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
                 ))}
               </div>
-              <p className="jb-body text-[11px] text-zinc-500 mt-1.5">{vozNueva === 'femenina' ? 'Te habla como tu compañera, con voz de mujer.' : 'Te habla como tu compañero, con voz de hombre.'} Toca ▶️ Escuchar en sus mensajes para oírla{premium ? '' : ' (en la versión gratis, solo en su saludo)'}.</p>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5 mb-3">{vozNueva === 'femenina' ? 'Te habla como tu compañera, con voz de mujer.' : 'Te habla como tu compañero, con voz de hombre.'} Toca ▶️ Escuchar en sus mensajes para oírla{premium ? '' : ' (en la versión gratis, solo en su saludo)'}.</p>
+              <p className="jb-body text-xs text-zinc-300 mb-2">Cómo te habla</p>
+              <div className="flex gap-2">
+                {[['tranquilo', '🙂 Tranquilo'], ['suelto', '😎 Bien suelto']].map(([v, l]) => (
+                  <button key={v} onClick={() => setEstiloNuevo(v)}
+                    className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${estiloNuevo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                ))}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5">{estiloNuevo === 'suelto' ? 'Con jerga limeña de barrio: "oe", "causa", "al toque"… como tu pata de siempre.' : 'Cercano y alegre, pero sin jerga de barrio.'}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => guardarNombre()} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>GUARDAR</button>
@@ -11682,7 +11714,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
         {estado === 'cargando' && <div className="flex-1 flex items-center justify-center"><Loader2 size={28} className="text-orange-500 animate-spin" /></div>}
         {estado === 'error' && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <p className="jb-body text-sm text-zinc-300">Uy, se me fue la señal, causa 😅</p>
+            <p className="jb-body text-sm text-zinc-300">Uy, se me fue la señal{companero.suelto ? ', causa' : ''} 😅</p>
             <button onClick={cargar} className={btnPrimary + ' px-5 py-2 text-sm'}>Intentar de nuevo</button>
           </div>
         )}
@@ -12642,7 +12674,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     premium: !versionGratis,
     onVerPremium: () => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); },
     companero: companeroDe(form),
-  }), [versionGratis, form.companero?.nombre, form.companero?.voz]);
+  }), [versionGratis, form.companero?.nombre, form.companero?.voz, form.companero?.estilo, form.companero?.estiloElegido]);
   const renewalElegible = !!(userRecord && userRecord.plan !== 'trial' && !versionGratis
     && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
   const trialElegible = !!trialDayOf(userRecord);
@@ -13010,7 +13042,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {!beastAbierto && (
         <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
           textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
-            : beastVisto && logroBeast ? <>¡Oe! Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
+            : beastVisto && logroBeast ? <>{form.companero?.estilo === 'suelto' ? '¡Oe! ' : ''}Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
           globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
             && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
       )}

@@ -44,13 +44,13 @@ function mensajeAlmuerzoGratis(quedan) {
     const fotos = quedan === 1 ? 'te queda 1 foto gratis' : `te quedan ${quedan} fotos gratis`;
     const variantes = [
       `¿Ya almorzaste? 🍽️ Tómale foto a tu plato y te digo sus calorías: ${fotos} esta semana 📸`,
-      `Hora del almuerzo, causa 🦍 Esta semana ${fotos}. Úsala en tu almuerzo y seguimos sumando 💪`,
+      `Hora del almuerzo 🦍 Esta semana ${fotos}. Úsala en tu almuerzo y seguimos sumando 💪`,
     ];
     return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
   }
   const variantes = [
     '¿Ya almorzaste? 🍽️ Anótalo en Registrar, toma menos de un minuto. Comida a comida se llega 💪',
-    'Oe, falta tu almuerzo 🦍 Anótalo y sigues viendo cómo vas con tu meta.',
+    'Falta tu almuerzo 🦍 Anótalo y sigues viendo cómo vas con tu meta.',
   ];
   return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
 }
@@ -71,7 +71,7 @@ const NOMBRE_COMIDA = {
 
 const VERBO_COMIDA = { Desayuno: 'desayunaste', Almuerzo: 'almorzaste', Cena: 'cenaste' };
 
-// En la voz de Beast (pata, cercano). Sin datos privados: se ve en la
+// En la voz de Beast (cercano, sin jerga de barrio: los avisos le llegan a todos). Sin datos privados: se ve en la
 // pantalla bloqueada.
 function mensajeBeast(comida, objetivo, horaPeru) {
   const nombre = NOMBRE_COMIDA[comida] || comida;
@@ -79,9 +79,9 @@ function mensajeBeast(comida, objetivo, horaPeru) {
   const horaAmPm = horaPeru > 12 ? `${horaPeru - 12} pm` : `${horaPeru} ${horaPeru === 12 ? 'pm' : 'am'}`;
   const variantes = [
     `¿Ya ${verbo}? 🦍 Cuéntame qué fue y lo anotamos al toque.`,
-    `Oe, aún no veo ${nombre}. ¿Qué tal estuvo? Cuéntame 🍽️`,
+    `Aún no veo ${nombre}. ¿Qué tal estuvo? Cuéntame 🍽️`,
     `Son las ${horaAmPm}, ¿qué ${verbo}? Dímelo y lo anotamos 💪`,
-    `¿Cómo va el día, causa? Falta anotar ${nombre}, ¿me cuentas? 🦍`,
+    `¿Cómo va el día? Falta anotar ${nombre}, ¿me cuentas? 🦍`,
     `Un minutito para ${nombre} y seguimos sumando 🔥 ¿Qué ${verbo}?`,
   ];
   if (objetivo) variantes.push(`Tu meta: ${String(objetivo).toLowerCase()}. Anotemos ${nombre} y seguimos sumando 🦍`);
@@ -90,12 +90,12 @@ function mensajeBeast(comida, objetivo, horaPeru) {
 
 function mensajeBuenosDias(objetivo, esLunes, diasDeUso) {
   if (diasDeUso && diasDeUso > 0 && diasDeUso % 30 === 0) {
-    return { title: TITULO_BEAST, body: `¡Hoy cumples ${diasDeUso} días con Jonah Beast Fuel! 🎉 Eso es constancia de verdad, causa. Vamos por más 🦍🔥` };
+    return { title: TITULO_BEAST, body: `¡Hoy cumples ${diasDeUso} días con Jonah Beast Fuel! 🎉 Eso es constancia de verdad. Vamos por más 🦍🔥` };
   }
   if (esLunes) {
     const variantesLunes = [
       'Buenos días, arrancamos la semana 🦍 Lo del fin de semana ya fue: ¿qué meta nos ponemos esta semana? Toca y elige.',
-      'Nueva semana, causa 🔥 Elige tu mini meta de la semana (agua, anotar o proteína) y vamos con todo.',
+      'Nueva semana 🔥 Elige tu mini meta de la semana (agua, anotar o proteína) y vamos con todo.',
       'Lunes de reinicio 🦍 ¿Nos ponemos una mini meta para esta semana? Toca y la elegimos juntos.',
     ];
     return { title: TITULO_BEAST, body: variantesLunes[Math.floor(Math.random() * variantesLunes.length)], lunes: true };
@@ -103,7 +103,7 @@ function mensajeBuenosDias(objetivo, esLunes, diasDeUso) {
   const variantes = [
     '¡Buenos días! 🦍 Hoy es otro día para seguir sumando.',
     'Buenos días 🌅 Arrancamos con todo, comida a comida.',
-    '¡Arriba, causa! 🦍 Un nuevo día para acercarte a tu meta.',
+    '¡Arriba! 🦍 Un nuevo día para acercarte a tu meta.',
     'Buenos días 🔥 Que sea un buen día, aquí estoy contigo.',
   ];
   if (objetivo) variantes.push(`Buenos días 🦍 Hoy seguimos con tu meta: ${String(objetivo).toLowerCase()}.`);

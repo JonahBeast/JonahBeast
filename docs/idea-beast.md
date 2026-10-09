@@ -236,6 +236,14 @@ Los alumnos le van a contar cosas personales ("me siento mal", "estoy triste", "
 - **"Estoy triste y me comí todo":** sin culpa; una comida no borra su avance, seguimos en la siguiente.
 - **Se le dice clarito al empezar** (dos líneas): sus conversaciones son privadas, Jonah no las lee, se borran a los 90 días y puede borrarlas antes. También va en `public/privacidad.html`.
 
+## Cómo habla: cada uno a su estilo (9 de octubre)
+
+Yara le dijo a Jonah que está bien que Beast sea suelto, pero "no tan vulgar": ella no habla con "oe" ni "causa". Jonah: "que no sea así con todos". Decisión: estilo por alumno.
+- **Tranquilo** (por defecto): cercano y alegre, sin jerga de barrio; voz con acento limeño natural.
+- **Bien suelto**: la jerga de siempre (oe, causa, pata…) y la voz bien de barrio.
+- Se suelta solo si el alumno escribe con jerga (y no eligió); se elige en ⋮ → "Ponle nombre" → "Cómo te habla", o pidiéndoselo a Beast (la IA devuelve `estilo`). Se guarda en `form.companero.estilo` (+ `estiloElegido`).
+- Textos fijos ("¡Oe! Soy Beast", "Oe, falta tu almuerzo"…) pasan a tono tranquilo; los avisos al celular, tranquilos para todos.
+
 ## Beast en la primera comida (9 de octubre, idea de Jonah)
 
 A Jonah le llegó el aviso de que alguien anotó su primera comida: "ahí es donde Beast debe entrar". Después de las ventanas de siempre (meta, avisos, abrir en Chrome), la burbuja se enciende: "¡Primera comida anotada! 🔥 Toca y te cuento cómo vas". Beast lo felicita con sus números reales (lleva X de Y kcal; para su siguiente comida le quedan Z), con voz para todos, "🍽️ ¿Qué como en…?" y una segunda oportunidad de activar los avisos. Una sola vez (`form.primeraComidaEn`, logro `primera`), no gasta mensajes. Se mide en el embudo: `primera_comida` con detalle `beast` (cuántos abrieron la felicitación).

@@ -114,7 +114,9 @@ CUENTA DEL ALUMNO (bloque DATOS): "gratis" conversa poco (3 mensajes al día; an
 
 MEMORIA: en "recordar" pon UN dato nuevo y útil de su vida que valga la pena recordar en próximas conversaciones (trabajo, horarios, familia, gustos, metas, lo que le cuesta), en tercera persona y corto (máx. 15 palabras); si no hay nada nuevo, "". Nunca guardes datos de salud mental, crisis ni cosas muy íntimas.
 
-Responde ÚNICAMENTE con JSON válido, sin texto antes ni después:
+Si el alumno solo confirma ("sí", "agrégalo") una tarjeta que ya le mostraste, la app la guarda sola: responde corto (ej. "¡Listo!") con accion null.
+
+Responde SIEMPRE, aunque sea un mensaje corto, ÚNICAMENTE con JSON válido, sin texto antes ni después:
 {"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
 
 function json(body: unknown, status = 200) {
@@ -375,7 +377,14 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
     }
     const data = await r.json();
     await anotarUsoIA(supabase, username, modelo, data.usage);
-    salida = extraerJson((data.content || []).map((c: any) => c.text || "").join(""));
+    const crudo = (data.content || []).map((c: any) => c.text || "").join("");
+    salida = extraerJson(crudo);
+    // Si la IA respondió sin el formato pedido (pasa con respuestas cortas,
+    // como a un "sí, confirmo"), se usa su texto tal cual, sin acción.
+    if (!salida && crudo.trim()) {
+      console.log(JSON.stringify({ evento: "beast_sin_formato", username, crudo: crudo.slice(0, 300) }));
+      salida = { respuesta: crudo.replace(/```[a-z]*|```/g, "").trim(), accion: null, tema: "otro", recordar: "", riesgo: false };
+    }
   } catch (e) {
     console.error("beast-chat: sin conexión con Anthropic", (e as Error)?.message);
     return json({ error: "sin_ia" }, 502);

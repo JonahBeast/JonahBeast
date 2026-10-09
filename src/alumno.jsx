@@ -10786,6 +10786,22 @@ function BeastConsentimiento({ onAceptar, onCerrar }) {
   );
 }
 
+// "Sí", "dale", "agrégalo", "confírmalo", "está bien"… (corto y sin "no").
+const PALABRAS_CONFIRMAR = new Set(('si sii siii dale ok okey okay listo ya perfecto correcto exacto eso asi es claro confirmo confirmado de una '
+  + 'agregalo agregala agregalos agregalas agregame anotalo anotala anotalos anotalas anotame confirmalo confirmala guardalo guardala '
+  + 'esta todo bien muy porfa por favor causa causita pata beast oe pe ps nomas no mas').split(' '));
+const PALABRAS_CONFIRMAR_CLAVE = /\b(si|sii+|dale|ok|okey|okay|listo|perfecto|correcto|exacto|confirmo|confirmado|agrega\w*|anota\w*|confirma\w*|guarda\w*|bien|de una|asi es)\b/;
+// "Sí", "dale", "agrégalo", "confírmalo", "sí, está bien"…: solo palabras de
+// confirmación (si dice algo más, como "ya almorcé arroz", va a Beast).
+function esConfirmacion(t) {
+  const n = String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n || n.length > 45 || /^no\b/.test(n)) return false;
+  if (n === 'ya' || n === 'ya pe' || n === 'ya causa') return true;
+  const palabras = n.split(' ');
+  if (palabras.includes('no') && !n.includes('no mas')) return false;
+  return palabras.every(w => PALABRAS_CONFIRMAR.has(w)) && PALABRAS_CONFIRMAR_CLAVE.test(n);
+}
+
 // Arma las entradas de comida igual que agregarVarios (registro por voz).
 function entradasDeItems(items, extra = {}) {
   return items.map(it => {
@@ -10798,7 +10814,15 @@ function entradasDeItems(items, extra = {}) {
 const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
 
 // Tarjeta de comida: lo que Beast entendió, buscado en la base de la app.
-function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar }) {
+// "Sí, agrégalo" (escrito o por voz) confirma la última tarjeta sin tocar
+// el botón: la tarjeta se registra aquí y el chat la llama.
+function useConfirmarTarjeta(registrar, fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => registrar?.(() => ref.current()), []);
+}
+
+function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar, registrarConfirmar }) {
   const [items, setItems] = useState(() => interpretarVarios(accion.texto)
     .map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia })));
   const [comida, setComida] = useState(accion.comida || comidaDeAhora());
@@ -10807,6 +10831,13 @@ function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar 
   const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
   const pendiente = items.some(it => it.necesitaAclarar);
   const propuesta = accion.tipo === 'proponer_comida';
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    if (pendiente) return 'dudas';
+    if (!activos.length) return 'vacia';
+    setHecho(true); onGuardar(activos, comida, Math.round(total));
+    return 'ok';
+  });
 
   async function pedir(i) {
     const it = items[i];
@@ -10925,8 +10956,13 @@ function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
   );
 }
 
-function BeastTarjetaPeso({ kg, pesoAntes, onGuardar }) {
+function BeastTarjetaPeso({ kg, pesoAntes, onGuardar, registrarConfirmar }) {
   const [hecho, setHecho] = useState(false);
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    setHecho(true); onGuardar(kg);
+    return 'ok';
+  });
   const raro = Number(pesoAntes) > 0 && Math.abs(kg - Number(pesoAntes)) >= 3;
   if (hecho) return <p className="jb-body text-[11px] text-emerald-400 mt-2">✓ Peso anotado: {kg} kg</p>;
   return (
@@ -10952,6 +10988,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   const [sonando, setSonando] = useState(null);
   const finRef = useRef(null);
   const inputRef = useRef(null);
+  const confirmarRef = useRef(null); // { id, fn } de la última tarjeta para confirmar
   const grabadorRef = useRef(null);
   const mealPlanRef = useRef(mealPlan);
   mealPlanRef.current = mealPlan;
@@ -11002,6 +11039,20 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   async function enviar(contenido, via = 'texto') {
     const limpio = String(contenido || '').trim();
     if (!limpio || enviando) return;
+    // "Sí", "agrégalo", "dale", "confirmo"… con una tarjeta abierta: se
+    // confirma aquí mismo (no gasta mensajes ni pasa por la IA).
+    if (confirmarRef.current && esConfirmacion(limpio)) {
+      const r = confirmarRef.current.fn();
+      if (r !== 'hecho') {
+        setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+        setTexto('');
+        if (r === 'dudas') local('Primero dime cuál fue en la tarjeta ☝️ y lo agrego.', { sistema: true });
+        if (r === 'vacia') local('No hay nada marcado en la tarjeta: marca lo que comiste ☝️', { sistema: true });
+        if (r === 'ok') confirmarRef.current = null;
+        return;
+      }
+      confirmarRef.current = null;
+    }
     if (audioBeast) { audioBeast.pause(); audioBeast = null; setSonando(null); }
     const idLocal = `a${Date.now()}`;
     setMensajes(v => [...v, { id: idLocal, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
@@ -11169,9 +11220,11 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     if (a.tipo === 'anotar_comida' || a.tipo === 'proponer_comida') {
       if (!m.nuevo) return <p className="jb-body text-[11px] text-zinc-500 mt-1.5">🍽️ {a.texto}</p>;
       return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar}
+        registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }}
         onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
     }
-    if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)} /> : null;
+    if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)}
+      registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }} /> : null;
     if (a.tipo === 'que_como') {
       if (!m.nuevo) return null;
       return (

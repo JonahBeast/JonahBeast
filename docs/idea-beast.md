@@ -10,7 +10,7 @@ Todo lo conversado con Jonah sobre Beast. **Todavía no se construye:** se propo
 - Sabe nombre, meta y comidas, y lo que el alumno le cuente de su vida (trabajo, hijos, fines de semana). Se acuerda de todo, escribe primero ("ayer no anotaste nada, ¿todo bien?") y aconseja como amigo.
 - Cuenta la historia de Jonah en tercera persona ("Jonah, el que creó esta app, bajó 37 kg…"), nunca como si él la hubiera vivido.
 - **Hábito sano:** el alumno vuelve porque Beast le resuelve algo (lo conoce, le resuelve el "¿qué como?", lo rescata del mal día, lo celebra y le cuida el camino). Nada de culpa ni sentimientos fingidos ("me pones triste si no vienes").
-- **Para venderlo:** "Beast, tu compañero que te conoce y te lleva a tu meta", "No vas solo: Beast va contigo, comida a comida", "👑 Premium: tu compañero Beast sin límite".
+- **Para venderlo:** "Beast, tu compañero que te conoce y te lleva a tu meta", "No vas solo: Beast va contigo, comida a comida", "👑 Premium: Beast contigo todos los días. Sin monedas, sin cobros extra." **No decir "Beast sin límite"** (Premium tiene un freno de ≈ 60 mensajes al día; INDECOPI sanciona la publicidad que no se cumple). Anotar comidas sí es sin límite.
 
 ## Cómo se ve
 
@@ -132,6 +132,19 @@ El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y 
 9. **Revisión semanal de errores:** Claude revisa las conversaciones marcadas con 👎, corrige y le pasa a Jonah un resumen corto ("esta semana Beast se equivocó en 3 cosas y ya están corregidas").
 10. **Lanzarlo de a pocos:** primero los Premium y la mitad de los nuevos, escuchar qué dicen y luego abrirlo a todos.
 
+## Detalles que hacen la diferencia (9 de octubre)
+
+1. **El límite nunca corta a alguien que está mal.** Si un gratis gastó sus mensajes y escribe "estoy muy triste", Beast responde igual: los temas delicados no cuentan para el límite.
+2. **Los avisos nunca dicen nada privado.** Se ven en la pantalla bloqueada (pareja, hijos, compañeros): nada de "¿cómo te fue con lo de tu ex?" ni "pesas 82 kg". Lo privado, solo dentro del chat.
+3. **La burbuja no tapa nada** (lección de Pedro y la ventana de Chrome): el globito nunca cubre botones, sobre todo en la primera comida, y se cierra con un toque.
+4. **"Deshacer" después de anotar:** "Listo 🦍 [Deshacer]" por unos segundos, y "Inicio" cambia al instante: el chat y la app nunca muestran números distintos.
+5. **Que no se repita:** variar las frases, emojis con medida; "¡Vamos con todo!" y "comida a comida" solo en momentos especiales, no en cada mensaje.
+6. **Si falla internet o la IA, no se pierde nada:** "Uy, se me fue la señal, causa 😅 Dame un toque y lo intento de nuevo", con el mensaje del alumno guardado para reenviarlo. Nunca una pantalla de error fría.
+7. **Entiende al peruano:** "lomo saltao", "chaufita", "un cuarto de pollo con papas", notas de voz con ruido de la calle o la combi. Va en la prueba a ciegas.
+8. **Contra estafas:** "Beast nunca te va a pedir tu clave, tu tarjeta ni que pagues por el chat; los pagos son solo en Planes". Clave cuando se fusione con WhatsApp.
+9. **Menores de edad:** si cuenta que tiene menos de 18, no le da consejos para bajar calorías; lo anima a comer sano y a hablar con sus papás o un profesional.
+10. **Si pide hablar con Jonah:** le dice la verdad de cuánto suele tardar ("Jonah responde normalmente en el día"), sin prometer "al toque".
+
 ## Qué IA usa
 
 - **Equipo de dos:** Haiku 5.5 (económico) para el día a día (~95% de los mensajes); Sonnet 5.5 (fino) para temas delicados (ánimo, trastornos de la alimentación, salud) y para ordenar la libreta una vez al día. El cambio es automático y el alumno no lo nota.
@@ -150,7 +163,7 @@ El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y 
 |---|---|---|
 | Registro → 1.ª comida | 10 de 20 | Sí: bienvenida por voz y "cuéntame qué almorzaste" sin buscar nada |
 | Vuelven el 2.º día | 1 de 20 (la caída más grande) | Sí, pero sobre todo con la puerta de WhatsApp (los avisos de la app llegan a 1 de 20) |
-| Usan la app → pagan | 9 usaron 10+ días y no pagaron | Sí: razón concreta para pagar ("Premium: Beast sin límite y anotar por voz"), como el coach de Fitia |
+| Usan la app → pagan | 9 usaron 10+ días y no pagaron | Sí: razón concreta para pagar ("Premium: Beast todos los días y anotar por voz"), como el coach de Fitia |
 | Los que pagan se quedan | Sin datos (Joselyn renueva el 23 de octubre) | Sí: si te conoce y acompaña, cuesta irse |
 
 Escenarios (no promesas), con ≈ 150 registros al mes: si pagan 2, 4 o 6 de cada 100 → 3, 6 o 9 alumnos nuevos que pagan al mes (≈ S/75, S/150 o S/225 más al mes en mensual, y se acumula si se quedan). Costo ≈ S/0,70 por alumno activo al mes.

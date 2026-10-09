@@ -9,6 +9,8 @@
 
 - **Play Console → "Seguridad de los datos" (pedido el 9 de octubre).** La política de privacidad se puso al día (voz, fotos de comida con IA, píxeles de Meta y TikTok). Falta que Jonah, guiado por Claude, actualice el formulario de Play Console para que coincida (audio, fotos, IA, medición de anuncios) y confirme qué link de política tiene puesto (`jonahbeast.com/privacidad` o `/privacidad.html`). La política ya incluye a Beast (sección 4); en Play Console marcar también "mensajes en la app" (conversaciones con Beast).
 
+- **Precios de respaldo de Mercado Pago (9 de octubre, pedido por Jonah).** `crear-suscripcion`, `crear-pago-unico` y `webhook-mercadopago` tenían anotados los precios viejos como repuesto (solo se usan si falta el precio en `config`, que ya está al día). Corregidos en este PR (trimestral 59.90, anual 179.90). **Después del merge:** publicar las 3 funciones desde `main` y decirle a Jonah qué versión quedó. Luego borrar esta nota.
+
 ## Con fecha
 
 - **Cada lunes 8:52 am: revisión semanal de la base de alimentos** (rutina "Revisión semanal de la base de alimentos", `trig_01CBY8prRNz3CQ7mYWHY8KkV`, pedida por Jonah el 6 de octubre; se dispara en la sesión donde se pidió, que tiene acceso a Supabase). Claude revisa repetidos, números que no cuadran, nombres, medidas, regla del arroz y lo que agregó la IA sola, y le manda a Jonah una lista numerada para aprobar. No cambia nada sin su OK.

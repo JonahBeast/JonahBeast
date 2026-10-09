@@ -11,9 +11,9 @@ const CORS_HEADERS = {
 // guardado (son los mismos que usa la app).
 const PRECIOS_RESPALDO: Record<number, number> = {
   1: 24.90,
-  3: 64.90,
+  3: 59.90,
   6: 114.90,
-  12: 209.90,
+  12: 179.90,
 };
 
 function responder(body: unknown, status = 200) {

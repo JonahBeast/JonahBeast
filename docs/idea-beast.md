@@ -154,7 +154,7 @@ El botón de hoy ("🦍 Pregúntale a Jonah qué puedes comer", manual 8.2 F) y 
 
 - ≈ **S/0,70 al mes por alumno** con el equipo Haiku + Sonnet (≈ S/0,50 solo con Haiku; ≈ S/7,50 solo con Sonnet). Va de unos céntimos (entra poco) a ≈ S/3 (Premium que conversa muchísimo). Es menos del 3% de lo que paga.
 - El riesgo son los gratis: con 2 de cada 100 pagando se queda a mano; con 5 de cada 100 se gana bien.
-- **Límites** (detalle en "Cómo se manejan los límites"): pocos mensajes gratis al día (3 a 5), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
+- **Límites** (detalle en "Cómo se manejan los límites"): 3 mensajes al día en la versión gratis (15 a 20 en la prueba), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
 - Confirmar el gasto real el primer mes en la tabla `ia_uso`.
 
 ## Impacto esperado (análisis del 9 de octubre, con la revisión de pagos de ese día)
@@ -176,22 +176,23 @@ Lo que no arregla solo: al que nunca vuelve no le llega sin WhatsApp (hoy el asi
 
 Lección de Fitia (según una sola reseña de 2026, sin confirmar: su coach tiene un límite de uso al mes y después se compran monedas). Un límite mal manejado hace sentir engañado al que paga; bien manejado, nadie lo nota.
 
-**Por tipo de cuenta (decisión de Jonah, 9 de octubre: Beast para todos, más medido en la prueba gratis porque no se sabe si pasarán a Premium):**
+**Por tipo de cuenta (decisión de Jonah, 9 de octubre: Beast para todos, más medido en la prueba gratis porque no se sabe si pasarán a Premium, y muy corto en la versión gratis para que extrañen a Beast):**
 
 | Cuenta | Conversación con Beast | Notas de voz de Beast (▶️ Escuchar) |
 |---|---|---|
-| Prueba gratis (7 días de Premium) | ≈ 20 mensajes al día; el contador sale recién al quedar 5 ("Hoy te quedan 5 mensajes") | ≈ 5 al día |
-| Gratis (después de la prueba) | 3 a 5 mensajes al día, con contador a la vista | No (es gusto de Premium) |
+| Prueba gratis (7 días de Premium) | **20 mensajes al día los días 1 a 3** (la curiosidad del arranque) y **15 al día los días 4 a 7**; el contador sale recién al quedar 5 ("Hoy te quedan 5 mensajes") | ≈ 5 al día |
+| Gratis (después de la prueba) | **3 mensajes al día** (mensajes, no conversaciones), con contador a la vista. **Anotar comidas escribiéndole sigue sin límite** (por voz es Premium): que siga usando la app y extrañe conversar, no que se vaya | No (es gusto de Premium) |
 | Premium | ≈ 60 mensajes al día | Sin tope aparte (dentro de los 60) |
 
-- En la prueba, 20 al día alcanza de sobra (lo normal es 5 a 15) y cuesta poco: un alumno que conversa mucho los 7 días suma ≈ S/0,30 a S/0,50 en total.
-- **El día 8,** Beast se lo cuenta con naturalidad: "Desde mañana conversamos hasta 3 mensajes al día y te sigo anotando todo lo que me digas. Con Premium seguimos como hasta hoy 👑".
-- En todas las cuentas: anotar nunca gasta mensajes y los temas delicados no cuentan para el límite.
+- En la prueba alcanza de sobra (lo normal es 5 a 15 al día) y cuesta poco: un alumno que conversa mucho los 7 días suma ≈ S/0,30 a S/0,50 en total. **Revisar los primeros días de Beast cuántos llegan al tope** (sobre todo los días 1 a 3, que son los más entusiasmados y los que más pagan); si son muchos, subirlo.
+- **Al llegar a los 3 en la versión gratis, con cariño:** "Por hoy ya conversamos, causa 🦍 Te sigo anotando lo que comas. Con Premium conversamos todo lo que quieras 👑". Sin regañar.
+- **El día 8,** Beast se lo cuenta con naturalidad: "Desde mañana conversamos hasta 3 mensajes al día y te sigo anotando todo lo que me escribas. Con Premium seguimos como hasta hoy 👑".
+- En todas las cuentas: anotar nunca gasta mensajes, los temas delicados no cuentan para el límite y cuando Beast escribe primero (recordatorio, "¿todo bien?") tampoco cuenta.
 
 1. **Anotar nunca tiene límite:** anotar comidas, agua o peso con Beast no gasta mensajes. El límite es solo para la conversación libre.
 2. **Límite por día, no por mes:** mañana vuelve completo; nadie se queda semanas sin su compañero.
 3. **Generoso en Premium:** ≈ 60 mensajes al día (lo normal es 5 a 15). Al llegar a 50: "Hoy conversamos un montón 🦍 Me quedan unos pocos mensajes, mañana seguimos con todo." Al llegar a 60: "Por hoy descanso, pero puedes seguir anotando tus comidas en la app. ¡Mañana seguimos!"
-4. **Claro en la versión gratis:** 3 a 5 mensajes al día con el contador a la vista ("Te quedan 2 mensajes hoy"); al terminarse invita a Premium sin regañar.
+4. **Claro en la versión gratis:** 3 mensajes al día con el contador a la vista ("Te quedan 2 mensajes hoy"); al terminarse invita a Premium sin regañar.
 5. **Sin monedas ni cobros extra:** Premium se paga una vez al mes y listo. Para vender, sin nombrar a la competencia: "Beast va contigo todo el mes. Sin monedas, sin cobros extra." No decir en anuncios que Fitia cobra monedas sin confirmarlo.
 6. **Ajustarlo con datos:** el primer mes, ver cuánto conversa la gente de verdad y subir o bajar el freno.
 

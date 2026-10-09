@@ -3957,6 +3957,37 @@ function PesajeCard({ form, setForm }) {
   );
 }
 
+/* En iPhone, la app instalada es el ícono del gorila en la pantalla de
+   inicio. Si alguien que YA la instaló (tiene avisos de Apple activos, que
+   solo funcionan desde el ícono) la abre desde un link (WhatsApp, correo…),
+   se abre en el navegador: ahí no le llegan los avisos. Se le recuerda
+   abrirla desde el ícono. "×" lo esconde por hoy. */
+function AbreDesdeIconoAviso({ username }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || '';
+    const esIphone = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const instaladaAqui = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!esIphone || instaladaAqui) return;
+    try { if (localStorage.getItem('jb-abre-icono-' + username) === todayISO()) return; } catch {}
+    let vivo = true;
+    supabase.from('push_subs').select('endpoint').eq('username', username).eq('activa', true).limit(5)
+      .then(({ data }) => { if (vivo && (data || []).some(x => String(x.endpoint).includes('web.push.apple.com'))) setVer(true); }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  if (!ver) return null;
+  return (
+    <div className="relative mb-4 flex items-start gap-3 bg-zinc-900 border border-orange-500/50 rounded-xl p-3 pr-9">
+      <img src="/jonah-avatar.png" alt="" className="w-9 h-9 rounded-full border border-orange-500/60 shrink-0" />
+      <p className="jb-body text-sm text-zinc-200">
+        <b className="text-zinc-50">Ábrela desde el ícono del gorila 🦍</b> en la pantalla de tu celular: así te llegan tus avisos y se ve completa. Ahora la abriste desde un link.
+      </p>
+      <button onClick={() => { try { localStorage.setItem('jb-abre-icono-' + username, todayISO()); } catch {} setVer(false); }}
+        aria-label="Cerrar" className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+    </div>
+  );
+}
+
 /* 📣 Mensaje de Jonah a todos (saludo de Navidad, avisos...). Lo escribe
    Jonah en el panel (HOY → "📣 MENSAJE A TODOS"); a quien tiene avisos
    también le llega como notificación. Sale como ventana apenas el alumno
@@ -12744,6 +12775,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}
@@ -12765,6 +12797,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                       🔠 Ver la app más grande y sencilla
                     </button>
                   )}
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}

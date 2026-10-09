@@ -198,7 +198,7 @@ Se abre con el ícono **⚙️** de la barra de arriba o con **"⚙️ Mi perfil
   - **🔥 Racha en riesgo** · **⚖️ Pesaje y control** · **📊 Resumen de tu semana** · **🏆 Retos y equipos**.
   - Los avisos de tu plan, tus pagos, tus pedidos de alimentos y la comunidad siempre llegan. Nunca más de 3 avisos al día.
 - **"LA APP":** **"🔠 Letra grande e Inicio sencillo"** (modo fácil, ver 7.1) y **"🔊 Sonidos de logros"**.
-- **"PRIVACIDAD":** "Política de Privacidad" y **"Eliminar mi cuenta"**.
+- **"PRIVACIDAD":** "Política de Privacidad" y **"Eliminar mi cuenta"**. La política (`jonahbeast.com/privacidad.html`, al día desde el 9 de octubre de 2026) explica qué datos guarda la app, que la voz y las fotos de comida se procesan con inteligencia artificial (OpenAI y Anthropic) **sin guardar el audio ni la foto**, y que Meta y TikTok reciben solo el aviso de registro o pago con correo/celular cifrados para medir anuncios (nunca peso, medidas, comidas ni fotos).
 
 ### 6.1 La primera vez (guía de bienvenida)
 

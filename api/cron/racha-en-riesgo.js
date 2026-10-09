@@ -82,7 +82,7 @@ export default async function handler(req, res) {
     // 1. Racha en riesgo (3+ días, sin registrar hoy)
     const enRiesgo = usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha >= RACHA_MINIMA && !rachas[u].registroHoy);
     await Promise.all(enRiesgo.map(u => {
-      const body = `Oe, llevas ${rachas[u].racha} días seguidos anotando 🔥 No la rompas hoy: cuéntame qué comiste y listo.`;
+      const body = `¡Llevas ${rachas[u].racha} días seguidos anotando! 🔥 No la rompas hoy: cuéntame qué comiste y listo.`;
       return enviar(u, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'racha_en_riesgo');
     }));
 
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     ];
     if (sinRegistro.length) {
       const variantes = [
-        '¿Todo bien, causa? Hoy no te vi por aquí. Cuando quieras volver, aquí sigo, sin juicios 🦍',
+        '¿Todo bien? Hoy no te vi por aquí. Cuando quieras volver, aquí sigo, sin juicios 🦍',
         'Hace un rato que no anotamos nada. Ya fue, retomar también cuenta: ¿qué comiste hoy? 💪',
         'Un día sin anotar no borra tu avance 🦍 Cuando puedas, cuéntame qué comiste y seguimos.',
       ];
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
       }
     }
     await Promise.all(conHitoNuevo.map(async ({ username, hito }) => {
-      const body = `🔥 ¡${hito} días de racha, causa! Eso es constancia de verdad. Toca y celebramos 🦍`;
+      const body = `🔥 ¡${hito} días de racha! Eso es constancia de verdad. Toca y celebramos 🦍`;
       const enviado = await enviar(username, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'hito_racha');
       // Si hoy no se pudo (sin presupuesto o sin avisos), se celebra otro día.
       if (enviado) await supabase.from('alumnos').update({ ultimo_hito_racha: hito }).eq('username', username);

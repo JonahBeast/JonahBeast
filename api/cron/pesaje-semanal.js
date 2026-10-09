@@ -13,7 +13,7 @@ import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarP
 
 const MENSAJES = [
   'Buenos días 🦍 Hoy toca pesaje: en ayunas, después del baño. Dime cuánto marcó y lo anoto ⚖️',
-  'Domingo de pesaje, causa ⚖️ En ayunas y después del baño. Cuéntame cuánto marcó y vemos tu semana 📊',
+  'Domingo de pesaje ⚖️ En ayunas y después del baño. Cuéntame cuánto marcó y vemos tu semana 📊',
   'Hora de pesarte 🦍 Un dato por semana basta para ver tu avance real. ¿Cuánto marcó? ⚖️',
 ];
 

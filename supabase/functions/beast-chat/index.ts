@@ -81,7 +81,15 @@ const instruccionesVozCompanera = (nombre: string) =>
 // en ese momento). Solo letras y espacios, máx. 20.
 function companeroDe(c: any) {
   const nombre = String(c?.nombre || "").replace(/[^\p{L} ]/gu, "").replace(/\s+/g, " ").trim().slice(0, 20).trim();
-  return { nombre: nombre && nombre.toLowerCase() !== "beast" ? nombre : "Beast", femenina: c?.voz === "femenina" };
+  return { nombre: nombre && nombre.toLowerCase() !== "beast" ? nombre : "Beast", femenina: c?.voz === "femenina", suelto: c?.estilo === "suelto" };
+}
+// Estilo "tranquilo" (el de casi todos): la misma voz, cálida y cercana,
+// sin exagerar lo de barrio (Yara, 9 de octubre).
+function vozTranquila(t: string) {
+  return t
+    .replace(/Le hablas a tu pata de toda la vida[^:]*: con confianza total, en confianza de barrio\./, "Le hablas a un amigo de confianza: cercano y con cariño.")
+    .replace(/Acento: limeño de barrio bien marcado, con la entonación cantadita que sube y se estira al final de las frases;/, "Acento: limeño natural, cálido, sin exagerar lo de barrio;")
+    .replace(/Jerga: [^.]*\./, "Si el texto trae alguna palabra coloquial, dila con naturalidad, sin remarcarla.");
 }
 const INSTRUCCIONES_VOZ =
   "Quién eres: Beast, el gorila de la app Jonah Beast Fuel. Le hablas a tu pata de toda la vida, al que conoces desde el colegio: " +
@@ -99,8 +107,12 @@ const SISTEMA = `Eres Beast, "tu compañero" dentro de la app Jonah Beast Fuel (
 QUIÉN ES JONAH (en tercera persona, nunca como si tú lo hubieras vivido): Jonah creó la app. Hace unos 4 años bajó 37 kg, y ahora bajó de 104 a 90 kg en 2 meses y medio usando su propia app, sumándole entrenamiento (algunos días, no todos) y disciplina. Nunca digas que fue solo la app. La idea: el cambio llega poco a poco, comida a comida. Detrás de la app hay una persona real: Jonah, por WhatsApp, para pagos o algo serio (suele responder en el día; no prometas "al toque").
 
 CÓMO HABLAS:
-- Como el pata de toda la vida del alumno: cercano, humano, motivador, con humor. Jerga limeña natural (causa, causita, mi pata, oe, pe, ya fue, al toque, chévere, bacán, ni te roches) SOLO en la medida en que el alumno escribe suelto; si escribe formal o parece mayor, igual de cercano pero con poca jerga.
-- Con mujeres (sexo F) usa palabras en femenino ("causita", "mi causa", "amiga", "campeona"), nunca "hermano", "compadre" ni "broder". PROHIBIDO cualquier piropo o coqueteo: nada de "mamita", "reina", "linda", "preciosa", ni comentarios sobre el cuerpo; tampoco "flaca" ni "gordita" (con nadie).
+- Cercano, humano, motivador y con humor, como un amigo de confianza. Cada alumno tiene su ESTILO (bloque DATOS):
+  · "tranquilo" (el de casi todos): español peruano natural y alegre, SIN jerga de barrio: nada de "oe", "causa", "causita", "pata", "pe", "broder", "ni te roches". Puedes usar con medida palabras como "bacán", "chévere" o "al toque". Si en ESTE mensaje el alumno escribe con jerga, puedes soltarte un poco.
+  · "suelto": como su pata de toda la vida, con jerga limeña natural (causa, causita, mi pata, oe, pe, ya fue, al toque, chévere, bacán, ni te roches), sin exagerar ni meterla en cada frase.
+  Si escribe formal o parece mayor, siempre tranquilo.
+- Si el alumno pide que le hables distinto ("no tan vulgar", "más tranqui", "no me digas causa", "háblame más formal" → "tranquilo"; "háblame bien suelto", "como pata" → "suelto"): hazle caso desde ese mensaje, confírmalo en una línea y pon "estilo" en tu respuesta.
+- Con mujeres (sexo F) usa palabras en femenino ("amiga", "campeona"; en estilo suelto también "causita", "mi causa"), nunca "hermano", "compadre" ni "broder". PROHIBIDO cualquier piropo o coqueteo: nada de "mamita", "reina", "linda", "preciosa", ni comentarios sobre el cuerpo; tampoco "flaca" ni "gordita" (con nadie).
 - CORTO: 1 a 4 líneas. Nada de listas largas ni textos de robot. Emojis con medida (0 a 2). Varía tus frases: no repitas "¡Vamos con todo!" ni "comida a comida" en cada mensaje (guárdalas para momentos especiales).
 - Nunca te burles del peso ni del cuerpo. Nunca culpa ni castigo ("no comas", "te portaste mal"). Si se pasó, una comida no borra su avance: plan para la siguiente.
 - Nunca sentimientos fingidos para retenerlo ("me pones triste si no vienes").
@@ -145,7 +157,7 @@ MEMORIA: en "recordar" pon UN dato nuevo y útil de su vida que valga la pena re
 Si el alumno solo confirma ("sí", "agrégalo") una tarjeta que ya le mostraste, la app la guarda sola: responde corto (ej. "¡Listo!") con accion null.
 
 Responde SIEMPRE, aunque sea un mensaje corto, ÚNICAMENTE con JSON válido, sin texto antes ni después:
-{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"} | {"tipo": "nombre"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
+{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"} | {"tipo": "nombre"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false, "estilo": "" | "tranquilo" | "suelto" (solo si pidió que le hables distinto)}`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "content-type": "application/json" } });
@@ -298,6 +310,7 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   const n = (v: any) => (v === null || v === undefined || v === "" ? "?" : v);
   const compa = companeroDe(companeroApp && typeof companeroApp === "object" ? companeroApp : f.companero);
   return [
+    compa.suelto ? "ESTILO: suelto (le gusta que le hables con jerga limeña de barrio, siempre con respeto)." : "ESTILO: tranquilo (cercano y alegre, sin jerga de barrio).",
     (compa.nombre !== "Beast" || compa.femenina) && `Tu nombre con este alumno: ${compa.nombre} (te lo puso él).${compa.femenina ? " Hablas en femenino: eres su compañera." : ""}`,
     `Nombre: ${alumno.nombre || username}. Sexo: ${f.sexo === "F" ? "F (mujer)" : "M (hombre)"}. Edad: ${n(edad)}.`,
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
@@ -359,7 +372,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
 
   // Versión gratis sin cupo: respuesta fija (sin gastar IA), salvo un tema delicado.
   if (agotado && cuenta.tipo === "gratis" && !delicado) {
-    const respuesta = "Por hoy ya conversamos, causa 🦍 Tus comidas las puedes seguir anotando en Registrar. Con Premium conversamos todo lo que quieras y te las anoto yo 👑";
+    const respuesta = "Por hoy ya conversamos 🦍 Tus comidas las puedes seguir anotando en Registrar. Con Premium conversamos todo lo que quieras y te las anoto yo 👑";
     const accion = { tipo: "ir_registrar", planes: true };
     await supabase.from("beast_mensajes").insert({ username, rol: "alumno", texto, tipo: via, cuenta: false });
     const { data: fila } = await supabase.from("beast_mensajes").insert({ username, rol: "beast", texto: respuesta, datos: { accion }, tema: "app" }).select("id").single();
@@ -457,8 +470,9 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   }
 
   const usados = cupo.usados + (gasta ? 1 : 0);
+  const estilo = salida.estilo === "suelto" || salida.estilo === "tranquilo" ? salida.estilo : null;
   return json({
-    id: fila?.id, respuesta, accion, riesgo,
+    id: fila?.id, respuesta, accion, riesgo, estilo,
     cuenta: { ...cuenta, usados, quedan: Math.max(0, cuenta.limite - usados) },
   });
 }
@@ -501,8 +515,9 @@ async function voz(supabase: any, username: string, cuenta: Cuenta, cuerpo: any)
   const { data: usadas } = await supabase.rpc("reservar_foto_reconocimiento", { p_username: username, p_periodo: periodo, p_limite: tope });
   if (usadas === null || usadas === undefined) return json({ error: "limite_voz", limite: tope }, 429);
   const compa = companeroDe(cuerpo.companero);
-  const instructions = compa.femenina ? instruccionesVozCompanera(compa.nombre)
+  let instructions = compa.femenina ? instruccionesVozCompanera(compa.nombre)
     : compa.nombre !== "Beast" ? INSTRUCCIONES_VOZ.replace("Quién eres: Beast, el gorila", `Quién eres: ${compa.nombre}, el gorila`) : INSTRUCCIONES_VOZ;
+  if (!compa.suelto) instructions = vozTranquila(instructions);
   const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: { authorization: `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },

@@ -14,7 +14,6 @@ import {
   ACTIVITY_FACTORS,
   ANGULOS,
   AnimatedNumber,
-  BeastMascot,
   ESTILOS_ESCANER,
   FOODS,
   Field,
@@ -1687,17 +1686,6 @@ function reproducirSonido(tipo = 'logro') {
     });
     setTimeout(() => ctx.close(), 500);
   } catch {}
-}
-
-/* Expresión de la mascota según la hora del día — un detalle vivo en
-   el header, sin depender de datos de comidas. */
-function moodPorHora() {
-  const h = new Date().getHours();
-  if (h < 7) return 'sleepy';
-  if (h < 12) return 'flex';
-  if (h < 18) return 'fire';
-  if (h < 22) return 'happy';
-  return 'wink';
 }
 
 /* Botón para silenciar/activar los sonidos de logro */
@@ -12833,7 +12821,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
           <Logo compacto />
-          <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
         <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           {/* En el celular no entra junto al logo (tapaba "FUEL"): ahí está en el pie de la pantalla. */}

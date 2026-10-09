@@ -27,10 +27,10 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get("CLAVE_SERVICIO") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))!;
 
-// Equipo de dos (docs/idea-beast.md, "Qué IA usa"): Haiku para el día a día,
-// Sonnet cuando el tema es delicado (ánimo, salud, trastornos).
-const MODELO_DIARIO = "claude-haiku-5-5";
-const MODELO_DELICADO = "claude-sonnet-5-5";
+// Solo Haiku, la IA económica (decisión de Jonah, 9 de octubre: sin
+// Sonnet ni prueba a ciegas; Jonah la usa todo el día y avisa si hay que
+// afinarla).
+const MODELO = "claude-haiku-5-5";
 
 // Límites decididos por Jonah (9 de octubre):
 // prueba gratis 20 al día los días 1 a 3 y 15 los días 4 a 7; gratis 3;
@@ -50,14 +50,14 @@ const MAX_TEXTO = 1200;
 const HISTORIAL_IA = 14; // mensajes previos que ve la IA
 const MAX_LIBRETA = 1800; // ≈ 1 página
 const DIAS_CONVERSACION = 90;
-const SIN_LIMITE = new Set(["martin"]); // pruebas de Jonah
+const SIN_LIMITE = new Set(["martin"]); // la cuenta de Jonah: sin tope de mensajes ni de voz (como la captura inteligente)
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Temas delicados: pasan aunque se haya acabado el cupo y van con Sonnet.
+// Temas delicados: pasan aunque se haya acabado el cupo y no gastan mensajes.
 const DELICADO = /(triste|deprim|ansied|angusti|llor(o|ando|ar)|solo y|sola y|no aguanto|no puedo m[aá]s|me quiero morir|quiero morir|no quiero vivir|matarme|suicid|hacerme da[nñ]o|cortarme|autolesi|v[oó]mit|vomit|atrac[oó]n|bulimi|anorexi|me odio|asco de m[ií]|culpa|embaraz|diabet|hipertens|enferm|depre\b|crisis|p[aá]nico)/i;
 const RIESGO = /(me quiero morir|quiero morir|no quiero vivir|matarme|suicid|hacerme da[nñ]o|cortarme|autolesi|quitarme la vida)/i;
 
@@ -356,7 +356,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   if (mensajes.length && mensajes[mensajes.length - 1].role === "user") mensajes[mensajes.length - 1].content += `\n\n${contenidoUsuario}`;
   else mensajes.push({ role: "user", content: contenidoUsuario });
 
-  const modelo = delicado ? MODELO_DELICADO : MODELO_DIARIO;
+  const modelo = MODELO;
   let salida: any = null;
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {

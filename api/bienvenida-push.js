@@ -40,8 +40,8 @@ export default async function handler(req, res) {
     }
 
     const payload = JSON.stringify({
-      titulo: 'Jonah 🦍',
-      cuerpo: '¡Bienvenido a Jonah Beast Fuel! Soy Jonah, y desde hoy estoy contigo en cada paso. Vamos a construir juntos la mejor versión de ti 🔥',
+      titulo: 'Beast 🦍',
+      cuerpo: '¡Listo, avisos activados! Soy Beast, tu compañero 🦍 Te aviso para que no se te pase ninguna comida. Y Jonah sigue aquí para lo importante 🔥',
       url: '/',
     });
 

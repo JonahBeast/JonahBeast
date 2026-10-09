@@ -50,6 +50,7 @@ const MAX_TEXTO = 1200;
 const HISTORIAL_IA = 14; // mensajes previos que ve la IA
 const MAX_LIBRETA = 1800; // ≈ 1 página
 const DIAS_CONVERSACION = 90;
+const LIBRETA_ORDENAR = 12; // datos en la libreta a partir de los cuales se resume
 const SIN_LIMITE = new Set(["martin"]); // la cuenta de Jonah: sin tope de mensajes ni de voz (como la captura inteligente)
 
 const CORS_HEADERS = {
@@ -107,17 +108,22 @@ ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
 - "ir_registrar": cuando conviene que anote él mismo en la pantalla Registrar.
 - "ver_planes": cuando pregunta por Premium, precios o planes.
 - "hablar_jonah": cuando pide hablar con Jonah o es algo de pagos o serio.
+- "avisos": si pide que le escribas menos o que dejes de mandarle tantos avisos ("háblame menos", "no me escribas tanto") → {"tipo": "avisos", "nivel": "menos"}; si pide volver a los de siempre → "nivel": "normal". Hazle caso sin discutir y dile que solo le llegará el aviso del almuerzo y lo importante.
 - null: si solo conversa.
 Sé honesto con lo que ves en la base: si la app no encuentra un alimento, el alumno lo puede pedir desde la tarjeta.
 
 CUENTA DEL ALUMNO (bloque DATOS): "gratis" conversa poco (3 mensajes al día; anotar contigo también gasta mensajes y la voz es de Premium); "prueba" y "premium" anotan contigo sin gastar mensajes. Si te dicen que el cupo se acabó (CUPO_AGOTADO), responde en una línea cariñosa que por hoy ya conversaron y que puede seguir anotando en Registrar (acción "ir_registrar"), salvo que pida anotar algo y su cuenta lo permita, o que sea un tema delicado.
+
+MINI META DE LA SEMANA: si el bloque DATOS trae su meta de la semana, tenla en cuenta (anímalo con ella cuando venga al caso, sin repetirla en cada mensaje).
+
+AVISOS: si el mensaje viene de uno de tus avisos (AVISO_ABIERTO), el alumno te está respondiendo a eso: sigue esa conversación.
 
 MEMORIA: en "recordar" pon UN dato nuevo y útil de su vida que valga la pena recordar en próximas conversaciones (trabajo, horarios, familia, gustos, metas, lo que le cuesta), en tercera persona y corto (máx. 15 palabras); si no hay nada nuevo, "". Nunca guardes datos de salud mental, crisis ni cosas muy íntimas.
 
 Si el alumno solo confirma ("sí", "agrégalo") una tarjeta que ya le mostraste, la app la guarda sola: responde corto (ej. "¡Listo!") con accion null.
 
 Responde SIEMPRE, aunque sea un mensaje corto, ÚNICAMENTE con JSON válido, sin texto antes ni después:
-{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
+{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false}`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "content-type": "application/json" } });
@@ -275,6 +281,8 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     pesajes && `Últimos pesajes: ${pesajes}.`,
     hoyApp && `Hoy (${horaLima()}): comió ${Math.round(hoyApp.kcal || 0)} de ${Math.round(hoyApp.metaKcal || 0)} kcal; proteína ${Math.round(hoyApp.proteina || 0)} de ${Math.round(hoyApp.metaProteina || 0)} g; agua ${hoyApp.agua || 0} de ${hoyApp.metaAgua || 0} vasos; comidas anotadas: ${hoyApp.comidas || "ninguna"}.`,
     `Últimos 7 días: anotó ${ult7.length} de 7 días; en ${enMeta} quedó dentro de sus calorías (±10%). Racha: ${racha} días seguidos anotando.`,
+    f.metaSemanal?.tipo && f.metaSemanal?.semana && `Su mini meta de la semana (desde el ${f.metaSemanal.semana}): ${({ agua: "tomar sus vasos de agua todos los días", anotar: "anotar sus comidas todos los días", proteina: "llegar a su proteína" } as any)[f.metaSemanal.tipo] || f.metaSemanal.tipo}.`,
+    f.avisos?.pocos === true && "Pidió que le escribas menos: solo le llega el aviso del almuerzo.",
     libreta?.notas && `Lo que sabes de su vida (libreta): ${libreta.notas}`,
   ].filter(Boolean).join("\n");
 }
@@ -288,7 +296,7 @@ function extraerJson(t: string): any {
   } catch { return null; }
 }
 
-const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah"];
+const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah", "avisos"];
 const COMIDAS = ["Desayuno", "Media mañana", "Almuerzo", "Media tarde", "Cena"];
 function limpiarAccion(a: any) {
   if (!a || typeof a !== "object" || !ACCIONES.includes(a.tipo)) return null;
@@ -298,6 +306,7 @@ function limpiarAccion(a: any) {
     return texto ? { tipo: a.tipo, texto, comida } : null;
   }
   if (a.tipo === "que_como") return { tipo: a.tipo, comida };
+  if (a.tipo === "avisos") return a.nivel === "normal" || a.nivel === "menos" ? { tipo: a.tipo, nivel: a.nivel } : null;
   if (a.tipo === "agua") {
     const vasos = Math.round(Number(a.vasos));
     return vasos >= 1 && vasos <= 12 ? { tipo: a.tipo, vasos } : null;
@@ -353,6 +362,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
     `Mensajes que le quedan hoy para conversar: ${cuenta.limite >= 100000 ? "sin tope" : quedan}.`,
     agotado ? "CUPO_AGOTADO: ya usó sus mensajes de hoy." : "",
     via === "voz" ? "(Este mensaje lo dijo por nota de voz; puede tener errores de transcripción.)" : "",
+    typeof cuerpo.aviso === "string" && cuerpo.aviso.trim() ? `AVISO_ABIERTO: abrió el chat desde tu aviso "${cuerpo.aviso.trim().slice(0, 300)}".` : "",
   ].filter(Boolean).join("\n");
   const contenidoUsuario = `${nota}\n\nMENSAJE DEL ALUMNO:\n${texto}`;
   if (mensajes.length && mensajes[mensajes.length - 1].role === "user") mensajes[mensajes.length - 1].content += `\n\n${contenidoUsuario}`;
@@ -415,7 +425,10 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
     if (!lineas.some((l) => l.toLowerCase() === recordar.toLowerCase())) {
       lineas.push(recordar);
       while (lineas.join("\n").length > MAX_LIBRETA && lineas.length > 1) lineas.shift();
-      await supabase.from("beast_libreta").update({ notas: lineas.join("\n"), actualizado_en: new Date().toISOString() }).eq("username", username);
+      // Libreta ordenada: al pasar de 12 datos se resume (sin repetidos ni
+      // datos viejos que ya no valen), para que no se llene de lo mismo.
+      const ordenada = lineas.length > LIBRETA_ORDENAR ? await ordenarLibreta(supabase, username, lineas) : null;
+      await supabase.from("beast_libreta").update({ notas: (ordenada || lineas).join("\n"), actualizado_en: new Date().toISOString() }).eq("username", username);
     }
   }
 
@@ -426,15 +439,39 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   });
 }
 
+// Resume la libreta en 6 a 10 datos cortos: une repetidos, deja lo más
+// reciente si algo cambió y quita lo que ya no sirve. Si falla, se queda igual.
+async function ordenarLibreta(supabase: any, username: string, lineas: string[]): Promise<string[] | null> {
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: MODELO,
+        max_tokens: 600,
+        messages: [{ role: "user", content: `Estas son notas sobre la vida de un alumno de una app para bajar de peso (de la más vieja a la más nueva):\n${lineas.map((l) => `- ${l}`).join("\n")}\n\nResúmelas en 6 a 10 notas cortas (máx. 15 palabras cada una), en tercera persona: une las repetidas, si algo cambió deja solo lo más nuevo y quita lo que ya no sirve. Nada de salud mental ni cosas muy íntimas. Responde SOLO con las notas, una por línea, sin guiones ni numeración.` }],
+      }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    await anotarUsoIA(supabase, username, MODELO, data.usage, "libreta");
+    const notas = (data.content || []).map((c: any) => c.text || "").join("").split("\n")
+      .map((l: string) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter((l: string) => l.length > 2).slice(0, 10);
+    return notas.length >= 3 ? notas : null;
+  } catch { return null; }
+}
+
 async function voz(supabase: any, username: string, cuenta: Cuenta, cuerpo: any) {
   if (!OPENAI_API_KEY) return json({ error: "sin_clave" }, 503);
   const bienvenida = cuerpo.bienvenida === true;
-  if (cuenta.tipo === "gratis" && !bienvenida) return json({ error: "premium" }, 403);
+  // Los logros (primer kilo, 7 días…) se celebran con voz para todos.
+  const celebracion = !bienvenida && cuerpo.celebracion === true;
+  if (cuenta.tipo === "gratis" && !bienvenida && !celebracion) return json({ error: "premium" }, 403);
   const input = String(cuerpo.texto || "").replace(/\s+/g, " ").trim().slice(0, 900);
   if (!input) return json({ error: "Falta el texto." }, 400);
-  // Cupo de voz del día (la bienvenida tiene el suyo: 3 en total).
-  const periodo = bienvenida ? "beast-voz-bienvenida" : `beast-voz-${fechaLima()}`;
-  const tope = bienvenida ? 3 : cuenta.tipo === "prueba" ? VOZ_PRUEBA : SIN_LIMITE.has(username) ? 100000 : VOZ_PREMIUM;
+  // Cupo de voz del día (la bienvenida y los logros tienen el suyo, en total).
+  const periodo = bienvenida ? "beast-voz-bienvenida" : celebracion ? "beast-voz-logros" : `beast-voz-${fechaLima()}`;
+  const tope = bienvenida ? 3 : celebracion ? 15 : cuenta.tipo === "prueba" ? VOZ_PRUEBA : SIN_LIMITE.has(username) ? 100000 : VOZ_PREMIUM;
   const { data: usadas } = await supabase.rpc("reservar_foto_reconocimiento", { p_username: username, p_periodo: periodo, p_limite: tope });
   if (usadas === null || usadas === undefined) return json({ error: "limite_voz", limite: tope }, 429);
   const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
@@ -453,11 +490,11 @@ async function voz(supabase: any, username: string, cuenta: Cuenta, cuerpo: any)
   return new Response(r.body, { headers: { ...CORS_HEADERS, "content-type": "audio/mpeg", "cache-control": "no-store" } });
 }
 
-async function anotarUsoIA(supabase: any, username: string, modelo: string, usage: any) {
+async function anotarUsoIA(supabase: any, username: string, modelo: string, usage: any, tipo = "conversacion") {
   try {
     const u = usage || {};
     await supabase.from("ia_uso").insert({
-      funcion: "beast-chat", tipo: "conversacion", username, modelo,
+      funcion: "beast-chat", tipo, username, modelo,
       tokens_entrada: Number(u.input_tokens) || 0, tokens_salida: Number(u.output_tokens) || 0,
       tokens_cache_lectura: Number(u.cache_read_input_tokens) || 0, tokens_cache_escritura: Number(u.cache_creation_input_tokens) || 0,
     });

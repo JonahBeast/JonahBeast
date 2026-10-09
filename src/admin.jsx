@@ -3763,7 +3763,7 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz', 'conversacion'];
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz', 'conversacion', 'libreta'];
 
 // Partes de la app que usan IA, para comparar su costo con el mes anterior.
 const PARTES_IA = [

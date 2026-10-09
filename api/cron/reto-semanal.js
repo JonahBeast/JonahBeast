@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     let enviados = 0; const fallidos = [];
     await Promise.all(conCupo.map(async u => {
       const r = await enviarPushA(supabase, [u], {
-        title: 'Jonah 🦍',
+        title: 'Beast 🦍',
         body: `Reto de esta semana: ${textoReto}. Este fin de semana es tu última oportunidad.`,
       });
       enviados += r.enviados; fallidos.push(...r.fallidos);

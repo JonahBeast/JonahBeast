@@ -1504,12 +1504,16 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
       <button onClick={alternar} disabled={revisando} className={btnPrimary + ' w-full text-base py-3'}>
-        {revisando ? <Loader2 size={16} className="animate-spin" /> : '🦍 Pregúntale a Jonah qué puedes comer'}
+        {revisando ? <Loader2 size={16} className="animate-spin" /> : '🦍 Pregúntale a Beast qué puedes comer'}
       </button>
+      {/* En la calle (pollería, chifa, menú…) le pregunta a Beast, que propone
+          una opción con las calorías de la app. */}
+      <button onClick={() => abrirBeastDesde({ texto: 'Estoy fuera de casa, en ' })}
+        className="w-full mt-2 jb-body text-xs text-zinc-300 hover:text-orange-400 py-1.5">💬 ¿Estás fuera de casa? Cuéntale a Beast</button>
       {!premium && cupoSug && !cupoSug.ok && (
         <div className="mt-4">
           <BloqueoPremium compacto titulo="Ya usaste tus 3 sugerencias gratis de esta semana"
-            texto="Que Jonah te diga qué comer todos los días es Premium. El lunes tienes 3 más." />
+            texto="Que Beast te diga qué comer todos los días es Premium. El lunes tienes 3 más." />
         </div>
       )}
       {open && !premium && cupoSug && typeof cupoSug.quedan === 'number' && (
@@ -10695,6 +10699,109 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
    mismo motor del registro por voz (interpretarVarios) y se guardan
    igual que desde Registrar, así el resultado es el mismo por cualquier
    camino. La versión de prueba de Vercel habla con beast-chat-prueba. */
+// Cualquier parte de la app puede abrir el chat de Beast (con un texto ya
+// escrito, un aviso, etc.): lo escucha StudentDashboard.
+function abrirBeastDesde(detalle = {}) {
+  window.dispatchEvent(new CustomEvent('jb-abrir-beast', { detail: detalle }));
+}
+
+// Horas a las que suele anotar cada comida → hora de su aviso (una hora
+// después de la de siempre), dentro de la ventana de ese momento. La usan
+// los avisos del servidor (horaAviso en api/_lib/push.js) si el alumno no
+// eligió una hora en "Tus avisos".
+const MOMENTO_DE_COMIDA = { Desayuno: 'manana', Almuerzo: 'mediodia', Cena: 'noche' };
+const VENTANA_AVISO = { manana: [6, 11], mediodia: [12, 17], noche: [18, 23] };
+function horasAprendidas(horasComida) {
+  const aprendidas = {};
+  Object.entries(MOMENTO_DE_COMIDA).forEach(([comida, momento]) => {
+    const l = (horasComida?.[comida] || []).map(Number).filter(h => h >= 0 && h <= 23);
+    if (l.length < 3) return;
+    const orden = [...l].sort((a, b) => a - b);
+    const mediana = orden[Math.floor(orden.length / 2)];
+    const [min, max] = VENTANA_AVISO[momento];
+    aprendidas[momento] = Math.min(max, Math.max(min, mediana + 1));
+  });
+  return aprendidas;
+}
+
+// Logros que Beast celebra (una vez cada uno, form.beastLogros).
+const LOGROS_BEAST = [
+  { id: 'racha7', cumple: d => d.racha >= 7, titulo: '¡7 días seguidos!', texto: n => `¡${n}, 7 días seguidos anotando! 🔥 Eso ya no es suerte, es constancia de verdad. Así se construye el cambio, comida a comida 🦍` },
+  { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: n => `¡Oe, ${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
+  { id: 'mitad', cumple: d => d.total >= 2 && d.bajo >= d.total / 2, titulo: '¡Ya voy por la mitad!', texto: n => `¡${n}, ya vas por la mitad de tu meta! 🏆 Lo que falta lo hacemos igual: comida a comida 🦍` },
+  { id: 'kilos5', cumple: d => d.bajo >= 5, titulo: '¡5 kilos menos!', texto: n => `¡5 kilos menos, ${n}! 🔥 Eso es disciplina pura. Estoy orgulloso de ti, causa 🦍` },
+];
+function logroPendiente(form, racha) {
+  const pi = Number(form?.pesoInicial) || 0;
+  const p = Number(form?.peso) || 0;
+  const meta = Number(form?.pesoObjetivo) || 0;
+  const perder = !form?.objetivo || /perder/i.test(form.objetivo);
+  const d = {
+    racha: racha || 0,
+    bajo: perder && pi && p ? Math.round((pi - p) * 10) / 10 : 0,
+    total: perder && pi && meta && pi > meta ? pi - meta : 0,
+  };
+  const ya = new Set(Array.isArray(form?.beastLogros) ? form.beastLogros : []);
+  return LOGROS_BEAST.find(l => !ya.has(l.id) && l.cumple(d)) || null;
+}
+
+// Tarjeta para el estado de WhatsApp (1080×1920), con el gorila y el link.
+async function imagenLogro(titulo, nombre) {
+  const c = document.createElement('canvas');
+  c.width = 1080; c.height = 1920;
+  const g = c.getContext('2d');
+  const fondo = g.createLinearGradient(0, 0, 0, 1920);
+  fondo.addColorStop(0, '#1c1917'); fondo.addColorStop(1, '#0c0a09');
+  g.fillStyle = fondo; g.fillRect(0, 0, 1080, 1920);
+  g.fillStyle = 'rgba(232,89,12,0.18)';
+  g.beginPath(); g.arc(540, 700, 430, 0, Math.PI * 2); g.fill();
+  try { await document.fonts?.load?.('120px Anton'); } catch {}
+  const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = '/jonah-avatar.png'; });
+  if (img) {
+    g.save(); g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.clip();
+    g.drawImage(img, 210, 370, 660, 660); g.restore();
+    g.lineWidth = 16; g.strokeStyle = '#E8590C'; g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.stroke();
+  }
+  g.textAlign = 'center';
+  g.fillStyle = '#FF7020'; g.font = '600 52px "Work Sans", sans-serif';
+  g.fillText('BEAST ME FELICITÓ 🦍', 540, 1170);
+  g.fillStyle = '#fafaf9';
+  const palabras = String(titulo).toUpperCase().split(' ');
+  const lineas = []; let actual = '';
+  g.font = '130px Anton, Impact, sans-serif';
+  palabras.forEach(w => { const prueba = actual ? `${actual} ${w}` : w; if (g.measureText(prueba).width > 960 && actual) { lineas.push(actual); actual = w; } else actual = prueba; });
+  if (actual) lineas.push(actual);
+  lineas.forEach((l, i) => g.fillText(l, 540, 1330 + i * 150));
+  if (nombre) { g.fillStyle = '#d6d3d1'; g.font = '500 54px "Work Sans", sans-serif'; g.fillText(String(nombre).split(' ')[0], 540, 1330 + lineas.length * 150 + 30); }
+  g.fillStyle = '#E8590C'; g.fillRect(140, 1700, 800, 110);
+  g.fillStyle = '#0c0a09'; g.font = '68px Anton, Impact, sans-serif';
+  g.fillText('JONAHBEAST.COM', 540, 1780);
+  return new Promise(res => c.toBlob(b => res(b), 'image/png'));
+}
+async function compartirLogro(titulo, nombre) {
+  const blob = await imagenLogro(titulo, nombre);
+  if (!blob) return 'error';
+  const archivo = new File([blob], 'mi-logro-jonah-beast.png', { type: 'image/png' });
+  const texto = `${titulo} 🦍 Bajando de peso sin dejar mi comida peruana: https://jonahbeast.com/?fuente=estado`;
+  try {
+    if (navigator.canShare?.({ files: [archivo] })) { await navigator.share({ files: [archivo], text: texto }); return 'ok'; }
+  } catch (e) { if (e?.name === 'AbortError') return 'cancelado'; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = archivo.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return 'descargado';
+}
+
+// Mini meta de la semana (form.metaSemanal = { semana: lunes, tipo, informada }).
+const METAS_SEMANA = {
+  agua: { emoji: '💧', corto: 'Tomar mis vasos de agua', medir: (h, metaAguaVasos) => (Number(h.meal_plan?.agua) || 0) >= metaAguaVasos },
+  anotar: { emoji: '📝', corto: 'Anotar todos los días', medir: h => (Number(h.comidas_count) || 0) > 0 },
+  proteina: { emoji: '🍗', corto: 'Llegar a mi proteína', medir: h => {
+    const meta = ((Number(h.kcal_objetivo) || 0) * (h.meal_plan?.macros?.p || 0.3)) / 4;
+    return meta > 0 && (Number(h.proteina_g) || 0) >= meta * 0.9;
+  } },
+};
+
 function funcionBeast() {
   return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';
 }
@@ -10707,13 +10814,13 @@ async function llamarBeast(body) {
 }
 // Una sola nota de voz suena a la vez; tocar ▶️ otra vez la para.
 let audioBeast = null;
-async function escucharBeast(texto, { bienvenida = false } = {}) {
+async function escucharBeast(texto, { bienvenida = false, celebracion = false } = {}) {
   if (audioBeast) { const a = audioBeast; audioBeast = null; a.pause(); if (a.dataset?.texto === texto) return 'parado'; }
   const { data: { session } = {} } = await supabase.auth.getSession();
   const r = await fetch(`${supabaseUrl}/functions/v1/${funcionBeast()}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ accion: 'voz', texto, bienvenida }),
+    body: JSON.stringify({ accion: 'voz', texto, bienvenida, celebracion }),
   });
   if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
     let e = '';
@@ -10729,12 +10836,12 @@ async function escucharBeast(texto, { bienvenida = false } = {}) {
   return 'ok';
 }
 
-function BeastBurbuja({ arriba, punto, globo, onAbrir, onCerrarGlobo }) {
+function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo }) {
   return (
     <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
       {globo && (
         <div className="relative max-w-[220px] bg-zinc-900 border border-orange-500/50 rounded-2xl rounded-br-sm pl-3 pr-7 py-2 shadow-lg shadow-black/40">
-          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">¡Oe! Soy <b className="text-orange-400">Beast</b>, tu compañero 🦍 Cuéntame qué comiste y te ayudo.</button>
+          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">{textoGlobo || <>¡Oe! Soy <b className="text-orange-400">Beast</b>, tu compañero 🦍 Cuéntame qué comiste y te ayudo.</>}</button>
           <button onClick={onCerrarGlobo} aria-label="Cerrar" className="absolute top-1 right-1 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
         </div>
       )}
@@ -10974,12 +11081,13 @@ function BeastTarjetaPeso({ kg, pesoAntes, onGuardar, registrarConfirmar }) {
   );
 }
 
-function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, versionGratis, onCerrar, onRegistrar, onVerPlanes }) {
+function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, versionGratis, onCerrar, onRegistrar, onVerPlanes, inicio = null, logro = null, onLogroVisto }) {
   const premium = !versionGratis;
   const [estado, setEstado] = useState('cargando'); // cargando | consentir | listo | error
   const [mensajes, setMensajes] = useState([]);
   const [libreta, setLibreta] = useState(null);
   const [cuenta, setCuenta] = useState(null);
+  const [teniaHistoria, setTeniaHistoria] = useState(false);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [menu, setMenu] = useState(null); // null | 'menu' | 'libreta'
@@ -10989,6 +11097,8 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   const finRef = useRef(null);
   const inputRef = useRef(null);
   const confirmarRef = useRef(null); // { id, fn } de la última tarjeta para confirmar
+  const avisoRef = useRef(null); // el aviso desde el que abrió el chat (va con su primer mensaje)
+  const arranqueHecho = useRef(false);
   const grabadorRef = useRef(null);
   const mealPlanRef = useRef(mealPlan);
   mealPlanRef.current = mealPlan;
@@ -11000,11 +11110,62 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     const r = await llamarBeast({ accion: 'cargar' });
     if (r.error) { setEstado('error'); return; }
     setMensajes(r.mensajes || []);
+    setTeniaHistoria((r.mensajes || []).length > 0);
     setLibreta(r.libreta);
     setCuenta(r.cuenta);
     setEstado(r.libreta?.consentimiento_en ? 'listo' : 'consentir');
   }
   useEffect(() => { cargar(); }, []);
+  // Al abrir (ya con permiso): el aviso que tocó, la mini meta de la semana
+  // y el logro por celebrar, como mensajes de Beast.
+  useEffect(() => {
+    if (estado !== 'listo' || arranqueHecho.current) return;
+    arranqueHecho.current = true;
+    if (inicio?.texto) { setTexto(inicio.texto); setTimeout(() => inputRef.current?.focus(), 300); }
+    if (logro) {
+      local(logro.texto(String(nombre || '').split(' ')[0] || 'causa'), { logro, celebracion: true });
+      onLogroVisto?.(logro.id);
+    }
+    // El aviso que tocó va al final, justo encima de donde se escribe.
+    metaDeLaSemana().finally(() => {
+      if (!inicio?.aviso) return;
+      avisoRef.current = inicio.aviso;
+      local(inicio.aviso, { avisoDe: { comida: inicio.comida || null, foto: !!inicio.foto } });
+    });
+  }, [estado]);
+
+  async function metaDeLaSemana() {
+    const hoy = todayISO();
+    const lunes = lunesDe(hoy);
+    const ms = formRef.current.metaSemanal;
+    const diaSemana = new Date(`${hoy}T12:00:00`).getDay(); // 0 domingo
+    const medir = async (desde) => {
+      const hasta = addDaysISO(desde, 6);
+      const { data } = await supabase.from('historial').select('fecha, comidas_count, proteina_g, kcal_objetivo, meal_plan')
+        .eq('username', username).gte('fecha', desde).lte('fecha', hasta);
+      const def = METAS_SEMANA[ms.tipo];
+      const vasos = metaAgua(formRef.current.peso);
+      return (data || []).filter(h => def?.medir(h, vasos)).length;
+    };
+    try {
+      if (ms?.tipo && ms.semana < lunes && !ms.informada) {
+        const n = await medir(ms.semana);
+        const def = METAS_SEMANA[ms.tipo];
+        local(n >= 5 ? `🏆 Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ¡${n} de 7 días! Así se hace, causa 🔥`
+          : n >= 3 ? `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días 💪 Bien ahí, esta semana vamos por más.`
+          : `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días. Ya fue, tranqui: esta semana la sacamos 🦍`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), informada: true } }));
+      }
+      if (ms?.tipo && ms.semana === lunes && diaSemana === 0 && !ms.domingo) {
+        const n = await medir(lunes);
+        local(`${METAS_SEMANA[ms.tipo].emoji} Tu mini meta de esta semana: vas ${n} de 7 días. ${n >= 5 ? '¡Semana de bestia! 🔥' : 'Hoy todavía suma 💪'}`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), domingo: true } }));
+      }
+      if ((!ms || ms.semana !== lunes) && (inicio?.meta || (diaSemana >= 1 && diaSemana <= 3))) {
+        local('¿Qué mini meta nos ponemos esta semana? Elige una y el domingo te cuento cómo te fue 🦍', { elegirMeta: lunes });
+      }
+    } catch {}
+  }
   useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes.length, estado, enviando]);
   useEffect(() => {
     if (!deshacer) return;
@@ -11058,7 +11219,9 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     setMensajes(v => [...v, { id: idLocal, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
     setTexto('');
     setEnviando(true);
-    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast() });
+    const aviso = avisoRef.current;
+    avisoRef.current = null;
+    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast(), aviso });
     setEnviando(false);
     if (r.error === 'consentimiento') { setEstado('consentir'); return; }
     if (r.error) {
@@ -11071,6 +11234,8 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     setMensajes(v => [...v, { id: r.id, rol: 'beast', texto: r.respuesta, datos: r.accion ? { accion: r.accion } : null, nuevo: true }]);
     // Agua: directo (con Deshacer), como en la app.
     if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
+    // "Beast, háblame menos": solo el aviso del almuerzo (y lo importante).
+    if (r.accion?.tipo === 'avisos') setForm(v => ({ ...v, avisos: { ...(v.avisos || {}), pocos: r.accion.nivel === 'menos' } }));
   }
 
   function reintentar(m) {
@@ -11149,7 +11314,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
 
   async function escuchar(m) {
     setSonando(m.id);
-    const r = await escucharBeast(m.texto, { bienvenida: m.bienvenida });
+    const r = await escucharBeast(m.texto, { bienvenida: m.bienvenida, celebracion: m.celebracion });
     if (r !== 'ok') setSonando(null);
     else if (audioBeast) audioBeast.addEventListener('ended', () => setSonando(s => (s === m.id ? null : s)));
     if (r === 'limite') showToast(cuenta?.tipo === 'prueba' ? 'Por hoy ya te mandé mis 5 notas de voz 🦍' : 'Por hoy ya te mandé muchas notas de voz 🦍 Mañana seguimos.');
@@ -11192,12 +11357,50 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     };
   }
 
-  const irRegistrar = () => { evento('registrar'); onCerrar(); onRegistrar(); };
+  const irRegistrar = () => { evento('registrar'); onCerrar(); onRegistrar(comidaDeAhora()); };
   const irPlanes = () => { evento('planes'); onCerrar(); onVerPlanes(); };
   const urlJonah = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   function acciones(m) {
     const a = m.datos?.accion || m.accion;
+    if (m.avisoDe) {
+      const comida = m.avisoDe.comida;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida || comidaDeAhora()); }}
+            className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Anotar en Registrar</button>
+          {comida && (premium || m.avisoDe.foto) && (
+            <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida, { foto: true }); }}
+              className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">📸 Foto</button>
+          )}
+          {premium && <p className="jb-body text-[11px] text-zinc-500 w-full">o cuéntamelo aquí abajo 👇</p>}
+        </div>
+      );
+    }
+    if (m.elegirMeta) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {Object.entries(METAS_SEMANA).map(([tipo, def]) => (
+            <button key={tipo} onClick={() => {
+              setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+              setForm(v => ({ ...v, metaSemanal: { semana: m.elegirMeta, tipo } }));
+              setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: `${def.emoji} ${def.corto}`, local: true }]);
+              local(`¡Hecho! Esta semana: ${def.corto.toLowerCase()} ${def.emoji} Te voy contando y el domingo vemos cómo te fue 🦍`, { sistema: true });
+            }} className="jb-body text-xs text-zinc-100 bg-zinc-950 border border-orange-500/50 hover:border-orange-500 rounded-full px-3 py-1.5">{def.emoji} {def.corto}</button>
+          ))}
+        </div>
+      );
+    }
+    if (m.logro) {
+      return (
+        <button onClick={async () => {
+          const r = await compartirLogro(m.logro.titulo, nombre);
+          if (r === 'descargado') showToast('Listo: la imagen se guardó. Súbela a tu estado 📲');
+          if (r === 'error') showToast('No pude armar la imagen, inténtalo de nuevo.');
+        }} className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📲 Compartir en mi estado</button>
+      );
+    }
     if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, null)} />;
     if (m.ofrecerAvisos) {
       if (m.respondido) return null;
@@ -11239,8 +11442,8 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     return botones.length ? <div className="flex flex-wrap gap-2 mt-2">{botones}</div> : null;
   }
 
-  const lista = estado === 'listo' && mensajes.length === 0
-    ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }]
+  const lista = estado === 'listo' && !teniaHistoria
+    ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }, ...mensajes]
     : mensajes;
   const quedan = cuenta?.quedan;
   const contador = cuenta && cuenta.limite < 100000 && (cuenta.tipo === 'gratis' || quedan <= 5)
@@ -11269,7 +11472,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
             <button onClick={async () => {
               if (!(await confirmar('¿Borrar toda tu conversación con Beast? No se puede deshacer.'))) return;
               await llamarBeast({ accion: 'borrar' });
-              setMensajes([]); setMenu(null); showToast('Conversación borrada');
+              setMensajes([]); setTeniaHistoria(false); setMenu(null); showToast('Conversación borrada');
             }} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">🗑️ Borrar conversación</button>
             <p className="jb-body text-[11px] text-zinc-500 px-4 py-2 border-t border-zinc-800">🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días.</p>
           </div>
@@ -11326,9 +11529,9 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
                       <p className="jb-body text-sm text-zinc-100 whitespace-pre-wrap">{m.texto}</p>
                       {acciones(m)}
                     </div>
-                    {!m.sistema && (
+                    {!m.sistema && !m.avisoDe && !m.elegirMeta && (
                       <div className="flex items-center gap-3 mt-1 ml-1">
-                        {(m.bienvenida || (premium && typeof m.id === 'number')) && (
+                        {(m.bienvenida || m.celebracion || (premium && typeof m.id === 'number')) && (
                           <button onClick={() => escuchar(m)} className="jb-body text-[11px] text-zinc-500 hover:text-orange-400">
                             {sonando === m.id ? '⏹ Parar' : '▶️ Escuchar'}
                           </button>
@@ -11984,7 +12187,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setVistaComunidad(ir === 'equipo' ? 'equipos' : 'muro'); setTab('equipo'); window.scrollTo({ top: 0 });
         return true;
       }
-      if (ir === 'beast') { abrirBeast(); return true; }
+      if (ir === 'beast') {
+        const q = new URL(url, window.location.origin).searchParams;
+        abrirBeast({ aviso: q.get('aviso') || null, comida: q.get('comida') || null, foto: q.get('foto') === '1', meta: q.get('meta') === '1' });
+        return true;
+      }
     } catch {}
     return false;
   }
@@ -11996,6 +12203,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       const u = new URL(window.location.href);
       if (u.searchParams.has('registrar') || u.searchParams.has('ir') || u.searchParams.has('equipo')) {
         u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto'); u.searchParams.delete('equipo');
+        u.searchParams.delete('aviso'); u.searchParams.delete('comida'); u.searchParams.delete('meta');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch {}
@@ -12107,7 +12315,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   beastAbiertoRef.current = beastAbierto;
   const [beastVisto, setBeastVisto] = useState(() => { try { return !!localStorage.getItem('jb_beast_visto_' + username); } catch { return true; } });
   const [globoBeastCerrado, setGloboBeastCerrado] = useState(false);
-  function abrirBeast() {
+  const [beastInicio, setBeastInicio] = useState(null); // { aviso, comida, foto, meta, texto }
+  function abrirBeast(inicio = null) {
+    setBeastInicio(inicio);
     setBeastAbierto(true);
     if (!beastVisto) { setBeastVisto(true); try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {} }
   }
@@ -12116,6 +12326,47 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setBeastVisto(true);
     try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {}
   }
+  // Cualquier parte de la app puede abrir a Beast (abrirBeastDesde).
+  useEffect(() => {
+    const alAbrir = (e) => { setRegistrarAl(null); abrirBeast(e.detail || null); };
+    window.addEventListener('jb-abrir-beast', alAbrir);
+    return () => window.removeEventListener('jb-abrir-beast', alAbrir);
+  }, []);
+  // Logro por celebrar (primer kilo, 7 días seguidos, mitad de la meta…):
+  // la burbuja lo anuncia y Beast lo celebra al abrir.
+  const [rachaBeast, setRachaBeast] = useState(0);
+  useEffect(() => {
+    let vivo = true;
+    supabase.from('historial').select('fecha, comidas_count').eq('username', username).gte('fecha', addDaysISO(todayISO(), -15))
+      .then(({ data }) => {
+        if (!vivo) return;
+        const con = new Set((data || []).filter(h => (h.comidas_count || 0) > 0).map(h => h.fecha));
+        let n = 0;
+        for (let i = con.has(todayISO()) ? 0 : 1; i < 16 && con.has(addDaysISO(todayISO(), -i)); i++) n++;
+        setRachaBeast(n);
+      }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  const anotoHoy = Object.values(mealPlan?.meals || {}).some(l => (l || []).some(e => e.foodKey));
+  const logroBeast = logroPendiente(form, rachaBeast + (anotoHoy && rachaBeast === 0 ? 1 : 0));
+  // Aprende a qué hora suele anotar desayuno, almuerzo y cena, para que su
+  // aviso llegue después de esa hora (horasAprendidas).
+  const cuentaComidas = useRef(null);
+  useEffect(() => {
+    const ahora = Object.fromEntries(Object.keys(MOMENTO_DE_COMIDA).map(c => [c, (mealPlan?.meals?.[c] || []).filter(e => e.foodKey).length]));
+    const antes = cuentaComidas.current;
+    cuentaComidas.current = ahora;
+    if (!antes) return;
+    const nuevas = Object.keys(ahora).filter(c => ahora[c] > antes[c] && antes[c] === 0);
+    if (!nuevas.length) return;
+    const hora = new Date().getHours();
+    setForm(v => {
+      const horasComida = { ...(v.horasComida || {}) };
+      nuevas.forEach(c => { horasComida[c] = [...(horasComida[c] || []), hora].slice(-7); });
+      const aprendidas = horasAprendidas(horasComida);
+      return { ...v, horasComida, avisos: { ...(v.avisos || {}), aprendidas } };
+    });
+  }, [mealPlan]);
   // Fin de la prueba: pantalla de Jonah (FinPruebaModal) y, si elige "1 mes",
   // los planes se abren con ese plan ya marcado.
   const [verFinPrueba, setVerFinPrueba] = useState(false);
@@ -12560,15 +12811,18 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
       {!beastAbierto && (
-        <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto} onAbrir={abrirBeast} onCerrarGlobo={cerrarGloboBeast}
-          globo={!beastVisto && !globoBeastCerrado && tab === 'dash' && nuncaRegistro === false && !verGuia && !verPrimeraComida
+        <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
+          textoGlobo={beastVisto && logroBeast ? <>¡Oe! Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
+          globo={(!beastVisto || logroBeast) && !globoBeastCerrado && tab === 'dash' && nuncaRegistro === false && !verGuia && !verPrimeraComida
             && !primeraEnCurso && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
       )}
       {beastAbierto && (
         <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}
           mealPlan={mealPlan} setMealPlan={setMealPlan} versionGratis={versionGratis}
-          onCerrar={() => setBeastAbierto(false)}
-          onRegistrar={() => irARegistrar(comidaDeAhora())}
+          onCerrar={() => { setBeastAbierto(false); setBeastInicio(null); }}
+          onRegistrar={(meal, opciones) => irARegistrar(meal || comidaDeAhora(), opciones)}
+          inicio={beastInicio} logro={logroBeast}
+          onLogroVisto={id => setForm(v => ({ ...v, beastLogros: [...new Set([...(Array.isArray(v.beastLogros) ? v.beastLogros : []), id])] }))}
           onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
       )}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"

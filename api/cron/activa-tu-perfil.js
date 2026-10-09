@@ -22,7 +22,7 @@ import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDes
 const PRIMERA_COMIDA = {
   1: '¿Qué vas a almorzar hoy? Tómale una foto y te digo cuántas calorías y proteína tiene 📸',
   2: 'Tu primer registro toma 10 segundos: foto al plato y listo. Hoy empezamos 🦍',
-  3: 'Aquí sigo. Registra solo tu almuerzo de hoy y mira lo que la app hace con él 🔥',
+  3: 'Aquí sigo, causa 🦍 Anota solo tu almuerzo de hoy y mira lo que la app hace con él 🔥',
   5: 'Tu Premium de prueba sigue activo. Una foto a tu plato y arrancamos juntos cuando quieras 💪',
 };
 // Misma regla que la app (src/App.jsx → tieneDatosBasicos): los valores
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
 
     // En paralelo, no uno por uno, para no quedarse sin tiempo.
     const resultados = await Promise.all(envios.map(e =>
-      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: e.url }, { tipo: 'arranque', momento: 'mediodia', especial: true, hoyISO })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Beast 🦍', body: e.body, url: e.url }, { tipo: 'arranque', momento: 'mediodia', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
 

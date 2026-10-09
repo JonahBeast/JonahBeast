@@ -27,7 +27,7 @@ const AVISOS = {
     url: '/',
   }),
   3: (a) => ({
-    body: `Jonah bajó de 104 a 90 kg en 2 meses y medio con esta app, entrenamiento y disciplina, sin dietas raras. Te quedan 3 días de Premium${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}. Después sigues gratis; con Premium mantienes la foto en todas tus comidas 🦍`,
+    body: `Jonah, el que creó esta app, bajó de 104 a 90 kg en 2 meses y medio con la app, entrenamiento y disciplina, sin dietas raras. Te quedan 3 días de Premium${a.nombre ? `, ${primerNombre(a.nombre)}` : ''}. Después sigues gratis; con Premium mantienes la foto en todas tus comidas 🦍`,
     url: URL_PLANES,
   }),
 };
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
       .filter(Boolean);
 
     const resultados = await Promise.all(envios.map(e =>
-      avisoConPresupuesto(supabase, e.username, { title: 'Jonah 🦍', body: e.body, url: e.url }, { tipo: 'prueba_guiada', momento: 'noche', especial: true, hoyISO })));
+      avisoConPresupuesto(supabase, e.username, { title: 'Beast 🦍', body: e.body, url: e.url }, { tipo: 'prueba_guiada', momento: 'noche', especial: true, hoyISO })));
     let enviados = 0; const fallidos = [];
     resultados.forEach(r => { enviados += r.enviados; fallidos.push(...r.fallidos); });
     return res.status(200).json({ ok: true, enviados, fallidos, avisos: envios.length });

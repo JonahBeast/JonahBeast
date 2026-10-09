@@ -18,6 +18,7 @@ import {
   ESTILOS_ESCANER,
   FOODS,
   Field,
+  HOSTS_PRODUCCION,
   Logo,
   MAX_GRAMOS_ENTRADA,
   MEAL_NAMES,
@@ -219,11 +220,21 @@ const SINONIMOS = {
 // El sinónimo SUMA resultados, no reemplaza lo escrito: antes "refresco"
 // buscaba solo "gaseosa" y el "Refresco de cebada" no aparecía (el alumno
 // creía que no estaba y lo creaba de nuevo).
+// Cada palabra se busca por su raíz: "papas fritas" encuentra "Papa (Frita)"
+// y "yuca frito" encuentra "Yuca (Frita)" (plural y masculino/femenino de
+// cómo está preparado no deben esconder el alimento).
+const PREPARACION_RAIZ = /^(frit|cocid|crud|sancochad|hornead|asad|guisad|apanad|rellen|salad|dorad)(o|a|os|as)$/;
+function raizPalabra(w) {
+  const m = w.match(PREPARACION_RAIZ);
+  if (m) return m[1];
+  if (w.length >= 5 && /[lnrd]es$/.test(w)) return w.slice(0, -2); // frejoles, panes, limones
+  return w.length >= 4 && w.endsWith('s') ? w.slice(0, -1) : w;
+}
 function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
   if (!q) return lista.slice(0, limite);
-  const alternativas = [q.split(' ').filter(Boolean)];
-  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean));
+  const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
+  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
   const palabras = alternativas[0];
   const conPuntaje = [];
   for (const f of lista) {
@@ -1355,6 +1366,7 @@ async function usarSugerenciaGratis(username) {
 function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   const [open, setOpen] = useState(false);
   const { premium } = usePremium();
+  const { nombre: nombreCompa } = useCompanero();
   const [cupoSug, setCupoSug] = useState(null); // { ok, quedan?, limite? } en la versión gratis
   const [revisando, setRevisando] = useState(false);
 
@@ -1493,12 +1505,16 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
       <button onClick={alternar} disabled={revisando} className={btnPrimary + ' w-full text-base py-3'}>
-        {revisando ? <Loader2 size={16} className="animate-spin" /> : '🦍 Pregúntale a Jonah qué puedes comer'}
+        {revisando ? <Loader2 size={16} className="animate-spin" /> : `🦍 Pregúntale a ${nombreCompa} qué puedes comer`}
       </button>
+      {/* En la calle (pollería, chifa, menú…) le pregunta a Beast, que propone
+          una opción con las calorías de la app. */}
+      <button onClick={() => abrirBeastDesde({ texto: 'Estoy fuera de casa, en ' })}
+        className="w-full mt-2 jb-body text-xs text-zinc-300 hover:text-orange-400 py-1.5">💬 ¿Estás fuera de casa? Cuéntale a {nombreCompa}</button>
       {!premium && cupoSug && !cupoSug.ok && (
         <div className="mt-4">
           <BloqueoPremium compacto titulo="Ya usaste tus 3 sugerencias gratis de esta semana"
-            texto="Que Jonah te diga qué comer todos los días es Premium. El lunes tienes 3 más." />
+            texto={`Que ${nombreCompa} te diga qué comer todos los días es Premium. El lunes tienes 3 más.`} />
         </div>
       )}
       {open && !premium && cupoSug && typeof cupoSug.quedan === 'number' && (
@@ -3938,6 +3954,92 @@ function PesajeCard({ form, setForm }) {
       <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">Desliza la regla o toca el número para escribirlo · La vez pasada: {pesoActual} kg</p>
       <button onClick={guardar} className={btnPrimary + ' w-full py-2.5 mt-3'}>Guardar mi peso</button>
       <button onClick={ahoraNo} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
+    </div>
+  );
+}
+
+/* En iPhone, la app instalada es el ícono del gorila en la pantalla de
+   inicio. Si alguien que YA la instaló (tiene avisos de Apple activos, que
+   solo funcionan desde el ícono) la abre desde un link (WhatsApp, correo…),
+   se abre en el navegador: ahí no le llegan los avisos. Se le recuerda
+   abrirla desde el ícono. "×" lo esconde por hoy. */
+function AbreDesdeIconoAviso({ username }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || '';
+    const esIphone = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const instaladaAqui = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!esIphone || instaladaAqui) return;
+    try { if (localStorage.getItem('jb-abre-icono-' + username) === todayISO()) return; } catch {}
+    let vivo = true;
+    supabase.from('push_subs').select('endpoint').eq('username', username).eq('activa', true).limit(5)
+      .then(({ data }) => { if (vivo && (data || []).some(x => String(x.endpoint).includes('web.push.apple.com'))) setVer(true); }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  if (!ver) return null;
+  return (
+    <div className="relative mb-4 flex items-start gap-3 bg-zinc-900 border border-orange-500/50 rounded-xl p-3 pr-9">
+      <img src="/jonah-avatar.png" alt="" className="w-9 h-9 rounded-full border border-orange-500/60 shrink-0" />
+      <p className="jb-body text-sm text-zinc-200">
+        <b className="text-zinc-50">Ábrela desde el ícono del gorila 🦍</b> en la pantalla de tu celular: así te llegan tus avisos y se ve completa. Ahora la abriste desde un link.
+      </p>
+      <button onClick={() => { try { localStorage.setItem('jb-abre-icono-' + username, todayISO()); } catch {} setVer(false); }}
+        aria-label="Cerrar" className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+    </div>
+  );
+}
+
+/* 📣 Mensaje de Jonah a todos (saludo de Navidad, avisos...). Lo escribe
+   Jonah en el panel (HOY → "📣 MENSAJE A TODOS"); a quien tiene avisos
+   también le llega como notificación. Sale como ventana apenas el alumno
+   abre la app (pedido de Jonah: sus mensajes son importantes), encima de
+   todo, hasta que toca "¡Gracias, Jonah!" (como mucho 14 días). Espera si
+   hay otra ventana abierta (guía, primera comida, etc.). */
+function MensajeJonahCard({ username, esperar = false }) {
+  const [mensaje, setMensaje] = useState(null);
+  // Se revisa al abrir la app y cada vez que el alumno vuelve a ella (casi
+  // nadie la cierra del todo: queda en segundo plano y no se vuelve a abrir
+  // desde cero), como mucho una vez por minuto.
+  useEffect(() => {
+    let vivo = true;
+    let ultima = 0;
+    const revisar = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - ultima < 60_000) return;
+      ultima = Date.now();
+      supabase.rpc('mi_mensaje_masivo').then(({ data }) => {
+        const m = Array.isArray(data) ? data[0] : data;
+        if (!vivo || !m?.id) return;
+        try { if (localStorage.getItem(`jb-mensaje-cerrado-${m.id}`)) return; } catch {}
+        setMensaje(v => (v?.id === m.id ? v : m));
+        registrarPasoPago('mensaje_visto', username, m.id);
+      }, () => {});
+    };
+    revisar();
+    document.addEventListener('visibilitychange', revisar);
+    window.addEventListener('focus', revisar);
+    return () => { vivo = false; document.removeEventListener('visibilitychange', revisar); window.removeEventListener('focus', revisar); };
+  }, [username]);
+  if (!mensaje) return null;
+  function cerrar() {
+    try { localStorage.setItem(`jb-mensaje-cerrado-${mensaje.id}`, '1'); } catch {}
+    registrarPasoPago('mensaje_cerrado', username, mensaje.id);
+    setMensaje(null);
+  }
+  if (esperar) return null;
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+      <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+        style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }}>
+        <div className="flex items-center gap-3">
+          <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+          <div className="min-w-0">
+            <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+            <p className="jb-display text-2xl text-zinc-50 leading-tight">{mensaje.titulo}</p>
+          </div>
+        </div>
+        <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{mensaje.texto}</p>
+        <button onClick={cerrar} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
+      </div>
     </div>
   );
 }
@@ -6891,7 +6993,8 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
 
 /* Alimentos que en una foto se ven casi iguales pero cambian mucho en
    calorías (café negro o con leche, gaseosa normal o cero, leche entera o
-   descremada, atún en agua o en aceite, jugo con o sin azúcar...): si la
+   descremada, atún en agua o en aceite, jugo con o sin azúcar, mayonesa
+   normal o light...): si la
    IA reconoce cualquiera, se muestran todas las variantes para que el
    alumno toque la suya — primero las que sugirió la IA. No se aplica a lo
    que la foto sí distingue (pan, huevo, arroz), para no sumarle pasos. */
@@ -6910,8 +7013,13 @@ const FAMILIAS_FOTO = [
     claves: () => ['Atún en lata en agua (escurrido) (-)', 'Atún en lata en aceite (escurrido) (-)', 'Atún en lata en aceite (sin escurrir) (-)'] },
   { id: 'yogur', es: f => /^Yogur/.test(f.name),
     claves: () => ['Yogur natural (-)', 'Yogur griego natural (-)', 'Yogur saborizado (Con azúcar)', 'Yogur bebible (-)'] },
-  // Jugos, chicha, limonada, refrescos: cada sabor con sus versiones con y sin azúcar.
-  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco)/.test(f.name),
+  // Mayonesa normal o light: en la foto se ven iguales y la light tiene la
+  // mitad de calorías. Entran todas las de la app (también las light de
+  // marca que se agreguen después).
+  { id: 'mayonesa', es: f => /^Mayonesa/.test(f.name),
+    claves: () => FOODS.filter(x => /^Mayonesa/.test(x.name)).map(x => x.key) },
+  // Jugos, chicha, limonada, refrescos, emoliente: cada sabor con sus versiones con y sin azúcar.
+  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco|Emoliente)/.test(f.name),
     claves: f => FOODS.filter(x => x.group === 'Bebidas' && baseBebida(x.name) === baseBebida(f.name)).map(x => x.key) },
 ];
 
@@ -9078,7 +9186,7 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
    al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
    entra con su correo. */
-function AbrirEnNavegadorModal({ username, onCerrar }) {
+function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
   useEffect(() => { registrarPasoPago('abrir_navegador', username, 'vio'); }, [username]);
   const [correo, setCorreo] = useState('');
@@ -9108,6 +9216,7 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
       <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
         <AsaHoja />
         <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        {trasPrimeraComida && <p className="jb-body text-sm text-orange-400 font-semibold mb-1">¡Bien ahí, ya registraste tu primera comida! 💪</p>}
         <h2 className="jb-display text-xl text-zinc-50 mb-3">UN ÚLTIMO PASO PARA ACOMPAÑARTE</h2>
         <p className="jb-body text-sm text-zinc-300 leading-relaxed">
           Estás usando la app dentro de {app === 'otra app' ? 'otra app' : app}. Ahí <b className="text-zinc-100">no te llegan mis avisos</b> ni puedes instalarla.
@@ -9565,6 +9674,10 @@ function MealTab(props) {
 
 function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null }) {
   const [personales, setPersonales] = useState([]);
+  // Aviso de que se revisó un alimento suyo (tarjeta arriba, no un toast:
+  // así alcanza a leerlo y, en la versión gratis, ve lo que da Premium).
+  const [avisoPropio, setAvisoPropio] = useState(null);
+  const { premium, onVerPremium } = usePremium();
   const [editarPropio, setEditarPropio] = useState(null);
   const [escribiendo, setEscribiendo] = useState(false);
   useEffect(() => {
@@ -9708,11 +9821,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         if (nuevos.length) {
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
-          showToast(oficial && a.revision === 'aprobado'
+          setAvisoPropio(oficial && a.revision === 'aprobado'
             ? `➕ ¡Gracias! Jonah revisó "${a.nombre}" y ya está en la app para todos. Tus comidas ya se actualizaron.`
             : oficial
             ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
-            : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+            : `✏️ Revisamos "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''} y corregimos sus calorías. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
@@ -9858,6 +9971,22 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      {avisoPropio && (
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 flex flex-col gap-2">
+          <p className="jb-body text-sm text-zinc-100">{avisoPropio}</p>
+          {!premium && onVerPremium && (
+            <p className="jb-body text-xs text-zinc-400">👑 Con Premium no tienes ni que crearlos: me pides lo que no encuentres y yo te lo agrego con todo calculado. — Jonah</p>
+          )}
+          <div className="flex gap-2 mt-1">
+            {!premium && onVerPremium && (
+              <button onClick={() => { registrarPasoPago('alimento_revisado', username, 'ver_premium'); setAvisoPropio(null); onVerPremium(); }}
+                className={btnPrimary + ' flex-1 py-2.5 text-sm'}>Ver Premium</button>
+            )}
+            <button onClick={() => setAvisoPropio(null)}
+              className={(!premium && onVerPremium ? btnGhost : btnPrimary) + ' flex-1 py-2.5 text-sm'}>Entendido</button>
+          </div>
+        </div>
+      )}
       {esHoy && <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />}
       {hojaMeal && (
         <HojaRegistrar
@@ -10609,28 +10738,1091 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 }
 
 // arriba: en Comidas sube un poco para no chocar con el botón REGISTRAR.
-function WhatsAppButton({ arriba = false }) {
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
-  // se entiende como soporte, y el globo tapaba la pantalla.
+/* ------------------------------------------------------------------ */
+/* BEAST · TU COMPAÑERO (docs/idea-beast.md)                           */
+/* ------------------------------------------------------------------ */
+/* El gorila de la app conversa con el alumno (edge function
+   beast-chat). Beast nunca guarda nada solo: propone una acción y aquí
+   se muestra una tarjeta para confirmar. Las comidas se buscan con el
+   mismo motor del registro por voz (interpretarVarios) y se guardan
+   igual que desde Registrar, así el resultado es el mismo por cualquier
+   camino. La versión de prueba de Vercel habla con beast-chat-prueba. */
+// Cualquier parte de la app puede abrir el chat de Beast (con un texto ya
+// escrito, un aviso, etc.): lo escucha StudentDashboard.
+function abrirBeastDesde(detalle = {}) {
+  window.dispatchEvent(new CustomEvent('jb-abrir-beast', { detail: detalle }));
+}
+
+// Horas a las que suele anotar cada comida → hora de su aviso (una hora
+// después de la de siempre), dentro de la ventana de ese momento. La usan
+// los avisos del servidor (horaAviso en api/_lib/push.js) si el alumno no
+// eligió una hora en "Tus avisos".
+const MOMENTO_DE_COMIDA = { Desayuno: 'manana', Almuerzo: 'mediodia', Cena: 'noche' };
+const VENTANA_AVISO = { manana: [6, 11], mediodia: [12, 17], noche: [18, 23] };
+function horasAprendidas(horasComida) {
+  const aprendidas = {};
+  Object.entries(MOMENTO_DE_COMIDA).forEach(([comida, momento]) => {
+    const l = (horasComida?.[comida] || []).map(Number).filter(h => h >= 0 && h <= 23);
+    if (l.length < 3) return;
+    const orden = [...l].sort((a, b) => a - b);
+    const mediana = orden[Math.floor(orden.length / 2)];
+    const [min, max] = VENTANA_AVISO[momento];
+    aprendidas[momento] = Math.min(max, Math.max(min, mediana + 1));
+  });
+  return aprendidas;
+}
+
+// La siguiente comida principal por anotar: la de ahora si sigue vacía; si
+// no, el almuerzo o la cena. null si ya anotó la cena.
+function siguienteComida(mealPlan) {
+  const vacia = c => !(mealPlan?.meals?.[c] || []).some(e => e.foodKey);
+  const ahora = comidaDeAhora();
+  if (vacia(ahora)) return ahora;
+  const orden = ['Desayuno', 'Media mañana', 'Almuerzo', 'Media tarde', 'Cena'];
+  return ['Almuerzo', 'Cena'].find(c => orden.indexOf(c) > orden.indexOf(ahora) && vacia(c)) || null;
+}
+
+// Logros que Beast celebra (una vez cada uno, form.beastLogros).
+const LOGROS_BEAST = [
+  // Su primera comida anotada en la app (form.primeraComidaEn, hoy o ayer):
+  // Beast lo felicita con sus números y lo lleva a la siguiente comida.
+  { id: 'primera', cumple: d => d.primera, titulo: '¡Mi primera comida anotada!', primera: true,
+    texto: (n, h = {}) => {
+      const yo = h.presentarse ? ` Soy ${h.compa || 'Beast'}, tu compañero 🦍` : '';
+      const quedan = Math.round((h.metaKcal || 0) - (h.kcal || 0));
+      if (!h.metaKcal) return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada.${yo} Vamos juntos, comida a comida 💪`;
+      return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada: llevas ${Math.round(h.kcal || 0)} de tus ${Math.round(h.metaKcal)} kcal de hoy.${yo} `
+        + (quedan > 80 && h.siguiente ? `Para tu ${h.siguiente.toLowerCase()} te quedan unas ${quedan} kcal: ¿te digo qué puedes comer? 🍽️`
+          : quedan > 80 ? `Te quedan unas ${quedan} kcal para lo que queda del día 💪`
+          : 'Hoy ya llegaste a tu meta: mañana seguimos con todo 💪');
+    } },
+  { id: 'racha7', cumple: d => d.racha >= 7, titulo: '¡7 días seguidos!', texto: n => `¡${n}, 7 días seguidos anotando! 🔥 Eso ya no es suerte, es constancia de verdad. Así se construye el cambio, comida a comida 🦍` },
+  { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: (n, h = {}) => `¡${h.suelto ? 'Oe, ' : ''}${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
+  { id: 'mitad', cumple: d => d.total >= 2 && d.bajo >= d.total / 2, titulo: '¡Ya voy por la mitad!', texto: n => `¡${n}, ya vas por la mitad de tu meta! 🏆 Lo que falta lo hacemos igual: comida a comida 🦍` },
+  { id: 'kilos5', cumple: d => d.bajo >= 5, titulo: '¡5 kilos menos!', texto: (n, h = {}) => `¡5 kilos menos, ${n}! 🔥 Eso es disciplina pura. ${h.suelto ? 'Estoy orgulloso de ti, causa 🦍' : 'Me siento orgulloso de ti 🦍'}` },
+];
+function logroPendiente(form, racha) {
+  const pi = Number(form?.pesoInicial) || 0;
+  const p = Number(form?.peso) || 0;
+  const meta = Number(form?.pesoObjetivo) || 0;
+  const perder = !form?.objetivo || /perder/i.test(form.objetivo);
+  const d = {
+    racha: racha || 0,
+    bajo: perder && pi && p ? Math.round((pi - p) * 10) / 10 : 0,
+    total: perder && pi && meta && pi > meta ? pi - meta : 0,
+    primera: !!form?.primeraComidaEn && form.primeraComidaEn >= addDaysISO(todayISO(), -1),
+  };
+  const ya = new Set(Array.isArray(form?.beastLogros) ? form.beastLogros : []);
+  return LOGROS_BEAST.find(l => !ya.has(l.id) && l.cumple(d)) || null;
+}
+
+// Tarjeta para el estado de WhatsApp (1080×1920), con el gorila y el link.
+async function imagenLogro(titulo, nombre, nombreCompa = 'Beast') {
+  const c = document.createElement('canvas');
+  c.width = 1080; c.height = 1920;
+  const g = c.getContext('2d');
+  const fondo = g.createLinearGradient(0, 0, 0, 1920);
+  fondo.addColorStop(0, '#1c1917'); fondo.addColorStop(1, '#0c0a09');
+  g.fillStyle = fondo; g.fillRect(0, 0, 1080, 1920);
+  g.fillStyle = 'rgba(232,89,12,0.18)';
+  g.beginPath(); g.arc(540, 700, 430, 0, Math.PI * 2); g.fill();
+  try { await document.fonts?.load?.('120px Anton'); } catch {}
+  const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = IMAGEN_BEAST; });
+  if (img) {
+    g.save(); g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.clip();
+    g.drawImage(img, 210, 370, 660, 660); g.restore();
+    g.lineWidth = 16; g.strokeStyle = '#E8590C'; g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.stroke();
+  }
+  g.textAlign = 'center';
+  const firma = `${String(nombreCompa || 'Beast').toUpperCase()} ME FELICITÓ 🦍`;
+  let tam = 52;
+  do { g.font = `600 ${tam}px "Work Sans", sans-serif`; tam -= 2; } while (tam > 30 && g.measureText(firma).width > 980);
+  g.fillStyle = '#FF7020';
+  g.fillText(firma, 540, 1170);
+  g.fillStyle = '#fafaf9';
+  const palabras = String(titulo).toUpperCase().split(' ');
+  const lineas = []; let actual = '';
+  g.font = '130px Anton, Impact, sans-serif';
+  palabras.forEach(w => { const prueba = actual ? `${actual} ${w}` : w; if (g.measureText(prueba).width > 960 && actual) { lineas.push(actual); actual = w; } else actual = prueba; });
+  if (actual) lineas.push(actual);
+  lineas.forEach((l, i) => g.fillText(l, 540, 1330 + i * 150));
+  if (nombre) { g.fillStyle = '#d6d3d1'; g.font = '500 54px "Work Sans", sans-serif'; g.fillText(String(nombre).split(' ')[0], 540, 1330 + lineas.length * 150 + 30); }
+  g.fillStyle = '#E8590C'; g.fillRect(140, 1700, 800, 110);
+  g.fillStyle = '#0c0a09'; g.font = '68px Anton, Impact, sans-serif';
+  g.fillText('JONAHBEAST.COM', 540, 1780);
+  return new Promise(res => c.toBlob(b => res(b), 'image/png'));
+}
+async function compartirLogro(titulo, nombre, nombreCompa) {
+  const blob = await imagenLogro(titulo, nombre, nombreCompa);
+  if (!blob) return 'error';
+  const archivo = new File([blob], 'mi-logro-jonah-beast.png', { type: 'image/png' });
+  const texto = `${titulo} 🦍 Bajando de peso sin dejar mi comida peruana: https://jonahbeast.com/?fuente=estado`;
+  try {
+    if (navigator.canShare?.({ files: [archivo] })) { await navigator.share({ files: [archivo], text: texto }); return 'ok'; }
+  } catch (e) { if (e?.name === 'AbortError') return 'cancelado'; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = archivo.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return 'descargado';
+}
+
+// Mini meta de la semana (form.metaSemanal = { semana: lunes, tipo, informada }).
+const METAS_SEMANA = {
+  agua: { emoji: '💧', corto: 'Tomar mis vasos de agua', medir: (h, metaAguaVasos) => (Number(h.meal_plan?.agua) || 0) >= metaAguaVasos },
+  anotar: { emoji: '📝', corto: 'Anotar todos los días', medir: h => (Number(h.comidas_count) || 0) > 0 },
+  proteina: { emoji: '🍗', corto: 'Llegar a mi proteína', medir: h => {
+    const meta = ((Number(h.kcal_objetivo) || 0) * (h.meal_plan?.macros?.p || 0.3)) / 4;
+    return meta > 0 && (Number(h.proteina_g) || 0) >= meta * 0.9;
+  } },
+};
+
+// El alumno le puede poner otro nombre y elegir la voz (chat → ⋮ → "Ponle
+// nombre"). Se guarda en form.companero = { nombre, voz }. La imagen sigue
+// siendo el gorila; el nombre sale en el chat, la burbuja y los avisos.
+const NOMBRE_FEO = /(put[ao]|mierd|verg|ping[ao]|cojud|huev[oó]n|conch|carajo|maric|cabr[oó]n|imb[eé]cil|idiot|est[uú]pid|culo|chuch|mongol|zorr|perr[ao]|pendej|sexo|porno|nazi|hitler|tetas|poto|cachar|jonah)/i;
+function limpiarNombreCompanero(n) {
+  const t = String(n || '').replace(/[^\p{L} ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 20).trim();
+  return t && !NOMBRE_FEO.test(t) ? t : '';
+}
+// Estilo: cada alumno con el suyo (Yara, 9 de octubre: "suelto, pero no
+// tan de barrio"). Por defecto "tranquilo" (cercano, sin oe/causa/pata);
+// "suelto" (con jerga) si lo elige, se lo pide a Beast o escribe con jerga.
+function companeroDe(form) {
+  const c = form?.companero || {};
+  const nombre = limpiarNombreCompanero(c.nombre) || 'Beast';
+  const femenina = c.voz === 'femenina';
+  const estilo = c.estilo === 'suelto' ? 'suelto' : 'tranquilo';
+  return { nombre, femenina, voz: femenina ? 'femenina' : 'masculina', compa: femenina ? 'compañera' : 'compañero',
+    estilo, suelto: estilo === 'suelto', estiloElegido: !!c.estiloElegido };
+}
+// Palabras de jerga de barrio: si el alumno escribe así (y no eligió su
+// estilo), Beast también se suelta.
+// Ojo: "causa" también es un plato (causa rellena) y "pata" puede ser de pollo,
+// así que solo cuentan como saludo o trato ("oe causa", "gracias causita").
+const JERGA_ALUMNO = /(^|[^a-záéíóúñ])oe([^a-záéíóúñ]|$)|\b(mi|oe|habla|hola|ya|gracias|dale|listo|si|sí|bien|tranqui)[ ,!]+(causa|causita|causón|pata|patita|broder|bro)\b|^(causa|causita|broder)\s*[,!]|\b(manyas?|chibolo|jato)\b/i;
+const useCompanero = () => usePremium().companero || companeroDe(null);
+
+// El gorila con los puños encendidos (el ícono de la app): más llamativo que
+// la cara sola, para la burbuja, el chat y la tarjeta de logros.
+const IMAGEN_BEAST = '/icon-512.png';
+
+function funcionBeast() {
+  return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';
+}
+async function llamarBeast(body) {
+  const { data, error } = await supabase.functions.invoke(funcionBeast(), { body });
+  if (!error) return data || {};
+  let cuerpo = null;
+  try { cuerpo = await error.context?.json(); } catch {}
+  return { ...(cuerpo || {}), error: cuerpo?.error || 'sin_conexion', status: error.context?.status };
+}
+// Una sola nota de voz suena a la vez; tocar ▶️ otra vez la para.
+let audioBeast = null;
+async function escucharBeast(texto, { bienvenida = false, celebracion = false, presentacion = false, companero = null } = {}) {
+  if (audioBeast) { const a = audioBeast; audioBeast = null; a.pause(); if (a.dataset?.texto === texto) return 'parado'; }
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/${funcionBeast()}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+    body: JSON.stringify({ accion: 'voz', texto, bienvenida, celebracion, presentacion, companero: companero && { nombre: companero.nombre, voz: companero.voz, estilo: companero.estilo } }),
+  });
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    let e = '';
+    try { e = (await r.json())?.error || ''; } catch {}
+    return e === 'limite_voz' ? 'limite' : e === 'premium' ? 'premium' : 'error';
+  }
+  const url = URL.createObjectURL(await r.blob());
+  const a = new Audio(url);
+  a.dataset.texto = texto;
+  audioBeast = a;
+  a.onended = () => { URL.revokeObjectURL(url); if (audioBeast === a) audioBeast = null; };
+  await a.play().catch(() => {});
+  return 'ok';
+}
+
+function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo }) {
+  const { nombre, compa, suelto } = useCompanero();
   return (
     <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Consultar por WhatsApp"
-        className="relative flex items-center justify-center"
-      >
-        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
-        <span className="relative w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 overflow-hidden border-2 border-emerald-400/50">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center">
-            <MessageCircle size={26} strokeWidth={2.2} className="text-white" />
-          </span>
+      {globo && (
+        <div className="relative max-w-[220px] bg-zinc-900 border border-orange-500/50 rounded-2xl rounded-br-sm pl-3 pr-7 py-2 shadow-lg shadow-black/40">
+          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">{textoGlobo || <>{suelto ? '¡Oe!' : '¡Hola!'} Soy <b className="text-orange-400">{nombre}</b>, tu {compa} 🦍 Cuéntame qué comiste y te ayudo.</>}</button>
+          <button onClick={onCerrarGlobo} aria-label="Cerrar" className="absolute top-1 right-1 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
+        </div>
+      )}
+      <button onClick={onAbrir} aria-label={`Hablar con ${nombre}, tu ${compa}`} className="relative flex flex-col items-center">
+        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-400 bg-zinc-900 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
+          <img src={IMAGEN_BEAST} alt={nombre} className="w-full h-full object-cover scale-[1.6]" />
         </span>
-      </a>
+        {punto && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-zinc-950" />}
+        <span className="jb-display text-[10px] tracking-widest text-orange-400 -mt-1.5 bg-zinc-950 border border-orange-500/60 rounded-full px-1.5 leading-4 max-w-[72px] truncate">{nombre.toUpperCase()}</span>
+      </button>
+    </div>
+  );
+}
+
+const PRIVACIDAD_BEAST = [
+  'Tus conversaciones conmigo son privadas: Jonah no las lee.',
+  'Se borran solas a los 90 días, y puedes borrarlas antes cuando quieras.',
+  'Me acuerdo de lo importante que me cuentes; lo ves y lo borras en "Lo que Beast sabe de ti".',
+  'Soy inteligencia artificial: no soy nutricionista ni médico.',
+];
+
+function BeastConsentimiento({ onAceptar, onCerrar }) {
+  const [alerta, setAlerta] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center text-center gap-4">
+      <span className="w-24 h-24 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
+        <img src={IMAGEN_BEAST} alt="Beast" className="w-full h-full object-cover scale-[1.6]" />
+      </span>
+      <div>
+        <p className="jb-display text-3xl text-zinc-50 tracking-wide">BEAST</p>
+        <p className="jb-body text-sm text-orange-400">tu compañero · IA de Jonah Beast Fuel</p>
+      </div>
+      <p className="jb-body text-sm text-zinc-300 max-w-sm">Te acompaño todos los días: me cuentas qué comiste y te lo anoto, te digo cómo vas y te echo una mano cuando el día se pone difícil. Antes de empezar:</p>
+      <ul className="jb-body text-sm text-zinc-300 text-left max-w-sm flex flex-col gap-2">
+        {PRIVACIDAD_BEAST.map(t => <li key={t} className="flex gap-2"><span className="text-orange-400">•</span><span>{t}</span></li>)}
+      </ul>
+      <label className="flex items-start gap-3 text-left max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-3 cursor-pointer">
+        <input type="checkbox" checked={alerta} onChange={e => setAlerta(e.target.checked)} className="mt-1 w-4 h-4 accent-orange-500" />
+        <span className="jb-body text-xs text-zinc-300">Si me ves muy mal, <b className="text-zinc-100">avísale a Jonah</b> para que me escriba. (Solo le llega tu nombre, nunca lo que conversamos.)</span>
+      </label>
+      <button disabled={guardando} onClick={async () => { setGuardando(true); await onAceptar(alerta); setGuardando(false); }}
+        className={btnPrimary + ' w-full max-w-sm py-3'}>
+        {guardando ? <Loader2 size={18} className="animate-spin" /> : 'EMPEZAR CON BEAST'}
+      </button>
+      <div className="flex items-center gap-3">
+        <button onClick={onCerrar} className="jb-body text-xs text-zinc-500 underline">Ahora no</button>
+        <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer" className="jb-body text-xs text-zinc-500 underline">Política de privacidad</a>
+      </div>
+    </div>
+  );
+}
+
+// "Sí", "dale", "agrégalo", "confírmalo", "está bien"… (corto y sin "no").
+const PALABRAS_CONFIRMAR = new Set(('si sii siii dale ok okey okay listo ya perfecto correcto exacto eso asi es claro confirmo confirmado de una '
+  + 'agregalo agregala agregalos agregalas agregame anotalo anotala anotalos anotalas anotame confirmalo confirmala guardalo guardala '
+  + 'esta todo bien muy porfa por favor causa causita pata beast oe pe ps nomas no mas').split(' '));
+const PALABRAS_CONFIRMAR_CLAVE = /\b(si|sii+|dale|ok|okey|okay|listo|perfecto|correcto|exacto|confirmo|confirmado|agrega\w*|anota\w*|confirma\w*|guarda\w*|bien|de una|asi es)\b/;
+// "Sí", "dale", "agrégalo", "confírmalo", "sí, está bien"…: solo palabras de
+// confirmación (si dice algo más, como "ya almorcé arroz", va a Beast).
+function esConfirmacion(t) {
+  const n = String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n || n.length > 45 || /^no\b/.test(n)) return false;
+  if (n === 'ya' || n === 'ya pe' || n === 'ya causa') return true;
+  const palabras = n.split(' ');
+  if (palabras.includes('no') && !n.includes('no mas')) return false;
+  return palabras.every(w => PALABRAS_CONFIRMAR.has(w)) && PALABRAS_CONFIRMAR_CLAVE.test(n);
+}
+
+// Arma las entradas de comida igual que agregarVarios (registro por voz).
+function entradasDeItems(items, extra = {}) {
+  return items.map(it => {
+    if (it.gramos) return { id: uid(), foodKey: it.food.key, qty: Math.round(it.gramos), unit: 'gramos', ...extra };
+    if (it.gramosExplicitos) return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos', ...extra };
+    const d = unidadPorDefecto(it.food);
+    return { id: uid(), foodKey: it.food.key, qty: d.qty * (it.cantidad || 1), unit: d.unit, ...extra };
+  });
+}
+const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
+
+// Tarjeta de comida: lo que Beast entendió, buscado en la base de la app.
+// "Sí, agrégalo" (escrito o por voz) confirma la última tarjeta sin tocar
+// el botón: la tarjeta se registra aquí y el chat la llama.
+function useConfirmarTarjeta(registrar, fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => registrar?.(() => ref.current()), []);
+}
+
+function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar, registrarConfirmar }) {
+  const [items, setItems] = useState(() => interpretarVarios(accion.texto)
+    .map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia })));
+  const [comida, setComida] = useState(accion.comida || comidaDeAhora());
+  const [hecho, setHecho] = useState(false);
+  const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food);
+  const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
+  const pendiente = items.some(it => it.necesitaAclarar);
+  const propuesta = accion.tipo === 'proponer_comida';
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    if (pendiente) return 'dudas';
+    if (!activos.length) return 'vacia';
+    setHecho(true); onGuardar(activos, comida, Math.round(total));
+    return 'ok';
+  });
+
+  async function pedir(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, j) => j === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, j) => j !== i ? x : r.food ? { ...x, food: r.food, buscar: false, activo: true, pedido: r } : { ...x, pedido: r }));
+  }
+
+  if (!items.length) {
+    return <p className="jb-body text-xs text-zinc-400 mt-2">No encontré eso en la app. Búscalo en <button onClick={onRegistrar} className="text-orange-400 underline">Registrar</button>.</p>;
+  }
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-1.5">
+      {items.map((it, i) => it.necesitaAclarar ? (
+        <div key={i} className="bg-orange-950/30 border border-orange-500/40 rounded-lg p-2">
+          <p className="jb-body text-[11px] text-orange-300 mb-1.5">🤔 "{it.textoOriginal}", ¿cuál fue?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {it.opciones.map((op, j) => (
+              <button key={j} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, food: op, necesitaAclarar: false, buscar: false, activo: true } : x))}
+                className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
+                {emojiAlimento(op)} {nombreFood(op)}
+              </button>
+            ))}
+            <button disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false } : x))}
+              className="jb-body text-[11px] text-zinc-400 underline px-1">Ninguna</button>
+          </div>
+        </div>
+      ) : it.buscar ? (
+        <div key={i} className="rounded-lg px-2.5 py-1.5 border border-dashed border-zinc-700">
+          <p className="jb-body text-xs text-zinc-300">🔎 "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· no lo encontré en la app</span></p>
+          {!it.pedido && !hecho && (premium
+            ? <button onClick={() => pedir(i)} className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">🙋 Pedírselo a Jonah</button>
+            : <button onClick={onRegistrar} className="mt-1 jb-body text-[11px] text-orange-400 underline">Búscalo en Registrar</button>)}
+          {it.pedido && (
+            <p className={`jb-body text-[11px] mt-1 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+              {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+              {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Te respondemos antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>.</>}
+              {it.pedido.estado === 'partes' && <>🧩 Anótalo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+              {it.pedido.estado === 'error' && it.pedido.error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <button key={i} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, activo: !x.activo } : x))}
+          className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'border-zinc-800 opacity-50'}`}>
+          <span className="shrink-0">{it.activo ? '✅' : '⬜'}</span>
+          <span className="jb-body text-xs text-zinc-200 flex-1">
+            {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos} g ` : it.cantidad > 1 ? `${it.cantidad} × ` : ''}{nombreFood(it.food)}
+            <NotaSinArroz food={it.food} />
+          </span>
+          <span className="jb-body text-[11px] text-zinc-400 shrink-0 tabular-nums">{Math.round(entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0))} kcal</span>
+        </button>
+      ))}
+      {!hecho && (
+        <>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <select value={comida} onChange={e => setComida(e.target.value)}
+              className="jb-body text-xs bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-zinc-200">
+              {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <span className="jb-display text-lg text-orange-400 tabular-nums">{Math.round(total)} kcal</span>
+          </div>
+          {pendiente
+            ? <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba</p>
+            : activos.length > 0 && (
+              <button onClick={() => { setHecho(true); onGuardar(activos, comida, Math.round(total)); }} className={btnPrimary + ' py-2 text-sm'}>
+                ✅ {propuesta ? 'Anotar esta' : `Agregar al ${comida.toLowerCase()}`}
+              </button>
+            )}
+          <p className="jb-body text-[10px] text-zinc-500 text-center">¿Algo no cuadra? Escríbeme la corrección ("eran 80 g de pollo", "quita el pan").</p>
+        </>
+      )}
+      {hecho && <p className="jb-body text-[11px] text-emerald-400">✓ Anotado en {comida}</p>}
+    </div>
+  );
+}
+
+// "¿Qué como?": las mismas sugerencias del botón "¿Qué puedo comer?".
+function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
+  const [pagina, setPagina] = useState(0);
+  const [hecho, setHecho] = useState(null);
+  const opciones = useMemo(() => {
+    const t = totalesDePlan(mealPlan);
+    const kcalMeta = Number(mealPlan.targetKcal) || 2000;
+    const protMeta = (kcalMeta * (mealPlan.macros?.p || 0.3)) / 4;
+    const parte = { 'Desayuno': 0.25, 'Media mañana': 0.10, 'Almuerzo': 0.35, 'Media tarde': 0.10, 'Cena': 0.20 }[comida] || 0.25;
+    const objetivo = {
+      kcal: Math.max(0, Math.min(kcalMeta - t.kcal, Math.max(kcalMeta * parte, 150))),
+      protein: Math.max(0, Math.min(protMeta - t.protein, protMeta * parte)),
+    };
+    return sugerenciasComida({ objetivo, comida, restricciones: mealPlan.restricciones || [], preferidos: new Set(), proteinas: [] });
+  }, [comida, mealPlan.targetKcal]);
+  if (!opciones.length) return <p className="jb-body text-xs text-zinc-400 mt-2">Por hoy ya casi llegaste a tu meta: si tienes hambre, algo ligero como una fruta 🍎</p>;
+  const vista = opciones.slice((pagina * 3) % opciones.length, (pagina * 3) % opciones.length + 3);
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {vista.map(op => (
+        <div key={op.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="jb-body text-xs text-zinc-100 font-semibold">{op.emoji} {op.name}</p>
+            <span className="jb-body text-[11px] text-orange-400 tabular-nums shrink-0">{Math.round(op.kcal)} kcal · P {Math.round(op.protein)} g</span>
+          </div>
+          <p className="jb-body text-[11px] text-zinc-400 mt-0.5">{op.items.map(x => `${nombreFood(x.food)} ${Math.round(x.grams)} g`).join(' + ')}</p>
+          {hecho === op.id
+            ? <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ Anotado en {comida}</p>
+            : !hecho && <button onClick={() => { setHecho(op.id); onGuardar(op.items.map(x => ({ food: x.food, gramos: x.grams })), comida, Math.round(op.kcal)); }}
+                className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">✅ Anotar esta</button>}
+        </div>
+      ))}
+      {!hecho && opciones.length > 3 && (
+        <button onClick={() => setPagina(p => p + 1)} className="jb-body text-[11px] text-zinc-400 underline self-start">🔄 Ver otras opciones</button>
+      )}
+    </div>
+  );
+}
+
+function BeastTarjetaPeso({ kg, pesoAntes, onGuardar, registrarConfirmar }) {
+  const [hecho, setHecho] = useState(false);
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    setHecho(true); onGuardar(kg);
+    return 'ok';
+  });
+  const raro = Number(pesoAntes) > 0 && Math.abs(kg - Number(pesoAntes)) >= 3;
+  if (hecho) return <p className="jb-body text-[11px] text-emerald-400 mt-2">✓ Peso anotado: {kg} kg</p>;
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-2">
+      <p className="jb-body text-xs text-zinc-200">⚖️ ¿Anoto <b className="text-orange-400">{String(kg).replace('.', ',')} kg</b> como tu peso de hoy?</p>
+      {raro && <p className="jb-body text-[11px] text-amber-300">Ojo: son {String(Math.round(Math.abs(kg - Number(pesoAntes)) * 10) / 10).replace('.', ',')} kg de diferencia con tu último peso ({String(pesoAntes).replace('.', ',')} kg). ¿Lo escribiste bien?</p>}
+      <button onClick={() => { setHecho(true); onGuardar(kg); }} className={btnPrimary + ' py-2 text-sm'}>{raro ? 'Sí, está bien' : '✅ Sí, anotar'}</button>
+    </div>
+  );
+}
+
+function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, versionGratis, onCerrar, onRegistrar, onVerPlanes, inicio = null, logro = null, onLogroVisto }) {
+  const premium = !versionGratis;
+  const [estado, setEstado] = useState('cargando'); // cargando | consentir | listo | error
+  const [mensajes, setMensajes] = useState([]);
+  const [libreta, setLibreta] = useState(null);
+  const [cuenta, setCuenta] = useState(null);
+  const [teniaHistoria, setTeniaHistoria] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [menu, setMenu] = useState(null); // null | 'menu' | 'libreta' | 'nombre'
+  const companero = useCompanero();
+  const { nombre: nombreCompa, femenina, compa } = companero;
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [vozNueva, setVozNueva] = useState('masculina');
+  const [estiloNuevo, setEstiloNuevo] = useState('tranquilo');
+  const [errorNombre, setErrorNombre] = useState('');
+  const [grabando, setGrabando] = useState(null); // null | 'grabando' | 'procesando'
+  const [deshacer, setDeshacer] = useState(null); // { id, fn, hasta }
+  const [sonando, setSonando] = useState(null);
+  const finRef = useRef(null);
+  const inputRef = useRef(null);
+  const confirmarRef = useRef(null); // { id, fn } de la última tarjeta para confirmar
+  const avisoRef = useRef(null); // el aviso desde el que abrió el chat (va con su primer mensaje)
+  const arranqueHecho = useRef(false);
+  const grabadorRef = useRef(null);
+  const mealPlanRef = useRef(mealPlan);
+  mealPlanRef.current = mealPlan;
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  async function cargar() {
+    setEstado('cargando');
+    const r = await llamarBeast({ accion: 'cargar' });
+    if (r.error) { setEstado('error'); return; }
+    setMensajes(r.mensajes || []);
+    setTeniaHistoria((r.mensajes || []).length > 0);
+    setLibreta(r.libreta);
+    setCuenta(r.cuenta);
+    setEstado(r.libreta?.consentimiento_en ? 'listo' : 'consentir');
+  }
+  useEffect(() => { cargar(); }, []);
+  // Al abrir (ya con permiso): el aviso que tocó, la mini meta de la semana
+  // y el logro por celebrar, como mensajes de Beast.
+  useEffect(() => {
+    if (estado !== 'listo' || arranqueHecho.current) return;
+    arranqueHecho.current = true;
+    if (inicio?.texto) { setTexto(inicio.texto); setTimeout(() => inputRef.current?.focus(), 300); }
+    if (logro) {
+      const mp = mealPlanRef.current;
+      const siguiente = logro.primera ? siguienteComida(mp) : null;
+      local(logro.texto(String(nombre || '').split(' ')[0] || (companero.suelto ? 'causa' : formRef.current.sexo === 'F' ? 'campeona' : 'campeón'), {
+        kcal: totalesDePlan(mp).kcal, metaKcal: Number(mp.targetKcal) || 0, siguiente,
+        presentarse: !teniaHistoria, compa: nombreCompa, suelto: companero.suelto,
+      }), { logro, celebracion: true, siguiente });
+      onLogroVisto?.(logro.id);
+      if (logro.primera) {
+        registrarPasoPago('primera_comida', username, 'beast');
+        // Si todavía no activó los avisos, se los ofrece aquí (segunda
+        // oportunidad, aunque haya dicho "ahora no" en la ventana).
+        estadoPushEquipo().then(e => {
+          if (e !== 'disponible') return;
+          const cena = comidaDeAhora() === 'Cena';
+          local(`¿Te aviso ${cena ? 'mañana' : 'más tarde'} para anotar ${cena ? 'tu desayuno' : 'tu siguiente comida'}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+        }).catch(() => {});
+      }
+    }
+    // El aviso que tocó va al final, justo encima de donde se escribe.
+    // El día de su primera comida no se le pregunta la mini meta (una cosa a la vez).
+    (logro?.primera ? Promise.resolve() : metaDeLaSemana()).finally(() => {
+      if (!inicio?.aviso) return;
+      avisoRef.current = inicio.aviso;
+      local(inicio.aviso, { avisoDe: { comida: inicio.comida || null, foto: !!inicio.foto } });
+    });
+  }, [estado]);
+
+  async function metaDeLaSemana() {
+    const hoy = todayISO();
+    const lunes = lunesDe(hoy);
+    const ms = formRef.current.metaSemanal;
+    const diaSemana = new Date(`${hoy}T12:00:00`).getDay(); // 0 domingo
+    const medir = async (desde) => {
+      const hasta = addDaysISO(desde, 6);
+      const { data } = await supabase.from('historial').select('fecha, comidas_count, proteina_g, kcal_objetivo, meal_plan')
+        .eq('username', username).gte('fecha', desde).lte('fecha', hasta);
+      const def = METAS_SEMANA[ms.tipo];
+      const vasos = metaAgua(formRef.current.peso);
+      return (data || []).filter(h => def?.medir(h, vasos)).length;
+    };
+    try {
+      if (ms?.tipo && ms.semana < lunes && !ms.informada) {
+        const n = await medir(ms.semana);
+        const def = METAS_SEMANA[ms.tipo];
+        local(n >= 5 ? `🏆 Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ¡${n} de 7 días! Así se hace${companero.suelto ? ', causa' : ''} 🔥`
+          : n >= 3 ? `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días 💪 Bien ahí, esta semana vamos por más.`
+          : `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días. Ya fue, tranqui: esta semana la sacamos 🦍`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), informada: true } }));
+      }
+      if (ms?.tipo && ms.semana === lunes && diaSemana === 0 && !ms.domingo) {
+        const n = await medir(lunes);
+        local(`${METAS_SEMANA[ms.tipo].emoji} Tu mini meta de esta semana: vas ${n} de 7 días. ${n >= 5 ? '¡Semana de bestia! 🔥' : 'Hoy todavía suma 💪'}`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), domingo: true } }));
+      }
+      if ((!ms || ms.semana !== lunes) && (inicio?.meta || (diaSemana >= 1 && diaSemana <= 3))) {
+        local('¿Qué mini meta nos ponemos esta semana? Elige una y el domingo te cuento cómo te fue 🦍', { elegirMeta: lunes });
+      }
+    } catch {}
+  }
+  useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes.length, estado, enviando]);
+  useEffect(() => {
+    if (!deshacer) return;
+    const t = setTimeout(() => setDeshacer(d => (d && d.id === deshacer.id ? null : d)), Math.max(0, deshacer.hasta - Date.now()));
+    return () => clearTimeout(t);
+  }, [deshacer]);
+  useEffect(() => () => { if (audioBeast) { audioBeast.pause(); audioBeast = null; } grabadorRef.current?.cancelar?.(); }, []);
+
+  const local = (texto, extra = {}) => setMensajes(v => [...v, { id: `l${Date.now()}${Math.random()}`, rol: 'beast', texto, local: true, nuevo: true, ...extra }]);
+  const evento = (tipo, datos) => { llamarBeast({ accion: 'evento', tipo, datos }); };
+
+  function bienvenida() {
+    const comida = comidaDeAhora();
+    const qué = comida === 'Desayuno' ? 'desayunaste' : comida === 'Almuerzo' ? 'almorzaste' : comida === 'Cena' ? 'cenaste' : 'comiste';
+    return `¡Hola${nombre ? `, ${String(nombre).split(' ')[0]}` : ''}! Soy ${nombreCompa}, ${femenina ? 'la' : 'el'} ${compa} que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué ${qué} hoy y te digo cuántas calorías tiene. ${premium ? 'Háblame o escríbeme' : 'Escríbeme'} 💪`;
+  }
+
+  function hoyParaBeast() {
+    const mp = mealPlanRef.current;
+    const t = totalesDePlan(mp);
+    const meta = Number(mp.targetKcal) || 0;
+    const comidas = Object.entries(mp.meals || {}).map(([m, l]) => [m, (l || []).filter(e => e.foodKey)])
+      .filter(([, l]) => l.length).map(([m, l]) => `${m}: ${l.map(e => buscarFood(e.foodKey)?.name).filter(Boolean).slice(0, 6).join(', ')}`).join('; ');
+    return {
+      kcal: t.kcal, metaKcal: meta, proteina: t.protein, metaProteina: (meta * (mp.macros?.p || 0.3)) / 4,
+      agua: mp.agua || 0, metaAgua: metaAgua(formRef.current.peso),
+      alimentos: Object.values(mp.meals || {}).reduce((n, l) => n + (l || []).filter(e => e.foodKey).length, 0),
+      comidas,
+    };
+  }
+
+  async function enviar(contenido, via = 'texto') {
+    const limpio = String(contenido || '').trim();
+    if (!limpio || enviando) return;
+    // "Sí", "agrégalo", "dale", "confirmo"… con una tarjeta abierta: se
+    // confirma aquí mismo (no gasta mensajes ni pasa por la IA).
+    if (confirmarRef.current && esConfirmacion(limpio)) {
+      const r = confirmarRef.current.fn();
+      if (r !== 'hecho') {
+        setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+        setTexto('');
+        if (r === 'dudas') local('Primero dime cuál fue en la tarjeta ☝️ y lo agrego.', { sistema: true });
+        if (r === 'vacia') local('No hay nada marcado en la tarjeta: marca lo que comiste ☝️', { sistema: true });
+        if (r === 'ok') confirmarRef.current = null;
+        return;
+      }
+      confirmarRef.current = null;
+    }
+    if (audioBeast) { audioBeast.pause(); audioBeast = null; setSonando(null); }
+    const idLocal = `a${Date.now()}`;
+    setMensajes(v => [...v, { id: idLocal, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+    setTexto('');
+    setEnviando(true);
+    const aviso = avisoRef.current;
+    avisoRef.current = null;
+    // Si escribe con jerga (y no eligió su estilo), Beast también se suelta.
+    let estilo = companero.estilo;
+    if (estilo !== 'suelto' && !companero.estiloElegido && JERGA_ALUMNO.test(limpio)) {
+      estilo = 'suelto';
+      setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: 'suelto' } }));
+    }
+    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast(), aviso, companero: { nombre: nombreCompa, voz: companero.voz, estilo } });
+    setEnviando(false);
+    if (r.error === 'consentimiento') { setEstado('consentir'); return; }
+    if (r.error) {
+      const mensaje = r.status === 429 ? r.error : `Uy, se me fue la señal${companero.suelto ? ', causa' : ''} 😅 Dame un toque y lo intento de nuevo.`;
+      setMensajes(v => v.map(m => m.id === idLocal ? { ...m, fallo: r.status !== 429, via } : m));
+      local(mensaje, { sistema: true });
+      return;
+    }
+    if (r.cuenta) setCuenta(r.cuenta);
+    setMensajes(v => [...v, { id: r.id, rol: 'beast', texto: r.respuesta, datos: r.accion ? { accion: r.accion } : null, nuevo: true }]);
+    // Agua: directo (con Deshacer), como en la app.
+    if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
+    // "Beast, háblame menos": solo el aviso del almuerzo (y lo importante).
+    // Pidió que le hable distinto ("más tranqui", "no tan de barrio", "háblame suelto").
+    if (r.estilo === 'suelto' || r.estilo === 'tranquilo') setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: r.estilo, estiloElegido: true } }));
+    if (r.accion?.tipo === 'avisos') setForm(v => ({ ...v, avisos: { ...(v.avisos || {}), pocos: r.accion.nivel === 'menos' } }));
+  }
+
+  function reintentar(m) {
+    setMensajes(v => v.filter(x => x.id !== m.id && !(x.sistema && x.local)));
+    enviar(m.texto, m.via || 'texto');
+  }
+
+  function ofrecerAvisos() {
+    const marca = 'jb_notif_tras_comida_' + username;
+    try { if (localStorage.getItem(marca)) return; } catch { return; }
+    estadoPushEquipo().then(e => {
+      if (e !== 'disponible') return;
+      try { localStorage.setItem(marca, '1'); } catch {}
+      const manana = comidaDeAhora() === 'Cena' ? 'tu desayuno' : 'tu siguiente comida';
+      local(`¿Te aviso ${comidaDeAhora() === 'Cena' ? 'mañana' : 'más tarde'} para anotar ${manana}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+    });
+  }
+
+  function guardarComida(items, comida, kcal, msgId) {
+    // Si es su primera comida del día y puede activar avisos, Beast se los
+    // ofrece en el chat (y no sale además la ventana de la app).
+    let ofrecer = false;
+    try { ofrecer = !localStorage.getItem('jb_notif_tras_comida_' + username); } catch {}
+    const nuevas = entradasDeItems(items, { viaBeast: true });
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: [...(v.meals[comida] || []), ...nuevas] } }));
+    vibrar(20);
+    const ids = new Set(nuevas.map(n => n.id));
+    const meta = Number(mealPlanRef.current.targetKcal) || 0;
+    const queda = Math.round(meta - totalesDePlan(mealPlanRef.current).kcal - kcal);
+    local(meta ? (queda > 0 ? `Listo 🦍 Te quedan ${queda} kcal para hoy.` : `Listo 🦍 Con esto llegaste a tu meta de hoy${queda < -150 ? ', te pasaste un poquito, tranqui: mañana seguimos' : ''}.`) : 'Listo 🦍 Anotado.');
+    evento('comida_anotada', { comida, alimentos: nuevas.length, kcal, msg: msgId });
+    setDeshacer({ id: `c${Date.now()}`, hasta: Date.now() + 12000, texto: `${nuevas.length} alimento(s) en ${comida}`,
+      fn: () => { setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: (v.meals[comida] || []).filter(e => !ids.has(e.id)) } })); evento('deshacer', { que: 'comida' }); } });
+    if (ofrecer) setTimeout(ofrecerAvisos, 600);
+  }
+
+  function sumarAgua(vasos, msgId) {
+    const antes = mealPlanRef.current.agua || 0;
+    const nuevo = Math.min(30, antes + vasos);
+    setMealPlan(v => ({ ...v, agua: nuevo }));
+    vibrar(15);
+    evento('agua', { vasos, msg: msgId });
+    local(`💧 Listo: ${nuevo} de ${metaAgua(formRef.current.peso)} vasos hoy.`);
+    setDeshacer({ id: `w${Date.now()}`, hasta: Date.now() + 12000, texto: `${vasos} vaso(s) de agua`,
+      fn: () => { setMealPlan(v => ({ ...v, agua: Math.max(0, (v.agua || 0) - vasos) })); evento('deshacer', { que: 'agua' }); } });
+  }
+
+  function guardarPeso(kg, msgId) {
+    const antes = { peso: formRef.current.peso, pesoFecha: formRef.current.pesoFecha, pesajes: formRef.current.pesajes };
+    setForm(v => ({ ...v, peso: kg, pesoFecha: todayISO() }));
+    vibrar(20);
+    evento('peso', { msg: msgId });
+    local(`⚖️ Listo, anoté ${String(kg).replace('.', ',')} kg. Lo ves en Progreso.`);
+    setDeshacer({ id: `p${Date.now()}`, hasta: Date.now() + 12000, texto: 'tu peso',
+      fn: () => { setForm(v => ({ ...v, ...antes })); evento('deshacer', { que: 'peso' }); } });
+  }
+
+  async function queComo(comida) {
+    if (!premium) {
+      const r = await usarSugerenciaGratis(username);
+      if (!r.ok) {
+        local('Ya usaste tus 3 sugerencias gratis de esta semana 🦍 Se renuevan el lunes. Con Premium te digo qué comer todos los días 👑', { accion: { tipo: 'ver_planes' } });
+        return;
+      }
+    }
+    evento('que_como', { comida });
+    local(`Mira, para tu ${comida.toLowerCase()} con lo que te queda hoy:`, { queComo: comida });
+  }
+
+  async function valorar(m, valor) {
+    const nuevo = m.valoracion === valor ? null : valor;
+    setMensajes(v => v.map(x => x.id === m.id ? { ...x, valoracion: nuevo } : x));
+    await llamarBeast({ accion: 'valorar', id: m.id, valor: nuevo });
+    if (nuevo === -1) showToast(`Gracias, con esto ${nombreCompa} mejora 🦍`);
+  }
+
+  async function escuchar(m) {
+    setSonando(m.id);
+    const r = await escucharBeast(m.texto, { bienvenida: m.bienvenida, celebracion: m.celebracion, presentacion: m.presentacion, companero });
+    if (r !== 'ok') setSonando(null);
+    else if (audioBeast) audioBeast.addEventListener('ended', () => setSonando(s => (s === m.id ? null : s)));
+    if (r === 'limite') showToast(cuenta?.tipo === 'prueba' ? 'Por hoy ya te mandé mis 5 notas de voz 🦍' : 'Por hoy ya te mandé muchas notas de voz 🦍 Mañana seguimos.');
+    if (r === 'premium') showToast(`Escuchar a ${nombreCompa} es de Premium 👑`);
+    if (r === 'error') showToast('No pude mandarte el audio ahora, inténtalo en un rato.');
+  }
+
+  async function empezarGrabar() {
+    const mime = tipoAudioGrabable();
+    if (mime === null || !navigator.mediaDevices?.getUserMedia) { showToast('Tu celular no deja grabar audio aquí: escríbeme 🦍'); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { showToast('Necesito permiso del micrófono para escucharte.'); return; }
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const partes = [];
+    let cancelado = false;
+    rec.ondataavailable = e => { if (e.data?.size) partes.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearTimeout(grabadorRef.current?.tope);
+      grabadorRef.current = null;
+      if (cancelado) { setGrabando(null); return; }
+      const blob = new Blob(partes, { type: rec.mimeType || mime || 'audio/webm' });
+      if (blob.size < 1500) { setGrabando(null); showToast('No se escuchó nada, intenta de nuevo.'); return; }
+      setGrabando('procesando');
+      try {
+        const audioBase64 = await blobABase64(blob);
+        const { data } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'transcribir_voz', audioBase64, mimeType: blob.type } });
+        setGrabando(null);
+        if (data?.texto) enviar(data.texto, 'voz');
+        else showToast(data?.error === 'premium' ? `Hablarle a ${nombreCompa} es de Premium 👑` : 'No te entendí bien, ¿me lo repites o me lo escribes?');
+      } catch { setGrabando(null); showToast('No te entendí bien, ¿me lo repites o me lo escribes?'); }
+    };
+    rec.start();
+    setGrabando('grabando');
+    grabadorRef.current = {
+      parar: () => { try { rec.stop(); } catch {} },
+      cancelar: () => { cancelado = true; try { rec.stop(); } catch {} },
+      tope: setTimeout(() => { try { rec.stop(); } catch {} }, MAX_SEGUNDOS_VOZ * 1000),
+    };
+  }
+
+  const irRegistrar = () => { evento('registrar'); onCerrar(); onRegistrar(comidaDeAhora()); };
+  const irPlanes = () => { evento('planes'); onCerrar(); onVerPlanes(); };
+  const urlJonah = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+
+  function abrirNombre() {
+    setNombreNuevo(nombreCompa === 'Beast' ? '' : nombreCompa);
+    setVozNueva(companero.voz);
+    setEstiloNuevo(companero.estilo);
+    setErrorNombre('');
+    setMenu('nombre');
+  }
+  function guardarNombre(volverABeast = false) {
+    const escrito = volverABeast ? '' : nombreNuevo.trim();
+    const limpio = limpiarNombreCompanero(escrito);
+    if (escrito && !limpio) { setErrorNombre('Ese nombre no se puede 🙈 Prueba con otro (solo letras).'); return; }
+    const voz = volverABeast ? 'masculina' : vozNueva;
+    const n = limpio || 'Beast';
+    const fem = voz === 'femenina';
+    const estilo = estiloNuevo;
+    const cambio = n !== nombreCompa || voz !== companero.voz;
+    const cambioEstilo = estilo !== companero.estilo;
+    setForm(v => ({ ...v, companero: { ...(v.companero || {}), nombre: n === 'Beast' ? '' : n, voz,
+      ...(cambioEstilo || v.companero?.estiloElegido ? { estilo, estiloElegido: true } : {}) } }));
+    setMenu(null);
+    if (!cambio && !cambioEstilo) return;
+    evento('nombre', { propio: n !== 'Beast', voz, estilo });
+    if (!cambio) { local(estilo === 'suelto' ? '¡Ya, causa! Desde ahora te hablo bien suelto 😎' : 'Listo, desde ahora te hablo más tranquilo 🙂', { presentacion: true }); return; }
+    local(n === 'Beast' && !fem
+      ? '¡Volví! Soy Beast otra vez, tu compañero de siempre 🦍 Cuéntame qué comes y seguimos, comida a comida 💪'
+      : `¡Me encanta! Desde ahora soy ${n}, tu ${fem ? 'compañera' : 'compañero'} 🦍 Igual que siempre: cuéntame qué comes y vamos ${fem && formRef.current.sexo === 'F' ? 'juntas' : 'juntos'}, comida a comida 💪`,
+      { presentacion: true });
+  }
+
+  function acciones(m) {
+    const a = m.datos?.accion || m.accion;
+    if (m.avisoDe) {
+      const comida = m.avisoDe.comida;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida || comidaDeAhora()); }}
+            className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Anotar en Registrar</button>
+          {comida && (premium || m.avisoDe.foto) && (
+            <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida, { foto: true }); }}
+              className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">📸 Foto</button>
+          )}
+          {premium && <p className="jb-body text-[11px] text-zinc-500 w-full">o cuéntamelo aquí abajo 👇</p>}
+        </div>
+      );
+    }
+    if (m.elegirMeta) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {Object.entries(METAS_SEMANA).map(([tipo, def]) => (
+            <button key={tipo} onClick={() => {
+              setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+              setForm(v => ({ ...v, metaSemanal: { semana: m.elegirMeta, tipo } }));
+              setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: `${def.emoji} ${def.corto}`, local: true }]);
+              local(`¡Hecho! Esta semana: ${def.corto.toLowerCase()} ${def.emoji} Te voy contando y el domingo vemos cómo te fue 🦍`, { sistema: true });
+            }} className="jb-body text-xs text-zinc-100 bg-zinc-950 border border-orange-500/50 hover:border-orange-500 rounded-full px-3 py-1.5">{def.emoji} {def.corto}</button>
+          ))}
+        </div>
+      );
+    }
+    if (m.logro?.primera) {
+      if (!m.siguiente) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, siguiente: null } : x)); queComo(m.siguiente); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ ¿Qué como en {m.siguiente === 'Almuerzo' || m.siguiente === 'Desayuno' ? 'el' : 'la'} {m.siguiente.toLowerCase()}?</button>
+      );
+    }
+    if (m.logro) {
+      return (
+        <button onClick={async () => {
+          const r = await compartirLogro(m.logro.titulo, nombre, nombreCompa);
+          if (r === 'descargado') showToast('Listo: la imagen se guardó. Súbela a tu estado 📲');
+          if (r === 'error') showToast('No pude armar la imagen, inténtalo de nuevo.');
+        }} className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📲 Compartir en mi estado</button>
+      );
+    }
+    if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, null)} />;
+    if (m.ofrecerAvisos) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex gap-2 mt-2">
+          <button onClick={async () => {
+            setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+            const r = await activarPushAlumno(username);
+            evento('avisos_si', { resultado: String(r) });
+            local(r === 'activo' ? '¡Listo! Te aviso para que no se te pase ninguna comida 🦍' : 'No pude activar los avisos en este celular. Puedes intentarlo en Mi perfil → Avisos.');
+          }} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">Sí, avísame</button>
+          <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x)); evento('avisos_no'); }}
+            className="jb-body text-xs text-zinc-400 border border-zinc-700 rounded-full px-3 py-1.5">No, gracias</button>
+        </div>
+      );
+    }
+    if (!a) return null;
+    // Las tarjetas que guardan algo solo se usan en el momento (no al volver
+    // a abrir el chat), para que nada se anote dos veces.
+    if (a.tipo === 'anotar_comida' || a.tipo === 'proponer_comida') {
+      if (!m.nuevo) return <p className="jb-body text-[11px] text-zinc-500 mt-1.5">🍽️ {a.texto}</p>;
+      return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar}
+        registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }}
+        onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
+    }
+    if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)}
+      registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }} /> : null;
+    if (a.tipo === 'que_como') {
+      if (!m.nuevo) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, nuevo: false } : x)); queComo(a.comida || comidaDeAhora()); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ Ver opciones</button>
+      );
+    }
+    const botones = [];
+    if (a.tipo === 'ir_registrar') botones.push(<button key="r" onClick={irRegistrar} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Ir a Registrar</button>);
+    if (a.tipo === 'ver_planes' || a.planes) botones.push(<button key="p" onClick={irPlanes} className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">👑 Ver Premium</button>);
+    if (a.tipo === 'nombre') botones.push(<button key="n" onClick={abrirNombre} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">✏️ Ponerme nombre y voz</button>);
+    if (a.tipo === 'hablar_jonah') botones.push(<a key="j" href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-xs font-semibold bg-emerald-600 text-white rounded-full px-3 py-1.5">🙋 Escribirle a Jonah</a>);
+    return botones.length ? <div className="flex flex-wrap gap-2 mt-2">{botones}</div> : null;
+  }
+
+  const lista = estado === 'listo' && !teniaHistoria && !logro?.primera
+    ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }, ...mensajes]
+    : mensajes;
+  const quedan = cuenta?.quedan;
+  const contador = cuenta && cuenta.limite < 100000 && (cuenta.tipo === 'gratis' || quedan <= 5)
+    ? (quedan > 0 ? `Hoy te quedan ${quedan} ${quedan === 1 ? 'mensaje' : 'mensajes'}${cuenta.tipo === 'gratis' ? ` de ${cuenta.limite}` : ''}` : 'Por hoy ya conversamos: tus comidas las sigues anotando en Registrar')
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col min-h-0">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+          <span className="w-10 h-10 shrink-0 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_10px_2px_rgba(255,112,32,0.6)]">
+            <img src={IMAGEN_BEAST} alt={nombreCompa} className="w-full h-full object-cover scale-[1.6]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="jb-display text-lg text-zinc-50 tracking-wide leading-5 truncate">{nombreCompa.toUpperCase()} · TU {compa.toUpperCase()}</p>
+            <p className="jb-body text-[11px] text-zinc-500">IA de Jonah Beast Fuel</p>
+          </div>
+          {estado === 'listo' && (
+            <button onClick={() => setMenu(menu ? null : 'menu')} aria-label="Opciones" className="p-2 text-zinc-400 hover:text-zinc-200 text-xl leading-none">⋮</button>
+          )}
+          <button onClick={onCerrar} aria-label="Cerrar" className="p-2 text-zinc-400 hover:text-zinc-200"><X size={22} /></button>
+        </header>
+
+        {menu === 'menu' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
+            <button onClick={abrirNombre} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">✏️ {nombreCompa === 'Beast' ? `Ponle nombre a tu ${compa}` : 'Cambiar nombre y voz'}</button>
+            <button onClick={() => setMenu('libreta')} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">📒 Lo que {nombreCompa} sabe de ti</button>
+            <a href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-sm text-zinc-200 px-4 py-3 hover:bg-zinc-800">🙋 Hablar con Jonah (persona) por WhatsApp</a>
+            <button onClick={async () => {
+              if (!(await confirmar(`¿Borrar toda tu conversación con ${nombreCompa}? No se puede deshacer.`))) return;
+              await llamarBeast({ accion: 'borrar' });
+              setMensajes([]); setTeniaHistoria(false); setMenu(null); showToast('Conversación borrada');
+            }} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">🗑️ Borrar conversación</button>
+            <p className="jb-body text-[11px] text-zinc-500 px-4 py-2 border-t border-zinc-800">🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días.</p>
+          </div>
+        )}
+        {menu === 'libreta' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+            <p className="jb-display text-base text-zinc-50 tracking-wide">📒 LO QUE {nombreCompa.toUpperCase()} SABE DE TI</p>
+            {libreta?.notas
+              ? <ul className="jb-body text-xs text-zinc-300 flex flex-col gap-1">{libreta.notas.split('\n').filter(Boolean).map((l, i) => <li key={i}>• {l}</li>)}</ul>
+              : <p className="jb-body text-xs text-zinc-500">Todavía nada. Cuando me cuentes cosas de tu día (tu trabajo, tus horarios, lo que te cuesta), me acuerdo de lo importante.</p>}
+            <p className="jb-body text-[11px] text-zinc-500">Además sé tu nombre, tu meta, tu peso y lo que anotas en la app.</p>
+            <div className="flex gap-2 mt-1">
+              {libreta?.notas && (
+                <button onClick={async () => {
+                  if (!(await confirmar(`¿Borrar lo que ${nombreCompa} sabe de ti?`))) return;
+                  await llamarBeast({ accion: 'olvidar' });
+                  setLibreta(l => ({ ...(l || {}), notas: '' })); showToast(`Listo, ${nombreCompa} lo olvidó`);
+                }} className="jb-body text-xs text-red-300 border border-red-500/40 rounded-full px-3 py-1.5">Borrar todo</button>
+              )}
+              <button onClick={() => setMenu(null)} className="jb-body text-xs text-zinc-300 border border-zinc-700 rounded-full px-3 py-1.5">Cerrar</button>
+            </div>
+          </div>
+        )}
+
+        {menu === 'nombre' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
+            <p className="jb-display text-base text-zinc-50 tracking-wide">✏️ PONLE NOMBRE A TU {compa.toUpperCase()}</p>
+            <p className="jb-body text-xs text-zinc-400">{vozNueva === 'femenina' ? 'Llámala' : 'Llámalo'} como quieras: así te va a hablar y así te llegan sus avisos. Sigue siendo el gorila de siempre 🦍</p>
+            <input value={nombreNuevo} maxLength={20} autoFocus placeholder="Beast"
+              onChange={e => { setNombreNuevo(e.target.value); setErrorNombre(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') guardarNombre(); }}
+              className="bg-zinc-950 border border-zinc-700 focus:border-orange-500 rounded-xl px-3 py-2.5 jb-body text-sm text-zinc-100 placeholder-zinc-600 outline-none" />
+            {errorNombre && <p className="jb-body text-xs text-amber-300 -mt-1">{errorNombre}</p>}
+            <div>
+              <p className="jb-body text-xs text-zinc-300 mb-2">Su voz y su forma de hablarte</p>
+              <div className="flex gap-2">
+                {[['masculina', '🧔 Masculina'], ['femenina', '👩 Femenina']].map(([v, l]) => (
+                  <button key={v} onClick={() => setVozNueva(v)}
+                    className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${vozNueva === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                ))}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5 mb-3">{vozNueva === 'femenina' ? 'Te habla como tu compañera, con voz de mujer.' : 'Te habla como tu compañero, con voz de hombre.'} Toca ▶️ Escuchar en sus mensajes para oírla{premium ? '' : ' (en la versión gratis, solo en su saludo)'}.</p>
+              <p className="jb-body text-xs text-zinc-300 mb-2">Cómo te habla</p>
+              <div className="flex gap-2">
+                {[['tranquilo', '🙂 Tranquilo'], ['suelto', '😎 Bien suelto']].map(([v, l]) => (
+                  <button key={v} onClick={() => setEstiloNuevo(v)}
+                    className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${estiloNuevo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                ))}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5">{estiloNuevo === 'suelto' ? 'Con jerga limeña de barrio: "oe", "causa", "al toque"… como tu pata de siempre.' : 'Cercano y alegre, pero sin jerga de barrio.'}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => guardarNombre()} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>GUARDAR</button>
+              <button onClick={() => setMenu(null)} className="jb-body text-xs text-zinc-300 border border-zinc-700 rounded-full px-4">Cancelar</button>
+            </div>
+            {(nombreCompa !== 'Beast' || femenina) && (
+              <button onClick={() => guardarNombre(true)} className="jb-body text-xs text-zinc-500 underline self-start">Volver a llamarlo Beast</button>
+            )}
+          </div>
+        )}
+
+        {estado === 'cargando' && <div className="flex-1 flex items-center justify-center"><Loader2 size={28} className="text-orange-500 animate-spin" /></div>}
+        {estado === 'error' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="jb-body text-sm text-zinc-300">Uy, se me fue la señal{companero.suelto ? ', causa' : ''} 😅</p>
+            <button onClick={cargar} className={btnPrimary + ' px-5 py-2 text-sm'}>Intentar de nuevo</button>
+          </div>
+        )}
+        {estado === 'consentir' && (
+          <BeastConsentimiento onCerrar={onCerrar} onAceptar={async alerta => {
+            const r = await llamarBeast({ accion: 'consentir', alerta_jonah: alerta });
+            if (r.error) { showToast('No se pudo guardar, intenta de nuevo.'); return; }
+            setLibreta(l => ({ ...(l || {}), consentimiento_en: new Date().toISOString(), alerta_jonah: alerta }));
+            setEstado('listo');
+          }} />
+        )}
+
+        {estado === 'listo' && (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5" onClick={() => menu && setMenu(null)}>
+              {lista.map(m => m.rol === 'alumno' ? (
+                <div key={m.id} className="self-end max-w-[85%] flex flex-col items-end">
+                  <p className="jb-body text-sm text-zinc-950 bg-orange-400 rounded-2xl rounded-br-sm px-3 py-2 whitespace-pre-wrap">{m.tipo === 'voz' ? '🎤 ' : ''}{m.texto}</p>
+                  {m.fallo && <button onClick={() => reintentar(m)} className="jb-body text-[11px] text-amber-300 mt-1">⚠️ No se envió · Reintentar</button>}
+                </div>
+              ) : (
+                <div key={m.id} className="self-start max-w-[92%] flex gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3 py-2">
+                      <p className="jb-body text-sm text-zinc-100 whitespace-pre-wrap">{m.texto}</p>
+                      {acciones(m)}
+                    </div>
+                    {!m.sistema && !m.avisoDe && !m.elegirMeta && (
+                      <div className="flex items-center gap-3 mt-1 ml-1">
+                        {(m.bienvenida || m.celebracion || m.presentacion || (premium && typeof m.id === 'number')) && (
+                          <button onClick={() => escuchar(m)} className="jb-body text-[11px] text-zinc-500 hover:text-orange-400">
+                            {sonando === m.id ? '⏹ Parar' : '▶️ Escuchar'}
+                          </button>
+                        )}
+                        {typeof m.id === 'number' && (
+                          <>
+                            <button onClick={() => valorar(m, 1)} aria-label="Me sirvió" className={`text-xs ${m.valoracion === 1 ? '' : 'opacity-40 hover:opacity-80'}`}>👍</button>
+                            <button onClick={() => valorar(m, -1)} aria-label={`${nombreCompa} se equivocó`} className={`text-xs ${m.valoracion === -1 ? '' : 'opacity-40 hover:opacity-80'}`}>👎</button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {enviando && (
+                <div className="self-start flex items-center gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60" />
+                  <p className="jb-body text-xs text-zinc-500 italic">{nombreCompa} está escribiendo…</p>
+                </div>
+              )}
+              <div ref={finRef} />
+            </div>
+
+            {deshacer && (
+              <div className="mx-4 mb-2 flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2">
+                <span className="jb-body text-xs text-zinc-300">✓ Anoté {deshacer.texto}</span>
+                <button onClick={() => { deshacer.fn(); setDeshacer(null); local('Listo, lo quité 👍', { sistema: true }); }}
+                  className="jb-body text-xs font-semibold text-orange-400">Deshacer</button>
+              </div>
+            )}
+
+            <div className="border-t border-zinc-800 px-3 pt-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                {[
+                  ['📈 ¿Cómo voy?', () => enviar('¿Cómo voy?')],
+                  ['🍽️ ¿Qué como?', () => queComo(comidaDeAhora())],
+                  ['💧 +1 vaso', () => sumarAgua(1, null)],
+                  ['📝 Anotar comida', () => premium ? (setTexto('Comí '), inputRef.current?.focus()) : irRegistrar()],
+                ].map(([t, fn]) => (
+                  <button key={t} onClick={fn} disabled={enviando}
+                    className="jb-body text-xs text-zinc-200 bg-zinc-900 border border-zinc-700 hover:border-orange-500/60 rounded-full px-3 py-1.5 whitespace-nowrap shrink-0">{t}</button>
+                ))}
+              </div>
+              {contador && <p className={`jb-body text-[11px] mb-1.5 ${quedan > 0 ? 'text-zinc-500' : 'text-orange-400'}`}>{contador}{quedan === 0 && cuenta.tipo === 'gratis' && <> · <button onClick={irPlanes} className="underline">Premium 👑</button></>}</p>}
+              {grabando ? (
+                <div className="flex items-center gap-3 py-1">
+                  {grabando === 'grabando' ? (
+                    <>
+                      <button onClick={() => grabadorRef.current?.cancelar()} aria-label="Cancelar" className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">🗑️</button>
+                      <p className="jb-body text-sm text-orange-400 flex-1 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Te escucho… toca ✓ cuando termines</p>
+                      <button onClick={() => grabadorRef.current?.parar()} aria-label="Enviar nota de voz" className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+                    </>
+                  ) : <p className="jb-body text-sm text-zinc-400 flex items-center gap-2 py-2"><Loader2 size={16} className="animate-spin" /> Escuchando lo que dijiste…</p>}
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <textarea ref={inputRef} value={texto} onChange={e => setTexto(e.target.value.slice(0, 1200))} rows={1}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(texto); } }}
+                    placeholder={`Escríbele a ${nombreCompa}…`}
+                    className="flex-1 resize-none bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-2xl px-3 py-2.5 jb-body text-sm text-zinc-100 placeholder-zinc-500 outline-none max-h-28" />
+                  {texto.trim() ? (
+                    <button onClick={() => enviar(texto)} disabled={enviando} aria-label="Enviar"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><ChevronRight size={24} strokeWidth={3} /></button>
+                  ) : premium ? (
+                    <button onClick={empezarGrabar} disabled={enviando} aria-label="Mandar nota de voz"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><Mic size={22} strokeWidth={2.4} /></button>
+                  ) : (
+                    <button onClick={() => showToast(`Hablarle a ${nombreCompa} con tu voz es de Premium 👑 Por ahora escríbeme.`)} aria-label="Nota de voz (Premium)"
+                      className="w-11 h-11 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center shrink-0"><Mic size={22} /></button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -11209,6 +12401,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setVistaComunidad(ir === 'equipo' ? 'equipos' : 'muro'); setTab('equipo'); window.scrollTo({ top: 0 });
         return true;
       }
+      if (ir === 'beast') {
+        const q = new URL(url, window.location.origin).searchParams;
+        abrirBeast({ aviso: q.get('aviso') || null, comida: q.get('comida') || null, foto: q.get('foto') === '1', meta: q.get('meta') === '1' });
+        return true;
+      }
     } catch {}
     return false;
   }
@@ -11220,6 +12417,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       const u = new URL(window.location.href);
       if (u.searchParams.has('registrar') || u.searchParams.has('ir') || u.searchParams.has('equipo')) {
         u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto'); u.searchParams.delete('equipo');
+        u.searchParams.delete('aviso'); u.searchParams.delete('comida'); u.searchParams.delete('meta');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch {}
@@ -11323,6 +12521,66 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  // Beast · tu compañero: la burbuja del gorila (donde estaba el botón de
+  // WhatsApp) abre su chat. El globito de presentación sale una sola vez,
+  // en Inicio, cuando no hay otra ventana encima.
+  const [beastAbierto, setBeastAbierto] = useState(false);
+  const beastAbiertoRef = useRef(false);
+  beastAbiertoRef.current = beastAbierto;
+  const [beastVisto, setBeastVisto] = useState(() => { try { return !!localStorage.getItem('jb_beast_visto_' + username); } catch { return true; } });
+  const [globoBeastCerrado, setGloboBeastCerrado] = useState(false);
+  const [beastInicio, setBeastInicio] = useState(null); // { aviso, comida, foto, meta, texto }
+  function abrirBeast(inicio = null) {
+    setBeastInicio(inicio);
+    setBeastAbierto(true);
+    if (!beastVisto) { setBeastVisto(true); try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {} }
+  }
+  function cerrarGloboBeast() {
+    setGloboBeastCerrado(true);
+    setBeastVisto(true);
+    try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {}
+  }
+  // Cualquier parte de la app puede abrir a Beast (abrirBeastDesde).
+  useEffect(() => {
+    const alAbrir = (e) => { setRegistrarAl(null); abrirBeast(e.detail || null); };
+    window.addEventListener('jb-abrir-beast', alAbrir);
+    return () => window.removeEventListener('jb-abrir-beast', alAbrir);
+  }, []);
+  // Logro por celebrar (primer kilo, 7 días seguidos, mitad de la meta…):
+  // la burbuja lo anuncia y Beast lo celebra al abrir.
+  const [rachaBeast, setRachaBeast] = useState(0);
+  useEffect(() => {
+    let vivo = true;
+    supabase.from('historial').select('fecha, comidas_count').eq('username', username).gte('fecha', addDaysISO(todayISO(), -15))
+      .then(({ data }) => {
+        if (!vivo) return;
+        const con = new Set((data || []).filter(h => (h.comidas_count || 0) > 0).map(h => h.fecha));
+        let n = 0;
+        for (let i = con.has(todayISO()) ? 0 : 1; i < 16 && con.has(addDaysISO(todayISO(), -i)); i++) n++;
+        setRachaBeast(n);
+      }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  const anotoHoy = Object.values(mealPlan?.meals || {}).some(l => (l || []).some(e => e.foodKey));
+  const logroBeast = logroPendiente(form, rachaBeast + (anotoHoy && rachaBeast === 0 ? 1 : 0));
+  // Aprende a qué hora suele anotar desayuno, almuerzo y cena, para que su
+  // aviso llegue después de esa hora (horasAprendidas).
+  const cuentaComidas = useRef(null);
+  useEffect(() => {
+    const ahora = Object.fromEntries(Object.keys(MOMENTO_DE_COMIDA).map(c => [c, (mealPlan?.meals?.[c] || []).filter(e => e.foodKey).length]));
+    const antes = cuentaComidas.current;
+    cuentaComidas.current = ahora;
+    if (!antes) return;
+    const nuevas = Object.keys(ahora).filter(c => ahora[c] > antes[c] && antes[c] === 0);
+    if (!nuevas.length) return;
+    const hora = new Date().getHours();
+    setForm(v => {
+      const horasComida = { ...(v.horasComida || {}) };
+      nuevas.forEach(c => { horasComida[c] = [...(horasComida[c] || []), hora].slice(-7); });
+      const aprendidas = horasAprendidas(horasComida);
+      return { ...v, horasComida, avisos: { ...(v.avisos || {}), aprendidas } };
+    });
+  }, [mealPlan]);
   // Fin de la prueba: pantalla de Jonah (FinPruebaModal) y, si elige "1 mes",
   // los planes se abren con ese plan ya marcado.
   const [verFinPrueba, setVerFinPrueba] = useState(false);
@@ -11347,12 +12605,20 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const antes = alimentosAntes.current;
     alimentosAntes.current = alimentosHoy;
     if (!(antes === 0 && alimentosHoy > 0)) return;
+    // Su primera comida en la app: Beast lo felicita (logro "primera"),
+    // después de las ventanas de siempre (meta, avisos, abrir en Chrome).
+    if (nuncaAlAbrir.current === true && !form.primeraComidaEn) {
+      nuncaAlAbrir.current = false;
+      setForm(v => (v.primeraComidaEn ? v : { ...v, primeraComidaEn: todayISO() }));
+    }
     // Sin datos u objetivo: primero se le ofrece ajustar su meta (una vez
     // al día); los recordatorios se le ofrecen otro día.
     if (metaEstimada) {
       const marcaMeta = 'jb_ajusta_meta_' + username + '_' + todayISO();
       try { if (!localStorage.getItem(marcaMeta)) { localStorage.setItem(marcaMeta, '1'); setAjustarMeta(true); return; } } catch {}
     }
+    // Si anotó con Beast, Beast mismo le ofrece los avisos en el chat.
+    if (beastAbiertoRef.current) return;
     const marca = 'jb_notif_tras_comida_' + username;
     try { if (localStorage.getItem(marca)) return; } catch { return; }
     estadoPushEquipo().then(estado => {
@@ -11366,18 +12632,29 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // nunca registró una comida y ya tiene su meta lista. "Ahora no" la
   // guarda hasta el día siguiente.
   const [nuncaRegistro, setNuncaRegistro] = useState(null); // null = aún no se sabe
+  const nuncaAlAbrir = useRef(null); // lo que dijo la base al abrir (no cambia al empezar a registrar)
   const [primeraDescartada, setPrimeraDescartada] = useState(() => {
     try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
   });
   useEffect(() => {
     let vivo = true;
     supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).limit(1)
-      .then(({ data, error }) => { if (vivo) setNuncaRegistro(error ? false : (data || []).length === 0); })
+      .then(({ data, error }) => {
+        if (!vivo) return;
+        const nunca = error ? false : (data || []).length === 0;
+        nuncaAlAbrir.current = nunca;
+        setNuncaRegistro(nunca);
+      })
       .then(null, () => { if (vivo) setNuncaRegistro(false); });
     return () => { vivo = false; };
   }, [username]);
+  // Eligió cómo registrar su primera comida (foto, buscar, un plato o el de
+  // la prueba de la portada): el aviso de abrir la app en Chrome/Safari
+  // espera a que la guarde, para no taparle la cámara ni el buscador.
+  const [primeraEnCurso, setPrimeraEnCurso] = useState(false);
   function registrarPrimeraComida(meal, p) {
     registrarPasoPago('primera_comida', username, 'plato');
+    setPrimeraEnCurso(true);
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
     setNuncaRegistro(false);
     vibrar(30);
@@ -11396,7 +12673,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const premiumCtx = useMemo(() => ({
     premium: !versionGratis,
     onVerPremium: () => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); },
-  }), [versionGratis]);
+    companero: companeroDe(form),
+  }), [versionGratis, form.companero?.nombre, form.companero?.voz, form.companero?.estilo, form.companero?.estiloElegido]);
   const renewalElegible = !!(userRecord && userRecord.plan !== 'trial' && !versionGratis
     && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
   const trialElegible = !!trialDayOf(userRecord);
@@ -11413,8 +12691,22 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [mostrarNotif, setMostrarNotif] = useState(false);
 
   const PULL_UMBRAL = 70;
+  // "Jalar para actualizar" es solo para la pantalla de fondo. Si el dedo
+  // empieza dentro de una ventana u hoja abierta (foto, registrar, editar…,
+  // que están fijas en la pantalla) o de una lista que se desliza, no cuenta:
+  // antes, deslizar hacia abajo dentro de la foto recargaba la app y se
+  // perdía lo que el alumno estaba revisando.
+  function dentroDeVentanaOLista(el) {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const st = window.getComputedStyle(n);
+      if (st.position === 'fixed') return true;
+      if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+    }
+    return false;
+  }
   function onPullStart(e) {
     if (window.scrollY > 4) return;
+    if (dentroDeVentanaOLista(e.target)) { pullStartY.current = null; return; }
     pullStartY.current = e.touches[0].clientY;
   }
   function onPullMove(e) {
@@ -11499,6 +12791,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const meal = comidaDeAhora(new Date(demo.hora));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), ...entradas] } }));
     setNuncaRegistro(false);
+    setPrimeraEnCurso(true);
     registrarPasoPago('primera_comida', username, 'demo');
     showToast(`📸 El plato de tu prueba ya quedó registrado en tu ${meal.toLowerCase()}`);
   }, [nuncaRegistro, alimentosHoy, verGuia, username]);
@@ -11566,8 +12859,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {/* Primero su primera comida (está motivado y ya está adentro); recién
             después se le pide abrir la app en Chrome/Safari, donde tiene que
-            volver a entrar con su correo. */}
-        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+            volver a entrar con su correo. Si eligió foto o buscar, espera a
+            que la guarde y vuelva a Inicio: antes salía encima de la cámara. */}
+        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida
+          && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta
+          && <AbrirEnNavegadorModal username={username} trasPrimeraComida={primeraEnCurso && alimentosHoy > 0} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
         {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
         {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
@@ -11578,8 +12874,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
-            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
-            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setNuncaRegistro(false); irARegistrar(meal); }}
+            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
+            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
@@ -11670,6 +12966,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}
@@ -11691,6 +12988,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                       🔠 Ver la app más grande y sencilla
                     </button>
                   )}
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}
@@ -11740,7 +13038,23 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
-      <WhatsAppButton arriba={tab === 'meal'} />
+      <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto} />
+      {!beastAbierto && (
+        <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
+          textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
+            : beastVisto && logroBeast ? <>{form.companero?.estilo === 'suelto' ? '¡Oe! ' : ''}Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
+          globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
+            && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
+      )}
+      {beastAbierto && (
+        <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} versionGratis={versionGratis}
+          onCerrar={() => { setBeastAbierto(false); setBeastInicio(null); }}
+          onRegistrar={(meal, opciones) => irARegistrar(meal || comidaDeAhora(), opciones)}
+          inicio={beastInicio} logro={logroBeast}
+          onLogroVisto={id => setForm(v => ({ ...v, beastLogros: [...new Set([...(Array.isArray(v.beastLogros) ? v.beastLogros : []), id])] }))}
+          onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
+      )}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[

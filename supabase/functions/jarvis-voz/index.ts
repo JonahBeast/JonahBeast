@@ -24,13 +24,21 @@ const CORS_HEADERS = {
 // es una voz aparte: es la voz masculina "cedar" (la más natural de OpenAI)
 // con instrucciones de estilo de mayordomo inteligente (no imita la voz de
 // ningún actor real). Si "cedar" no respondiera, se usa "onyx".
-const VOCES = ["jarvis", "friday", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
+const VOCES = ["jarvis", "friday", "beast", "beast2", "cedar", "marin", "coral", "nova", "shimmer", "sage", "onyx", "ash", "echo"];
 const VOZ_JARVIS = "cedar";
 const VOZ_JARVIS_RESPALDO = "onyx";
 // "friday": voz femenina "marin" con estilo de asistente de laboratorio
 // joven y directa (respaldo: "coral").
 const VOZ_FRIDAY = "marin";
 const VOZ_FRIDAY_RESPALDO = "coral";
+// "beast": el gorila de la app como compañero (docs/idea-beast.md), con
+// personalidad de pata peruano: cercano, motivador y con humor. Dos voces
+// para que Jonah elija la que suena más humana: "beast" = "onyx" (grave, la
+// del gorila de los videos) y "beast2" = "ash" (más expresiva).
+const VOZ_BEAST = "onyx";
+const VOZ_BEAST_RESPALDO = "ash";
+const VOZ_BEAST2 = "ash";
+const VOZ_BEAST2_RESPALDO = "onyx";
 // Tope de texto por llamada: acota el costo de cada respuesta.
 const MAX_CARACTERES = 1500;
 const INSTRUCCIONES =
@@ -46,6 +54,20 @@ const INSTRUCCIONES_JARVIS =
   "encadena las frases sin pausas largas, sin alargar las palabras y sin dramatizar. " +
   "Seguro y eficiente, cortés, con humor seco apenas insinuado. " +
   "Pronuncia nombres y cifras con claridad pero sin frenar. Nunca suenes robótico, lento ni teatral.";
+// Más humana, más grave y más de barrio (pedidos de Jonah del 9 de
+// octubre): que hable como le hablas a tu pata de toda la vida. Va por
+// partes, como recomienda OpenAI para estas voces.
+const INSTRUCCIONES_BEAST =
+  "Quién eres: Beast, el gorila de la app Jonah Beast Fuel. Le hablas a tu pata de toda la vida, al que conoces desde el colegio: " +
+  "con confianza total, en confianza de barrio, como en la esquina o en una pichanga con los amigos. No eres asistente, ni locutor, ni vendedor. " +
+  "Voz: masculina, MUY grave y profunda, que sale del pecho, un poco ronca y relajada, como de un pata grandote y buena gente. Habla sonriendo. " +
+  "Acento: limeño de barrio bien marcado, con la entonación cantadita que sube y se estira al final de las frases; se comen un poco las eses del final " +
+  "y algunas d (\"cansao\", \"pesao\"); nada de español neutro, mexicano ni español de España. " +
+  "Jerga: las palabras de la calle (causa, causita, pata, oe, pe, ps, ya fue, al toque, chévere, bacán, roche, mandarse, bajarse) dilas con total naturalidad, " +
+  "como alguien de Lima que las dice todos los días, sin remarcarlas ni actuarlas. \"Oe\" se dice corto y con energía. " +
+  "Emoción: buen humor de amigos; se te escapa una risa de verdad (\"jajaja\") en lo gracioso; cuando motivas, subes la energía como cuando alientas a tu pata en la cancha. Nunca regañas. " +
+  "Ritmo: de conversación real entre amigos, suelto, con pausitas y respiraciones naturales; alarga palabras cuando sale natural (\"tranquiii\", \"vamooos\"). " +
+  "Prohibido sonar robótico, monótono, leído, formal, teatral o de locutor de radio: tiene que sonar a audio de WhatsApp de un amigo.";
 // Estilo inspirado en la asistente IA femenina del cine, sin imitar a ninguna actriz.
 const INSTRUCCIONES_FRIDAY =
   "Eres la voz de una asistente de inteligencia artificial de laboratorio, joven, lista y leal, que habla español " +
@@ -75,16 +97,18 @@ Deno.serve(async (req) => {
     const input = String(texto || "").replace(/\s+/g, " ").trim().slice(0, MAX_CARACTERES);
     if (!input) return json({ error: "Falta el texto." }, 400);
     const elegida = VOCES.includes(voz) ? voz : VOCES[0];
-    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : elegida === "friday" ? INSTRUCCIONES_FRIDAY : INSTRUCCIONES;
+    const instructions = elegida === "jarvis" ? INSTRUCCIONES_JARVIS : elegida === "friday" ? INSTRUCCIONES_FRIDAY : (elegida === "beast" || elegida === "beast2") ? INSTRUCCIONES_BEAST : INSTRUCCIONES;
     const pedir = (voice: string) => fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { "authorization": `Bearer ${OPENAI_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({ model: "gpt-4o-mini-tts", voice, input, instructions, response_format: "mp3" }),
     });
-    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida === "friday" ? VOZ_FRIDAY : elegida);
+    let r = await pedir(elegida === "jarvis" ? VOZ_JARVIS : elegida === "friday" ? VOZ_FRIDAY : elegida === "beast" ? VOZ_BEAST : elegida === "beast2" ? VOZ_BEAST2 : elegida);
     // Si OpenAI no acepta la voz nueva, sigue hablando con la de respaldo.
     if (r.status === 400 && elegida === "jarvis") r = await pedir(VOZ_JARVIS_RESPALDO);
     if (r.status === 400 && elegida === "friday") r = await pedir(VOZ_FRIDAY_RESPALDO);
+    if (r.status === 400 && elegida === "beast") r = await pedir(VOZ_BEAST_RESPALDO);
+    if (r.status === 400 && elegida === "beast2") r = await pedir(VOZ_BEAST2_RESPALDO);
     if (!r.ok || !r.body) {
       console.error("jarvis-voz: OpenAI respondió", r.status, (await r.text().catch(() => "")).slice(0, 300));
       return json({ error: "No se pudo generar la voz." }, 502);

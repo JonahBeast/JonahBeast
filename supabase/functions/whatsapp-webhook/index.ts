@@ -554,8 +554,8 @@ async function yaMandoAntesDespues(telefono: string) {
 
 async function contexto(alumno: any, nombreWa: string | null, telefono: string) {
   const hoy = fechaLima();
-  const { data: config } = await supabase.from("config").select("key, value").in("key", ["precio_1", "precio_3", "precio_6", "precio_12"]);
-  const respaldo: Record<string, number> = { precio_1: 24.90, precio_3: 64.90, precio_6: 114.90, precio_12: 209.90 };
+  const { data: config } = await supabase.from("config").select("key, value").in("key", ["precio_1", "precio_3", "precio_12"]);
+  const respaldo: Record<string, number> = { precio_1: 24.90, precio_3: 59.90, precio_12: 179.90 };
   const precio = (k: string) => {
     const v = parseFloat((config || []).find((c: any) => c.key === k)?.value);
     return (v > 0 ? v : respaldo[k]).toFixed(2);
@@ -564,7 +564,7 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
   const agregados = (extras || []).map((a: any) => a.estado && a.estado !== "-" ? `${a.nombre} (${String(a.estado).toLowerCase()})` : a.nombre);
   let t = `Datos de esta conversación (hoy es ${hoy}, hora de Lima):
 - Alimentos que Jonah agregó hace poco (también están en la app): ${agregados.length ? agregados.join(", ") : "ninguno"}.
-- Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Semestral S/${precio("precio_6")}, Anual S/${precio("precio_12")}. La captura inteligente (5 fotos de comida al día) viene incluida en todos los planes; ya no se vende aparte.
+- Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Anual S/${precio("precio_12")} (S/${(parseFloat(precio("precio_12")) / 12).toFixed(2)} al mes, el que más ahorra). Ya no hay plan semestral. La captura inteligente (5 fotos de comida al día) viene incluida en todos los planes; ya no se vende aparte.
 - Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.
 - Foto del antes y después de Jonah: ${(await yaMandoAntesDespues(telefono)) ? "YA se la mandaste en esta conversación (no la vuelvas a mandar)" : "todavía no se la mandaste"}.`;
 

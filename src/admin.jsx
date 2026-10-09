@@ -548,8 +548,21 @@ function ReferidosPanel({ users, onCambio }) {
 // IA vio en sus fotos y no están en la app. La IA propone los macros, Jonah
 // revisa y aprueba: el alimento aparece al momento en la app y se avisa a
 // quienes lo pidieron (función alimentos-pedidos).
-async function llamarPedidosAlimentos(cuerpo) {
+// Sesión del admin lista para llamar a las funciones del servidor. En el
+// celular, si el panel quedó en segundo plano, la sesión guardada puede estar
+// vencida (las funciones responden "no autorizado" y, por ejemplo, Jarvis y
+// Viernes pierden la voz realista): si vence en menos de un minuto, se renueva.
+async function sesionFresca() {
   const { data: { session } } = await supabase.auth.getSession();
+  if (session?.expires_at && session.expires_at * 1000 - Date.now() < 60000) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data?.session) return data.session;
+  }
+  return session;
+}
+
+async function llamarPedidosAlimentos(cuerpo) {
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/alimentos-pedidos`, {
     method: 'POST',
     headers: {
@@ -2167,6 +2180,19 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
       else { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }
     }
   }
+  // "Corregir y agregar para todos": un producto de marca o un plato común
+  // que el alumno creó con números mal. Se abre el formulario de "para
+  // todos" ya lleno (nombre, grupo y medida que propone la IA, con los
+  // números corregidos): Jonah revisa y confirma. Antes se corregía solo
+  // para el alumno y había que acordarse de agregarlo aparte.
+  async function corregirYParaTodos() {
+    setFuente('ia');
+    const p = ia || await compararIA();
+    if (p) { setParaTodos(formDesdePropuesta(p, a.nombre)); return; }
+    // Sin respuesta de la IA ahora: con los números corregidos de su revisión.
+    const c = rec.cifras || {};
+    setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, kcal: c.kcal ?? '', proteina: c.proteina ?? '', carbos: c.carbos ?? '', grasa: c.grasa ?? '', fuente: 'Etiqueta del producto' });
+  }
   const textoRecomendado = rec.tipo === 'existe' ? `✅ Es el mismo que "${rec.food.key.replace(/ \(-\)$/, '')}"`
     : rec.tipo === 'corregir' ? `✅ Corregir con los números de la IA (${Math.round(rec.cifras.kcal)} kcal)`
     : rec.tipo === 'para_todos' ? '✅ Agregar para todos' : '';
@@ -2263,7 +2289,8 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           </>
         ) : rec.tipo === 'corregir' ? (
           <>
-            {botonSi(<>✅ Sí, corregir con los de la IA ({Math.round(rec.cifras.kcal)} kcal)</>, hacerRecomendado, "Sus comidas se recalculan solas")}
+            {botonSi(<>✅ Corregir y agregar para todos</>, corregirYParaTodos, "Producto de marca o plato común: revisas el nombre y confirmas")}
+            {botonNo(<>✏️ Corregir solo para él ({Math.round(rec.cifras.kcal)} kcal, es algo suyo)</>, hacerRecomendado)}
             {botonNo(<>No, sus números están bien</>, () => marcar('ok'))}
           </>
         ) : rec.tipo === 'para_todos' ? (
@@ -3736,7 +3763,7 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz'];
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz', 'conversacion', 'libreta'];
 
 // Partes de la app que usan IA, para comparar su costo con el mes anterior.
 const PARTES_IA = [
@@ -3745,6 +3772,7 @@ const PARTES_IA = [
   { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
   { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
   { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
+  { funcion: 'beast-chat', label: 'Beast · tu compañero', uso: 'mensaje' },
 ];
 
 // El mismo momento del mes pasado (si hoy es 15 a las 10 am, el 15 del mes
@@ -5920,6 +5948,99 @@ async function huellaTexto(t) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+/* 🦍 BEAST: si tiene acogida y si sirve (docs/idea-beast.md, "Cómo medir
+   si Beast funciona"). Solo números y nombres con cuentas: Jonah no lee las
+   conversaciones, salvo las respuestas que el alumno marcó con 👎. */
+function BeastPanel() {
+  const [dias, setDias] = useState(7);
+  const [d, setD] = useState(null);
+  const [error, setError] = useState('');
+  const [verReportados, setVerReportados] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    setD(null); setError('');
+    supabase.rpc('beast_resumen', { p_dias: dias }).then(({ data, error: e }) => {
+      if (!vivo) return;
+      if (e) setError(e.message?.includes('beast_resumen') ? 'Beast todavía no está activado en la base.' : 'No se pudo leer.');
+      else setD(data);
+    });
+    return () => { vivo = false; };
+  }, [dias]);
+  const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+  const valoradas = d ? d.buenas + d.malas : 0;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="jb-display text-base text-zinc-200">🦍 BEAST · TU COMPAÑERO</h2>
+        <select value={dias} onChange={e => setDias(Number(e.target.value))} className="jb-body text-xs bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300">
+          <option value={7}>Últimos 7 días</option><option value={14}>Últimos 14 días</option><option value={30}>Últimos 30 días</option>
+        </select>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500">Solo números: no se ven las conversaciones (son privadas), salvo las respuestas que el alumno marcó con 👎.</p>
+      {error && <p className="jb-body text-xs text-zinc-400">{error}</p>}
+      {!d && !error && <Loader2 size={18} className="text-orange-500 animate-spin" />}
+      {d && (
+        <>
+          {d.apoyo?.length > 0 && (
+            <p className="jb-body text-xs text-amber-200 bg-amber-950/40 border border-amber-500/40 rounded-lg p-2.5">
+              ⚠️ Podrían necesitar apoyo (lo aceptaron; Beast ya les dio la Línea 113): <b>{d.apoyo.map(a => a.nombre || a.username).join(', ')}</b>. Escríbeles cuando puedas.
+            </p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              ['Le hablaron', d.usaron, `${d.aceptaron} aceptaron usarlo`],
+              ['Volvieron otro día', d.volvieron, `${pct(d.volvieron, d.usaron)} de los que lo probaron`],
+              ['3 días o más', d.tres_dias, `${pct(d.tres_dias, d.usaron)} · meta 30%`],
+              ['Mensajes', d.mensajes, d.usaron ? `${(d.mensajes / d.usaron).toFixed(1)} por alumno` : ''],
+              ['Comidas anotadas', d.comidas, `${d.deshacer} veces "Deshacer"`],
+              ['Agua · peso', `${d.agua} · ${d.peso}`, 'veces vía Beast'],
+              ['¿Qué como?', d.que_como, 'sugerencias vistas'],
+              ['👍 / 👎', `${d.buenas} / ${d.malas}`, valoradas ? `${pct(d.buenas, valoradas)} buenas · meta 80%` : 'sin valorar'],
+            ].map(([t, v, s]) => (
+              <div key={t} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">{t}</p>
+                <p className="jb-display text-xl text-zinc-50">{v}</p>
+                <p className="jb-body text-[10px] text-zinc-500">{s}</p>
+              </div>
+            ))}
+          </div>
+          {Object.keys(d.temas || {}).length > 0 && (
+            <p className="jb-body text-xs text-zinc-400">De qué hablan: {Object.entries(d.temas).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} ${n}`).join(' · ')}</p>
+          )}
+          {d.ranking?.length > 0 && (
+            <div>
+              <p className="jb-body text-xs text-zinc-300 font-semibold mb-1">Los que más lo usan</p>
+              <div className="flex flex-col gap-1">
+                {d.ranking.map((r, i) => (
+                  <p key={r.username} className="jb-body text-xs text-zinc-400">{i + 1}. <span className="text-zinc-200">{r.nombre || r.username}</span> · {r.dias} {r.dias === 1 ? 'día' : 'días'} · {r.mensajes} mensajes · {r.comidas} comidas</p>
+                ))}
+              </div>
+            </div>
+          )}
+          {d.reportados?.length > 0 && (
+            <div>
+              <button onClick={() => setVerReportados(v => !v)} className="jb-body text-xs text-orange-400 underline">
+                {verReportados ? 'Ocultar' : 'Ver'} las {d.reportados.length} respuestas marcadas con 👎
+              </button>
+              {verReportados && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {d.reportados.map(r => (
+                    <div key={r.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                      <p className="jb-body text-[11px] text-zinc-500">{new Date(r.fecha).toLocaleString('es-PE')}</p>
+                      {r.alumno && <p className="jb-body text-xs text-zinc-300 mt-1"><b>Alumno:</b> {r.alumno}</p>}
+                      <p className="jb-body text-xs text-zinc-300 mt-1"><b>Beast:</b> {r.beast}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ManualJarvisPanel() {
   const [estado, setEstado] = useState(null); // { alDia, commit, actualizado_en } | { error }
   const [ocupado, setOcupado] = useState(false);
@@ -6017,7 +6138,7 @@ const GUION_VIDEO_JARVIS = [
 
 async function generarVozVideo(texto, voz) {
   const pedir = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
@@ -7362,7 +7483,7 @@ function funcionJarvis() {
    se pasa a `alEvento` apenas llega. Si la función responde en el formato
    de siempre (un JSON completo), también funciona. */
 async function llamarJarvis(cuerpo, alEvento) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/${funcionJarvis()}`, {
     method: 'POST',
     headers: {
@@ -7402,6 +7523,10 @@ async function llamarJarvis(cuerpo, alEvento) {
 }
 
 // Mensajes que muestra Jarvis cuando el micrófono no puede funcionar.
+// Silencio (en ms) que espera Jarvis después de que Jonah deja de hablar
+// antes de enviar la frase.
+const PAUSA_FIN_FRASE_MS = 1300;
+
 const AVISOS_MIC = {
   'not-allowed': 'No tengo permiso para usar el micrófono en esta página. Toca el ícono a la izquierda de la dirección web, permite el micrófono y vuelve a tocar 🎤. Mientras tanto puedes escribirme.',
   'service-not-allowed': 'Este navegador no me deja usar el reconocimiento de voz. Prueba en Google Chrome o Safari, o escríbeme.',
@@ -7774,6 +7899,10 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
   { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
+  // El gorila como compañero de los alumnos (docs/idea-beast.md): para
+  // escuchar cómo sonaría Beast.
+  { id: 'premium:beast', nombre: '🦍 Beast · el gorila, voz grave' },
+  { id: 'premium:beast2', nombre: '🦍 Beast · el gorila, voz más expresiva' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -7794,13 +7923,22 @@ let vozPremiumCaida = false;
 async function audioPremiumJarvis(texto, voz) {
   const clave = `${voz}|${texto}`;
   if (cacheVozJarvis.has(clave)) return cacheVozJarvis.get(clave);
-  const { data: { session } } = await supabase.auth.getSession();
-  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ texto, voz }),
-  });
-  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) { vozPremiumCaida = true; throw new Error('sin voz premium'); }
+  const pedir = async () => {
+    const session = await sesionFresca();
+    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+      body: JSON.stringify({ texto, voz }),
+    });
+  };
+  let r = await pedir();
+  // Sesión vieja: se renueva y se reintenta una vez. Un "no autorizado" no
+  // apaga la voz realista para el resto de la visita (solo esta frase).
+  if (r.status === 401) { const { error } = await supabase.auth.refreshSession(); if (!error) r = await pedir(); }
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    if (r.status !== 401 && r.status !== 403) vozPremiumCaida = true;
+    throw new Error('sin voz premium');
+  }
   const bytes = await r.arrayBuffer();
   if (cacheVozJarvis.size > 30) cacheVozJarvis.delete(cacheVozJarvis.keys().next().value);
   cacheVozJarvis.set(clave, bytes);
@@ -8075,6 +8213,14 @@ function JarvisPanel({ onClose, users }) {
   const [vozOn, setVozOn] = useState(true);
   const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
+  // Lo que el micrófono va entendiendo mientras Jonah habla (subtítulos en
+  // vivo), para que vea al toque si lo está captando o no.
+  const [oyendo, setOyendo] = useState('');
+  // El navegador corta la frase en cada pausa chiquita ("Viernes, cuáles…"
+  // llegaba solo como "cuáles"). Los pedazos se juntan aquí y se envían
+  // recién tras un silencio de PAUSA_FIN_FRASE_MS.
+  const fraseRef = useRef('');
+  const esperaFraseRef = useRef(null);
   const [hablando, setHablando] = useState(false);
   const [pulsoVoz, setPulsoVoz] = useState(0); // sube con cada palabra que dice Jarvis
   const logRef = useRef(null);
@@ -8211,7 +8357,9 @@ function JarvisPanel({ onClose, users }) {
   // Frase de prueba con la voz elegida en el selector. Se dispara dentro del
   // mismo toque del botón, así el navegador no bloquea el audio.
   function probarVoz() {
-    const frase = 'Hola Jonah Beast, así sonaré cuando te responda.';
+    const frase = String(vozGuardada).startsWith('premium:beast')
+      ? '¡Oe, causita! ¿Qué fue, mi pata? Habla Beast. A ver, cuéntame, ¿qué te bajaste hoy en el almuerzo? ¿Te mandaste tu doble de arroz, no? Jajaja, ya fue, tranqui, ni te roches, a todos nos pasa… ¡hasta a mí, y eso que soy un gorila, pe! Eso lo arreglamos al toque en la siguiente comida. ¡Vamos con todo, mi causa, comida a comida!'
+      : 'Hola Jonah Beast, así sonaré cuando te responda.';
     if (esVozPremium(vozGuardada)) {
       contextoAudioJarvis();
       pausarMic();
@@ -8456,16 +8604,14 @@ function JarvisPanel({ onClose, users }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const recog = new SR();
-    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
-    recog.onresult = (e) => {
-      const ultimo = e.results[e.results.length - 1];
-      // Se usa siempre la versión más reciente de enviar() (con la
-      // conversación al día), no la del momento en que se prendió el micro.
-      if (!ultimo.isFinal) return;
-      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
-      // ignora: puede ser su propia voz.
-      if (pausadoParaHablarRef.current) return;
-      const dicho = ultimo[0].transcript.trim();
+    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = true; recog.maxAlternatives = 1;
+    // Frase completa (todos los pedazos juntos): decide si lo llamaron y la envía.
+    const procesarFrase = () => {
+      clearTimeout(esperaFraseRef.current);
+      const dicho = fraseRef.current.replace(/\s+/g, ' ').trim();
+      fraseRef.current = '';
+      setOyendo('');
+      if (!dicho || pausadoParaHablarRef.current) return;
       const pedido = quitarPalabraJarvis(dicho);
       llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
@@ -8487,11 +8633,32 @@ function JarvisPanel({ onClose, users }) {
       despiertoHastaRef.current = 0;
       sonidoJarvis('despierto');
       cerrarMicTrasHablarRef.current = esDespedidaJarvis(texto);
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
       enviarRef.current(texto);
+    };
+    recog.onresult = (e) => {
+      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
+      // ignora: puede ser su propia voz.
+      if (pausadoParaHablarRef.current) { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); return; }
+      // Mientras habla llegan pedazos provisionales: se muestran en vivo,
+      // junto con lo que ya dijo antes de la última pausa.
+      let provisional = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fraseRef.current += ' ' + e.results[i][0].transcript;
+        else provisional += e.results[i][0].transcript;
+      }
+      setOyendo(`${fraseRef.current} ${provisional}`.replace(/\s+/g, ' ').trim());
+      // Cada vez que sigue hablando se vuelve a esperar: se envía cuando se
+      // calla de verdad, no en la primera pausa.
+      clearTimeout(esperaFraseRef.current);
+      if (fraseRef.current.trim() && !provisional.trim()) esperaFraseRef.current = setTimeout(procesarFrase, PAUSA_FIN_FRASE_MS);
     };
     recog.onerror = (e) => {
       micActivoRef.current = false;
       setEscuchando(false);
+      // Si se cortó con una frase a medias ya dicha, no se pierde.
+      if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); }
       // Errores que no se arreglan reintentando (sin permiso, sin micrófono
       // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
       // vez de seguir intentando en silencio.
@@ -8499,7 +8666,7 @@ function JarvisPanel({ onClose, users }) {
       if (aviso) { apagarMicConAviso(aviso); return; }
       if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
     };
-    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); } if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); micActivoRef.current = true; recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
@@ -8639,8 +8806,10 @@ function JarvisPanel({ onClose, users }) {
   const bloqueEntrada = (
     <>
 <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
-          {avisoMic || (modoContinuo
-            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta' : 'Modo continuo activo')
+          {oyendo ? (
+            <span style={{ color: '#dff2ff' }}>🎙️ «{oyendo}…»</span>
+          ) : avisoMic || (modoContinuo
+            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta. Lo que te oigo sale aquí; si hablas y no aparece nada, el micrófono no te está captando.' : 'Modo continuo activo')
             : 'Toca el micrófono y háblame diciendo «Jarvis, …» o «Viernes, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
@@ -8807,7 +8976,7 @@ const WA_CONFIG_ID = '1069612025663283'; // "Registro insertado de WhatsApp" (la
 const WA_GRAPH_VERSION = 'v23.0';
 
 async function llamarWhatsApp(cuerpo) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-conectar`, {
     method: 'POST',
     headers: {
@@ -9018,7 +9187,7 @@ function WhatsAppPanel() {
     const lista = [...simMensajes, { role: 'user', content: t }];
     setSimMensajes(lista); setSimTexto(''); setSimEnviando(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await sesionFresca();
       const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
@@ -9436,6 +9605,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <ComunidadHoyPanel users={users} />
             <ListosParaPagarPanel />
             <AvisoMejoras40Panel />
+            <MensajeATodosPanel />
             {/* Las listas completas: lo urgente de cada una ya sale arriba en
                 "Mensajes del día"; aquí quedan juntas y cerradas, para cuando
                 quieras ver a todos o usar sus botones (+7 días, renovar…). */}
@@ -9695,6 +9865,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             <ReporteIAAlimentos grande />
             <PrecisionIAPanel />
             <ReconocimientoFotoPanel />
+            <BeastPanel />
             <ManualJarvisPanel />
             <MemoriaJarvisPanel />
           </>
@@ -10142,7 +10313,7 @@ function ordenMedias(h) {
 async function traerCorreosAlumnos(usernames) {
   if (!usernames.length) return {};
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     const r = await fetch('/api/correos-alumnos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
@@ -10600,6 +10771,287 @@ function mensajeMejoras40(nombre) {
 2️⃣ Registrar tu comida es más fácil: tocas REGISTRAR → "¿Qué comiste?", escribes por ejemplo "arroz" y eliges cuánto con botones grandes (½ plato, 1 plato…). Lo que comes siempre ya te aparece listo, con un toque.
 
 Cierra y vuelve a abrir la app para ver los cambios. Si algo se te complica, escríbeme aquí y lo vemos juntos. Vamos poco a poco, comida a comida 🦍`;
+}
+
+/* 📣 MENSAJE A TODOS: Jonah escribe un mensaje (saludo de Navidad, aviso,
+   "te extrañamos"), elige a quién va y cuándo sale. Llega como notificación
+   a quien tiene avisos y como tarjeta en Inicio a todos los del público
+   (api/mensaje-masivo.js; los programados los saca
+   api/cron/mensajes-programados.js). Como mucho uno por día y nunca de
+   noche (10 p.m. a 8 a.m.: queda para las 8 a.m.). */
+const PUBLICOS_MENSAJE = [
+  ['todos', 'Todos'],
+  ['pagan', 'Los que pagan'],
+  ['prueba', 'En prueba'],
+  ['gratis', 'Versión gratis'],
+  ['inactivos', 'Sin registrar 3+ días'],
+];
+const IDEAS_MENSAJE = [
+  { nombre: '🎄 Navidad', titulo: '¡Feliz Navidad! 🎄', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por ser parte de esta familia. Disfruta la cena con los tuyos, sin culpa: mañana seguimos, comida a comida. Un abrazo grande 🦍' },
+  { nombre: '🎆 Año nuevo', titulo: '¡Feliz Año Nuevo! 🎆', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por confiar en mí este año. En el que empieza vamos juntos por tu meta, poco a poco, comida a comida 💪' },
+  { nombre: '👋 Te extrañamos', titulo: 'Te extraño por aquí 👋', publico: 'inactivos',
+    texto: 'Soy Jonah. Hace unos días no registras tus comidas y no pasa nada: hoy es un buen día para retomar. Anota tu próxima comida y seguimos juntos 💪' },
+];
+async function llamarMensajeMasivo(cuerpo) {
+  const session = await sesionFresca();
+  const r = await fetch('/api/mensaje-masivo', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(cuerpo),
+  });
+  const j = await r.json().catch(() => ({}));
+  // Sesión cerrada (por ejemplo, tocó "Salir" en otro celular o pestaña):
+  // se le dice qué hacer; lo que escribió queda guardado en este equipo.
+  if (r.status === 401 || r.status === 403) throw new Error('Tu sesión de administrador se cerró (¿saliste en otro celular o pestaña?). Toca "Salir" y vuelve a entrar: lo que escribiste aquí no se pierde.');
+  if (!r.ok) throw new Error(j.error || 'No se pudo completar. Intenta de nuevo.');
+  return j;
+}
+const fechaHoraPeru = iso => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+// Los programados los saca el cron cada 15 minutos (a los :02, :17, :32 y
+// :47 de cada hora, ver vercel.json): esta es la hora real en que sale.
+function salidaReal(iso) {
+  const d = new Date(iso);
+  const m = d.getUTCMinutes();
+  const siguiente = [2, 17, 32, 47].find(x => x >= m && !(x === m && d.getUTCSeconds() > 0));
+  if (siguiente === undefined) { d.setUTCHours(d.getUTCHours() + 1, 2, 0, 0); } else d.setUTCMinutes(siguiente, 0, 0);
+  return d.toISOString();
+}
+
+function MensajeATodosPanel() {
+  const [abierto, setAbierto] = useState(false);
+  // El borrador se guarda en este equipo, por si la sesión se cierra o la
+  // página se recarga antes de enviarlo.
+  const [titulo, setTitulo] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-titulo') || ''; } catch { return ''; } });
+  const [texto, setTexto] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-texto') || ''; } catch { return ''; } });
+  useEffect(() => {
+    try { localStorage.setItem('jb-mensaje-borrador-titulo', titulo); localStorage.setItem('jb-mensaje-borrador-texto', texto); } catch {}
+  }, [titulo, texto]);
+  const [publico, setPublico] = useState('todos');
+  const [cuando, setCuando] = useState('ahora'); // 'ahora' | 'programar'
+  const [fecha, setFecha] = useState(''); // AAAA-MM-DDTHH:MM, hora de Perú
+  const [enMuro, setEnMuro] = useState(false);
+  const [verEnApp, setVerEnApp] = useState(false); // vista previa de la ventana del alumno
+  const [cuenta, setCuenta] = useState(null);
+  const [lista, setLista] = useState(null);
+  const [vistos, setVistos] = useState({});
+  const [ocupado, setOcupado] = useState('');
+  const [error, setError] = useState('');
+
+  async function cargar() {
+    const { data } = await supabase.from('mensajes_masivos')
+      .select('id, titulo, texto, publico, en_muro, estado, programado_para, enviado_en, destinatarios, push_enviados')
+      .neq('estado', 'cancelado').order('programado_para', { ascending: false }).limit(10);
+    setLista(data || []);
+    const ids = (data || []).filter(m => m.estado === 'enviado').map(m => String(m.id));
+    if (!ids.length) return;
+    const { data: ev } = await supabase.from('embudo_landing_eventos').select('evento, username, detalle')
+      .in('evento', ['mensaje_visto', 'mensaje_cerrado']).in('detalle', ids);
+    const v = {};
+    (ev || []).forEach(e => {
+      const x = v[e.detalle] = v[e.detalle] || { vieron: new Set(), cerraron: new Set() };
+      (e.evento === 'mensaje_visto' ? x.vieron : x.cerraron).add(e.username);
+    });
+    setVistos(v);
+  }
+  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    if (!abierto) return;
+    let vivo = true;
+    setCuenta(null);
+    llamarMensajeMasivo({ accion: 'contar', publico }).then(c => { if (vivo) setCuenta(c); }, () => {});
+    return () => { vivo = false; };
+  }, [publico, abierto]);
+
+  const programados = (lista || []).filter(m => m.estado === 'programado');
+  const enviados = (lista || []).filter(m => m.estado === 'enviado');
+  const listo = titulo.trim() && texto.trim() && (cuando === 'ahora' || fecha);
+  const fechaISO = cuando === 'programar' && fecha ? new Date(`${fecha}:00-05:00`).toISOString() : null;
+  const etiquetaPublico = (PUBLICOS_MENSAJE.find(p => p[0] === publico) || [])[1];
+
+  async function probar() {
+    setOcupado('probar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'probar', titulo, texto });
+      showToast(r.enviados ? '📲 Te llegó la prueba al celular (solo a ti).' : 'No te llegó: activa los avisos en este celular para ver la prueba.');
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function enviar() {
+    const n = cuenta?.total;
+    const pregunta = cuando === 'ahora'
+      ? `¿Enviar "${titulo.trim()}" ahora a ${n ?? 'los'} alumnos (${etiquetaPublico})?\n\nLe llega a todos como tarjeta en Inicio y como notificación a los que tienen avisos.${enMuro ? ' También sale en el Muro.' : ''}`
+      : `¿Programar "${titulo.trim()}" para el ${fechaHoraPeru(fechaISO)} (${etiquetaPublico})?`;
+    if (!confirm(pregunta)) return;
+    setOcupado('enviar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'enviar', titulo, texto, publico, en_muro: enMuro, programado_para: fechaISO });
+      const m = r.mensaje;
+      showToast(r.enviadoAhora
+        ? `📣 Enviado a ${m.destinatarios.length} alumnos · ${m.push_enviados} notificaciones`
+        : `🗓️ Programado: sale el ${fechaHoraPeru(salidaReal(m.programado_para))}${r.movidoA8 ? ' (de noche no suena: sale a las 8 a.m.)' : ''}`);
+      setTitulo(''); setTexto(''); setFecha(''); setCuando('ahora'); setEnMuro(false);
+      await cargar();
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function cancelar(m) {
+    if (!confirm(`¿Cancelar "${m.titulo}"? No saldrá.`)) return;
+    try { await llamarMensajeMasivo({ accion: 'cancelar', id: m.id }); showToast('Mensaje cancelado.'); await cargar(); }
+    catch (e) { showToast(e.message); }
+  }
+
+  const resumen = programados.length
+    ? `🗓️ Programado: "${programados[programados.length - 1].titulo}" · sale el ${fechaHoraPeru(salidaReal(programados[programados.length - 1].programado_para))}`
+    : enviados.length ? `Último: "${enviados[0].titulo}" · ${fechaHoraPeru(enviados[0].enviado_en)}`
+    : 'Saludo de Navidad, avisos o "te extrañamos": notificación + tarjeta en la app.';
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
+      <button type="button" onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <span className="min-w-0">
+          <span className="jb-display text-base text-zinc-200 block">📣 MENSAJE A TODOS</span>
+          <span className="jb-body text-[11px] text-zinc-500 block truncate">{resumen}</span>
+        </span>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            <span className="jb-body text-[11px] text-zinc-500 self-center">Ideas:</span>
+            {IDEAS_MENSAJE.map(i => (
+              <button key={i.nombre} type="button" onClick={() => { setTitulo(i.titulo); setTexto(i.texto); setPublico(i.publico); }}
+                className="jb-body text-xs px-3 py-1 rounded-full border border-zinc-700 text-zinc-300 hover:border-orange-500">{i.nombre}</button>
+            ))}
+          </div>
+          <Field label={`Título (${titulo.length}/60)`}>
+            <input autoComplete="off" value={titulo} onChange={e => setTitulo(e.target.value.slice(0, 60))} className={inputCls} placeholder="Ej. ¡Feliz Navidad! 🎄" />
+          </Field>
+          <Field label={`Mensaje (${texto.length}/300) · en tu voz: cercano y motivador`}>
+            <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, 300))} rows={4} className={inputCls + ' resize-none'}
+              placeholder="Soy Jonah. …" />
+          </Field>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A quién?</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PUBLICOS_MENSAJE.map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setPublico(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${publico === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-400 mt-1.5">
+              {cuenta ? <>Le llega a <b className="text-zinc-100">{cuenta.total}</b> alumnos en la app · notificación a <b className="text-zinc-100">{cuenta.conAvisos}</b> (tienen avisos activados)</> : 'Contando…'}
+            </p>
+          </div>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿Cuándo?</p>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {[['ahora', 'Ahora'], ['programar', '🗓️ Programar']].map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setCuando(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${cuando === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+              {cuando === 'programar' && (
+                <input type="datetime-local" value={fecha} onChange={e => setFecha(e.target.value)} className={inputCls + ' text-sm py-1.5 w-auto'} />
+              )}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1">Hora de Perú. Los programados salen en la siguiente revisión (cada 15 minutos: a los :02, :17, :32 y :47). De noche (10 p.m. a 8 a.m.) no suena: sale a las 8:02 a.m. Como mucho un mensaje por día.</p>
+          </div>
+
+          <label className="flex items-center gap-2 jb-body text-xs text-zinc-300">
+            <input type="checkbox" checked={enMuro} onChange={e => setEnMuro(e.target.checked)} className="accent-orange-500" />
+            Publicarlo también en el Muro de la Comunidad
+          </label>
+
+          {(titulo.trim() || texto.trim()) && (
+            <div className="flex flex-col gap-2">
+              <p className="jb-body text-[11px] text-zinc-500">Así se verá (la notificación, y la ventana que sale apenas abren la app):</p>
+              <div className="bg-zinc-100 text-zinc-900 rounded-xl px-3 py-2 flex gap-2 items-start">
+                <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold leading-tight">{titulo || 'Título'}</p>
+                  <p className="text-[12px] leading-snug line-clamp-3">{texto || 'Mensaje'}</p>
+                </div>
+              </div>
+              <div className="bg-zinc-950 border border-orange-500/50 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500/60 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-base text-zinc-50 leading-tight">{titulo || 'Título'}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-sm text-zinc-200 mt-2 whitespace-pre-line">{texto || 'Mensaje'}</p>
+                <div className={btnPrimary + ' w-full py-2 mt-3 pointer-events-none text-sm'}>¡Gracias, Jonah! 💪</div>
+              </div>
+            </div>
+          )}
+
+          {/* La misma ventana que ve el alumno al abrir la app
+              (MensajeJonahCard en src/alumno.jsx), sin enviar nada. */}
+          {verEnApp && (
+            <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true" onClick={() => setVerEnApp(false)}>
+              <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+                style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }} onClick={e => e.stopPropagation()}>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mb-3">👁️ Vista previa: así lo verán al abrir la app (no se envió a nadie)</p>
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-2xl text-zinc-50 leading-tight">{titulo}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{texto}</p>
+                <button onClick={() => setVerEnApp(false)} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mt-2">Toca el botón o fuera de la ventana para volver.</p>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={!titulo.trim() || !texto.trim()} onClick={() => setVerEnApp(true)} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              👁️ Ver cómo se ve en la app
+            </button>
+            <button type="button" disabled={!titulo.trim() || !texto.trim() || !!ocupado} onClick={probar} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              {ocupado === 'probar' ? <Loader2 size={15} className="animate-spin" /> : '📲 Enviarme una prueba'}
+            </button>
+            <button type="button" disabled={!listo || !!ocupado} onClick={enviar} className={btnPrimary + ' text-sm py-2.5 px-4 flex-1'}>
+              {ocupado === 'enviar' ? <Loader2 size={15} className="animate-spin" />
+                : cuando === 'ahora' ? `📣 Enviar a ${cuenta?.total ?? '…'} alumnos` : '🗓️ Programar'}
+            </button>
+          </div>
+
+          {(programados.length > 0 || enviados.length > 0) && (
+            <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
+              {programados.map(m => (
+                <div key={m.id} className="bg-zinc-950 border border-amber-600/40 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="jb-body text-sm text-zinc-100 truncate">🗓️ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500">Sale el {fechaHoraPeru(salidaReal(m.programado_para))} · {(PUBLICOS_MENSAJE.find(p => p[0] === m.publico) || [])[1]}{m.en_muro ? ' · también en el Muro' : ''}</p>
+                  </div>
+                  <button type="button" onClick={() => cancelar(m)} className="jb-body text-xs text-zinc-400 underline shrink-0">Cancelar</button>
+                </div>
+              ))}
+              {enviados.map(m => {
+                const v = vistos[String(m.id)];
+                return (
+                  <div key={m.id} className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                    <p className="jb-body text-sm text-zinc-100 truncate">✅ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                      {fechaHoraPeru(m.enviado_en)} · {m.destinatarios.length} alumnos · {m.push_enviados} notificaciones · la vieron en la app {v ? v.vieron.size : 0}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AvisoMejoras40Panel() {
@@ -11659,7 +12111,7 @@ function PagosPanel({ onAprobado }) {
       // Aviso al celular del alumno: "tu pago fue aprobado". Si falla, la
       // aprobación igual queda hecha.
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await sesionFresca();
         fetch('/api/pago-aprobado', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
@@ -11775,7 +12227,7 @@ function PagosPanel({ onAprobado }) {
                 </Field>
                 <Field label="Plan (meses)">
                   <select value={manualForm.meses} onChange={e => setManualForm(v => ({ ...v, meses: e.target.value }))} className={inputCls}>
-                    {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
+                    {[1, 3, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
                   </select>
                 </Field>
                 <Field label="Monto pagado (S/)">

@@ -38,7 +38,7 @@
 
 - App peruana de nutrición y pérdida de grasa creada por Jonah Beast. Frase principal: **"NO ES QUÉ COMES. ES CUÁNTO."** (nada está prohibido: lo que cambia el cuerpo es la cantidad, y eso es lo que mide la app).
 - Te dice cuánto y qué comer **con comida peruana**, registras tus comidas (incluso con una **foto del plato**), sigues tu progreso y Jonah te acompaña con avisos.
-- **Gratis para siempre, con 7 días de Premium incluidos, sin tarjeta.** Al terminar los 7 días la cuenta no se bloquea: sigue en la versión gratis. Premium se paga con planes de 1, 3, 6 o 12 meses (qué incluye cada versión: 13.8).
+- **Gratis para siempre, con 7 días de Premium incluidos, sin tarjeta.** Al terminar los 7 días la cuenta no se bloquea: sigue en la versión gratis. Premium se paga con planes de 1, 3 o 12 meses (qué incluye cada versión: 13.8).
 - **Todos los planes incluyen** (en Planes, bajo "TODOS LOS PLANES INCLUYEN"): registro de comida en segundos con foto con IA (5 fotos al día), código de barras o voz, composición corporal completa y actualizada, plan de alimentación con comida peruana, recomendaciones diarias de qué comer, historial y gráficos de progreso, fotos de progreso con comparación y soporte directo por WhatsApp.
 - **La captura inteligente (reconocer la comida con una foto) ya viene incluida en todos los planes.** No hay que pagar nada aparte (ver sección 9).
 
@@ -173,11 +173,11 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 
 **Pie de la pantalla:** **"⚙️ Mi perfil y ajustes"** · "Política de Privacidad". (Letra grande, sonidos, avisos, celular y eliminar cuenta están en Mi perfil.)
 
-**Botón verde de WhatsApp** (abajo a la derecha, con la foto de Jonah): abre WhatsApp con "Hola, tengo una consulta sobre mi plan." En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**.
+**Burbuja de Beast** (abajo a la derecha: el gorila con los puños encendidos, con un brillo naranja que se enciende y se apaga suave alrededor, siempre, para que se note, y la palabra "BEAST", o el nombre que el alumno le puso (6.4); reemplazó al botón verde de WhatsApp): abre el chat con **Beast · tu compañero** (ver 6.4). La primera vez tiene un puntito naranja y, en Inicio, un globito "¡Hola! Soy Beast, tu compañero 🦍 Cuéntame qué comiste y te ayudo." (se cierra con la ×). En **Comidas** está un poco más arriba, para no chocar con el botón **REGISTRAR**. **WhatsApp con Jonah** (persona) sigue a un toque: en el chat de Beast → **⋮** → "🙋 Hablar con Jonah (persona) por WhatsApp", y Beast lo ofrece solo cuando es de pagos o algo serio.
 
 **Elegir la comida** (Desayuno, Media mañana, Almuerzo, Media tarde, Cena): en toda la app se ve igual, una fila de botones que se desliza de lado; el elegido en naranja y un puntito en la comida de la hora.
 
-**Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄).
+**Recargar la app:** estando arriba del todo, desliza hacia abajo (sale 🔄). Solo funciona en la pantalla de fondo: **dentro de una ventana abierta** (foto, registrar, editar…) o de una lista que se desliza, deslizar hacia abajo **no recarga la app**, así no se pierde lo que estás revisando.
 
 **Ventanas que suben desde abajo:** en el celular, las ventanas de la app (registrar, foto, código de barras, crear alimento, avisos, mi celular, eliminar cuenta, guía del iPhone…) suben desde abajo y llevan una **rayita gris arriba**. Las que se cierran tocando afuera también se cierran **deslizando esa rayita hacia abajo**. Cuando la app pregunta "¿Seguro?" (borrar una foto, salir de un equipo…), sale una de estas hojas con el botón rojo para confirmar y **"Cancelar"**.
 
@@ -198,7 +198,7 @@ Se abre con el ícono **⚙️** de la barra de arriba o con **"⚙️ Mi perfil
   - **🔥 Racha en riesgo** · **⚖️ Pesaje y control** · **📊 Resumen de tu semana** · **🏆 Retos y equipos**.
   - Los avisos de tu plan, tus pagos, tus pedidos de alimentos y la comunidad siempre llegan. Nunca más de 3 avisos al día.
 - **"LA APP":** **"🔠 Letra grande e Inicio sencillo"** (modo fácil, ver 7.1) y **"🔊 Sonidos de logros"**.
-- **"PRIVACIDAD":** "Política de Privacidad" y **"Eliminar mi cuenta"**.
+- **"PRIVACIDAD":** "Política de Privacidad" y **"Eliminar mi cuenta"**. La política (`jonahbeast.com/privacidad.html`, al día desde el 9 de octubre de 2026) explica qué datos guarda la app, que la voz y las fotos de comida se procesan con inteligencia artificial (OpenAI y Anthropic) **sin guardar el audio ni la foto**, y que Meta y TikTok reciben solo el aviso de registro o pago con correo/celular cifrados para medir anuncios (nunca peso, medidas, comidas ni fotos).
 
 ### 6.1 La primera vez (guía de bienvenida)
 
@@ -210,7 +210,7 @@ Se abre con el ícono **⚙️** de la barra de arriba o con **"⚙️ Mi perfil
 
 Los pasos 1 y 2 solo salen si faltan (si entró con Google, el nombre ya está). **Los avisos ya no se piden en la guía:** se piden una sola vez, justo después de registrar la primera comida ("¡COMIDA REGISTRADA! 💪" → "🔔 Sí, activar avisos"). Al activarlos, Jonah manda su saludo de bienvenida.
 
-**Si usa la app dentro de TikTok, Instagram o Facebook** (pasa cuando llega desde un anuncio): primero se le deja registrar su primera comida ahí mismo ("¡TU PLAN ESTÁ LISTO!", 6.2); recién después de su primera comida (o si cierra esa pantalla), como mucho una vez al día, sale **"UN ÚLTIMO PASO PARA ACOMPAÑARTE"**: "Estás usando la app dentro de [TikTok/Instagram/Facebook/otra app]. Ahí no te llegan mis avisos ni puedes instalarla. Ábrela en Chrome (Safari en iPhone): tu cuenta y tu plan ya están guardados." Muestra en grande "Allá entras con tu correo" con **su correo** y **"Copiar mi correo"** (si se registró con Google: "Allá toca "Continuar con Google" con" su correo); si entra con contraseña, agrega "¿No recuerdas tu contraseña? Allá toca "¿Olvidaste tu contraseña?" y te llega un enlace a este correo." Luego el botón **"🌐 Abrir en Chrome"** (o Safari). Si no se abre: tres puntos arriba a la derecha → "Abrir en el navegador" (o "Abrir en Safari"), o escribir **jonahbeast.com** en el navegador; también hay **"Copiar el enlace"**. **"Seguir aquí por ahora"** la cierra hasta el día siguiente. En Chrome o Safari debe **entrar con su correo y contraseña** (o "Continuar con Google" si se registró así).
+**Si usa la app dentro de TikTok, Instagram o Facebook** (pasa cuando llega desde un anuncio): primero se le deja registrar su primera comida ahí mismo ("¡TU PLAN ESTÁ LISTO!", 6.2); recién después de su primera comida (o si cierra esa pantalla), como mucho una vez al día, sale **"UN ÚLTIMO PASO PARA ACOMPAÑARTE"**. Si eligió registrarla con foto o buscándola, este aviso espera a que la guarde y vuelva a **Inicio** (nunca sale encima de la cámara ni del buscador), y arriba dice **"¡Bien ahí, ya registraste tu primera comida! 💪"**. El aviso dice: "Estás usando la app dentro de [TikTok/Instagram/Facebook/otra app]. Ahí no te llegan mis avisos ni puedes instalarla. Ábrela en Chrome (Safari en iPhone): tu cuenta y tu plan ya están guardados." Muestra en grande "Allá entras con tu correo" con **su correo** y **"Copiar mi correo"** (si se registró con Google: "Allá toca "Continuar con Google" con" su correo); si entra con contraseña, agrega "¿No recuerdas tu contraseña? Allá toca "¿Olvidaste tu contraseña?" y te llega un enlace a este correo." Luego el botón **"🌐 Abrir en Chrome"** (o Safari). Si no se abre: tres puntos arriba a la derecha → "Abrir en el navegador" (o "Abrir en Safari"), o escribir **jonahbeast.com** en el navegador; también hay **"Copiar el enlace"**. **"Seguir aquí por ahora"** la cierra hasta el día siguiente. En Chrome o Safari debe **entrar con su correo y contraseña** (o "Continuar con Google" si se registró así).
 
 Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**.
 
@@ -226,9 +226,59 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 
 ---
 
+### 6.4 🦍 Beast · tu compañero (chat con el gorila)
+
+Beast es la inteligencia artificial de la app, con la personalidad del gorila: conversa como un amigo de confianza, cada uno a su estilo (ver "Cómo te habla" abajo; con mujeres, en femenino y sin piropos), anota comidas, agua y peso, dice cómo vas y ayuda cuando el día se pone difícil. No es nutricionista ni médico, y lo dice si le preguntan. Se abre con la burbuja de abajo a la derecha (6).
+
+**La primera vez:** pantalla "BEAST · tu compañero · IA de Jonah Beast Fuel" con lo que hace y 4 puntos: "Tus conversaciones conmigo son privadas: Jonah no las lee." · "Se borran solas a los 90 días, y puedes borrarlas antes cuando quieras." · "Me acuerdo de lo importante que me cuentes; lo ves y lo borras en 'Lo que Beast sabe de ti'." · "Soy inteligencia artificial: no soy nutricionista ni médico." Una casilla opcional: **"Si me ves muy mal, avísale a Jonah para que me escriba"** (solo le llega el nombre, nunca lo que conversaron). Botón **"EMPEZAR CON BEAST"**, o "Ahora no" y "Política de privacidad".
+
+**El chat:** arriba "BEAST · TU COMPAÑERO", la **⋮** (menú) y la **×** (cerrar). La primera vez Beast saluda: "¡Hola, [nombre]! Soy Beast, el compañero que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué [desayunaste/almorzaste/cenaste] hoy y te digo cuántas calorías tiene. Háblame o escríbeme 💪" (en la gratis: "Escríbeme"), con **"▶️ Escuchar"** para oírlo con su voz.
+- **Botones rápidos** (encima de donde se escribe): **"📈 ¿Cómo voy?"**, **"🍽️ ¿Qué como?"**, **"💧 +1 vaso"** y **"📝 Anotar comida"** (en la gratis lleva a Registrar).
+- **Escribir** o, en Premium y la prueba, **🎤 nota de voz** (toca el micrófono, habla y toca ✓; 🗑️ cancela). Lo que dijo sale en su globo con 🎤. En la gratis el micrófono sale gris: "Hablarle a Beast con tu voz es de Premium 👑 Por ahora escríbeme."
+- Debajo de cada respuesta: **"▶️ Escuchar"** (Premium y prueba; la prueba tiene 5 notas de voz al día) y **👍 / 👎** ("Beast se equivocó": esa respuesta sí la puede ver Jonah para mejorar a Beast).
+- Mientras piensa: "Beast está escribiendo…". Sin señal: "Uy, se me fue la señal 😅 Dame un toque y lo intento de nuevo." y en el mensaje "⚠️ No se envió · Reintentar".
+
+**Lo que Beast hace (siempre con una tarjeta para confirmar, nada se guarda solo):**
+- **Anotar una comida:** "En el almuerzo comí 150 g de arroz, 120 de pollo y una ensalada". Sale una tarjeta con cada alimento de la base de la app y sus calorías (✅ para quitar o poner; 🤔 "¿cuál fue?" con opciones cuando hay dudas; 🔎 "no lo encontré en la app" con "🙋 Pedírselo a Jonah" en Premium o "Búscalo en Registrar" en la gratis), la comida (se puede cambiar) y el total. Botón **"✅ Agregar al [comida]"**, o decirle (escrito o por voz) **"sí", "agrégalo", "dale", "confirmo"…**: la tarjeta se guarda igual, sin gastar mensajes (si falta elegir algo: "Primero dime cuál fue en la tarjeta ☝️"). Lo mismo con la tarjeta del peso. Usa el mismo buscador que el registro por voz: el resultado es el mismo por cualquier camino. Si algo no cuadra, se le escribe la corrección ("eran 80 g de pollo", "quita el pan") y propone otra tarjeta. Solo anota en el día de hoy.
+- **En la calle** ("estoy en una pollería y me quedan 600 calorías"): propone una opción con las calorías reales de la app y **"✅ Anotar esta"**.
+- **"¿Qué como?":** las mismas sugerencias de "¿Qué puedo comer?" (8.2 F) para la comida de la hora, con **"✅ Anotar esta"** y "🔄 Ver otras opciones". En la gratis cuenta dentro de las 3 por semana.
+- **Agua:** "tomé 2 vasos" se suma directo. **Peso:** "hoy pesé 79,4" → tarjeta "¿Anoto 79,4 kg como tu peso de hoy?"; si cambia 3 kg o más contra el último: "Ojo: son X kg de diferencia… ¿Lo escribiste bien?".
+- Después de anotar: "Listo 🦍 Te quedan X kcal para hoy." y abajo **"✓ Anoté … · Deshacer"** por unos segundos.
+- **"Beast, háblame menos":** le hace caso: solo le llega el aviso del almuerzo y lo importante (14.4).
+- **Lo que Beast sabe de ti** se ordena solo: cuando pasa de 12 datos, se resume en 6 a 10 sin repetidos.
+- **"¿Cómo voy?":** con sus datos reales (peso de inicio y de hoy, días anotados, días en su meta, racha, proteína, agua): primero lo bueno, una cosa por mejorar y un empujón. Sin promesas de kilos ni fechas.
+- Si es su primera comida anotada y puede activar avisos: "¿Te aviso … para anotar tu …? Así no se te pasa 🦍" **[Sí, avísame] [No, gracias]**.
+- Planes y pagos: botón **"👑 Ver Premium"**; algo serio o pagos: **"🙋 Escribirle a Jonah"** (WhatsApp).
+- Temas delicados (tristeza, ansiedad, atracones…): deja el humor y escucha. Si alguien habla de hacerse daño o no querer vivir, da la **Línea 113, opción 5** (salud mental del MINSA, gratis). Si el alumno aceptó la casilla, a Jonah le llega solo su nombre para que le escriba.
+
+**Mensajes por día** (los temas delicados nunca cuentan; cuando Beast escribe primero, tampoco):
+| Cuenta | Conversar | Anotar con Beast |
+|---|---|---|
+| Prueba, días 1 a 3 | 20 al día | No gasta mensajes |
+| Prueba, días 4 a 7 | 15 al día | No gasta mensajes |
+| Gratis | 3 al día ("Hoy te quedan N mensajes de 3", siempre a la vista) | Cuenta dentro de los 3 (sin límite en Registrar) |
+| Premium | ≈ 60 al día | No gasta mensajes |
+En la prueba y Premium el contador sale recién cuando quedan 5. Al acabarse en la gratis: "Por hoy ya conversamos 🦍 Tus comidas las puedes seguir anotando en Registrar. Con Premium conversamos todo lo que quieras y te las anoto yo 👑" con **"📝 Ir a Registrar"** y **"👑 Ver Premium"**.
+
+**Al abrir el chat, Beast también trae:**
+- **El aviso que tocó** (14.4), al final y con "📝 Anotar en Registrar" / "📸 Foto"; lo que le responda va con ese aviso para que Beast siga el hilo.
+- **Su primera comida anotada** (una sola vez, por cualquier camino: foto, buscar, voz, un plato…): después de las ventanas de siempre (ajustar la meta, "¡COMIDA REGISTRADA! 💪 ¿Activamos tus avisos?", abrir en Chrome), la burbuja se enciende con el globito "¡Primera comida anotada! 🔥 Toca y te cuento cómo vas" (en Inicio y en Comidas; dura hasta el día siguiente). En el chat Beast lo felicita con sus números ("¡Así se arranca, Carla! 🔥 Tu primera comida ya está anotada: llevas 700 de tus 1570 kcal de hoy. Para tu cena te quedan unas 870 kcal: ¿te digo qué puedes comer? 🍽️"; si es la primera vez que le habla, se presenta), con **"▶️ Escuchar"** (también en la gratis) y el botón **"🍽️ ¿Qué como en la cena?"** (la siguiente comida sin anotar). Si todavía no activó los avisos (aunque haya dicho "Ahora no"), le pregunta "¿Te aviso más tarde para anotar tu siguiente comida? Así no se te pasa 🦍" **[Sí, avísame] [No, gracias]**. No gasta mensajes; ese día no le pregunta la mini meta.
+- **Logros** (una vez cada uno): 7 días seguidos anotando, su primer kilo menos, la mitad de su meta y 5 kilos menos (los de peso, si su objetivo es bajar). La burbuja tiene puntito y en Inicio el globito "Tengo algo para ti 🎉 Toca y te cuento". Beast lo felicita (con **"▶️ Escuchar"** también en la versión gratis) y el botón **"📲 Compartir en mi estado"** arma una imagen vertical (el gorila, "BEAST ME FELICITÓ 🦍", el logro, su nombre y JONAHBEAST.COM) para su estado de WhatsApp, con el link `jonahbeast.com/?fuente=estado` (si el celular no deja compartir, se descarga la imagen).
+- **La mini meta de la semana** (de lunes a miércoles, o al tocar el aviso del lunes): "¿Qué mini meta nos ponemos esta semana?" con **"💧 Tomar mis vasos de agua"**, **"📝 Anotar todos los días"** o **"🍗 Llegar a mi proteína"** (90% de su meta). El domingo: "Tu mini meta de esta semana: vas N de 7 días", y la semana siguiente le cuenta el resultado ("🏆 … ¡6 de 7 días!"). Beast la tiene en cuenta al conversar.
+
+**Ponerle otro nombre y elegir su voz:** chat → **⋮** → **"✏️ Ponle nombre a tu compañero"** (o pedírselo a Beast: "¿te puedo cambiar el nombre?" → botón **"✏️ Ponerme nombre y voz"**). Pantalla "PONLE NOMBRE A TU COMPAÑERO": "Llámalo como quieras: así te va a hablar y así te llegan sus avisos. Sigue siendo el gorila de siempre 🦍", una casilla para el nombre (hasta 20 letras; sin números ni emojis; los nombres groseros no se aceptan: "Ese nombre no se puede 🙈 Prueba con otro (solo letras).") y **"Su voz y su forma de hablarte"**: **🧔 Masculina** o **👩 Femenina** (con femenina le habla como "tu compañera", en femenino y con voz de mujer). **GUARDAR** o "Cancelar". Al guardar, se presenta: "¡Me encanta! Desde ahora soy [nombre], tu compañera/compañero 🦍 Igual que siempre: cuéntame qué comes y vamos juntos/juntas, comida a comida 💪" con **"▶️ Escuchar"** para oír la voz nueva (en todas las cuentas). Desde ahí el nombre sale en todos lados: arriba del chat ("LOLITA · TU COMPAÑERA"), en la burbuja y su globito, "Escríbele a [nombre]…", "[nombre] está escribiendo…", "Lo que [nombre] sabe de ti", el botón "🦍 Pregúntale a [nombre] qué puedes comer" y "¿Estás fuera de casa? Cuéntale a [nombre]" (8.2 F), la imagen de logros ("[NOMBRE] ME FELICITÓ 🦍") y el título de sus avisos ("[nombre] 🦍", 14.4). La imagen sigue siendo el gorila. Para deshacerlo: **⋮** → **"✏️ Cambiar nombre y voz"** → **"Volver a llamarlo Beast"** ("¡Volví! Soy Beast otra vez…"). La primera pantalla (permiso) siempre dice Beast.
+
+**Cómo te habla (estilo de cada alumno):** **🙂 Tranquilo** (el de casi todos): cercano y alegre, pero sin jerga de barrio (sin "oe", "causa", "pata"…), y su voz con acento limeño natural, sin exagerar. **😎 Bien suelto**: con jerga limeña de barrio ("oe", "causa", "al toque"…), como su pata de siempre, y la voz bien de barrio. Todos empiezan en tranquilo; Beast se suelta solo si el alumno le escribe con jerga ("oe causa, ya almorcé"; "causa rellena" o "pata de pollo" no cuentan). También se elige en **⋮ → "✏️ Ponle nombre a tu compañero" → "Cómo te habla"** (al guardar: "Listo, desde ahora te hablo más tranquilo 🙂" o "¡Ya, causa! Desde ahora te hablo bien suelto 😎"), o pidiéndoselo a Beast ("no me hables tan de barrio", "háblame bien suelto"); lo que elige así ya no cambia solo. Los avisos al celular le llegan a todos en tono tranquilo. (Pedido de Yara, 9 de octubre: "suelto, pero no tan de barrio".)
+
+**Menú ⋮:** **"✏️ Ponle nombre a tu compañero"** (o "Cambiar nombre y voz" si ya tiene uno) · **"📒 Lo que Beast sabe de ti"** (lo que Beast recuerda de su vida, con "Borrar todo"; además sabe su nombre, meta, peso y lo que anota) · **"🙋 Hablar con Jonah (persona) por WhatsApp"** · **"🗑️ Borrar conversación"** · "🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días."
+
 ## 7. Pestaña "Inicio"
 
 De arriba hacia abajo:
+
+**"Ábrela desde el ícono del gorila 🦍"** (solo en iPhone, arriba de todo): si el alumno ya instaló la app (tiene avisos activos en ese iPhone) pero la abrió desde un link (WhatsApp, correo…), que la abre en el navegador, le sale "Ábrela desde el ícono del gorila 🦍 en la pantalla de tu celular: así te llegan tus avisos y se ve completa. Ahora la abriste desde un link." La **×** lo esconde por ese día.
+
+**"MENSAJE DE JONAH 🦍"** (un mensaje que Jonah manda a todos o a un grupo desde el panel, ej. "¡Feliz Navidad! 🎄"): sale como **ventana encima de todo apenas el alumno abre la app** o vuelve a ella si la tenía en segundo plano (si hay otra ventana abierta, como la guía o la primera comida, espera a que se cierre), con su foto, el título y el texto completo. Se cierra con **"¡Gracias, Jonah! 💪"** y no vuelve a salir; dura como mucho 14 días. A quien tiene los avisos activados también le llega como notificación, nunca de noche.
 
 **Orden:** primero siempre el **Centro de mando** (cuánto te queda hoy y el botón **"REGISTRAR"**). Justo debajo, **un solo aviso a la vez**, el más importante que aplique en ese momento: "¿Cuánto pesas hoy?" (domingo) → tus pedidos en camino → novedades de tus pedidos de alimentos → "Tu semana" (lunes a miércoles) → versión gratis / renovación / Premium de prueba. Cuando lo resuelves o lo cierras, aparece el siguiente. Debajo, aparte, la tarjeta para **activar los avisos** o **instalar la app** (si hace falta). Después: Primeros pasos, Team Beast y "¿Entrenaste hoy?", fotos del día 1, y lo demás (resumen, racha, repetir ayer, Beast Score, invitar…). En el **modo fácil** es igual, debajo de sus botones grandes.
 
@@ -293,7 +343,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - La comida de **AHORA** sin nada registrado y las que todavía no llegan se ven completas, con su **+**. Si quedó un alimento por buscar, la comida se queda abierta hasta que lo elijas.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
-- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Jonah qué puedes comer"** y **"RESTAURANTES ALIADOS"**.
+- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Beast qué puedes comer"** (debajo: "💬 ¿Estás fuera de casa? Cuéntale a Beast", que abre su chat con "Estoy fuera de casa, en " ya escrito) y **"RESTAURANTES ALIADOS"**.
 - **Tira de días (arriba):** **"Hoy"** y los 6 días anteriores, cada uno con su número; un puntito verde marca los días que tienen comidas registradas. Toca un día anterior para **ver y corregir lo que comiste ese día** (por ejemplo, si olvidaste anotar la cena de ayer): sale "Estás viendo ayer / el lunes 29. Lo que agregues o cambies se guarda en ese día." con el botón **"Volver a hoy"**. En un día anterior se registra igual que hoy (foto, escribir, código, voz, atajos) y todas las comidas se ven abiertas; se guarda solo. Tu peso de ese día no cambia.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
@@ -305,7 +355,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 **A) Escribir (lo más usado)**
 1. Toca **"✍️ ¿QUÉ COMISTE? ESCRÍBELO AQUÍ"**. Se abre una pantalla con el nombre de la comida (ej. "🍽️ ALMUERZO").
 2. **"⭐ Lo que comes siempre en tu [comida] (un toque y listo)"**: antes de escribir salen tus alimentos más frecuentes en esa comida (de las últimas semanas), cada uno con tu cantidad de siempre y sus calorías (ej. "Arroz blanco · cocido — 150 g · ≈ 195 kcal"). Tocando **+** queda anotado al instante.
-3. Si no está ahí, escribe en **"¿QUÉ COMISTE?"** ("Escríbelo aquí: arroz, pollo, pan…"). Cada resultado dice cuánto es en una medida de casa y sus calorías (ej. "1 plato ≈ 700 kcal", "1 unidad ≈ 70 kcal"). Primero salen los que sueles comer (con ⭐) y lo cocido; lo crudo va más abajo (si buscas algo crudo, escribe "crudo"). Al escribir ya **no sale la lista blanca del celular** con palabras que escribiste antes (ej. "Huevo", "Cevich"): la app la apaga en todas las casillas de comida, gramos y peso, para que no tape los resultados ni haya que volver atrás.
+3. Si no está ahí, escribe en **"¿QUÉ COMISTE?"** ("Escríbelo aquí: arroz, pollo, pan…"). Cada resultado dice cuánto es en una medida de casa y sus calorías (ej. "1 plato ≈ 700 kcal", "1 unidad ≈ 70 kcal"). Primero salen los que sueles comer (con ⭐) y lo cocido; lo crudo va más abajo (si buscas algo crudo, escribe "crudo"). No importa si escribes en plural o singular ni "frito" o "frita": "papas fritas", "yuca frito" o "frejoles" encuentran "Papa (Frita)", "Yuca (Frita)" y los frejoles. Hay versión frita de yuca, camote, papa, plátano maduro, plátano bellaco, huevo y pescado, además de chifles, wantán frito y tequeños. Al escribir ya **no sale la lista blanca del celular** con palabras que escribiste antes (ej. "Huevo", "Cevich"): la app la apaga en todas las casillas de comida, gramos y peso, para que no tape los resultados ni haya que volver atrás.
 4. Toca el alimento → **"¿Cuánto comiste?"** con botones grandes: **½ plato · 1 plato · 1½ platos · 2 platos** (o **1 · 2 · 3 · 4** unidades, o gramos, según el alimento), cada uno con sus calorías. Al tocar uno, queda anotado. **"Usar otra medida (taza, gramos…)"** cambia la medida de esos botones. **"✏️ ¿Sabes la cantidad exacta? Escríbela:"**: escribe el número (ej. 120), elige la medida tocando uno de los **botoncitos** de debajo (por defecto **gramos**; también taza, unidad, plato…, según el alimento) y toca **"Agregar"**; debajo se ven sus calorías. Ideal para quien pesa su comida. **"← Elegir otro"** vuelve a la búsqueda.
    - Si es **frito o saltado**, ahí mismo sale **"🍳 ¿Cuánto aceite tenía?"** (Air fryer / poco · Normal · Bastante · Mucho; ver B, paso 5) antes de elegir la cantidad.
 5. Después de anotar, arriba sale **"Ya anotaste: ✓ …"** (con **"Quitar"**) y la caja dice **"¿ALGO MÁS EN TU [COMIDA]?"**, lista para el siguiente alimento. Al terminar, toca **"Listo ✅"**.
@@ -317,7 +367,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 1. Toca **"Foto"** → **"Tomar foto"**. Si la cámara no abre (por ejemplo, porque el celular no le dio permiso a la app) o ya tomaste la foto antes, toca **"🖼️ Subir de mi galería"** y elige la foto: se analiza igual y gasta una foto igual.
    - Antes del botón sale el consejo **"💡 Todo en una sola foto: pon juntos tu plato, la bebida, la ensalada, el pan… La IA detecta cada cosa por separado y gastas una sola foto."** No hace falta una foto por cada cosa: una foto con el segundo, la chicha y la ensalada juntos detecta los tres.
 2. Espera el escaneo. Verás "⚡ N ALIMENTOS DETECTADOS".
-3. Desmarca lo que no corresponda. **Si la IA se equivocó**, toca **"✏️ No es esto"** debajo de ese alimento (sale en todos, marcados o no). Aparece **"¿Era alguno de estos?"** con hasta 3 opciones rápidas (lo que otros alumnos eligieron cuando la IA dijo lo mismo, o platos parecidos) y, debajo, el buscador ("Si no, búscalo y la próxima foto ya lo sabrá"). Al elegir, se registra ese alimento con la porción que calculó la IA y sale "✏️ Corregido: la IA dijo [lo que dijo]" (con **"Deshacer"**). En las preguntas "¿cuál es?" está también **"✏️ Ninguno, era otro…"** para lo mismo. **La IA aprende de las correcciones:** las tuyas las recuerda en tus próximas fotos, y cuando **3 alumnos distintos o más** hacen la misma corrección (ej. la IA dijo chicharrón de pollo y era pollada), la tiene en cuenta en las fotos de todos: si algo se parece, pregunta "¿cuál es?" con las dos opciones. Jonah puede apagar una corrección desde su panel si no es correcta. **La IA también aprende cuando:** (a) respondes una pregunta "¿cuál es?" de la foto (ej. eliges Pollada entre Chicharrón de pollo y Pollada; no cuenta en las variantes de gusto como con o sin azúcar); (b) cambias después, en tu lista, un alimento que vino de la foto con **"¿Era otro alimento?"**. Si solo desmarcas algo y luego agregas otra cosa a mano, la IA no lo toma como corrección (podría no tener relación); para enseñarle, usa "✏️ No es esto". Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
+3. Desmarca lo que no corresponda. **Si la IA se equivocó**, toca **"✏️ No es esto"** debajo de ese alimento (sale en todos, marcados o no). Aparece **"¿Era alguno de estos?"** con hasta 3 opciones rápidas (lo que otros alumnos eligieron cuando la IA dijo lo mismo, o platos parecidos) y, debajo, el buscador ("Si no, búscalo y la próxima foto ya lo sabrá"). Al elegir, se registra ese alimento con la porción que calculó la IA y sale "✏️ Corregido: la IA dijo [lo que dijo]" (con **"Deshacer"**). En las preguntas "¿cuál es?" está también **"✏️ Ninguno, era otro…"** para lo mismo. **La IA aprende de las correcciones:** las tuyas las recuerda en tus próximas fotos, y cuando **3 alumnos distintos o más** hacen la misma corrección (ej. la IA dijo chicharrón de pollo y era pollada), la tiene en cuenta en las fotos de todos: si algo se parece, pregunta "¿cuál es?" con las dos opciones. Jonah puede apagar una corrección desde su panel si no es correcta. **La IA también aprende cuando:** (a) respondes una pregunta "¿cuál es?" de la foto (ej. eliges Pollada entre Chicharrón de pollo y Pollada; no cuenta en las variantes de gusto como con o sin azúcar); (b) cambias después, en tu lista, un alimento que vino de la foto con **"¿Era otro alimento?"**. Si solo desmarcas algo y luego agregas otra cosa a mano, la IA no lo toma como corrección (podría no tener relación); para enseñarle, usa "✏️ No es esto". Si la app no puede distinguir variantes (café con o sin azúcar, leche entera o descremada, gaseosa normal o light, mayonesa normal o light, emoliente con o sin azúcar, o carnes que en foto se ven parecidas como pollo, pavita o res), pregunta "¿cuál es?" y tú eliges. Para decidir, la IA también tiene en cuenta lo que tú sueles registrar en las últimas 2 semanas.
 4. **Revisa la porción.** La inteligencia artificial calcula cuánto hay mirando el tamaño del plato, por ejemplo "1½ tazas (≈ 240 g)".
    - Si comiste menos o más, toca **"Poco"** o **"Mucho"**; por defecto está en **"Normal"**.
    - En lo que se cuenta por piezas (huevos, panes, presas), corrige la cantidad con **−** y **+** ("¿Cuántas?"). Se puede bajar hasta **½** (media pieza). En las piezas grandes (palta, mango, camote…) el − / + va de **½ en ½** (½, 1, 1½…), y si la foto muestra solo media, ya sale **½ unidad**.
@@ -368,7 +418,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 - **"⟳ Frecuentes"**: tus 8 alimentos más usados con su cantidad.
 - **"+ Guardar esta comida"**: ponle nombre (ej. "Mi desayuno de siempre") → "Guardar".
 
-**F) "🦍 Pregúntale a Jonah qué puedes comer"**
+**F) "🦍 Pregúntale a Beast qué puedes comer"**
 1. Muestra lo que te queda del día (kcal, proteína, carbos, grasas).
 2. **"¿Para qué comida?"** ya viene con la comida de esa hora (en la noche, la cena). Puedes cambiarla.
 3. **"¿Qué tienes para cocinar?"** (opcional; no sale en media mañana ni media tarde): toca lo que tienes en casa (🍗 Pollo, 🥩 Carne, 🐟 Pescado, 🐖 Cerdo, 🦃 Pavita, 🥫 Atún, 🥚 Huevo) y solo salen opciones con eso. Si no eliges nada, salen de todo.
@@ -440,7 +490,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 3. Toca **"Guardar alimento"**. Solo tú lo ves; en el buscador sale como "tuyo".
 - Error "Revisa las calorías: ningún alimento pasa de 900 kcal por 100 g." → seguramente pusiste las calorías del paquete entero, no de 100 g.
 - **Corregirlo:** en "Comidas", toca un alimento tuyo que ya registraste → **"✏️ Corregir los datos de este alimento (lo creaste tú)"** → cambia las calorías o macros (el nombre no se cambia) → **"Guardar cambios"**. Las comidas donde ya lo usaste se corrigen solas. Por ahora no se pueden borrar.
-- **Los alimentos que crean los alumnos se revisan solos:** apenas lo guardas (o lo corriges), la IA revisa sus números en segundo plano, sin que tengas que esperar. Si está segura, lo da por bueno, corrige sus números o, si ya existía en la app, lo cambia por el de la app. Si no está segura, se lo pasa a Jonah para que lo revise él. Si se corrige uno tuyo (lo haga la IA o Jonah), sale "✏️ Revisamos y corregimos los datos de "[alimento]". Tus comidas ya se actualizaron." (en ese momento o la próxima vez que abras la app). Si ya existía en la app, sale "🔗 "[alimento]" ya estaba en la app: lo cambiamos por "[alimento de la app]". Tus comidas ya se actualizaron.", deja de salir en su buscador como "tuyo" y sus comidas (también las de días pasados en "Progreso") usan los datos de la app. Si Jonah lo ve útil para todos, lo agrega a la lista de la app: así la base crece con lo que crean los alumnos. Entonces sale "➕ ¡Gracias! Jonah revisó "[alimento]" y ya está en la app para todos. Tus comidas ya se actualizaron.", tu alimento deja de salir repetido como "tuyo" y tus comidas usan los datos revisados.
+- **Los alimentos que crean los alumnos se revisan solos:** apenas lo guardas (o lo corriges), la IA revisa sus números en segundo plano, sin que tengas que esperar. Si está segura, lo da por bueno, corrige sus números o, si ya existía en la app, lo cambia por el de la app. Si no está segura, se lo pasa a Jonah para que lo revise él. Si se corrige uno tuyo (lo haga la IA o Jonah), sale arriba en **Comidas** una tarjeta: "✏️ Revisamos "[alimento]" y corregimos sus calorías. Tus comidas ya se actualizaron." (en ese momento o la próxima vez que abras Comidas), con el botón **"Entendido"**. Esta revisión es para todos, también en la versión gratis; en la versión gratis la tarjeta suma "👑 Con Premium no tienes ni que crearlos: me pides lo que no encuentres y yo te lo agrego con todo calculado. — Jonah" y el botón **"Ver Premium"** (los otros dos avisos de abajo salen en la misma tarjeta). Si ya existía en la app, sale "🔗 "[alimento]" ya estaba en la app: lo cambiamos por "[alimento de la app]". Tus comidas ya se actualizaron.", deja de salir en su buscador como "tuyo" y sus comidas (también las de días pasados en "Progreso") usan los datos de la app. Si Jonah lo ve útil para todos, lo agrega a la lista de la app: así la base crece con lo que crean los alumnos. Entonces sale "➕ ¡Gracias! Jonah revisó "[alimento]" y ya está en la app para todos. Tus comidas ya se actualizaron.", tu alimento deja de salir repetido como "tuyo" y tus comidas usan los datos revisados.
 - **Mientras Jonah revisa uno tuyo** (cuando la IA no está segura), en Inicio sale la tarjeta **"🕐 TUS PEDIDOS EN CAMINO"** con su nombre, los pasos (Recibido → La IA lo revisó → Jonah lo revisa → Listo) y "Ya lo puedes usar. Estoy revisando sus números para que tus calorías salgan exactas. Te respondo antes de las [hora] 💪" (ver 8.5: 1 hora; de noche, antes de las 8am).
 
 ### 8.5 Si no encuentras un plato
@@ -768,20 +818,21 @@ Problemas:
 
 Ícono de **tarjeta "Mi plan"** arriba, o los botones de los avisos de prueba/renovación. Pantalla **"ELIGE TU PLAN"**.
 
-| Plan | Precio de referencia |
-|---|---|
-| Mensual | S/24.90 |
-| Trimestral | S/64.90 |
-| Semestral | S/114.90 ("RECOMENDADO") |
-| Anual | S/209.90 ("MEJOR PRECIO") |
+| Plan | Precio de referencia | Por mes |
+|---|---|---|
+| Mensual | S/24.90 | S/24.90 |
+| Trimestral | S/59.90 cada 3 meses | S/19.97 (ahorra 20%) |
+| Anual | S/179.90 al año, en un solo pago ("MEJOR PRECIO") | S/14.99 (ahorra 40%) |
 
+- **Desde el 9 de octubre de 2026 hay tres planes: mensual, trimestral y anual.** El semestral ya no se vende.
+- En la lista, cada plan muestra en grande **cuánto sale al mes** ("S/14.99 al mes") y debajo el total ("S/179.90 al año, en un solo pago" o "S/59.90 cada 3 meses"), lo que sale al día y "Ahorras X%". El anual va primero, con borde naranja, la etiqueta "MEJOR PRECIO" y la frase "Dale un año a tu cambio: cuando inviertes en ti, no te sueltas." En la app de Play Store se ve igual (con los precios de Google Play).
 - El precio vigente es el que muestra la app (el asistente lo lee de la configuración).
 - Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados. El de un amigo ("Invita a un amigo") vale solo para el primer plan; el de un embajador o influencer vale para todos los planes.
 - **"Tengo una consulta antes de pagar"** abre WhatsApp.
 
 ### 13.2 Pagar con Yape, Plin o transferencia
 
-1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra").
+1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra hasta 40%"). Al elegir el anual, el resumen dice "12 meses de acceso · S/14.99 al mes".
 2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**. Al lado de cada dato (número de Yape/Plin, cuenta, CCI y monto) hay un botón **"Copiar"**: lo copia sin espacios y sale "✓ Copiado", para pegarlo en tu app del banco sin escribirlo.
 3. Paga desde tu app del banco (pega el número y el monto que copiaste).
 4. En **"2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA"** toca **"📸 Toca aquí y elige la captura de tu pago"** (imagen o PDF). **Con la captura basta.** Si no tienes la captura, escribe el **"Número de operación"** (sale solo mientras no hay captura). Si falta, también pide "Tu celular (WhatsApp)" (9 dígitos) y la fecha de nacimiento (opcional, con las **ruedas de día, mes y año**).
@@ -833,7 +884,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 ### 13.7 Bono: +7 días gratis por suscribirse a tiempo
 
-- **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3, 6 o 12 meses).
+- **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3 o 12 meses).
 - **Hasta cuándo:** si envían el pago **antes de que termine su prueba o hasta 48 horas después**. Con Yape, Plin o transferencia cuenta **cuándo enviaron el comprobante**, aunque Jonah lo apruebe después.
 - **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
 - **Dónde se ve:** un reloj en vivo arriba de "Planes" en los 3 últimos días de la prueba (desde el día 5) y en "Inicio" en los 2 últimos: **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.
@@ -843,7 +894,7 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 ### 13.8 Versión gratis y Premium
 
-En "Planes", la lista **"👑 PREMIUM INCLUYE"**: tu menú del día y de la semana, con tu lista de compras · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
+En "Planes", la lista **"👑 PREMIUM INCLUYE"**: Beast, tu compañero, contigo todos los días (le hablas y te anota todo; sin monedas, sin cobros extra) · tu menú del día y de la semana, con tu lista de compras · foto inteligente en todas tus comidas · registro por voz y lectura de etiquetas con foto · "¿Qué puedo comer?" todos los días · tu % de grasa y masa muscular con historial · tendencias hasta 1 año, constancia y coach · fotos de progreso con comparación · Jonah y su asistente por WhatsApp.
 
 Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan venció (la cuenta sigue activa).
 
@@ -865,6 +916,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | % de grasa | Se mide 1 vez | Cuando quiera, con historial y masa muscular |
 | Fotos de progreso | — | ✓ |
 | Asistente de WhatsApp para nutrición | — | ✓ (a todos se les responde sobre planes, pagos, cuenta y problemas de la app) |
+| 🦍 Beast · tu compañero (6.4) | 3 mensajes al día, escribiendo | ≈ 60 al día (prueba: 20 los días 1 a 3 y 15 después), con voz y anotar sin gastar mensajes |
 | Avisos al celular | Almuerzo, "Tu semana", pesaje y "te extrañé" (14.4) | Todos (14.4) |
 
 ---
@@ -891,15 +943,21 @@ En Inicio, el aviso "Jonah está contigo…" tiene el botón **"Desactivar"**. T
 
 ### 14.4 Qué avisos llegan (hora de Perú)
 
+**Quién firma:** los avisos del día a día los firma **"Beast 🦍"** (o el nombre que el alumno le puso, ej. **"Lolita 🦍"**, 6.4; menos el de bienvenida al activar avisos, que llega antes de que pueda ponerle nombre) y hablan con su voz (comidas, buenos días, racha, "¿todo bien?", hitos, pesaje, control, prueba guiada, ayuda de los primeros días, "Tu semana", reto, bienvenida al activar avisos). **Al tocar un aviso de Beast se abre su chat** (6.4) con ese mensaje y los botones **"📝 Anotar en Registrar"** y **"📸 Foto"** (Premium, o en la gratis si le quedan fotos), y en Premium "o cuéntamelo aquí abajo 👇": puede responderle ahí mismo ("comí un lomo saltado") y Beast lo anota. Los avisos que invitan a la foto o a ajustar la meta abren la cámara o la pantalla de datos. **Jonah firma** lo importante: vencimiento del plan, pagos y los "📣 Mensaje a todos". Ningún aviso dice nada privado (pesos, temas personales).
+
+**Hora de los avisos de comida:** la que el alumno eligió en "Tus avisos"; si no eligió, **la app aprende a qué hora suele anotar** desayuno, almuerzo y cena (con 3 días o más) y el aviso le llega una hora después de esa (mañana entre 6 y 11 am, mediodía entre 12 y 5 pm, noche entre 6 y 11 pm). Si no, la de siempre.
+
+**"Beast, háblame menos":** si se lo pide a Beast en el chat, solo le llega el aviso del almuerzo y los importantes (plan, pesaje, control, prueba). Se vuelve a lo de siempre pidiéndoselo ("ya puedes escribirme como antes").
+
 Llegan con notificaciones activadas. Todo lo de abajo es para quien tiene **prueba o plan vigente (Premium)**. En la **versión gratis** llegan menos avisos (ver "Versión gratis", al final de esta sección).
 
 **Máximo 3 avisos al día**, uno por momento (mañana, mediodía, noche), para acompañar sin cansar. Si ese día toca un aviso especial (vencimiento del plan, pesaje, resumen, control, ayuda de los primeros días, reto), ese reemplaza al de rutina de ese momento; no se suma. Los avisos que responden a algo que hizo el alumno o un compañero (pago aprobado, "tu alimento ya está en la app", bienvenida al activar los avisos, ánimo de un compañero de equipo, reacción a un logro o foto suya en el muro, foto aprobada por Jonah, fin del reto de su equipo) llegan siempre; los ánimos y las reacciones, como mucho 3 con aviso al día cada uno.
 
 | Momento | Aviso de rutina | Avisos especiales que lo reemplazan ese día |
 |---|---|---|
-| **Mañana** | 8:00 am · Buenos días + "Empieza registrando tu desayuno 🍳" (si aún no lo registró; cada 30 días de uso, felicitación; los lunes, "arrancamos la semana") | 7:00 am · Vencimiento de prueba o plan (2 días antes, el día que vence y el día después si era prueba) · Control quincenal (medirse con cinta y fotos, cada 15 días) · Domingo: pesaje de la semana (a quien ya tiene un peso anotado) · Lunes: "Tu semana" lista (solo si registró algo la semana pasada) |
+| **Mañana** | 8:00 am · Buenos días + "¿Qué desayunas hoy? Cuéntame 🍳" (si aún no lo registró; cada 30 días de uso, felicitación; los lunes, "¿qué mini meta nos ponemos esta semana?" y el chat abre con las opciones; el día 2, si anotó el día 1: "¡Buenos días! 🦍 Como quedamos: ¿qué desayunaste? Cuéntame y lo anotamos.") | 7:00 am · Vencimiento de prueba o plan (2 días antes, el día que vence y el día después si era prueba) · Control quincenal (medirse con cinta y fotos, cada 15 días) · Domingo: pesaje de la semana (a quien ya tiene un peso anotado) · Lunes: "Tu semana" lista (solo si registró algo la semana pasada) |
 | **Mediodía** | 2:00 pm · Registrar almuerzo (si falta) | 12:30 pm · Ayuda para alumnos nuevos (primeros 5 días): quien no registró nada, invitación a tomarle foto a su comida (días 1, 2, 3 y 5); quien registra pero nunca usó la foto, invitación a probar la captura inteligente (días 2 y 4). Al tocarlas se abre la cámara directo |
-| **Noche** | 8:00 pm · Racha en riesgo, "te extrañé" o felicitación por racha · si no le llegó ninguno, 9:00 pm · registrar cena (si falta) | 6:15 pm · Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah · Sábado 6:00 pm · Reto semanal |
+| **Noche** | 8:00 pm · **Cierre del día 1** (quien empezó hoy y anotó algo: "Hoy anotaste N comidas, ¡buen arranque! 🦍 Mañana te pregunto qué desayunaste, ¿ya?"), racha en riesgo, "¿todo bien?" o felicitación por racha · si no le llegó ninguno, 9:00 pm · registrar cena (si falta) | 6:15 pm · Premium de prueba guiado (solo quien ya registró alguna comida): día 3, lo que lleva registrado; día 4, la historia de Jonah · Sábado 6:00 pm · Reto semanal |
 
 Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm ni buenas noches.
 
@@ -911,7 +969,7 @@ Ya **no** llegan avisos de media mañana, media tarde, agua, ánimo de las 7 pm 
 
 No le llegan el buenos días, la cena, la racha en riesgo, los hitos de racha, el control quincenal ni el reto semanal (son de Premium).
 
-Tocar un aviso de comida abre la app directo en esa comida.
+Tocar un aviso de comida abre el chat de Beast con ese aviso y el botón "📝 Anotar en Registrar" de esa comida.
 
 ### 14.5 Problemas
 

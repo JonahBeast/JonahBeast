@@ -30,6 +30,18 @@ export default {
           950: '#2E1102',
         },
       },
+      // Beast irradia luz: brillo naranja que "respira" alrededor del gorila.
+      keyframes: {
+        'jb-brillo': {
+          // Se apaga y se enciende bien marcado, para que llame la atención.
+          // No depende de "reducir movimiento": es solo luz, el gorila no se mueve.
+          '0%, 100%': { boxShadow: '0 0 6px 1px rgba(255,112,32,0.35), 0 0 12px 2px rgba(232,89,12,0.15)' },
+          '50%': { boxShadow: '0 0 22px 8px rgba(255,112,32,0.95), 0 0 44px 16px rgba(232,89,12,0.55)' },
+        },
+      },
+      animation: {
+        'jb-brillo': 'jb-brillo 2s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

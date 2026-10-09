@@ -4943,12 +4943,16 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 /* PLANES Y PAGOS                                                       */
 /* ------------------------------------------------------------------ */
 
+// Desde el 9 de octubre de 2026: mensual, trimestral y anual (el semestral
+// ya no se vende). El anual va destacado y se muestra por mes.
 const PLANES = [
   { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 24.90, badge: null },
-  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 64.90, badge: null },
-  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 114.90, badge: 'RECOMENDADO' },
-  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 209.90, badge: 'MEJOR PRECIO' },
+  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 59.90, badge: null },
+  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 179.90, badge: 'MEJOR PRECIO', destacado: true },
 ];
+// En la lista de planes el anual va primero (el mensual ya tiene su atajo).
+const PLANES_LISTA = [...PLANES].reverse();
+const FRASE_ANUAL = 'Dale un año a tu cambio: cuando inviertes en ti, no te sueltas.';
 
 /* "Copiar": copia un dato de pago (número de Yape/Plin, cuenta, CCI o
    monto) para pegarlo en la app del banco sin escribirlo a mano. */
@@ -5117,6 +5121,11 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   function precioDe(plan) {
     return precioBase(plan) * (1 - dcto / 100);
   }
+  // Cuánto ahorra por mes frente a pagar mes a mes (con precios sin descuento).
+  function ahorroDe(plan) {
+    return plan.meses > 1 ? Math.round((1 - precioBase(plan) / plan.meses / precioBase(PLANES[0])) * 100) : 0;
+  }
+  const ahorroMaximo = Math.max(...PLANES.map(ahorroDe));
 
   async function enviarPago() {
     setErr('');
@@ -5236,25 +5245,26 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </div>
 
         <div className="grid gap-3">
-          {PLANES.map(plan => {
+          {PLANES_LISTA.map(plan => {
             const sku = PRODUCTOS_PLAY[plan.meses];
             const precio = playPrecios[sku];
             const valor = precio ? Number(precio.value) : precioBase(plan);
             const cargando = comprandoPlay === sku;
             return (
-              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.badge ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
                     {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
                   </div>
                   <div className="text-right">
-                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor)}</p>
+                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor / plan.meses)}<span className="jb-body text-xs text-zinc-400"> al mes</span></p>
                     <p className="jb-body text-xs text-zinc-400">
-                      {plan.meses > 1 ? `cada ${plan.meses} meses · ` : 'al mes · '}{fmtS(valor / (plan.meses * 30))} al día
+                      {plan.meses === 12 ? `${fmtS(valor)} al año` : plan.meses > 1 ? `${fmtS(valor)} cada ${plan.meses} meses` : `${fmtS(valor / 30)} al día`}
                     </p>
                   </div>
                 </div>
+                {plan.destacado && <p className="jb-body text-xs text-zinc-300 -mt-1 mb-3">{FRASE_ANUAL}</p>}
                 <button onClick={() => comprarConGooglePlay(plan)} disabled={!!comprandoPlay}
                   className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
                   {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
@@ -5302,13 +5312,16 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </div>
 
         <div className="grid gap-2">
-          {PLANES.map(plan => (
-            <div key={plan.meses} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 flex items-center justify-between">
+          {PLANES_LISTA.map(plan => (
+            <div key={plan.meses} className={`bg-zinc-900 border rounded-xl p-3.5 flex items-center justify-between ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
               <div>
                 <p className="jb-body text-sm text-zinc-200">{plan.nombre}</p>
                 {plan.badge && <span className="jb-body text-[10px] text-orange-500">{plan.badge}</span>}
               </div>
-              <p className="jb-display text-lg text-orange-500">{fmtS(precioDe(plan))}</p>
+              <div className="text-right">
+                <p className="jb-display text-lg text-orange-500">{fmtS(precioDe(plan) / plan.meses)}<span className="jb-body text-xs text-zinc-400"> al mes</span></p>
+                {plan.meses > 1 && <p className="jb-body text-[11px] text-zinc-500">{fmtS(precioDe(plan))} {plan.meses === 12 ? 'al año' : `cada ${plan.meses} meses`}</p>}
+              </div>
             </div>
           ))}
         </div>
@@ -5387,7 +5400,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </span>
             <ChevronRight size={22} className="text-zinc-950 shrink-0" />
           </button>
-          <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra:</p>
+          <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra hasta {ahorroMaximo}%:</p>
 
           {dcto > 0 && (
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
@@ -5399,15 +5412,14 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {PLANES.map(plan => {
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {PLANES_LISTA.map(plan => {
               const precio = precioDe(plan);
               const porMes = precio / plan.meses;
-              const ahorro = plan.meses > 1
-                ? Math.round((1 - porMes / precioDe(PLANES[0])) * 100) : 0;
+              const ahorro = ahorroDe(plan);
               return (
                 <div key={plan.meses}
-                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.badge === 'RECOMENDADO'
+                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.destacado
                     ? 'bg-zinc-900 border-orange-500 shadow-lg shadow-orange-500/10'
                     : 'bg-zinc-900 border-zinc-800'}`}>
                   {plan.badge && (
@@ -5417,19 +5429,20 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
                   {dcto > 0 && (
-                    <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan))}</div>
+                    <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan) / plan.meses)} al mes</div>
                   )}
-                  <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(precio)}</div>
+                  <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(porMes)}<span className="jb-body text-sm text-zinc-400"> al mes</span></div>
                   <div className="jb-body text-xs text-zinc-500 mb-1">
-                    {plan.meses === 1 ? 'por mes' : `${fmtS(porMes)} por mes`}
+                    {plan.meses === 1 ? 'pagas mes a mes' : plan.meses === 12 ? `${fmtS(precio)} al año, en un solo pago` : `${fmtS(precio)} cada ${plan.meses} meses`}
                     <span className="text-zinc-300"> · {fmtS(precio / (plan.meses * 30))} al día</span>
                   </div>
                   {ahorro > 0 && (
-                    <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>
+                    <div className="jb-body text-xs text-emerald-400 mb-1">Ahorras {ahorro}%</div>
                   )}
-                  {ahorro === 0 && <div className="mb-3" />}
+                  {plan.destacado && <p className="jb-body text-xs text-zinc-300 mb-3">{FRASE_ANUAL}</p>}
+                  {!plan.destacado && <div className="mb-3" />}
                   <button onClick={() => { setSeleccion(plan); registrarPasoPago('eligio_plan', username, plan.meses); }}
-                    className={(plan.badge === 'RECOMENDADO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
+                    className={(plan.destacado ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
                     Elegir
                   </button>
                 </div>
@@ -5460,7 +5473,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5 text-center">
             <div className="jb-body text-xs text-zinc-500">Plan {seleccion.nombre}</div>
             <div className="jb-display text-3xl text-orange-500 my-1">{fmtS(precioDe(seleccion))}</div>
-            <div className="jb-body text-xs text-zinc-500">{seleccion.meses} mes(es) de acceso</div>
+            <div className="jb-body text-xs text-zinc-500">{seleccion.meses === 12 ? `12 meses de acceso · ${fmtS(precioDe(seleccion) / 12)} al mes` : `${seleccion.meses} mes(es) de acceso`}</div>
           </div>
 
           <h3 className="jb-display text-sm text-zinc-300 mb-3">1 · REALIZA TU PAGO</h3>

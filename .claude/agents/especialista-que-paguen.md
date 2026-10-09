@@ -15,7 +15,7 @@ Eres el especialista en conversión de Jonah Beast Fuel, una app peruana para ba
 
 ## Planes (precios por defecto en `src/App.jsx`, `PLANES`; el precio real puede venir de la configuración)
 
-Mensual S/24,90 · Trimestral S/64,90 · Semestral S/114,90 (recomendado) · Anual S/209,90. Se paga con Yape, Plin, transferencia, Mercado Pago o Google Play.
+Desde el 9 de octubre de 2026: Mensual S/24,90 · Trimestral S/59,90 (S/19,97 al mes) · Anual S/179,90 (S/14,99 al mes, destacado como "MEJOR PRECIO"). El semestral ya no se vende. Antes: trimestral S/64,90, semestral S/114,90 y anual S/209,90 (nadie eligió nunca el semestral ni el anual; Joselyn, Yanet y Yara dijeron que el anual les gustaba pero era caro). Fitia en Perú (9 oct): mensual S/31,90, anual S/96,90. Se paga con Yape, Plin, transferencia, Mercado Pago o Google Play.
 
 ## Dónde mirar los números (Supabase, proyecto `jnhvpjrxilubkyhculoh`, solo lectura)
 

@@ -768,20 +768,21 @@ Problemas:
 
 Ícono de **tarjeta "Mi plan"** arriba, o los botones de los avisos de prueba/renovación. Pantalla **"ELIGE TU PLAN"**.
 
-| Plan | Precio de referencia |
-|---|---|
-| Mensual | S/24.90 |
-| Trimestral | S/64.90 |
-| Semestral | S/114.90 ("RECOMENDADO") |
-| Anual | S/209.90 ("MEJOR PRECIO") |
+| Plan | Precio de referencia | Por mes |
+|---|---|---|
+| Mensual | S/24.90 | S/24.90 |
+| Trimestral | S/59.90 cada 3 meses | S/19.97 (ahorra 20%) |
+| Anual | S/179.90 al año, en un solo pago ("MEJOR PRECIO") | S/14.99 (ahorra 40%) |
 
+- **Desde el 9 de octubre de 2026 hay tres planes: mensual, trimestral y anual.** El semestral ya no se vende.
+- En la lista, cada plan muestra en grande **cuánto sale al mes** ("S/14.99 al mes") y debajo el total ("S/179.90 al año, en un solo pago" o "S/59.90 cada 3 meses"), lo que sale al día y "Ahorras X%". El anual va primero, con borde naranja, la etiqueta "MEJOR PRECIO" y la frase "Dale un año a tu cambio: cuando inviertes en ti, no te sueltas." En la app de Play Store se ve igual (con los precios de Google Play).
 - El precio vigente es el que muestra la app (el asistente lo lee de la configuración).
 - Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados. El de un amigo ("Invita a un amigo") vale solo para el primer plan; el de un embajador o influencer vale para todos los planes.
 - **"Tengo una consulta antes de pagar"** abre WhatsApp.
 
 ### 13.2 Pagar con Yape, Plin o transferencia
 
-1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra").
+1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra hasta 40%"). Al elegir el anual, el resumen dice "12 meses de acceso · S/14.99 al mes".
 2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**. Al lado de cada dato (número de Yape/Plin, cuenta, CCI y monto) hay un botón **"Copiar"**: lo copia sin espacios y sale "✓ Copiado", para pegarlo en tu app del banco sin escribirlo.
 3. Paga desde tu app del banco (pega el número y el monto que copiaste).
 4. En **"2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA"** toca **"📸 Toca aquí y elige la captura de tu pago"** (imagen o PDF). **Con la captura basta.** Si no tienes la captura, escribe el **"Número de operación"** (sale solo mientras no hay captura). Si falta, también pide "Tu celular (WhatsApp)" (9 dígitos) y la fecha de nacimiento (opcional, con las **ruedas de día, mes y año**).

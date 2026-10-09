@@ -14,13 +14,15 @@ import { avisarCompraMeta } from './meta-compra.js';
 
 export const PAQUETE_ANDROID = 'com.jonahbeast.twa';
 
-// Los 4 planes tal como se crean en Play Console (Monetiza con Play →
+// Los planes tal como se crean en Play Console (Monetiza con Play →
 // Suscripciones). Cada uno es una suscripción con renovación automática.
+// El semestral ya no se vende (9 de octubre de 2026); queda aquí solo para
+// reconocer una compra antigua.
 export const PRODUCTOS_GOOGLE = {
   jb_plan_mensual: { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
-  jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 64.90 },
+  jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
   jb_plan_semestral: { meses: 6, configKey: 'precio_6', precioDefault: 114.90 },
-  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 209.90 },
+  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
 };
 
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE_ANDROID}`;

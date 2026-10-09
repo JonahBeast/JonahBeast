@@ -69,8 +69,21 @@ Regla de oro: usa los caminos que ya existen, con las mismas reglas. Lo que hace
 
 - ≈ **S/0,70 al mes por alumno** con el equipo Haiku + Sonnet (≈ S/0,50 solo con Haiku; ≈ S/7,50 solo con Sonnet). Va de unos céntimos (entra poco) a ≈ S/3 (Premium que conversa muchísimo). Es menos del 3% de lo que paga.
 - El riesgo son los gratis: con 2 de cada 100 pagando se queda a mano; con 5 de cada 100 se gana bien.
-- **Límites:** pocos mensajes gratis al día (3 a 5), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
+- **Límites** (detalle en "Cómo se manejan los límites"): pocos mensajes gratis al día (3 a 5), que escriba primero solo a quien responde, freno en Premium (≈ 60 al día) y alarma al celular si el gasto de IA del mes se pasa.
 - Confirmar el gasto real el primer mes en la tabla `ia_uso`.
+
+## Cómo se manejan los límites (9 de octubre)
+
+Lección de Fitia (según una sola reseña de 2026, sin confirmar: su coach tiene un límite de uso al mes y después se compran monedas). Un límite mal manejado hace sentir engañado al que paga; bien manejado, nadie lo nota.
+
+1. **Anotar nunca tiene límite:** anotar comidas, agua o peso con Beast no gasta mensajes. El límite es solo para la conversación libre.
+2. **Límite por día, no por mes:** mañana vuelve completo; nadie se queda semanas sin su compañero.
+3. **Generoso en Premium:** ≈ 60 mensajes al día (lo normal es 5 a 15). Al llegar a 50: "Hoy conversamos un montón 🦍 Me quedan unos pocos mensajes, mañana seguimos con todo." Al llegar a 60: "Por hoy descanso, pero puedes seguir anotando tus comidas en la app. ¡Mañana seguimos!"
+4. **Claro en la versión gratis:** 3 a 5 mensajes al día con el contador a la vista ("Te quedan 2 mensajes hoy"); al terminarse invita a Premium sin regañar.
+5. **Sin monedas ni cobros extra:** Premium se paga una vez al mes y listo. Para vender, sin nombrar a la competencia: "Beast va contigo todo el mes. Sin monedas, sin cobros extra." No decir en anuncios que Fitia cobra monedas sin confirmarlo.
+6. **Ajustarlo con datos:** el primer mes, ver cuánto conversa la gente de verdad y subir o bajar el freno.
+
+Aun usándolo al máximo todos los días, un alumno cuesta ≈ S/3 al mes, y la alarma avisa si el gasto total se pasa.
 
 ## Memoria y datos personales
 

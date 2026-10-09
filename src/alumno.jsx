@@ -219,11 +219,21 @@ const SINONIMOS = {
 // El sinónimo SUMA resultados, no reemplaza lo escrito: antes "refresco"
 // buscaba solo "gaseosa" y el "Refresco de cebada" no aparecía (el alumno
 // creía que no estaba y lo creaba de nuevo).
+// Cada palabra se busca por su raíz: "papas fritas" encuentra "Papa (Frita)"
+// y "yuca frito" encuentra "Yuca (Frita)" (plural y masculino/femenino de
+// cómo está preparado no deben esconder el alimento).
+const PREPARACION_RAIZ = /^(frit|cocid|crud|sancochad|hornead|asad|guisad|apanad|rellen|salad|dorad)(o|a|os|as)$/;
+function raizPalabra(w) {
+  const m = w.match(PREPARACION_RAIZ);
+  if (m) return m[1];
+  if (w.length >= 5 && /[lnrd]es$/.test(w)) return w.slice(0, -2); // frejoles, panes, limones
+  return w.length >= 4 && w.endsWith('s') ? w.slice(0, -1) : w;
+}
 function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
   if (!q) return lista.slice(0, limite);
-  const alternativas = [q.split(' ').filter(Boolean)];
-  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean));
+  const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
+  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
   const palabras = alternativas[0];
   const conPuntaje = [];
   for (const f of lista) {

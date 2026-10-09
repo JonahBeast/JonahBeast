@@ -2180,6 +2180,19 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
       else { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }
     }
   }
+  // "Corregir y agregar para todos": un producto de marca o un plato común
+  // que el alumno creó con números mal. Se abre el formulario de "para
+  // todos" ya lleno (nombre, grupo y medida que propone la IA, con los
+  // números corregidos): Jonah revisa y confirma. Antes se corregía solo
+  // para el alumno y había que acordarse de agregarlo aparte.
+  async function corregirYParaTodos() {
+    setFuente('ia');
+    const p = ia || await compararIA();
+    if (p) { setParaTodos(formDesdePropuesta(p, a.nombre)); return; }
+    // Sin respuesta de la IA ahora: con los números corregidos de su revisión.
+    const c = rec.cifras || {};
+    setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, kcal: c.kcal ?? '', proteina: c.proteina ?? '', carbos: c.carbos ?? '', grasa: c.grasa ?? '', fuente: 'Etiqueta del producto' });
+  }
   const textoRecomendado = rec.tipo === 'existe' ? `✅ Es el mismo que "${rec.food.key.replace(/ \(-\)$/, '')}"`
     : rec.tipo === 'corregir' ? `✅ Corregir con los números de la IA (${Math.round(rec.cifras.kcal)} kcal)`
     : rec.tipo === 'para_todos' ? '✅ Agregar para todos' : '';
@@ -2276,7 +2289,8 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           </>
         ) : rec.tipo === 'corregir' ? (
           <>
-            {botonSi(<>✅ Sí, corregir con los de la IA ({Math.round(rec.cifras.kcal)} kcal)</>, hacerRecomendado, "Sus comidas se recalculan solas")}
+            {botonSi(<>✅ Corregir y agregar para todos</>, corregirYParaTodos, "Producto de marca o plato común: revisas el nombre y confirmas")}
+            {botonNo(<>✏️ Corregir solo para él ({Math.round(rec.cifras.kcal)} kcal, es algo suyo)</>, hacerRecomendado)}
             {botonNo(<>No, sus números están bien</>, () => marcar('ok'))}
           </>
         ) : rec.tipo === 'para_todos' ? (

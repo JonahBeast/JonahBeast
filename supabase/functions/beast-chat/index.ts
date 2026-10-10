@@ -137,7 +137,7 @@ TEMAS DELICADOS: si el alumno está triste, ansioso, se siente mal consigo mismo
 Si en sus datos hay COMPROMISO PENDIENTE: pregúntale por él al empezar tu respuesta (mira sus datos: si se ve que lo cumplió, felicítalo con ganas; si no, sin regañar, anímalo) y pon "compromiso_revisado": true.
 Usa lo que sabes de su vida (libreta) para que el consejo le calce (ej. si trabaja de noche, no le pidas desayunar temprano).
 UNA SOLA VERDAD: si en sus datos está "LO QUE VE EN SU PANTALLA DE PROGRESO", tu respuesta debe decir lo mismo (mismo ritmo, mismo diagnóstico, misma recomendación): el alumno lo está viendo en su pantalla y si le dices otra cosa pierde la confianza. Si dice que baja muy rápido, no lo felicites por el ritmo: reconoce su esfuerzo y su constancia, y tu corrección es esa (comer un poco más y priorizar la proteína para no perder músculo). Si no hay veredicto: si baja entre ~0,3 y 1 kg por semana es un ritmo sano. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él en su semana (ej. "anotaste solo 2 días", "te pasaste 3 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido) o comió muy poco varios días: díselo con cariño (comer muy poco hace perder músculo) y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
-Composición corporal: si tiene % de grasa y de masa muscular, inclúyelos siempre en "¿cómo voy?". La masa muscular dila EN KILOS, como en su gráfico de Progreso (ej. "de 36,1 a 35,4 kg"), y si sirve agrega qué parte de su cuerpo es (ej. "hoy es el 39,9% de tu cuerpo"). Nunca digas "tu músculo subió" si en kilos bajó: si bajó poco frente a lo que bajó de peso, dile que casi todo lo que bajó fue grasa (eso es bueno) y que para cuidar el músculo ayudan la proteína y los ejercicios de fuerza; si bajó mucho, esa es tu corrección. Bajar grasa y mantener el músculo es lo que más vale, aunque la balanza se mueva poco. Si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta.
+Composición corporal: si tiene % de grasa y de masa muscular, inclúyelos siempre en "¿cómo voy?". Su pantalla tiene tres gráficos: "% GRASA CORPORAL", "% MASA MUSCULAR" y "MASA MUSCULAR EN KILOS": usa esos mismos números. Habla del músculo en % (qué parte de su cuerpo es músculo, lo que mejor dice si mejora) y menciona también los kilos. Si el % subió pero en kilos bajó, dilo claro y sin contradecirte (ej. "tu músculo pasó de 38,7% a 39,9% de tu cuerpo; en kilos bajaste 0,7, y casi todo lo que bajaste fue grasa"); para cuidar el músculo ayudan la proteína y los ejercicios de fuerza. Si en kilos bajó mucho, esa es tu corrección. Bajar grasa y mantener el músculo es lo que más vale, aunque la balanza se mueva poco. Si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta.
 Sé breve: máximo unas 7 frases, sin listas.
 
 ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
@@ -342,9 +342,15 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     return `${ini.v.toFixed(1)}${suf} → ${fin.v.toFixed(1)}${suf} (${dif > 0 ? "+" : ""}${dif}${suf})`;
   };
   const musculoKg = graf("masa_muscular", " kg");
+  // % de masa muscular, igual que su gráfico "% MASA MUSCULAR" de Progreso.
+  const ptsMus = serieDelHistorial(ult30, "masa_muscular").map((p: any) => {
+    const r = ult30.find((x: any) => x.fecha === p.fecha);
+    return Number(r?.peso) > 0 ? Math.round(p.v / Number(r.peso) * 1000) / 10 : NaN;
+  }).filter(Number.isFinite);
+  const musculoPct = ptsMus.length >= 2 ? `${ptsMus[0].toFixed(1)}% → ${ptsMus[ptsMus.length - 1].toFixed(1)}%` : "";
   const grasaGraf = graf("grasa_pct", "%");
-  const graficos = (musculoKg || grasaGraf)
-    ? `Sus gráficos de Progreso (últimos 30 días): ${grasaGraf ? `% de grasa ${grasaGraf}` : ""}${grasaGraf && musculoKg ? "; " : ""}${musculoKg ? `masa muscular en kilos ${musculoKg}` : ""}.`
+  const graficos = (musculoKg || grasaGraf || musculoPct)
+    ? `Sus gráficos de Progreso (últimos 30 días): ${grasaGraf ? `% de grasa ${grasaGraf}` : ""}${grasaGraf && musculoKg ? "; " : ""}${musculoPct ? `% de masa muscular ${musculoPct}; ` : ""}${musculoKg ? `masa muscular en kilos ${musculoKg}` : ""}.`
     : "";
   // Su semana (los 7 días antes de hoy, solo los que anotó): para corregir
   // con patrones ("llegaste a tu proteína 2 de 7 días") y no solo con hoy.

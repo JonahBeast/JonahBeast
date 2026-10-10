@@ -5402,15 +5402,13 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
   // Mismo criterio que usa el coach (analizarProgreso) y Beast: en los
   // campos de composición corporal se descartan valores atípicos aislados.
   const serie = (campo) => serieDelHistorial(filtrados, campo);
-  // La masa muscular también en % de su cuerpo: al bajar de peso puede
-  // perder unos gramos de músculo y aun así ser una parte mayor de su
-  // cuerpo (es lo que le cuenta Beast en "¿cómo voy?").
-  const notaMusculo = (pts) => {
-    const pct = (p) => { const r = filtrados.find(x => x.fecha === p.fecha); return Number(r?.peso) > 0 ? p.v / Number(r.peso) * 100 : NaN; };
-    const ini = pct(pts[0]), fin = pct(pts[pts.length - 1]);
-    if (!Number.isFinite(ini) || !Number.isFinite(fin)) return null;
-    return `En % de tu cuerpo: ${ini.toFixed(1)}% → ${fin.toFixed(1)}%`;
-  };
+  // La masa muscular también en % de su cuerpo (como el % de grasa): al
+  // bajar de peso puede perder unos gramos de músculo y aun así ser una
+  // parte mayor de su cuerpo. Mismos días que el gráfico en kilos.
+  const serieMusculoPct = () => serieDelHistorial(filtrados, 'masa_muscular').map(p => {
+    const r = filtrados.find(x => x.fecha === p.fecha);
+    return { fecha: p.fecha, v: Number(r?.peso) > 0 ? Math.round(p.v / Number(r.peso) * 1000) / 10 : NaN };
+  }).filter(p => Number.isFinite(p.v));
 
   const subNav = (
     <div className="flex gap-2">
@@ -5571,22 +5569,23 @@ function ProgressTab({ username, form, setForm, nombre, vistaInicial }) {
 
       <div className="grid sm:grid-cols-2 gap-3">
         {[
-          ['grasa_pct', '% GRASA CORPORAL', '%'],
-          ['masa_muscular', 'MASA MUSCULAR', ' kg'],
-        ].map(([campo, titulo, sufijo]) => {
-          const pts = serie(campo);
+          ['grasa_pct', '% GRASA CORPORAL', '%', false],
+          ['musculo_pct', '% MASA MUSCULAR', '%', true],
+          ['masa_muscular', 'MASA MUSCULAR EN KILOS', ' kg', true],
+        ].map(([campo, titulo, sufijo, subirEsBueno]) => {
+          const pts = campo === 'musculo_pct' ? serieMusculoPct() : serie(campo);
           // El historial de % de grasa y la masa muscular son Premium.
           const bloqueado = !premium;
           return (
-            <div key={campo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div key={campo} className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 ${campo === 'masa_muscular' ? 'sm:col-span-2' : ''}`}>
               <h3 className="jb-display text-xs text-zinc-400 mb-2">{titulo}</h3>
               {bloqueado ? (
                 <p className="jb-body text-xs text-zinc-500 py-6 text-center">👑 Tu historial de {campo === 'grasa_pct' ? '% de grasa' : 'masa muscular'} es <span className="text-orange-400 font-semibold">Premium</span>.</p>
               ) : pts.length < 2 ? (
                 <p className="jb-body text-xs text-zinc-600 py-6 text-center">Necesitas al menos 2 días de registro.</p>
               ) : (
-                <MiniChart points={pts} color="#E8590C" suffix={sufijo}
-                  subirEsBueno={campo === 'masa_muscular'} nota={campo === 'masa_muscular' ? notaMusculo(pts) : null} />
+                <MiniChart points={pts} color="#E8590C" suffix={sufijo} subirEsBueno={subirEsBueno}
+                  nota={campo === 'musculo_pct' ? 'Qué parte de tu cuerpo es músculo.' : campo === 'masa_muscular' && pts[pts.length - 1].v < pts[0].v ? 'Al bajar de peso es normal perder un poco; la proteína y los ejercicios de fuerza lo cuidan.' : null} />
               )}
             </div>
           );

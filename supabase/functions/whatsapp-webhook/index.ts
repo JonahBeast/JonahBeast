@@ -713,7 +713,12 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
   const antesDespues = bloques.some((b: any) => b.type === "tool_use" && b.name === "mandar_antes_despues");
   const comparativa = bloques.some((b: any) => b.type === "tool_use" && b.name === "mandar_gratis_vs_premium");
-  return { texto, ...(antesDespues ? { antesDespues } : {}), ...(comparativa ? { comparativa } : {}) };
+  // A veces la IA usa la herramienta sin escribir nada: la imagen nunca
+  // llega sola, va con un texto corto.
+  const textoFinal = texto || (comparativa
+    ? "¡Claro! Te muestro la diferencia 👇 Con Premium tienes a Beast todo el día, foto en todas tus comidas y tu menú completo. Cualquier duda me escribes aquí 💪"
+    : antesDespues ? "Esta es mi historia 👇 El cambio llega poco a poco, comida a comida 💪" : "");
+  return { texto: textoFinal, ...(antesDespues ? { antesDespues } : {}), ...(comparativa ? { comparativa } : {}) };
 }
 
 async function graph(cuenta: any, ruta: string, cuerpo: unknown) {
@@ -885,8 +890,12 @@ async function simular(req: Request) {
     if (r.pedido) return json({ texto: mensajePedido(r.pedido), pedido: r.pedido });
     if (r.personal) return json({ personal: r.personal });
     if (r.antesDespues || r.comparativa) {
-      const fotos = [r.antesDespues && "📷 (Aquí se envía la foto del antes y después de Jonah)", r.comparativa && "📊 (Aquí se envía la imagen Gratis vs Premium)"].filter(Boolean).join("\n");
-      return json({ texto: `${r.texto || ""}\n\n${fotos}`.trim(), antesDespues: !!r.antesDespues, comparativa: !!r.comparativa });
+      // El simulador muestra las imágenes tal como le llegarían al cliente.
+      const imagenes = [
+        r.antesDespues && { url: FOTO_ANTES_DESPUES, titulo: "Foto del antes y después de Jonah" },
+        r.comparativa && { url: FOTO_GRATIS_VS_PREMIUM, titulo: "Imagen Gratis vs Premium" },
+      ].filter(Boolean);
+      return json({ texto: r.texto || "", imagenes, antesDespues: !!r.antesDespues, comparativa: !!r.comparativa });
     }
     return json({ texto: r.texto || "" });
   } catch (e) {

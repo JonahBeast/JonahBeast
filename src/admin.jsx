@@ -9224,6 +9224,20 @@ function WhatsAppPanel() {
     } catch { setCosto(null); }
   }
 
+  // Lo que el asistente "recuerda" de la prueba: las imágenes que mandó van
+  // como texto junto a su respuesta, para que no las vuelva a mandar.
+  function historialSimulador(lista) {
+    const out = [];
+    for (const m of lista) {
+      const role = m.role === 'imagen' ? 'assistant' : m.role;
+      if (role !== 'user' && role !== 'assistant') continue;
+      const content = m.role === 'imagen' ? `(imagen enviada: ${m.content})` : m.content;
+      if (out.length && out[out.length - 1].role === role) out[out.length - 1].content += `\n${content}`;
+      else out.push({ role, content });
+    }
+    return out;
+  }
+
   async function simular() {
     const t = simTexto.trim();
     if (!t || simEnviando) return;
@@ -9234,13 +9248,15 @@ function WhatsAppPanel() {
       const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({ simular: { mensajes: lista.filter(m => m.role === 'user' || m.role === 'assistant').map(({ role, content }) => ({ role, content })), username: simComo.trim() } }),
+        body: JSON.stringify({ simular: { mensajes: historialSimulador(lista), username: simComo.trim() } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.error) throw new Error(d.error || `Error ${r.status}`);
       if (d.personal) setSimMensajes([...lista, { role: 'nota', content: `🚫 No respondería: le pareció un mensaje personal (${d.personal}).` }]);
       else {
-        const nuevos = [...lista, { role: 'assistant', content: d.texto || '(sin respuesta)' }];
+        const nuevos = [...lista];
+        if (d.texto || !(d.imagenes || []).length) nuevos.push({ role: 'assistant', content: d.texto || '(sin respuesta)' });
+        (d.imagenes || []).forEach(img => nuevos.push({ role: 'imagen', content: img.titulo, url: img.url }));
         if (d.pasar) nuevos.push({ role: 'nota', content: `🙋 Aquí te pasaría el chat y te llegaría un aviso: ${d.pasar.resumen}` });
         if (d.pedido) nuevos.push({ role: 'nota', content: `🍽️ Anotaría el pedido "${d.pedido}" en Alimentos por revisar.` });
         setSimMensajes(nuevos);
@@ -9430,7 +9446,13 @@ function WhatsAppPanel() {
           <input value={simComo} onChange={e => setSimComo(e.target.value)} className={inputCls} placeholder="Vacío = cliente nuevo sin cuenta" />
         </Field>
         <div className="flex flex-col gap-1.5 my-3 max-h-96 overflow-y-auto">
-          {simMensajes.map((m, i) => (
+          {simMensajes.map((m, i) => m.role === 'imagen' ? (
+            // La imagen que recibiría el cliente: tocarla la abre en grande.
+            <a key={i} href={m.url} target="_blank" rel="noopener noreferrer" className="self-start bg-zinc-800 rounded-lg p-1.5 max-w-[60%]">
+              <div className="jb-body text-[10px] text-zinc-500 mb-1 px-1">Asistente · {m.content}</div>
+              <img src={m.url} alt={m.content} className="rounded-md w-full max-w-[220px]" />
+            </a>
+          ) : (
             <div key={i} className={`jb-body text-xs rounded-lg px-2.5 py-1.5 max-w-[85%] whitespace-pre-wrap break-words ${
               m.role === 'user' ? 'bg-orange-500/20 text-orange-100 self-end' : m.role === 'nota' ? 'bg-zinc-950 border border-zinc-700 text-zinc-300 self-center max-w-full' : 'bg-zinc-800 text-zinc-100 self-start'}`}>
               {m.role !== 'nota' && <div className="text-[10px] text-zinc-500 mb-0.5">{m.role === 'user' ? 'Cliente (tú)' : 'Asistente'}</div>}

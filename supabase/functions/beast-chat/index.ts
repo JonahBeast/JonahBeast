@@ -22,7 +22,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Los mismos pesajes que el alumno ve en Progreso (src/progreso.js).
-import { historialDePeso } from "../../../src/progreso.js";
+import { historialDePeso, historialComposicion } from "../../../src/progreso.js";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
@@ -130,7 +130,7 @@ LO QUE NO HACES:
 
 TEMAS DELICADOS: si el alumno está triste, ansioso, se siente mal consigo mismo o habla de atracones, vómitos o dejar de comer: deja el humor, escucha, valida lo que siente, sin juzgar, y si es fuerte sugiere hablar con alguien de confianza o un profesional. Si habla de hacerse daño, de no querer vivir o de quitarse la vida: responde con mucho tacto, quédate en la conversación, dile que no está solo y dale ayuda real: la Línea 113, opción 5 (salud mental del MINSA, gratis, todo el día); si hay peligro inmediato, que llame al 113 o al 105 o vaya a emergencias. Marca "riesgo": true.
 
-"¿CÓMO VOY?": usa SOLO los datos del bloque DATOS DEL ALUMNO. Primero lo bueno, luego UNA sola cosa por mejorar y un empujón. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él (ej. "anotaste solo 2 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido): díselo con cariño y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
+"¿CÓMO VOY?": usa SOLO los datos del bloque DATOS DEL ALUMNO. Primero lo bueno, luego UNA sola cosa por mejorar y un empujón. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él (ej. "anotaste solo 2 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido): díselo con cariño y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar). Si tiene composición corporal (% de grasa y de masa muscular), inclúyela siempre en "¿cómo voy?": cómo cambió desde su primera medida (bajar grasa y mantener o subir músculo es lo que más vale, aunque la balanza se mueva poco); si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta. Sé breve: máximo unas 6 frases.
 
 ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
 - "anotar_comida": cuando cuenta lo que comió o pide anotarlo. "texto" = lo que comió con sus cantidades, separado por comas, en palabras simples para buscar en la base y lo más específico posible en tipo y preparación (ej. "150 gramos de arroz blanco cocido, 120 gramos de pechuga de pollo a la plancha, 1 ensalada de lechuga y tomate"; "1 cuarto de pollo a la brasa, papas fritas, ensalada de lechuga"). Si no dijo cantidad, no la inventes. "comida" = "Desayuno" | "Media mañana" | "Almuerzo" | "Media tarde" | "Cena" si lo dijo; si no, null (la app usa la de la hora). Solo se anota en el día de hoy: si habla de ayer, dile que eso lo anota en Registrar. Si corrige ("no, eran 80 gramos de pollo", "quita el pan"), vuelve a proponer anotar_comida con TODO corregido.
@@ -295,7 +295,7 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     supabase.from("datos_alumnos").select("form").eq("username", username).maybeSingle(),
     supabase.from("historial").select("fecha, peso, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count")
       .eq("username", username).gte("fecha", desde).order("fecha", { ascending: false }).limit(45),
-    supabase.from("historial").select("fecha, peso")
+    supabase.from("historial").select("fecha, peso, grasa_pct, masa_muscular")
       .eq("username", username).gte("fecha", desdePeso).order("fecha", { ascending: true }).limit(200),
   ]);
   const f = datos?.form || {};
@@ -315,6 +315,19 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   try { puntos = historialDePeso(f, histPeso || [], alumno) || []; } catch (e) { console.error("pesajes:", (e as Error)?.message); }
   if (!puntos.length && Array.isArray(f.pesajes)) puntos = f.pesajes;
   const pesajes = puntos.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ");
+  // % de grasa y % de masa muscular (estimados con sus medidas con cinta),
+  // igual que en su pantalla de Progreso y en el panel de Jonah. La medida
+  // de hoy la calcula la app con su peso actual (hoyApp.composicion).
+  const ac = hoyApp?.composicion;
+  const actualComp = ac && Number(ac.grasa) > 0 && Number(ac.musculo) > 0 ? { grasa: Number(ac.grasa), musculo: Number(ac.musculo) } : null;
+  let comp: { grasa: { f: string; v: number }[]; musculo: { f: string; v: number }[] } = { grasa: [], musculo: [] };
+  try { comp = historialComposicion(histPeso || [], alumno, f, actualComp) || comp; } catch (e) { console.error("composicion:", (e as Error)?.message); }
+  const serieComp = (l: { f: string; v: number }[]) => l.slice(-6).map(p => `${p.f}: ${p.v}%`).join(", ");
+  const ultMedida = f.medidasFecha || comp.grasa[comp.grasa.length - 1]?.f || null;
+  const diasMedida = ultMedida ? Math.round((Date.parse(hoy) - Date.parse(ultMedida)) / 86_400_000) : null;
+  const composicion = comp.grasa.length
+    ? `Composición corporal (estimada con sus medidas con cinta: cuello, cintura${f.sexo === "F" ? ", cadera" : ""}; última medida el ${ultMedida}${diasMedida !== null ? `, hace ${diasMedida} días` : ""}): % de grasa ${serieComp(comp.grasa)}; % de masa muscular ${serieComp(comp.musculo)} (de más antiguo a más nuevo).`
+    : "Composición corporal: no tiene medidas con cinta anotadas (cuello, cintura y cadera), así que no hay % de grasa ni de masa muscular.";
   let edad: number | null = null;
   if (alumno.fecha_nacimiento) edad = Math.floor((Date.parse(hoy) - Date.parse(alumno.fecha_nacimiento)) / (365.25 * 86_400_000));
   else if (f.edad) edad = Number(f.edad) || null;
@@ -326,6 +339,7 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     `Nombre: ${alumno.nombre || username}. Sexo: ${f.sexo === "F" ? "F (mujer)" : "M (hombre)"}. Edad: ${n(edad)}.`,
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
     `Objetivo: ${n(f.objetivo)}. Peso inicial: ${Number(f.pesoInicial) > 0 ? f.pesoInicial : puntos.length ? puntos[0].kg : "?"} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
+    composicion,
     pesajes && `Últimos pesajes (de más antiguo a más nuevo; ${puntos.length} en total en los últimos 6 meses): ${pesajes}.`,
     hoyApp && `Hoy (${horaLima()}): comió ${Math.round(hoyApp.kcal || 0)} de ${Math.round(hoyApp.metaKcal || 0)} kcal; proteína ${Math.round(hoyApp.proteina || 0)} de ${Math.round(hoyApp.metaProteina || 0)} g; agua ${hoyApp.agua || 0} de ${hoyApp.metaAgua || 0} vasos; comidas anotadas: ${hoyApp.comidas || "ninguna"}.`,
     `Últimos 7 días: anotó ${ult7.length} de 7 días; en ${enMeta} quedó dentro de sus calorías (±10%). Racha: ${racha} días seguidos anotando.`,
@@ -342,6 +356,20 @@ function extraerJson(t: string): any {
     if (i < 0 || j <= i) return null;
     return JSON.parse(t.slice(i, j + 1));
   } catch { return null; }
+}
+
+// Si el JSON vino roto (una comilla sin escapar o cortado), se rescata al
+// menos el texto de "respuesta" para no mostrarle llaves y comillas al
+// alumno (pasó con "¿cómo voy?": salía {"respuesta": "Vas muy bien…).
+function rescatarRespuesta(t: string): string | null {
+  const m = t.match(/"respuesta"\s*:\s*"/);
+  if (!m || m.index === undefined) return null;
+  let resto = t.slice(m.index + m[0].length);
+  const fin = resto.search(/"\s*,\s*"(accion|tema|recordar|riesgo|estilo)"\s*:/);
+  if (fin >= 0) resto = resto.slice(0, fin);
+  else resto = resto.replace(/"\s*}?\s*(```)?\s*$/, "");
+  const limpio = resto.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim();
+  return limpio || null;
 }
 
 const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah", "avisos", "nombre"];
@@ -424,7 +452,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
       headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: modelo,
-        max_tokens: 1200,
+        max_tokens: 2000,
         system: [{ type: "text", text: SISTEMA, cache_control: { type: "ephemeral" } }],
         messages: mensajes,
       }),
@@ -437,6 +465,11 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
     await anotarUsoIA(supabase, username, modelo, data.usage);
     const crudo = (data.content || []).map((c: any) => c.text || "").join("");
     salida = extraerJson(crudo);
+    if (!salida && crudo.trim()) {
+      const rescatada = rescatarRespuesta(crudo);
+      console.log(JSON.stringify({ evento: "beast_json_roto", username, corte: data.stop_reason, largo: crudo.length, rescatada: !!rescatada, crudo: crudo.slice(-300) }));
+      if (rescatada) salida = { respuesta: rescatada, accion: null, tema: "progreso", recordar: "", riesgo: false };
+    }
     // Si la IA respondió sin el formato pedido (pasa con respuestas cortas,
     // como a un "sí, confirmo"), se usa su texto tal cual, sin acción.
     if (!salida && crudo.trim()) {

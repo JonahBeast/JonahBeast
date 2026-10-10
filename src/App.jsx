@@ -2874,6 +2874,11 @@ function Landing({ onChoose }) {
           <button onClick={() => onChoose('free')} className="jbb-a jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-1 self-center" style={anim('jbb-sube', 1.4)}>
             📏 ¿Solo quieres medirte? Hazlo sin registro →
           </button>
+          {/* Datos del negocio (los mismos de la verificación de Meta). */}
+          <p className="jbb-a jb-body text-[10px] leading-snug text-zinc-600 text-center mt-1" style={anim('jbb-sube', 1.45)}>
+            MARTIN JONATHAN HUAMANI CABANA · RUC 10454924024<br />
+            Ate, Lima, Perú · WhatsApp +51 963 760 819 · <a href="/privacidad.html" className="underline hover:text-zinc-400">Privacidad</a>
+          </p>
         </div>
       </section>
 

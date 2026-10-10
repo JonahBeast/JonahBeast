@@ -114,6 +114,7 @@ Qué sabes:
 - Si el mensaje empieza con "Hola Jonah, este es mi plan de Jonah Beast Fuel" (o la versión antigua "Hola Jonah 👋 Este es mi plan…"), viene del botón "Recibir mi plan por WhatsApp" (manual, sección 7). Si el mensaje dice "Ya registré mi primera comida" o en "Datos de esta conversación" figura como alumno, YA tiene cuenta: felicítalo por su primera comida, repítele su plan con SUS números tal cual y dale un siguiente paso concreto (registrar todas sus comidas de hoy y mañana, proteína en cada una); no le pidas crear cuenta. Si no (versión antigua del botón, antes de crear su cuenta): felicítalo por dar el primer paso, repítele su plan con SUS números tal cual (no los cambies ni calcules otros), explícale en 2 o 3 líneas cómo se ve en su día con comida peruana (repartir las calorías en sus comidas, proteína en cada una, sin prohibir nada) y dile que cree su cuenta gratis en jonahbeast.com desde el mismo celular: su plan ya queda guardado y tiene 7 días de Premium. Sé breve y cálido.
 - La historia de Jonah (es real, puedes contarla; cuéntala completa, sin exagerar): hace unos 4 años Jonah bajó 37 kg. Y ahora usa su propia app: el 12 de julio de 2026 pesaba 104 kg y bajó a 90.2 kg: 13.8 kg en 2 meses y medio (unos 10 kg de grasa, es un estimado). Lo logró sumando tres cosas: registrar cada comida con la app en déficit calórico (con comida peruana y sin pasar hambre), entrenar algunos días a la semana (no todos) y disciplina. Nunca digas que fue solo la app: la app ayuda mucho, pero el entrenamiento y la constancia también cuentan. No agregues otros números ni prometas que a todos les irá igual: cada cuerpo es distinto.
 - Puedes mandar la foto del antes y después de Jonah con la herramienta mandar_antes_despues. Úsala cuando ayude a motivar: alguien que recién empieza o recién se registró, que pregunta si la app funciona o si los resultados son reales, o que duda en empezar o pagar. Escribe también tu mensaje de texto (corto) junto con la herramienta: el sistema manda primero tu texto y luego la foto. Mándala como máximo una vez por conversación: si en "Datos de esta conversación" dice que ya se la mandaste, no la vuelvas a mandar. No la uses en reclamos, temas médicos, pagos con problemas ni chats personales.
+- Puedes mandar la imagen "GRATIS VS PREMIUM" con la herramienta mandar_gratis_vs_premium: una tabla con lo que trae Premium y la versión gratis no (Beast arriba, fotos, voz, menú…) y los 3 precios. Úsala cuando pregunten la diferencia entre gratis y Premium, qué incluye Premium o por qué pagar. Escribe también tu mensaje corto (el sistema manda primero tu texto y luego la imagen); no repitas en el texto toda la tabla, la imagen ya la muestra. Máximo una vez por conversación: si en "Datos de esta conversación" dice que ya se la mandaste, explica con texto.
 - Si el mensaje empieza con "Hola Jonah, medí mi composición corporal en la web" (o la versión antigua "Hola Jonah 👋 Medí mi composición…"), viene de la calculadora de jonahbeast.com (manual, sección 2): felicítalo, explícale en simple qué significan SUS números tal cual (no calcules otros; el % de grasa y el IMC son estimaciones de referencia, no un diagnóstico), dale un primer paso concreto y dile que cree su cuenta gratis en jonahbeast.com para tener su plan con comida peruana, con 7 días de Premium. Sé breve y cálido.
 
 Reglas (además de las de la sección 0 del manual):
@@ -128,6 +129,10 @@ Reglas (además de las de la sección 0 del manual):
 // manda como máximo una vez por conversación.
 const FOTO_ANTES_DESPUES = "https://jonahbeast.com/antes-despues-jonah.jpg";
 const TEXTO_ANTES_DESPUES = "(foto) Antes y después de Jonah: 104 kg → 90.2 kg en 2 meses y medio con su propia app";
+// Tabla "Gratis vs Premium" (public/anuncios/gratis-vs-premium/). Si cambian
+// los precios o lo que trae Premium, hay que rehacer esta imagen.
+const FOTO_GRATIS_VS_PREMIUM = "https://jonahbeast.com/anuncios/gratis-vs-premium/gratis-vs-premium-1080x1920.png";
+const TEXTO_GRATIS_VS_PREMIUM = "(imagen) Gratis vs Premium: lo que trae Premium y los precios";
 
 const HERRAMIENTAS = [{
   name: "pedir_alimento",
@@ -157,6 +162,16 @@ const HERRAMIENTAS = [{
 }, {
   name: "mandar_antes_despues",
   description: "Manda al cliente la imagen del antes y después de Jonah (104 kg → 90.2 kg en 2 meses y medio, usando su propia app). Escribe además un texto corto: el sistema manda primero el texto y después la foto. Máximo una vez por conversación.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {},
+    required: [],
+    additionalProperties: false,
+  },
+}, {
+  name: "mandar_gratis_vs_premium",
+  description: "Manda al cliente la imagen GRATIS VS PREMIUM (qué trae Premium que la versión gratis no, y los 3 precios). Escribe además un texto corto: el sistema manda primero el texto y después la imagen. Máximo una vez por conversación.",
   strict: true,
   input_schema: {
     type: "object",
@@ -457,9 +472,12 @@ async function atenderMensaje(cuenta: any, valor: any, msg: any) {
   } else if (respuesta.pedido) {
     await registrarPedido(telefono, alumno, nombreWa, respuesta.pedido);
     await enviarTexto(cuenta, telefono, mensajePedido(respuesta.pedido));
-  } else if (respuesta.texto || respuesta.antesDespues) {
+  } else if (respuesta.texto || respuesta.antesDespues || respuesta.comparativa) {
     if (respuesta.texto) await enviarTexto(cuenta, telefono, respuesta.texto);
     if (respuesta.antesDespues && !(await yaMandoAntesDespues(telefono))) await enviarAntesDespues(cuenta, telefono);
+    if (respuesta.comparativa && !(await yaMandoImagen(telefono, "gratis_vs_premium"))) {
+      await enviarImagen(cuenta, telefono, FOTO_GRATIS_VS_PREMIUM, "gratis_vs_premium", TEXTO_GRATIS_VS_PREMIUM);
+    }
   }
 }
 
@@ -547,8 +565,11 @@ function fechaLima(d = new Date()) {
 }
 
 async function yaMandoAntesDespues(telefono: string) {
+  return yaMandoImagen(telefono, "antes_despues");
+}
+async function yaMandoImagen(telefono: string, tipo: string) {
   const { count } = await supabase.from("whatsapp_mensajes")
-    .select("id", { count: "exact", head: true }).eq("telefono", telefono).eq("tipo", "antes_despues");
+    .select("id", { count: "exact", head: true }).eq("telefono", telefono).eq("tipo", tipo);
   return (count || 0) > 0;
 }
 
@@ -566,7 +587,8 @@ async function contexto(alumno: any, nombreWa: string | null, telefono: string) 
 - Alimentos que Jonah agregó hace poco (también están en la app): ${agregados.length ? agregados.join(", ") : "ninguno"}.
 - Precios vigentes: Mensual S/${precio("precio_1")}, Trimestral S/${precio("precio_3")}, Anual S/${precio("precio_12")} (S/${(parseFloat(precio("precio_12")) / 12).toFixed(2)} al mes, el que más ahorra). Ya no hay plan semestral. La captura inteligente (5 fotos de comida al día) viene incluida en todos los planes; ya no se vende aparte.
 - Nombre en WhatsApp: ${nombreWa || "desconocido"}. Número: +${telefono}.
-- Foto del antes y después de Jonah: ${(await yaMandoAntesDespues(telefono)) ? "YA se la mandaste en esta conversación (no la vuelvas a mandar)" : "todavía no se la mandaste"}.`;
+- Foto del antes y después de Jonah: ${(await yaMandoAntesDespues(telefono)) ? "YA se la mandaste en esta conversación (no la vuelvas a mandar)" : "todavía no se la mandaste"}.
+- Imagen "Gratis vs Premium": ${(await yaMandoImagen(telefono, "gratis_vs_premium")) ? "YA se la mandaste en esta conversación (no la vuelvas a mandar)" : "todavía no se la mandaste"}.`;
 
   if (!alumno) {
     return t + `\n- No está registrado como alumno con este número (posible cliente nuevo, o se registró con otro celular). No tienes datos de ninguna cuenta.`;
@@ -690,7 +712,8 @@ async function preguntarAClaude(cuenta: any, telefono: string, msg: any, alumno:
   if (alimento) return { pedido: alimento };
   const texto = bloques.filter((b: any) => b.type === "text").map((b: any) => b.text || "").join("").trim();
   const antesDespues = bloques.some((b: any) => b.type === "tool_use" && b.name === "mandar_antes_despues");
-  return antesDespues ? { texto, antesDespues } : { texto };
+  const comparativa = bloques.some((b: any) => b.type === "tool_use" && b.name === "mandar_gratis_vs_premium");
+  return { texto, ...(antesDespues ? { antesDespues } : {}), ...(comparativa ? { comparativa } : {}) };
 }
 
 async function graph(cuenta: any, ruta: string, cuerpo: unknown) {
@@ -730,16 +753,19 @@ async function enviarTexto(cuenta: any, telefono: string, texto: string, tipo = 
 }
 
 async function enviarAntesDespues(cuenta: any, telefono: string) {
+  await enviarImagen(cuenta, telefono, FOTO_ANTES_DESPUES, "antes_despues", TEXTO_ANTES_DESPUES);
+}
+async function enviarImagen(cuenta: any, telefono: string, link: string, tipo: string, texto: string) {
   try {
     const r = await graph(cuenta, `/${cuenta.phone_number_id}/messages`, {
       messaging_product: "whatsapp", recipient_type: "individual", to: telefono,
-      type: "image", image: { link: FOTO_ANTES_DESPUES },
+      type: "image", image: { link },
     });
     await supabase.from("whatsapp_mensajes").insert({
-      telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo: "antes_despues", texto: TEXTO_ANTES_DESPUES,
+      telefono, wa_id: r?.messages?.[0]?.id || null, direccion: "asistente", tipo, texto,
     });
   } catch (e) {
-    console.error("No se pudo enviar el antes y después:", (e as Error)?.message || "");
+    console.error(`No se pudo enviar la imagen (${tipo}):`, (e as Error)?.message || "");
   }
 }
 
@@ -858,7 +884,10 @@ async function simular(req: Request) {
     if (r.pasar) return json({ texto: MENSAJE_PASO_A_JONAH, pasar: r.pasar });
     if (r.pedido) return json({ texto: mensajePedido(r.pedido), pedido: r.pedido });
     if (r.personal) return json({ personal: r.personal });
-    if (r.antesDespues) return json({ texto: `${r.texto || ""}\n\n📷 (Aquí se envía la foto del antes y después de Jonah)`.trim(), antesDespues: true });
+    if (r.antesDespues || r.comparativa) {
+      const fotos = [r.antesDespues && "📷 (Aquí se envía la foto del antes y después de Jonah)", r.comparativa && "📊 (Aquí se envía la imagen Gratis vs Premium)"].filter(Boolean).join("\n");
+      return json({ texto: `${r.texto || ""}\n\n${fotos}`.trim(), antesDespues: !!r.antesDespues, comparativa: !!r.comparativa });
+    }
     return json({ texto: r.texto || "" });
   } catch (e) {
     console.error("whatsapp-webhook (simulador):", (e as Error)?.message);

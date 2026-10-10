@@ -9327,6 +9327,94 @@ function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
   );
 }
 
+/* Llegó a Chrome/Safari desde la ventana "Ábrela en Chrome" (?desde=app,
+   ver src/App.jsx) y ya entró a su cuenta: se cambió justo para recibir los
+   avisos, así que apenas entra se le piden, en una sola pantalla. Antes
+   nadie se los pedía y ninguno de los que llegaba los activaba (revisión
+   del 10 de octubre: 0 de 7). En iPhone sin instalar, le enseña a instalarla. */
+function LlegasteAlNavegadorModal({ username, siguiente, onAnotar, onCerrar }) {
+  const [estado, setEstado] = useState('cargando'); // cargando | disponible | bloqueado | iosNoInstalado | nosoportado | listo
+  const [activando, setActivando] = useState(false);
+  useEffect(() => {
+    registrarPasoPago('abrir_navegador', username, 'llego');
+    (async () => {
+      const { dispositivo, instalada } = equipoDelAlumno();
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setEstado(dispositivo === 'iphone' && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        return;
+      }
+      if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
+      if (Notification.permission === 'granted') {
+        try {
+          const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+          if (sub) { onCerrar(); return; } // ya los tenía activos: nada que pedir
+        } catch {}
+      }
+      setEstado('disponible');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username]);
+  async function activar() {
+    setActivando(true);
+    let final = 'disponible';
+    try { final = await activarPushAlumno(username); } catch {}
+    setActivando(false);
+    if (final === 'activo') { registrarPasoPago('abrir_navegador', username, 'aviso_ok'); vibrar(30); setEstado('listo'); }
+    else setEstado(final === 'bloqueado' ? 'bloqueado' : 'disponible');
+  }
+  function ahoraNo() { registrarPasoPago('abrir_navegador', username, 'aviso_no'); onCerrar(); }
+  if (estado === 'cargando') return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
+        <AsaHoja />
+        <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        {estado === 'listo' ? (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">¡LISTO, QUEDAMOS CONECTADOS! 🦍</h2>
+            <p className="jb-body text-sm text-zinc-300 leading-relaxed">Te escribo a la hora de tus comidas para que no se te pase ninguna. Vamos juntos, comida a comida.</p>
+            {siguiente ? (
+              <button type="button" onClick={() => onAnotar(siguiente)} className={btnPrimary + ' w-full py-3 mt-5'}>🍽️ Anotar mi {siguiente.toLowerCase()}</button>
+            ) : (
+              <button type="button" onClick={onCerrar} className={btnPrimary + ' w-full py-3 mt-5'}>Ir a mi Inicio</button>
+            )}
+            {siguiente && <button type="button" onClick={onCerrar} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">Después</button>}
+          </>
+        ) : (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">¡LISTO, YA ESTÁS EN {equipoDelAlumno().dispositivo === 'iphone' ? 'SAFARI' : 'CHROME'}!</h2>
+            {estado === 'iosNoInstalado' ? (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Último paso y quedamos conectados: en iPhone mis avisos solo llegan si la app está en tu pantalla de inicio. Toma 1 minuto.</p>
+                <div className="mt-3"><BotonGuiaIphone /></div>
+                <button type="button" onClick={ahoraNo} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-5">Ahora no</button>
+              </>
+            ) : estado === 'nosoportado' ? (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Tu cuenta y tu plan ya están aquí. Este navegador no recibe avisos, pero puedes seguir anotando tus comidas igual.</p>
+                <button type="button" onClick={onCerrar} className={btnPrimary + ' w-full py-3 mt-5'}>Seguir</button>
+              </>
+            ) : (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Último toque y quedamos conectados: <b className="text-zinc-100">activa mis avisos</b> y te escribo a la hora de tus comidas para que no se te pase ninguna. Así vamos comida a comida.</p>
+                {estado === 'bloqueado' && (
+                  <p className="jb-body text-xs text-amber-400 bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 mt-3 text-left">
+                    Los avisos están bloqueados en este navegador. Toca el candado 🔒 junto a la dirección (arriba) → <b>Permisos</b> o <b>Notificaciones</b> → <b>Permitir</b>, y vuelve a tocar el botón.
+                  </p>
+                )}
+                <button type="button" onClick={activar} disabled={activando} className={btnPrimary + ' w-full py-3.5 mt-5 text-base shadow-[0_0_24px_rgba(232,89,12,.35)]'}>
+                  {activando ? <Loader2 className="animate-spin" size={18} /> : '🔔 Activar mis avisos'}
+                </button>
+                <button type="button" onClick={ahoraNo} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">Ahora no</button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Panel que sube al tocar un alimento: cantidad con − / + grandes, medida
 // en botones, macros, cambiar de alimento, reemplazo equivalente y borrar.
 function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, updateEntry, removeEntry, onCrear, onEditarPropio, onDesarmar, onCerrar }) {
@@ -12580,6 +12668,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       return localStorage.getItem('jb-abrir-navegador') !== fechaLocalISO(new Date());
     } catch { return false; }
   });
+  // Llegó a Chrome/Safari desde "Ábrela en Chrome" (marca de src/App.jsx,
+  // válida 3 días): se le piden los avisos apenas entra.
+  const [llegoAlNavegador, setLlegoAlNavegador] = useState(() => {
+    try {
+      const en = Number(localStorage.getItem('jb-desde-app')) || 0;
+      localStorage.removeItem('jb-desde-app');
+      return en > 0 && Date.now() - en < 3 * 86400000 && !equipoDelAlumno().navegadorInterno;
+    } catch { return false; }
+  });
   function cerrarAbrirEnNavegador() {
     setAbrirEnNavegador(false);
     try { localStorage.setItem('jb-abrir-navegador', fechaLocalISO(new Date())); } catch {}
@@ -12942,9 +13039,14 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida
           && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta
           && <AbrirEnNavegadorModal username={username} trasPrimeraComida={primeraEnCurso && alimentosHoy > 0} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+        {llegoAlNavegador && !verGuia && !verPrimeraComida && !ajustarMeta && tab === 'dash' && (
+          <LlegasteAlNavegadorModal username={username} siguiente={siguienteComida(mealPlan)}
+            onAnotar={meal => { setLlegoAlNavegador(false); irARegistrar(meal); }}
+            onCerrar={() => setLlegoAlNavegador(false)} />
+        )}
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
         {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
-        {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {ofrecerNotif && !verGuia && !abrirEnNavegador && !llegoAlNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
         {verFinPrueba && tab === 'dash' && !verGuia && !ofrecerNotif && !verPrimeraComida && !ajustarMeta && !abrirEnNavegador && userRecord && (
           <FinPruebaModal user={userRecord} onCerrar={() => setVerFinPrueba(false)}
             onPlan={meses => { setVerFinPrueba(false); setPlanDirecto(meses); setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />

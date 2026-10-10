@@ -22,7 +22,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Los mismos pesajes que el alumno ve en Progreso (src/progreso.js).
-import { historialDePeso, historialComposicion } from "../../../src/progreso.js";
+import { historialDePeso, historialComposicion, analizarProgreso, corregirHistorial, serieDelHistorial } from "../../../src/progreso.js";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
@@ -131,13 +131,13 @@ LO QUE NO HACES:
 TEMAS DELICADOS: si el alumno está triste, ansioso, se siente mal consigo mismo o habla de atracones, vómitos o dejar de comer: deja el humor, escucha, valida lo que siente, sin juzgar, y si es fuerte sugiere hablar con alguien de confianza o un profesional. Si habla de hacerse daño, de no querer vivir o de quitarse la vida: responde con mucho tacto, quédate en la conversación, dile que no está solo y dale ayuda real: la Línea 113, opción 5 (salud mental del MINSA, gratis, todo el día); si hay peligro inmediato, que llame al 113 o al 105 o vaya a emergencias. Marca "riesgo": true.
 
 "¿CÓMO VOY?": es tu momento más importante: que sienta que alguien de verdad lo acompaña, lo felicita cuando lo hace bien y lo corrige cuando algo no va. Usa SOLO los datos del bloque DATOS DEL ALUMNO, con números concretos (nada de frases genéricas que le servirían a cualquiera). En este orden:
-1) Lo bueno, con su número (lo que bajó, su ritmo si es sano, su racha, los días que cumplió, lo que mejoró su grasa o su músculo).
+1) Lo bueno, con su número (lo que bajó, su ritmo solo si es sano, su racha, los días que cumplió, lo que bajó su grasa).
 2) UNA sola corrección, la que más le ayudaría, sacada de SU SEMANA y no solo de hoy (ej. "esta semana llegaste a tu proteína solo 2 de 6 días"), con el porqué en una frase y un cambio fácil y peruano (ej. "suma un huevo o un poco de pollo al desayuno"). Si todo va bien, dilo y que siga igual.
 3) Cierra con UN compromiso pequeño para mañana o hoy, como pregunta (ej. "¿te parece si mañana llegamos a 8 vasos?"), y ponlo en "compromiso" (corto, ej. "llegar a 8 vasos de agua mañana"). Solo en "¿cómo voy?" o cuando él quiera mejorar algo; no en cada mensaje.
 Si en sus datos hay COMPROMISO PENDIENTE: pregúntale por él al empezar tu respuesta (mira sus datos: si se ve que lo cumplió, felicítalo con ganas; si no, sin regañar, anímalo) y pon "compromiso_revisado": true.
 Usa lo que sabes de su vida (libreta) para que el consejo le calce (ej. si trabaja de noche, no le pidas desayunar temprano).
-Ritmo: si baja entre ~0,3 y 1 kg por semana, dile que es un ritmo sano que se sostiene. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él en su semana (ej. "anotaste solo 2 días", "te pasaste 3 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido) o comió muy poco varios días: díselo con cariño (comer muy poco hace perder músculo) y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
-Composición corporal: si tiene % de grasa y de masa muscular, inclúyelos siempre en "¿cómo voy?": cómo cambiaron desde su primera medida (bajar grasa y mantener o subir músculo es lo que más vale, aunque la balanza se mueva poco); si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta.
+UNA SOLA VERDAD: si en sus datos está "LO QUE VE EN SU PANTALLA DE PROGRESO", tu respuesta debe decir lo mismo (mismo ritmo, mismo diagnóstico, misma recomendación): el alumno lo está viendo en su pantalla y si le dices otra cosa pierde la confianza. Si dice que baja muy rápido, no lo felicites por el ritmo: reconoce su esfuerzo y su constancia, y tu corrección es esa (comer un poco más y priorizar la proteína para no perder músculo). Si no hay veredicto: si baja entre ~0,3 y 1 kg por semana es un ritmo sano. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él en su semana (ej. "anotaste solo 2 días", "te pasaste 3 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido) o comió muy poco varios días: díselo con cariño (comer muy poco hace perder músculo) y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
+Composición corporal: si tiene % de grasa y de masa muscular, inclúyelos siempre en "¿cómo voy?". La masa muscular dila EN KILOS, como en su gráfico de Progreso (ej. "de 36,1 a 35,4 kg"), y si sirve agrega qué parte de su cuerpo es (ej. "hoy es el 39,9% de tu cuerpo"). Nunca digas "tu músculo subió" si en kilos bajó: si bajó poco frente a lo que bajó de peso, dile que casi todo lo que bajó fue grasa (eso es bueno) y que para cuidar el músculo ayudan la proteína y los ejercicios de fuerza; si bajó mucho, esa es tu corrección. Bajar grasa y mantener el músculo es lo que más vale, aunque la balanza se mueva poco. Si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta.
 Sé breve: máximo unas 7 frases, sin listas.
 
 ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
@@ -301,7 +301,7 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   const desdePeso = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
   const [{ data: datos }, { data: hist }, { data: histPeso }] = await Promise.all([
     supabase.from("datos_alumnos").select("form").eq("username", username).maybeSingle(),
-    supabase.from("historial").select("fecha, peso, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count, agua:meal_plan->agua, macros:meal_plan->macros")
+    supabase.from("historial").select("fecha, peso, grasa_pct, masa_muscular, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count, agua:meal_plan->agua, macros:meal_plan->macros")
       .eq("username", username).gte("fecha", desde).order("fecha", { ascending: false }).limit(45),
     supabase.from("historial").select("fecha, peso, grasa_pct, masa_muscular")
       .eq("username", username).gte("fecha", desdePeso).order("fecha", { ascending: true }).limit(200),
@@ -323,19 +323,29 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   try { puntos = historialDePeso(f, histPeso || [], alumno) || []; } catch (e) { console.error("pesajes:", (e as Error)?.message); }
   if (!puntos.length && Array.isArray(f.pesajes)) puntos = f.pesajes;
   const pesajes = puntos.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ");
-  // Ritmo: kilos por semana en su último mes (o lo que haya, mín. 10 días),
-  // para que Beast diga si va a un ritmo sano, lento o demasiado rápido.
-  let ritmo = "";
-  const ultP = puntos[puntos.length - 1];
-  if (ultP) {
-    const desdeMes = new Date(Date.parse(ultP.f) - 35 * 86_400_000).toISOString().slice(0, 10);
-    const ini = puntos.find((p: any) => p.f >= desdeMes);
-    const dias = ini ? Math.round((Date.parse(ultP.f) - Date.parse(ini.f)) / 86_400_000) : 0;
-    if (ini && dias >= 10) {
-      const porSemana = Math.round((ultP.kg - ini.kg) / dias * 7 * 10) / 10;
-      ritmo = `Ritmo de su peso: ${porSemana > 0 ? "+" : ""}${porSemana} kg por semana (del ${ini.f} al ${ultP.f}).`;
+  // Lo que le dice su pantalla de Progreso (últimos 30 días, igual que la
+  // app): el veredicto del coach y los gráficos de grasa y masa muscular.
+  // Beast dice lo mismo que el alumno ve, nunca lo contrario.
+  const ult30 = corregirHistorial(filas.filter((h: any) => h.fecha >= hace(29)), f)
+    .sort((a: any, b: any) => String(a.fecha).localeCompare(String(b.fecha)));
+  let veredicto = "";
+  try {
+    const a = ult30.length ? analizarProgreso(ult30, f, { todas: corregirHistorial(histPeso || [], f) }) : null;
+    if (a && a.estado !== "inicial") {
+      veredicto = `LO QUE VE EN SU PANTALLA DE PROGRESO (últimos 30 días): "${a.titulo}". ${a.mensaje} Qué hacer: ${a.accion}${Number.isFinite(a.porSemana) ? ` Ritmo: ${a.porSemana > 0 ? "+" : ""}${Number(a.porSemana).toFixed(1)} kg por semana.` : ""}${a.adherencia !== null && a.adherencia !== undefined ? ` Días dentro de sus calorías (±15%): ${a.adherencia}%.` : ""}`;
     }
-  }
+  } catch (e) { console.error("veredicto:", (e as Error)?.message); }
+  const graf = (campo: string, suf: string) => {
+    const pts = serieDelHistorial(ult30, campo);
+    if (pts.length < 2) return "";
+    const ini = pts[0], fin = pts[pts.length - 1], dif = Math.round((fin.v - ini.v) * 10) / 10;
+    return `${ini.v.toFixed(1)}${suf} → ${fin.v.toFixed(1)}${suf} (${dif > 0 ? "+" : ""}${dif}${suf})`;
+  };
+  const musculoKg = graf("masa_muscular", " kg");
+  const grasaGraf = graf("grasa_pct", "%");
+  const graficos = (musculoKg || grasaGraf)
+    ? `Sus gráficos de Progreso (últimos 30 días): ${grasaGraf ? `% de grasa ${grasaGraf}` : ""}${grasaGraf && musculoKg ? "; " : ""}${musculoKg ? `masa muscular en kilos ${musculoKg}` : ""}.`
+    : "";
   // Su semana (los 7 días antes de hoy, solo los que anotó): para corregir
   // con patrones ("llegaste a tu proteína 2 de 7 días") y no solo con hoy.
   const semana = filas.filter((h: any) => h.fecha > hace(8) && h.fecha < hoy && (h.comidas_count || 0) > 0);
@@ -376,7 +386,8 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
     `Objetivo: ${n(f.objetivo)}. Peso inicial: ${Number(f.pesoInicial) > 0 ? f.pesoInicial : puntos.length ? puntos[0].kg : "?"} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
     composicion,
-    ritmo,
+    veredicto,
+    graficos,
     suSemana,
     compromiso?.texto && `COMPROMISO PENDIENTE (lo acordaron el ${compromiso.fecha}): "${compromiso.texto}". Pregúntale si lo cumplió, mirando sus datos.`,
     pesajes && `Últimos pesajes (de más antiguo a más nuevo; ${puntos.length} en total en los últimos 6 meses): ${pesajes}.`,

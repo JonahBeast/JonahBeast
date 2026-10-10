@@ -34,6 +34,7 @@
 - Títulos en **Anton** (clase `jb-display`) y texto normal en **Work Sans** (clase `jb-body`).
 - Los colores están definidos en `tailwind.config.js`: la escala `zinc` es la paleta carbón → crema (`zinc-950` carbón, `zinc-50` crema) y la escala `orange` es el naranja ají (`orange-500` `#E8590C`, `orange-400` `#FF7020`).
 - Mantén este estilo en cualquier pantalla nueva o modificada.
+- **El gorila de la marca es el logo original (`public/logo-marca.webp`, el gorila de fuego) y no se cambia ni se modifica** (decisión de Jonah, 10 de octubre): no se redibuja, simplifica, recolorea ni recorta; solo se escala entero. En diseños (polos, anuncios, flyers) **no inventar nada ajeno a la marca**: solo el logo, "JONAH BEAST FUEL", "COMIDA A COMIDA", "Sigue comiendo peruano. Esta vez, con resultados.", jonahbeast.com, los colores y las tipografías. Para bordado, el taller digitaliza el logo original.
 
 ## Tono de los mensajes
 

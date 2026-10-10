@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Flyer Aliados</title>
+<!-- Fuente del flyer de aliados. Abrir con ?h=1350 (WhatsApp) o ?h=1920 (estado). -->
+<style>
+  /* Fuentes de Google Fonts (Anton y Work Sans) guardadas al lado, para que la imagen salga igual sin internet */
+  @font-face{font-family:'Anton';font-weight:400;src:url(fuentes/Anton-Regular.ttf)}
+  @font-face{font-family:'Work Sans';font-weight:500;src:url(fuentes/WorkSans-Medium.ttf)}
+  @font-face{font-family:'Work Sans';font-weight:600 700;src:url(fuentes/WorkSans-Bold.ttf)}
+  @font-face{font-family:'Work Sans';font-weight:800;src:url(fuentes/WorkSans-ExtraBold.ttf)}
+  :root{--carbon:#16110D;--carbon2:#1B140E;--linea:#4A4136;--naranja:#E8590C;--brillo:#FF7020;--crema:#F7F2E7;--crema2:#C9B99C;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1080px;background:var(--carbon);}
+  body{font-family:'Work Sans',sans-serif;color:var(--crema);overflow:hidden}
+  .lienzo{position:relative;width:1080px;height:1350px;overflow:hidden;
+    background:radial-gradient(900px 700px at 85% 30%, rgba(232,89,12,.22), transparent 60%),
+               radial-gradient(700px 600px at 0% 100%, rgba(232,89,12,.14), transparent 60%), var(--carbon);
+    display:flex;flex-direction:column;padding:46px 60px 56px}
+  .alto .lienzo{height:1920px;padding:250px 64px 250px}
+  .anton{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.01em}
+  .tag{align-self:flex-start;background:var(--naranja);color:var(--carbon);font-weight:800;font-size:27px;
+       letter-spacing:.06em;text-transform:uppercase;padding:12px 24px;border-radius:999px}
+  h1{margin-top:34px;font-size:94px;line-height:1.0}
+  h1 .n{color:var(--brillo)}
+  .medio{display:flex;gap:36px;margin-top:26px;align-items:center}
+  .tel{flex:0 0 300px;height:340px;border-radius:40px;border:6px solid #2A2016;overflow:hidden;
+       box-shadow:0 0 50px rgba(255,112,32,.35);background:#000}
+  .tel img{width:100%;display:block}
+  ul{list-style:none;flex:1;display:flex;flex-direction:column;gap:16px}
+  li{display:flex;gap:16px;align-items:flex-start;font-size:32px;line-height:1.16;font-weight:500}
+  li b{font-weight:700;color:var(--crema)}
+  li::before{content:"";flex:0 0 16px;height:16px;margin-top:12px;border-radius:50%;background:var(--brillo);box-shadow:0 0 12px var(--brillo)}
+  .gana{margin-top:30px;border:3px solid var(--naranja);border-radius:30px;padding:22px 32px 24px;
+        background:linear-gradient(135deg, rgba(232,89,12,.20), rgba(232,89,12,.05))}
+  .gana h2{font-size:50px;line-height:1;color:var(--brillo)}
+  .gana p{font-size:31px;line-height:1.22;margin-top:10px;font-weight:500}
+  .gana p b{font-weight:800}
+  .pie{margin-top:auto;padding-top:22px;display:flex;gap:28px;align-items:center}
+  .pie img{height:200px;width:auto;flex:0 0 auto;filter:drop-shadow(0 0 22px rgba(255,112,32,.4))}
+  .yo{font-size:29px;color:var(--crema2);font-weight:500}
+  .cta{font-size:36px;line-height:1.15;font-weight:700;margin-top:6px}
+  .wsp{display:flex;align-items:center;gap:16px;margin-top:12px}
+  .wsp .lbl{font-family:'Work Sans',sans-serif;font-weight:800;font-size:22px;letter-spacing:.06em;text-transform:uppercase;background:var(--naranja);color:var(--carbon);padding:8px 14px;border-radius:10px}
+  .wsp .num{font-size:66px;line-height:1;color:var(--brillo)}
+  .web{font-size:28px;font-weight:600;margin-top:10px;letter-spacing:.02em}
+  .web span{color:var(--crema2);font-weight:500}
+  /* vertical 1920: algo más de aire */
+  .alto h1{font-size:100px;margin-top:40px}
+  .alto .medio{margin-top:50px}
+  .alto .gana{margin-top:50px}
+  .alto .tel{flex-basis:320px;height:400px}
+</style>
+</head>
+<body>
+<div class="lienzo">
+  <div class="tag">Gimnasios · Entrenadores · Nutricionistas</div>
+  <h1 class="anton">Tú los entrenas.<br><span class="n">Yo los ayudo<br>con lo que comen.</span></h1>
+
+  <div class="medio">
+    <div class="tel"><img src="../pantallas/1-inicio-calorias-del-dia.png" alt=""></div>
+    <ul>
+      <li><span>App peruana con <b>comida peruana real</b></span></li>
+      <li><span><b>Foto al plato</b> y te da sus calorías</span></li>
+      <li><span><b>Plan personalizado</b> y recordatorios</span></li>
+      <li><span><b>Beast</b>, un compañero con IA que te acompaña</span></li>
+    </ul>
+  </div>
+
+  <div class="gana">
+    <h2 class="anton">Sé mi aliado</h2>
+    <p>Recomiéndala a tus alumnos y <b>gana una comisión</b> por cada uno que se suscriba.</p>
+    <p>Tus alumnos tienen <b>7 días de Premium gratis</b> para probarla.</p>
+  </div>
+
+  <div class="pie">
+    <img src="../../logo-marca.webp" alt="Jonah Beast Fuel">
+    <div>
+      <div class="yo">Soy Jonah, creador de la app.</div>
+      <div class="cta">Escríbeme y te cuento cómo ser aliado</div>
+      <div class="wsp"><span class="lbl">WhatsApp</span><span class="num anton">+51 963 760 819</span></div>
+      <div class="web">jonahbeast.com <span>· JONAH BEAST FUEL</span></div>
+    </div>
+  </div>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('h') === '1920') document.body.classList.add('alto');
+</script>
+</body>
+</html>

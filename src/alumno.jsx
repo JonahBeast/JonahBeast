@@ -12260,8 +12260,47 @@ const PLATOS_PRIMERA_COMIDA = {
   ],
 };
 
-function PrimeraComidaModal({ kcalMeta, onElegir, onFoto, onOtro, onCerrar }) {
+// "🌙 Lo anoto en la noche" (antes "Ahora no": de 18 que veían esta
+// pantalla, 8 lo tocaban y casi nadie volvía a anotar): queda el
+// compromiso de anotar en la noche. Si puede recibir avisos y no los
+// tiene, se le ofrece que el aviso de la noche se lo recuerde. Esa noche
+// (desde las 7pm) esta pantalla vuelve a salir sola: "¡Hora de anotar tu día!".
+function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onOtro, onNoche, onCerrar }) {
   const meal = comidaDeAhora();
+  const [paso, setPaso] = useState('elegir'); // elegir | noche
+  const [activando, setActivando] = useState(false);
+  async function lo_anoto_en_la_noche() {
+    let estado = 'nosoportado';
+    try { estado = equipoDelAlumno().navegadorInterno ? 'nosoportado' : await estadoPushEquipo(); } catch {}
+    if (estado === 'disponible') setPaso('noche');
+    else onNoche(false);
+  }
+  async function activarRecordatorio() {
+    setActivando(true);
+    let final = 'disponible';
+    try { final = await activarPushAlumno(username); } catch {}
+    setActivando(false);
+    onNoche(final === 'activo');
+  }
+  if (paso === 'noche') {
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+        <style>{ESTILOS_COMIDAS}</style>
+        <div className="jbm-fondo absolute inset-0 bg-black/75" />
+        <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 text-center"
+          style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+          <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-5" />
+          <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-2xl mx-auto mb-3">🌙</div>
+          <h3 className="jb-display text-xl text-zinc-50 mb-1">¡QUEDAMOS EN LA NOCHE!</h3>
+          <p className="jb-body text-sm text-zinc-300 mb-5 max-w-xs mx-auto">¿Te mando un aviso en la noche para que no se te pase? Anotas tu día en un minuto.</p>
+          <button onClick={activarRecordatorio} disabled={activando} className={btnPrimary + ' w-full py-3 mb-2'}>
+            {activando ? <Loader2 className="animate-spin" size={16} /> : '🔔 Sí, recuérdamelo'}
+          </button>
+          <button onClick={() => onNoche(false)} disabled={activando} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">No hace falta, yo me acuerdo</button>
+        </div>
+      </div>
+    );
+  }
   const platos = (PLATOS_PRIMERA_COMIDA[meal] || []).map(([key, emoji]) => {
     const food = buscarFood(key);
     if (!food) return null;
@@ -12278,7 +12317,8 @@ function PrimeraComidaModal({ kcalMeta, onElegir, onFoto, onOtro, onCerrar }) {
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <div className="text-center mb-4">
-          <h3 className="jb-display text-2xl text-zinc-50 leading-none">¡TU PLAN ESTÁ LISTO!</h3>
+          <h3 className="jb-display text-2xl text-zinc-50 leading-none">{deNoche ? '¡HORA DE ANOTAR TU DÍA! 🌙' : '¡TU PLAN ESTÁ LISTO!'}</h3>
+          {deNoche && <p className="jb-body text-sm text-zinc-400 mt-1.5">Como quedamos: anota lo que comiste hoy. Empieza por una comida.</p>}
           {kcalMeta > 0 && (
             <p className="jb-body text-sm text-zinc-300 mt-2">
               Te tocan <span className="jb-display text-lg text-orange-500">{Math.round(kcalMeta).toLocaleString('es-PE')} kcal</span> al día
@@ -12305,7 +12345,9 @@ function PrimeraComidaModal({ kcalMeta, onElegir, onFoto, onOtro, onCerrar }) {
         <button onClick={() => onOtro(meal)} className={btnGhost + ' w-full py-3 mb-2'}>
           Buscar otro plato
         </button>
-        <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Ahora no</button>
+        {deNoche
+          ? <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Ahora no</button>
+          : <button onClick={lo_anoto_en_la_noche} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 py-2 w-full">🌙 Lo anoto en la noche</button>}
       </div>
     </div>
   );
@@ -12809,8 +12851,16 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // guarda hasta el día siguiente.
   const [nuncaRegistro, setNuncaRegistro] = useState(null); // null = aún no se sabe
   const nuncaAlAbrir = useRef(null); // lo que dijo la base al abrir (no cambia al empezar a registrar)
+  // "Ahora no" la guarda hasta mañana; "Lo anoto en la noche" solo hasta
+  // las 7pm de hoy (ahí vuelve como "¡Hora de anotar tu día!").
   const [primeraDescartada, setPrimeraDescartada] = useState(() => {
-    try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
+    try {
+      const v = localStorage.getItem('jb_primera_comida_no_' + username);
+      return v === todayISO() || (v === todayISO() + '-noche' && new Date().getHours() < 19);
+    } catch { return false; }
+  });
+  const [primeraDeNoche] = useState(() => {
+    try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO() + '-noche' && new Date().getHours() >= 19; } catch { return false; }
   });
   useEffect(() => {
     let vivo = true;
@@ -12838,9 +12888,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setRegistrarAl(null); setTab('meal'); window.scrollTo({ top: 0 });
   }
   function descartarPrimeraComida() {
-    registrarPasoPago('primera_comida', username, 'ahora_no');
+    registrarPasoPago('primera_comida', username, primeraDeNoche ? 'noche_ahora_no' : 'ahora_no');
     try { localStorage.setItem('jb_primera_comida_no_' + username, todayISO()); } catch {}
     setPrimeraDescartada(true);
+  }
+  function anotarEnLaNoche(conAviso) {
+    registrarPasoPago('primera_comida', username, conAviso ? 'noche_aviso' : 'noche');
+    try { localStorage.setItem('jb_primera_comida_no_' + username, todayISO() + '-noche'); } catch {}
+    setPrimeraDescartada(true);
+    showToast(conAviso ? '🌙 Listo: en la noche te aviso para anotar tu día' : '🌙 Quedamos: en la noche anotas tu día');
   }
 
   // Prioridad de banners: solo se muestra el más relevante a la vez,
@@ -12947,7 +13003,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // (foto, un plato, buscar o "Ahora no"). Se ve en el panel, en el
   // embudo de activación.
   useEffect(() => {
-    if (verPrimeraComida && !verGuia) registrarPasoPago('primera_comida', username, 'vio');
+    if (verPrimeraComida && !verGuia) registrarPasoPago('primera_comida', username, primeraDeNoche ? 'noche_vio' : 'vio');
   }, [verPrimeraComida, verGuia, username]);
   // El plato que fotografió en la prueba de la portada (sin cuenta) pasa
   // a ser su primera comida, si creó la cuenta ese mismo día en este
@@ -13052,7 +13108,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             onPlan={meses => { setVerFinPrueba(false); setPlanDirecto(meses); setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
         )}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
-          <PrimeraComidaModal kcalMeta={metaListaPrimera}
+          <PrimeraComidaModal kcalMeta={metaListaPrimera} deNoche={primeraDeNoche} username={username} onNoche={anotarEnLaNoche}
             onElegir={registrarPrimeraComida}
             onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
             onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal); }}

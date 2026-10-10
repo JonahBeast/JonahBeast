@@ -22,7 +22,7 @@ body{width:2000px;height:1300px;background:radial-gradient(ellipse at 30% 50%,#E
 <div class="cap" id="c1" style="top:662px"></div>
 <div class="panel" style="top:715px"><svg id="d2" width="800" height="500"></svg></div>
 <div class="cap" id="c2" style="top:1227px"></div>
-<div class="hilos" id="hilos"></div><div class="marca">MOCKUP DE REFERENCIA · BORDADO · JONAH BEAST FUEL</div>
+<div class="hilos" id="hilos"></div>
 <script>
 const q=new URLSearchParams(location.search), D=+(q.get('d')||1), polo=q.get('polo')||'carbon';
 const B='../bordado/';
@@ -39,32 +39,35 @@ const mid=[(cuffO[0]+cuffI[0])/2,(cuffO[1]+cuffI[1])/2];
 const sleeveRot=-62.6;
 const pt=(p,k)=>[p[0]+u[0]*k,p[1]+u[1]*k];
 function silueta(){return `M-8.6 0.2 L-23 3.4 L-38 14.5 L-30.5 29 L-26 23.5 L-26.8 71 Q0 72.2 26.8 71 L26 23.5 L30.5 29 L38 14.5 L23 3.4 L8.6 0.2 Q0 2.4 -8.6 0.2 Z`;}
-function bordado(file,cx,top,rot,id){ // file en ../bordado, centrado en cx, borde de arriba en top
+function bordado(file,cx,top,rot,id){ // texto de marca en ../bordado, centrado en cx, borde de arriba en top
   const m=MED[file]; const w=m[0]/10,h=m[1]/10, x=cx-w/2;
   const tr=rot?`transform="rotate(${rot} ${cx} ${top+h/2})"`:'';
   return `<g ${tr}>
    <mask id="mk${id}" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="${x}" y="${top}" width="${w}" height="${h}"><image href="${B+file}-300dpi.png" x="${x}" y="${top}" width="${w}" height="${h}"/></mask>
    <image href="${B+file}-300dpi.png" x="${x}" y="${top}" width="${w}" height="${h}" filter="url(#relieve)"/>
    <rect x="${x}" y="${top}" width="${w}" height="${h}" fill="url(#puntada)" mask="url(#mk${id})" style="mix-blend-mode:soft-light"/>
-   <rect x="${x}" y="${top}" width="${w}" height="${h}" fill="url(#brilloHilo)" mask="url(#mk${id})" style="mix-blend-mode:soft-light"/>
   </g>`;}
-// ---- configuración de cada diseño
+// El logo original, tal cual (sin efectos, sin recortes, proporción intacta 400 x 480)
+const LOGO='../bordado/logo-original-jonah-beast.png';
+function logo(cx,top,alto){const w=alto*400/480;return `<image href="${LOGO}" x="${cx-w/2}" y="${top}" width="${w}" height="${alto}" preserveAspectRatio="xMidYMid meet"/>`;}
+// ---- configuración de cada propuesta
+const txt=polo==='crema'?'crema':'carbon';
 const CFG={
- 1:{nombre:'Clásico minimal',pecho:'d1-pecho-gorila',top:15.5,manga:`d1-manga-texto-polo-${polo==='crema'?'crema':'carbon'}`,
-    mangaDist:4.5,t1:'Pecho izquierdo · gorila',t2:'Manga izquierda · JONAH BEAST FUEL',hilos:['carbon','crema','aji']},
- 2:{nombre:'Escudo de club',pecho:'d2-pecho-escudo',top:15,manga:`d2-manga-llama-polo-${polo==='naranja'?'naranja':'carbon-o-crema'}`,
-    mangaDist:5.5,t1:'Pecho izquierdo · escudo',t2:'Manga izquierda · llama',hilos:['carbon','crema','aji']},
- 3:{nombre:'Logotipo',pecho:`d3-pecho-logotipo-polo-${polo}`,top:18,espalda:`d3-espalda-comida-a-comida-polo-${polo}`,
-    t1:'Pecho izquierdo · logotipo',t2:'Espalda alta · COMIDA A COMIDA',hilos:['carbon','crema','aji']}}[D];
+ 1:{nombre:'Logo en el pecho',alto:7,top:14.5,t1:'Pecho izquierdo · logo original'},
+ 2:{nombre:'Logo + manga',alto:9,top:13.5,manga:`manga-jonah-beast-fuel-polo-${txt}`,mangaDist:4.5,
+    t1:'Pecho izquierdo · logo original',t2:'Manga izquierda · JONAH BEAST FUEL'},
+ 3:{nombre:'Logo + COMIDA A COMIDA',alto:8,top:14,espalda:`espalda-comida-a-comida-polo-${txt}`,
+    t1:'Pecho izquierdo · logo original',t2:'Espalda bajo el cuello · COMIDA A COMIDA'}}[D];
+const mp=[CFG.alto*400/480*10,CFG.alto*10];
 const pechoCX=10;
-const mp=MED[CFG.pecho];
-document.getElementById('tit').innerHTML=`Diseño ${D} · ${CFG.nombre} · <b>polo ${C.nombre}</b>`;
-document.getElementById('sub').textContent='Polo piqué con cuello y botones · bordado · medidas reales en talla L';
+document.getElementById('tit').innerHTML=`Propuesta ${D} · ${CFG.nombre} · <b>polo ${C.nombre}</b>`;
+document.getElementById('sub').textContent='Mockup de referencia · polo piqué con cuello y botones · bordado · talla L';
 document.getElementById('c1').innerHTML=`${CFG.t1} · <span>${fmt(mp[0]/10)} × ${fmt(mp[1]/10)} cm</span>`;
-const sec=CFG.manga||CFG.espalda, ms=MED[sec];
-document.getElementById('c2').innerHTML=`${CFG.t2} · <span>${fmt(ms[0]/10)} × ${fmt(ms[1]/10)} cm</span>`;
+const sec=CFG.manga||CFG.espalda;
+if(sec){const ms=MED[sec];document.getElementById('c2').innerHTML=`${CFG.t2} · <span>${fmt(ms[0]/10)} × ${fmt(ms[1]/10)} cm</span>`;}
+else document.getElementById('c2').innerHTML='Logo original que se entrega al taller · <span>sin cambios</span>';
 const HN={carbon:['#16110D','Carbón'],crema:['#F7F2E7','Crema'],aji:['#E8590C','Naranja ají']};
-document.getElementById('hilos').innerHTML='Hilos:'+CFG.hilos.map(h=>`<span><i style="background:${HN[h][0]}"></i>${HN[h][1]}</span>`).join('');
+document.getElementById('hilos').innerHTML='Logo: colores del logo original'+(sec?' · Texto: '+(polo==='crema'?'carbón':'crema')+(CFG.manga?' + naranja ají':''):'');
 
 function defs(){return `<defs>
  <clipPath id="cp"><path d="${silueta()}"/></clipPath>
@@ -128,7 +131,7 @@ function cuerpo(vista){
 }
 function frente(){
   let s=cuerpo('frente');
-  s+=bordado(CFG.pecho,pechoCX,CFG.top,0,'p');
+  s+=logo(pechoCX,CFG.top,CFG.alto);
   if(CFG.manga){const m=MED[CFG.manga];const c=pt(mid,CFG.mangaDist);s+=bordado(CFG.manga,c[0],c[1]-m[1]/20,sleeveRot,'m');}
   return s;}
 function espalda(){
@@ -139,10 +142,11 @@ function espalda(){
 const F=document.getElementById('frente');
 F.setAttribute('viewBox','-40 -5 80 80');F.innerHTML=defs()+frente();
 const d1=document.getElementById('d1');
-const pcy=CFG.top+mp[1]/20, vw=Math.max(16,mp[0]/10*1.7), vh=vw*500/800;
+const pcy=CFG.top+mp[1]/20, vw=Math.max(16,mp[1]/10*2.3), vh=vw*500/800;
 d1.setAttribute('viewBox',`${pechoCX-vw/2} ${pcy-vh/2} ${vw} ${vh}`);d1.innerHTML=defs()+frente();
 const d2=document.getElementById('d2');
 if(CFG.manga){const c=pt(mid,4.6);const w=19,h=w*500/800;d2.setAttribute('viewBox',`${c[0]-w/2} ${c[1]-h/2} ${w} ${h}`);d2.innerHTML=defs()+`<g transform="rotate(${-sleeveRot} ${c[0]} ${c[1]})">`+frente()+'</g>';}
-else{const w=17,h=w*500/800;d2.setAttribute('viewBox',`${-w/2} ${5.5-h/2} ${w} ${h}`);d2.innerHTML=defs()+espalda();}
+else if(CFG.espalda){const w=17,h=w*500/800;d2.setAttribute('viewBox',`${-w/2} ${5.5-h/2} ${w} ${h}`);d2.innerHTML=defs()+espalda();}
+else{d2.setAttribute('viewBox','0 0 800 500');d2.innerHTML=`<rect width="800" height="500" fill="#E9E1D0"/><image href="${LOGO}" x="${400-200*460/480}" y="20" width="${400*460/480}" height="460"/>`;}
 document.body.dataset.listo=1;
 </script></body></html>

@@ -1,158 +1,86 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8">
 <!-- Colección de polos Jonah Beast Fuel. Uso: arte-coleccion.html?d=1&pieza=espalda&polo=negro
-     1 px CSS = 3 px reales al renderizar con deviceScaleFactor 3  ->  300 dpi (1 cm = 39,37 px CSS) -->
+     1 px CSS = 3 px reales (deviceScaleFactor 3) -> 300 dpi (1 cm = 39,37 px CSS).
+     REGLA: el gorila es SIEMPRE el logo original (public/logo-marca.webp) entero, sin cambios; solo se escala.
+     gorila-x8.png es ese mismo logo agrandado 8 veces (por eso las piezas con gorila son _BORRADOR). -->
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--carbon:#16110D;--aji:#E8590C;--brillo:#FF7020;--crema:#F7F2E7}
+:root{--carbon:#16110D;--aji:#E8590C;--crema:#F7F2E7}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{background:transparent}
 body{font-family:'Work Sans',sans-serif}
-body.negro{--ink:var(--crema);--shirt:var(--carbon)}
-body.crema{--ink:var(--carbon);--shirt:var(--crema)}
-.anton{font-family:'Anton',sans-serif;text-transform:uppercase}
-#pieza{position:relative;display:inline-block}
-svg text{font-family:'Anton',sans-serif}
-/* ---------- Diseño 1: COMIDA A COMIDA (barra de progreso) ---------- */
-.d1e{width:1260px;padding-top:4px}
-.d1e .kick{text-transform:uppercase;text-align:center;font-weight:800;font-size:30px;letter-spacing:.5em;padding-left:.5em;color:var(--aji);white-space:nowrap;margin-bottom:26px}
-.d1e .fila{position:relative;line-height:.86;white-space:nowrap;text-align:center}
-.d1e .fila span{display:inline-block}
-.d1e .fila .f{left:50%;transform:translateX(-50%)}
-.d1e .fila .o{color:transparent;-webkit-text-stroke:5px var(--ink)}
-.d1e .fila .f{position:absolute;top:0;color:var(--aji)}
-.d1e .pie{margin-top:34px;text-align:center}
-.d1e .regla{height:6px;background:var(--aji);margin:0 auto 26px}
-.d1e .p1{text-transform:uppercase;font-weight:800;font-size:40px;letter-spacing:.32em;padding-left:.32em;color:var(--ink);white-space:nowrap}
-.d1f{display:flex;align-items:center;gap:18px;padding:4px}
-.d1f .pill{width:120px;height:64px;border-radius:32px;background:var(--aji);position:relative;flex:none}
-.d1f .pill b{position:absolute;right:7px;top:7px;width:50px;height:50px;border-radius:50%;background:var(--crema)}
-.d1f .t{font-size:62px;line-height:.9;color:var(--ink);white-space:nowrap}
-.d1f .t em{font-style:normal;color:var(--aji)}
-.d1f .s{font-weight:800;font-size:13px;letter-spacing:.36em;color:var(--ink);margin-top:8px;white-space:nowrap}
+body.negro{--ink:var(--crema)} body.crema{--ink:var(--carbon)}
+.anton{font-family:'Anton',sans-serif;text-transform:uppercase;line-height:.9;white-space:nowrap}
+#pieza{position:relative;display:inline-block;vertical-align:top}
+.c{text-align:center}
+.ws{font-weight:800;text-transform:uppercase;white-space:nowrap;display:inline-block}
+.logo{display:block;margin:0 auto}
+/* D1: filas que se llenan */
+.fila{position:relative;text-align:center;line-height:.86}
+.fila span{display:inline-block}
+.fila .o{color:transparent;-webkit-text-stroke:5px var(--ink)}
+.fila .f{position:absolute;top:0;left:50%;transform:translateX(-50%);color:var(--aji)}
+.regla{height:6px;background:var(--aji);margin:0 auto}
 .nuca{display:flex;align-items:center;gap:10px;height:40px;padding:0 3px}
-.nuca span{font-size:30px;color:var(--ink);white-space:nowrap;letter-spacing:.05em;line-height:1}
 .nuca b{width:8px;height:8px;border-radius:50%;background:var(--aji);flex:none}
-/* ---------- Diseño 3: póster ---------- */
-.d3f{width:330px;text-align:center;padding:4px}
-.d3f .l{color:var(--ink);line-height:.92;white-space:nowrap}
-.d3f .l.aji{color:var(--aji)}
-.d3f .mini{font-weight:800;font-size:12px;letter-spacing:.34em;padding-left:.34em;color:var(--ink);margin-top:10px;white-space:nowrap}
+.nuca span{font-size:30px;color:var(--ink);line-height:1}
 </style></head><body>
 <div id="pieza"></div>
 <script>
 const q=new URLSearchParams(location.search);
-const D=q.get('d')||'1', PZ=q.get('pieza')||'espalda', POLO=q.get('polo')||'negro';
+const D=q.get('d')||'1',PZ=q.get('pieza')||'espalda',POLO=q.get('polo')||'negro';
 document.body.className=POLO;
-const C={carbon:'#16110D',aji:'#E8590C',crema:'#F7F2E7'};
-const INK=POLO==='negro'?C.crema:C.carbon, SHIRT=POLO==='negro'?C.carbon:C.crema;
 const R=document.getElementById('pieza');
-const NS='http://www.w3.org/2000/svg';
+const LOGO='../../fuente/gorila-x8.png'; // logo-marca.webp original, entero, agrandado x8
 const fitW=(el,w)=>{const cur=parseFloat(getComputedStyle(el).fontSize);el.style.fontSize=(cur*w/el.getBoundingClientRect().width)+'px';};
-const fitSvg=(t,w)=>{const fs=parseFloat(t.getAttribute('font-size'));t.setAttribute('font-size',fs*w/t.getComputedTextLength());};
-const star=(cx,cy,r,fill)=>{let p='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.42:r;p+=(i?'L':'M')+(cx+rr*Math.cos(a)).toFixed(2)+' '+(cy+rr*Math.sin(a)).toFixed(2);}return `<path d="${p}Z" fill="${fill}"/>`;};
-// texto varsity: contorno exterior (ink) + separación (color del polo) + relleno naranja
-const varsity=(attrs,txt,fs,o1,o2)=>`<text ${attrs} font-size="${fs}" fill="none" stroke="${INK}" stroke-width="${o1}" stroke-linejoin="round">${txt}</text><text ${attrs} font-size="${fs}" fill="none" stroke="${SHIRT}" stroke-width="${o2}" stroke-linejoin="round">${txt}</text><text ${attrs} font-size="${fs}" fill="${C.aji}">${txt}</text>`;
+const logo=(w)=>`<img class="logo" src="${LOGO}" style="width:${w}px;height:${w*480/400}px">`;
+const FRASE='Sigue comiendo peruano. Esta vez, con resultados.';
 
+// ---------- Diseño 1: "COMIDA A COMIDA" como barra que se llena ----------
 function d1espalda(){
-  const filas=7;let h=`<div class="d1e"><div class="kick">Jonah Beast Fuel · Hecho en Perú</div>`;
+  const W=1260,filas=7;let h=`<div style="width:${W}px"><div class="c" style="margin-bottom:26px"><span class="ws" id="k" style="font-size:30px;letter-spacing:.5em;padding-left:.5em;color:var(--aji)">Jonah Beast Fuel</span></div>`;
   for(let i=0;i<filas;i++){const pct=Math.round(100*i/(filas-1));
     h+=`<div class="fila anton"><span class="o">Comida a comida</span><span class="f" style="clip-path:inset(0 ${100-pct}% 0 0)">Comida a comida</span></div>`;}
-  h+=`<div class="pie"><div class="regla"></div><div class="p1">El cambio llega poco a poco</div></div></div>`;
+  h+=`<div class="regla" style="width:${W-8}px;margin-top:34px;margin-bottom:24px"></div><div class="c"><span class="ws" id="u" style="font-size:34px;letter-spacing:.4em;padding-left:.4em;color:var(--ink)">jonahbeast.com</span></div></div>`;
   R.innerHTML=h;
   R.querySelectorAll('.fila').forEach(f=>{const s=f.querySelector('.o');s.style.fontSize='200px';const k=1252/s.getBoundingClientRect().width;f.style.fontSize=(200*k)+'px';s.style.fontSize='';});
-  fitW(R.querySelector('.p1'),1200);
-  R.querySelector('.regla').style.width='1252px';
 }
-function d1frente(){
-  R.innerHTML=`<div class="d1f"><div class="pill"><b></b></div><div><div class="t anton">Beast mode: <em>on</em></div><div class="s">JONAH BEAST FUEL</div></div></div>`;
-  const t=R.querySelector('.t'),s=R.querySelector('.s');fitW(t,236);fitW(s,236);
+function d1frente(){R.innerHTML=logo(256);} // logo chico en el pecho (6,5 cm)
+
+// ---------- Diseño 2: logo grande en la espalda ----------
+function d2espalda(){
+  const W=1220;
+  R.innerHTML=`<div style="width:${W}px" class="c"><div class="anton" id="t" style="font-size:200px;color:var(--ink);display:inline-block">Jonah Beast <span style="color:var(--aji)">Fuel</span></div>
+   <div style="margin:34px 0 26px">${logo(1000)}</div>
+   <span class="ws" id="fr" style="font-weight:700;font-size:30px;letter-spacing:.12em;color:var(--ink)">${FRASE}</span></div>`;
+  fitW(R.querySelector('#t'),W-6);fitW(R.querySelector('#fr'),W-40);
+}
+function d2frente(){
+  R.innerHTML=`<div class="anton" id="t" style="font-size:120px;color:var(--ink);display:inline-block;padding:2px">Jonah Beast <span style="color:var(--aji)">Fuel</span></div>`;
+  fitW(R.querySelector('#t'),866); // 22 cm
+}
+
+// ---------- Diseño 3: logo grande al frente, espalda discreta ----------
+function d3frente(){
+  const W=945;
+  R.innerHTML=`<div style="width:${W}px" class="c">${logo(W)}<div class="anton" id="t" style="font-size:150px;color:var(--ink);display:inline-block;margin-top:30px">Comida a <span style="color:var(--aji)">comida</span></div></div>`;
+  fitW(R.querySelector('#t'),W-6);
+}
+function d3espalda(){
+  const W=787;
+  R.innerHTML=`<div style="width:${W}px" class="c"><div><span class="ws" id="a" style="font-size:40px;letter-spacing:.06em;color:var(--ink)">Sigue comiendo peruano.</span></div>
+   <div style="margin-top:8px"><span class="ws" id="b" style="font-size:40px;letter-spacing:.06em;color:var(--ink)">Esta vez, con resultados.</span></div>
+   <div class="regla" style="width:120px;margin:26px auto 22px"></div>
+   <span class="ws" id="u" style="font-size:30px;letter-spacing:.42em;padding-left:.42em;color:var(--aji)">jonahbeast.com</span></div>`;
+  fitW(R.querySelector('#a'),W-10);fitW(R.querySelector('#b'),W-10);
 }
 function nuca(txt){R.innerHTML=`<div class="nuca"><b></b><span class="anton">${txt}</span><b></b></div>`;fitW(R.querySelector('span'),236);}
 
-function d2espalda(){
-  const W=1181,cx=W/2,cy=575,Ro=330,Ri=242;
-  const svg=`<svg xmlns="${NS}" width="${W}" height="1150" viewBox="0 0 ${W} 1150">
-  <defs><clipPath id="disc"><circle cx="${cx}" cy="${cy}" r="${Ri}"/></clipPath>
-   <path id="arcTop" d="M${cx-372} ${cy} A372 372 0 0 1 ${cx+372} ${cy}"/>
-   <path id="ringTop" d="M${cx-286} ${cy} A286 286 0 0 1 ${cx+286} ${cy}"/>
-   <path id="ringBot" d="M${cx-286} ${cy} A286 286 0 0 0 ${cx+286} ${cy}"/></defs>
-  ${varsity('id="vt" text-anchor="middle"','<textPath href="#arcTop" startOffset="50%">JONAH BEAST</textPath>',196,34,16)}
-  <circle cx="${cx}" cy="${cy}" r="${Ro}" fill="${INK}"/>
-  <circle cx="${cx}" cy="${cy}" r="${Ri+10}" fill="${SHIRT}"/>
-  <circle cx="${cx}" cy="${cy}" r="${Ri}" fill="${C.aji}"/>
-  <g clip-path="url(#disc)"><image href="sello-gorila.png" x="${cx-306}" y="${cy-286}" width="612" height="612"/></g>
-  <text text-anchor="middle" dominant-baseline="central" font-size="58" fill="${SHIRT}" letter-spacing="6"><textPath href="#ringTop" startOffset="50%">COMIDA A COMIDA</textPath></text>
-  ${star(cx-286,cy,26,C.aji)}${star(cx+286,cy,26,C.aji)}
-  <g id="banner"></g>
-  <text id="lima" x="${cx}" y="1128" text-anchor="middle" font-family="Work Sans" font-weight="800" font-size="46" letter-spacing="22" fill="${INK}">LIMA ★ PERÚ</text>
-  </svg>`;
-  R.innerHTML=svg;
-  // cinta (banner) con colas
-  const by=cy+Ro-60,bh=150,bw=1000,bx=cx-bw/2,tail=90,dep=34;
-  const g=R.querySelector('#banner');
-  g.innerHTML=`
-   <path d="M${bx-tail} ${by+dep} L${bx+40} ${by+dep} L${bx+40} ${by+dep+bh} L${bx-tail} ${by+dep+bh} L${bx-tail+44} ${by+dep+bh/2} Z" fill="${C.aji}" stroke="${INK}" stroke-width="10" stroke-linejoin="round"/>
-   <path d="M${bx+bw+tail} ${by+dep} L${bx+bw-40} ${by+dep} L${bx+bw-40} ${by+dep+bh} L${bx+bw+tail} ${by+dep+bh} L${bx+bw+tail-44} ${by+dep+bh/2} Z" fill="${C.aji}" stroke="${INK}" stroke-width="10" stroke-linejoin="round"/>
-   <path d="M${bx} ${by+dep+bh} L${bx+40} ${by+dep+bh+dep} L${bx+40} ${by+dep+bh}Z M${bx+bw} ${by+dep+bh} L${bx+bw-40} ${by+dep+bh+dep} L${bx+bw-40} ${by+dep+bh}Z" fill="${INK}"/>
-   <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="${C.aji}" stroke="${INK}" stroke-width="10"/>
-   <text id="bt" x="${cx}" y="${by+bh/2}" dominant-baseline="central" text-anchor="middle" font-size="104" fill="${C.carbon}" letter-spacing="4">FUEL ATHLETIC DEPT.</text>`;
-  fitSvg(R.querySelector('#bt'),bw-110);
-}
-function d2frente(){
-  const W=945,cx=W/2;
-  R.innerHTML=`<svg xmlns="${NS}" width="${W}" height="356" viewBox="0 0 ${W} 356"><defs><path id="a" d="M${cx-1100} 1290 A1100 1100 0 0 1 ${cx+1100} 1290"/></defs>
-  ${varsity('text-anchor="middle"','<textPath href="#a" startOffset="50%">JONAH BEAST</textPath>',150,26,12)}
-  <text id="ad" x="${cx}" y="300" text-anchor="middle" font-size="76" fill="${INK}" letter-spacing="8">ATHLETIC DEPT.</text>
-  <text x="${cx}" y="346" text-anchor="middle" font-family="Work Sans" font-weight="800" font-size="26" letter-spacing="12" fill="${C.aji}" y2="0">★ LIMA · PERÚ ★</text></svg>`;
-}
-function d2manga(){
-  const W=280,c=W/2;
-  R.innerHTML=`<svg xmlns="${NS}" width="${W}" height="${W}" viewBox="0 0 ${W} ${W}"><defs><clipPath id="d"><circle cx="${c}" cy="${c}" r="96"/></clipPath>
-   <path id="r" d="M${c} ${c+118} A118 118 0 1 1 ${c+0.01} ${c+118}"/></defs>
-   <circle cx="${c}" cy="${c}" r="138" fill="${INK}"/><circle cx="${c}" cy="${c}" r="100" fill="${SHIRT}"/><circle cx="${c}" cy="${c}" r="96" fill="${C.aji}"/>
-   <g clip-path="url(#d)"><image href="sello-gorila.png" x="${c-122}" y="${c-115}" width="244" height="244"/></g>
-   <text id="rt" font-size="31" dominant-baseline="central" fill="${SHIRT}" letter-spacing="3"><textPath href="#r" textLength="735" lengthAdjust="spacing">JONAH BEAST FUEL ★ COMIDA A COMIDA ★</textPath></text></svg>`;
-}
-
-function d3espalda(){
-  const W=1260,H=1700,x0=40,x1=1220,y0=40,yb=1340,y2=1500,cx=630;
-  let rays='';const N=28,ox=cx,oy=1080;
-  for(let i=0;i<N;i+=2){const a1=i*2*Math.PI/N,a2=(i+1)*2*Math.PI/N;rays+=`<path d="M${ox} ${oy} L${ox+2200*Math.cos(a1)} ${oy+2200*Math.sin(a1)} L${ox+2200*Math.cos(a2)} ${oy+2200*Math.sin(a2)}Z"/>`;}
-  const gw=1040,gh=gw*345/400,gx=cx-gw/2,gy=yb-gh;
-  R.innerHTML=`<svg xmlns="${NS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs><clipPath id="win"><rect x="${x0}" y="${y0}" width="${x1-x0}" height="${yb-y0}" rx="26"/></clipPath>
-   <clipPath id="abajo"><rect x="-200" y="-200" width="${W+400}" height="${yb+200}"/></clipPath></defs>
-  <g clip-path="url(#win)"><g fill="${C.aji}" opacity="1">${rays}</g>
-   <circle cx="${ox}" cy="${oy}" r="430" fill="${SHIRT}"/></g>
-  <text id="beast" x="${cx}" y="360" text-anchor="middle" font-size="380" fill="${INK}" stroke="${SHIRT}" stroke-width="18" paint-order="stroke" letter-spacing="10">BEAST</text>
-  <g clip-path="url(#abajo)"><image href="gorila-trazo-medio.png" x="${gx}" y="${gy}" width="${gw}" height="${gh}"/></g>
-  <rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y2-y0}" rx="26" fill="none" stroke="${INK}" stroke-width="14"/>
-  <rect x="${x0}" y="${yb}" width="${x1-x0}" height="${y2-yb}" fill="${C.aji}"/>
-  <path d="M${x0} ${yb+7}H${x1}M${x0} ${y2-7}" stroke="${INK}" stroke-width="14"/>
-  <rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y2-y0}" rx="26" fill="none" stroke="${INK}" stroke-width="14"/>
-  <text id="sc" x="${cx}" y="${(yb+y2)/2+4}" text-anchor="middle" dominant-baseline="central" font-size="110" fill="${C.carbon}" letter-spacing="3">SIGUE COMIENDO PERUANO</text>
-  ${star(x0+60,(yb+y2)/2,22,C.carbon)}${star(x1-60,(yb+y2)/2,22,C.carbon)}
-  <text id="jb" x="${cx}" y="1600" text-anchor="middle" font-family="Work Sans" font-weight="800" font-size="52" letter-spacing="26" fill="${INK}">JONAH BEAST FUEL</text>
-  <text id="lp" x="${cx}" y="1672" text-anchor="middle" font-family="Work Sans" font-weight="800" font-size="30" letter-spacing="18" fill="${C.aji}">LIMA · PERÚ · COMBUSTIBLE PERUANO</text>
-  </svg>`;
-  const bt=R.querySelector('#beast');fitSvg(bt,1040);const bb=bt.getBBox();bt.setAttribute('y',360-(bb.y-80));
-  fitSvg(R.querySelector('#sc'),x1-x0-220);
-  fitSvg(R.querySelector('#jb'),1060);fitSvg(R.querySelector('#lp'),860);
-}
-function d3frente(){
-  R.innerHTML=`<div class="d3f"><svg width="150" height="78" viewBox="0 0 150 78" style="display:block;margin:0 auto 10px">${(()=>{let s='';const N=14;for(let i=0;i<N;i+=2){const a1=Math.PI+i*Math.PI/N,a2=Math.PI+(i+1)*Math.PI/N;s+=`<path d="M75 76 L${75+90*Math.cos(a1)} ${76+90*Math.sin(a1)} L${75+90*Math.cos(a2)} ${76+90*Math.sin(a2)}Z" fill="${C.aji}"/>`;}return s+`<circle cx="75" cy="76" r="30" fill="${SHIRT}"/><circle cx="75" cy="76" r="22" fill="${C.aji}"/>`;})()}</svg>
-   <div class="l anton">Sigue</div><div class="l anton aji">comiendo</div><div class="l anton">peruano</div><div class="mini">JONAH BEAST FUEL</div></div>`;
-  R.querySelector('svg').innerHTML=`<defs><clipPath id="c"><rect x="0" y="0" width="150" height="76"/></clipPath></defs><g clip-path="url(#c)">${R.querySelector('svg').innerHTML}</g>`;
-  R.querySelectorAll('.l').forEach(l=>{l.style.fontSize='60px';fitW(l,320);});
-  fitW(R.querySelector('.mini'),314);
-}
-
-const piezas={'1':{espalda:d1espalda,frente:d1frente,nuca:()=>nuca('COMIDA A COMIDA')},
- '2':{espalda:d2espalda,frente:d2frente,manga:d2manga,nuca:()=>nuca('ATHLETIC DEPT.')},
- '3':{espalda:d3espalda,frente:d3frente,nuca:()=>nuca('SIGUE COMIENDO PERUANO')}};
-document.fonts.load('100px Anton').then(()=>document.fonts.load('800 20px "Work Sans"')).then(()=>document.fonts.ready).then(()=>{
+const piezas={'1':{espalda:d1espalda,frente:d1frente,nuca:()=>nuca('Jonah Beast Fuel')},
+ '2':{espalda:d2espalda,frente:d2frente,nuca:()=>nuca('Comida a comida')},
+ '3':{espalda:d3espalda,frente:d3frente,nuca:()=>nuca('Jonah Beast Fuel')}};
+document.fonts.load('100px Anton').then(()=>document.fonts.load('800 20px "Work Sans"')).then(()=>document.fonts.load('700 20px "Work Sans"')).then(()=>document.fonts.ready).then(()=>{
   piezas[D][PZ]();
-  const imgs=[...R.querySelectorAll('image')];
-  return Promise.all(imgs.map(i=>new Promise(r=>{const im=new Image();im.onload=im.onerror=r;im.src=i.getAttribute('href')})));
+  return Promise.all([...R.querySelectorAll('img')].map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r})));
 }).then(()=>{const b=R.getBoundingClientRect();document.body.dataset.w=Math.ceil(b.width);document.body.dataset.h=Math.ceil(b.height);document.body.dataset.listo=1;});
 </script></body></html>

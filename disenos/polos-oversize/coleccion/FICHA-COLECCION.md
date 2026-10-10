@@ -1,86 +1,77 @@
 # Ficha para la imprenta · Colección de 3 polos oversize Jonah Beast Fuel
 
-Tres diseños nuevos, distintos entre sí y distintos del primer polo ("FUEL" con el gorila de fuego, que sigue en `../imprenta/`).
+**Vista rápida para Jonah:** `mockups/coleccion-resumen.jpg` (los 3 diseños, frente y espalda). Cada diseño tiene su hoja con 4 vistas (polo negro y crema): `mockups/diseno-N-...-mockups-4-vistas.jpg`.
 
-**Vista rápida para Jonah:** `mockups/coleccion-resumen.jpg` (los 3 diseños, frente y espalda, en su color de polo principal). Cada diseño tiene además su hoja con las 4 vistas (negro y crema): `mockups/diseno-N-...-mockups-4-vistas.jpg`.
+## Reglas de esta colección
 
-## Cosas que valen para los 3
+- **El gorila es siempre el logo original** (`public/logo-marca.webp`), entero y sin ningún cambio: no se redibuja, no se recolorea, no se recorta y no lleva efectos. Solo cambia de tamaño y de lugar.
+- **Solo elementos de la marca:** "JONAH BEAST FUEL", "COMIDA A COMIDA", "Sigue comiendo peruano. Esta vez, con resultados.", "jonahbeast.com", los colores carbón, naranja ají y crema, y las letras Anton y Work Sans.
+- Sin cifras de kilos, sin promesas y sin fotos de personas.
 
-- Todos los archivos de `imprenta/` son **PNG con fondo transparente, a 300 dpi y ya al tamaño real** (no hay que agrandarlos ni achicarlos).
-- Cada pieza viene en dos versiones: `-polo-negro` (letras crema) y `-polo-crema` (letras carbón). Hay que usar la del color de polo que se va a imprimir.
-- "HPS" = el punto más alto del hombro, justo donde empieza el cuello. Las medidas son con el polo extendido, talla de referencia **L oversize** (pecho ≈ 62 cm, largo ≈ 74 cm). En S y M se puede reducir la espalda un 10 %; en XL y XXL dejarla igual.
-- **Sin cifras de kilos, sin promesas, sin fotos de personas.** No lleva año ("EST.") porque en el proyecto no hay ningún dato que confirme el año de inicio; si Jonah confirma que fue 2025, se agrega en minutos.
-- Tela sugerida: algodón peinado 20/1 o 24/1, 200-240 g (heavyweight), cuello rib de 2-2,5 cm, hombro caído.
-- Pedir siempre **1 polo de prueba** antes del lote.
+## AVISO: los archivos con "_BORRADOR" no se imprimen todavía
 
-## Colores
+El logo del gorila que tenemos mide solo 400 × 480 píxeles. Para imprimirlo grande hay que agrandarlo mucho y **saldría borroso**. Todos los archivos que llevan el gorila tienen "_BORRADOR" en el nombre. **No se mandan a imprimir hasta tener el logo original en alta** (un PNG de 4.000 px o más, o mejor el vector AI, EPS, SVG o PDF de quien lo diseñó). Cuando llegue, los archivos se vuelven a generar en minutos. Los textos ya están en alta y salen nítidos.
 
-| Color | HEX | Pantone aproximado | Uso |
-|---|---|---|---|
-| Naranja ají | `#E8590C` | 1655 C | Color de acento en los 3 diseños |
-| Crema | `#F7F2E7` | 9224 C | Textos y rellenos en el polo negro |
-| Carbón | `#16110D` | Black 6 C | Textos y líneas en el polo crema; líneas del gorila |
+## Datos que valen para los 3
 
-Los 3 diseños usan **solo estos colores planos** (sin degradados ni brillos), por eso también sirven para serigrafía.
+- Todos son **PNG con fondo transparente, a 300 dpi y ya al tamaño real**. Cada pieza viene en `-polo-negro` (textos crema) y `-polo-crema` (textos carbón).
+- "HPS" = el punto más alto del hombro, donde empieza el cuello. Las medidas son con el polo extendido, en talla **L oversize** (pecho ≈ 62 cm, largo ≈ 74 cm). En S y M se pueden reducir un 10 %.
+- Tela sugerida: algodón peinado 20/1 o 24/1, de 200 a 240 g (heavyweight), con cuello rib de 2 a 2,5 cm y hombro caído.
+- Pedir **1 polo de prueba** antes del lote.
 
-## Sobre el gorila (importante)
+| Color | HEX | Pantone aproximado |
+|---|---|---|
+| Naranja ají | `#E8590C` | 1655 C |
+| Crema | `#F7F2E7` | 9224 C |
+| Carbón | `#16110D` | Black 6 C |
 
-El gorila de los diseños 2 y 3 **no es la imagen original agrandada**: lo redibujé por computadora como un sello de 3 tintas planas (carbón, naranja y crema), con bordes limpios. Por eso **se imprime nítido** al tamaño real y ningún archivo de esta colección es borrador.
-Ojo: como el original es chico (cara de 200 px y cuerpo de 400 px), el redibujo **simplifica algunos detalles finos** (pelo, sombras). Se ve como un estampado de serigrafía y le queda bien a este estilo. Si Jonah consigue el logo original en alta (PNG de 4.000 px o más, o mejor en vector), se vuelve a generar con más detalle (`fuente/sello.py` y `fuente/poster.py`).
+El gorila es una ilustración a todo color (marrón, naranja, amarillo y gris) y se imprime tal cual.
 
----
-
-## Diseño 1 · "COMIDA A COMIDA" (tipográfico, sin gorila)
-
-La frase repetida 7 veces; cada línea se va llenando de naranja como una barra de progreso, hasta quedar llena abajo: el cambio llega poco a poco.
-
-| Pieza | Archivo | Tamaño | Dónde va |
-|---|---|---|---|
-| Espalda | `imprenta/diseno-1-comida-a-comida-espalda-polo-negro.png` / `-crema.png` | 32 × 32,7 cm | Centrada; borde de arriba a 8 cm bajo la costura del cuello de atrás (≈10 cm bajo el HPS). |
-| Frente | `imprenta/diseno-1-comida-a-comida-frente-polo-negro.png` / `-crema.png` | 9,7 × 1,8 cm | Pecho izquierdo de quien lo usa; borde de arriba a 12 cm bajo el HPS, centro de la pieza a 10 cm del centro del polo. Interruptor "BEAST MODE: ON". |
-| Nuca (opcional) | `imprenta/diseno-1-comida-a-comida-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello. |
-
-- **Colores:** 2 tintas (naranja + crema en polo negro; naranja + carbón en polo crema).
-- **Técnica:** **serigrafía** (ideal: 2 colores planos, sale barato en cantidad y muy durable). DTF también sirve para pocas unidades.
-- **Polo recomendado:** **negro** (el principal); crema también funciona.
-- Nota: el contorno de las letras mide ~1,3 mm de grosor y el texto "JONAH BEAST FUEL" del frente ~2 mm de alto; la serigrafía y el DTF lo sacan bien. Si la imprenta dice que es muy fino, avisar y lo engroso.
-
-## Diseño 2 · "ATHLETIC DEPT." (escudo tipo club universitario)
-
-Insignia redonda con la cara del gorila, "JONAH BEAST" en arco con letras varsity (naranja con doble borde), cinta "FUEL ATHLETIC DEPT." y "LIMA ★ PERÚ".
-
-| Pieza | Archivo | Tamaño | Dónde va |
-|---|---|---|---|
-| Espalda | `imprenta/diseno-2-athletic-dept-espalda-polo-negro.png` / `-crema.png` | 30 × 29,3 cm | Centrada; borde de arriba a 8 cm bajo la costura del cuello de atrás. |
-| Frente | `imprenta/diseno-2-athletic-dept-frente-polo-negro.png` / `-crema.png` | 24 × 9,1 cm | Pecho al centro; borde de arriba a 12 cm bajo el HPS. |
-| Parche de manga | `imprenta/diseno-2-athletic-dept-manga-polo-negro.png` / `-crema.png` | 7 × 7 cm (se puede bajar a 6 cm) | Manga izquierda de quien lo usa, centrado en la manga, a unos 8 cm del hombro. |
-| Nuca (opcional) | `imprenta/diseno-2-athletic-dept-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello. |
-
-- **Colores:** 3 tintas (naranja, carbón y crema). En el polo del mismo color, la tinta igual al polo se puede dejar sin imprimir (la imprenta lo sabe hacer: "usar el polo como color").
-- **Técnica:** **serigrafía** para cantidad (3 colores planos) o **DTF** para pocas unidades.
-- **Polo recomendado:** **crema** (look vintage universitario, el principal); el negro también queda muy bien.
-
-## Diseño 3 · "SIGUE COMIENDO PERUANO" (póster vintage)
-
-Póster con rayos de sol, el gorila de medio cuerpo saliendo desde abajo, "BEAST" gigante detrás y la franja "SIGUE COMIENDO PERUANO". Tiene un desgaste vintage (poritos sin tinta) a propósito.
-
-| Pieza | Archivo | Tamaño | Dónde va |
-|---|---|---|---|
-| Espalda | `imprenta/diseno-3-poster-peruano-espalda-polo-negro.png` / `-crema.png` | 32 × 43,3 cm | Centrada; borde de arriba a 7 cm bajo la costura del cuello de atrás (≈9 cm bajo el HPS). |
-| Frente | `imprenta/diseno-3-poster-peruano-frente-polo-negro.png` / `-crema.png` | 8,4 × 7,2 cm | Pecho izquierdo de quien lo usa; borde de arriba a 11 cm bajo el HPS, centro a 10 cm del centro del polo. |
-| Nuca (opcional) | `imprenta/diseno-3-poster-peruano-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello. |
-
-- **Colores:** 3 tintas (naranja, crema y carbón).
-- **Técnica:** **DTF** recomendado (el desgaste tiene puntitos muy finos y el DTF los respeta). En serigrafía se puede, pero pedir malla fina (120-150 hilos/cm) para que no se tapen los poros.
-- **Polo recomendado:** **negro** (el principal, los rayos naranjas resaltan más); el crema da un aire de póster antiguo.
-- El desgaste es intencional: decirle a la imprenta que **no lo "limpie"**.
+**Técnica:** el gorila tiene degradados y fuego, así que las piezas con gorila van en **DTF** (imprime todos los colores de una vez y sirve desde 1 polo). Las piezas que son solo texto (1 o 2 colores planos) se pueden hacer en **serigrafía**, que sale más barata y durable cuando son muchas unidades. En el polo negro, pedir **base blanca** debajo del gorila.
 
 ---
 
-## Cómo se rehacen (por si hay cambios)
+## Diseño 1 · Barra "COMIDA A COMIDA" (logo chico en el pecho)
+
+En la espalda, "COMIDA A COMIDA" se repite 7 veces y cada línea se va llenando de naranja como una barra, hasta quedar llena. Arriba va "JONAH BEAST FUEL" y abajo "jonahbeast.com". En el frente va solo el logo chico en el pecho.
+
+| Pieza | Archivo | Tamaño | Dónde va | Técnica |
+|---|---|---|---|---|
+| Espalda | `imprenta/diseno-1-barra-comida-a-comida-espalda-polo-negro.png` / `-crema.png` | 32 × 32,5 cm | Centrada; borde de arriba a 10 cm bajo el HPS | Serigrafía, 2 colores (naranja + crema o carbón) |
+| Frente | `imprenta/diseno-1-barra-comida-a-comida-frente-polo-negro_BORRADOR.png` / `-crema_BORRADOR.png` | 6,5 × 7,8 cm | Pecho izquierdo de quien lo usa; borde de arriba a 11 cm bajo el HPS, centro a 10 cm del centro del polo | DTF |
+| Nuca (opcional) | `imprenta/diseno-1-barra-comida-a-comida-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello | Serigrafía, 2 colores |
+
+**Polo recomendado:** negro (el principal); el crema también funciona.
+
+## Diseño 2 · Logo grande en la espalda
+
+En la espalda va "JONAH BEAST FUEL" arriba, el gorila grande al centro y la frase completa abajo. En el frente va solo el nombre, en una línea.
+
+| Pieza | Archivo | Tamaño | Dónde va | Técnica |
+|---|---|---|---|---|
+| Espalda | `imprenta/diseno-2-logo-espalda-espalda-polo-negro_BORRADOR.png` / `-crema_BORRADOR.png` | 31 × 37,1 cm | Centrada; borde de arriba a 10 cm bajo el HPS | DTF |
+| Frente | `imprenta/diseno-2-logo-espalda-frente-polo-negro.png` / `-crema.png` | 22 × 3 cm | Pecho al centro; borde de arriba a 12 cm bajo el HPS | Serigrafía, 2 colores |
+| Nuca (opcional) | `imprenta/diseno-2-logo-espalda-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello | Serigrafía, 2 colores |
+
+**Polo recomendado:** negro (el fuego resalta más); el crema también funciona.
+
+## Diseño 3 · Logo grande al frente
+
+En el frente va el gorila grande y centrado con "COMIDA A COMIDA" debajo. En la espalda, arriba y en chico, va la frase completa y "jonahbeast.com".
+
+| Pieza | Archivo | Tamaño | Dónde va | Técnica |
+|---|---|---|---|---|
+| Frente | `imprenta/diseno-3-logo-frente-frente-polo-negro_BORRADOR.png` / `-crema_BORRADOR.png` | 24 × 32,7 cm | Centrado; borde de arriba a 10 cm bajo el HPS | DTF |
+| Espalda | `imprenta/diseno-3-logo-frente-espalda-polo-negro.png` / `-crema.png` | 20 × 5,4 cm | Espalda alta, centrada; borde de arriba a 9 cm bajo el HPS | Serigrafía, 2 colores |
+| Nuca (opcional) | `imprenta/diseno-3-logo-frente-nuca-polo-negro.png` / `-crema.png` | 7 × 1 cm | Por fuera, centrada, 1,5 cm bajo la costura del cuello | Serigrafía, 2 colores |
+
+**Polo recomendado:** crema (el gorila se ve limpio y luminoso); el negro también funciona.
+
+---
+
+## Cómo se rehacen
 
 Todo está en `fuente/`:
-- `arte-coleccion.html`: el arte de las 3 piezas (textos, medidas, colores).
-- `render-coleccion.mjs`: genera los PNG de `imprenta/` (luego `distress.py` le pone el desgaste al diseño 3: espalda con `7 0.8 1`, frente con `7 0.6 0.4`).
+- `arte-coleccion.html`: el arte de las piezas. Usa `../../fuente/gorila-x8.png`, que es el logo original agrandado (sin otro cambio). Cuando llegue el logo en alta, se reemplaza ese archivo.
+- `render-coleccion.mjs`: genera los PNG de `imprenta/`.
 - `mockup.html` y `render-mockups.mjs`: generan los mockups.
-- `sello.py` (cara del gorila) y `poster.py` (gorila de cuerpo entero): redibujan el gorila en tintas planas.

@@ -2846,7 +2846,11 @@ const FILAS_PRIMERA = [
     ['primera_comida', 'foto', 'Tocaron "Tómale foto"'],
     ['primera_comida', 'plato', 'Eligieron un plato con 1 toque'],
     ['primera_comida', 'buscar', 'Tocaron "Buscar otro plato"'],
-    ['primera_comida', 'ahora_no', 'Tocaron "Ahora no"'],
+    ['primera_comida', 'ahora_no', 'Tocaron "Ahora no" (o tocaron afuera)'],
+    ['primera_comida', 'noche', 'Tocaron "Lo anoto en la noche"'],
+    ['primera_comida', 'noche_aviso', '…y activaron el aviso para recordarlo'],
+    ['primera_comida', 'noche_vio', 'En la noche vieron "¡Hora de anotar tu día!"'],
+    ['primera_comida', 'noche_ahora_no', 'En la noche tocaron "Ahora no"'],
     ['primera_comida', 'demo', 'Llegaron con el plato de la prueba'],
   ] },
   { titulo: 'Foto de la comida', filas: [

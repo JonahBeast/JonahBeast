@@ -222,7 +222,7 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 - Debajo, "O toca uno de estos…" con 6 platos comunes de esa comida, cada uno con su porción y calorías.
 - **Un toque en un plato** lo registra en la comida de la hora, lleva a "Comidas" y sale "✅ [plato] registrado en [comida]". La cantidad se ajusta después con − / +.
 - **"Buscar otro plato"** abre la hoja "REGISTRAR" de esa comida.
-- **"Ahora no"** la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
+- Abajo dice **"🌙 Lo anoto en la noche"** (antes era "Ahora no"). Si puede recibir avisos y aún no los activó, le pregunta **"¡QUEDAMOS EN LA NOCHE!"** "¿Te mando un aviso en la noche para que no se te pase?" con **"🔔 Sí, recuérdamelo"** (activa los avisos) y "No hace falta, yo me acuerdo"; si no, se cierra con "🌙 Quedamos: en la noche anotas tu día". Esa misma noche, desde las 7 pm, al abrir la app la pantalla vuelve a salir como **"¡HORA DE ANOTAR TU DÍA! 🌙"** ("Como quedamos: anota lo que comiste hoy. Empieza por una comida."), con los mismos botones y "Ahora no" (que la cierra hasta el día siguiente). Tocar fuera de la pantalla la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
 
 ---
 

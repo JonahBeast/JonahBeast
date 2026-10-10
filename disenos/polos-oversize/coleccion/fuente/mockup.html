@@ -1,0 +1,83 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1700px;height:1560px;background:radial-gradient(ellipse at 50% 45%,#E4DDCF 0%,#CBC2B2 100%);font-family:'Work Sans',sans-serif;position:relative;overflow:hidden}
+.tit{position:absolute;top:34px;left:60px;font-family:Anton;font-size:54px;color:#16110D;text-transform:uppercase;letter-spacing:.01em}
+.tit b{color:#E8590C;font-weight:400}
+.sub{position:absolute;top:104px;left:62px;font-weight:700;font-size:20px;letter-spacing:.2em;color:#5b5045;text-transform:uppercase}
+.marca{position:absolute;bottom:30px;right:60px;font-weight:800;font-size:18px;letter-spacing:.3em;color:#7a6e60}
+svg{position:absolute;left:0;top:0}
+</style></head><body>
+<div class="tit" id="tit"></div><div class="sub" id="sub"></div><div class="marca">MOCKUP DE REFERENCIA · JONAH BEAST FUEL</div>
+<svg id="s" width="1700" height="1560" viewBox="0 0 1700 1560"></svg>
+<script>
+const q=new URLSearchParams(location.search),polo=q.get('polo')||'negro',vista=q.get('vista')||'frente';
+const S=15,CX=850,TOP=230; const X=c=>CX+c*S, Y=c=>TOP+c*S;
+const C=polo==='negro'?{tela:'#1C1814',sombra:'#000',luz:'#4a4038',int:'#0c0a08',rib:'#221d18'}:{tela:'#EFE8D9',sombra:'#6e6252',luz:'#ffffff',int:'#cfc6b4',rib:'#e6dfcf'};
+const P=(pts)=>pts.map((p,i)=>(i?'L':'M')+X(p[0])+' '+Y(p[1])).join(' ');
+// medio cuerpo derecho (cm): HPS(9.5,0) hombro(30,4) manga ext(50.8,16) puño int(39.8,35.05) axila(31,30) bajo(31,74)
+const shirt=`M${X(-9.5)} ${Y(0)} Q${X(0)} ${Y(5)} ${X(9.5)} ${Y(0)} L${X(30)} ${Y(4)} Q${X(41)} ${Y(9)} ${X(50.8)} ${Y(16)} L${X(39.8)} ${Y(35.05)} L${X(31)} ${Y(30)} L${X(31.2)} ${Y(74)} Q${X(0)} ${Y(75)} ${X(-31.2)} ${Y(74)} L${X(-31)} ${Y(30)} L${X(-39.8)} ${Y(35.05)} L${X(-50.8)} ${Y(16)} Q${X(-41)} ${Y(9)} ${X(-30)} ${Y(4)} Z`;
+const dropFront=vista==='frente'?18:5;
+const neckInt=`M${X(-9.5)} ${Y(0)} Q${X(0)} ${Y(5)} ${X(9.5)} ${Y(0)} Q${X(0)} ${Y(dropFront)} ${X(-9.5)} ${Y(0)} Z`;
+const neckCurve=`M${X(-9.5)} ${Y(0)} Q${X(0)} ${Y(dropFront)} ${X(9.5)} ${Y(0)}`;
+const img=(href,cx,top,w,h,rot=0)=>`<image href="${href}" x="${X(cx)-w*S/2}" y="${Y(top)}" width="${w*S}" height="${h*S}" ${rot?`transform="rotate(${rot} ${X(cx)} ${Y(top)+h*S/2})"`:''} preserveAspectRatio="xMidYMid meet" style="mix-blend-mode:${polo==='negro'?'normal':'multiply'}"/>`;
+const A='../imprenta/';
+const d=q.get('d')||'1';
+const NOM={1:'diseno-1-comida-a-comida',2:'diseno-2-athletic-dept',3:'diseno-3-poster-peruano'}[d];
+const TIT={1:'Diseño 1 · Comida a comida',2:'Diseño 2 · Athletic Dept.',3:'Diseño 3 · Póster peruano'}[d];
+const f=pz=>`${A}${NOM}-${pz}-polo-${polo}.png`;
+// medidas reales en cm (ancho, alto) de cada pieza, ubicación según la ficha
+const CFG={
+ 1:{frente:[[f('frente'),10,12,9.7,1.83]],espalda:[[f('nuca'),0,4.2,7,1.0],[f('espalda'),0,10,32,32.7]],
+    sub:['Pecho izquierdo 9,7 cm','Espalda 32 × 32,7 cm · nuca 7 cm']},
+ 2:{frente:[[f('frente'),0,12,24,9.1],[f('manga'),40.3,17.6,6,6.1,30]],espalda:[[f('nuca'),0,4.2,7,1.0],[f('espalda'),0,10,30,29.3]],
+    sub:['Pecho centro 24 cm · parche manga izq. 6 cm','Espalda 30 × 29,3 cm · nuca 7 cm']},
+ 3:{frente:[[f('frente'),10,11,8.4,7.2]],espalda:[[f('nuca'),0,4.2,7,1.0],[f('espalda'),0,9,32,43.3]],
+    sub:['Pecho izquierdo 8,4 cm','Espalda 32 × 43,3 cm · nuca 7 cm']}}[d];
+document.getElementById('tit').innerHTML=`${TIT} · polo <b>${polo}</b> · ${vista}`;
+document.getElementById('sub').textContent=CFG.sub[vista==='frente'?0:1];
+let prints=CFG[vista].map(a=>img(...a)).join('');
+document.getElementById('s').innerHTML=`
+<defs>
+ <clipPath id="cp"><path d="${shirt}"/></clipPath>
+ <filter id="b8"><feGaussianBlur stdDeviation="8"/></filter>
+ <filter id="b20"><feGaussianBlur stdDeviation="22"/></filter>
+ <filter id="tex" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .10 0"/></filter>
+ <filter id="drop" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity=".28"/></filter>
+</defs>
+<path d="${shirt}" fill="${C.tela}" filter="url(#drop)"/>
+<g clip-path="url(#cp)">
+ <!-- pliegues y volumen -->
+ <g opacity="${polo==='negro'?.55:.32}" filter="url(#b20)">
+  <path d="M${X(-31)} ${Y(30)} L${X(-24)} ${Y(74)} L${X(-34)} ${Y(74)}Z" fill="${C.sombra}"/>
+  <path d="M${X(31)} ${Y(30)} L${X(24)} ${Y(74)} L${X(34)} ${Y(74)}Z" fill="${C.sombra}"/>
+  <path d="M${X(-30)} ${Y(4)} L${X(-31)} ${Y(30)} L${X(-27)} ${Y(30)}Z" fill="${C.sombra}"/>
+  <path d="M${X(30)} ${Y(4)} L${X(31)} ${Y(30)} L${X(27)} ${Y(30)}Z" fill="${C.sombra}"/>
+ </g>
+ <g opacity="${polo==='negro'?.22:.35}" filter="url(#b20)">
+  <ellipse cx="${X(-8)}" cy="${Y(30)}" rx="${10*S}" ry="${26*S}" fill="${C.luz}"/>
+  <ellipse cx="${X(-42)}" cy="${Y(18)}" rx="${5*S}" ry="${8*S}" fill="${C.luz}" transform="rotate(30 ${X(-42)} ${Y(18)})"/>
+ </g>
+ <g opacity="${polo==='negro'?.5:.25}" filter="url(#b8)" stroke="${C.sombra}" stroke-width="10" fill="none">
+  <path d="M${X(-20)} ${Y(56)} Q${X(-14)} ${Y(66)} ${X(-17)} ${Y(74)}"/>
+  <path d="M${X(18)} ${Y(60)} Q${X(13)} ${Y(68)} ${X(15)} ${Y(74)}"/>
+  <path d="M${X(-27)} ${Y(33)} Q${X(-22)} ${Y(38)} ${X(-24)} ${Y(46)}"/>
+  <path d="M${X(27)} ${Y(33)} Q${X(22)} ${Y(38)} ${X(24)} ${Y(46)}"/>
+ </g>
+ ${prints}
+ <rect x="0" y="0" width="1700" height="1560" filter="url(#tex)" style="mix-blend-mode:overlay"/>
+ <!-- costuras -->
+ <g stroke="${polo==='negro'?'#3a332c':'#c9bfac'}" stroke-width="2" fill="none" stroke-dasharray="6 5">
+  <path d="M${X(30)} ${Y(4)} Q${X(32)} ${Y(17)} ${X(31)} ${Y(30)}"/><path d="M${X(-30)} ${Y(4)} Q${X(-32)} ${Y(17)} ${X(-31)} ${Y(30)}"/>
+  <path d="M${X(-31.1)} ${Y(71.6)} Q${X(0)} ${Y(72.6)} ${X(31.1)} ${Y(71.6)}"/>
+  <path d="M${X(49)} ${Y(19)} L${X(38.4)} ${Y(37.3)}" transform="translate(${-2.2*S*0.866} ${-2.2*S*0.5})"/>
+  <path d="M${X(-49)} ${Y(19)} L${X(-38.4)} ${Y(37.3)}" transform="translate(${2.2*S*0.866} ${-2.2*S*0.5})"/>
+ </g>
+</g>
+${vista==='frente'?`<path d="${neckInt}" fill="${C.int}"/><path d="M${X(-9.5)} ${Y(0)} Q${X(0)} ${Y(5)} ${X(9.5)} ${Y(0)}" fill="none" stroke="${C.int}" stroke-width="${1.6*S}" style="filter:brightness(1.5)"/>`:''}
+<path d="${neckCurve}" fill="none" stroke="${C.rib}" stroke-width="${2.2*S}" />
+<path d="${neckCurve}" fill="none" stroke="${polo==='negro'?'#3a332c':'#c9bfac'}" stroke-width="2" stroke-dasharray="6 5" transform="translate(0 ${1.4*S})"/>
+`;
+Promise.all([document.fonts.ready,...[...document.querySelectorAll('image')].map(i=>new Promise(r=>{const im=new Image();im.onload=im.onerror=r;im.src=i.getAttribute('href')}))]).then(()=>setTimeout(()=>document.body.dataset.listo=1,300));
+</script></body></html>

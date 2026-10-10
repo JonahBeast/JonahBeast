@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Gratis vs Premium</title>
+<style>
+@font-face{font-family:'Anton';src:url('../aliados/fuentes/Anton-Regular.ttf');font-weight:400}
+@font-face{font-family:'Work Sans';src:url('../aliados/fuentes/WorkSans-Medium.ttf');font-weight:500}
+@font-face{font-family:'Work Sans';src:url('../aliados/fuentes/WorkSans-Bold.ttf');font-weight:700}
+@font-face{font-family:'Work Sans';src:url('../aliados/fuentes/WorkSans-ExtraBold.ttf');font-weight:800}
+:root{--carbon:#16110D;--aji:#E8590C;--brillo:#FF7020;--crema:#F7F2E7;--gris:#A99E8C;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:900px;height:1600px;overflow:hidden}
+body{background:var(--carbon);color:var(--crema);font-family:'Work Sans','Noto Color Emoji',sans-serif;
+  background:radial-gradient(ellipse 85% 32% at 50% 0%, #4a230d 0%, #24150c 45%, var(--carbon) 100%);}
+.e{font-family:'Noto Color Emoji';font-weight:400}
+.wrap{padding:38px 50px 0}
+.marca{font-family:'Anton';font-size:29px;text-align:center;letter-spacing:.3px;line-height:1}
+.marca b{font-weight:400;color:var(--brillo)}
+h1{font-family:'Anton';font-weight:400;font-size:76px;text-align:center;line-height:1;margin-top:14px;letter-spacing:.5px}
+h1 span{color:var(--brillo)}
+.sub{text-align:center;font-size:21px;font-weight:500;color:#E3D6BC;margin-top:12px;letter-spacing:.2px}
+.tabla{margin-top:20px;border:1.5px solid #a2481a;border-radius:18px;overflow:hidden;background:#1d1713}
+.fila{display:grid;grid-template-columns:350px 1fr 246px;align-items:stretch}
+.fila>div{display:flex;align-items:center}
+.cab{height:60px;background:#26201b}
+.cab .g,.cab .p{font-family:'Anton';font-size:24px;justify-content:center;letter-spacing:.3px}
+.cab .p{color:var(--brillo);background:#26201b}
+.fila.r{height:63px}
+.fila.r.dos{height:68px}
+.fila.r:nth-child(odd){background:#1f1915}
+.fila.r:nth-child(even){background:#231c17}
+.fila.r:nth-child(odd) .p{background:#2a1d14}
+.fila.r:nth-child(even) .p{background:#2e2016}
+.f{padding-left:20px;gap:12px;font-weight:700;font-size:19.5px;line-height:1.28}
+.f .e{font-size:24px;width:30px;flex:none;text-align:center}
+.g{justify-content:center;text-align:center;color:var(--gris);font-weight:500;font-size:17.5px;letter-spacing:.3px}
+.g.x{font-size:24px;color:#8A7F6E;font-weight:500}
+.p{justify-content:center;text-align:center;font-weight:800;font-size:16.5px;line-height:1.25;padding:0 10px}
+.p.ok{color:var(--brillo);font-size:26px;font-weight:800}
+/* fila nueva de Beast */
+.fila.nuevo{height:76px;background:linear-gradient(90deg,#3a1f0e 0%,#2a1a10 55%,#2a1a10 100%)!important;box-shadow:inset 4px 0 0 var(--aji)}
+.fila.nuevo .p{background:#3a2112!important}
+.fila.nuevo .g{color:#C9B99C}
+.tag{display:inline-block;font-family:'Anton';font-weight:400;font-size:13px;letter-spacing:1px;color:var(--carbon);background:var(--brillo);border-radius:5px;padding:2px 7px 1px;line-height:1.2;margin-bottom:4px}
+.lbl{display:flex;flex-direction:column;align-items:flex-start}
+.ambas{text-align:center;font-size:18.5px;font-weight:500;line-height:1.5;margin:18px auto 0;max-width:770px;color:#E3D6BC}
+.ambas b{font-weight:800;color:var(--crema)}
+.precios{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:20px}
+.pr{height:128px;border-radius:12px;background:#1e1814;border:1.5px solid #2e2620;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:17px}
+.pr .t{font-family:'Anton';font-size:19px;line-height:1.2;color:#E3D6BC;letter-spacing:.3px}
+.pr .m{font-family:'Anton';font-size:36px;margin-top:7px;line-height:1.15;letter-spacing:.3px}
+.pr .x{font-family:'Anton';font-size:16px;color:#E3D6BC;margin-top:7px;line-height:1.2;letter-spacing:.3px}
+.pr.top{background:#2f1408;border:2px solid var(--aji)}
+.pr.top .x{color:var(--brillo)}
+.cta{display:block;margin:24px auto 0;width:354px;height:78px;border-radius:40px;background:linear-gradient(180deg,#FF7A2E,#E8590C);
+  font-family:'Anton';font-size:33px;text-align:center;line-height:78px;color:var(--crema);letter-spacing:.5px;
+  box-shadow:0 0 34px rgba(255,112,32,.45),0 6px 14px rgba(0,0,0,.4)}
+.pie{text-align:center;font-size:17.5px;font-weight:500;color:#C9B99C;margin-top:16px;letter-spacing:.2px}
+.pie b{font-weight:800;color:#E3D6BC}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="marca">JONAH BEAST <b>FUEL</b></div>
+  <h1>GRATIS VS <span>PREMIUM</span></h1>
+  <p class="sub">Lo que tienes con Premium y la versión gratis no</p>
+
+  <div class="tabla">
+    <div class="fila cab"><div></div><div class="g" style="color:var(--crema)">GRATIS</div><div class="p"><span class="e" style="font-size:24px;margin-right:8px">👑</span>PREMIUM</div></div>
+    <div class="fila r nuevo"><div class="f"><span class="e">🦍</span><div class="lbl"><span class="tag">NUEVO</span><span>Beast, tu compañero con IA</span></div></div><div class="g">3 mensajes al día</div><div class="p">Todo el día, con voz</div></div>
+    <div class="fila r"><div class="f"><span class="e">📸</span>Foto del plato</div><div class="g">3 por semana</div><div class="p">En todas tus comidas</div></div>
+    <div class="fila r"><div class="f"><span class="e">🎙️</span>Registrar por voz</div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">🏷️</span><span>Leer la etiqueta con<br>foto</span></div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r"><div class="f"><span class="e">🍽️</span>Menú del día</div><div class="g">Solo desayuno</div><div class="p">Todas tus comidas</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">🗓️</span><span>Menú semanal y lista<br>de compras</span></div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r"><div class="f"><span class="e">🤔</span>"¿Qué puedo comer?"</div><div class="g">3 por semana</div><div class="p">Siempre</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">🙋</span><span>Pedirle alimentos a<br>Jonah</span></div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">🎯</span><span>Ajustar tu meta a<br>mano</span></div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">📏</span><span>% de grasa y masa<br>muscular</span></div><div class="g">Una sola vez</div><div class="p">Cuando quieras, con historial</div></div>
+    <div class="fila r"><div class="f"><span class="e">📈</span>Tu progreso</div><div class="g">7 días</div><div class="p">Hasta 1 año, con coach</div></div>
+    <div class="fila r"><div class="f"><span class="e">🖼️</span>Fotos de progreso</div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r dos"><div class="f"><span class="e">💬</span><span>Dudas de nutrición<br>por WhatsApp</span></div><div class="g x">✕</div><div class="p ok">✓</div></div>
+    <div class="fila r"><div class="f"><span class="e">🔔</span>Avisos para no fallar</div><div class="g">Algunos</div><div class="p">Todos</div></div>
+  </div>
+
+  <p class="ambas">En las dos: <b>registrar escribiendo, código de barras, tu meta de calorías, peso, racha y comunidad.</b></p>
+
+  <div class="precios">
+    <div class="pr"><div class="t">1 MES</div><div class="m">S/24.90</div></div>
+    <div class="pr"><div class="t">3 MESES</div><div class="m">S/59.90</div><div class="x">S/19.97 AL MES</div></div>
+    <div class="pr top"><div class="t">12 MESES <span class="e" style="font-size:17px">⭐</span> MEJOR PRECIO</div><div class="m">S/179.90</div><div class="x">S/14.99 AL MES</div></div>
+  </div>
+
+  <div class="cta">EMPIEZA GRATIS HOY</div>
+  <p class="pie"><b>Gratis para siempre</b> · 7 días de Premium · Sin tarjeta · jonahbeast.com</p>
+</div>
+</body>
+</html>

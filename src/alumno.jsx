@@ -11509,6 +11509,19 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     return `¡Hola${nombre ? `, ${String(nombre).split(' ')[0]}` : ''}! Soy ${nombreCompa}, ${femenina ? 'la' : 'el'} ${compa} que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué ${qué} hoy y te digo cuántas calorías tiene. ${premium ? 'Háblame o escríbeme' : 'Escríbeme'} 💪`;
   }
 
+  // % de grasa y de masa muscular de hoy (con su peso actual y sus medidas
+  // con cinta), igual que en "Mi cuerpo", para que Beast los use en "¿cómo voy?".
+  function composicionParaBeast(v) {
+    try {
+      const r = calcAll({
+        ...v, edad: Number(v.edad) || 0, estatura: Number(v.estatura) || 1, peso: Number(v.peso) || 0,
+        cuello: Number(v.cuello) || 1, cintura: Number(v.cintura) || 1, cadera: Number(v.cadera) || 1,
+      });
+      if (!r.cinta || !(Number(v.peso) > 0) || !Number.isFinite(r.bf)) return null;
+      return { grasa: Math.round(r.bf * 10) / 10, musculo: Math.round(r.muscleKg / Number(v.peso) * 1000) / 10 };
+    } catch { return null; }
+  }
+
   function hoyParaBeast() {
     const mp = mealPlanRef.current;
     const t = totalesDePlan(mp);
@@ -11520,6 +11533,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       agua: mp.agua || 0, metaAgua: metaAgua(formRef.current.peso),
       alimentos: Object.values(mp.meals || {}).reduce((n, l) => n + (l || []).filter(e => e.foodKey).length, 0),
       comidas,
+      composicion: composicionParaBeast(formRef.current),
     };
   }
 

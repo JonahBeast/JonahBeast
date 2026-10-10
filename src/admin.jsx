@@ -5837,6 +5837,7 @@ function AdminNotifButton() {
 // Open Food Facts o de la etiqueta que leyó la IA; aquí Jonah revisa los
 // más recientes y corrige los números si alguno se leyó mal. El nombre no
 // se cambia: los alumnos que ya lo registraron lo tienen guardado así.
+// "🗑️ Quitar" borra repetidos (avisa si no tiene otro igual).
 const FUENTES_PRODUCTO = { open_food_facts: 'Open Food Facts', etiqueta: 'Etiqueta (IA)', admin: 'Admin' };
 
 function ProductosPanel() {
@@ -5845,6 +5846,7 @@ function ProductosPanel() {
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState(null); // { codigo, kcal, proteina, carbos, grasa, fibra, porcion_g }
   const [error, setError] = useState('');
+  const [quitando, setQuitando] = useState(null); // código del producto que pide confirmar "Quitar"
 
   useEffect(() => { cargar(); }, []);
 
@@ -5871,6 +5873,15 @@ function ProductosPanel() {
     setEditando(null);
   }
 
+  // "🗑️ Quitar": para repetidos o productos mal leídos. Pide confirmar.
+  async function quitar(codigo) {
+    setError('');
+    const { error: err } = await supabase.from('productos').delete().eq('codigo', codigo);
+    if (err) { setError('No se pudo quitar: ' + err.message); return; }
+    setFilas(fs => fs.filter(f => f.codigo !== codigo));
+    setQuitando(null);
+  }
+
   const deEtiqueta = filas.filter(f => f.fuente === 'etiqueta').length;
 
   return (
@@ -5892,6 +5903,9 @@ function ProductosPanel() {
                 const kcalMacros = Math.round(4 * Number(f.proteina) + 4 * Number(f.carbos) + 9 * Number(f.grasa));
                 const raro = Number(f.kcal) > 0 && Math.abs(kcalMacros - Number(f.kcal)) > Math.max(30, Number(f.kcal) * 0.2);
                 const enEdicion = editando?.codigo === f.codigo;
+                // Otro producto con el mismo nombre y marca: es un repetido y
+                // los alumnos lo siguen viendo por el otro.
+                const repetido = filas.some(o => o.codigo !== f.codigo && o.nombre === f.nombre && (o.marca || '') === (f.marca || ''));
                 return (
                   <div key={f.codigo} className={`bg-zinc-950 border rounded-lg p-3 ${raro ? 'border-amber-700/60' : 'border-zinc-800'}`}>
                     <div className="flex items-start justify-between gap-3">
@@ -5905,11 +5919,33 @@ function ProductosPanel() {
                         </p>
                         {raro && <p className="jb-body text-[11px] text-amber-400 mt-0.5">Ojo: con esos macros saldrían ~{kcalMacros} kcal. Revisa los números.</p>}
                       </div>
-                      {!enEdicion && (
-                        <button onClick={() => { setError(''); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
+                      {!enEdicion && quitando !== f.codigo && (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                        <button onClick={() => { setError(''); setQuitando(null); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
                           className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Corregir</button>
+                        <button onClick={() => { setError(''); setEditando(null); setQuitando(f.codigo); }}
+                          className="jb-body text-[11px] text-zinc-500 hover:text-red-400 py-1">🗑️ Quitar</button>
+                        </div>
                       )}
                     </div>
+                    {repetido && <p className="jb-body text-[11px] text-amber-400 mt-1">Repetido: hay otro "{f.nombre}"{f.marca ? ` de ${f.marca}` : ''} en la lista.{/^99\d{12}$/.test(f.codigo) ? ' Este no tiene código de barras (se leyó desde la foto de comida): es el que conviene quitar.' : ''}</p>}
+                    {quitando === f.codigo && (
+                      <div className="mt-3 bg-red-950/30 border border-red-900/50 rounded-lg p-3">
+                        <p className="jb-body text-xs text-zinc-200 mb-1">¿Quitar "{f.nombre}" ({f.codigo})?</p>
+                        <p className="jb-body text-[11px] text-zinc-400 mb-2">
+                          {repetido
+                            ? 'Es un repetido: los alumnos lo siguen viendo por el otro, con su mismo nombre.'
+                            : Number(f.veces_usado) > 0
+                              ? 'Ojo: no tiene repetido. Quien ya lo registró podría dejar de ver sus calorías en esos días, y nadie lo encontrará al escanearlo.'
+                              : 'Nadie lo ha usado todavía.'}
+                        </p>
+                        {error && <p className="jb-body text-xs text-red-400 mb-2">{error}</p>}
+                        <div className="flex gap-2">
+                          <button onClick={() => quitar(f.codigo)} className="jb-body text-sm py-1.5 flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-zinc-50 font-semibold">Sí, quitar</button>
+                          <button onClick={() => setQuitando(null)} className={btnGhost + ' text-sm py-1.5'}>Cancelar</button>
+                        </div>
+                      </div>
+                    )}
                     {enEdicion && (
                       <div className="mt-3 flex flex-col gap-2">
                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">

@@ -8305,6 +8305,10 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
   const [cantidad, setCantidad] = useState(1);
   const [mensaje, setMensaje] = useState('');
   const [guardando, setGuardando] = useState(false);
+  // "📦 ¿Tiene código de barras?": el producto se guardó desde la foto de
+  // comida (código interno 99…) y ahora se escanea su código para unirlo.
+  const [uniendo, setUniendo] = useState(false);
+  const sinCodigoReal = /^99\d{12}$/.test(String(producto?.codigo || ''));
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -8381,6 +8385,7 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
 
   function mostrarProducto(p) {
     setProducto(p);
+    setMensaje('');
     const conPorcion = Number(p.porcion_g) > 0;
     setUnidad(conPorcion ? 'porción' : 'gramos');
     setCantidad(conPorcion ? 1 : 100);
@@ -8388,6 +8393,7 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
   }
 
   async function buscar(valor) {
+    if (uniendo) return unir(valor);
     setCodigo(valor);
     setEstado('buscando');
     try {
@@ -8396,6 +8402,22 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
       else { setMensaje(r.error || ''); setEstado('no_encontrado'); }
     } catch (e) { setMensaje(e.message); setEstado('error'); }
   }
+
+  async function unir(valor) {
+    setEstado('buscando');
+    try {
+      const r = await llamarProductos({ accion: 'unir_codigo', codigo: valor, producto: { codigo: producto.codigo } });
+      if (r.error || !r.producto) throw new Error(r.error || 'No se pudo unir el código.');
+      setUniendo(false);
+      mostrarProducto(r.producto);
+      showToast(r.yaExistia ? '📦 Ese código ya estaba registrado: usamos ese' : '✅ Código unido: quien lo escanee lo encuentra al toque');
+    } catch (err) {
+      setUniendo(false);
+      setMensaje(err.message);
+      setEstado('producto');
+    }
+  }
+  const volverSinUnir = () => { apagarCamara(); setUniendo(false); setMensaje(''); setEstado('producto'); };
 
   // Plan B cuando la cámara en vivo no lee: una foto normal del código.
   async function fotoCodigo(e) {
@@ -8556,7 +8578,9 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
                 </div>
               )}
             </div>
-            <p className="jb-body text-sm text-zinc-300 text-center mb-3">Apunta al código de barras del producto. Se lee solo.</p>
+            <p className="jb-body text-sm text-zinc-300 text-center mb-3">
+              {uniendo ? <>Apunta al código de barras de <span className="text-orange-400 font-semibold">{producto?.nombre}</span> para unirlo. Se lee solo.</> : 'Apunta al código de barras del producto. Se lee solo.'}
+            </p>
             {tardando && (
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-3 jb-body text-xs text-zinc-400">
                 <p className="text-zinc-200 font-semibold mb-0.5">¿No lo lee?</p>
@@ -8565,7 +8589,9 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
             )}
             {botonFotoCodigo(tardando)}
             {galeriaCodigo}
-            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
+            {uniendo
+              ? <button onClick={volverSinUnir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Volver sin unir</button>
+              : <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>}
           </div>
         )}
 
@@ -8576,7 +8602,9 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
             {botonFotoCodigo(true)}
             {galeriaCodigo}
             <button onClick={() => { setMensaje(''); setEstado('camara'); }} className={btnGhost + ' w-full py-2.5 text-sm mt-2'}>Volver a la cámara en vivo</button>
-            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
+            {uniendo
+              ? <button onClick={volverSinUnir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Volver sin unir</button>
+              : <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>}
           </div>
         )}
 
@@ -8636,6 +8664,14 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
               <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(macros.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
             </div>
             <button onClick={agregar} disabled={!gramos} className={btnPrimary + ' w-full py-3'}>Agregar a {meal.toLowerCase()}</button>
+            {sinCodigoReal && (
+              <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-center">
+                {mensaje && <p className="jb-body text-xs text-amber-400 mb-1">{mensaje}</p>}
+                <button type="button" onClick={() => { setMensaje(''); setUniendo(true); setEstado('camara'); }}
+                  className="jb-body text-sm text-orange-400 font-semibold hover:text-orange-300">📦 ¿Tiene código de barras? Escanéalo</button>
+                <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Opcional: así quien lo escanee lo encuentra al toque.</p>
+              </div>
+            )}
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">Datos de la etiqueta del producto.</p>
           </div>
         )}

@@ -150,6 +150,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: MODELO_FOTOS, usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
+    if (accion === "unir_codigo") return json(await unirCodigo(supabase, codigo, producto?.codigo));
     if (accion === "transcribir_voz") {
       if (!premium && !sinLimite) return json({ error: "premium", funcion: "voz" }, 200);
       if (typeof audioBase64 !== "string" || !audioBase64) return json({ error: "Falta el audio." }, 400);
@@ -619,6 +620,38 @@ async function nombreUnico(supabase: any, codigo: string, nombre: string, marca:
   return data && data.length ? `${nombre.slice(0, 72)} · ${codigo.slice(-4)}` : nombre;
 }
 
+// Productos guardados desde la foto de comida, sin código de barras.
+const CODIGO_INTERNO = /^99[0-9]{12}$/;
+
+async function productoSinCodigo(supabase: any, nombre: string, marca: string | null) {
+  const literal = (t: string) => t.replace(/[\\%_]/g, "\\$&");
+  let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").like("codigo", "99%")
+    .ilike("nombre", literal(nombre)).limit(5);
+  q = marca ? q.ilike("marca", literal(marca)) : q.is("marca", null);
+  const { data } = await q;
+  return (data || []).find((r: any) => CODIGO_INTERNO.test(r.codigo)) || null;
+}
+
+// "📦 ¿Tiene código de barras?": le pone el código real a un producto que
+// se guardó desde la foto de comida. Si ese código ya era de otro
+// producto, se usa ese (ya estaba registrado).
+async function unirCodigo(supabase: any, codigo: unknown, desde: unknown) {
+  const cod = String(codigo || "").replace(/\D/g, "");
+  const interno = String(desde || "");
+  if (!CODIGO_VALIDO.test(cod) || CODIGO_INTERNO.test(cod)) return { error: "Ese código no parece válido." };
+  if (!CODIGO_INTERNO.test(interno)) return { error: "Este producto ya tiene su código." };
+  const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
+  if (existe) return { producto: existe, yaExistia: true };
+  const { data, error } = await supabase.from("productos")
+    .update({ codigo: cod, actualizado_en: new Date().toISOString() })
+    .eq("codigo", interno).eq("fuente", "etiqueta").select("*").maybeSingle();
+  if (error || !data) {
+    console.error("No se pudo unir el código:", error?.message);
+    return { error: "No se pudo unir el código. Intenta de nuevo." };
+  }
+  return { producto: data };
+}
+
 async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
   let cod = String(codigo || "").replace(/\D/g, "");
   const p = productoLimpio(producto);
@@ -633,12 +666,25 @@ async function guardarProducto(supabase: any, codigo: unknown, producto: unknown
     let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").ilike("nombre", literal(p.nombre)).limit(1);
     q = p.marca ? q.ilike("marca", literal(p.marca)) : q.is("marca", null);
     const { data: igual } = await q;
-    if (igual && igual.length) return { producto: igual[0] };
+    if (igual && igual.length) return { producto: igual[0] }; // ya estaba (con código real o interno)
     cod = "99" + String(Date.now()).slice(-10) + String(Math.floor(Math.random() * 100)).padStart(2, "0");
   }
   if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
   const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
   if (existe) return { producto: existe }; // otro alumno lo guardó antes: se usa ese
+  // Ya se había guardado desde la foto de comida (código interno 99…) con
+  // el mismo nombre y marca: se le pone el código real a ese mismo
+  // producto, con lo recién leído, en vez de crear uno repetido.
+  if (!CODIGO_INTERNO.test(cod)) {
+    const sinCodigo = await productoSinCodigo(supabase, p.nombre, p.marca);
+    if (sinCodigo) {
+      const { data: unido, error: errUnir } = await supabase.from("productos")
+        .update({ codigo: cod, ...p, nombre: sinCodigo.nombre, actualizado_en: new Date().toISOString() })
+        .eq("codigo", sinCodigo.codigo).select("*").single();
+      if (!errUnir && unido) return { producto: unido };
+      console.error("No se pudo unir el código:", errUnir?.message);
+    }
+  }
   const fila = { codigo: cod, ...p, nombre: await nombreUnico(supabase, cod, p.nombre, p.marca), fuente: "etiqueta", creado_por: username, veces_usado: 1 };
   const { data, error } = await supabase.from("productos").insert(fila).select("*").single();
   if (error) {

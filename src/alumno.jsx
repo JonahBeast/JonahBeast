@@ -839,6 +839,24 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   const [aviso, setAviso] = useState('');
   const [texto, setTexto] = useState('');
   const [items, setItems] = useState([]); // { textoOriginal, cantidad, food, activo }
+  // Lo dictado nunca se pierde (a Doris le pasaba: dictaba, no llegaba a
+  // tocar "Agregar" y no quedaba nada). Si cierra la hoja o vuelve a grabar
+  // con alimentos en pantalla, se agregan solos; los que tienen dudas van
+  // con la primera opción (la más probable).
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const botonAgregarRef = useRef(null);
+  const listos = lista => lista
+    .filter(it => !it.buscar && (it.activo || it.necesitaAclarar))
+    .map(it => (it.necesitaAclarar && it.opciones?.length ? { ...it, food: it.opciones[0], necesitaAclarar: false } : it))
+    .filter(it => it.food);
+  function agregarPendientes(motivo) {
+    const pendientes = listos(itemsRef.current);
+    if (!pendientes.length) return;
+    itemsRef.current = [];
+    onElegirVarios(pendientes);
+    if (motivo === 'cerrar') showToast(`✅ Agregué lo que dictaste: ${pendientes.map(it => it.food.name).join(', ')}. Si algo no es, cámbialo en Comidas.`);
+  }
   const grabador = useRef(null);
   const partes = useRef([]);
   const reloj = useRef(null);
@@ -848,7 +866,9 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   const soportado = puedeGrabar || dictado;
 
   // Si se cierra mientras graba, el audio se descarta (no se manda a la IA).
+  // Si ya había alimentos dictados sin agregar, se agregan.
   useEffect(() => () => {
+    try { agregarPendientes('cerrar'); } catch {}
     clearInterval(reloj.current);
     descartar.current = true;
     pararSilencio();
@@ -859,6 +879,11 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   // persona toque el micrófono.
   useEffect(() => { if (autoGrabar && puedeGrabar) empezar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Al salir lo dictado, el botón "Agregar" queda a la vista (antes podía
+  // quedar abajo, fuera de la pantalla).
+  useEffect(() => {
+    if (items.length) setTimeout(() => { try { botonAgregarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {} }, 150);
+  }, [items.length]);
   function interpretar(dicho) {
     setTexto(dicho);
     const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia }));
@@ -867,6 +892,8 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   }
 
   async function empezar() {
+    // Vuelve a grabar con lo anterior sin agregar: se agrega primero.
+    agregarPendientes('otra');
     setAviso(''); setItems([]); setTexto('');
     if (!puedeGrabar) return dictar();
     let stream;
@@ -1003,8 +1030,9 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   }
 
   function agregarSeleccionados() {
-    if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
-    const activos = items.filter(it => it.activo && !it.buscar);
+    // Lo que tiene dudas va con la primera opción (la más probable).
+    const activos = listos(items);
+    itemsRef.current = []; // ya se agregan aquí: que al cerrar no se agreguen otra vez
     // Lo que ya se pidió a Jonah no se vuelve a buscar (llega con el aviso).
     const porBuscar = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).map(it => it.textoBuscar || it.textoOriginal);
     if (!activos.length && !porBuscar.length) return;
@@ -1126,10 +1154,8 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
             )
           ))}
           {(() => {
-            if (items.some(it => it.necesitaAclarar)) {
-              return <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba, o toca "No está en la lista: pedirlo"</p>;
-            }
-            const n = items.filter(it => it.activo && !it.buscar).length;
+            const dudas = items.filter(it => it.necesitaAclarar).length;
+            const n = listos(items).length;
             const b = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).length;
             if (!n && !b) {
               return items.some(it => it.pedido?.estado === 'enviando') ? null : (
@@ -1137,9 +1163,13 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
               );
             }
             return (
-              <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-                {n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
-              </button>
+              <>
+                {dudas > 0 && <p className="jb-body text-[11px] text-orange-300 text-center">☝️ Si no es lo que dijiste, toca la opción correcta. Si no tocas nada, agrego la primera.</p>}
+                <button ref={botonAgregarRef} onClick={agregarSeleccionados}
+                  className={btnPrimary + ' mt-1 py-3.5 text-base w-full shadow-[0_0_24px_rgba(232,89,12,.35)]'}>
+                  {n && b ? `✅ Agregar ${n} y buscar ${b}` : n ? `✅ Agregar ${n === 1 ? '1 alimento' : `${n} alimentos`}` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
+                </button>
+              </>
             );
           })()}
         </div>

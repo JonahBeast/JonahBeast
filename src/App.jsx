@@ -5915,6 +5915,14 @@ export default function App() {
       // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
       // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
       // (no a la portada); al entrar, lo lleva a registrar su comida.
+      // Viene de la ventana "Ábrela en Chrome" (navegador de Instagram,
+      // Facebook o TikTok): se anota para pedirle activar los avisos apenas
+      // entre a su cuenta (src/alumno.jsx, LlegasteAlNavegadorModal) y va
+      // directo a entrar con su correo.
+      if (params.get('desde') === 'app') {
+        try { localStorage.setItem('jb-desde-app', String(Date.now())); } catch {}
+        return 'studentAuth';
+      }
       return params.get('registrar') ? 'studentAuth' : 'landing';
     } catch { return 'landing'; }
   });

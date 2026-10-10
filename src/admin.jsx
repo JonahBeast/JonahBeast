@@ -2860,6 +2860,9 @@ const FILAS_PRIMERA = [
     ['abrir_navegador', 'vio', 'Vieron el aviso'],
     ['abrir_navegador', 'toco', 'Tocaron "Abrir en…"'],
     ['abrir_navegador', 'seguir', 'Tocaron "Seguir aquí por ahora"'],
+    ['abrir_navegador', 'llego', 'Llegaron a Chrome/Safari y entraron'],
+    ['abrir_navegador', 'aviso_ok', 'Activaron los avisos al llegar'],
+    ['abrir_navegador', 'aviso_no', 'Tocaron "Ahora no" al llegar'],
   ] },
   { titulo: 'Pantalla "¿Seguimos juntos?" (fin de la prueba)', filas: [
     ['fin_prueba', 'vio', 'La vieron'],

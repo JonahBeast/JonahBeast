@@ -4,7 +4,7 @@
 // que quedó en main (docs/manual-app.md, el que viene con esta versión
 // publicada) con el que leen Jarvis y el asistente de WhatsApp (tabla
 // manual_app). Si no son iguales, le avisa al celular de Jonah que toque
-// "🔄 Actualizar manual de Jarvis" en el panel.
+// "🔄 Actualizar manual de Jarvis y Viernes" en el panel.
 //   - Solo en la versión real (production), que es la de main.
 //   - Un aviso apenas sale la versión nueva y, si sigue sin actualizarse,
 //     uno por día (config → manual_jarvis_avisado).
@@ -43,14 +43,14 @@ export default async function handler(req, res) {
     if (!admin?.username) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin admin' });
     setupWebPush();
     const r = await enviarPushA(supabase, [admin.username], {
-      title: '📘 Jarvis tiene el manual desactualizado',
-      body: 'Salió una versión nueva de la app y Jarvis aún lee el manual anterior. Entra al panel → pestaña 📸 IA y toca "🔄 Actualizar manual de Jarvis" (es un toque).',
+      title: '📘 Jarvis y Viernes tienen el manual desactualizado',
+      body: 'Salió una versión nueva de la app y Jarvis y Viernes aún leen el manual anterior. Entra al panel → pestaña 📸 IA y toca "🔄 Actualizar manual de Jarvis y Viernes" (es un toque).',
       url: '/',
     });
     await supabase.from('config').upsert({ key: CLAVE, value: marca });
     return res.status(200).json({ ok: true, enviado: true, enviados: r.enviados || 0, commit });
   } catch (e) {
-    console.error('Error al revisar el manual de Jarvis:', e);
+    console.error('Error al revisar el manual de Jarvis y Viernes:', e);
     return res.status(500).json({ ok: false, error: 'No se pudo revisar el manual' });
   }
 }

@@ -21,12 +21,20 @@
 // Vercel la cortaba a los 300s sin terminar de enviar — así nadie
 // recibía nada. Este cambio soluciona eso de raíz.
 //
+// Los firma Beast (docs/idea-beast.md, "Notificaciones"): al tocarlos se
+// abre su chat con el mensaje y los botones "Anotar en Registrar" y "Foto".
+// La hora es la que eligió el alumno, o la que la app aprendió de cuándo
+// suele anotar esa comida (horaAviso). Con "Beast, háblame menos" solo le
+// llega el del almuerzo. El día 2, si anotó el día 1, el de la mañana es
+// "Como quedamos: ¿qué desayunaste?" (cierre del día 1 en racha-en-riesgo).
+// Los lunes, el de la mañana invita a elegir la meta de la semana.
+//
 // Premium (plan o prueba vigentes) recibe los 3. La VERSIÓN GRATIS (prueba
 // o plan vencidos) recibe solo el del almuerzo, y solo si registró alguna
 // comida en los últimos 14 días: le dice cuántas fotos gratis le quedan
 // esta semana (ver alumnosGratis en api/_lib/push.js).
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, HORAS_AVISOS } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, VENTANAS_AVISOS, hablaMenos, TITULO_BEAST, urlBeast, nombresCompanero, tituloDe } from '../_lib/push.js';
 
 const FOTOS_GRATIS_SEMANA = 3;
 
@@ -38,13 +46,13 @@ function mensajeAlmuerzoGratis(quedan) {
       `¿Ya almorzaste? 🍽️ Tómale foto a tu plato y te digo sus calorías: ${fotos} esta semana 📸`,
       `Hora del almuerzo 🦍 Esta semana ${fotos}. Úsala en tu almuerzo y seguimos sumando 💪`,
     ];
-    return { title: 'Jonah 🦍', body: variantes[Math.floor(Math.random() * variantes.length)] };
+    return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
   }
   const variantes = [
-    '¿Ya almorzaste? 🍽️ Regístralo escribiendo, toma menos de un minuto. Comida a comida se llega 💪',
-    'No olvides registrar tu almuerzo 🦍 Así sigues viendo cómo vas con tu meta.',
+    '¿Ya almorzaste? 🍽️ Anótalo en Registrar, toma menos de un minuto. Comida a comida se llega 💪',
+    'Falta tu almuerzo 🦍 Anótalo y sigues viendo cómo vas con tu meta.',
   ];
-  return { title: 'Jonah 🦍', body: variantes[Math.floor(Math.random() * variantes.length)] };
+  return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
 }
 
 // Momentos del día y su hora por defecto (Perú). Cada alumno puede elegir
@@ -61,45 +69,45 @@ const NOMBRE_COMIDA = {
   'Media tarde': 'tu media tarde', Cena: 'tu cena',
 };
 
-function mensajeJonah(comida, objetivo, horaPeru) {
+const VERBO_COMIDA = { Desayuno: 'desayunaste', Almuerzo: 'almorzaste', Cena: 'cenaste' };
+
+// En la voz de Beast (cercano, sin jerga de barrio: los avisos le llegan a todos). Sin datos privados: se ve en la
+// pantalla bloqueada.
+function mensajeBeast(comida, objetivo, horaPeru) {
   const nombre = NOMBRE_COMIDA[comida] || comida;
+  const verbo = VERBO_COMIDA[comida] || 'comiste';
   const horaAmPm = horaPeru > 12 ? `${horaPeru - 12} pm` : `${horaPeru} ${horaPeru === 12 ? 'pm' : 'am'}`;
   const variantes = [
-    { title: 'Jonah 🦍', body: `¿Todo bien? Aún no veo ${nombre} registrado(a). Cuéntame cómo vas.` },
-    { title: 'Jonah 🦍', body: `No olvides registrar ${nombre} — toma menos de un minuto 💪` },
-    { title: 'Jonah 🦍', body: `Son las ${horaAmPm}, ¿ya comiste? No olvides registrar ${nombre}.` },
-    { title: 'Jonah 🦍', body: `Estoy contigo, acompañándote en tu proceso. Registra ${nombre} y seguimos 🦍` },
-    { title: 'Jonah 🦍', body: `¿Cómo va tu día? Aún no veo ${nombre} — cuéntame qué tal vas.` },
-    { title: 'Jonah 🦍', body: `Jonah siempre está pendiente de ti 🦍 — registra ${nombre} cuando puedas.` },
+    `¿Ya ${verbo}? 🦍 Cuéntame qué fue y lo anotamos al toque.`,
+    `Aún no veo ${nombre}. ¿Qué tal estuvo? Cuéntame 🍽️`,
+    `Son las ${horaAmPm}, ¿qué ${verbo}? Dímelo y lo anotamos 💪`,
+    `¿Cómo va el día? Falta anotar ${nombre}, ¿me cuentas? 🦍`,
+    `Un minutito para ${nombre} y seguimos sumando 🔥 ¿Qué ${verbo}?`,
   ];
-  if (objetivo) {
-    variantes.push({ title: 'Jonah 🦍', body: `Recuerda tu objetivo: ${objetivo}. Registra ${nombre} y sigamos sumando juntos 🦍🔥` });
-  }
-  return variantes[Math.floor(Math.random() * variantes.length)];
+  if (objetivo) variantes.push(`Tu meta: ${String(objetivo).toLowerCase()}. Anotemos ${nombre} y seguimos sumando 🦍`);
+  return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
 }
 
 function mensajeBuenosDias(objetivo, esLunes, diasDeUso) {
   if (diasDeUso && diasDeUso > 0 && diasDeUso % 30 === 0) {
-    return { title: 'Jonah 🦍', body: `¡Hoy cumples ${diasDeUso} días con Jonah Beast Fuel! 🎉 Gracias por tu constancia — vamos por más 🦍🔥` };
+    return { title: TITULO_BEAST, body: `¡Hoy cumples ${diasDeUso} días con Jonah Beast Fuel! 🎉 Eso es constancia de verdad. Vamos por más 🦍🔥` };
   }
   if (esLunes) {
     const variantesLunes = [
-      { title: 'Jonah 🦍', body: 'Buenos días, arrancamos la semana 🦍 Lo que pasó el fin de semana ya quedó atrás — hoy empezamos de nuevo, juntos.' },
-      { title: 'Jonah 🦍', body: 'Nueva semana, nueva oportunidad 🔥 No importa cómo cerró la anterior. Vamos con todo, aquí estoy contigo.' },
-      { title: 'Jonah 🦍', body: 'Lunes de reinicio 🦍 Cada semana es una página en blanco. Empecemos bien, yo te acompaño.' },
+      'Buenos días, arrancamos la semana 🦍 Lo del fin de semana ya fue: ¿qué meta nos ponemos esta semana? Toca y elige.',
+      'Nueva semana 🔥 Elige tu mini meta de la semana (agua, anotar o proteína) y vamos con todo.',
+      'Lunes de reinicio 🦍 ¿Nos ponemos una mini meta para esta semana? Toca y la elegimos juntos.',
     ];
-    return variantesLunes[Math.floor(Math.random() * variantesLunes.length)];
+    return { title: TITULO_BEAST, body: variantesLunes[Math.floor(Math.random() * variantesLunes.length)], lunes: true };
   }
   const variantes = [
-    { title: 'Jonah 🦍', body: '¡Buenos días! Hoy es un gran día para seguir construyendo tu mejor versión. Aquí estoy, contigo 🦍' },
-    { title: 'Jonah 🦍', body: 'Buenos días 🌅 Que este día te traiga fuerza y buenas decisiones. Jonah está contigo.' },
-    { title: 'Jonah 🦍', body: '¡Arriba! 🦍 Un nuevo día para acercarte a tu objetivo. Vamos con todo.' },
-    { title: 'Jonah 🦍', body: 'Buenos días. Hoy también voy a estar pendiente de ti — que sea un gran día 🔥' },
+    '¡Buenos días! 🦍 Hoy es otro día para seguir sumando.',
+    'Buenos días 🌅 Arrancamos con todo, comida a comida.',
+    '¡Arriba! 🦍 Un nuevo día para acercarte a tu meta.',
+    'Buenos días 🔥 Que sea un buen día, aquí estoy contigo.',
   ];
-  if (objetivo) {
-    variantes.push({ title: 'Jonah 🦍', body: `Buenos días. Hoy sigamos trabajando en tu objetivo: ${objetivo} 🦍🔥` });
-  }
-  return variantes[Math.floor(Math.random() * variantes.length)];
+  if (objetivo) variantes.push(`Buenos días 🦍 Hoy seguimos con tu meta: ${String(objetivo).toLowerCase()}.`);
+  return { title: TITULO_BEAST, body: variantes[Math.floor(Math.random() * variantes.length)] };
 }
 
 // Envía TODOS los mensajes de una tanda en paralelo, con una sola
@@ -114,11 +122,12 @@ async function enviarLote(supabase, targets) {
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
   const webpush = (await import('web-push')).default;
+  const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
   for (const { username, mensaje } of targets) {
-    // url: al tocar el aviso, la app se abre directo en el registro de esa
-    // comida (ver leerRegistrarDeUrl en src/App.jsx).
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: mensaje.url || '/' });
+    // url: al tocar el aviso se abre el chat de Beast con ese mensaje
+    // (urlBeast); el título lleva el nombre que el alumno le puso.
+    const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: mensaje.url || '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
@@ -172,7 +181,8 @@ async function targetsGratis(supabase, hoyISO, comida, url, prefs, rutina, horaP
   return pendientes.map(u => {
     const quedan = Math.max(0, FOTOS_GRATIS_SEMANA - (usadas[u] || 0));
     // Si le quedan fotos, al tocar el aviso se abre la cámara directo.
-    return { username: u, mensaje: { ...mensajeAlmuerzoGratis(quedan), url: quedan > 0 ? `${url}&foto=1` : url } };
+    const m = mensajeAlmuerzoGratis(quedan);
+    return { username: u, mensaje: { ...m, url: urlBeast(m.body, { comida, foto: quedan > 0 }) } };
   });
 }
 
@@ -190,12 +200,13 @@ export default async function handler(req, res) {
     if (error) throw error;
     const todos = (alumnos || []).map(a => a.username);
 
-    const rutina = RUTINAS.find(r => HORAS_AVISOS[r.momento].includes(horaPeru));
+    const rutina = RUTINAS.find(r => VENTANAS_AVISOS[r.momento].includes(horaPeru));
     if (!rutina) return res.status(200).json({ ok: true, enviados: 0, motivo: 'fuera de horario de avisos' });
     const { momento, comida, tipo } = rutina;
     // A esta hora: los que tienen este aviso a esta hora (la suya o la de siempre) y no lo apagaron.
     const prefs = await preferenciasAvisos(supabase);
-    const usernames = sinApagados(prefs, todos, 'comidas').filter(u => horaAviso(prefs, u, momento, rutina.defecto) === horaPeru);
+    const usernames = sinApagados(prefs, todos, 'comidas').filter(u => horaAviso(prefs, u, momento, rutina.defecto) === horaPeru
+      && !(momento !== 'mediodia' && hablaMenos(prefs, u)));
 
     const { data: datos } = usernames.length
       ? await supabase.from('datos_alumnos').select('username, meal_plan, meal_plan_fecha, form').in('username', usernames)
@@ -214,15 +225,28 @@ export default async function handler(req, res) {
     if (!pendientes.length) {
       targets = [];
     } else if (tipo === 'buenos_dias') {
-      const { data: fechas } = await supabase.from('alumnos').select('username, fecha_inicio').in('username', pendientes);
+      const [{ data: fechas }, { data: cierres }] = await Promise.all([
+        supabase.from('alumnos').select('username, fecha_inicio').in('username', pendientes),
+        // Anoche Beast le dijo "mañana te pregunto qué desayunaste" (racha-en-riesgo.js).
+        supabase.from('avisos_enviados').select('username').eq('tipo', 'cierre_dia1').eq('fecha', addDaysISO(hoyISO, -1)).in('username', pendientes),
+      ]);
       const inicioDe = {}; (fechas || []).forEach(a => { inicioDe[a.username] = a.fecha_inicio; });
+      const prometido = new Set((cierres || []).map(c => c.username));
       const esLunes = diaSemanaPeru(hoyISO) === 1;
       targets = pendientes.map(u => {
+        if (prometido.has(u)) {
+          const body = '¡Buenos días! 🦍 Como quedamos: ¿qué desayunaste? Cuéntame y lo anotamos.';
+          return { username: u, mensaje: { title: TITULO_BEAST, body, url: urlBeast(body, { comida }) } };
+        }
         const m = mensajeBuenosDias(objetivoDe[u], esLunes, inicioDe[u] ? diasDesde(inicioDe[u], hoyISO) : 0);
-        return { username: u, mensaje: { ...m, body: `${m.body} Empieza registrando tu desayuno 🍳`, url } };
+        const body = m.lunes ? m.body : `${m.body} ¿Qué desayunas hoy? Cuéntame 🍳`;
+        return { username: u, mensaje: { title: m.title, body, url: urlBeast(body, { comida, extra: m.lunes ? '&meta=1' : '' }) } };
       });
     } else {
-      targets = pendientes.map(u => ({ username: u, mensaje: { ...mensajeJonah(comida, objetivoDe[u], horaPeru), url } }));
+      targets = pendientes.map(u => {
+        const m = mensajeBeast(comida, objetivoDe[u], horaPeru);
+        return { username: u, mensaje: { ...m, url: urlBeast(m.body, { comida }) } };
+      });
     }
     // Versión gratis: solo el almuerzo, a quien registró en los últimos 14 días.
     if (tipo === 'almuerzo') targets.push(...await targetsGratis(supabase, hoyISO, comida, url, prefs, rutina, horaPeru));

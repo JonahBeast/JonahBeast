@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Precios de respaldo de los planes: solo se usan si en la tabla config no
 // hay uno guardado (son los mismos que usan la app y crear-pago-unico).
-const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 64.90, 6: 114.90, 12: 209.90 };
+const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 59.90, 6: 114.90, 12: 179.90 };
 const PRECIO_ADDON_MENSUAL = 11.90;
 // Margen para redondeos de centavos al comparar lo pagado con lo esperado.
 const TOLERANCIA = 0.01;

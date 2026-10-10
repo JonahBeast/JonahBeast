@@ -548,8 +548,21 @@ function ReferidosPanel({ users, onCambio }) {
 // IA vio en sus fotos y no están en la app. La IA propone los macros, Jonah
 // revisa y aprueba: el alimento aparece al momento en la app y se avisa a
 // quienes lo pidieron (función alimentos-pedidos).
-async function llamarPedidosAlimentos(cuerpo) {
+// Sesión del admin lista para llamar a las funciones del servidor. En el
+// celular, si el panel quedó en segundo plano, la sesión guardada puede estar
+// vencida (las funciones responden "no autorizado" y, por ejemplo, Jarvis y
+// Viernes pierden la voz realista): si vence en menos de un minuto, se renueva.
+async function sesionFresca() {
   const { data: { session } } = await supabase.auth.getSession();
+  if (session?.expires_at && session.expires_at * 1000 - Date.now() < 60000) {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (!error && data?.session) return data.session;
+  }
+  return session;
+}
+
+async function llamarPedidosAlimentos(cuerpo) {
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/alimentos-pedidos`, {
     method: 'POST',
     headers: {
@@ -565,7 +578,7 @@ async function llamarPedidosAlimentos(cuerpo) {
 }
 
 const GRUPOS_ALIMENTOS = [...new Set(FOODS.filter(f => !f.esExtra).map(f => f.group))];
-const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '' };
+const ALIMENTO_VACIO = { nombre: '', grupo: 'Platos preparados', estado: '-', kcal: '', proteina: '', carbos: '', grasa: '', fibra: '', unidad: '', gramos_unidad: '', menu_uso: '', fuente: '', sin_arroz: false };
 // De dónde salen los números de un alimento (columna alimentos_extra.fuente;
 // misma lista que FUENTES en supabase/functions/alimentos-pedidos). Es
 // obligatoria para agregar uno nuevo: así cada alimento queda validado.
@@ -578,6 +591,14 @@ async function guardarUsoMenu(alimentoId, menuUso) {
   if (!alimentoId) return;
   const { error } = await supabase.from('alimentos_extra').update({ menu_uso: menuUso || null }).eq('id', alimentoId);
   if (error) throw new Error('El alimento se agregó, pero no se pudo guardar su uso en el menú: ' + error.message);
+}
+
+/* Guisos que se comen con arroz pero cuyas calorías no lo incluyen: en la
+   app sale "🍚 Sin arroz: agrégalo aparte" (columna alimentos_extra.sin_arroz). */
+async function guardarSinArroz(alimentoId, sinArroz) {
+  if (!alimentoId) return;
+  const { error } = await supabase.from('alimentos_extra').update({ sin_arroz: !!sinArroz }).eq('id', alimentoId);
+  if (error) throw new Error('El alimento se agregó, pero no se pudo guardar si lleva arroz: ' + error.message);
 }
 
 function SelectUsoMenu({ valor, onCambiar, className = '' }) {
@@ -598,6 +619,8 @@ function formDesdePropuesta(p, nombre) {
     // La IA sugiere para qué serviría en el menú del día; Jonah lo ve ya elegido y lo puede cambiar.
     menu_uso: USOS_MENU.some(o => o.valor === p.menu_uso) ? p.menu_uso : '',
     fuente: FUENTES_ALIMENTO.includes(p.fuente) ? p.fuente : '',
+    // La IA dice si es un guiso que se come con arroz (sin incluirlo).
+    sin_arroz: p.sin_arroz === true,
   };
 }
 
@@ -694,6 +717,12 @@ function FormAlimento({ form, setForm, onEsEste }) {
         </select>
         {!form.fuente && <span className="block text-[10px] text-amber-400 mt-0.5">Elígela para poder agregarlo: así cada alimento de la base queda validado.</span>}
       </label>
+      <label className="flex items-start gap-2 jb-body text-xs text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+        <input type="checkbox" checked={!!form.sin_arroz} onChange={e => setForm(f => ({ ...f, sin_arroz: e.target.checked }))} className="mt-0.5 accent-orange-500" />
+        <span>🍚 Se come con arroz y estas calorías <b>no</b> lo incluyen
+          <span className="block text-[10px] text-zinc-500 mt-0.5">Márcalo en guisos (ej. ají de gallina, estofado): en la app saldrá "Sin arroz: agrégalo aparte". Si las calorías ya incluyen el arroz, que lo diga el nombre (ej. "… con arroz").</span>
+        </span>
+      </label>
       <label className="jb-body text-[11px] text-zinc-500">🍽️ Usar en el menú del día como…
         <SelectUsoMenu valor={form.menu_uso} onCambiar={v => setForm(f => ({ ...f, menu_uso: v }))} className="mt-0.5" />
         <span className="block text-[10px] text-zinc-600 mt-0.5">Si lo marcas, puede salir en el menú de todos los alumnos a los que les calce. Déjalo vacío para comida rápida, postres, etc.</span>
@@ -756,6 +785,7 @@ function PedidoAlimento({ pedido, onResuelto }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', id: pedido.id, alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onResuelto(pedido.id, { nombre: form.nombre.trim(), avisos: r.avisos });
     } catch (e) { setError(e.message); }
@@ -838,6 +868,16 @@ function PedidoAlimento({ pedido, onResuelto }) {
             <button onClick={() => responder(`Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${propuesta.por_partes.join(' + ')}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`)}
               className={btnPrimary + ' text-sm py-2.5 w-full'}>✅ Sí: explicarle cómo</button>
             <button onClick={() => setVerForm(true)} className={btnGhost + ' text-sm py-2 w-full'}>No: agregarlo como plato</button>
+          </>
+        );
+        // Sin calorías no es un alimento que se pueda agregar (ej. la IA
+        // recibió "noventa" de un audio mal cortado): solo descartar o ajustar.
+        if (!(Number(form.kcal) > 0)) return (
+          <>
+            <p className="jb-display text-base text-orange-400">Esto no parece un alimento</p>
+            <p className="jb-body text-xs text-zinc-400">"{form.nombre}" llegó sin calorías: puede ser un error del audio o del texto. Lo normal es no agregarlo.</p>
+            <button onClick={abrirDescarte} className={btnPrimary + ' text-sm py-2.5 w-full'}>🗑️ No agregarlo</button>
+            <button onClick={() => setVerForm(true)} className={btnGhost + ' text-xs py-2 w-full'}>✏️ Sí es un alimento: poner sus números</button>
           </>
         );
         return (
@@ -992,6 +1032,9 @@ function PedidoIA({ p, onListo }) {
       <p className="jb-body text-sm text-zinc-100">
         {p.estado === 'agregado' ? '✅ ' : '🔎 '}<b>{p.nombre}</b>
         <span className="text-[11px] text-zinc-500"> · {quienes.slice(0, 3).join(', ')} · {fechaHoraCorta(p.resuelto_en)}</span>
+        {p.propuesta?.ia_estado === 'agregado' && p.propuesta?.seguridad === 'media' && (
+          <span className="ml-1.5 jb-body text-[10px] text-amber-300 bg-amber-950/50 border border-amber-800 rounded-full px-1.5 py-0.5 align-middle">seguridad media · revísalo</span>
+        )}
       </p>
       {p.estado === 'agregado' && a ? (
         <p className="jb-body text-xs text-zinc-300 tabular-nums mt-0.5">
@@ -1041,6 +1084,7 @@ function VarianteIA({ pedidoId, v, indice, onListo }) {
       const r = await llamarPedidosAlimentos({ accion, id: pedidoId, indice });
       if (accion === 'agregar_variante') {
         if (menuUso) await guardarUsoMenu(r.alimento_id, menuUso);
+        if (v.sin_arroz === true) await guardarSinArroz(r.alimento_id, true);
         await cargarAlimentosExtraDeNuevo();
       }
       await onListo();
@@ -1270,7 +1314,7 @@ function RevisionDiaria() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">🧩 ALIMENTOS POR REVISAR · {total}</h2>
+        <h2 className="jb-display text-base text-zinc-200">🧩 IDEAS DE LA IA: MENÚ Y VARIANTES · {total}</h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
@@ -1348,6 +1392,7 @@ function AgregarAlimentoSuelto({ onListo }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: form });
       if (form.menu_uso) await guardarUsoMenu(r.alimento_id, form.menu_uso);
+      if (form.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       onListo(form.nombre.trim());
       setNombre(''); setForm(null); setNota('');
@@ -1671,12 +1716,131 @@ function RecomendacionIA({ texto }) {
    historial. */
 const COLUMNAS_PROPIOS = 'id, username, nombre, kcal, proteina, carbos, grasas, created_at, editado_en, revision, revisado_en, revision_ia';
 
+/* 📊 Cómo le va a la IA con los alimentos: de todo lo que revisó, cuánto
+   resolvió sola, cuánto le pasó a Jonah, en cuántos de esos Jonah aceptó
+   sus números y cuánto costó. Sirve para decidir con datos si conviene
+   darle más libertad (o quitársela). La IA revisa pedidos desde el 29 de
+   setiembre de 2026. */
+const IA_ALIMENTOS_DESDE = '2026-09-29T00:00:00Z';
+// grande: como tarjeta de la pestaña 📸 IA (abierta); si no, como parte de
+// "Más herramientas" en Alimentos por revisar (cerrada).
+function ReporteIAAlimentos({ grande = false }) {
+  const [abierto, setAbierto] = useState(grande);
+  const [periodo, setPeriodo] = useState('30'); // '30' | 'todo'
+  const [datos, setDatos] = useState(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    let vivo = true;
+    (async () => {
+      setDatos(null);
+      const desde = periodo === '30' ? new Date(Date.now() - 30 * 864e5).toISOString() : IA_ALIMENTOS_DESDE;
+      const [rp, ra, ru] = await Promise.all([
+        supabase.from('pedidos_alimentos').select('estado, propuesta, alimentos_extra(kcal)')
+          .gte('creado_en', desde).not('propuesta', 'is', null).limit(2000),
+        supabase.from('alimentos_personales').select('revision, revision_ia').gte('created_at', desde).not('revision_ia', 'is', null).limit(2000),
+        supabase.from('ia_uso').select('modelo, tokens_entrada, tokens_salida, tokens_cache_lectura, tokens_cache_escritura')
+          .eq('funcion', 'alimentos-pedidos').gte('creado_en', desde).limit(5000),
+      ]);
+      if (!vivo) return;
+      const pedidos = (rp.data || []).filter(p => p.propuesta?.ia_estado && p.propuesta.ia_estado !== 'revisando');
+      const sola = pedidos.filter(p => ['agregado', 'descartado'].includes(p.propuesta.ia_estado));
+      const pasados = pedidos.filter(p => p.propuesta.ia_estado === 'dudoso');
+      const aprobados = pasados.filter(p => p.estado === 'agregado');
+      const mismosNumeros = aprobados.filter(p => {
+        const ia = Number(p.propuesta.kcal), fin = Number(p.alimentos_extra?.kcal);
+        return ia > 0 && fin > 0 && Math.abs(ia - fin) / ia <= 0.03;
+      });
+      const propios = ra.data || [];
+      const costoUsd = (ru.data || []).reduce((t, f) => t + costoUsdIA(f), 0);
+      setDatos({
+        total: pedidos.length + propios.length,
+        pedidos: pedidos.length,
+        sola: sola.length,
+        solaQuitados: sola.filter(p => p.propuesta.ia_estado === 'agregado' && p.estado === 'descartado').length,
+        pasados: pasados.length,
+        aprobados: aprobados.length,
+        descartados: pasados.filter(p => p.estado === 'descartado').length,
+        esperando: pasados.filter(p => p.estado === 'pendiente').length,
+        mismosNumeros: mismosNumeros.length,
+        propios: propios.length,
+        propiosSola: propios.filter(a => a.revision_ia?.auto).length,
+        costoSoles: costoUsd * SUPUESTOS_RENTABILIDAD.tipoCambio,
+        llamadas: (ru.data || []).length,
+      });
+    })().catch(() => vivo && setDatos({ error: true }));
+    return () => { vivo = false; };
+  }, [abierto, periodo]);
+
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const d = datos;
+  return (
+    <div className={grande ? 'bg-zinc-900 border border-zinc-800 rounded-2xl' : 'bg-zinc-950 border border-zinc-800 rounded-xl'}>
+      <button onClick={() => setAbierto(v => !v)} className={`w-full flex items-center justify-between text-left ${grande ? 'px-5 py-4' : 'px-3.5 py-3'}`}>
+        {grande
+          ? <h2 className="jb-display text-base text-zinc-200">📊 CÓMO LE VA A LA IA CON LOS ALIMENTOS</h2>
+          : <span className="jb-body text-xs text-zinc-300">📊 Cómo le va a la IA con los alimentos</span>}
+        <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className={`${grande ? 'px-5 pb-5' : 'px-3.5 pb-3.5'} flex flex-col gap-3`}>
+          <div className="flex gap-1.5">
+            {[['30', 'Últimos 30 días'], ['todo', 'Desde el inicio']].map(([v, t]) => (
+              <button key={v} onClick={() => setPeriodo(v)}
+                className={`jb-body text-[11px] px-3 py-1 rounded-full border ${periodo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-400'}`}>{t}</button>
+            ))}
+          </div>
+          {!d ? <Loader2 className="animate-spin text-orange-500" size={18} />
+            : d.error ? <p className="jb-body text-xs text-red-400">No se pudo armar el reporte. Intenta de nuevo.</p>
+            : d.total === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no hay casos en este periodo.</p>
+            : (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {[[d.total, 'casos revisó la IA'], [`${pct(d.sola + d.propiosSola, d.total)}%`, 'resolvió sola'], [`${pct(d.pasados + (d.propios - d.propiosSola), d.total)}%`, 'te pasó a ti']].map(([v, t]) => (
+                    <div key={t} className="bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-center">
+                      <p className="jb-display text-xl text-zinc-50 tabular-nums">{v}</p>
+                      <p className="jb-body text-[10px] text-zinc-500 leading-tight">{t}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="jb-body text-xs text-zinc-300 flex flex-col gap-1.5">
+                  <p className="text-zinc-400 font-semibold">🙋 Pedidos ({d.pedidos})</p>
+                  <p>🤖 Resolvió sola: <b>{d.sola}</b>{d.solaQuitados ? <span className="text-amber-300"> · {d.solaQuitados} lo quitaste después</span> : ''}</p>
+                  <p>➡️ Te pasó a ti: <b>{d.pasados}</b> · aprobaste {d.aprobados}, descartaste {d.descartados}{d.esperando ? `, ${d.esperando} esperando` : ''}</p>
+                  {d.aprobados > 0 && (
+                    <p>🎯 De los que aprobaste, usaste <b>sus mismas calorías en {d.mismosNumeros} de {d.aprobados}</b> ({pct(d.mismosNumeros, d.aprobados)}%)</p>
+                  )}
+                  {d.propios > 0 && <>
+                    <p className="text-zinc-400 font-semibold mt-1">🍴 Alimentos que crearon los alumnos ({d.propios})</p>
+                    <p>🤖 Resolvió sola: <b>{d.propiosSola}</b> · ➡️ te pasó a ti: <b>{d.propios - d.propiosSola}</b></p>
+                  </>}
+                  <p className="text-zinc-400 font-semibold mt-1">💰 Costo</p>
+                  <p>S/{d.costoSoles.toFixed(2)} en {d.llamadas} revisiones (unos S/{(d.llamadas ? d.costoSoles / d.llamadas : 0).toFixed(2)} cada una)</p>
+                </div>
+                <p className="jb-body text-[11px] text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg p-2.5">
+                  {d.aprobados >= 10 && pct(d.mismosNumeros, d.aprobados) >= 90
+                    ? `💡 Cuando te pasa un caso, casi siempre aceptas sus números (${pct(d.mismosNumeros, d.aprobados)}%): la IA acierta, solo es prudente por las reglas que le pusimos para cuidar la base. ${d.total >= 50 ? 'Ya hay casos suficientes: se puede pensar en darle más libertad en los tipos de plato donde acierta.' : 'Cuando haya unos 50 casos, se puede pensar en darle más libertad.'}`
+                    : d.aprobados >= 10
+                    ? `💡 Cambias sus números seguido (solo aceptas ${pct(d.mismosNumeros, d.aprobados)}%): mejor que te siga pasando los casos.`
+                    : '💡 Todavía hay pocos casos para sacar conclusiones. Mira este reporte de nuevo en unas semanas.'}
+                </p>
+              </>
+            )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Desde cuándo espera el alumno: el primero que lo pidió por la app o por
 // WhatsApp (lo que solo vio la IA en una foto no tiene a nadie esperando).
 function esperaDesde(pedido) {
   const fechas = (pedido.solicitantes || []).filter(s => s?.origen === 'app' || s?.origen === 'whatsapp').map(s => s.fecha).filter(Boolean).sort();
   return fechas[0] || null;
 }
+
+const CLAVE_REVISION_LUNES = 'alimentos_revision_lunes';
+const CLAVE_REVISION_OK = 'alimentos_revision_ok';
 
 function PedidosAlimentosPanel() {
   const [pedidos, setPedidos] = useState([]);
@@ -1689,8 +1853,36 @@ function PedidosAlimentosPanel() {
   const [resueltos, setResueltos] = useState([]); // resueltos en esta sesión, con su botón de WhatsApp
   const [porEscribir, setPorEscribir] = useState(0); // respuestas para mandar por WhatsApp
   const [version, setVersion] = useState(0);
+  // Lo que encontró la revisión de los lunes (api/cron/verificar-alimentos.js):
+  // alimentos de la base que pueden estar repetidos o con números raros.
+  const [lunes, setLunes] = useState([]);
 
   useEffect(() => { cargar(); }, []);
+
+  async function cargarLunes() {
+    try {
+      const { data } = await supabase.from('config').select('key, value').in('key', [CLAVE_REVISION_LUNES, CLAVE_REVISION_OK]);
+      const m = Object.fromEntries((data || []).map(c => [c.key, c.value]));
+      let items = [], ok = [];
+      try { items = JSON.parse(m[CLAVE_REVISION_LUNES] || '{}').items || []; } catch {}
+      try { ok = JSON.parse(m[CLAVE_REVISION_OK] || '[]'); } catch {}
+      const lista = items.filter(i => !ok.includes(i.nombre));
+      setLunes(lista);
+      if (lista.length) setAbierto(true);
+    } catch { setLunes([]); }
+  }
+  useEffect(() => { cargarLunes(); }, []);
+  // "Están bien": no vuelve a salir aquí ni en el aviso de los lunes.
+  async function lunesOk(nombre) {
+    setLunes(l => l.filter(i => i.nombre !== nombre));
+    try {
+      const { data } = await supabase.from('config').select('value').eq('key', CLAVE_REVISION_OK).maybeSingle();
+      let ok = [];
+      try { ok = JSON.parse(data?.value || '[]'); } catch {}
+      if (!ok.includes(nombre)) ok.push(nombre);
+      await supabase.from('config').upsert({ key: CLAVE_REVISION_OK, value: JSON.stringify(ok.slice(-300)) });
+    } catch {}
+  }
 
   async function cargar() {
     setCargando(true);
@@ -1731,7 +1923,7 @@ function PedidosAlimentosPanel() {
     ...pedidos.map(p => ({ tipo: 'pedido', id: 'p' + p.id, p, desde: esperaDesde(p) })),
     ...propios.map(a => ({ tipo: 'propio', id: 'a' + a.id, a, desde: a.editado_en || a.created_at })),
   ].map(i => ({ ...i, desde: tienePlazo(i.desde) ? i.desde : null })).sort((x, y) => (x.desde ? horaLimiteAlimento(x.desde) : Infinity) - (y.desde ? horaLimiteAlimento(y.desde) : Infinity));
-  const total = items.length;
+  const total = items.length + lunes.length;
   const tarde = items.some(i => i.desde && minutosHasta(horaLimiteAlimento(i.desde)) < 0);
   const idsResueltos = resueltos.filter(r => r.tipo === 'pedido').map(r => r.id);
 
@@ -1752,8 +1944,29 @@ function PedidosAlimentosPanel() {
         <div className="px-5 pb-5 border-t border-zinc-800 pt-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <p className="jb-body text-xs text-zinc-500">Todo lo que un alumno no encontró en la app: lo que pide (🙋 app, 💬 WhatsApp) y lo que crea con "+ Crear mi alimento" (🍴). La IA atiende todo apenas llega; aquí te queda solo lo que no pudo decidir, con su recomendación. Tienes <b className="text-zinc-300">1 hora</b> para responder (de noche, hasta las 8am): el alumno ve esa hora en su app. Al decidir, te sale el botón para mandarle la respuesta por WhatsApp.</p>
-            <button onClick={cargar} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
+            <button onClick={() => { cargar(); cargarLunes(); }} className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Actualizar</button>
           </div>
+
+          {lunes.length > 0 && (
+            <div className="rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 flex flex-col gap-2.5">
+              <div>
+                <p className="jb-display text-sm text-amber-300">🔎 REVISIÓN DEL LUNES · {lunes.length}</p>
+                <p className="jb-body text-[11px] text-zinc-400 mt-0.5">Alimentos de la base que pueden estar repetidos o con números raros. Nadie está esperando: revísalos cuando puedas.</p>
+              </div>
+              {lunes.map(i => (
+                <div key={i.nombre} className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
+                  <p className="jb-body text-sm text-zinc-100 font-semibold">{i.nombre}</p>
+                  <ul className="jb-body text-xs text-zinc-400 mt-1 flex flex-col gap-0.5">
+                    {(i.problemas || []).map((t, k) => <li key={k}>• {t}</li>)}
+                  </ul>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button onClick={() => lunesOk(i.nombre)} className={btnPrimary + ' py-1.5 px-3 text-xs'}>✓ Están bien, son distintos</button>
+                    <span className="jb-body text-[11px] text-zinc-500">¿Hay que corregirlo? Pídeselo a Jarvis o a Claude.</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {resueltos.map((r, i) => r.tipo === 'propio' ? (
             <div key={'r' + i} className="rounded-xl p-3 border bg-emerald-950/30 border-emerald-900 flex flex-col gap-1">
@@ -1809,15 +2022,18 @@ function PedidosAlimentosPanel() {
 
           {/* Lo que casi no se usa, junto y cerrado: la bandeja queda limpia. */}
           <button onClick={() => setVerHerramientas(v => !v)} className="flex items-center justify-between w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-3 text-left">
-            <span className="jb-body text-xs text-zinc-400">🧰 Más herramientas <span className="text-zinc-600">(lo que hizo la IA, historial, agregar un alimento a mano, menú del día)</span></span>
+            <span className="jb-body text-xs text-zinc-400">🧰 Más herramientas <span className="text-zinc-600">(lo que hizo la IA, historial, agregar un alimento a mano, ideas de menú y variantes, productos escaneados)</span></span>
             <ChevronRight size={16} className={`text-zinc-500 transition-transform shrink-0 ${verHerramientas ? 'rotate-90' : ''}`} />
           </button>
           {verHerramientas && (
             <div className="flex flex-col gap-3 pl-2 border-l-2 border-zinc-800">
+              <ReporteIAAlimentos />
               <PedidosAtendidosIA />
               <HistorialAlimentosPropios />
               <AgregarAlimentoSuelto onListo={nombre => setResueltos(rs => [{ tipo: 'pedido', nombre, avisos: null }, ...rs])} />
+              <RevisionDiaria />
               <AlimentosEnMenu />
+              <ProductosPanel />
             </div>
           )}
         </div>
@@ -1916,6 +2132,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
     try {
       const r = await llamarPedidosAlimentos({ accion: 'aprobar', alimento: paraTodos });
       if (paraTodos.menu_uso) await guardarUsoMenu(r.alimento_id, paraTodos.menu_uso);
+      if (paraTodos.sin_arroz) await guardarSinArroz(r.alimento_id, true);
       await cargarAlimentosExtraDeNuevo();
       // Su alimento pasa a ser el oficial (mismo nombre que le da la app:
       // "Nombre (estado)"): deja de salir repetido en su buscador y sus
@@ -1962,6 +2179,19 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
       if (p) { setParaTodos({ ...formDesdePropuesta(p, a.nombre), nombre: a.nombre }); }
       else { setFuente('alumno'); setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, ...cifrasAlumno, fuente: 'Etiqueta del producto' }); }
     }
+  }
+  // "Corregir y agregar para todos": un producto de marca o un plato común
+  // que el alumno creó con números mal. Se abre el formulario de "para
+  // todos" ya lleno (nombre, grupo y medida que propone la IA, con los
+  // números corregidos): Jonah revisa y confirma. Antes se corregía solo
+  // para el alumno y había que acordarse de agregarlo aparte.
+  async function corregirYParaTodos() {
+    setFuente('ia');
+    const p = ia || await compararIA();
+    if (p) { setParaTodos(formDesdePropuesta(p, a.nombre)); return; }
+    // Sin respuesta de la IA ahora: con los números corregidos de su revisión.
+    const c = rec.cifras || {};
+    setParaTodos({ ...ALIMENTO_VACIO, nombre: a.nombre, kcal: c.kcal ?? '', proteina: c.proteina ?? '', carbos: c.carbos ?? '', grasa: c.grasa ?? '', fuente: 'Etiqueta del producto' });
   }
   const textoRecomendado = rec.tipo === 'existe' ? `✅ Es el mismo que "${rec.food.key.replace(/ \(-\)$/, '')}"`
     : rec.tipo === 'corregir' ? `✅ Corregir con los números de la IA (${Math.round(rec.cifras.kcal)} kcal)`
@@ -2059,7 +2289,8 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           </>
         ) : rec.tipo === 'corregir' ? (
           <>
-            {botonSi(<>✅ Sí, corregir con los de la IA ({Math.round(rec.cifras.kcal)} kcal)</>, hacerRecomendado, "Sus comidas se recalculan solas")}
+            {botonSi(<>✅ Corregir y agregar para todos</>, corregirYParaTodos, "Producto de marca o plato común: revisas el nombre y confirmas")}
+            {botonNo(<>✏️ Corregir solo para él ({Math.round(rec.cifras.kcal)} kcal, es algo suyo)</>, hacerRecomendado)}
             {botonNo(<>No, sus números están bien</>, () => marcar('ok'))}
           </>
         ) : rec.tipo === 'para_todos' ? (
@@ -2071,6 +2302,7 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
           <>
             <PreguntarAlumno a={a} />
             {botonNo(<>Ya sé qué es: decidir</>, () => setEsOtro(true))}
+            {botonNo(<>🙋 Es algo suyo: dejarlo solo para él</>, esAlgoSuyo)}
           </>
         )}
         {error && <p className="jb-body text-xs text-red-400">{error}</p>}
@@ -2194,6 +2426,15 @@ function AlimentoPropio({ a, onListo, candidato = false }) {
               ))}
               <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si no es ninguno)</button>
             </div>
+          ) : pendiente && rec.tipo === 'preguntar' && !masOpciones ? (
+            // La IA no sabe qué es: preguntarle al alumno o dejarlo solo para él.
+            <div className="flex flex-col gap-2 w-full">
+              <PreguntarAlumno a={a} />
+              <button disabled={ocupado} onClick={esAlgoSuyo} className={btnGhost + ' text-sm py-2.5 w-full'}>
+                {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🙋 Es algo suyo: dejarlo solo para él'}
+              </button>
+              <button onClick={() => setMasOpciones(true)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline self-start">Otras opciones (si ya sabes qué es)</button>
+            </div>
           ) : pendiente && rec.tipo && !masOpciones ? (
             <div className="flex flex-col gap-2 w-full">
               <button disabled={ocupado} onClick={hacerRecomendado} className={btnPrimary + ' text-sm py-2.5 w-full'}>
@@ -2233,7 +2474,7 @@ function AlimentosEnMenu() {
   const [error, setError] = useState('');
 
   async function cargar() {
-    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso').order('nombre');
+    const { data, error: e } = await supabase.from('alimentos_extra').select('id, nombre, estado, grupo, menu_uso, sin_arroz').order('nombre');
     if (e) { setError('No se pudo cargar la lista: ' + e.message); setLista([]); return; }
     setLista(data || []);
   }
@@ -2249,17 +2490,27 @@ function AlimentosEnMenu() {
     setGuardando(null);
   }
 
+  async function cambiarArroz(a, valor) {
+    setGuardando(a.id); setError('');
+    try {
+      await guardarSinArroz(a.id, valor);
+      setLista(l => l.map(x => x.id === a.id ? { ...x, sin_arroz: valor } : x));
+      await cargarAlimentosExtraDeNuevo();
+    } catch (e) { setError(e.message); }
+    setGuardando(null);
+  }
+
   const visibles = (lista || []).filter(a => !filtro.trim() || a.nombre.toLowerCase().includes(filtro.trim().toLowerCase()));
   const enMenu = (lista || []).filter(a => a.menu_uso).length;
   return (
     <div className="bg-zinc-950 border border-zinc-800 rounded-xl">
       <button onClick={() => setAbierto(v => !v)} className="w-full px-3.5 py-3 flex items-center justify-between text-left">
-        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados en el menú del día{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
+        <span className="jb-body text-xs text-zinc-300">🍽️ Alimentos agregados: menú del día y arroz{lista ? ` · ${enMenu} de ${lista.length}` : ''}</span>
         <ChevronRight size={16} className={`text-zinc-500 transition-transform ${abierto ? 'rotate-90' : ''}`} />
       </button>
       {abierto && (
         <div className="px-3.5 pb-3.5 flex flex-col gap-2">
-          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar.</p>
+          <p className="jb-body text-[11px] text-zinc-500">Elige para qué comida sirve cada alimento que agregaste. Los que dejes en "No usar" solo sirven para registrar. Marca 🍚 en los guisos que se comen con arroz: la app avisa "Sin arroz: agrégalo aparte".</p>
           <input value={filtro} onChange={e => setFiltro(e.target.value)} className={inputCls + ' text-sm'} placeholder="Buscar…" />
           {lista === null ? <Loader2 className="animate-spin text-orange-500" size={18} /> : visibles.length === 0 ? (
             <p className="jb-body text-xs text-zinc-500">No hay alimentos agregados{filtro ? ' con ese nombre' : ''}.</p>
@@ -2268,6 +2519,10 @@ function AlimentosEnMenu() {
               <p className="jb-body text-sm text-zinc-200">{a.nombre}{a.estado && a.estado !== '-' ? ` (${a.estado.toLowerCase()})` : ''} <span className="text-[11px] text-zinc-500">· {a.grupo}</span>
                 {guardando === a.id && <Loader2 size={12} className="inline animate-spin text-orange-500 ml-1" />}</p>
               <SelectUsoMenu valor={a.menu_uso} onCambiar={v => cambiar(a, v)} />
+              <label className="flex items-center gap-2 jb-body text-[11px] text-zinc-400">
+                <input type="checkbox" checked={!!a.sin_arroz} disabled={guardando === a.id} onChange={e => cambiarArroz(a, e.target.checked)} className="accent-orange-500" />
+                🍚 Se come con arroz (sus calorías no lo incluyen)
+              </label>
             </div>
           ))}
           {error && <p className="jb-body text-xs text-red-400">{error}</p>}
@@ -2584,7 +2839,7 @@ const PASOS_PAGO = ['vio_planes', 'eligio_plan', 'eligio_metodo', 'pago_enviado'
 // Qué hacen los nuevos en "¡TU PLAN ESTÁ LISTO!", con la foto y con el
 // aviso de abrir en Chrome/Safari. Se mide desde este día.
 const INICIO_PRIMERA_COMIDA = '2026-10-02';
-const EVENTOS_PRIMERA = ['primera_comida', 'foto_comida', 'abrir_navegador'];
+const EVENTOS_PRIMERA = ['primera_comida', 'foto_comida', 'abrir_navegador', 'fin_prueba'];
 const FILAS_PRIMERA = [
   { titulo: 'Primera comida', filas: [
     ['primera_comida', 'vio', 'Vieron "¡Tu plan está listo!"'],
@@ -2605,6 +2860,15 @@ const FILAS_PRIMERA = [
     ['abrir_navegador', 'vio', 'Vieron el aviso'],
     ['abrir_navegador', 'toco', 'Tocaron "Abrir en…"'],
     ['abrir_navegador', 'seguir', 'Tocaron "Seguir aquí por ahora"'],
+    ['abrir_navegador', 'llego', 'Llegaron a Chrome/Safari y entraron'],
+    ['abrir_navegador', 'aviso_ok', 'Activaron los avisos al llegar'],
+    ['abrir_navegador', 'aviso_no', 'Tocaron "Ahora no" al llegar'],
+  ] },
+  { titulo: 'Pantalla "¿Seguimos juntos?" (fin de la prueba)', filas: [
+    ['fin_prueba', 'vio', 'La vieron'],
+    ['fin_prueba', '1mes', 'Tocaron "Seguir con 1 mes"'],
+    ['fin_prueba', 'planes', 'Tocaron "Ver todos los planes"'],
+    ['fin_prueba', 'ahora_no', 'Tocaron "Ahora no"'],
   ] },
 ];
 
@@ -3502,7 +3766,7 @@ const SUPUESTOS_RENTABILIDAD = {
   tipoCambio: 3.75,
 };
 
-const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz'];
+const TIPOS_IA_ALUMNO = ['plato', 'etiqueta', 'codigo', 'whatsapp', 'voz', 'conversacion', 'libreta'];
 
 // Partes de la app que usan IA, para comparar su costo con el mes anterior.
 const PARTES_IA = [
@@ -3511,6 +3775,7 @@ const PARTES_IA = [
   { funcion: 'alimentos-pedidos', label: 'Pedidos de alimentos', uso: 'pedido' },
   { funcion: 'jarvis-chat', label: 'Jarvis', uso: 'consulta' },
   { funcion: 'whatsapp-webhook', label: 'Asistente de WhatsApp', uso: 'respuesta' },
+  { funcion: 'beast-chat', label: 'Beast · tu compañero', uso: 'mensaje' },
 ];
 
 // El mismo momento del mes pasado (si hoy es 15 a las 10 am, el 15 del mes
@@ -3884,6 +4149,21 @@ function GraficoHud({ titulo, datos, series, formato = v => v, etiquetaCada = 1,
 // Gráficos del costo de la IA: cuánto se gasta, cuántas veces se usa y
 // cuánto sale cada uso, por día, semana o mes, por parte de la app. Con
 // comparación contra el período anterior y botón para descargar en Excel.
+/* 💸 CUÁNTO GASTA LA IA (pestaña IA): los gráficos del costo de la IA, con
+   el tipo de cambio que Jonah guardó en NEGOCIO → Dinero → Rentabilidad. */
+function CostoIAPanel() {
+  const [tc, setTc] = useState(SUPUESTOS_RENTABILIDAD.tipoCambio);
+  useEffect(() => {
+    supabase.from('config').select('value').eq('key', 'rentabilidad_supuestos').maybeSingle()
+      .then(({ data }) => { try { const v = Number(JSON.parse(data?.value || '{}').tipoCambio); if (v > 0) setTc(v); } catch {} });
+  }, []);
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <AnaliticaIAPanel tipoCambio={tc} />
+    </div>
+  );
+}
+
 function AnaliticaIAPanel({ tipoCambio }) {
   const [filas, setFilas] = useState(null);
   const [periodo, setPeriodo] = useState('dia');
@@ -4723,7 +5003,7 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
       <div className={`${tarjeta} flex flex-col gap-3`}>
         <div>
           <h3 className="jb-display text-sm text-zinc-300">🤖 COSTO REAL DE LA IA · ESTE MES</h3>
-          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cada uso de la IA queda anotado con lo que costó de verdad (tipo de cambio {fmtS(sup.tipoCambio)} por dólar).</p>
+          <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Cada uso de la IA queda anotado con lo que costó de verdad (tipo de cambio {fmtS(sup.tipoCambio)} por dólar). Los gráficos día a día están en la pestaña 📸 IA.</p>
         </div>
         {!mes ? <Loader2 size={14} className="animate-spin text-orange-500" /> : iaFilas.length === 0 ? (
           <p className="jb-body text-xs text-zinc-500">Todavía no hay usos anotados. Se empiezan a medir apenas se publiquen las funciones de IA actualizadas.</p>
@@ -4800,8 +5080,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </>
         )}
       </div>
-
-      <AnaliticaIAPanel tipoCambio={sup.tipoCambio} />
 
       <div>
         <h3 className="jb-display text-sm text-zinc-300 mb-1">CUÁNTO TE DEJA CADA PLAN AL MES</h3>
@@ -4965,142 +5243,6 @@ function RentabilidadPanel({ users: todosLosUsuarios }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function MetricasPanel() {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [leadsPorRed, setLeadsPorRed] = useState([]);
-  const [proyeccion, setProyeccion] = useState({ count: 0, monto: 0 });
-  const [leadsConvertidos, setLeadsConvertidos] = useState({ total: 0, convertidos: 0 });
-  const [ajustesDias, setAjustesDias] = useState([]);
-
-  useEffect(() => { if (open) load(); }, [open]);
-
-  async function load() {
-    setLoading(true);
-    let alumnosData = [];
-    try {
-      const { data: alumnos } = await supabase.from('alumnos')
-        .select('username, plan, enabled, fecha_vencimiento, codigo_referido, comision_pagada, comision_monto, telefono');
-      alumnosData = alumnos || [];
-
-      // Proyección: alumnos "por vencer" (0-7 días, habilitados) × precio estimado de su plan
-      const porVencer = alumnosData.filter(a => {
-        if (!a.enabled) return false;
-        const dl = daysLeft(a.fecha_vencimiento);
-        return dl !== null && dl <= 7;
-      });
-      let precioPorUsuario = {};
-      if (porVencer.length) {
-        try {
-          const usernames = porVencer.map(a => a.username);
-          const { data: pagosHist } = await supabase.from('pagos')
-            .select('username, plan_meses, creado_en')
-            .in('username', usernames)
-            .order('creado_en', { ascending: false });
-          (pagosHist || []).forEach(p => {
-            if (!precioPorUsuario[p.username]) {
-              const plan = PLANES.find(pl => pl.meses === p.plan_meses);
-              precioPorUsuario[p.username] = plan ? plan.precioDefault : PLANES[0].precioDefault;
-            }
-          });
-        } catch {}
-      }
-      const montoProyectado = porVencer.reduce((acc, a) =>
-        acc + (precioPorUsuario[a.username] ?? PLANES[0].precioDefault), 0);
-      setProyeccion({ count: porVencer.length, monto: montoProyectado });
-    } catch {}
-    try {
-      const { data: leadsData } = await supabase.from('leads').select('red, telefono');
-      const counts = {};
-      (leadsData || []).forEach(l => {
-        const red = l.red || 'sin canal';
-        counts[red] = (counts[red] || 0) + 1;
-      });
-      setLeadsPorRed(Object.entries(counts));
-
-      // Cuántos leads (con teléfono) hoy son alumnos, cruzando por número de celular
-      const telefonosAlumnos = new Set(
-        alumnosData.map(a => (a.telefono || '').replace(/\D/g, '')).filter(Boolean)
-      );
-      const leadsConTelefono = (leadsData || []).filter(l => (l.telefono || '').replace(/\D/g, ''));
-      const convertidos = leadsConTelefono.filter(l =>
-        telefonosAlumnos.has((l.telefono || '').replace(/\D/g, ''))
-      ).length;
-      setLeadsConvertidos({ total: (leadsData || []).length, convertidos });
-    } catch {}
-    try {
-      const { data: ajustes } = await supabase.from('ajustes_membresia')
-        .select('username, dias, motivo, created_at').order('created_at', { ascending: false }).limit(30);
-      setAjustesDias(ajustes || []);
-    } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
-    setLoading(false);
-  }
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
-        <h2 className="jb-display text-base text-zinc-200">📊 MÉTRICAS</h2>
-        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 flex flex-col gap-5 border-t border-zinc-800 pt-4">
-          {loading ? (
-            <Loader2 className="animate-spin text-orange-500" size={20} />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Proyección por vencer (7 días)</div>
-                  <div className="text-emerald-400 jb-display text-lg">S/ {proyeccion.monto.toFixed(2)}</div>
-                  <div className="text-[11px] text-zinc-500">{proyeccion.count} alumnos · estimado</div>
-                </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3">
-                  <div className="text-[11px] text-zinc-500 mb-0.5">Leads convertidos a alumno</div>
-                  <div className="text-emerald-400 jb-display text-lg">{leadsConvertidos.convertidos} de {leadsConvertidos.total}</div>
-                  <div className="text-[11px] text-zinc-500">cruce por teléfono</div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">LEADS POR CANAL</h3>
-                <div className="flex flex-col gap-1.5">
-                  {leadsPorRed.map(([red, count]) => (
-                    <div key={red} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center text-sm">
-                      <span className="text-zinc-400">{red}</span>
-                      <span className="jb-display text-zinc-100">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="jb-display text-sm text-zinc-300 mb-2">HISTORIAL DE AJUSTES DE DÍAS</h3>
-                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
-                  {ajustesDias.length === 0 && <p className="text-zinc-500 text-xs">Sin ajustes registrados todavía.</p>}
-                  {ajustesDias.map((a, i) => (
-                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 flex justify-between items-center gap-2">
-                      <div className="min-w-0">
-                        <div className="text-zinc-200 text-sm truncate">{a.username}</div>
-                        <div className="text-zinc-600 text-[11px]">
-                          {new Date(a.created_at).toLocaleDateString('es-PE')} {a.motivo ? `· ${a.motivo}` : ''}
-                        </div>
-                      </div>
-                      <span className={`jb-display text-sm shrink-0 ${a.dias > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {a.dias > 0 ? '+' : ''}{a.dias} día(s)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -5698,6 +5840,7 @@ function AdminNotifButton() {
 // Open Food Facts o de la etiqueta que leyó la IA; aquí Jonah revisa los
 // más recientes y corrige los números si alguno se leyó mal. El nombre no
 // se cambia: los alumnos que ya lo registraron lo tienen guardado así.
+// "🗑️ Quitar" borra repetidos (avisa si no tiene otro igual).
 const FUENTES_PRODUCTO = { open_food_facts: 'Open Food Facts', etiqueta: 'Etiqueta (IA)', admin: 'Admin' };
 
 function ProductosPanel() {
@@ -5706,6 +5849,7 @@ function ProductosPanel() {
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState(null); // { codigo, kcal, proteina, carbos, grasa, fibra, porcion_g }
   const [error, setError] = useState('');
+  const [quitando, setQuitando] = useState(null); // código del producto que pide confirmar "Quitar"
 
   useEffect(() => { cargar(); }, []);
 
@@ -5732,6 +5876,15 @@ function ProductosPanel() {
     setEditando(null);
   }
 
+  // "🗑️ Quitar": para repetidos o productos mal leídos. Pide confirmar.
+  async function quitar(codigo) {
+    setError('');
+    const { error: err } = await supabase.from('productos').delete().eq('codigo', codigo);
+    if (err) { setError('No se pudo quitar: ' + err.message); return; }
+    setFilas(fs => fs.filter(f => f.codigo !== codigo));
+    setQuitando(null);
+  }
+
   const deEtiqueta = filas.filter(f => f.fuente === 'etiqueta').length;
 
   return (
@@ -5753,6 +5906,9 @@ function ProductosPanel() {
                 const kcalMacros = Math.round(4 * Number(f.proteina) + 4 * Number(f.carbos) + 9 * Number(f.grasa));
                 const raro = Number(f.kcal) > 0 && Math.abs(kcalMacros - Number(f.kcal)) > Math.max(30, Number(f.kcal) * 0.2);
                 const enEdicion = editando?.codigo === f.codigo;
+                // Otro producto con el mismo nombre y marca: es un repetido y
+                // los alumnos lo siguen viendo por el otro.
+                const repetido = filas.some(o => o.codigo !== f.codigo && o.nombre === f.nombre && (o.marca || '') === (f.marca || ''));
                 return (
                   <div key={f.codigo} className={`bg-zinc-950 border rounded-lg p-3 ${raro ? 'border-amber-700/60' : 'border-zinc-800'}`}>
                     <div className="flex items-start justify-between gap-3">
@@ -5766,11 +5922,33 @@ function ProductosPanel() {
                         </p>
                         {raro && <p className="jb-body text-[11px] text-amber-400 mt-0.5">Ojo: con esos macros saldrían ~{kcalMacros} kcal. Revisa los números.</p>}
                       </div>
-                      {!enEdicion && (
-                        <button onClick={() => { setError(''); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
+                      {!enEdicion && quitando !== f.codigo && (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                        <button onClick={() => { setError(''); setQuitando(null); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
                           className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Corregir</button>
+                        <button onClick={() => { setError(''); setEditando(null); setQuitando(f.codigo); }}
+                          className="jb-body text-[11px] text-zinc-500 hover:text-red-400 py-1">🗑️ Quitar</button>
+                        </div>
                       )}
                     </div>
+                    {repetido && <p className="jb-body text-[11px] text-amber-400 mt-1">Repetido: hay otro "{f.nombre}"{f.marca ? ` de ${f.marca}` : ''} en la lista.{/^99\d{12}$/.test(f.codigo) ? ' Este no tiene código de barras (se leyó desde la foto de comida): es el que conviene quitar.' : ''}</p>}
+                    {quitando === f.codigo && (
+                      <div className="mt-3 bg-red-950/30 border border-red-900/50 rounded-lg p-3">
+                        <p className="jb-body text-xs text-zinc-200 mb-1">¿Quitar "{f.nombre}" ({f.codigo})?</p>
+                        <p className="jb-body text-[11px] text-zinc-400 mb-2">
+                          {repetido
+                            ? 'Es un repetido: los alumnos lo siguen viendo por el otro, con su mismo nombre.'
+                            : Number(f.veces_usado) > 0
+                              ? 'Ojo: no tiene repetido. Quien ya lo registró podría dejar de ver sus calorías en esos días, y nadie lo encontrará al escanearlo.'
+                              : 'Nadie lo ha usado todavía.'}
+                        </p>
+                        {error && <p className="jb-body text-xs text-red-400 mb-2">{error}</p>}
+                        <div className="flex gap-2">
+                          <button onClick={() => quitar(f.codigo)} className="jb-body text-sm py-1.5 flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-zinc-50 font-semibold">Sí, quitar</button>
+                          <button onClick={() => setQuitando(null)} className={btnGhost + ' text-sm py-1.5'}>Cancelar</button>
+                        </div>
+                      </div>
+                    )}
                     {enEdicion && (
                       <div className="mt-3 flex flex-col gap-2">
                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
@@ -5801,7 +5979,7 @@ function ProductosPanel() {
 
 // Memoria de Jarvis: las notas que Jonah le pidió recordar ("recuerda
 // que..."). Jarvis solo guarda cuando se lo piden; aquí se ven y se borran.
-/* "🔄 Actualizar manual de Jarvis": copia a la base (manual_app) el manual
+/* "🔄 Actualizar manual de Jarvis y Viernes": copia a la base (manual_app) el manual
    que viene dentro de esta versión publicada. Solo en la versión de main
    (la real): en una versión de prueba el manual podría no ser el de main.
    Compara por huella (sha256) para saber si ya está al día. */
@@ -5809,6 +5987,99 @@ async function huellaTexto(t) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+/* 🦍 BEAST: si tiene acogida y si sirve (docs/idea-beast.md, "Cómo medir
+   si Beast funciona"). Solo números y nombres con cuentas: Jonah no lee las
+   conversaciones, salvo las respuestas que el alumno marcó con 👎. */
+function BeastPanel() {
+  const [dias, setDias] = useState(7);
+  const [d, setD] = useState(null);
+  const [error, setError] = useState('');
+  const [verReportados, setVerReportados] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    setD(null); setError('');
+    supabase.rpc('beast_resumen', { p_dias: dias }).then(({ data, error: e }) => {
+      if (!vivo) return;
+      if (e) setError(e.message?.includes('beast_resumen') ? 'Beast todavía no está activado en la base.' : 'No se pudo leer.');
+      else setD(data);
+    });
+    return () => { vivo = false; };
+  }, [dias]);
+  const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+  const valoradas = d ? d.buenas + d.malas : 0;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="jb-display text-base text-zinc-200">🦍 BEAST · TU COMPAÑERO</h2>
+        <select value={dias} onChange={e => setDias(Number(e.target.value))} className="jb-body text-xs bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300">
+          <option value={7}>Últimos 7 días</option><option value={14}>Últimos 14 días</option><option value={30}>Últimos 30 días</option>
+        </select>
+      </div>
+      <p className="jb-body text-[11px] text-zinc-500">Solo números: no se ven las conversaciones (son privadas), salvo las respuestas que el alumno marcó con 👎.</p>
+      {error && <p className="jb-body text-xs text-zinc-400">{error}</p>}
+      {!d && !error && <Loader2 size={18} className="text-orange-500 animate-spin" />}
+      {d && (
+        <>
+          {d.apoyo?.length > 0 && (
+            <p className="jb-body text-xs text-amber-200 bg-amber-950/40 border border-amber-500/40 rounded-lg p-2.5">
+              ⚠️ Podrían necesitar apoyo (lo aceptaron; Beast ya les dio la Línea 113): <b>{d.apoyo.map(a => a.nombre || a.username).join(', ')}</b>. Escríbeles cuando puedas.
+            </p>
+          )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              ['Le hablaron', d.usaron, `${d.aceptaron} aceptaron usarlo`],
+              ['Volvieron otro día', d.volvieron, `${pct(d.volvieron, d.usaron)} de los que lo probaron`],
+              ['3 días o más', d.tres_dias, `${pct(d.tres_dias, d.usaron)} · meta 30%`],
+              ['Mensajes', d.mensajes, d.usaron ? `${(d.mensajes / d.usaron).toFixed(1)} por alumno` : ''],
+              ['Comidas anotadas', d.comidas, `${d.deshacer} veces "Deshacer"`],
+              ['Agua · peso', `${d.agua} · ${d.peso}`, 'veces vía Beast'],
+              ['¿Qué como?', d.que_como, 'sugerencias vistas'],
+              ['👍 / 👎', `${d.buenas} / ${d.malas}`, valoradas ? `${pct(d.buenas, valoradas)} buenas · meta 80%` : 'sin valorar'],
+            ].map(([t, v, s]) => (
+              <div key={t} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                <p className="jb-body text-[10px] text-zinc-500 uppercase tracking-wide">{t}</p>
+                <p className="jb-display text-xl text-zinc-50">{v}</p>
+                <p className="jb-body text-[10px] text-zinc-500">{s}</p>
+              </div>
+            ))}
+          </div>
+          {Object.keys(d.temas || {}).length > 0 && (
+            <p className="jb-body text-xs text-zinc-400">De qué hablan: {Object.entries(d.temas).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${t} ${n}`).join(' · ')}</p>
+          )}
+          {d.ranking?.length > 0 && (
+            <div>
+              <p className="jb-body text-xs text-zinc-300 font-semibold mb-1">Los que más lo usan</p>
+              <div className="flex flex-col gap-1">
+                {d.ranking.map((r, i) => (
+                  <p key={r.username} className="jb-body text-xs text-zinc-400">{i + 1}. <span className="text-zinc-200">{r.nombre || r.username}</span> · {r.dias} {r.dias === 1 ? 'día' : 'días'} · {r.mensajes} mensajes · {r.comidas} comidas</p>
+                ))}
+              </div>
+            </div>
+          )}
+          {d.reportados?.length > 0 && (
+            <div>
+              <button onClick={() => setVerReportados(v => !v)} className="jb-body text-xs text-orange-400 underline">
+                {verReportados ? 'Ocultar' : 'Ver'} las {d.reportados.length} respuestas marcadas con 👎
+              </button>
+              {verReportados && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {d.reportados.map(r => (
+                    <div key={r.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+                      <p className="jb-body text-[11px] text-zinc-500">{new Date(r.fecha).toLocaleString('es-PE')}</p>
+                      {r.alumno && <p className="jb-body text-xs text-zinc-300 mt-1"><b>Alumno:</b> {r.alumno}</p>}
+                      <p className="jb-body text-xs text-zinc-300 mt-1"><b>Beast:</b> {r.beast}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function ManualJarvisPanel() {
   const [estado, setEstado] = useState(null); // { alDia, commit, actualizado_en } | { error }
   const [ocupado, setOcupado] = useState(false);
@@ -5825,23 +6096,23 @@ function ManualJarvisPanel() {
     try {
       const { data, error } = await supabase.rpc('actualizar_manual_app', { p_texto: MANUAL_APP, p_commit: __COMMIT__ });
       if (error || data?.error || !data?.iguales) throw new Error(error?.message || data?.error || 'no quedó igual');
-      setMensaje(`✅ Listo: Jarvis y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
+      setMensaje(`✅ Listo: Jarvis, Viernes y el asistente de WhatsApp ya tienen el manual del commit ${String(__COMMIT__).slice(0, 7)}. Quedó idéntico.`);
       await revisar();
     } catch (e) { setMensaje('No se pudo actualizar: ' + (e.message || 'error')); }
     setOcupado(false);
   }
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-2">
-      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS</h2>
-      <p className="jb-body text-[11px] text-zinc-500">Jarvis y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
+      <h2 className="jb-display text-base text-zinc-200">📘 MANUAL DE JARVIS Y VIERNES</h2>
+      <p className="jb-body text-[11px] text-zinc-500">Jarvis, Viernes y el asistente de WhatsApp responden con el manual de la app guardado en la base. Después de cada cambio que se ve en la app, cópialo aquí con un toque.</p>
       {estado === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : estado.error ? <p className="jb-body text-xs text-red-400">No se pudo revisar el manual.</p>
         : estado.alDia
           ? <p className="jb-body text-sm text-emerald-400">✅ Al día{estado.commit ? ` (commit ${String(estado.commit).slice(0, 7)})` : ''}.</p>
-          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis está desactualizado: la app tiene cambios que Jarvis todavía no conoce.</p>}
+          : <p className="jb-body text-sm text-amber-400">⚠️ El manual de Jarvis y Viernes está desactualizado: la app tiene cambios que todavía no conocen.</p>}
       {estado && !estado.error && !estado.alDia && (esMain ? (
         <button onClick={actualizar} disabled={ocupado} className={btnPrimary + ' text-sm py-2 self-start'}>
-          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis'}
+          {ocupado ? <Loader2 size={15} className="animate-spin" /> : '🔄 Actualizar manual de Jarvis y Viernes'}
         </button>
       ) : (
         <p className="jb-body text-[11px] text-zinc-500">El botón solo sale en jonahbeast.com (la versión real), no en las versiones de prueba.</p>
@@ -5887,7 +6158,7 @@ const GUION_VIDEO_GORILA = [
 // Voces de la tarjeta: primero los gorilas, luego las del panel de Jarvis.
 // (función: se arma al mostrar la tarjeta, porque VOCES_PREMIUM_JARVIS se define más abajo)
 const vocesVideo = () => [
-  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.id === 'premium:friday' ? 'Frida (estilo FRIDAY) · femenina, directa' : v.nombre })),
+  ...VOCES_PREMIUM_JARVIS.map(v => ({ id: v.id.replace('premium:', ''), nombre: v.nombre })),
 ];
 // Versión para la voz estilo Jarvis: habla de Jonah y trata de "usted".
 const GUION_VIDEO_JARVIS = [
@@ -5906,7 +6177,7 @@ const GUION_VIDEO_JARVIS = [
 
 async function generarVozVideo(texto, voz) {
   const pedir = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
@@ -6204,7 +6475,7 @@ function VozParaVideosPanel() {
       <div className="flex items-center justify-between gap-2">
         <span className="jb-body text-[11px] text-zinc-500 tabular-nums whitespace-nowrap">{n}/{MAX_CARACTERES_VOZ_VIDEO}</span>
         <span className="flex items-center gap-3 flex-wrap justify-end">
-          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Frida</button>
+          <button onClick={() => { setTexto(GUION_VIDEO_GUIA); setVoz('friday'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Viernes</button>
           <button onClick={() => { setTexto(GUION_VIDEO_JARVIS); setVoz('jarvis'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Jarvis</button>
           <button onClick={() => { setTexto(GUION_VIDEO_GORILA); setVoz('onyx'); setNivel('suave'); }} className="jb-body text-[11px] text-orange-400 underline">Guion Gorila</button>
         </span>
@@ -6264,7 +6535,7 @@ function MemoriaJarvisPanel() {
   }
   useEffect(() => { cargar().catch(() => setNotas([])); }, []);
   async function borrar(n) {
-    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis?\n\n"${n.texto}"`)) return;
+    if (!confirm(`¿Borrar esta nota de la memoria de Jarvis y Viernes?\n\n"${n.texto}"`)) return;
     const { error } = await supabase.from('jarvis_memoria').delete().eq('id', n.id);
     if (error) { alert('No se pudo borrar: ' + error.message); return; }
     cargar();
@@ -6272,8 +6543,8 @@ function MemoriaJarvisPanel() {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-3">
       <div>
-        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS RECUERDA</h2>
-        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis "recuerda que…" para enseñarle algo, u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
+        <h2 className="jb-display text-base text-zinc-200">🧠 LO QUE JARVIS Y VIERNES RECUERDAN</h2>
+        <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Dile a Jarvis o a Viernes "recuerda que…" para enseñarles algo (los dos comparten la memoria), u "olvida que…" para borrarlo. Solo guarda lo que tú le pides.</p>
       </div>
       {notas === null ? <Loader2 className="animate-spin text-orange-500" size={18} />
         : notas.length === 0 ? <p className="jb-body text-xs text-zinc-500">Todavía no recuerda nada.</p>
@@ -7251,7 +7522,7 @@ function funcionJarvis() {
    se pasa a `alEvento` apenas llega. Si la función responde en el formato
    de siempre (un JSON completo), también funciona. */
 async function llamarJarvis(cuerpo, alEvento) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/${funcionJarvis()}`, {
     method: 'POST',
     headers: {
@@ -7291,6 +7562,10 @@ async function llamarJarvis(cuerpo, alEvento) {
 }
 
 // Mensajes que muestra Jarvis cuando el micrófono no puede funcionar.
+// Silencio (en ms) que espera Jarvis después de que Jonah deja de hablar
+// antes de enviar la frase.
+const PAUSA_FIN_FRASE_MS = 1300;
+
 const AVISOS_MIC = {
   'not-allowed': 'No tengo permiso para usar el micrófono en esta página. Toca el ícono a la izquierda de la dirección web, permite el micrófono y vuelve a tocar 🎤. Mientras tanto puedes escribirme.',
   'service-not-allowed': 'Este navegador no me deja usar el reconocimiento de voz. Prueba en Google Chrome o Safari, o escríbeme.',
@@ -7393,14 +7668,29 @@ function prepararAudioJarvis() {
 }
 
 /* Palabra de activación: en modo micrófono continuo Jarvis solo responde
-   cuando le hablan empezando con "Jarvis" (o "oye Jarvis"). El
-   reconocimiento de voz a veces escribe el nombre distinto, por eso se
-   aceptan variantes. Devuelve lo que se dijo después del nombre, o null si
-   no se lo llamó. */
-const PALABRA_JARVIS = /^\s*(?:(?:oye|hey|ok|okay|hola)[\s,]+)?(?:jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi)\b[\s,.:;!¡¿?-]*/i;
+   cuando le hablan empezando con "Jarvis" o "Viernes" (o "hola Jarvis",
+   "oye Viernes"). El reconocimiento de voz a veces escribe el nombre
+   distinto, por eso se aceptan variantes. Devuelve lo que se dijo después
+   del nombre, o null si no se lo llamó. Con "Viernes" responde Viernes:
+   su voz femenina y su nombre (quienLlamo). */
+const NOMBRES_JARVIS = '(jarvis|yarvis|jarbis|yarbis|harvis|charvis|jervis|garvis|jarvi|jarbi|viernes|biernes|vierne|bierne)';
+const PALABRA_JARVIS = new RegExp(`^\\s*(?:(?:oye|hey|ok|okay|hola)[\\s,]+)?${NOMBRES_JARVIS}\\b[\\s,.:;!¡¿?-]*`, 'i');
 function quitarPalabraJarvis(texto) {
   const m = String(texto || '').match(PALABRA_JARVIS);
   return m ? texto.slice(m[0].length).trim() : null;
+}
+// 'viernes' o 'jarvis' según el nombre con que lo llamaron; null si no lo llamaron.
+function quienLlamo(texto) {
+  const m = String(texto || '').match(PALABRA_JARVIS);
+  if (!m) return null;
+  return /^[vb]ierne/i.test(m[1]) ? 'viernes' : 'jarvis';
+}
+// Voz con que responde: con "Viernes", la de Viernes; con "Jarvis", la que
+// Jonah eligió (salvo que sea la de Viernes: entonces la de Jarvis).
+function vozDeAsistente(asistente, vozGuardada) {
+  if (asistente === 'viernes') return 'premium:friday';
+  if (asistente === 'jarvis' && vozGuardada === 'premium:friday') return 'premium:jarvis';
+  return vozGuardada;
 }
 // Frases con las que se cierra la conversación por voz ("no, gracias, no es
 // necesario", "eso es todo"): Jarvis responde y apaga el micrófono.
@@ -7647,7 +7937,11 @@ function memoriaInformeJarvis(frase, visual, sugerencias) {
    función falla o no tiene clave, Jarvis habla con la voz del celular. */
 const VOCES_PREMIUM_JARVIS = [
   { id: 'premium:jarvis', nombre: 'Estilo Jarvis · masculina, mayordomo' },
-  { id: 'premium:friday', nombre: 'Estilo FRIDAY · femenina, directa' },
+  { id: 'premium:friday', nombre: 'Viernes · femenina, directa' },
+  // El gorila como compañero de los alumnos (docs/idea-beast.md): para
+  // escuchar cómo sonaría Beast.
+  { id: 'premium:beast', nombre: '🦍 Beast · el gorila, voz grave' },
+  { id: 'premium:beast2', nombre: '🦍 Beast · el gorila, voz más expresiva' },
   { id: 'premium:cedar', nombre: 'Cedar · masculina, muy natural' },
   { id: 'premium:marin', nombre: 'Marin · femenina, muy natural' },
   { id: 'premium:coral', nombre: 'Coral · femenina' },
@@ -7668,13 +7962,22 @@ let vozPremiumCaida = false;
 async function audioPremiumJarvis(texto, voz) {
   const clave = `${voz}|${texto}`;
   if (cacheVozJarvis.has(clave)) return cacheVozJarvis.get(clave);
-  const { data: { session } } = await supabase.auth.getSession();
-  const r = await fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
-    body: JSON.stringify({ texto, voz }),
-  });
-  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) { vozPremiumCaida = true; throw new Error('sin voz premium'); }
+  const pedir = async () => {
+    const session = await sesionFresca();
+    return fetch(`${supabaseUrl}/functions/v1/jarvis-voz`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+      body: JSON.stringify({ texto, voz }),
+    });
+  };
+  let r = await pedir();
+  // Sesión vieja: se renueva y se reintenta una vez. Un "no autorizado" no
+  // apaga la voz realista para el resto de la visita (solo esta frase).
+  if (r.status === 401) { const { error } = await supabase.auth.refreshSession(); if (!error) r = await pedir(); }
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    if (r.status !== 401 && r.status !== 403) vozPremiumCaida = true;
+    throw new Error('sin voz premium');
+  }
   const bytes = await r.arrayBuffer();
   if (cacheVozJarvis.size > 30) cacheVozJarvis.delete(cacheVozJarvis.keys().next().value);
   cacheVozJarvis.set(clave, bytes);
@@ -7892,7 +8195,7 @@ function ReactorJarvis({ estado = 'reposo', tam = 120, pulso = 0 }) {
 // Botón flotante para abrir a Jarvis desde cualquier pestaña del panel.
 function BotonJarvis({ onClick }) {
   return (
-    <button onClick={onClick} aria-label="Abrir a Jarvis"
+    <button onClick={onClick} aria-label="Abrir a Jarvis y Viernes"
       className="fixed z-40 flex flex-col items-center gap-1 group"
       style={{ right: 'max(1rem, env(safe-area-inset-right))', bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
       <style>{ESTILOS_JARVIS}</style>
@@ -7900,9 +8203,9 @@ function BotonJarvis({ onClick }) {
         style={{ background: 'radial-gradient(circle, rgba(10,22,32,0.95) 55%, rgba(10,22,32,0) 72%)', filter: 'drop-shadow(0 0 14px rgba(77,217,255,0.55))' }}>
         <ReactorJarvis estado="reposo" tam={72} />
       </span>
-      <span className="text-[10px] tracking-[0.3em] px-2 py-0.5 rounded"
+      <span className="text-[10px] tracking-[0.2em] px-2 py-0.5 rounded whitespace-nowrap"
         style={{ fontFamily: 'monospace', color: '#4dd9ff', background: 'rgba(10,22,32,0.85)', border: '1px solid #1c6b85', textShadow: '0 0 6px #4dd9ff' }}>
-        JARVIS
+        JARVIS · VIERNES
       </span>
     </button>
   );
@@ -7938,11 +8241,25 @@ function JarvisPanel({ onClose, users }) {
     } catch {}
   }
   const despiertoHastaRef = useRef(0);
+  // Quién responde: null (Jarvis con la voz elegida), 'jarvis' o 'viernes'
+  // según el nombre con que Jonah lo llamó la última vez.
+  const [asistente, setAsistente] = useState(null);
+  const asistenteRef = useRef(null);
+  function llamarA(quien) { if (quien) { asistenteRef.current = quien; setAsistente(quien); } }
+  const conQuien = () => asistenteRef.current === 'viernes' ? { quien: 'viernes' } : {};
   const [input, setInput] = useState('');
   const [pensando, setPensando] = useState(false);
   const [vozOn, setVozOn] = useState(true);
   const [modoContinuo, setModoContinuo] = useState(false);
   const [escuchando, setEscuchando] = useState(false);
+  // Lo que el micrófono va entendiendo mientras Jonah habla (subtítulos en
+  // vivo), para que vea al toque si lo está captando o no.
+  const [oyendo, setOyendo] = useState('');
+  // El navegador corta la frase en cada pausa chiquita ("Viernes, cuáles…"
+  // llegaba solo como "cuáles"). Los pedazos se juntan aquí y se envían
+  // recién tras un silencio de PAUSA_FIN_FRASE_MS.
+  const fraseRef = useRef('');
+  const esperaFraseRef = useRef(null);
   const [hablando, setHablando] = useState(false);
   const [pulsoVoz, setPulsoVoz] = useState(0); // sube con cada palabra que dice Jarvis
   const logRef = useRef(null);
@@ -8079,7 +8396,9 @@ function JarvisPanel({ onClose, users }) {
   // Frase de prueba con la voz elegida en el selector. Se dispara dentro del
   // mismo toque del botón, así el navegador no bloquea el audio.
   function probarVoz() {
-    const frase = 'Hola Jonah Beast, así sonaré cuando te responda.';
+    const frase = String(vozGuardada).startsWith('premium:beast')
+      ? '¡Oe, causita! ¿Qué fue, mi pata? Habla Beast. A ver, cuéntame, ¿qué te bajaste hoy en el almuerzo? ¿Te mandaste tu doble de arroz, no? Jajaja, ya fue, tranqui, ni te roches, a todos nos pasa… ¡hasta a mí, y eso que soy un gorila, pe! Eso lo arreglamos al toque en la siguiente comida. ¡Vamos con todo, mi causa, comida a comida!'
+      : 'Hola Jonah Beast, así sonaré cuando te responda.';
     if (esVozPremium(vozGuardada)) {
       contextoAudioJarvis();
       pausarMic();
@@ -8131,10 +8450,12 @@ function JarvisPanel({ onClose, users }) {
       return;
     }
     callarVozPremium();
-    if (esVozPremium(vozGuardadaRef.current) && !vozPremiumCaida) {
+    // Si lo llamaron por su nombre, responde con la voz de ese asistente.
+    const vozAhora = vozDeAsistente(asistenteRef.current, vozGuardadaRef.current);
+    if (esVozPremium(vozAhora) && !vozPremiumCaida) {
       pausarMic();
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch {}
-      const voz = (vozGuardadaRef.current || VOCES_PREMIUM_JARVIS[0].id).slice(8);
+      const voz = (vozAhora || VOCES_PREMIUM_JARVIS[0].id).slice(8);
       hablarPremium(texto, voz, () => { setHablando(false); reanudarMicSiCorresponde(); })
         .catch(() => hablarConCelular(texto));
       return;
@@ -8209,6 +8530,7 @@ function JarvisPanel({ onClose, users }) {
   async function enviar(texto) {
     const t = (texto || '').trim();
     if (!t || pensando) return;
+    llamarA(quienLlamo(t)); // también al escribir "Viernes, …"
     setInput('');
     const nuevosTurnos = [...turnos, { role: 'user', content: t }];
     setTurnos(nuevosTurnos);
@@ -8223,18 +8545,18 @@ function JarvisPanel({ onClose, users }) {
       // La respuesta aparece mientras se escribe; la voz espera al final
       // para leerla completa. "reiniciar" = Jarvis va a consultar datos:
       // se borra lo escrito y se muestra solo la respuesta final.
-      const data = await llamarJarvis({ pregunta: t, historial, stream: true }, (ev) => {
+      const data = await llamarJarvis({ pregunta: t, historial, stream: true, asistente: asistenteRef.current === 'viernes' ? 'Viernes' : undefined }, (ev) => {
         if (ev.tipo === 'reiniciar') enCurso = '';
         else if (ev.tipo === 'texto') enCurso += ev.texto;
-        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true }]);
+        setTurnos([...nuevosTurnos, { role: 'assistant', content: enCurso, escribiendo: true, ...conQuien() }]);
       });
       const acciones = (data.acciones || []).map(a => ({ ...a, estado: 'pendiente' }));
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: data.respuesta, ...conQuien(), ...(acciones.length ? { acciones } : {}), ...(data.visual ? { visual: data.visual } : {}) }]);
       sonidoJarvis('respuesta');
       hablar(data.respuesta);
     } catch (e) {
       const msgErr = 'No pude procesar eso ahora mismo. Intenta de nuevo.';
-      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr }]);
+      setTurnos([...nuevosTurnos, { role: 'assistant', content: msgErr, ...conQuien() }]);
       hablar(msgErr);
     } finally {
       setPensando(false);
@@ -8249,7 +8571,7 @@ function JarvisPanel({ onClose, users }) {
     if (!accion || accion.estado !== 'pendiente') return;
     const marcar = (estado) => setTurnos(ts => ts.map((m, i) => i !== iTurno ? m
       : { ...m, acciones: m.acciones.map((a, j) => j === iAccion ? { ...a, estado } : a) }));
-    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg }]); hablar(msg); };
+    const decir = (msg) => { setTurnos(ts => [...ts, { role: 'assistant', content: msg, ...conQuien() }]); hablar(msg); };
     if (!confirmar) { marcar('cancelada'); decir('Entendido, señor: no hice ningún cambio.'); return; }
     marcar('enviando');
     try {
@@ -8321,21 +8643,20 @@ function JarvisPanel({ onClose, users }) {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return;
     const recog = new SR();
-    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = false; recog.maxAlternatives = 1;
-    recog.onresult = (e) => {
-      const ultimo = e.results[e.results.length - 1];
-      // Se usa siempre la versión más reciente de enviar() (con la
-      // conversación al día), no la del momento en que se prendió el micro.
-      if (!ultimo.isFinal) return;
-      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
-      // ignora: puede ser su propia voz.
-      if (pausadoParaHablarRef.current) return;
-      const dicho = ultimo[0].transcript.trim();
+    recog.lang = 'es-PE'; recog.continuous = true; recog.interimResults = true; recog.maxAlternatives = 1;
+    // Frase completa (todos los pedazos juntos): decide si lo llamaron y la envía.
+    const procesarFrase = () => {
+      clearTimeout(esperaFraseRef.current);
+      const dicho = fraseRef.current.replace(/\s+/g, ' ').trim();
+      fraseRef.current = '';
+      setOyendo('');
+      if (!dicho || pausadoParaHablarRef.current) return;
       const pedido = quitarPalabraJarvis(dicho);
+      llamarA(quienLlamo(dicho));
       const enConversacion = Date.now() < despiertoHastaRef.current;
       if (pedido === null && !enConversacion) {
         // No lo llamaron: no responde (puedes hablar con otras personas).
-        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» primero para hablarme.`);
+        setAvisoMic(`Escuché "${dicho.slice(0, 40)}${dicho.length > 40 ? '…' : ''}". Di «Jarvis» o «Viernes» primero para hablarme.`);
         return;
       }
       setAvisoMic('');
@@ -8344,18 +8665,39 @@ function JarvisPanel({ onClose, users }) {
         // Solo dijo "Jarvis": responde y espera la orden.
         despiertoHastaRef.current = Date.now() + SEGUNDOS_CONVERSACION_JARVIS * 1000;
         sonidoJarvis('despierto');
-        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?' }]);
+        setTurnos(ts => [...ts, { role: 'assistant', content: '¿Sí, señor?', ...conQuien() }]);
         hablarRef.current('¿Sí, señor?');
         return;
       }
       despiertoHastaRef.current = 0;
       sonidoJarvis('despierto');
       cerrarMicTrasHablarRef.current = esDespedidaJarvis(texto);
+      // Se usa siempre la versión más reciente de enviar() (con la
+      // conversación al día), no la del momento en que se prendió el micro.
       enviarRef.current(texto);
+    };
+    recog.onresult = (e) => {
+      // Lo que llega después de pausar el micro (mientras Jarvis habla) se
+      // ignora: puede ser su propia voz.
+      if (pausadoParaHablarRef.current) { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); return; }
+      // Mientras habla llegan pedazos provisionales: se muestran en vivo,
+      // junto con lo que ya dijo antes de la última pausa.
+      let provisional = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fraseRef.current += ' ' + e.results[i][0].transcript;
+        else provisional += e.results[i][0].transcript;
+      }
+      setOyendo(`${fraseRef.current} ${provisional}`.replace(/\s+/g, ' ').trim());
+      // Cada vez que sigue hablando se vuelve a esperar: se envía cuando se
+      // calla de verdad, no en la primera pausa.
+      clearTimeout(esperaFraseRef.current);
+      if (fraseRef.current.trim() && !provisional.trim()) esperaFraseRef.current = setTimeout(procesarFrase, PAUSA_FIN_FRASE_MS);
     };
     recog.onerror = (e) => {
       micActivoRef.current = false;
       setEscuchando(false);
+      // Si se cortó con una frase a medias ya dicha, no se pierde.
+      if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); }
       // Errores que no se arreglan reintentando (sin permiso, sin micrófono
       // o sin servicio de voz): se apaga el micro y se avisa en el chat, en
       // vez de seguir intentando en silencio.
@@ -8363,7 +8705,7 @@ function JarvisPanel({ onClose, users }) {
       if (aviso) { apagarMicConAviso(aviso); return; }
       if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 800);
     };
-    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
+    recog.onend = () => { micActivoRef.current = false; setEscuchando(false); if (fraseRef.current.trim() && !pausadoParaHablarRef.current) procesarFrase(); else { clearTimeout(esperaFraseRef.current); fraseRef.current = ''; setOyendo(''); } if (modoContinuoRef.current && !pausadoParaHablarRef.current) setTimeout(() => arrancarReconocimiento(), 300); };
     try { recog.start(); micActivoRef.current = true; recogRef.current = recog; setEscuchando(true); } catch (e) {}
   }
 
@@ -8429,7 +8771,7 @@ function JarvisPanel({ onClose, users }) {
           {turnos.map((m, i) => (m.escribiendo && !m.content) ? null : (
             <div key={i} className="text-sm leading-relaxed" style={{ color: '#dff2ff', maxWidth: '92%', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
               <div className="text-[10px] mb-1" style={{ fontFamily: 'monospace', color: m.role === 'user' ? '#6f92a8' : '#4dd9ff', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-                {m.role === 'user' ? 'TÚ' : 'JARVIS'}
+                {m.role === 'user' ? 'TÚ' : m.quien === 'viernes' ? 'VIERNES' : 'JARVIS'}
               </div>
               {m.role === 'user'
                 ? <div className="px-3 py-2 rounded" style={{ background: 'rgba(13,28,40,0.9)', border: '1px solid #163244' }}>{m.content}</div>
@@ -8463,7 +8805,7 @@ function JarvisPanel({ onClose, users }) {
                       // Acción que esta versión del panel no conoce (Jarvis se
                       // actualizó y la página no se recargó): nunca mostrarla
                       // como otra cosa.
-                      <>Jarvis preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
+                      <>{asistente === 'viernes' ? 'Viernes' : 'Jarvis'} preparó una acción nueva para <strong style={{ color: '#ffffff' }}>{a.nombre}</strong>. Recarga la página para verla.</>
                     )}
                   </div>
                   {a.tipo === 'whatsapp' ? (
@@ -8503,9 +8845,11 @@ function JarvisPanel({ onClose, users }) {
   const bloqueEntrada = (
     <>
 <div className="relative px-3 text-[11px]" style={{ color: '#6f92a8', fontFamily: 'monospace' }}>
-          {avisoMic || (modoContinuo
-            ? (escuchando ? 'Escuchando… di «Jarvis» y tu pregunta' : 'Modo continuo activo')
-            : 'Toca el micrófono y háblame diciendo «Jarvis, …»')}
+          {oyendo ? (
+            <span style={{ color: '#dff2ff' }}>🎙️ «{oyendo}…»</span>
+          ) : avisoMic || (modoContinuo
+            ? (escuchando ? 'Escuchando… di «Jarvis» o «Viernes» y tu pregunta. Lo que te oigo sale aquí; si hablas y no aparece nada, el micrófono no te está captando.' : 'Modo continuo activo')
+            : 'Toca el micrófono y háblame diciendo «Jarvis, …» o «Viernes, …»')}
         </div>
         <div className="relative flex gap-2 px-3 py-3" style={{ borderTop: '1px solid #163244' }}>
           <button onClick={toggleModoContinuo} className="w-10 shrink-0 rounded flex items-center justify-center relative"
@@ -8514,7 +8858,7 @@ function JarvisPanel({ onClose, users }) {
             {escuchando && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: '#ff5c5c', boxShadow: '0 0 6px #ff5c5c' }} />}
           </button>
           <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && (desbloquearVoz(), enviar(input))}
-            placeholder="Pregúntale algo a Jarvis…" className="flex-1 rounded px-3 text-sm outline-none"
+            placeholder={asistente === 'viernes' ? 'Pregúntale algo a Viernes…' : 'Pregúntale algo a Jarvis o a Viernes…'} className="flex-1 rounded px-3 text-sm outline-none"
             style={{ background: '#050a0f', border: '1px solid #163244', color: '#dff2ff' }} />
           <button onClick={() => { desbloquearVoz(); enviar(input); }} className="w-10 shrink-0 rounded flex items-center justify-center" style={{ border: '1px solid #1c6b85', color: '#4dd9ff' }}>➤</button>
         </div>
@@ -8529,7 +8873,7 @@ function JarvisPanel({ onClose, users }) {
         style={{ border: '1px solid ' + (hud ? '#4dd9ff' : '#163244'), color: hud ? '#4dd9ff' : '#6f92a8', fontFamily: 'monospace' }}>
         {hud ? '⤡ VENTANA' : '⛶ HUD'}
       </button>
-      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar Jarvis"><X size={18} /></button>
+      <button onClick={cerrar} style={{ color: '#6f92a8' }} aria-label="Cerrar"><X size={18} /></button>
     </>
   );
 
@@ -8565,7 +8909,7 @@ function JarvisPanel({ onClose, users }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+              <span className="text-xs tracking-[0.35em] truncate" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
             </div>
             <div className="text-[9px] tracking-[0.25em] mt-0.5 hidden sm:block" style={{ fontFamily: 'monospace', color: '#3f6f85' }}>PANEL DE OPERACIONES · JONAH BEAST FUEL</div>
           </div>
@@ -8628,7 +8972,7 @@ function JarvisPanel({ onClose, users }) {
         <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #163244' }}>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ background: colorEstado, boxShadow: `0 0 8px ${colorEstado}` }} />
-            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>J.A.R.V.I.S.</span>
+            <span className="jb-body text-xs tracking-[0.35em]" style={{ color: '#dff2ff', fontFamily: 'monospace', textShadow: '0 0 8px rgba(77,217,255,0.7)' }}>{asistente === 'viernes' ? 'V.I.E.R.N.E.S.' : 'J.A.R.V.I.S.'}</span>
           </div>
           <div className="flex items-center gap-2">
             {botonesCabecera}
@@ -8671,7 +9015,7 @@ const WA_CONFIG_ID = '1069612025663283'; // "Registro insertado de WhatsApp" (la
 const WA_GRAPH_VERSION = 'v23.0';
 
 async function llamarWhatsApp(cuerpo) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await sesionFresca();
   const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-conectar`, {
     method: 'POST',
     headers: {
@@ -8882,7 +9226,7 @@ function WhatsAppPanel() {
     const lista = [...simMensajes, { role: 'user', content: t }];
     setSimMensajes(lista); setSimTexto(''); setSimEnviando(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await sesionFresca();
       const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
@@ -9136,6 +9480,24 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // Si la sesión de admin se cierra con el panel abierto (por ejemplo, otro
+  // inicio o cierre de sesión en otra pestaña), la base responde vacío y el
+  // panel mostraba "0" o "No se pudo revisar" sin decir por qué. Ahora avisa
+  // y ofrece volver a entrar.
+  const [sesionCerrada, setSesionCerrada] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    const revisar = () => supabase.auth.getSession()
+      .then(({ data }) => { if (vivo) setSesionCerrada(!data?.session); }).catch(() => {});
+    revisar();
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, sesion) => {
+      if (evento === 'SIGNED_OUT' || !sesion) setSesionCerrada(true);
+      else setSesionCerrada(false);
+    });
+    const alVolver = () => { if (document.visibilityState === 'visible') revisar(); };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { vivo = false; sub?.subscription?.unsubscribe(); document.removeEventListener('visibilitychange', alVolver); };
+  }, []);
   // NEGOCIO se divide en 3 partes para no bajar tanto en el celular. Se
   // recuerda la última que abrió (solo en este navegador).
   const [subNegocio, setSubNegocioCrudo] = useState(() => {
@@ -9143,6 +9505,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
   });
   const setSubNegocio = v => { setSubNegocioCrudo(v); try { localStorage.setItem('admin_sub_negocio', v); } catch {} };
   const [mostrarJarvis, setMostrarJarvis] = useState(false);
+  const [verListas, setVerListas] = useState(false);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
   const [ordenAlumnos, setOrdenAlumnos] = useState('actividad');
   // Lo que la app le dice a cada alumno sobre su avance (mismo análisis de
@@ -9222,6 +9585,16 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
           <button onClick={onLogout} className={btnGhost + ' !px-2 sm:!px-4 text-xs sm:text-sm'}><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
+      {sesionCerrada && (
+        <div className="relative mx-3 sm:mx-6 mt-3 rounded-xl border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-3 jb-body">
+          <span className="text-lg leading-none mt-0.5">🔒</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-zinc-50 font-semibold text-sm">Tu sesión de admin se cerró</div>
+            <div className="text-zinc-300 text-sm">Por eso el panel puede mostrar datos vacíos o "No se pudo revisar". Vuelve a entrar y todo carga normal.</div>
+            <button onClick={onLogout} className="mt-2 bg-orange-500 hover:bg-orange-400 text-zinc-950 font-semibold text-sm rounded-lg px-3 py-1.5">Volver a entrar</button>
+          </div>
+        </div>
+      )}
       {!mostrarJarvis && <BotonJarvis onClick={() => { prepararAudioJarvis(); setMostrarJarvis(true); }} />}
       {mostrarJarvis && <JarvisPanel users={users} onClose={() => setMostrarJarvis(false)} />}
       <main className="relative max-w-4xl mx-auto px-6 pt-8 pb-32 flex flex-col gap-8">
@@ -9261,24 +9634,38 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'hoy' && (
           <>
-            {/* Primero, todos los mensajes del día en un solo lugar y en orden;
-                después, lo que es trámite (pagos, alimentos, vencimientos…). */}
+            {/* HOY es solo lo que hay que hacer hoy, de lo más urgente a lo
+                que puede esperar. Los números van en NEGOCIO y lo de la IA
+                (saldo, costo, precisión) en IA. Muchas tarjetas solo salen
+                cuando tienen algo pendiente. */}
             <MensajesDelDiaPanel />
-            <ListosParaPagarPanel />
-            <ComunidadHoyPanel users={users} />
-            <AvisoMejoras40Panel />
             <PagosPanel />
             <PedidosAlimentosPanel />
-            <RevisionDiaria />
-            <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
-            <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
-            {/* Listas de a quién escribirle (antes estaban en NEGOCIO). */}
-            <RescatePanel users={users} />
-            <SinAvisosPanel users={users} />
-            <CumpleanosPanel users={users} />
-            <SaldoIAPanel />
-            <EmbudoPanel />
-
+            <ComunidadHoyPanel users={users} />
+            <ListosParaPagarPanel />
+            <AvisoMejoras40Panel />
+            <MensajeATodosPanel />
+            {/* Las listas completas: lo urgente de cada una ya sale arriba en
+                "Mensajes del día"; aquí quedan juntas y cerradas, para cuando
+                quieras ver a todos o usar sus botones (+7 días, renovar…). */}
+            <button type="button" onClick={() => setVerListas(v => !v)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-left">
+              <span>
+                <span className="jb-display text-base text-zinc-200 block">📂 LISTAS COMPLETAS</span>
+                <span className="jb-body text-[11px] text-zinc-500">Por vencer, volver a invitar, rescate, sin avisos, cumpleaños y seguimiento. Lo urgente ya te sale en "Mensajes del día".</span>
+              </span>
+              <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${verListas ? 'rotate-90' : ''}`} />
+            </button>
+            {verListas && (
+              <div className="flex flex-col gap-4 pl-2 border-l-2 border-zinc-800">
+                <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
+                <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
+                <RescatePanel users={users} />
+                <SinAvisosPanel users={users} />
+                <CumpleanosPanel users={users} />
+                <EmbudoPanel />
+              </div>
+            )}
           </>
         )}
 
@@ -9468,6 +9855,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 { id: 'resumen', label: '📊 Resumen' },
                 { id: 'dinero', label: '💰 Dinero' },
                 { id: 'crecimiento', label: '📣 Anuncios y embudo' },
+                { id: 'comunidad', label: '🦍 Comunidad' },
               ].map(t => (
                 <button key={t.id} type="button" onClick={() => setSubNegocio(t.id)}
                   className={`jb-body text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${subNegocio === t.id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
@@ -9493,11 +9881,15 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <EmbudoResumenPanel />
                 <ConversionSemanalPanel />
                 <ActivacionPanel users={users} />
-                <MetricasPanel />
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
-                <EquiposPanel users={users} />
+                <VozParaVideosPanel />
+              </>
+            )}
+            {subNegocio === 'comunidad' && (
+              <>
                 <ComunidadPanel users={users} />
+                <EquiposPanel users={users} />
               </>
             )}
           </>
@@ -9505,12 +9897,16 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
 
         {tabActiva === 'ia' && (
           <>
+            {/* Primero cuánto cuesta la IA, después qué tan bien trabaja y
+                al final lo de Jarvis. */}
+            <SaldoIAPanel />
+            <CostoIAPanel />
+            <ReporteIAAlimentos grande />
             <PrecisionIAPanel />
-            <ManualJarvisPanel />
-            <VozParaVideosPanel />
-            <MemoriaJarvisPanel />
             <ReconocimientoFotoPanel />
-            <ProductosPanel />
+            <BeastPanel />
+            <ManualJarvisPanel />
+            <MemoriaJarvisPanel />
           </>
         )}
 
@@ -9956,7 +10352,7 @@ function ordenMedias(h) {
 async function traerCorreosAlumnos(usernames) {
   if (!usernames.length) return {};
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const session = await sesionFresca();
     const r = await fetch('/api/correos-alumnos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
@@ -10086,7 +10482,7 @@ function TeamBeastLanzamiento() {
       <p className="jb-display text-base text-zinc-50">🦍 LANZAMIENTO DEL TEAM BEAST</p>
       <p className="jb-body text-[11px] text-zinc-400 mt-0.5 mb-3">
         Mensajes listos con tu voz. Toca "Copiar" o "Enviar por WhatsApp" (eliges a quién o a tu lista de difusión).
-        {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → Crecimiento → Equipos), se agrega solo al mensaje 1.'}
+        {comunidad ? ' Ya incluye el enlace de tu comunidad.' : ' Cuando guardes el enlace de tu comunidad (NEGOCIO → 🦍 Comunidad → Equipos), se agrega solo al mensaje 1.'}
         {' '}La fecha del reto sale de lo que programaste en la app (pestaña "Equipo" → "📅 Cambiar cuándo empieza y cuánto dura").
       </p>
       <div className="flex flex-col gap-2">
@@ -10414,6 +10810,287 @@ function mensajeMejoras40(nombre) {
 2️⃣ Registrar tu comida es más fácil: tocas REGISTRAR → "¿Qué comiste?", escribes por ejemplo "arroz" y eliges cuánto con botones grandes (½ plato, 1 plato…). Lo que comes siempre ya te aparece listo, con un toque.
 
 Cierra y vuelve a abrir la app para ver los cambios. Si algo se te complica, escríbeme aquí y lo vemos juntos. Vamos poco a poco, comida a comida 🦍`;
+}
+
+/* 📣 MENSAJE A TODOS: Jonah escribe un mensaje (saludo de Navidad, aviso,
+   "te extrañamos"), elige a quién va y cuándo sale. Llega como notificación
+   a quien tiene avisos y como tarjeta en Inicio a todos los del público
+   (api/mensaje-masivo.js; los programados los saca
+   api/cron/mensajes-programados.js). Como mucho uno por día y nunca de
+   noche (10 p.m. a 8 a.m.: queda para las 8 a.m.). */
+const PUBLICOS_MENSAJE = [
+  ['todos', 'Todos'],
+  ['pagan', 'Los que pagan'],
+  ['prueba', 'En prueba'],
+  ['gratis', 'Versión gratis'],
+  ['inactivos', 'Sin registrar 3+ días'],
+];
+const IDEAS_MENSAJE = [
+  { nombre: '🎄 Navidad', titulo: '¡Feliz Navidad! 🎄', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por ser parte de esta familia. Disfruta la cena con los tuyos, sin culpa: mañana seguimos, comida a comida. Un abrazo grande 🦍' },
+  { nombre: '🎆 Año nuevo', titulo: '¡Feliz Año Nuevo! 🎆', publico: 'todos',
+    texto: 'Soy Jonah. Gracias por confiar en mí este año. En el que empieza vamos juntos por tu meta, poco a poco, comida a comida 💪' },
+  { nombre: '👋 Te extrañamos', titulo: 'Te extraño por aquí 👋', publico: 'inactivos',
+    texto: 'Soy Jonah. Hace unos días no registras tus comidas y no pasa nada: hoy es un buen día para retomar. Anota tu próxima comida y seguimos juntos 💪' },
+];
+async function llamarMensajeMasivo(cuerpo) {
+  const session = await sesionFresca();
+  const r = await fetch('/api/mensaje-masivo', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(cuerpo),
+  });
+  const j = await r.json().catch(() => ({}));
+  // Sesión cerrada (por ejemplo, tocó "Salir" en otro celular o pestaña):
+  // se le dice qué hacer; lo que escribió queda guardado en este equipo.
+  if (r.status === 401 || r.status === 403) throw new Error('Tu sesión de administrador se cerró (¿saliste en otro celular o pestaña?). Toca "Salir" y vuelve a entrar: lo que escribiste aquí no se pierde.');
+  if (!r.ok) throw new Error(j.error || 'No se pudo completar. Intenta de nuevo.');
+  return j;
+}
+const fechaHoraPeru = iso => new Date(iso).toLocaleString('es-PE', { timeZone: 'America/Lima', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+// Los programados los saca el cron cada 15 minutos (a los :02, :17, :32 y
+// :47 de cada hora, ver vercel.json): esta es la hora real en que sale.
+function salidaReal(iso) {
+  const d = new Date(iso);
+  const m = d.getUTCMinutes();
+  const siguiente = [2, 17, 32, 47].find(x => x >= m && !(x === m && d.getUTCSeconds() > 0));
+  if (siguiente === undefined) { d.setUTCHours(d.getUTCHours() + 1, 2, 0, 0); } else d.setUTCMinutes(siguiente, 0, 0);
+  return d.toISOString();
+}
+
+function MensajeATodosPanel() {
+  const [abierto, setAbierto] = useState(false);
+  // El borrador se guarda en este equipo, por si la sesión se cierra o la
+  // página se recarga antes de enviarlo.
+  const [titulo, setTitulo] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-titulo') || ''; } catch { return ''; } });
+  const [texto, setTexto] = useState(() => { try { return localStorage.getItem('jb-mensaje-borrador-texto') || ''; } catch { return ''; } });
+  useEffect(() => {
+    try { localStorage.setItem('jb-mensaje-borrador-titulo', titulo); localStorage.setItem('jb-mensaje-borrador-texto', texto); } catch {}
+  }, [titulo, texto]);
+  const [publico, setPublico] = useState('todos');
+  const [cuando, setCuando] = useState('ahora'); // 'ahora' | 'programar'
+  const [fecha, setFecha] = useState(''); // AAAA-MM-DDTHH:MM, hora de Perú
+  const [enMuro, setEnMuro] = useState(false);
+  const [verEnApp, setVerEnApp] = useState(false); // vista previa de la ventana del alumno
+  const [cuenta, setCuenta] = useState(null);
+  const [lista, setLista] = useState(null);
+  const [vistos, setVistos] = useState({});
+  const [ocupado, setOcupado] = useState('');
+  const [error, setError] = useState('');
+
+  async function cargar() {
+    const { data } = await supabase.from('mensajes_masivos')
+      .select('id, titulo, texto, publico, en_muro, estado, programado_para, enviado_en, destinatarios, push_enviados')
+      .neq('estado', 'cancelado').order('programado_para', { ascending: false }).limit(10);
+    setLista(data || []);
+    const ids = (data || []).filter(m => m.estado === 'enviado').map(m => String(m.id));
+    if (!ids.length) return;
+    const { data: ev } = await supabase.from('embudo_landing_eventos').select('evento, username, detalle')
+      .in('evento', ['mensaje_visto', 'mensaje_cerrado']).in('detalle', ids);
+    const v = {};
+    (ev || []).forEach(e => {
+      const x = v[e.detalle] = v[e.detalle] || { vieron: new Set(), cerraron: new Set() };
+      (e.evento === 'mensaje_visto' ? x.vieron : x.cerraron).add(e.username);
+    });
+    setVistos(v);
+  }
+  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    if (!abierto) return;
+    let vivo = true;
+    setCuenta(null);
+    llamarMensajeMasivo({ accion: 'contar', publico }).then(c => { if (vivo) setCuenta(c); }, () => {});
+    return () => { vivo = false; };
+  }, [publico, abierto]);
+
+  const programados = (lista || []).filter(m => m.estado === 'programado');
+  const enviados = (lista || []).filter(m => m.estado === 'enviado');
+  const listo = titulo.trim() && texto.trim() && (cuando === 'ahora' || fecha);
+  const fechaISO = cuando === 'programar' && fecha ? new Date(`${fecha}:00-05:00`).toISOString() : null;
+  const etiquetaPublico = (PUBLICOS_MENSAJE.find(p => p[0] === publico) || [])[1];
+
+  async function probar() {
+    setOcupado('probar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'probar', titulo, texto });
+      showToast(r.enviados ? '📲 Te llegó la prueba al celular (solo a ti).' : 'No te llegó: activa los avisos en este celular para ver la prueba.');
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function enviar() {
+    const n = cuenta?.total;
+    const pregunta = cuando === 'ahora'
+      ? `¿Enviar "${titulo.trim()}" ahora a ${n ?? 'los'} alumnos (${etiquetaPublico})?\n\nLe llega a todos como tarjeta en Inicio y como notificación a los que tienen avisos.${enMuro ? ' También sale en el Muro.' : ''}`
+      : `¿Programar "${titulo.trim()}" para el ${fechaHoraPeru(fechaISO)} (${etiquetaPublico})?`;
+    if (!confirm(pregunta)) return;
+    setOcupado('enviar'); setError('');
+    try {
+      const r = await llamarMensajeMasivo({ accion: 'enviar', titulo, texto, publico, en_muro: enMuro, programado_para: fechaISO });
+      const m = r.mensaje;
+      showToast(r.enviadoAhora
+        ? `📣 Enviado a ${m.destinatarios.length} alumnos · ${m.push_enviados} notificaciones`
+        : `🗓️ Programado: sale el ${fechaHoraPeru(salidaReal(m.programado_para))}${r.movidoA8 ? ' (de noche no suena: sale a las 8 a.m.)' : ''}`);
+      setTitulo(''); setTexto(''); setFecha(''); setCuando('ahora'); setEnMuro(false);
+      await cargar();
+    } catch (e) { setError(e.message); }
+    setOcupado('');
+  }
+  async function cancelar(m) {
+    if (!confirm(`¿Cancelar "${m.titulo}"? No saldrá.`)) return;
+    try { await llamarMensajeMasivo({ accion: 'cancelar', id: m.id }); showToast('Mensaje cancelado.'); await cargar(); }
+    catch (e) { showToast(e.message); }
+  }
+
+  const resumen = programados.length
+    ? `🗓️ Programado: "${programados[programados.length - 1].titulo}" · sale el ${fechaHoraPeru(salidaReal(programados[programados.length - 1].programado_para))}`
+    : enviados.length ? `Último: "${enviados[0].titulo}" · ${fechaHoraPeru(enviados[0].enviado_en)}`
+    : 'Saludo de Navidad, avisos o "te extrañamos": notificación + tarjeta en la app.';
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
+      <button type="button" onClick={() => setAbierto(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <span className="min-w-0">
+          <span className="jb-display text-base text-zinc-200 block">📣 MENSAJE A TODOS</span>
+          <span className="jb-body text-[11px] text-zinc-500 block truncate">{resumen}</span>
+        </span>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform shrink-0 ${abierto ? 'rotate-90' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="px-5 pb-5 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            <span className="jb-body text-[11px] text-zinc-500 self-center">Ideas:</span>
+            {IDEAS_MENSAJE.map(i => (
+              <button key={i.nombre} type="button" onClick={() => { setTitulo(i.titulo); setTexto(i.texto); setPublico(i.publico); }}
+                className="jb-body text-xs px-3 py-1 rounded-full border border-zinc-700 text-zinc-300 hover:border-orange-500">{i.nombre}</button>
+            ))}
+          </div>
+          <Field label={`Título (${titulo.length}/60)`}>
+            <input autoComplete="off" value={titulo} onChange={e => setTitulo(e.target.value.slice(0, 60))} className={inputCls} placeholder="Ej. ¡Feliz Navidad! 🎄" />
+          </Field>
+          <Field label={`Mensaje (${texto.length}/300) · en tu voz: cercano y motivador`}>
+            <textarea value={texto} onChange={e => setTexto(e.target.value.slice(0, 300))} rows={4} className={inputCls + ' resize-none'}
+              placeholder="Soy Jonah. …" />
+          </Field>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A quién?</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PUBLICOS_MENSAJE.map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setPublico(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${publico === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-400 mt-1.5">
+              {cuenta ? <>Le llega a <b className="text-zinc-100">{cuenta.total}</b> alumnos en la app · notificación a <b className="text-zinc-100">{cuenta.conAvisos}</b> (tienen avisos activados)</> : 'Contando…'}
+            </p>
+          </div>
+
+          <div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿Cuándo?</p>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {[['ahora', 'Ahora'], ['programar', '🗓️ Programar']].map(([id, nombre]) => (
+                <button key={id} type="button" onClick={() => setCuando(id)}
+                  className={`jb-body text-xs px-3 py-1.5 rounded-full border ${cuando === id ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{nombre}</button>
+              ))}
+              {cuando === 'programar' && (
+                <input type="datetime-local" value={fecha} onChange={e => setFecha(e.target.value)} className={inputCls + ' text-sm py-1.5 w-auto'} />
+              )}
+            </div>
+            <p className="jb-body text-[11px] text-zinc-500 mt-1">Hora de Perú. Los programados salen en la siguiente revisión (cada 15 minutos: a los :02, :17, :32 y :47). De noche (10 p.m. a 8 a.m.) no suena: sale a las 8:02 a.m. Como mucho un mensaje por día.</p>
+          </div>
+
+          <label className="flex items-center gap-2 jb-body text-xs text-zinc-300">
+            <input type="checkbox" checked={enMuro} onChange={e => setEnMuro(e.target.checked)} className="accent-orange-500" />
+            Publicarlo también en el Muro de la Comunidad
+          </label>
+
+          {(titulo.trim() || texto.trim()) && (
+            <div className="flex flex-col gap-2">
+              <p className="jb-body text-[11px] text-zinc-500">Así se verá (la notificación, y la ventana que sale apenas abren la app):</p>
+              <div className="bg-zinc-100 text-zinc-900 rounded-xl px-3 py-2 flex gap-2 items-start">
+                <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold leading-tight">{titulo || 'Título'}</p>
+                  <p className="text-[12px] leading-snug line-clamp-3">{texto || 'Mensaje'}</p>
+                </div>
+              </div>
+              <div className="bg-zinc-950 border border-orange-500/50 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-500/60 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-base text-zinc-50 leading-tight">{titulo || 'Título'}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-sm text-zinc-200 mt-2 whitespace-pre-line">{texto || 'Mensaje'}</p>
+                <div className={btnPrimary + ' w-full py-2 mt-3 pointer-events-none text-sm'}>¡Gracias, Jonah! 💪</div>
+              </div>
+            </div>
+          )}
+
+          {/* La misma ventana que ve el alumno al abrir la app
+              (MensajeJonahCard en src/alumno.jsx), sin enviar nada. */}
+          {verEnApp && (
+            <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true" onClick={() => setVerEnApp(false)}>
+              <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+                style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }} onClick={e => e.stopPropagation()}>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mb-3">👁️ Vista previa: así lo verán al abrir la app (no se envió a nadie)</p>
+                <div className="flex items-center gap-3">
+                  <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+                    <p className="jb-display text-2xl text-zinc-50 leading-tight">{titulo}</p>
+                  </div>
+                </div>
+                <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{texto}</p>
+                <button onClick={() => setVerEnApp(false)} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
+                <p className="jb-body text-[11px] text-center text-zinc-500 mt-2">Toca el botón o fuera de la ventana para volver.</p>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="jb-body text-xs text-red-400">{error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={!titulo.trim() || !texto.trim()} onClick={() => setVerEnApp(true)} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              👁️ Ver cómo se ve en la app
+            </button>
+            <button type="button" disabled={!titulo.trim() || !texto.trim() || !!ocupado} onClick={probar} className={btnGhost + ' text-sm py-2.5 px-4'}>
+              {ocupado === 'probar' ? <Loader2 size={15} className="animate-spin" /> : '📲 Enviarme una prueba'}
+            </button>
+            <button type="button" disabled={!listo || !!ocupado} onClick={enviar} className={btnPrimary + ' text-sm py-2.5 px-4 flex-1'}>
+              {ocupado === 'enviar' ? <Loader2 size={15} className="animate-spin" />
+                : cuando === 'ahora' ? `📣 Enviar a ${cuenta?.total ?? '…'} alumnos` : '🗓️ Programar'}
+            </button>
+          </div>
+
+          {(programados.length > 0 || enviados.length > 0) && (
+            <div className="flex flex-col gap-2 border-t border-zinc-800 pt-3">
+              {programados.map(m => (
+                <div key={m.id} className="bg-zinc-950 border border-amber-600/40 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="jb-body text-sm text-zinc-100 truncate">🗓️ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500">Sale el {fechaHoraPeru(salidaReal(m.programado_para))} · {(PUBLICOS_MENSAJE.find(p => p[0] === m.publico) || [])[1]}{m.en_muro ? ' · también en el Muro' : ''}</p>
+                  </div>
+                  <button type="button" onClick={() => cancelar(m)} className="jb-body text-xs text-zinc-400 underline shrink-0">Cancelar</button>
+                </div>
+              ))}
+              {enviados.map(m => {
+                const v = vistos[String(m.id)];
+                return (
+                  <div key={m.id} className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                    <p className="jb-body text-sm text-zinc-100 truncate">✅ {m.titulo}</p>
+                    <p className="jb-body text-[11px] text-zinc-500 tabular-nums">
+                      {fechaHoraPeru(m.enviado_en)} · {m.destinatarios.length} alumnos · {m.push_enviados} notificaciones · la vieron en la app {v ? v.vieron.size : 0}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AvisoMejoras40Panel() {
@@ -11473,7 +12150,7 @@ function PagosPanel({ onAprobado }) {
       // Aviso al celular del alumno: "tu pago fue aprobado". Si falla, la
       // aprobación igual queda hecha.
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await sesionFresca();
         fetch('/api/pago-aprobado', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
@@ -11589,7 +12266,7 @@ function PagosPanel({ onAprobado }) {
                 </Field>
                 <Field label="Plan (meses)">
                   <select value={manualForm.meses} onChange={e => setManualForm(v => ({ ...v, meses: e.target.value }))} className={inputCls}>
-                    {[1, 3, 6, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
+                    {[1, 3, 12].map(m => <option key={m} value={m}>{m} mes(es)</option>)}
                   </select>
                 </Field>
                 <Field label="Monto pagado (S/)">
@@ -11630,7 +12307,7 @@ function PagosPanel({ onAprobado }) {
                         {p.nombre ? `${p.nombre} · ${p.username}` : p.username}
                       </div>
                       <div className="text-zinc-500 text-xs jb-body mt-0.5">
-                        {p.metodo} · Op. {p.operacion} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {p.metodo}{p.operacion ? ` · Op. ${p.operacion}` : ' · solo captura'} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                       {p.estado === 'pendiente' && (
                         <div className={`text-xs jb-body mt-0.5 ${horasEsperando(p) >= 12 ? 'text-red-400 font-semibold' : 'text-amber-400'}`}>

@@ -132,6 +132,9 @@ const VALORES_MENU = ["", ...USOS_MENU.map((u) => u.valor)];
 // que FUENTES_ALIMENTO en src/admin.jsx.
 const FUENTES = ["Tabla Peruana (CENAN)", "Etiqueta del producto", "USDA", "Receta promedio"];
 const DESCRIPCION_FUENTE = "De dónde salen los números: \"Tabla Peruana (CENAN)\" si está en esa tabla (úsala primero), \"Etiqueta del producto\" si es un producto de marca, \"USDA\" si no está en la tabla peruana, o \"Receta promedio\" si es un plato calculado sumando sus ingredientes.";
+// Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen
+// (columna alimentos_extra.sin_arroz): la app avisa "🍚 Sin arroz: agrégalo aparte".
+const DESCRIPCION_SIN_ARROZ = "true si es un guiso o plato de fondo que en Perú se sirve con arroz (ají de gallina, estofado, seco, saltado, picante, sudado…) y tus números NO incluyen el arroz. false si no se come con arroz o si los números ya lo incluyen (en ese caso el nombre debe decirlo, ej. \"… con arroz\").";
 const DESCRIPCION_MENU = "Para qué serviría en el menú del día (una sugerencia que revisa Jonah): uno de los valores de la lista de usos del menú, o \"\" si no va en el menú.";
 
 const ESQUEMA_PROPUESTA = {
@@ -176,15 +179,17 @@ const ESQUEMA_PROPUESTA = {
           seguridad: { type: "string", enum: ["alta", "media", "baja"] },
           menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
           fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
+          sin_arroz: { type: "boolean", description: DESCRIPCION_SIN_ARROZ },
         },
-        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso", "fuente"],
+        required: ["nombre", "grupo", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "seguridad", "menu_uso", "fuente", "sin_arroz"],
         additionalProperties: false,
       },
     },
     menu_uso: { type: "string", enum: VALORES_MENU, description: DESCRIPCION_MENU },
     fuente: { type: "string", enum: FUENTES, description: DESCRIPCION_FUENTE },
+    sin_arroz: { type: "boolean", description: DESCRIPCION_SIN_ARROZ },
   },
-  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes", "fuente"],
+  required: ["ya_existe", "grupo", "nombre", "estado", "kcal", "proteina", "carbos", "grasa", "fibra", "unidad", "gramos_unidad", "nota", "seguridad", "variantes", "menu_uso", "por_partes", "fuente", "sin_arroz"],
   additionalProperties: false,
 };
 
@@ -212,6 +217,7 @@ async function calcular(nombre: string, id?: number, tipo = "alimento", modelo =
       text: `Eres nutricionista y armas la base de alimentos de Jonah Beast Fuel, una app peruana de nutrición. Te piden agregar un alimento o plato. Calcula sus macros POR CADA 100 g, tal como se come (cocido si se come cocido), con porciones y recetas típicas de Perú. Usa como referencia la Tabla Peruana de Composición de Alimentos (CENAN/INS) y, si no está, USDA o recetas caseras promedio.
 
 Reglas:
+- Arroz (sin_arroz): calcula los guisos y platos de fondo SIN el arroz (el alumno lo registra aparte) y marca sin_arroz = true. Solo si lo pedido trae el arroz en el nombre (ej. "arroz con pollo", "seco con arroz") inclúyelo en los números y pon false. En variantes, igual.
 - Fuente: anota de dónde salen los números (Tabla Peruana CENAN primero; si no está, USDA; si es un producto de marca, su etiqueta; si es un plato, receta promedio sumando sus ingredientes). Así la base queda validada.
 - Números por 100 g, con un decimal como máximo. kcal ≈ 4·proteína + 4·carbos + 9·grasa (acepta un pequeño desvío por fibra o alcohol).
 - Si en la lista de la app ya hay algo que es lo mismo (aunque tenga otro nombre o esté escrito distinto), pon su nombre exacto en "ya_existe". Si solo es parecido, deja "ya_existe" vacío.
@@ -219,7 +225,7 @@ Reglas:
 - El nombre y el grupo deben seguir el estilo de la lista. Para platos preparados usa estado "-".
 - Regla de nombres (para que la base quede pareja): mayúscula solo al inicio (y en nombres propios), sin el estado ni la medida dentro del nombre (bien: "Linaza" con estado "Crudo"; mal: "Linaza (semillas)", "Chocolate batido (taza)"). El estado concuerda con el nombre: "Papa" → "Cocida", "Pollo pechuga" → "Cocida", "Huevo" → "Cocido".
 - En la medida casera piensa en cómo lo sirve la gente en Perú (ej. un plato de comida ≈ 400 g, una unidad de pan francés ≈ 55 g).
-- En "seguridad" sé honesto: si está en "alta", se agrega a la app de todos sin que Jonah lo revise. Ante la duda, "media" o "baja" (lo revisa Jonah).
+- En "seguridad" sé honesto: "alta" y "media" se agregan a la app de todos sin que Jonah lo revise primero (él lo ve después y lo puede corregir), siempre que los números cuadren y no se parezca a nada de la lista. "media" = plato conocido con receta típica, aunque las calorías varíen algo según la casa. "baja" = no sabes bien qué es, el nombre es vago o ambiguo, es una mezcla rara o no es comida (lo revisa Jonah antes).
 - Alimentos SIMPLES de un solo ingrediente con valores conocidos (semillas, frutas, verduras, menestras, carnes o pescados al natural, lácteos, productos básicos): pon "alta" aunque el pedido esté mal escrito o sin tildes, SIEMPRE QUE el nombre correcto sea obvio (ej. "linasa" → Linaza, "brocoli" → Brócoli, "kiwisha" → Kiwicha) y uses valores de la Tabla Peruana o USDA. Si el nombre se presta a dos alimentos distintos, no es "alta".
 - Frituras, apanados, salteados y platos caseros cuyas calorías dependen mucho del aceite o la receta (chicharrones, jaleas, apanados, saltados): nunca "alta"; los revisa Jonah.
 - Menú del día (menu_uso): la app arma menús para bajar grasa con estos usos:
@@ -247,6 +253,8 @@ ${lista}`,
   propuesta.por_partes = (Array.isArray(propuesta.por_partes) ? propuesta.por_partes : []).map((n: unknown) => String(n || "").trim()).filter(Boolean).slice(0, 5);
   propuesta.variantes.forEach((v: any) => { v.menu_uso = usoValido(v.menu_uso); v.fuente = FUENTES.includes(v.fuente) ? v.fuente : ""; });
   propuesta.fuente = FUENTES.includes(propuesta.fuente) ? propuesta.fuente : "";
+  propuesta.sin_arroz = propuesta.sin_arroz === true;
+  propuesta.variantes.forEach((v: any) => { v.sin_arroz = v.sin_arroz === true; });
 
   if (id) {
     await supabase.from("pedidos_alimentos").update({ propuesta, actualizado_en: new Date().toISOString() }).eq("id", id);
@@ -585,6 +593,12 @@ async function atenderPedido(pedido: any) {
   }
   const ahora = new Date().toISOString();
   const segura = propuesta.seguridad === "alta";
+  // Para AGREGAR basta "media" (desde el 6 de octubre): en el último mes,
+  // de los pedidos "media" que Jonah aprobó, 15 de 16 los dejó con los
+  // mismos números. Igual se exige que cuadren, que tengan fuente y que no
+  // se parezcan a nada de la app; Jonah los ve en "Lo que hizo la IA" y le
+  // llega un aviso para corregirlos o quitarlos.
+  const agregable = segura || (propuesta.seguridad === "media" && !!propuesta.fuente);
   const guardar = (estadoIA: string, extra: any = {}) => ({ ...propuesta, ...extra, ia_estado: estadoIA, ia_en: ahora });
 
   // 1) Ya existe en la app: se le responde con qué nombre buscarlo.
@@ -614,16 +628,20 @@ async function atenderPedido(pedido: any) {
   // Salvo que se parezca mucho a uno que ya está con otro nombre: ahí puede
   // ser un repetido, y lo decide Jonah (así la base no se llena de dobles).
   const etiquetaPropuesta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
-  const parecidos = segura && !propuesta.ya_existe && !propuesta.por_partes.length ? await muyParecidos(etiquetaPropuesta) : [];
+  const parecidos = agregable && !propuesta.ya_existe && !propuesta.por_partes.length ? await muyParecidos(etiquetaPropuesta) : [];
   if (parecidos.length) {
     propuesta.parecidos = parecidos;
     propuesta.nota = `${propuesta.nota || ""} ⚠️ Se parece a: ${parecidos.join(", ")}. Revisa si es lo mismo antes de agregarlo.`.trim();
   }
-  if (segura && !parecidos.length && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
+  if (agregable && !parecidos.length && !propuesta.ya_existe && !propuesta.por_partes.length && cuadra(propuesta.kcal, propuesta.proteina, propuesta.carbos, propuesta.grasa)) {
     try {
       await supabase.from("pedidos_alimentos").update({ propuesta: guardar("agregado") }).eq("id", pedido.id);
       const r = await aprobar(propuesta, pedido.id);
       const etiqueta = propuesta.estado && propuesta.estado !== "-" ? `${propuesta.nombre} (${String(propuesta.estado).toLowerCase()})` : propuesta.nombre;
+      // Jonah se entera de lo que agregó sola, para revisarlo cuando pueda.
+      if (!horaDeSilencio()) {
+        await enviarPush({ admin: true, body: `🤖 La IA agregó "${etiqueta}" (${propuesta.kcal} kcal por 100 g${propuesta.sin_arroz ? ", sin arroz" : ""}). Si algo no cuadra, corrígelo o quítalo en IA → "Lo que hizo la IA".` });
+      }
       return { estado: "agregado", alimento: etiqueta, avisos: r.avisos };
     } catch (e) {
       // ej. ya había uno con ese nombre: que lo vea Jonah
@@ -669,6 +687,7 @@ function limpiarAlimento(a: any) {
     unidad: unidad || null,
     gramos_unidad: unidad ? gramosUnidad : null,
     fuente: FUENTES.includes(texto(a?.fuente, 40)) ? texto(a?.fuente, 40) : null,
+    sin_arroz: a?.sin_arroz === true,
   };
 }
 

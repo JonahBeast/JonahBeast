@@ -19,9 +19,8 @@ const URL_PLANES = '/?ir=planes';
 // Mismos planes y precios por defecto que la app (src/App.jsx, PLANES).
 const PLANES = [
   { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
-  { meses: 3, configKey: 'precio_3', precioDefault: 64.90 },
-  { meses: 6, configKey: 'precio_6', precioDefault: 114.90 },
-  { meses: 12, configKey: 'precio_12', precioDefault: 209.90 },
+  { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
+  { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
 ];
 
 async function precioMinimoPorDia(supabase) {

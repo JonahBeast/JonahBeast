@@ -10,16 +10,19 @@
 // la variable de Vercel GOOGLE_PLAY_CUENTA_SERVICIO.
 
 import crypto from 'node:crypto';
+import { avisarCompraMeta } from './meta-compra.js';
 
 export const PAQUETE_ANDROID = 'com.jonahbeast.twa';
 
-// Los 4 planes tal como se crean en Play Console (Monetiza con Play →
+// Los planes tal como se crean en Play Console (Monetiza con Play →
 // Suscripciones). Cada uno es una suscripción con renovación automática.
+// El semestral ya no se vende (9 de octubre de 2026); queda aquí solo para
+// reconocer una compra antigua.
 export const PRODUCTOS_GOOGLE = {
   jb_plan_mensual: { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
-  jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 64.90 },
+  jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
   jb_plan_semestral: { meses: 6, configKey: 'precio_6', precioDefault: 114.90 },
-  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 209.90 },
+  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
 };
 
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE_ANDROID}`;
@@ -221,6 +224,9 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
   await supabase.from('alumnos')
     .update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: 'pago' })
     .eq('username', dueno);
+
+  // Avisa a Meta la compra (no frena la activación si falla).
+  await avisarCompraMeta(supabase, { username: dueno, monto, eventoId: `gp_${pedido}` });
 
   return { ok: true, activado: true, estado, fechaVencimiento: nuevaFecha, bono };
 }

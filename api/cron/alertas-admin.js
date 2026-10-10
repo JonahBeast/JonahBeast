@@ -9,6 +9,10 @@
 //     (de noche no se avisa al momento y el aviso se perdía);
 //   - la conexión del WhatsApp del asistente (dura 60 días) vence en 7 días
 //     o menos, o ya venció: una vez al día, a las 9am.
+//   - Beast: un alumno que aceptó "avísale a Jonah si me ves muy mal" habló
+//     de hacerse daño o no querer vivir (solo su nombre, nunca lo que dijo;
+//     Beast ya le dio la Línea 113). Lo de la noche llega a las 7am.
+//   - A las 9am borra las conversaciones con Beast de más de 90 días.
 // De noche (10pm a 7am, hora Perú) no avisa: lo pendiente sale en el
 // informe de la mañana.
 //
@@ -34,7 +38,13 @@ export default async function handler(req, res) {
     const { data: pendientes } = await supabase.from('pagos')
       .select('id, username, nombre, monto, creado_en').eq('estado', 'pendiente').range(0, 999);
     const edad = p => ahora - new Date(p.creado_en).getTime();
-    const nuevos = (pendientes || []).filter(p => edad(p) < HORA_MS);
+    // Los que ya se avisaron al toque (api/pago-enviado.js, al tocar "Ya
+    // pagué") no se repiten aquí.
+    const { data: cfgAvisados } = await supabase.from('config').select('value').eq('key', 'pagos_avisados').maybeSingle();
+    let yaAvisados = [];
+    try { yaAvisados = JSON.parse(cfgAvisados?.value || '[]'); } catch {}
+    if (!Array.isArray(yaAvisados)) yaAvisados = [];
+    const nuevos = (pendientes || []).filter(p => edad(p) < HORA_MS && !yaAvisados.includes(p.id));
     // Cumplieron 12 h en la última hora (o entre 12 h y 13 h si la hora de
     // la noche se saltó: entonces se avisa a las 7am).
     const hueco = hora === 7 ? 10 * HORA_MS : HORA_MS;
@@ -84,7 +94,23 @@ export default async function handler(req, res) {
         });
       }
     }
+    {
+      // Beast: alumnos que podrían necesitar apoyo (con su permiso).
+      const desde = new Date(ahora - (hora === 7 ? 10 : 1) * HORA_MS).toISOString();
+      const { data: alertas } = await supabase.from('beast_mensajes').select('username')
+        .eq('alerta', true).gte('creado_en', desde).range(0, 49);
+      const quienes = [...new Set((alertas || []).map(a => a.username))];
+      if (quienes.length) {
+        const { data: alumnos } = await supabase.from('alumnos').select('username, nombre').in('username', quienes);
+        const nombres = quienes.map(u => nombre((alumnos || []).find(a => a.username === u) || { username: u }));
+        avisos.push({
+          title: '🦍 Alguien podría necesitar apoyo',
+          body: `${nombres.join(', ')} le contó a Beast que está pasando un momento muy difícil (aceptó que te avisemos). Beast ya le dio la Línea 113. Escríbele cuando puedas.`,
+        });
+      }
+    }
     if (hora === 9) {
+      await supabase.from('beast_mensajes').delete().lt('creado_en', new Date(ahora - 90 * 24 * HORA_MS).toISOString());
       const { data: wa } = await supabase.from('whatsapp_cuenta').select('conectado_en, token').eq('id', 1).maybeSingle();
       if (wa?.token && wa.conectado_en) {
         const dias = Math.ceil((new Date(wa.conectado_en).getTime() + 60 * 24 * HORA_MS - ahora) / (24 * HORA_MS));

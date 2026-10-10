@@ -12,10 +12,16 @@
 // 4. Versión gratis (prueba o plan vencidos): solo el "te extrañé", y
 //    solo a los 3, 7, 14 y 30 días sin registrar (no todos los días).
 //    La racha y los hitos son de Premium.
+// 0. Cierre del día 1 (va primero): quien empezó hoy y ya anotó algo recibe
+//    "Hoy anotaste N comidas, ¡buen arranque! Mañana te pregunto qué
+//    desayunaste, ¿ya?" (tipo cierre_dia1). Al día siguiente, el aviso de
+//    la mañana (recordatorio.js) le pregunta "Como quedamos: ¿qué desayunaste?".
+// Los firma Beast y abren su chat (urlBeast). Con "Beast, háblame menos"
+// (form.avisos.pocos) no se manda nada de esto.
 //
 // Cron sugerido en vercel.json: "0 1 * * *" (01:00 UTC = 20:00 Perú)
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos, alumnosGratis, diasDesde, preferenciasAvisos, sinApagados } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, enviarPushA, calcularRachas, conPresupuesto, anotarAvisos, alumnosGratis, diasDesde, preferenciasAvisos, sinApagados, hablaMenos, TITULO_BEAST, urlBeast } from '../_lib/push.js';
 
 const DIAS_TE_EXTRANE_GRATIS = [3, 7, 14, 30];
 
@@ -31,7 +37,7 @@ export default async function handler(req, res) {
 
   try {
     const { data: alumnos, error } = await supabase
-      .from('alumnos').select('username, ultimo_hito_racha')
+      .from('alumnos').select('username, ultimo_hito_racha, fecha_inicio')
       .eq('enabled', true).gte('fecha_vencimiento', hoyISO);
     if (error) throw error;
 
@@ -51,7 +57,8 @@ export default async function handler(req, res) {
       .map(g => g.username);
     // Quien apagó "Racha en riesgo" en su perfil no recibe estos avisos.
     const prefs = await preferenciasAvisos(supabase);
-    const libres = new Set(await conPresupuesto(supabase, sinApagados(prefs, [...usernames, ...gratis], 'racha'), { momento: 'noche', hoyISO }));
+    const libres = new Set(await conPresupuesto(supabase, sinApagados(prefs, [...usernames, ...gratis], 'racha')
+      .filter(u => !hablaMenos(prefs, u)), { momento: 'noche', hoyISO }));
     const enviar = async (u, mensaje, tipo) => {
       const r = await enviarPushA(supabase, [u], mensaje);
       totalEnviados += r.enviados; fallidosTotal.push(...r.fallidos);
@@ -59,13 +66,25 @@ export default async function handler(req, res) {
       return r.enviados > 0;
     };
 
+    // 0. Cierre del día 1: empezó hoy y ya anotó algo.
+    const nuevosHoy = (alumnos || []).filter(a => a.fecha_inicio === hoyISO && libres.has(a.username) && rachas[a.username]?.registroHoy).map(a => a.username);
+    if (nuevosHoy.length) {
+      const { data: hoyHist } = await supabase.from('historial').select('username, comidas_count').eq('fecha', hoyISO).in('username', nuevosHoy);
+      const comidasDe = {}; (hoyHist || []).forEach(h => { comidasDe[h.username] = Number(h.comidas_count) || 0; });
+      await Promise.all(nuevosHoy.map(u => {
+        const n = comidasDe[u] || 1;
+        const body = `Hoy anotaste ${n} ${n === 1 ? 'comida' : 'comidas'}, ¡buen arranque! 🦍 Mañana te pregunto qué desayunaste, ¿ya?`;
+        libres.delete(u);
+        return enviar(u, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'cierre_dia1');
+      }));
+    }
+
     // 1. Racha en riesgo (3+ días, sin registrar hoy)
     const enRiesgo = usernames.filter(u => libres.has(u) && rachas[u] && rachas[u].racha >= RACHA_MINIMA && !rachas[u].registroHoy);
-    await Promise.all(enRiesgo.map(u => enviar(u, {
-      title: 'Jonah 🦍',
-      body: `Llevas ${rachas[u].racha} día(s) seguidos registrando tus comidas. No la rompas hoy — solo toma un minuto.`,
-      url: '/?registrar=ahora',
-    }, 'racha_en_riesgo')));
+    await Promise.all(enRiesgo.map(u => {
+      const body = `¡Llevas ${rachas[u].racha} días seguidos anotando! 🔥 No la rompas hoy: cuéntame qué comiste y listo.`;
+      return enviar(u, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'racha_en_riesgo');
+    }));
 
     // 2. Silencio 24h+: sin racha activa y sin registrar hoy — un
     // mensaje más cercano que un recordatorio, para el que lleva rato sin volver.
@@ -75,15 +94,15 @@ export default async function handler(req, res) {
     ];
     if (sinRegistro.length) {
       const variantes = [
-        'Te extrañé hoy. Cuando quieras volver, aquí sigo — sin juicios, solo acompañándote 🦍',
-        'Hace un tiempo que no te veo por aquí. No pasa nada, retomar también cuenta 💪',
-        'Un día sin registrar no borra tu progreso. Cuando puedas, aquí estoy 🦍',
+        '¿Todo bien? Hoy no te vi por aquí. Cuando quieras volver, aquí sigo, sin juicios 🦍',
+        'Hace un rato que no anotamos nada. Ya fue, retomar también cuenta: ¿qué comiste hoy? 💪',
+        'Un día sin anotar no borra tu avance 🦍 Cuando puedas, cuéntame qué comiste y seguimos.',
       ];
       // En paralelo, no uno por uno — evita que la función se quede
       // corta de tiempo con muchos alumnos.
       await Promise.all(sinRegistro.map(u => {
         const body = variantes[Math.floor(Math.random() * variantes.length)];
-        return enviar(u, { title: 'Jonah 🦍', body, url: '/?registrar=ahora' }, 'te_extrane');
+        return enviar(u, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'te_extrane');
       }));
     }
 
@@ -98,10 +117,8 @@ export default async function handler(req, res) {
       }
     }
     await Promise.all(conHitoNuevo.map(async ({ username, hito }) => {
-      const enviado = await enviar(username, {
-        title: 'Jonah 🦍',
-        body: `🔥 ¡Llegaste a ${hito} días de racha! Eso es constancia de verdad — sigue así, vamos con todo 🦍`,
-      }, 'hito_racha');
+      const body = `🔥 ¡${hito} días de racha! Eso es constancia de verdad. Toca y celebramos 🦍`;
+      const enviado = await enviar(username, { title: TITULO_BEAST, body, url: urlBeast(body) }, 'hito_racha');
       // Si hoy no se pudo (sin presupuesto o sin avisos), se celebra otro día.
       if (enviado) await supabase.from('alumnos').update({ ultimo_hito_racha: hito }).eq('username', username);
     }));

@@ -150,6 +150,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: MODELO_FOTOS, usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
+    if (accion === "unir_codigo") return json(await unirCodigo(supabase, codigo, producto?.codigo));
     if (accion === "transcribir_voz") {
       if (!premium && !sinLimite) return json({ error: "premium", funcion: "voz" }, 200);
       if (typeof audioBase64 !== "string" || !audioBase64) return json({ error: "Falta el audio." }, 400);
@@ -168,24 +169,12 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       }
       return json({ texto });
     }
+    // Leer la tabla nutricional con IA es Premium (ver leerEtiquetaConCupo).
     if (accion === "leer_etiqueta") {
-      // Leer la tabla nutricional con IA es Premium.
-      if (!premium && !sinLimite) return json({ error: "premium", funcion: "etiqueta" }, 200);
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
-      const periodoEtiqueta = `etiqueta-${hoyLima}`;
-      const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
-        p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
-      });
-      if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
-      if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);
-      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: MODELO_FOTOS, usage }));
-      if (!leida.ok) {
-        // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
-        if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
-        return json({ error: leida.error }, leida.fallo ? 502 : 200);
-      }
-      return json({ producto: leida.producto });
+      const r = await leerEtiquetaConCupo(supabase, username, { premium, sinLimite, hoyLima, imagenBase64, mimeType });
+      return json(r.producto ? { producto: r.producto } : { error: r.error, ...(r.limite ? { limite: r.limite } : {}) }, r.status || 200);
     }
 
     // "¿Qué puedo comer?": no usa IA, pero en la versión gratis se puede
@@ -270,7 +259,17 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       await devolverFoto();
       return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
     }
-    const { items, noEncontrados, alternativas } = r;
+    const { items, noEncontrados, alternativas, etiqueta, envase } = r;
+
+    // La foto es la tabla nutricional de un producto empacado: en vez de
+    // buscar platos, se leen sus números (como en "Código" → "Tomar foto a
+    // la tabla nutricional"). La foto de comida se devuelve: leer la
+    // etiqueta usa su propio cupo.
+    if (etiqueta && !items.length) {
+      await devolverFoto();
+      const leida = await leerEtiquetaConCupo(supabase, username, { premium, sinLimite, hoyLima, imagenBase64, mimeType: tipoImagen });
+      return json({ items: [], noEncontrados: [], alternativas: {}, etiqueta: leida.producto ? { producto: leida.producto } : { error: leida.error }, ...cupo, usadas: Math.max(0, Number(usadas) - 1) });
+    }
 
     // Platos que la IA vio pero no tenemos: quedan anotados para que el
     // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
@@ -281,7 +280,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     }
 
     // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, noEncontrados, alternativas, ...cupo, usadas });
+    return json({ items, noEncontrados, alternativas, envase, ...cupo, usadas });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);
@@ -293,7 +292,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
 async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, porciones = [], usuarioUso }: {
   imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[];
   deTodos: CorreccionesDeTodos; porciones?: string[]; usuarioUso: string;
-}): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]> } | null> {
+}): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]>; etiqueta: boolean; envase: boolean } | null> {
   const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
   // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
   // la lista pesa casi la mitad que mandando "clave :: nombre".
@@ -338,17 +337,20 @@ Cuidado con estos errores comunes que hacen calcular DE MÁS:
 - Pavita a la olla / pavita al jugo / pavita guisada: es carne de pavita (muslo) cocinada en su salsa. Registra la carne como "Pavita muslo (medallón, sin piel)" y el arroz u otros acompañamientos aparte; los gramos de la carne son solo la carne, sin contar la salsa.
 - Bistec vs. churrasco: si la carne de res es una lámina delgada, es "bistec", no "churrasco". El churrasco es un corte GRUESO (1.5–2 cm) con borde de grasa visible; úsalo solo si se ve ese grosor.
 - Papa sancochada vs. dorada vs. frita: la papa sancochada (clave de papa "Cocida") es de color pálido y superficie lisa y opaca, sin partes tostadas; la papa dorada tiene la superficie tostada, dorada y brillante de aceite; las papas fritas son bastones o rodajas crocantes. En la pollada y el pollo frito la papa puede venir sancochada O dorada: no asumas que es dorada; si no ves con claridad la superficie tostada, usa "opciones" con la papa cocida primero y la dorada después.
+- Bebidas vs. aceite: un líquido servido en vaso, taza o botella para tomar es una BEBIDA (gaseosa, jugo, chicha, refresco, agua…), aunque sea amarillo o dorado. Nunca respondas "Aceite…" ni otra grasa para un vaso o taza de líquido: el aceite solo aparece como aliño o en cucharadas sobre la comida. Una bebida amarilla con burbujas en Perú suele ser gaseosa (tipo Inca Kola); si no sabes si es regular o dietética, usa "opciones" con ambas.
 - Fideos, tallarines y ensaladas sueltas: si están esparcidos en capa delgada por el plato, pesan menos de lo que parece; un plato llano con fideos esparcidos suele tener 100–150 g. Cuenta la altura del montón, no solo la superficie.
 
 Marca "aceite": true si el alimento se ve frito, saltado, apanado o brillante de aceite; si no, false.
 
 Si en la foto se ve con claridad un plato o alimento que NO está en la lista (ni nada equivalente), escribe su nombre común en español peruano en "no_encontrados" (ej. "Pollo a la olla"), máximo 3, nombres cortos sin marcas ni cantidades. Si todo lo visible está en la lista, deja "no_encontrados" vacío.
 
+TABLA NUTRICIONAL o ENVASE: si la foto muestra la TABLA NUTRICIONAL (información nutricional, con calorías y porción) de un producto empacado, no busques platos: responde "etiqueta": true con "items" vacío. Si la foto muestra un producto empacado (paquete, bolsa, botella, lata) y no está en la lista, pero NO se ve su tabla nutricional, responde "envase": true y pon el nombre del producto en "no_encontrados". En cualquier otro caso, "etiqueta" y "envase" van en false.
+
 Lista de alimentos válidos:
 ${listaPlatos}
 
 Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exacto:
-{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": []}
+{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": [], "etiqueta": false, "envase": false}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
   const modelo = MODELO_FOTOS;
@@ -409,6 +411,8 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
   let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
   let noEncontrados: string[] = [];
   const parsed = extraerJson(textoRespuesta);
+  const etiqueta = parsed?.etiqueta === true;
+  const envase = parsed?.envase === true && !etiqueta;
   // Si la respuesta no trae el JSON (o viene cortada), se trata como una
   // falla de la IA: quien llamó devuelve la foto y el alumno reintenta.
   if (!parsed) return null;
@@ -464,7 +468,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     }
   }
 
-  return { items, noEncontrados, alternativas };
+  return { items, noEncontrados, alternativas, etiqueta, envase };
 }
 
 // Foto de prueba desde la portada, sin cuenta (ver DEMO_* arriba). Se
@@ -616,13 +620,71 @@ async function nombreUnico(supabase: any, codigo: string, nombre: string, marca:
   return data && data.length ? `${nombre.slice(0, 72)} · ${codigo.slice(-4)}` : nombre;
 }
 
-async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
+// Productos guardados desde la foto de comida, sin código de barras.
+const CODIGO_INTERNO = /^99[0-9]{12}$/;
+
+async function productoSinCodigo(supabase: any, nombre: string, marca: string | null) {
+  const literal = (t: string) => t.replace(/[\\%_]/g, "\\$&");
+  let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").like("codigo", "99%")
+    .ilike("nombre", literal(nombre)).limit(5);
+  q = marca ? q.ilike("marca", literal(marca)) : q.is("marca", null);
+  const { data } = await q;
+  return (data || []).find((r: any) => CODIGO_INTERNO.test(r.codigo)) || null;
+}
+
+// "📦 ¿Tiene código de barras?": le pone el código real a un producto que
+// se guardó desde la foto de comida. Si ese código ya era de otro
+// producto, se usa ese (ya estaba registrado).
+async function unirCodigo(supabase: any, codigo: unknown, desde: unknown) {
   const cod = String(codigo || "").replace(/\D/g, "");
-  if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
+  const interno = String(desde || "");
+  if (!CODIGO_VALIDO.test(cod) || CODIGO_INTERNO.test(cod)) return { error: "Ese código no parece válido." };
+  if (!CODIGO_INTERNO.test(interno)) return { error: "Este producto ya tiene su código." };
+  const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
+  if (existe) return { producto: existe, yaExistia: true };
+  const { data, error } = await supabase.from("productos")
+    .update({ codigo: cod, actualizado_en: new Date().toISOString() })
+    .eq("codigo", interno).eq("fuente", "etiqueta").select("*").maybeSingle();
+  if (error || !data) {
+    console.error("No se pudo unir el código:", error?.message);
+    return { error: "No se pudo unir el código. Intenta de nuevo." };
+  }
+  return { producto: data };
+}
+
+async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
+  let cod = String(codigo || "").replace(/\D/g, "");
   const p = productoLimpio(producto);
   if (!p || !p.nombre) return { error: "Revisa el nombre y los valores del producto." };
+  // Sin código de barras (la tabla se leyó desde la foto de comida): si ya
+  // hay uno leído de etiqueta con el mismo nombre y marca, se usa ese; si
+  // no, se le pone un código interno de 14 dígitos que empieza en "99"
+  // (los lectores de la app solo dan códigos de 8, 12 o 13 dígitos, así
+  // que nunca choca con uno real).
+  if (!cod) {
+    const literal = (t: string) => t.replace(/[\\%_]/g, "\\$&");
+    let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").ilike("nombre", literal(p.nombre)).limit(1);
+    q = p.marca ? q.ilike("marca", literal(p.marca)) : q.is("marca", null);
+    const { data: igual } = await q;
+    if (igual && igual.length) return { producto: igual[0] }; // ya estaba (con código real o interno)
+    cod = "99" + String(Date.now()).slice(-10) + String(Math.floor(Math.random() * 100)).padStart(2, "0");
+  }
+  if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
   const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
   if (existe) return { producto: existe }; // otro alumno lo guardó antes: se usa ese
+  // Ya se había guardado desde la foto de comida (código interno 99…) con
+  // el mismo nombre y marca: se le pone el código real a ese mismo
+  // producto, con lo recién leído, en vez de crear uno repetido.
+  if (!CODIGO_INTERNO.test(cod)) {
+    const sinCodigo = await productoSinCodigo(supabase, p.nombre, p.marca);
+    if (sinCodigo) {
+      const { data: unido, error: errUnir } = await supabase.from("productos")
+        .update({ codigo: cod, ...p, nombre: sinCodigo.nombre, actualizado_en: new Date().toISOString() })
+        .eq("codigo", sinCodigo.codigo).select("*").single();
+      if (!errUnir && unido) return { producto: unido };
+      console.error("No se pudo unir el código:", errUnir?.message);
+    }
+  }
   const fila = { codigo: cod, ...p, nombre: await nombreUnico(supabase, cod, p.nombre, p.marca), fuente: "etiqueta", creado_por: username, veces_usado: 1 };
   const { data, error } = await supabase.from("productos").insert(fila).select("*").single();
   if (error) {
@@ -630,6 +692,28 @@ async function guardarProducto(supabase: any, codigo: unknown, producto: unknown
     return { error: "No se pudo guardar el producto. Intenta de nuevo." };
   }
   return { producto: data };
+}
+
+// Lee la tabla nutricional con su propio cupo diario (no gasta fotos de
+// comida). Es Premium. La usan "Código" → "Tomar foto a la tabla
+// nutricional" y la foto de comida cuando la foto resulta ser una tabla.
+async function leerEtiquetaConCupo(supabase: any, username: string, { premium, sinLimite, hoyLima, imagenBase64, mimeType }: {
+  premium: boolean; sinLimite: boolean; hoyLima: string; imagenBase64: string; mimeType: string;
+}): Promise<{ producto?: any; error?: string; limite?: number; status?: number }> {
+  if (!premium && !sinLimite) return { error: "premium" };
+  const periodoEtiqueta = `etiqueta-${hoyLima}`;
+  const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
+    p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
+  });
+  if (errEtiqueta) return { error: "No se pudo procesar la foto. Intenta de nuevo.", status: 500 };
+  if (usadasEtiqueta === null || usadasEtiqueta === undefined) return { error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO };
+  const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: MODELO_FOTOS, usage }));
+  if (!leida.ok) {
+    // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
+    if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
+    return { error: leida.error, status: leida.fallo ? 502 : 200 };
+  }
+  return { producto: leida.producto };
 }
 
 async function leerEtiqueta(imagenBase64: string, tipoImagen: string, anotar: (usage: any) => Promise<void>): Promise<{ ok: true; producto: any } | { ok: false; error: string; fallo?: boolean }> {

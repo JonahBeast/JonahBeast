@@ -73,7 +73,7 @@ export default async function handler(req, res) {
       sinAvisos = candidatos.filter(a => !con.has(a.username)).length;
     }
 
-    // Alimentos por revisar (panel → HOY → "Alimentos por revisar"): variantes
+    // Ideas de la IA (panel → HOY → Alimentos por revisar → Más herramientas): variantes
     // que propuso la IA y sugerencias de menú de los platos que agregó sola.
     const { data: agregados } = await supabase.from('pedidos_alimentos')
       .select('propuesta, alimentos_extra(menu_uso)').eq('estado', 'agregado')

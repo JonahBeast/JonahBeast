@@ -3,8 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Verificación del dominio jonahbeast.com en Meta (portafolio Jonah Beast Fuel, 10 oct 2026).
+         Va dos veces porque en la captura no se distinguía si era "0" (cero) u "o"; Meta solo busca la suya. -->
+    <meta name="facebook-domain-verification" content="2q58ofm5qlsn7404t5q8vvhs0otwoq" />
+    <meta name="facebook-domain-verification" content="2q58ofm5qlsn7404t5q8vvhsootwoq" />
+    <script>
+      // iPhone/iPad: al tocar una casilla con letra pequeña, Safari acerca la
+      // pantalla y la deja agrandada. Con maximum-scale=1 no lo hace (y en
+      // iPhone igual se puede agrandar con dos dedos). Solo en iPhone/iPad:
+      // en Android eso bloquearía el zoom con los dedos.
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover');
+      }
+    </script>
     <title>Jonah Beast Fuel — Baja de peso sin dejar la comida peruana</title>
     <meta name="description" content="App de nutrición para bajar de peso sin dejar la comida peruana: registra tus comidas con una foto, mide tu cuerpo y sigue tu progreso día a día." />
+
+    <!-- Dirección oficial para Google (sin "www" y sin ?fuente=…), la misma
+         de las páginas de calorías y del sitemap. Así Google no ve como
+         repetidas jonahbeast.com, www.jonahbeast.com ni los links de los
+         anuncios. Una ruta que no existe cuenta como la portada, y el panel
+         privado de cada embajador (/r/…) no se muestra en Google. -->
+    <link rel="canonical" href="https://jonahbeast.com/" />
+    <script>
+      (function () {
+        var ruta = location.pathname.replace(/\/+$/, '') || '/';
+        if (/^\/r\//.test(ruta)) {
+          var m = document.createElement('meta');
+          m.name = 'robots'; m.content = 'noindex';
+          document.head.appendChild(m);
+        }
+        var propias = ['/calculadora', '/reto', '/tienda'];
+        var oficial = 'https://jonahbeast.com' + (propias.indexOf(ruta) >= 0 ? ruta : '/');
+        document.querySelector('link[rel=canonical]').setAttribute('href', oficial);
+      })();
+    </script>
 
     <!-- App instalable -->
     <link rel="manifest" href="/manifest.webmanifest" />

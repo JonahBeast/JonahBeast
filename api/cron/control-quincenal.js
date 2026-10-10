@@ -21,17 +21,17 @@
 // Mismo patrón de envío en paralelo que api/cron/recordatorio.js, para
 // no repetir el problema de timeout de Vercel con muchos alumnos.
 
-import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados } from '../_lib/push.js';
+import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados, nombresCompanero, tituloDe } from '../_lib/push.js';
 import { traerTodas } from '../../src/traerTodas.js';
 
 const INTERVALO_DIAS = 15;
 
 function mensajeControl() {
   const variantes = [
-    { title: 'Jonah 🦍', body: 'Hoy te toca tu control quincenal: mídete con la cinta (cuello, cintura, cadera) y sube tus fotos de progreso 📸' },
-    { title: 'Jonah 🦍', body: 'Cada 15 días es momento de ver cómo cambia tu cuerpo de verdad — mídete y actualiza tus fotos 💪' },
-    { title: 'Jonah 🦍', body: 'Toca control: anota tus medidas y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
-    { title: 'Jonah 🦍', body: 'Han pasado 15 días desde tu último control — buen momento para medirte y fotografiarte otra vez 📸' },
+    { title: 'Beast 🦍', body: 'Hoy te toca tu control quincenal: mídete con la cinta (cuello, cintura, cadera) y sube tus fotos de progreso 📸' },
+    { title: 'Beast 🦍', body: 'Cada 15 días es momento de ver cómo cambia tu cuerpo de verdad — mídete y actualiza tus fotos 💪' },
+    { title: 'Beast 🦍', body: 'Toca control: anota tus medidas y sube tus fotos de progreso. Así vemos juntos cómo avanzas 🦍' },
+    { title: 'Beast 🦍', body: 'Han pasado 15 días desde tu último control — buen momento para medirte y fotografiarte otra vez 📸' },
   ];
   return variantes[Math.floor(Math.random() * variantes.length)];
 }
@@ -48,9 +48,11 @@ async function enviarLote(supabase, targets) {
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
   const webpush = (await import('web-push')).default;
+  // El título lleva el nombre que el alumno le puso a su compañero.
+  const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
   for (const { username, mensaje } of targets) {
-    const payload = JSON.stringify({ titulo: mensaje.title, cuerpo: mensaje.body, url: '/' });
+    const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
         webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)

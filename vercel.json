@@ -1,6 +1,47 @@
 {
+  "redirects": [
+    {
+      "source": "/:ruta((?!api/|\\.well-known/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.jonahbeast.com"
+        }
+      ],
+      "destination": "https://jonahbeast.com/:ruta",
+      "permanent": true
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/privacidad.html",
+      "permanent": true
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/calculadora",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reto",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reto/:ruta*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tienda",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/tienda/:ruta*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/r/:ruta*",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
     {
@@ -78,6 +119,10 @@
     {
       "path": "/api/cron/manual-jarvis",
       "schedule": "40 * * * *"
+    },
+    {
+      "path": "/api/cron/mensajes-programados",
+      "schedule": "2,17,32,47 * * * *"
     }
   ],
   "functions": {

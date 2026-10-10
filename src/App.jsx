@@ -436,7 +436,7 @@ function cargarAlimentosExtra(forzar = false) {
         const key = `${a.nombre} (${state})`;
         if (FOODS.some(f => f.key === key)) continue;
         FOODS.push({
-          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null,
+          group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null, sinArroz: !!a.sin_arroz,
           kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos), fat: Number(a.grasa), fiber: Number(a.fibra) || 0,
         });
         if (a.unidad && Number(a.gramos_unidad) > 0 && !UNITS_BY_NAME[a.nombre]) {
@@ -559,6 +559,8 @@ const UNITS_BY_NAME = {
   'Granola': [['taza', 110], ['cucharada', 10]],
   'Mantequilla de maní': [['cucharada', 16]],
   'Refresco de cebada': [['vaso', 250]],
+  'Gaseosa regular': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
+  'Gaseosa dietética': [['vaso', 200], ['lata', 355], ['botella personal', 500], ['ml', 1]],
   'Cerveza': [['vaso', 300], ['lata', 355], ['botella grande', 620]],
   'Quinua': [['taza', 185]],
   'Fresa': [['unidad', 15]],
@@ -714,7 +716,9 @@ const UNITS_BY_NAME = {
   'Parfait (PECAFIT)': [['porción', 350]],
 };
 const UNITS_BY_GROUP = {
-  'Bebidas': [['taza', 240], ['vaso', 200], ['jarra', 500]],
+  // En Perú las bebidas se toman en vaso (o se compran en ml): vaso primero
+  // y "ml" para quien sabe la medida exacta (1 ml ≈ 1 g).
+  'Bebidas': [['vaso', 200], ['taza', 240], ['jarra', 500], ['ml', 1]],
   'Lácteos': [['taza', 240], ['vaso', 200]],
   'Menestras': [['taza', 180]],
   'Postres': [['porción', 150]],
@@ -896,6 +900,16 @@ const ACEITE_POCO_MENOS_GRASA = 0.3;
 function esFritoOSaltado(food) {
   return /frit|saltad|chaufa|broaster|chicharr|apanad|empanizad/i.test(food?.key || '');
 }
+// Carnes, pollo, pescado y huevos que no son fritos en la app ("Pollo pierna
+// (con piel) · cocida"): se pregunta cómo los cocinó. Si los frió, se suma
+// el aceite que absorbieron (en cucharadas de aceite vegetal, ≈124 kcal):
+// "poquito" ¼, "frito" ½ y "muyfrito" 1. Un frito casero absorbe poco aceite
+// (unos 5 g por presa), por eso no se suma una cucharada entera.
+const GRUPOS_SE_FRIEN = ['Carnes y aves', 'Pescados', 'Pescados y mariscos', 'Huevos'];
+const ACEITE_COCINA = { poquito: 0.25, frito: 0.5, muyfrito: 1 };
+function sePuedeFreir(food) {
+  return !!food && !esFritoOSaltado(food) && GRUPOS_SE_FRIEN.includes(food.group) && !/crud/i.test(food.state || '');
+}
 
 function entryMacros(entry) {
   const food = buscarFood(entry.foodKey);
@@ -903,6 +917,11 @@ function entryMacros(entry) {
   if (!food || !g) return { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const factor = g / 100;
   const m = { kcal: food.kcal * factor, protein: food.protein * factor, carbs: food.carbs * factor, fat: food.fat * factor };
+  if (entry.aceite && ACEITE_COCINA[entry.aceite] && sePuedeFreir(food)) {
+    const a = entryMacros({ foodKey: CLAVE_ACEITE_VEGETAL, unit: 'cucharada', qty: ACEITE_COCINA[entry.aceite] });
+    m.kcal += a.kcal; m.protein += a.protein; m.carbs += a.carbs; m.fat += a.fat;
+    return m;
+  }
   if (!entry.aceite || !esFritoOSaltado(food)) return m;
   if (entry.aceite === 'poco') {
     const menos = m.fat * ACEITE_POCO_MENOS_GRASA;
@@ -2118,6 +2137,37 @@ function Field({ label, helpHref, children }) {
 }
 
 const inputCls = "bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 jb-body";
+
+/* Aviso en vivo debajo de una contraseña nueva: cuántas letras o números
+   faltan para llegar a 6, y "✓ Lista" cuando ya alcanza. Así nadie se
+   entera recién al tocar el botón (se usa en el registro y en cambiar o
+   recuperar la contraseña). */
+const MIN_CONTRASENA = 6;
+function AyudaRepetir({ valor, otra }) {
+  if (!valor) return null;
+  return valor === otra
+    ? <span className="jb-body text-[11px] text-emerald-400 block mt-1">✓ Coinciden</span>
+    : <span className="jb-body text-[11px] text-amber-400 block mt-1">Todavía no coincide con la de arriba.</span>;
+}
+function AyudaContrasena({ valor }) {
+  const n = String(valor || '').length;
+  const falta = MIN_CONTRASENA - n;
+  if (!n) return <span className="jb-body text-[11px] text-zinc-500 block mt-1">Mínimo {MIN_CONTRASENA} letras o números.</span>;
+  if (falta > 0) return <span className="jb-body text-[11px] text-amber-400 block mt-1">Te {falta === 1 ? 'falta 1 letra o número' : `faltan ${falta} letras o números`} (mínimo {MIN_CONTRASENA}).</span>;
+  return <span className="jb-body text-[11px] text-emerald-400 block mt-1">✓ Lista</span>;
+}
+
+// Error pegado a la casilla que falló (no abajo del todo, donde en el
+// celular a veces no se ve).
+function ErrorCampo({ texto, children }) {
+  if (!texto) return null;
+  return (
+    <span className="jb-body text-xs text-red-400 flex items-start gap-1.5 mt-1">
+      <AlertTriangle size={13} className="shrink-0 mt-0.5" /><span>{texto}{children}</span>
+    </span>
+  );
+}
+const conError = malo => malo ? ' !border-red-500' : '';
 const btnPrimary = "bg-orange-500 hover:bg-orange-400 text-zinc-950 font-bold jb-body rounded px-4 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2";
 const btnGhost = "bg-transparent border border-zinc-700 hover:border-orange-500 text-zinc-100 jb-body rounded px-4 py-2.5 transition-colors flex items-center justify-center gap-2";
 
@@ -2131,7 +2181,7 @@ function Logo({ size = 'md', compacto = false }) {
       </div>
       {/* compacto (barra de arriba de la app): en celulares angostos la letra se
           achica sola para que "FUEL" no quede tapado por los botones. */}
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(13px,4.1vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(12px,3.9vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }
@@ -2385,6 +2435,23 @@ function registrarPasoPago(evento, username, detalle = null) {
   return supabase.from('embudo_landing_eventos')
     .insert({ evento, username, detalle: detalle === null ? null : String(detalle), fuente: fuenteEmbudo(), visitante_id: visitanteEmbudo() })
     .then(() => {}, () => {});
+}
+
+/* Píxel de Meta: "Lead" (tocó "prueba gratis") y "CompleteRegistration"
+   (creó su cuenta) van con moneda y un valor estimado en soles, como pide
+   Meta (sin eso avisaba "datos de divisa con problemas" y optimizaba
+   peor). Los valores son una estimación de cuánto vale cada paso: un pago
+   promedia ~S/36 y, por ahora, paga aprox. 1 de cada 40 o 50 registros
+   (si eso cambia mucho, ajustarlos). La compra real (Purchase, con el
+   monto pagado) la avisa el servidor: api/_lib/meta-compra.js. */
+const VALOR_META = { Lead: 0.5, CompleteRegistration: 1 };
+function avisarMeta(evento) {
+  try {
+    if (!window.fbq) return;
+    const valor = VALOR_META[evento];
+    if (valor) window.fbq('track', evento, { value: valor, currency: 'PEN' });
+    else window.fbq('track', evento);
+  } catch (e) {}
 }
 
 function registrarEventoEmbudo(evento, extra = {}) {
@@ -2682,15 +2749,13 @@ function Landing({ onChoose }) {
   const [demoAbierta, setDemoAbierta] = useState(false);
   function abrirDemo() {
     registrarEventoEmbudo('demo_abrir');
-    try { if (window.fbq) window.fbq('track', 'ViewContent'); } catch (e) {}
+    avisarMeta('ViewContent');
     setDemoAbierta(true);
   }
   function registrarClicCTA() {
     registrarEventoEmbudo('clic_cta');
     // Avisa a Meta que alguien mostró interés (tocó "prueba gratis").
-    try {
-      if (window.fbq) window.fbq('track', 'Lead');
-    } catch (e) {}
+    avisarMeta('Lead');
     // Antes de crear la cuenta: su objetivo y sus datos (Recorrido). Si ya
     // lo hizo en este celular, va directo a crear la cuenta.
     onChoose(leerRecorrido() ? 'trial' : 'recorrido');
@@ -2742,7 +2807,7 @@ function Landing({ onChoose }) {
         <div className="absolute inset-0 overflow-hidden lg:relative lg:inset-auto lg:h-[84vh] lg:max-h-[820px] lg:rounded-3xl lg:border lg:border-orange-500/40"
           style={{ boxShadow: '0 20px 60px -20px rgba(232,89,12,.55)' }}>
           {BIENVENIDA_FOTOS.map((f, i) => (
-            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0 }}>
+            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0, clipPath: 'inset(0)' }}>
               <img key={i === fotoIdx ? `on-${ciclo}` : 'off'} src={f.src} alt={i === fotoIdx ? f.nombre : ''} className="w-full h-full object-cover"
                 style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
@@ -2809,6 +2874,11 @@ function Landing({ onChoose }) {
           <button onClick={() => onChoose('free')} className="jbb-a jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-1 self-center" style={anim('jbb-sube', 1.4)}>
             📏 ¿Solo quieres medirte? Hazlo sin registro →
           </button>
+          {/* Datos del negocio (los mismos de la verificación de Meta). */}
+          <p className="jbb-a jb-body text-[10px] leading-snug text-zinc-600 text-center mt-1" style={anim('jbb-sube', 1.45)}>
+            MARTIN JONATHAN HUAMANI CABANA · RUC 10454924024<br />
+            Ate, Lima, Perú · WhatsApp +51 963 760 819 · <a href="/privacidad.html" className="underline hover:text-zinc-400">Privacidad</a>
+          </p>
         </div>
       </section>
 
@@ -2947,7 +3017,7 @@ function FreeCalculator({ onBack, onEmpezar, grasaConCuenta = false }) {
             {verCodigo ? (
               <div className="mt-4">
                 <Field label="Código del live (opcional)">
-                  <input value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
+                  <input autoComplete="off" value={codigo} onChange={e => setCodigo(e.target.value)} className={inputCls + ' uppercase'} placeholder="Ej. BEAST" />
                 </Field>
               </div>
             ) : (
@@ -3234,7 +3304,7 @@ function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, plac
         <p className="jb-body text-xs text-zinc-400">{label}</p>
         {ayuda && <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>}
       </div>
-      <input type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
+      <input autoComplete="off" type="number" inputMode="decimal" value={valor} placeholder={placeholder} aria-label={label}
         onChange={e => onCambio(e.target.value)}
         className="w-full min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
       <p className="jb-body text-[11px] text-zinc-500 text-center">{unidad}</p>
@@ -3543,14 +3613,24 @@ function Bienvenida({ onEmpezar, onEntrar }) {
     return () => clearTimeout(t);
   }, [fase, idx]);
 
+  // Esta pantalla no se desplaza: en iPhone, al arrastrar el dedo se movía
+  // la página de atrás y por abajo asomaba la foto sin el degradado.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body;
+    const antes = [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior];
+    html.style.overflow = 'hidden'; body.style.overflow = 'hidden';
+    html.style.overscrollBehavior = 'none'; body.style.overscrollBehavior = 'none';
+    return () => { [html.style.overflow, body.style.overflow, html.style.overscrollBehavior, body.style.overscrollBehavior] = antes; };
+  }, []);
+
   if (fase === 'splash') return <SplashMarca />;
   const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
   return (
-    <div className="fixed inset-0 bg-zinc-950 overflow-hidden">
+    <div className="fixed inset-0 bg-zinc-950 overflow-hidden" style={{ touchAction: 'none', overscrollBehavior: 'none', clipPath: 'inset(0)' }}>
       <style>{ESTILOS_BIENVENIDA}</style>
       <div className="absolute inset-0 max-w-md mx-auto">
         {BIENVENIDA_FOTOS.map((f, i) => (
-          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0 }}>
+          <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === idx ? 1 : 0, clipPath: 'inset(0)' }}>
             <img key={i === idx ? `on-${ciclo}` : 'off'} src={f.src} alt="" className="w-full h-full object-cover"
               style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
           </div>
@@ -3606,6 +3686,9 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   const [f, setF] = useState({ email: '', password: '', telefono: '', referido: refDesdeURL });
   const [verPass, setVerPass] = useState(false);
   const [err, setErr] = useState('');
+  // Qué casilla falló ('correo' | 'contrasena' | 'telefono' | 'existe'),
+  // para mostrar el error justo debajo de ella.
+  const [campoErr, setCampoErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState('');
   const [refEstado, setRefEstado] = useState(null); // {ok, nombre} | {ok:false}
@@ -3642,17 +3725,18 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
 
   async function submit(e) {
     e.preventDefault();
-    setErr(''); setAviso('');
+    setErr(''); setAviso(''); setCampoErr('');
     const email = f.email.trim().toLowerCase();
     // Cada tropiezo queda anotado en el embudo ("error_registro"), para
-    // saber qué frena a quien quiere registrarse.
-    const tropiezo = (detalle, texto) => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); };
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', 'Escribe un correo válido.');
-    if (f.password.length < 6) return tropiezo('contrasena_corta', 'La contraseña debe tener al menos 6 caracteres.');
+    // saber qué frena a quien quiere registrarse. "campo" dice debajo de
+    // qué casilla se muestra el error.
+    const tropiezo = (detalle, texto, campo = '') => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo); };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', email ? 'Ese correo no parece completo. Revísalo (ej. tunombre@gmail.com).' : 'Escribe tu correo.', 'correo');
+    if (f.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
     // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
     // con quien llega desde un anuncio), es la única forma de escribirle.
     const tel = f.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
-    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.');
+    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
       return tropiezo('referido_invalido', 'Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
@@ -3675,9 +3759,9 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     if (error) {
       setBusy(false);
       if ((error.message || '').toLowerCase().includes('already registered'))
-        return tropiezo('correo_existente', 'Ese correo ya tiene una cuenta. Inicia sesión.');
+        return tropiezo('correo_existente', 'Ya tienes una cuenta con este correo.', 'existe');
       const rechazo = mensajeContrasenaRechazada(error);
-      if (rechazo) return tropiezo('contrasena_rechazada', rechazo);
+      if (rechazo) return tropiezo('contrasena_rechazada', rechazo, 'contrasena');
       return tropiezo('error_sistema: ' + String(error.message || '').slice(0, 80), 'No se pudo crear tu cuenta: ' + error.message);
     }
 
@@ -3690,9 +3774,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     // Avisa a TikTok y a Meta que se completó un registro exitoso, para
     // que puedan optimizar las campañas hacia este evento de conversión.
     avisarRegistroTikTok(data?.user?.id);
-    try {
-      if (window.fbq) window.fbq('track', 'CompleteRegistration');
-    } catch (e) {}
+    avisarMeta('CompleteRegistration');
 
     // Paso 'registro' del embudo: la cuenta quedó creada. Se guarda el
     // usuario para poder seguir a esta persona hasta la prueba y el pago.
@@ -3775,27 +3857,40 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               <button onClick={onBack} className={btnGhost + ' w-full'}>Volver al inicio</button>
             </div>
           ) : (
-            <form onSubmit={submit} className="flex flex-col gap-3">
+            <form onSubmit={submit} noValidate className="flex flex-col gap-3">
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={f.email} onChange={e => setF(v => ({ ...v, email: e.target.value }))} className={inputCls} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
+                <ErrorCampo texto={campoErr === 'correo' ? err : ''} />
+                {campoErr === 'existe' && (
+                  <span className="jb-body text-xs text-zinc-200 bg-zinc-950 border border-orange-500/50 rounded-lg p-2.5 mt-1 flex flex-col gap-2">
+                    <span>👋 {err} No necesitas crear otra: entra con ella.</span>
+                    {onEntrar && (
+                      <button type="button" onClick={() => { try { sessionStorage.setItem('jb-correo-entrar', f.email.trim().toLowerCase()); } catch {} onEntrar(); }}
+                        className={btnPrimary + ' py-2 text-sm'}>Entrar con este correo</button>
+                    )}
+                  </span>
+                )}
               </Field>
               <Field label="Contraseña">
                 <div className="relative">
-                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => setF(v => ({ ...v, password: e.target.value }))} className={inputCls + ' pr-10'} placeholder="Mínimo 6 caracteres" />
+                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
                   <button type="button" onClick={() => setVerPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
                     <Eye size={16} />
                   </button>
                 </div>
+                {campoErr === 'contrasena' ? <ErrorCampo texto={err} /> : <AyudaContrasena valor={f.password} />}
               </Field>
               <Field label="Tu WhatsApp">
-                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => setF(v => ({ ...v, telefono: e.target.value }))} className={inputCls} placeholder="9XX XXX XXX" />
-                <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>
+                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
+                {campoErr === 'telefono'
+                  ? <ErrorCampo texto={err} />
+                  : <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>}
               </Field>
               {verReferido ? (
                 <Field label="Código de referido (opcional)">
-                  <input value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
+                  <input autoComplete="off" value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
                     autoFocus={!refDesdeURL}
                     className={inputCls + ' uppercase'} placeholder="Escribe tu código" />
                 </Field>
@@ -3817,7 +3912,8 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
                   </p>
                 )
               )}
-              {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              {err && !campoErr && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              {err && campoErr && <p className="text-red-400 text-xs jb-body text-center">Revisa lo marcado en rojo arriba ☝️</p>}
               <button type="submit" disabled={busy} className={btnPrimary + ' py-3 text-base mt-1'}>
                 {busy ? <Loader2 className="animate-spin" size={18} /> : 'CREAR MI CUENTA GRATIS'}
               </button>
@@ -3873,7 +3969,7 @@ function AdminAuth({ onBack, onLogin, busy }) {
     e.preventDefault();
     setErr('');
     if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
-    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva.length < 6) return setErr('Tu contraseña nueva necesita al menos 6 letras o números.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
     const { error: errCodigo } = await supabase.auth.verifyOtp({
@@ -3907,14 +4003,16 @@ function AdminAuth({ onBack, onLogin, busy }) {
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
               <Field label="Código de verificación">
-                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                <input autoComplete="one-time-code" type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
-                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 letras o números" />
+                <AyudaContrasena valor={passNueva} />
               </Field>
               <Field label="Repite la contraseña">
                 <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+                <AyudaRepetir valor={passNueva2} otra={passNueva} />
               </Field>
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busyCodigo} className={btnPrimary}>
@@ -3962,7 +4060,7 @@ function ResetPassword({ onDone }) {
   async function submit(e) {
     e.preventDefault();
     setErr('');
-    if (pass.length < 6) return setErr('La contraseña debe tener al menos 6 caracteres.');
+    if (pass.length < 6) return setErr('Tu contraseña necesita al menos 6 letras o números.');
     if (pass !== pass2) return setErr('Las contraseñas no coinciden.');
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pass });
@@ -3991,10 +4089,12 @@ function ResetPassword({ onDone }) {
               <p className="jb-body text-sm text-zinc-500 mb-5">Elige una que recuerdes fácilmente.</p>
               <form onSubmit={submit} className="flex flex-col gap-4">
                 <Field label="Contraseña nueva">
-                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus placeholder="Mínimo 6 caracteres" />
+                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} autoFocus placeholder="Mínimo 6 letras o números" />
+                  <AyudaContrasena valor={pass} />
                 </Field>
                 <Field label="Repite la contraseña">
                   <input type="password" value={pass2} onChange={e => setPass2(e.target.value)} className={inputCls} />
+                  <AyudaRepetir valor={pass2} otra={pass} />
                 </Field>
                 {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
                 <button type="submit" disabled={busy} className={btnPrimary + ' py-3'}>
@@ -4056,7 +4156,7 @@ function EncuestaSalida({ username }) {
       </div>
       {otro && (
         <div className="mt-3 flex gap-2">
-          <input value={detalle} onChange={e => setDetalle(e.target.value)} maxLength={300} autoFocus
+          <input autoComplete="off" value={detalle} onChange={e => setDetalle(e.target.value)} maxLength={300} autoFocus
             placeholder="Cuéntanos en pocas palabras" className={inputCls + ' flex-1 text-sm'} />
           <button type="button" disabled={enviando || !detalle.trim()} onClick={() => enviar('otro', detalle)}
             className={btnPrimary + ' px-4 text-sm'}>Enviar</button>
@@ -4067,7 +4167,11 @@ function EncuestaSalida({ username }) {
 }
 
 function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMembresiaActiva, onSeguirGratis }) {
-  const [email, setEmail] = useState('');
+  // Si viene del registro con "Ya tienes una cuenta con este correo", el
+  // correo ya sale escrito.
+  const [email, setEmail] = useState(() => {
+    try { const c = sessionStorage.getItem('jb-correo-entrar') || ''; sessionStorage.removeItem('jb-correo-entrar'); return c; } catch { return ''; }
+  });
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [modo, setModo] = useState('login');
@@ -4098,7 +4202,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
     e.preventDefault();
     setErr('');
     if (!codigo.trim()) return setErr('Escribe el código de verificación que te llegó por correo.');
-    if (passNueva.length < 6) return setErr('La contraseña nueva debe tener al menos 6 caracteres.');
+    if (passNueva.length < 6) return setErr('Tu contraseña nueva necesita al menos 6 letras o números.');
     if (passNueva !== passNueva2) return setErr('Las contraseñas no coinciden.');
     setBusyCodigo(true);
     const { error: errCodigo } = await supabase.auth.verifyOtp({
@@ -4243,14 +4347,16 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
           {modo === 'codigo' ? (
             <form onSubmit={verificarCodigo} className="flex flex-col gap-4">
               <Field label="Código de verificación">
-                <input type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
+                <input autoComplete="one-time-code" type="text" inputMode="numeric" value={codigo} onChange={e => setCodigo(e.target.value)}
                   className={inputCls} autoFocus placeholder="Código del correo" />
               </Field>
               <Field label="Contraseña nueva">
-                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 caracteres" />
+                <input type="password" value={passNueva} onChange={e => setPassNueva(e.target.value)} className={inputCls} placeholder="Mínimo 6 letras o números" />
+                <AyudaContrasena valor={passNueva} />
               </Field>
               <Field label="Repite la contraseña">
                 <input type="password" value={passNueva2} onChange={e => setPassNueva2(e.target.value)} className={inputCls} />
+                <AyudaRepetir valor={passNueva2} otra={passNueva} />
               </Field>
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
               <button type="submit" disabled={busyCodigo} className={btnPrimary}>
@@ -4842,12 +4948,16 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 /* PLANES Y PAGOS                                                       */
 /* ------------------------------------------------------------------ */
 
+// Desde el 9 de octubre de 2026: mensual, trimestral y anual (el semestral
+// ya no se vende). El anual va destacado y se muestra por mes.
 const PLANES = [
   { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 24.90, badge: null },
-  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 64.90, badge: null },
-  { meses: 6, nombre: 'Semestral', configKey: 'precio_6', precioDefault: 114.90, badge: 'MÁS ELEGIDO' },
-  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 209.90, badge: 'MEJOR PRECIO' },
+  { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 59.90, badge: null },
+  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 179.90, badge: 'MEJOR PRECIO', destacado: true },
 ];
+// En la lista de planes el anual va primero (el mensual ya tiene su atajo).
+const PLANES_LISTA = [...PLANES].reverse();
+const FRASE_ANUAL = 'Dale un año a tu cambio: cuando inviertes en ti, no te sueltas.';
 
 /* "Copiar": copia un dato de pago (número de Yape/Plin, cuenta, CCI o
    monto) para pegarlo en la app del banco sin escribirlo a mano. */
@@ -4883,6 +4993,7 @@ function fmtS(n) {
 
 // Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
+  'Beast, tu compañero, contigo todos los días: le hablas y te anota todo. Sin monedas, sin cobros extra',
   'Tu menú del día y de la semana, armado con lo que te gusta y justo para tu meta',
   'Tu lista de compras de la semana, lista para compartir',
   'Foto inteligente en todas tus comidas',
@@ -4896,13 +5007,15 @@ const BENEFICIOS = [
 
 
 
-function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false }) {
+function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false, planInicial = null }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
   const [datosPago, setDatosPago] = useState({});
-  const [seleccion, setSeleccion] = useState(null);
+  // "planInicial" (meses): llega con un plan ya marcado, por ejemplo desde
+  // el aviso de fin de prueba ("Seguir con 1 mes"), y va directo a pagar.
+  const [seleccion, setSeleccion] = useState(() => (planInicial && PLANES.find(p => p.meses === planInicial)) || null);
   const [metodo, setMetodo] = useState('Yape');
   const [operacion, setOperacion] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -4925,7 +5038,10 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [playMsg, setPlayMsg] = useState('');
 
   useEffect(() => { cargar(); }, [username]);
-  useEffect(() => { registrarPasoPago('vio_planes', username); }, [username]);
+  useEffect(() => {
+    registrarPasoPago('vio_planes', username);
+    if (planInicial) registrarPasoPago('eligio_plan', username, planInicial);
+  }, [username]);
 
   useEffect(() => {
     if (!esTWA()) return;
@@ -5011,31 +5127,45 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   function precioDe(plan) {
     return precioBase(plan) * (1 - dcto / 100);
   }
+  // Cuánto ahorra por mes frente a pagar mes a mes (con precios sin descuento).
+  function ahorroDe(plan) {
+    return plan.meses > 1 ? Math.round((1 - precioBase(plan) / plan.meses / precioBase(PLANES[0])) * 100) : 0;
+  }
+  const ahorroMaximo = Math.max(...PLANES.map(ahorroDe));
 
   async function enviarPago() {
     setErr('');
     if (!seleccion) return setErr('Elige un plan.');
     const tel = telefono.replace(/\D/g, '');
     if (!userRecord?.telefono && tel.length < 9) return setErr('Escribe tu celular de WhatsApp (9 dígitos).');
-    if (!operacion.trim()) return setErr('Escribe el número de operación de tu pago.');
-    if (!archivo) return setErr('Adjunta la captura de tu pago.');
+    // Basta la captura o el número de operación (antes pedía los dos y
+    // varios se quedaban a mitad de camino).
+    if (!archivo && !operacion.trim()) return setErr('Sube la captura de tu pago (o escribe el número de operación).');
     setEnviando(true);
     let ruta = null;
     try {
-      const blob = archivo.type === 'application/pdf' ? archivo : await comprimirImagen(archivo, 1400, 0.8);
-      const ext = archivo.type === 'application/pdf' ? 'pdf' : 'jpg';
-      ruta = `${username}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('comprobantes')
-        .upload(ruta, blob, { contentType: archivo.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg' });
-      if (upErr) throw new Error('Al subir el comprobante: ' + upErr.message);
+      if (archivo) {
+        const blob = archivo.type === 'application/pdf' ? archivo : await comprimirImagen(archivo, 1400, 0.8);
+        const ext = archivo.type === 'application/pdf' ? 'pdf' : 'jpg';
+        ruta = `${username}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from('comprobantes')
+          .upload(ruta, blob, { contentType: archivo.type === 'application/pdf' ? 'application/pdf' : 'image/jpeg' });
+        if (upErr) throw new Error('Al subir el comprobante: ' + upErr.message);
+      }
 
       const { error: dbErr } = await supabase.from('pagos').insert({
         username, nombre: nombre || '', plan_meses: seleccion.meses,
-        monto: precioDe(seleccion), metodo, operacion: operacion.trim(),
+        monto: precioDe(seleccion), metodo, operacion: operacion.trim() || null,
         comprobante_ruta: ruta, estado: 'pendiente',
       });
       if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
       registrarPasoPago('pago_enviado', username, metodo);
+      // Aviso al toque al celular de Jonah (api/pago-enviado.js). Si falla,
+      // la revisión de cada hora lo avisa igual.
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        fetch('/api/pago-enviado', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` }, body: '{}' }).catch(() => {});
+      } catch {}
 
       if (!userRecord?.telefono && tel.length >= 9) {
         try { await supabase.from('alumnos').update({ telefono: tel }).eq('username', username); } catch (e) { avisarError(e); }
@@ -5047,7 +5177,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       setSeleccion(null); setOperacion(''); setArchivo(null); setTelefono('');
       await cargar();
       if (onPagoEnviado) onPagoEnviado();
-      showToast('Pago enviado, lo revisamos en menos de 24h');
+      showToast('¡Listo! Ya le llegó el aviso a Jonah 💪');
     } catch (e) {
       if (ruta) { try { await supabase.storage.from('comprobantes').remove([ruta]); } catch (e) { avisarError(e); } }
       setErr(e.message || 'No se pudo enviar. Intenta de nuevo.');
@@ -5121,25 +5251,26 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </div>
 
         <div className="grid gap-3">
-          {PLANES.map(plan => {
+          {PLANES_LISTA.map(plan => {
             const sku = PRODUCTOS_PLAY[plan.meses];
             const precio = playPrecios[sku];
             const valor = precio ? Number(precio.value) : precioBase(plan);
             const cargando = comprandoPlay === sku;
             return (
-              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.badge ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+              <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
                     {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
                   </div>
                   <div className="text-right">
-                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor)}</p>
+                    <p className="jb-display text-2xl text-orange-500">{fmtS(valor / plan.meses)}<span className="jb-body text-xs text-zinc-400"> al mes</span></p>
                     <p className="jb-body text-xs text-zinc-400">
-                      {plan.meses > 1 ? `cada ${plan.meses} meses · ` : 'al mes · '}{fmtS(valor / (plan.meses * 30))} al día
+                      {plan.meses === 12 ? `${fmtS(valor)} al año` : plan.meses > 1 ? `${fmtS(valor)} cada ${plan.meses} meses` : `${fmtS(valor / 30)} al día`}
                     </p>
                   </div>
                 </div>
+                {plan.destacado && <p className="jb-body text-xs text-zinc-300 -mt-1 mb-3">{FRASE_ANUAL}</p>}
                 <button onClick={() => comprarConGooglePlay(plan)} disabled={!!comprandoPlay}
                   className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
                   {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
@@ -5187,13 +5318,16 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
         </div>
 
         <div className="grid gap-2">
-          {PLANES.map(plan => (
-            <div key={plan.meses} className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 flex items-center justify-between">
+          {PLANES_LISTA.map(plan => (
+            <div key={plan.meses} className={`bg-zinc-900 border rounded-xl p-3.5 flex items-center justify-between ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
               <div>
                 <p className="jb-body text-sm text-zinc-200">{plan.nombre}</p>
                 {plan.badge && <span className="jb-body text-[10px] text-orange-500">{plan.badge}</span>}
               </div>
-              <p className="jb-display text-lg text-orange-500">{fmtS(precioDe(plan))}</p>
+              <div className="text-right">
+                <p className="jb-display text-lg text-orange-500">{fmtS(precioDe(plan) / plan.meses)}<span className="jb-body text-xs text-zinc-400"> al mes</span></p>
+                {plan.meses > 1 && <p className="jb-body text-[11px] text-zinc-500">{fmtS(precioDe(plan))} {plan.meses === 12 ? 'al año' : `cada ${plan.meses} meses`}</p>}
+              </div>
             </div>
           ))}
         </div>
@@ -5243,7 +5377,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
             <p className="jb-body text-xs text-amber-300/80 mt-0.5">
               Recibimos tu comprobante por {fmtS(pendiente.monto)} ({pendiente.plan_meses} mes(es)).
-              Lo confirmamos en menos de 24 horas y tu acceso se activa solo.
+              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 10pm). Te llega una notificación cuando esté listo.
             </p>
           </div>
         </div>
@@ -5262,6 +5396,18 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <div className="mt-3"><PruebaSocialMini size={22} /></div>
           </div>
 
+          {/* Atajo: la mayoría empieza con 1 mes. Un toque y pasa directo a
+              pagar (el resto de planes sigue abajo). */}
+          <button type="button" onClick={() => { setSeleccion(PLANES[0]); registrarPasoPago('eligio_plan', username, PLANES[0].meses); }}
+            className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-4 text-left flex items-center justify-between gap-3 shadow-lg shadow-orange-500/20">
+            <span>
+              <span className="jb-display text-lg text-zinc-950 block leading-tight">EMPEZAR CON 1 MES</span>
+              <span className="jb-body text-xs text-zinc-900">{fmtS(precioDe(PLANES[0]))} · menos de S/1 al día · pagas con Yape o Plin</span>
+            </span>
+            <ChevronRight size={22} className="text-zinc-950 shrink-0" />
+          </button>
+          <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra hasta {ahorroMaximo}%:</p>
+
           {dcto > 0 && (
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
               <span className="text-lg">🎁</span>
@@ -5272,15 +5418,14 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {PLANES.map(plan => {
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {PLANES_LISTA.map(plan => {
               const precio = precioDe(plan);
               const porMes = precio / plan.meses;
-              const ahorro = plan.meses > 1
-                ? Math.round((1 - porMes / precioDe(PLANES[0])) * 100) : 0;
+              const ahorro = ahorroDe(plan);
               return (
                 <div key={plan.meses}
-                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.badge === 'MÁS ELEGIDO'
+                  className={`relative rounded-2xl border p-5 flex flex-col ${plan.destacado
                     ? 'bg-zinc-900 border-orange-500 shadow-lg shadow-orange-500/10'
                     : 'bg-zinc-900 border-zinc-800'}`}>
                   {plan.badge && (
@@ -5290,19 +5435,20 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
                   {dcto > 0 && (
-                    <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan))}</div>
+                    <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan) / plan.meses)} al mes</div>
                   )}
-                  <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(precio)}</div>
+                  <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(porMes)}<span className="jb-body text-sm text-zinc-400"> al mes</span></div>
                   <div className="jb-body text-xs text-zinc-500 mb-1">
-                    {plan.meses === 1 ? 'por mes' : `${fmtS(porMes)} por mes`}
+                    {plan.meses === 1 ? 'pagas mes a mes' : plan.meses === 12 ? `${fmtS(precio)} al año, en un solo pago` : `${fmtS(precio)} cada ${plan.meses} meses`}
                     <span className="text-zinc-300"> · {fmtS(precio / (plan.meses * 30))} al día</span>
                   </div>
                   {ahorro > 0 && (
-                    <div className="jb-body text-xs text-emerald-400 mb-3">Ahorras {ahorro}%</div>
+                    <div className="jb-body text-xs text-emerald-400 mb-1">Ahorras {ahorro}%</div>
                   )}
-                  {ahorro === 0 && <div className="mb-3" />}
+                  {plan.destacado && <p className="jb-body text-xs text-zinc-300 mb-3">{FRASE_ANUAL}</p>}
+                  {!plan.destacado && <div className="mb-3" />}
                   <button onClick={() => { setSeleccion(plan); registrarPasoPago('eligio_plan', username, plan.meses); }}
-                    className={(plan.badge === 'MÁS ELEGIDO' ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
+                    className={(plan.destacado ? btnPrimary : btnGhost) + ' w-full mt-auto py-2.5'}>
                     Elegir
                   </button>
                 </div>
@@ -5333,7 +5479,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5 text-center">
             <div className="jb-body text-xs text-zinc-500">Plan {seleccion.nombre}</div>
             <div className="jb-display text-3xl text-orange-500 my-1">{fmtS(precioDe(seleccion))}</div>
-            <div className="jb-body text-xs text-zinc-500">{seleccion.meses} mes(es) de acceso</div>
+            <div className="jb-body text-xs text-zinc-500">{seleccion.meses === 12 ? `12 meses de acceso · ${fmtS(precioDe(seleccion) / 12)} al mes` : `${seleccion.meses} mes(es) de acceso`}</div>
           </div>
 
           <h3 className="jb-display text-sm text-zinc-300 mb-3">1 · REALIZA TU PAGO</h3>
@@ -5437,7 +5583,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             </div>
           ) : (
           <>
-          <h3 className="jb-display text-sm text-zinc-300 mb-3">2 · CONFIRMA TU PAGO</h3>
+          <h3 className="jb-display text-sm text-zinc-300 mb-1">2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA</h3>
+          <p className="jb-body text-xs text-zinc-500 mb-3">Con la captura basta. Me llega el aviso y activo tu plan apenas lo vea.</p>
           <div className="flex flex-col gap-3">
             {faltaTelefono && (
               <Field label="Tu celular (WhatsApp)">
@@ -5451,30 +5598,32 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                 <RuedaFecha valor={fechaNac} onCambio={setFechaNac} inicial="1990-06-15" />
               </Field>
             )}
-            <Field label="Número de operación">
-              <input value={operacion} onChange={e => setOperacion(e.target.value)}
-                className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
-            </Field>
-
             <label className="cursor-pointer">
               <span className="text-xs uppercase tracking-wider text-zinc-400 jb-body block mb-1.5">Captura del pago</span>
               <input type="file" accept="image/*,application/pdf" className="hidden"
                 onChange={e => setArchivo(e.target.files[0] || null)} />
-              <div className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${archivo
-                ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-zinc-700 hover:border-orange-500 bg-zinc-950'}`}>
-                <p className="jb-body text-sm text-zinc-300">
-                  {archivo ? `✓ ${archivo.name}` : 'Toca para adjuntar tu captura'}
+              <div className={`rounded-lg border-2 border-dashed p-5 text-center transition-colors ${archivo
+                ? 'border-emerald-600/50 bg-emerald-950/20' : 'border-orange-500/60 hover:border-orange-500 bg-zinc-950'}`}>
+                <p className="jb-body text-sm text-zinc-200">
+                  {archivo ? `✓ ${archivo.name}` : '📸 Toca aquí y elige la captura de tu pago'}
                 </p>
               </div>
             </label>
 
+            {!archivo && (
+              <Field label="¿No tienes la captura? Número de operación">
+                <input autoComplete="off" value={operacion} onChange={e => setOperacion(e.target.value)}
+                  className={inputCls} placeholder="Ej. 00123456" inputMode="numeric" />
+              </Field>
+            )}
+
             {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
 
             <button onClick={enviarPago} disabled={enviando} className={btnPrimary + ' py-3 text-base'}>
-              {enviando ? <Loader2 className="animate-spin" size={18} /> : 'ENVIAR MI PAGO'}
+              {enviando ? <Loader2 className="animate-spin" size={18} /> : 'YA PAGUÉ · ENVIAR'}
             </button>
-            <p className="jb-body text-[11px] text-zinc-600 text-center">
-              Revisamos tu pago en menos de 24 horas. Te avisamos con una notificación en tu celular apenas se active.
+            <p className="jb-body text-[11px] text-zinc-500 text-center">
+              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 10pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
             </p>
           </div>
           </>
@@ -5580,6 +5729,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
+  if (unit === 'ml') return `${Math.round(qty)} ml`;
   if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${qty} ${plural}`;
@@ -5623,6 +5773,7 @@ const ESTILOS_ESCANER = `
 // Cuánto sube o baja cada toque de − / + según la medida.
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
+  if (unit === 'ml') return 50;
   if (UNIDADES_DISCRETAS.includes(unit)) return 1;
   return 0.5;
 }
@@ -5705,7 +5856,45 @@ function avisarRegistroTikTok(userId) {
   } catch {}
 }
 
+/* Versión nueva sin cerrar la app: cuando el alumno (o Jonah en el panel)
+   vuelve a la app después de tenerla un rato en segundo plano, se compara
+   esta versión con la publicada (/version.json, la genera vite.config.js).
+   Si hay una nueva, se recarga sola. Solo al volver tras 1 minuto o más
+   afuera: así nunca se recarga en medio de algo que está haciendo. Lo que
+   faltaba subir queda guardado en el celular y se sube al recargar. */
+const VERSION_APP = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '';
+function usarVersionNueva() {
+  useEffect(() => {
+    if (!VERSION_APP) return;
+    let ocultaDesde = document.visibilityState === 'hidden' ? Date.now() : null;
+    let revisando = false;
+    const alCambiar = async () => {
+      if (document.visibilityState === 'hidden') { ocultaDesde = Date.now(); return; }
+      const fuera = ocultaDesde ? Date.now() - ocultaDesde : 0;
+      ocultaDesde = null;
+      if (fuera < 60 * 1000 || revisando || navigator.onLine === false) return;
+      revisando = true;
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        const { v } = r.ok ? await r.json() : {};
+        // Una sola vez por versión: si después de recargar sigue distinta
+        // (publicación a medias), no se queda recargando.
+        let yaIntentada = null;
+        try { yaIntentada = sessionStorage.getItem('jb-version-recarga'); } catch {}
+        if (v && v !== VERSION_APP && yaIntentada !== v) {
+          try { sessionStorage.setItem('jb-version-recarga', v); } catch {}
+          window.location.reload();
+        }
+      } catch {}
+      revisando = false;
+    };
+    document.addEventListener('visibilitychange', alCambiar);
+    return () => document.removeEventListener('visibilitychange', alCambiar);
+  }, []);
+}
+
 export default function App() {
+  usarVersionNueva();
   const [view, setView] = useState(() => {
     try {
       if (window.location.pathname.startsWith('/tienda')) return 'tienda';
@@ -5726,6 +5915,14 @@ export default function App() {
       // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
       // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
       // (no a la portada); al entrar, lo lleva a registrar su comida.
+      // Viene de la ventana "Ábrela en Chrome" (navegador de Instagram,
+      // Facebook o TikTok): se anota para pedirle activar los avisos apenas
+      // entre a su cuenta (src/alumno.jsx, LlegasteAlNavegadorModal) y va
+      // directo a entrar con su correo.
+      if (params.get('desde') === 'app') {
+        try { localStorage.setItem('jb-desde-app', String(Date.now())); } catch {}
+        return 'studentAuth';
+      }
       return params.get('registrar') ? 'studentAuth' : 'landing';
     } catch { return 'landing'; }
   });
@@ -5738,9 +5935,27 @@ export default function App() {
     setView(v);
   }
   function volver() {
-    if (VISTAS_CON_ATRAS.includes(window.history.state?.jb)) window.history.back();
-    else setView('landing');
+    if (!VISTAS_CON_ATRAS.includes(window.history.state?.jb)) { setView('landing'); return; }
+    // Si el navegador no tiene a dónde volver (la pantalla se abrió desde un
+    // link o tras recargar), "Atrás" no hacía nada: se va a la portada.
+    let movio = false;
+    const marca = () => { movio = true; };
+    window.addEventListener('popstate', marca, { once: true });
+    window.history.back();
+    setTimeout(() => {
+      window.removeEventListener('popstate', marca);
+      if (!movio) { try { window.history.replaceState({}, ''); } catch {} setView('landing'); }
+    }, 400);
   }
+  // Al salir de las pantallas de antes de entrar (entró a su cuenta, cerró
+  // sesión y quedó en la portada…), se borra la marca de esa pantalla. Si
+  // quedaba, al cerrar sesión y volver a "Entrar", "← Atrás" regresaba a
+  // la misma pantalla de entrar y parecía que no hacía nada.
+  useEffect(() => {
+    if (!VISTAS_CON_ATRAS.includes(view) && VISTAS_CON_ATRAS.includes(window.history.state?.jb)) {
+      try { window.history.replaceState({}, ''); } catch {}
+    }
+  }, [view]);
   useEffect(() => {
     const onPop = e => {
       const destino = VISTAS_CON_ATRAS.includes(e.state?.jb) ? e.state.jb : 'landing';
@@ -5823,7 +6038,7 @@ export default function App() {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
       registrarRegistroEmbudo(perfil.username, 'google');
       avisarRegistroTikTok(user?.id);
-      try { if (window.fbq) window.fbq('track', 'CompleteRegistration'); } catch (e) {}
+      avisarMeta('CompleteRegistration');
     }
     try { localStorage.setItem('jb-conocido', '1'); } catch {}
   }
@@ -5910,7 +6125,9 @@ export default function App() {
       const { data: perfil } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle();
       if (perfil?.role !== 'admin') {
         setErr('Esta cuenta no tiene permisos de administrador.');
-        await supabase.auth.signOut();
+        // Solo en este equipo: sin "local", cierra la sesión de esa cuenta en
+        // todos sus equipos.
+        await supabase.auth.signOut({ scope: 'local' });
         setBusy(false);
         return;
       }
@@ -6252,7 +6469,10 @@ export default function App() {
   }
 
   async function logout() {
-    try { await supabase.auth.signOut(); } catch (e) { avisarError(e); }
+    // Solo en este equipo: antes "Salir" cerraba la sesión en todos los
+    // celulares y pestañas a la vez (y el panel abierto en otro lado quedaba
+    // "No autorizado" a mitad de un mensaje).
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { avisarError(e); }
     setAdminAuthed(false);
     setEstadoGuardado('ok');
     setCurrentUser(null);
@@ -6306,7 +6526,7 @@ export default function App() {
         ? (instalada
           ? <Bienvenida onEntrar={() => irA('studentAuth')} onEmpezar={() => {
               registrarEventoEmbudo('clic_cta', { detalle: 'app' });
-              try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+              avisarMeta('Lead');
               irA(leerRecorrido() ? 'trial' : 'recorrido');
             }} />
           : <Landing onChoose={irA} />)
@@ -6323,7 +6543,7 @@ export default function App() {
         volver();
       }} onEmpezar={() => {
         registrarEventoEmbudo('clic_cta', { detalle: 'calculadora' });
-        try { if (window.fbq) window.fbq('track', 'Lead'); } catch (e) {}
+        avisarMeta('Lead');
         irA(leerRecorrido() ? 'trial' : 'recorrido');
       }} />}
       {!tokenRef && view === 'recorrido' && <Recorrido onBack={volver} onListo={() => irA('trial')} />}
@@ -6336,7 +6556,7 @@ export default function App() {
           expiredInfo={expiredInfo}
           onClearExpired={async () => {
             // Cierra la sesión del alumno vencido para poder entrar con otra cuenta.
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             setExpiredInfo(null);
           }}
           onMembresiaActiva={() => loadStudentSession(expiredInfo.username)}
@@ -6413,6 +6633,7 @@ export {
   entryGrams,
   entryMacros,
   esFritoOSaltado,
+  sePuedeFreir,
   esTWA,
   fechaLocalISO,
   fetchTrialStats,

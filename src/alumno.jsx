@@ -14,10 +14,10 @@ import {
   ACTIVITY_FACTORS,
   ANGULOS,
   AnimatedNumber,
-  BeastMascot,
   ESTILOS_ESCANER,
   FOODS,
   Field,
+  HOSTS_PRODUCCION,
   Logo,
   MAX_GRAMOS_ENTRADA,
   MEAL_NAMES,
@@ -66,6 +66,7 @@ import {
   ventanaBono,
   vibrar,
   esFritoOSaltado,
+  sePuedeFreir,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
@@ -218,11 +219,21 @@ const SINONIMOS = {
 // El sinónimo SUMA resultados, no reemplaza lo escrito: antes "refresco"
 // buscaba solo "gaseosa" y el "Refresco de cebada" no aparecía (el alumno
 // creía que no estaba y lo creaba de nuevo).
+// Cada palabra se busca por su raíz: "papas fritas" encuentra "Papa (Frita)"
+// y "yuca frito" encuentra "Yuca (Frita)" (plural y masculino/femenino de
+// cómo está preparado no deben esconder el alimento).
+const PREPARACION_RAIZ = /^(frit|cocid|crud|sancochad|hornead|asad|guisad|apanad|rellen|salad|dorad)(o|a|os|as)$/;
+function raizPalabra(w) {
+  const m = w.match(PREPARACION_RAIZ);
+  if (m) return m[1];
+  if (w.length >= 5 && /[lnrd]es$/.test(w)) return w.slice(0, -2); // frejoles, panes, limones
+  return w.length >= 4 && w.endsWith('s') ? w.slice(0, -1) : w;
+}
 function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
   if (!q) return lista.slice(0, limite);
-  const alternativas = [q.split(' ').filter(Boolean)];
-  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean));
+  const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
+  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
   const palabras = alternativas[0];
   const conPuntaje = [];
   for (const f of lista) {
@@ -286,7 +297,8 @@ function unidadPorDefecto(food) {
     'porción', 'taza', 'vaso', 'rebanada', 'bola', 'scoop', 'puñado',
     'lata pequeña', 'cucharada', 'palito', 'mitad',
   ];
-  for (const pref of preferidas) {
+  // Bebidas: en Perú se toman en vaso, no en taza.
+  for (const pref of food.group === 'Bebidas' ? ['vaso', ...preferidas] : preferidas) {
     const encontrada = lista.find(u => u[0] === pref);
     if (!encontrada) continue;
     // Descartar medidas demasiado pequeñas para ser una porción real
@@ -326,10 +338,52 @@ const WHATSAPP_MESSAGE = 'Hola, tengo una consulta sobre mi plan.';
 /* ------------------------------------------------------------------ */
 
 const GROUP_EMOJI = {
-  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
-  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛',
+  'Carnes y aves': '🍗', 'Pescados': '🐟', 'Pescados y mariscos': '🐟', 'Huevos': '🥚', 'Cereales': '🍚',
+  'Tubérculos': '🥔', 'Menestras': '🫘', 'Frutas': '🍎', 'Lácteos': '🥛', 'Verduras': '🥬',
+  'Grasas': '🫒', 'Platos preparados': '🍽️', 'Postres': '🍰', 'Galletas y snacks': '🍪', 'Bebidas': '🥤',
   'Productos': '📦',
 };
+/* Ícono de cada alimento: primero por su nombre (la palta con 🥑, el
+   churrasco con 🥩) y, si no hay uno propio, el de su grupo. Va en orden:
+   gana la primera regla que calza (por eso los platos van antes que sus
+   ingredientes: "Pan con palta" es 🍞, no 🥑; "Keke de plátano" es 🍰). */
+const EMOJI_POR_NOMBRE = [
+  [/hamburguesa/, '🍔'], [/pizza/, '🍕'], [/salchipapa|papas? fritas|papas? al hilo/, '🍟'],
+  [/cancha de cine|canchita|pop ?corn/, '🍿'], [/jugo|limonada|smoothie|batido/, '🧃'],
+  [/waf+le|panqueque/, '🧇'], [/keke|torta|queque|pastel|panet[oó]n|alfajor|\bcake|cheesecake|pie\b/, '🍰'],
+  [/mazamorra|arroz con leche|suspiro|flan|gelatina|manjar|turr[oó]n|cocada|parfait|combinado/, '🍮'],
+  [/picar[oó]n|churro|donut|dona\b/, '🍩'], [/helado/, '🍨'],
+  [/ceviche|tiradito|sudado|parihuela/, '🐟'], [/sopa|caldo|chupe|aguadito|sancochado|patasca|menestr[oó]n|locro/, '🍲'],
+  [/pollo a la brasa|broaster|pollada/, '🍗'], [/tamal|humita|juane/, '🫔'], [/wrap|twister/, '🌯'],
+  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
+  [/tallar[ií]n|fideo|spaghetti|espagueti|pasta\b|lasa[ñn]a/, '🍝'],
+  [/chaufa|arroz/, '🍚'], [/avena|quinua|granola|cereal|kiwicha|ca[ñn]ihua/, '🥣'],
+  [/huevo|clara|yema|omelette|tortilla de/, '🥚'],
+  [/jam[oó]n|tocino|salchicha|hot ?dog|chorizo|jamonada/, '🥓'],
+  [/\bpollo|pavo|pavita|gallina|\bpato|\balas?\b|alitas|nuggets/, '🍗'],
+  [/\bres\b|bistec|churrasco|lomo|carne|cerdo|chuleta|costilla|chancho|lech[oó]n|cordero|h[ií]gado|anticucho|asado|sangrecita|cabrito|milanesa|adobo|chicharr[oó]n|seco de/, '🥩'],
+  [/camar[oó]n|langostino|marisco/, '🦐'], [/pulpo/, '🐙'], [/at[uú]n|pescado|bonito|caballa|jurel|trucha|salm[oó]n|tilapia|merluza|perico|sardina|anchoveta/, '🐟'],
+  [/caf[eé]|capuchino|expreso/, '☕'], [/(^|\s)t[eé](\s|$)|infusi[oó]n|an[ií]s|manzanilla/, '🍵'],
+  [/chocolate|chocolatada|cacao/, '🍫'], [/galleta/, '🍪'],
+  [/cerveza/, '🍺'], [/vino|espumante|champ[aá]n/, '🍷'], [/pisco|\bron\b|whisky|vodka/, '🥃'],
+  [/gaseosa|refresco|chicha|emoliente|bebida/, '🥤'], [/^agua\b/, '💧'],
+  [/palta/, '🥑'], [/pl[aá]tano|guineo/, '🍌'], [/mandarina|naranja/, '🍊'], [/fresa/, '🍓'], [/ar[aá]ndano/, '🫐'],
+  [/\buvas?\b/, '🍇'], [/\bpi[ñn]a\b/, '🍍'], [/sand[ií]a/, '🍉'], [/mango/, '🥭'], [/\bpera\b/, '🍐'],
+  [/lim[oó]n/, '🍋'], [/durazno|melocot[oó]n/, '🍑'], [/papaya|mel[oó]n/, '🍈'], [/\bcoco\b/, '🥥'], [/\bkiwi\b/, '🥝'], [/cereza/, '🍒'],
+  [/camote/, '🍠'], [/choclo|ma[ií]z|cancha|mote\b/, '🌽'], [/\bpapas?\b|yuca|olluco/, '🥔'],
+  [/tomate/, '🍅'], [/zanahoria/, '🥕'], [/br[oó]coli|coliflor/, '🥦'], [/cebolla/, '🧅'], [/pepino|zapallito/, '🥒'],
+  [/pimiento|aj[ií]\b|rocoto/, '🌶️'], [/champi[ñn][oó]n/, '🍄'], [/lechuga|espinaca|acelga|repollo|\bcol\b|apio|verdura/, '🥬'],
+  [/queso/, '🧀'], [/leche|yogur/, '🥛'], [/miel/, '🍯'],
+  [/caramelo|az[uú]car|mermelada|dulce/, '🍬'], [/man[ií](?![a-zñáéíóú])|almendra|nuez|nueces|pecana|frutos secos|ch[ií]a/, '🥜'],
+  [/aceite|oliva|mantequilla|mayonesa/, '🫒'], [/prote[ií]na en polvo|whey/, '💪'],
+  [/manzana/, '🍎'],
+];
+function emojiAlimento(food) {
+  if (!food) return '🍴';
+  const nombre = String(food.name || '').toLowerCase();
+  const regla = EMOJI_POR_NOMBRE.find(([re]) => re.test(nombre));
+  return regla ? regla[1] : (GROUP_EMOJI[food.group] || '🍴');
+}
 
 /* Aprendizaje de patrones: recuerda qué sustituto elige más seguido el
    alumno para cada alimento, guardado localmente en su dispositivo. */
@@ -487,7 +541,7 @@ function ModoFavoritos({ favoritos, onElegir }) {
       {favoritos.map(f => (
         <button key={f.key} onClick={() => onElegir(f)}
           className="bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-          <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+          <span className="text-2xl">{emojiAlimento(f)}</span>
           <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
         </button>
       ))}
@@ -500,6 +554,52 @@ function ModoFavoritos({ favoritos, onElegir }) {
    alimento con cantidad estimada por cada parte reconocida. No es IA:
    es una búsqueda por coincidencia de texto contra tu propia base de
    230 alimentos, priorizando la coincidencia más larga y específica. */
+// ¿"aguja" contiene "frase" como palabras enteras? ("pan francés" sí tiene
+// "pan"; "arroz con ají panca" no.)
+function contienePalabras(aguja, frase) {
+  const esc = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
+}
+
+// "ciento cincuenta" → 150, "noventa y dos" → 92, "veintidós" → 22.
+// Solo números de 11 en adelante: "un", "dos"… (cantidades) se leen aparte.
+const UNIDADES_LETRAS = { uno: 1, un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+const NUMEROS_LETRAS = {
+  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+};
+const CENTENAS_LETRAS = { cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500 };
+function numerosEnCifras(texto) {
+  const sinTilde = w => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const palabras = String(texto || '').split(/(\s+)/);
+  const salida = [];
+  for (let i = 0; i < palabras.length; i++) {
+    const w = sinTilde(palabras[i]);
+    let valor = null, j = i;
+    if (CENTENAS_LETRAS[w]) {
+      valor = CENTENAS_LETRAS[w];
+      // "ciento cincuenta", "doscientos veinte"
+      const sig = sinTilde(palabras[i + 2] || '');
+      if (NUMEROS_LETRAS[sig]) { valor += NUMEROS_LETRAS[sig]; j = i + 2; }
+      else if (UNIDADES_LETRAS[sig] && sig !== 'un' && sig !== 'una') { valor += UNIDADES_LETRAS[sig]; j = i + 2; }
+    } else if (NUMEROS_LETRAS[w]) {
+      valor = NUMEROS_LETRAS[w];
+    }
+    if (valor === null) { salida.push(palabras[i]); continue; }
+    // "noventa y dos": decena + "y" + unidad
+    const base = NUMEROS_LETRAS[sinTilde(palabras[j] || '')] || 0;
+    if (base >= 30 && base % 10 === 0 && sinTilde(palabras[j + 2] || '') === 'y' && UNIDADES_LETRAS[sinTilde(palabras[j + 4] || '')]) {
+      valor += UNIDADES_LETRAS[sinTilde(palabras[j + 4])];
+      j += 4;
+    }
+    salida.push(String(valor));
+    i = j;
+  }
+  return salida.join('');
+}
+
 function interpretarVarios(textoCompleto) {
   const NUM_PALABRAS = {
     un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -509,9 +609,14 @@ function interpretarVarios(textoCompleto) {
   // además, cada vez que aparece una nueva cantidad (un número o "dos",
   // "tres"...) se asume que empieza un alimento distinto — así no hace
   // falta decir "más" entre cada uno para que se registren todos.
-  let marcado = textoCompleto.replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
+  // Primero los números dichos en letras pasan a cifras ("noventa y dos
+  // gramos" → "92 gramos"): antes la "y" del número partía la frase y
+  // "noventa" quedaba como si fuera un alimento.
+  let marcado = numerosEnCifras(textoCompleto).replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
   marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
-  const partes = marcado.split('|||').map(s => s.trim()).filter(Boolean);
+  // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
+  // reconocer la última palabra ("redondas.").
+  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre
@@ -550,8 +655,19 @@ function interpretarVarios(textoCompleto) {
       resto = mPeso[2];
     }
 
-    const restoLower = resto.toLowerCase();
+    // Cómo se dice en casa → cómo está en la app.
+    const restoLower = resto.toLowerCase()
+      .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
+      .replace(/\byogurt\b/g, 'yogur')
+      .replace(/\bqueques?\b/g, 'keke');
     const restoVariantes = variantesSingular(restoLower);
+    // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
+    // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
+    // porque contaba la palabra "azúcar").
+    const pideSinAzucar = /\bsin\s+az[uú]car\b|\bnatural\b/i.test(resto);
+    // Palabras que vienen después de "sin" no cuentan para el estado.
+    const tokensResto = restoLower.split(/\s+/);
+    const palabrasEstado = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
 
     // Se calculan TODAS las coincidencias razonables (no solo la
     // mejor), para poder detectar cuando hay varias parecidas y no
@@ -559,39 +675,61 @@ function interpretarVarios(textoCompleto) {
     const candidatas = [];
     for (const f of FOODS) {
       let nombreLower = f.name.toLowerCase();
-      if (nombreLower.includes('keke')) nombreLower += ' queque';
-      else if (nombreLower.includes('queque')) nombreLower += ' keke';
+      if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
+      else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
       const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
       let score = 0;
+      // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
+      // es "papaya".
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && nombreLower.includes(rv)) score = Math.max(score, 50 + rv.length);
-        else if (nombreLower.length > 2 && rv.includes(nombreLower)) score = Math.max(score, 30 + nombreLower.length);
+        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
+        else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
       }
       if (score === 0) {
         const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
         let coincidencias = 0;
         for (const w of palabrasResto) {
-          if (variantesSingular(w).some(v => nombreLower.includes(v))) coincidencias++;
+          if (variantesSingular(w).some(v => palabrasNombre.has(v))) coincidencias++;
         }
         if (coincidencias > 0) score = coincidencias * 5;
       }
       // El estado (frito, cocido, crudo...) también cuenta — así "huevo
       // frito" distingue de "huevo cocido", no los deja empatados.
       if (estadoLower && score > 0) {
-        const palabrasResto = restoLower.split(/\s+/);
-        for (const w of palabrasResto) {
+        // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
+        // con un plátano" no es el jugo "Con azúcar".
+        for (const w of palabrasEstado) {
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
             break;
           }
         }
       }
+      if (score > 0 && pideSinAzucar) {
+        const textoFood = `${nombreLower} ${estadoLower}`;
+        if (/con az[uú]car/.test(textoFood)) score = 1;
+        else if (score >= 10 && /sin az[uú]car|natural/.test(textoFood)) score += 45;
+      }
       if (score > 0) candidatas.push({ food: f, score });
     }
     candidatas.sort((a, b) => b.score - a.score);
+    // Lo que es solo un ingrediente del mejor no compite con él: con "jugo
+    // de papaya" no se pregunta por "Papaya (cruda)".
+    if (candidatas.length > 1) {
+      const nombreMejor = candidatas[0].food.name.toLowerCase();
+      for (let k = candidatas.length - 1; k > 0; k--) {
+        const n = candidatas[k].food.name.toLowerCase();
+        if (n !== nombreMejor && n.length < nombreMejor.length && contienePalabras(nombreMejor, n)) candidatas.splice(k, 1);
+      }
+    }
 
-    if (candidatas.length === 0) return null;
+    // Nada parecido en la app: no se pierde en silencio, queda para
+    // buscarlo (o pedírselo a Jonah) después.
+    if (candidatas.length === 0) {
+      return resto.trim().length > 1 ? { textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, sinCoincidencia: true } : null;
+    }
 
     const mejor = candidatas[0].food;
     const mejorScore = candidatas[0].score;
@@ -601,14 +739,32 @@ function interpretarVarios(textoCompleto) {
     // de todas es. Se compara por "key" (nombre + estado), no solo el
     // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
     // entre sí por compartir el mismo nombre base.
-    const empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
-    const necesitaAclarar = empatadas.length > 0 && mejorScore < 90; // coincidencia exacta no se cuestiona
+    let empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
+    // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
+    // la app tiene las dos versiones (la natural o "Sin azúcar").
+    let preguntarAzucar = false;
+    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
+      const base = mejor.name.toLowerCase();
+      const sinAz = FOODS.find(f => f.key !== mejor.key && (
+        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
+        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
+      if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
+    }
+    // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
+    // "Avena (cocida)": sobra "pan". Si sobra una palabra, se pregunta (con
+    // "No es ninguna") en vez de anotar otra cosa en silencio.
+    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso']);
+    const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
+    const parcial = mejorScore < 100 && restoLower.split(/\s+/)
+      .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
+      .some(w => !variantesSingular(w).some(v => palabrasFood.has(v) || [...palabrasFood].some(pf => pf.startsWith(v) || v.startsWith(pf) && pf.length > 3)));
+    const necesitaAclarar = (empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar)) || parcial; // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
     const opciones = necesitaAclarar
       ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
       : null;
 
     return {
-      textoOriginal: parte.trim(), cantidad, gramosExplicitos,
+      textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, gramosExplicitos,
       food: mejor, necesitaAclarar, opciones,
     };
   }).filter(Boolean);
@@ -647,7 +803,37 @@ const blobABase64 = blob => new Promise((resolve, reject) => {
 
 // autoGrabar: empieza a grabar apenas se abre (desde el botón "Voz" de la
 // hoja Registrar), para registrar en un solo toque.
-function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
+/* Pedido de un alimento desde la voz ("🙋 No está en la lista: pedirlo"):
+   lo mismo que "Pedirle a Jonah" del buscador (pedir_alimento_app + la IA
+   lo atiende al instante), pero sin salir de la pantalla de voz. Devuelve
+   { estado: agregado | existe | partes | jonah | error, food?, ... }. */
+function buscarPorNombre(nombre) {
+  const n = String(nombre || '').trim().toLowerCase();
+  if (!n) return null;
+  return FOODS.find(f => f.key.toLowerCase() === n || f.name.toLowerCase() === n
+    || (f.state && f.state !== '-' && `${f.name} (${f.state})`.toLowerCase() === n)) || null;
+}
+async function pedirAlimentoDesdeVoz(nombre, username) {
+  const { error } = await supabase.rpc('pedir_alimento_app', { p_nombre: nombre });
+  if (error) return { estado: 'error', error: error.message?.startsWith('Ya enviaste') ? error.message : 'No se pudo enviar el pedido. Intenta de nuevo.' };
+  try {
+    const { data } = await supabase.functions.invoke('alimentos-pedidos', { body: { accion: 'atender_pedido', nombre } });
+    if (data?.estado === 'agregado') {
+      await cargarAlimentosExtra(true);
+      return { estado: 'agregado', alimento: data.alimento, food: buscarPorNombre(data.alimento) };
+    }
+    if (data?.estado === 'descartado' && data.ya_existe) return { estado: 'existe', alimento: data.ya_existe, food: buscarPorNombre(data.ya_existe) };
+    if (data?.estado === 'descartado' && data.por_partes?.length) return { estado: 'partes', partes: data.por_partes };
+  } catch {}
+  anotarPedidoEnCamino(username, nombre);
+  return { estado: 'jonah', limite: horaLimiteAlimento(Date.now()) };
+}
+
+// onBuscarDespues(textos): lo que no está en la app (o "No es ninguna") se
+// abre en el buscador de la comida con lo que dijo ya escrito, donde puede
+// buscarlo de otra forma o pedírselo a Jonah. Sin él (fuera de la hoja
+// Registrar), solo se le avisa qué le faltó.
+function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, username = null }) {
   const [fase, setFase] = useState('listo'); // listo | grabando | procesando
   const [segundos, setSegundos] = useState(0);
   const [aviso, setAviso] = useState('');
@@ -665,6 +851,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   useEffect(() => () => {
     clearInterval(reloj.current);
     descartar.current = true;
+    pararSilencio();
     try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {}
     try { grabador.current?.stream?.getTracks().forEach(t => t.stop()); } catch {}
   }, []);
@@ -674,7 +861,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
 
   function interpretar(dicho) {
     setTexto(dicho);
-    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: true }));
+    const encontrados = interpretarVarios(dicho).map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia }));
     setItems(encontrados);
     if (!encontrados.length) setAviso('No reconocí alimentos en lo que dijiste. Intenta de nuevo, por ejemplo: "2 huevos y 1 pan".');
   }
@@ -696,6 +883,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     rec.ondataavailable = e => { if (e.data?.size) partes.current.push(e.data); };
     rec.onstop = async () => {
       clearInterval(reloj.current);
+      pararSilencio();
       stream.getTracks().forEach(t => t.stop());
       if (descartar.current) { setFase('listo'); return; }
       const blob = new Blob(partes.current, { type: rec.mimeType || tipo || 'audio/webm' });
@@ -715,6 +903,7 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     };
     grabador.current = rec;
     rec.start();
+    vigilarSilencio(stream);
     setSegundos(0);
     setFase('grabando');
     vibrar(20);
@@ -724,8 +913,53 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
     }), 1000);
   }
 
-  function terminar() { try { if (grabador.current?.state === 'recording') grabador.current.stop(); } catch {} }
-  function cancelar() { descartar.current = true; terminar(); setSegundos(0); }
+  function terminar() {
+    pararSilencio();
+    try {
+      if (grabador.current?.state === 'recording') {
+        // Se ve al toque que ya dejó de escuchar (antes parecía que el ✓ no respondía).
+        if (!descartar.current) { setFase('procesando'); vibrar(15); }
+        grabador.current.stop();
+      }
+    } catch {}
+  }
+  // Deja de escuchar sola: cuando la persona ya habló y se queda callada
+  // 2 segundos. Mide el volumen del micrófono (no se graba nada aparte).
+  const silencio = useRef(null);
+  function pararSilencio() {
+    if (!silencio.current) return;
+    clearInterval(silencio.current.intervalo);
+    try { silencio.current.ctx.close(); } catch {}
+    silencio.current = null;
+  }
+  function vigilarSilencio(stream) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const analizador = ctx.createAnalyser();
+      analizador.fftSize = 1024;
+      ctx.createMediaStreamSource(stream).connect(analizador);
+      const datos = new Float32Array(analizador.fftSize);
+      let fondo = null, hablo = false, callado = 0, t = 0;
+      const intervalo = setInterval(() => {
+        analizador.getFloatTimeDomainData(datos);
+        let suma = 0;
+        for (let k = 0; k < datos.length; k++) suma += datos[k] * datos[k];
+        const vol = Math.sqrt(suma / datos.length);
+        t += 100;
+        if (t <= 400) { fondo = fondo === null ? vol : Math.min(fondo, vol); return; } // ruido de fondo
+        const umbral = Math.max(0.02, (fondo || 0) * 3);
+        if (vol > umbral) { hablo = true; callado = 0; }
+        else if (hablo) {
+          callado += 100;
+          if (callado >= 2000) terminar();
+        }
+      }, 100);
+      silencio.current = { ctx, intervalo };
+    } catch {}
+  }
+  function cancelar() { descartar.current = true; terminar(); setSegundos(0); setFase('listo'); }
 
   // Respaldo: dictado del navegador (Chrome de Android).
   function dictar() {
@@ -747,14 +981,38 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
   }
 
   function elegirOpcion(i, food) {
-    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false } : it));
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, food, necesitaAclarar: false, buscar: false, activo: true } : it));
+  }
+  // "No es ninguna": ese alimento se busca después (no traba el resto).
+  function ningunaOpcion(i) {
+    setItems(v => v.map((it, idx) => idx === i ? { ...it, necesitaAclarar: false, buscar: true, activo: false } : it));
+  }
+  // "No está en la lista: pedirlo": se le pide a Jonah ahí mismo. Si la IA
+  // lo agrega (o ya existía), queda elegido; si no, Jonah responde en 1 hora.
+  async function pedirItem(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, idx) => idx === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, idx) => {
+      if (idx !== i) return x;
+      if (r.food) return { ...x, food: r.food, buscar: false, activo: true, pedido: r };
+      return { ...x, pedido: r };
+    }));
   }
 
   function agregarSeleccionados() {
     if (items.some(it => it.necesitaAclarar)) return; // primero hay que elegir las opciones pendientes
-    const activos = items.filter(it => it.activo);
-    if (!activos.length) return;
-    onElegirVarios(activos);
+    const activos = items.filter(it => it.activo && !it.buscar);
+    // Lo que ya se pidió a Jonah no se vuelve a buscar (llega con el aviso).
+    const porBuscar = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).map(it => it.textoBuscar || it.textoOriginal);
+    if (!activos.length && !porBuscar.length) return;
+    if (activos.length) onElegirVarios(activos);
+    if (porBuscar.length) {
+      if (onBuscarDespues) onBuscarDespues(porBuscar);
+      else showToast(`Búscalo en el buscador de la comida: ${porBuscar.join(', ')}`);
+    }
     setItems([]);
     setTexto('');
   }
@@ -771,8 +1029,8 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
       <div className="relative my-2">
         {grabando && (
           <>
-            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping" />
-            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping" style={{ animationDelay: '0.35s' }} />
+            <span className="absolute -inset-6 rounded-full bg-orange-500/15 animate-ping pointer-events-none" />
+            <span className="absolute -inset-3 rounded-full bg-orange-500/25 animate-ping pointer-events-none" style={{ animationDelay: '0.35s' }} />
           </>
         )}
         <button onClick={grabando ? terminar : empezar} disabled={fase === 'procesando'}
@@ -785,10 +1043,10 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
         </button>
       </div>
       {grabando && puedeGrabar ? (
-        <div className="flex items-center justify-center gap-8 w-full">
+        <div className="relative z-10 flex items-center justify-center gap-8 w-full mt-3">
           <button onClick={cancelar} aria-label="Borrar y empezar de nuevo" className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-lg">🗑️</button>
           <span className="jb-display text-xl text-zinc-100 tabular-nums w-16 text-center">{reloj2}</span>
-          <button onClick={terminar} aria-label="Listo" className="w-12 h-12 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+          <button onClick={terminar} aria-label="Listo" className="w-14 h-14 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={26} strokeWidth={3} /></button>
         </div>
       ) : (
         <p className="jb-body text-sm text-zinc-400 text-center">
@@ -813,28 +1071,77 @@ function ModoVozActivo({ onElegirVarios, autoGrabar = false }) {
                   {it.opciones.map((op, j) => (
                     <button key={j} onClick={() => elegirOpcion(i, op)}
                       className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
-                      {GROUP_EMOJI[op.group] || '🍴'} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
+                      {emojiAlimento(op)} {op.name}{op.state && op.state !== '-' ? ` (${op.state})` : ''}
                     </button>
                   ))}
                 </div>
+                <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                  <button onClick={() => pedirItem(i)}
+                    className="jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 No está en la lista: pedirlo
+                  </button>
+                  <button onClick={() => ningunaOpcion(i)} className="jb-body text-[11px] text-zinc-400 underline underline-offset-2">
+                    o buscarlo yo
+                  </button>
+                </div>
+              </div>
+            ) : it.buscar ? (
+              <div key={i} className="w-full rounded-lg px-3 py-2 border border-dashed border-zinc-700 bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg shrink-0">{it.pedido ? '🙋' : '🔎'}</span>
+                  <span className="jb-body text-xs text-zinc-300 flex-1">
+                    "{it.textoBuscar || it.textoOriginal}"
+                    {!it.pedido && <span className="text-zinc-500"> · {it.sinCoincidencia ? 'no lo encontré en la app' : 'lo buscas'}: te lo dejo listo en tu comida para buscarlo</span>}
+                  </span>
+                </div>
+                {!it.pedido && (
+                  <button onClick={() => pedirItem(i)}
+                    className="mt-2 jb-body text-[11px] font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3 py-1.5">
+                    🙋 Pedírselo a Jonah
+                  </button>
+                )}
+                {it.pedido && (
+                  <p className={`jb-body text-[11px] mt-1.5 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+                    {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+                    {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Lo reviso yo mismo y te respondo antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>. Lo ves en "Tus pedidos en camino" en Inicio 💪</>}
+                    {it.pedido.estado === 'agregado' && <>✅ Ya está en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo en tu comida y elígelo 💪</>}
+                    {it.pedido.estado === 'existe' && <>🔎 Ya estaba en la app como <b className="text-orange-400">{it.pedido.alimento}</b>. Búscalo así en tu comida 🙌</>}
+                    {it.pedido.estado === 'partes' && <>🧩 Regístralo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+                    {it.pedido.estado === 'error' && it.pedido.error}
+                  </p>
+                )}
               </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
-                  {GROUP_EMOJI[it.food.group] || '🍴'} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  <NotaSinArroz food={it.food} />
                 </span>
+                {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
+                <span role="button" tabIndex={0} onClick={e => { e.stopPropagation(); ningunaOpcion(i); }}
+                  className="jb-body text-[10px] text-zinc-500 underline underline-offset-2 shrink-0 px-1">No es esto</span>
               </button>
             )
           ))}
-          {items.some(it => it.necesitaAclarar) ? (
-            <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba para poder continuar</p>
-          ) : (
-            <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
-              Agregar {items.filter(it => it.activo).length} alimento(s)
-            </button>
-          )}
+          {(() => {
+            if (items.some(it => it.necesitaAclarar)) {
+              return <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba, o toca "No está en la lista: pedirlo"</p>;
+            }
+            const n = items.filter(it => it.activo && !it.buscar).length;
+            const b = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).length;
+            if (!n && !b) {
+              return items.some(it => it.pedido?.estado === 'enviando') ? null : (
+                <button onClick={() => { setItems([]); setTexto(''); }} className={btnGhost + ' mt-1 py-2 text-sm'}>Listo</button>
+              );
+            }
+            return (
+              <button onClick={agregarSeleccionados} className={btnPrimary + ' mt-1 py-2 text-sm'}>
+                {n && b ? `Agregar ${n} y buscar ${b}` : n ? `Agregar ${n} alimento(s)` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
+              </button>
+            );
+          })()}
         </div>
       ) : texto ? (
         <p className="jb-body text-xs text-zinc-600">No encontré coincidencias — prueba con otra palabra, o usa el buscador normal.</p>
@@ -910,7 +1217,7 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
               {platos.map(f => (
                 <button key={f.key} onClick={() => agregarPlato(f)}
                   className="bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
-                  <span className="text-2xl">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                  <span className="text-2xl">{emojiAlimento(f)}</span>
                   <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
                 </button>
               ))}
@@ -924,7 +1231,9 @@ function RestaurantesAliadosCard({ mealPlan, setMealPlan }) {
 
 // embebido: se muestra dentro de la hoja "Registrar" (sin su tarjeta ni
 // su selector de comida, porque la comida ya se eligió en la hoja).
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo }) {
+// onAgregado(meal, ids): en la hoja "Registrar", al agregar se cierra la hoja
+// y se lleva al alumno a lo que acaba de registrar.
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues, onAgregado }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -934,12 +1243,14 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
 
   function agregarDirecta(food) {
     const d = unidadPorDefecto(food);
+    const id = uid();
     setMealPlan(v => ({
       ...v,
-      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id: uid(), foodKey: food.key, qty: d.qty, unit: d.unit }] },
+      meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], { id, foodKey: food.key, qty: d.qty, unit: d.unit }] },
     }));
     vibrar(15);
     showToast(`✅ ${food.name} agregado a ${mealDestino}`);
+    onAgregado?.(mealDestino, [id]);
   }
 
   function agregarCombo(opt) {
@@ -969,6 +1280,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
     vibrar(20);
     showToast(`✅ ${items.length} alimento(s) agregados a ${mealDestino}`);
+    onAgregado?.(mealDestino, nuevas.map(n => n.id));
   }
 
   // En la hoja Registrar el botón "Voz" ya graba directo (un solo toque).
@@ -984,7 +1296,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           ))}
         </div>
         {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} autoGrabar />}
+        {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} username={username} autoGrabar />}
       </div>
     );
   }
@@ -1021,7 +1333,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
           </div>
 
           {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
-          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} />}
+          {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} username={username} />}
         </div>
       )}
     </div>
@@ -1053,6 +1365,7 @@ async function usarSugerenciaGratis(username) {
 function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   const [open, setOpen] = useState(false);
   const { premium } = usePremium();
+  const { nombre: nombreCompa } = useCompanero();
   const [cupoSug, setCupoSug] = useState(null); // { ok, quedan?, limite? } en la versión gratis
   const [revisando, setRevisando] = useState(false);
 
@@ -1191,12 +1504,16 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
       <button onClick={alternar} disabled={revisando} className={btnPrimary + ' w-full text-base py-3'}>
-        {revisando ? <Loader2 size={16} className="animate-spin" /> : '🦍 Pregúntale a Jonah qué puedes comer'}
+        {revisando ? <Loader2 size={16} className="animate-spin" /> : `🦍 Pregúntale a ${nombreCompa} qué puedes comer`}
       </button>
+      {/* En la calle (pollería, chifa, menú…) le pregunta a Beast, que propone
+          una opción con las calorías de la app. */}
+      <button onClick={() => abrirBeastDesde({ texto: 'Estoy fuera de casa, en ' })}
+        className="w-full mt-2 jb-body text-xs text-zinc-300 hover:text-orange-400 py-1.5">💬 ¿Estás fuera de casa? Cuéntale a {nombreCompa}</button>
       {!premium && cupoSug && !cupoSug.ok && (
         <div className="mt-4">
           <BloqueoPremium compacto titulo="Ya usaste tus 3 sugerencias gratis de esta semana"
-            texto="Que Jonah te diga qué comer todos los días es Premium. El lunes tienes 3 más." />
+            texto={`Que ${nombreCompa} te diga qué comer todos los días es Premium. El lunes tienes 3 más.`} />
         </div>
       )}
       {open && !premium && cupoSug && typeof cupoSug.quedan === 'number' && (
@@ -1307,7 +1624,7 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                                     showToast(`🔄 ${sub.name} en vez de ${it.food.name}`);
                                   }}
                                   className="jb-body text-[11px] bg-zinc-950 border border-zinc-800 hover:border-violet-500/50 rounded-lg px-2 py-1.5 text-left text-zinc-200 flex items-center justify-between gap-2">
-                                  <span>{GROUP_EMOJI[sub.group] || '🍴'} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
+                                  <span>{emojiAlimento(sub)} {sub.name} · {eq.qty} {eq.unit}{sub.esPreferido ? ' ⭐' : ''}</span>
                                   <span className="text-zinc-600">{explicarSustituto(it.food, it.grams, sub, eq, macro)}</span>
                                 </button>
                               );
@@ -1369,17 +1686,6 @@ function reproducirSonido(tipo = 'logro') {
     });
     setTimeout(() => ctx.close(), 500);
   } catch {}
-}
-
-/* Expresión de la mascota según la hora del día — un detalle vivo en
-   el header, sin depender de datos de comidas. */
-function moodPorHora() {
-  const h = new Date().getHours();
-  if (h < 7) return 'sleepy';
-  if (h < 12) return 'flex';
-  if (h < 18) return 'fire';
-  if (h < 22) return 'happy';
-  return 'wink';
 }
 
 /* Botón para silenciar/activar los sonidos de logro */
@@ -2132,7 +2438,7 @@ function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, ini
           <a href={ayuda} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-orange-400 underline">¿Cómo medir?</a>
         )}
       </div>
-      <input type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
+      <input autoComplete="off" type="number" inputMode={decimales ? 'decimal' : 'numeric'} value={vacio ? '' : valor} placeholder={placeholder}
         onChange={e => onCambio(e.target.value === '' ? '' : Number(e.target.value))}
         aria-label={label}
         className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
@@ -2957,6 +3263,101 @@ function InstalarBanner({ onEligible }) {
 
 // Últimos 3 días de la prueba: cuenta regresiva grande, lo que logró y
 // un botón directo a los planes con el precio más bajo por día.
+/* FIN DE PRUEBA (pantalla completa): el penúltimo y el último día del
+   Premium de prueba, la primera vez que abre la app ese día, Jonah le
+   muestra lo que logró y le pregunta si siguen juntos. Antes solo había un
+   aviso en Inicio que quedaba detrás de otros: 3 de cada 4 nunca veían los
+   planes. Una vez por día (localStorage jb-fin-prueba:<usuario>). Lo que
+   toca queda en el embudo (evento "fin_prueba") para verlo en el panel. */
+function claveFinPrueba(username) { return 'jb-fin-prueba:' + username; }
+function finPruebaPendiente(user) {
+  if (!user || user.plan !== 'trial') return false;
+  const quedan = daysLeft(user.fechaVencimiento);
+  if (quedan === null || quedan < 0 || quedan > 1) return false;
+  try { return localStorage.getItem(claveFinPrueba(user.username)) !== todayISO(); } catch { return false; }
+}
+
+function FinPruebaModal({ user, onPlan, onCerrar }) {
+  const [stats, setStats] = useState(null);
+  const [precio1, setPrecio1] = useState(null);
+  useEffect(() => {
+    fetchTrialStats(user.username).then(setStats);
+    supabase.from('config').select('value').eq('key', PLANES[0].configKey).maybeSingle()
+      .then(({ data }) => setPrecio1(Number(data?.value) > 0 ? Number(data.value) : PLANES[0].precioDefault), () => setPrecio1(PLANES[0].precioDefault));
+    registrarPasoPago('fin_prueba', user.username, 'vio');
+    try { localStorage.setItem(claveFinPrueba(user.username), todayISO()); } catch {}
+  }, [user.username]);
+
+  const quedan = Math.max(0, daysLeft(user.fechaVencimiento) ?? 0);
+  const n = String(user.nombre || '').trim().split(/\s+/)[0];
+  const nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+  const cuando = quedan === 0 ? 'Hoy' : 'Mañana';
+  const uso = stats && stats.dias > 0;
+  const logros = uso ? [
+    [stats.dias, stats.dias === 1 ? 'día registrado' : 'días registrados'],
+    [stats.comidas, stats.comidas === 1 ? 'comida' : 'comidas'],
+    stats.deltaPeso !== null && stats.deltaPeso <= -0.1
+      ? [`−${Math.abs(stats.deltaPeso).toFixed(1)}`, 'kg']
+      : [stats.adherencia !== null ? `${stats.adherencia}%` : '—', 'días en tu meta'],
+  ] : null;
+  const elegir = (detalle, meses) => { registrarPasoPago('fin_prueba', user.username, detalle); onPlan(meses); };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/80" onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 max-h-[92vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.22)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <div className="flex items-center gap-3 mb-3">
+          <img src="/jonah-avatar.png" alt="Jonah" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500 shrink-0"
+            onError={e => { e.target.style.display = 'none'; }} />
+          <div className="min-w-0">
+            <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">{quedan === 0 ? 'Último día de tu Premium' : 'Te queda 1 día de Premium'}</p>
+            <h3 className="jb-display text-2xl text-zinc-50 leading-none">{nombre ? `${nombre.toUpperCase()}, ` : ''}¿SEGUIMOS JUNTOS?</h3>
+          </div>
+        </div>
+        <p className="jb-body text-sm text-zinc-300 leading-snug mb-4">
+          {uso
+            ? `Soy Jonah. ${cuando} termina tu Premium de prueba y quiero que veas lo que ya hiciste 💪 Así empecé yo también: poco a poco, comida a comida.`
+            : `Soy Jonah. ${cuando} termina tu Premium de prueba. Todavía no vimos tus comidas juntos, y es lo que más ayuda: anota tu próxima comida con una foto y vamos paso a paso.`}
+        </p>
+        {logros && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {logros.map(([valor, texto]) => (
+              <div key={texto} className="bg-zinc-950/70 border border-zinc-800 rounded-xl px-2 py-2.5 text-center">
+                <p className="jb-display text-2xl text-orange-500 tabular-nums leading-none">{valor}</p>
+                <p className="jb-body text-[10px] text-zinc-400 leading-tight mt-1">{texto}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="bg-zinc-950/70 border border-zinc-800 rounded-xl p-3 mb-4 jb-body text-xs text-zinc-300 flex flex-col gap-1">
+          <p>Con Premium sigues con:</p>
+          <p>📸 La foto inteligente en todas tus comidas</p>
+          <p>🍽️ Tu menú del día y de la semana, con comida peruana</p>
+          <p>💬 Mi acompañamiento por WhatsApp</p>
+        </div>
+        {esTWA() ? (
+          <button onClick={() => elegir('planes', null)} className={btnPrimary + ' w-full py-3.5 rounded-2xl'}>
+            <span className="jb-display text-base tracking-wide">SEGUIR CON PREMIUM</span>
+          </button>
+        ) : (
+          <>
+            <button onClick={() => elegir('1mes', 1)} className={btnPrimary + ' w-full py-3.5 rounded-2xl flex-col gap-0'}>
+              <span className="jb-display text-base tracking-wide">SEGUIR CON 1 MES{precio1 ? ` · ${fmtS(precio1)}` : ''}</span>
+              <span className="jb-body text-[11px] font-normal">Menos de S/1 al día · pagas con Yape o Plin</span>
+            </button>
+            <button onClick={() => elegir('planes', null)} className="w-full jb-body text-sm text-orange-400 py-2.5 mt-1">Ver todos los planes (ahorras con más meses)</button>
+          </>
+        )}
+        <button onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }}
+          className="w-full jb-body text-xs text-zinc-500 py-2">Ahora no · sigo con la versión gratis</button>
+      </div>
+    </div>
+  );
+}
+
 function CuentaRegresivaPrueba({ user, dia, stats, onVerPlanes }) {
   const [precioDia, setPrecioDia] = useState(null);
   useEffect(() => {
@@ -3532,7 +3933,7 @@ function PesajeCard({ form, setForm }) {
       <p className="jb-display text-lg text-zinc-50 leading-tight mt-0.5">¿CUÁNTO PESAS HOY? ⚖️</p>
       <p className="jb-body text-xs text-zinc-400 mt-1">En ayunas, después del baño y sin ropa pesada. Toma 10 segundos.</p>
       <div className="flex items-baseline justify-center gap-1 mt-3">
-        <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+        <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
           onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
           className="jb-display text-4xl text-orange-400 bg-transparent w-28 text-center tabular-nums focus:outline-none" />
         <span className="jb-body text-sm text-zinc-400">kg</span>
@@ -3541,6 +3942,92 @@ function PesajeCard({ form, setForm }) {
       <p className="jb-body text-[11px] text-zinc-500 text-center mt-1">Desliza la regla o toca el número para escribirlo · La vez pasada: {pesoActual} kg</p>
       <button onClick={guardar} className={btnPrimary + ' w-full py-2.5 mt-3'}>Guardar mi peso</button>
       <button onClick={ahoraNo} className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
+    </div>
+  );
+}
+
+/* En iPhone, la app instalada es el ícono del gorila en la pantalla de
+   inicio. Si alguien que YA la instaló (tiene avisos de Apple activos, que
+   solo funcionan desde el ícono) la abre desde un link (WhatsApp, correo…),
+   se abre en el navegador: ahí no le llegan los avisos. Se le recuerda
+   abrirla desde el ícono. "×" lo esconde por hoy. */
+function AbreDesdeIconoAviso({ username }) {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || '';
+    const esIphone = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const instaladaAqui = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!esIphone || instaladaAqui) return;
+    try { if (localStorage.getItem('jb-abre-icono-' + username) === todayISO()) return; } catch {}
+    let vivo = true;
+    supabase.from('push_subs').select('endpoint').eq('username', username).eq('activa', true).limit(5)
+      .then(({ data }) => { if (vivo && (data || []).some(x => String(x.endpoint).includes('web.push.apple.com'))) setVer(true); }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  if (!ver) return null;
+  return (
+    <div className="relative mb-4 flex items-start gap-3 bg-zinc-900 border border-orange-500/50 rounded-xl p-3 pr-9">
+      <img src="/jonah-avatar.png" alt="" className="w-9 h-9 rounded-full border border-orange-500/60 shrink-0" />
+      <p className="jb-body text-sm text-zinc-200">
+        <b className="text-zinc-50">Ábrela desde el ícono del gorila 🦍</b> en la pantalla de tu celular: así te llegan tus avisos y se ve completa. Ahora la abriste desde un link.
+      </p>
+      <button onClick={() => { try { localStorage.setItem('jb-abre-icono-' + username, todayISO()); } catch {} setVer(false); }}
+        aria-label="Cerrar" className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+    </div>
+  );
+}
+
+/* 📣 Mensaje de Jonah a todos (saludo de Navidad, avisos...). Lo escribe
+   Jonah en el panel (HOY → "📣 MENSAJE A TODOS"); a quien tiene avisos
+   también le llega como notificación. Sale como ventana apenas el alumno
+   abre la app (pedido de Jonah: sus mensajes son importantes), encima de
+   todo, hasta que toca "¡Gracias, Jonah!" (como mucho 14 días). Espera si
+   hay otra ventana abierta (guía, primera comida, etc.). */
+function MensajeJonahCard({ username, esperar = false }) {
+  const [mensaje, setMensaje] = useState(null);
+  // Se revisa al abrir la app y cada vez que el alumno vuelve a ella (casi
+  // nadie la cierra del todo: queda en segundo plano y no se vuelve a abrir
+  // desde cero), como mucho una vez por minuto.
+  useEffect(() => {
+    let vivo = true;
+    let ultima = 0;
+    const revisar = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - ultima < 60_000) return;
+      ultima = Date.now();
+      supabase.rpc('mi_mensaje_masivo').then(({ data }) => {
+        const m = Array.isArray(data) ? data[0] : data;
+        if (!vivo || !m?.id) return;
+        try { if (localStorage.getItem(`jb-mensaje-cerrado-${m.id}`)) return; } catch {}
+        setMensaje(v => (v?.id === m.id ? v : m));
+        registrarPasoPago('mensaje_visto', username, m.id);
+      }, () => {});
+    };
+    revisar();
+    document.addEventListener('visibilitychange', revisar);
+    window.addEventListener('focus', revisar);
+    return () => { vivo = false; document.removeEventListener('visibilitychange', revisar); window.removeEventListener('focus', revisar); };
+  }, [username]);
+  if (!mensaje) return null;
+  function cerrar() {
+    try { localStorage.setItem(`jb-mensaje-cerrado-${mensaje.id}`, '1'); } catch {}
+    registrarPasoPago('mensaje_cerrado', username, mensaje.id);
+    setMensaje(null);
+  }
+  if (esperar) return null;
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center px-4" role="dialog" aria-modal="true">
+      <div className="relative bg-zinc-900 border border-orange-500/60 rounded-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto"
+        style={{ boxShadow: '0 0 40px -10px rgba(232,89,12,.6)' }}>
+        <div className="flex items-center gap-3">
+          <img src="/jonah-avatar.png" alt="" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500/70 shrink-0" />
+          <div className="min-w-0">
+            <p className="jb-body text-[11px] text-orange-300 uppercase tracking-wider">Mensaje de Jonah 🦍</p>
+            <p className="jb-display text-2xl text-zinc-50 leading-tight">{mensaje.titulo}</p>
+          </div>
+        </div>
+        <p className="jb-body text-base text-zinc-200 mt-4 whitespace-pre-line leading-relaxed">{mensaje.texto}</p>
+        <button onClick={cerrar} className={btnPrimary + ' w-full py-3 mt-5'}>¡Gracias, Jonah! 💪</button>
+      </div>
     </div>
   );
 }
@@ -4802,7 +5289,7 @@ function MisPesajesCard({ form, setForm, rows }) {
             <p className="jb-display text-xl text-zinc-50">{editando.inicial ? 'TU PESO INICIAL' : `PESAJE DEL ${fechaCorta(editando.f).toUpperCase()}`}</p>
             <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para corregirlo.</p>
             <div className="flex items-baseline justify-center gap-1 mt-4">
-              <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+              <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
                 onChange={e => setValor(e.target.value)} aria-label="Peso de ese día en kilos"
                 className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
               <span className="jb-body text-base text-zinc-400">kg</span>
@@ -6044,7 +6531,7 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
 
   return (
     <div className="relative flex-1 sm:flex-[3] min-w-0">
-      <input
+      <input autoComplete="off"
         autoFocus={autoFocus}
         value={texto}
         onChange={e => { setTexto(e.target.value); setAbierto(true); setPedido(null); }}
@@ -6060,8 +6547,11 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
             <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
               onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
               className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
-              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
-              <span className="jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+              <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">{emojiAlimento(f)}</span>
+              <span className="min-w-0">
+                <span className="block jb-body text-sm text-zinc-100 break-words leading-snug">{nombreAlimento(f)}</span>
+                <NotaSinArroz food={f} />
+              </span>
             </button>
           ))}
           <p className="jb-body text-[11px] text-zinc-600 px-3 py-2">O escribe para buscar cualquier alimento.</p>
@@ -6096,13 +6586,14 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                   onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
                   className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
                   <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
-                    {GROUP_EMOJI[f.group] || '🍴'}
+                    {emojiAlimento(f)}
                   </span>
                   {/* El nombre completo, en varias líneas si hace falta: con nombres
                       parecidos ("Chocolate con leche" en barra o batido en taza)
                       cortarlo con "…" hacía fácil elegir el equivocado. */}
                   <div className="min-w-0">
                     <div className="jb-body text-sm text-zinc-100 break-words leading-snug">{f.name}</div>
+                    <NotaSinArroz food={f} />
                     <div className="jb-body text-[11px] text-zinc-500">
                       {f.group && !f.esPersonal ? f.group + ' · ' : ''}{f.state && f.state !== '-' ? f.state + ' · ' : ''}{f.kcal} kcal / 100 g
                       {f.esPersonal ? ' · tuyo' : ''}
@@ -6222,7 +6713,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
 
         <div className="flex flex-col gap-3">
           <Field label="Nombre">
-            <input value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
+            <input autoComplete="off" value={f.nombre} onChange={e => setF(v => ({ ...v, nombre: e.target.value }))} disabled={!!editar}
               className={inputCls + (editar ? ' opacity-60' : '')} placeholder="Ej. Barra proteica marca X" />
           </Field>
           {yaEnApp.length > 0 && (
@@ -6240,21 +6731,21 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
             </div>
           )}
           <Field label="Calorías por 100 g">
-            <input type="number" inputMode="decimal" value={f.kcal}
+            <input autoComplete="off" type="number" inputMode="decimal" value={f.kcal}
               onChange={e => setF(v => ({ ...v, kcal: e.target.value }))}
               className={inputCls} placeholder="Ej. 350" />
           </Field>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Proteína g">
-              <input type="number" inputMode="decimal" value={f.proteina}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.proteina}
                 onChange={e => setF(v => ({ ...v, proteina: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
             <Field label="Carbos g">
-              <input type="number" inputMode="decimal" value={f.carbos}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.carbos}
                 onChange={e => setF(v => ({ ...v, carbos: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
             <Field label="Grasas g">
-              <input type="number" inputMode="decimal" value={f.grasas}
+              <input autoComplete="off" type="number" inputMode="decimal" value={f.grasas}
                 onChange={e => setF(v => ({ ...v, grasas: e.target.value }))} className={inputCls} placeholder="0" />
             </Field>
           </div>
@@ -6268,7 +6759,7 @@ function CrearAlimentoModal({ username, nombreInicial, editar = null, onCerrar, 
   );
 }
 
-function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
+function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
   const [abierto, setAbierto] = useState(null); // 'ayer' | 'guardadas' | 'frecuentes'
   const [ayer, setAyer] = useState(null);
   const [guardadas, setGuardadas] = useState([]);
@@ -6338,6 +6829,9 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
     }));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], ...nuevos] } }));
     setAbierto(null);
+    vibrar(15);
+    showToast(`✅ ${nuevos.length === 1 ? '1 alimento agregado' : `${nuevos.length} alimentos agregados`} a ${meal}`);
+    onAgregado?.(meal, nuevos.map(n => n.id));
   }
 
   async function guardarComida() {
@@ -6470,7 +6964,7 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
           ) : (
             <div className="flex items-end gap-2 flex-wrap">
               <Field label={`Nombre para tu ${meal.toLowerCase()}`}>
-                <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value)}
+                <input autoComplete="off" value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value)}
                   className={inputCls + ' py-2'} placeholder="Ej. Mi desayuno de siempre" />
               </Field>
               <button onClick={guardarComida} disabled={guardando || !nombreNuevo.trim()}
@@ -6487,7 +6981,8 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan }) {
 
 /* Alimentos que en una foto se ven casi iguales pero cambian mucho en
    calorías (café negro o con leche, gaseosa normal o cero, leche entera o
-   descremada, atún en agua o en aceite, jugo con o sin azúcar...): si la
+   descremada, atún en agua o en aceite, jugo con o sin azúcar, mayonesa
+   normal o light...): si la
    IA reconoce cualquiera, se muestran todas las variantes para que el
    alumno toque la suya — primero las que sugirió la IA. No se aplica a lo
    que la foto sí distingue (pan, huevo, arroz), para no sumarle pasos. */
@@ -6506,8 +7001,13 @@ const FAMILIAS_FOTO = [
     claves: () => ['Atún en lata en agua (escurrido) (-)', 'Atún en lata en aceite (escurrido) (-)', 'Atún en lata en aceite (sin escurrir) (-)'] },
   { id: 'yogur', es: f => /^Yogur/.test(f.name),
     claves: () => ['Yogur natural (-)', 'Yogur griego natural (-)', 'Yogur saborizado (Con azúcar)', 'Yogur bebible (-)'] },
-  // Jugos, chicha, limonada, refrescos: cada sabor con sus versiones con y sin azúcar.
-  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco)/.test(f.name),
+  // Mayonesa normal o light: en la foto se ven iguales y la light tiene la
+  // mitad de calorías. Entran todas las de la app (también las light de
+  // marca que se agreguen después).
+  { id: 'mayonesa', es: f => /^Mayonesa/.test(f.name),
+    claves: () => FOODS.filter(x => /^Mayonesa/.test(x.name)).map(x => x.key) },
+  // Jugos, chicha, limonada, refrescos, emoliente: cada sabor con sus versiones con y sin azúcar.
+  { id: f => 'jugo:' + baseBebida(f.name), es: f => f.group === 'Bebidas' && /^(Jugo|Chicha|Limonada|Refresco|Emoliente)/.test(f.name),
     claves: f => FOODS.filter(x => x.group === 'Bebidas' && baseBebida(x.name) === baseBebida(f.name)).map(x => x.key) },
 ];
 
@@ -6618,7 +7118,10 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
   const normal = d.qty * porUnidad;
-  const calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  let calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;
+  // Bebidas: un vaso servido es al menos 1 vaso (la IA suele calcular menos
+  // por la foto: salía "½ taza" para un vaso de gaseosa).
+  if (food.group === 'Bebidas' && d.unit === 'vaso') calculado = Math.max(calculado, normal);
   const gramos = calculado * ((TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1);
   if (d.unit === 'gramos') return { unit: 'gramos', qty: Math.max(10, Math.round(gramos / 10) * 10) };
   return { unit: d.unit, qty: Math.max(0.25, Math.round((gramos / porUnidad) * 4) / 4) };
@@ -6628,6 +7131,7 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
 function textoPorcionFoto(food, porcion) {
   if (porcion.pesado) return `${Math.round(porcion.qty)} g ⚖️`;
   if (porcion.unit === 'gramos') return `≈ ${Math.round(porcion.qty)} g`;
+  if (porcion.unit === 'ml') return `≈ ${Math.round(porcion.qty)} ml`;
   const entero = Math.floor(porcion.qty);
   const resto = Math.round((porcion.qty - entero) * 4);
   const fr = ['', '¼', '½', '¾'][resto] || '';
@@ -6636,7 +7140,8 @@ function textoPorcionFoto(food, porcion) {
     ? (porcion.unit === 'porción' ? 'porciones' : porcion.unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(porcion.unit) ? porcion.unit + 's' : porcion.unit + 'es')
     : porcion.unit;
   const gramos = Math.round(porcion.qty * gramsPerUnit(food, porcion.unit));
-  return `${numero} ${plural} (≈ ${gramos} g)`;
+  // Bebidas en ml ("1 vaso (≈ 200 ml)"): así se compran y se miden.
+  return `${numero} ${plural} (≈ ${gramos} ${food.group === 'Bebidas' ? 'ml' : 'g'})`;
 }
 
 /* Fritos y saltados: se pregunta por el aceite. Los datos de esos platos
@@ -6654,7 +7159,30 @@ const OPCIONES_ACEITE = [
 const CLAVE_ACEITE = 'Aceite vegetal (-)';
 
 function esConAceite(food, aceiteIA) {
-  return !!aceiteIA || esFritoOSaltado(food);
+  // Carnes, pollo, pescado y huevo cocidos van con "¿Cómo lo cocinaste?"
+  // (preguntaAceite), aunque la IA haya visto aceite.
+  return esFritoOSaltado(food) || (!!aceiteIA && !sePuedeFreir(food));
+}
+// Carnes, pollo, pescado y huevos cocidos: "¿Cómo lo cocinaste?". Si lo
+// frió, se suma el aceite que absorbió (ver sePuedeFreir en App.jsx).
+// "normal" = sin aceite (no se anota nada).
+const OPCIONES_ACEITE_COCINA = [
+  { key: 'normal', label: 'Sin aceite' },
+  { key: 'poquito', label: 'Un poco' },
+  { key: 'frito', label: 'Frito' },
+  { key: 'muyfrito', label: 'Con mucho aceite' },
+];
+// Qué preguntar del aceite para este alimento (o null si no aplica).
+function preguntaAceite(food, aceiteIA) {
+  if (esConAceite(food, aceiteIA)) return {
+    opciones: OPCIONES_ACEITE, titulo: '🍳 ¿Cuánto aceite tenía?',
+    ayuda: 'Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.',
+  };
+  if (sePuedeFreir(food)) return {
+    opciones: OPCIONES_ACEITE_COCINA, titulo: '🍳 ¿Cómo lo cocinaste?',
+    ayuda: '"Sin aceite": sancochado, al horno, a la olla o a la plancha sin aceite. Si lo freíste, se suma el aceite que absorbe: "Un poco" (¼ de cucharada), "Frito" (½) o "Con mucho aceite" (1 cucharada, ≈124 kcal).',
+  };
+  return null;
 }
 
 function macrosDeFoto(food, porcion, aceite) {
@@ -6702,9 +7230,14 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta }) {
   const { premium } = usePremium();
-  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
+  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | etiqueta | limite | error | compartir
+  // La foto era una tabla nutricional y no se pudo leer (Premium, tope del
+  // día o foto borrosa): 'premium' | 'limite_alcanzado' | mensaje.
+  const [errorEtiqueta, setErrorEtiqueta] = useState('');
+  // La IA vio un producto empacado sin su tabla nutricional a la vista.
+  const [envase, setEnvase] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   // La foto ya comprimida, por si la comparte en la Comunidad al terminar.
   const fotoBlob = useRef(null);
@@ -6718,6 +7251,29 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   const [pesados, setPesados] = useState({}); // { [key o id]: gramos }
   const [pesando, setPesando] = useState(null); // id con el cuadro de gramos abierto
   const [gramosEscritos, setGramosEscritos] = useState('');
+  // Gramos que tenía antes de abrir el cuadro, para "Cancelar". Lo escrito
+  // se aplica al toque (antes había que tocar "Listo" y, si se tocaba
+  // "Agregar" o se abría otro alimento, los gramos se perdían sin aviso).
+  const pesoAntesRef = useRef(null);
+  function abrirPeso(id) {
+    pesoAntesRef.current = pesados[id] > 0 ? pesados[id] : null;
+    setGramosEscritos(pesados[id] > 0 ? String(pesados[id]) : '');
+    setPesando(id);
+  }
+  function escribirPeso(id, valor) {
+    setGramosEscritos(valor);
+    const g = Math.round(Number(String(valor).replace(',', '.')));
+    setPesados(v => {
+      const n = { ...v };
+      if (g > 0 && g <= 3000) n[id] = g; else delete n[id];
+      return n;
+    });
+  }
+  function cancelarPeso(id) {
+    const antes = pesoAntesRef.current;
+    setPesados(v => { const n = { ...v }; if (antes) n[id] = antes; else delete n[id]; return n; });
+    setPesando(null);
+  }
   function porcionFinal(food, f, id) {
     if (pesados[id] > 0) return { unit: 'gramos', qty: pesados[id], pesado: true };
     return porcionDeFoto(food, conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA), f._gramosIA, tamanos[id] || 'normal');
@@ -6745,6 +7301,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   // cuando la IA dijo ese alimento (viene del servidor). { [foodKey]: [foodKey] }
   const [alternativasIA, setAlternativasIA] = useState({});
   const [aceite, setAceite] = useState('normal');
+  // Carnes, pollo, pescado o huevo cocidos: ¿los frió? (ver preguntaAceite)
+  const [aceiteCocina, setAceiteCocina] = useState('normal');
   const [infoLimite, setInfoLimite] = useState(null);
   const [noEncontrados, setNoEncontrados] = useState([]); // platos que la IA vio pero no están en la app
   // Lo que la IA vio y no está en la app ya no se pide solo (la IA puede
@@ -6761,6 +7319,13 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         if (data?.estado !== 'agregado' && data?.estado !== 'descartado') anotarPedidoEnCamino(username, nombre);
       }, () => anotarPedidoEnCamino(username, nombre));
   }
+  // Producto de paquete sin la tabla a la vista: con la foto de su tabla
+  // nutricional quedan sus números exactos (se lee desde aquí mismo).
+  const consejoEnvase = envase && (
+    <p className="jb-body text-[11px] text-zinc-300 mt-2 pt-2 border-t border-orange-500/20">
+      📦 <span className="text-zinc-100 font-semibold">¿Es un producto de paquete?</span> Voltea el envase y tómale foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span>: leemos sus números exactos.
+    </p>
+  );
   const preguntaNoEncontrados = noEncontrados.length > 0 && (
     <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5 text-left">
       <p className="jb-body text-xs text-zinc-300 mb-2">
@@ -6782,6 +7347,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         ))}
       </div>
       {!premium && <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Puedes crearlo tú con sus calorías.</p>}
+      {consejoEnvase}
     </div>
   );
   const [mensajeError, setMensajeError] = useState('');
@@ -6837,7 +7403,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
 
   async function analizar(base64, mimeType) {
     setEstado('analizando');
-    setNoEncontrados([]); setPedidosFoto({});
+    setNoEncontrados([]); setPedidosFoto({}); setEnvase(false);
     try {
       // Los productos escaneados no se mandan: la foto reconoce platos, y
       // los empacados se registran mejor con su código de barras.
@@ -6868,6 +7434,16 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       }
       if (data?.error) throw new Error(data.error);
       anotarCupo(data);
+      // Foto de la tabla nutricional de un producto: se leyeron sus números
+      // y se pasa a confirmarlos (la misma pantalla de "Código").
+      if (data?.etiqueta) {
+        registrarPasoPago('foto_comida', username, 'etiqueta');
+        if (data.etiqueta.producto && onEtiqueta) { onEtiqueta(data.etiqueta.producto); return; }
+        setErrorEtiqueta(data.etiqueta.error || 'No pudimos leer la tabla nutricional.');
+        setEstado('etiqueta');
+        return;
+      }
+      setEnvase(data?.envase === true);
       setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
       setAlternativasIA(data?.alternativas && typeof data.alternativas === 'object' ? data.alternativas : {});
 
@@ -6877,11 +7453,21 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             // Caso ambiguo (ej. café con/sin azúcar): no forzamos una
             // sola clave, mostramos las alternativas para que el alumno
             // toque la correcta.
-            const alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
-            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true } : null;
+            let alternativas = it.opciones.map(k => buscarFood(k)).filter(Boolean);
+            // Un líquido servido para tomar es una bebida: nunca "Aceite de
+            // oliva" u otra grasa como opción junto a gaseosas o jugos (a
+            // Jonah le salió para un vaso de gaseosa; 1 vaso de aceite son
+            // ~1.000 kcal).
+            if (alternativas.some(f => f.group === 'Bebidas')) alternativas = alternativas.filter(f => f.group !== 'Grasas');
+            const gramosIA = Number(it.gramos) > 0 ? Number(it.gramos) : null;
+            if (alternativas.length === 1) return { ...alternativas[0], _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: 'media' };
+            return alternativas.length >= 2 ? { esOpciones: true, id: uid(), alternativas, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true } : null;
           }
           const food = buscarFood(it.key);
-          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: Number(it.gramos) > 0 ? Number(it.gramos) : null, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
+          // Aceites y grasas solas: como mucho 2 cucharadas por foto (la IA
+          // no puede ver cuánto aceite hay; un error aquí suma cientos de kcal).
+          const gramosIA = Number(it.gramos) > 0 ? (food?.group === 'Grasas' ? Math.min(Number(it.gramos), 30) : Number(it.gramos)) : null;
+          return food ? { ...food, _cantidadIA: it.cantidad || 1, _gramosIA: gramosIA, _aceiteIA: it.aceite === true, _confianzaIA: it.confianza || null } : null;
         })
         .filter(Boolean);
       const encontrados = ampliarFamiliasFoto(encontradosIA);
@@ -6904,6 +7490,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       setPesados({});
       setPesando(null);
       setAceite('normal');
+      // Si la IA vio que la carne, el pollo o el pescado estaba frito, ya
+      // viene marcado "Frito" (el alumno lo puede cambiar).
+      setAceiteCocina(encontrados.some(f => f._aceiteIA && (f.esOpciones ? f.alternativas.some(sePuedeFreir) : sePuedeFreir(f))) ? 'frito' : 'normal');
       setEstado('resultados');
     } catch (e) {
       setMensajeError(e?.message || '');
@@ -6976,7 +7565,8 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // fotoIA: lo que puso la IA. Si después el alumno lo cambia con
       // "¿Era otro alimento?", eso también le enseña a la IA.
       const poco = aceite === 'poco' && esConAceite(food, item._aceiteIA);
-      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
+      const frito = !poco && aceiteCocina !== 'normal' && sePuedeFreir(food) ? aceiteCocina : null;
+      sumar({ id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty, ...(poco ? { aceite: 'poco' } : frito ? { aceite: frito } : {}), ...(corregido || item._manual ? {} : { fotoIA: food.key }) });
     });
     const cucharadas = extraAceite(elegidos);
     if (cucharadas && buscarFood(CLAVE_ACEITE)) {
@@ -7045,7 +7635,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
           tamano: tamanos[id] || 'normal',
           pesado: e.porcion.pesado ? true : null,
           piezas_corregidas: conteos[id] !== undefined && conteos[id] !== (f._cantidadIA || 1) ? conteos[id] : null,
-          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : null,
+          aceite: esConAceite(e.food, f._aceiteIA) ? aceite : sePuedeFreir(e.food) ? aceiteCocina : null,
         };
       };
       items.forEach(f => {
@@ -7226,11 +7816,6 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 const kcal = food ? Math.round(macrosDeFoto(food, porcion).kcal) : null;
                 // Ajuste de porción: piezas con − / +; lo demás con Poco / Normal / Mucho.
                 const conteo = food ? (conteos[id] ?? conteoFoto(food, f._cantidadIA, f._gramosIA)) : 1;
-                const guardarPeso = () => {
-                  const g = Math.round(Number(String(gramosEscritos).replace(',', '.')));
-                  if (g > 0 && g <= 3000) setPesados(v => ({ ...v, [id]: g }));
-                  setPesando(null);
-                };
                 const ajusteIA = food && marcado && (esPorPiezas(food) ? (
                   <div className="flex items-center gap-2 mt-2">
                     <span className="jb-body text-[11px] text-zinc-500">¿Cuántas?</span>
@@ -7257,19 +7842,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                 ));
                 const ajuste = food && marcado && (pesando === id ? (
-                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); guardarPeso(); }}>
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
-                    <input type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
-                      onChange={e => setGramosEscritos(e.target.value)}
+                    <input autoComplete="off" type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
+                      onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
                     <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
-                    <button type="button" onClick={() => setPesando(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                    <button type="button" onClick={() => cancelarPeso(id)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
                   </form>
                 ) : pesados[id] > 0 ? (
                   <div className="flex items-center gap-3 mt-2">
-                    <span className="jb-body text-xs text-emerald-400">⚖️ Pesado en tu balanza</span>
-                    <button type="button" onClick={() => { setGramosEscritos(String(pesados[id])); setPesando(id); }}
+                    <span className="jb-body text-xs text-emerald-400">⚖️ {pesados[id]} g pesados en tu balanza</span>
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="jb-body text-[11px] text-zinc-400 hover:text-zinc-200 underline">Cambiar</button>
                     <button type="button" onClick={() => setPesados(v => { const n = { ...v }; delete n[id]; return n; })}
                       className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
@@ -7277,7 +7862,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 ) : (
                   <div className="flex flex-wrap items-center gap-x-3">
                     {ajusteIA}
-                    <button type="button" onClick={() => { setGramosEscritos(''); setPesando(id); }}
+                    <button type="button" onClick={() => abrirPeso(id)}
                       className="mt-2 jb-body text-xs text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-2.5 py-1">
                       ⚖️ Lo pesé
                     </button>
@@ -7329,6 +7914,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                         className="w-4 h-4 accent-orange-500 shrink-0" />
                       <span className="flex-1 min-w-0">
                         <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{food.name}</span>
+                        <NotaSinArroz food={food} />
                         <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                       </span>
                       <span className={`jb-display text-sm shrink-0 tabular-nums ${marcado ? 'text-orange-400' : 'text-zinc-600'}`}>{kcal} kcal</span>
@@ -7382,10 +7968,37 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               );
             })()}
             {(() => {
+              // Carne, pollo, pescado o huevo cocidos: "¿Cómo lo cocinaste?".
+              const elegidos = elegidosConPorcion();
+              const cuales = elegidos.filter(e => sePuedeFreir(e.food));
+              if (!cuales.length) return null;
+              const p = preguntaAceite(cuales[0].food);
+              const nombres = cuales.map(e => nombreAlimento(e.food)).join(', ');
+              return (
+                <div className="jbe-entrar bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
+                  <p className="jb-body text-sm text-zinc-200">{p.titulo} <span className="text-zinc-500 text-xs">({nombres})</span></p>
+                  <p className="jb-body text-[11px] text-zinc-500 mb-2">{p.ayuda}</p>
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Cómo lo cocinaste">
+                    {p.opciones.map(o => {
+                      const activo = aceiteCocina === o.key;
+                      return (
+                        <button key={o.key} type="button" aria-pressed={activo} onClick={() => setAceiteCocina(o.key)}
+                          className={`jb-body text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            {(() => {
               // Total de lo que está marcado, con los ajustes y el aceite extra.
               const elegidos = elegidosConPorcion();
               if (!elegidos.length) return null;
-              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion, aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco' : null));
+              const macros = elegidos.map(e => macrosDeFoto(e.food, e.porcion,
+                aceite === 'poco' && esConAceite(e.food, e.item._aceiteIA) ? 'poco'
+                  : aceiteCocina !== 'normal' && sePuedeFreir(e.food) ? aceiteCocina : null));
               const cucharadas = extraAceite(elegidos);
               const aceiteFood = cucharadas ? buscarFood(CLAVE_ACEITE) : null;
               if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
@@ -7403,9 +8016,17 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 </div>
               );
             })()}
+            {/* A qué comida va: se puede cambiar aquí mismo antes de agregar
+                (ej. un almuerzo tarde, después de las 3:30). */}
+            {onCambiarComida && (
+              <div className="mb-3">
+                <p className="jb-body text-[11px] text-zinc-500 mb-1.5">¿A qué comida va?</p>
+                <SelectorComida valor={comida} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="-mx-1 px-1" />
+              </div>
+            )}
             <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {elegidosConPorcion().length || ''} a esta comida
+              Agregar {elegidosConPorcion().length || ''} a {comida ? comida.toLowerCase() : 'esta comida'}
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
@@ -7434,6 +8055,30 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             <button onClick={() => { setItems([]); setSeleccionados({}); setCorrecciones({}); setElecciones({}); setTamanos({}); setConteos({}); setPesados({}); setPesando(null); setAceite('normal'); setAgregandoExtra(true); setEstado('resultados'); }}
               className={btnGhost + ' w-full py-2.5 mb-2'}>＋ Agregarlo yo con esta foto</button>
             <button onClick={() => setEstado('elegir')} className={btnGhost + ' w-full py-2.5'}>Probar otra foto</button>
+          </div>
+        )}
+
+        {estado === 'etiqueta' && (
+          <div className="text-center py-2">
+            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
+            <p className="jb-body text-sm text-zinc-200 mb-1">📋 Es la tabla nutricional de un producto.</p>
+            {errorEtiqueta === 'premium' ? (
+              <div className="my-3">
+                <BloqueoPremium compacto titulo="Leer la tabla nutricional con foto es Premium"
+                  texto="Con Premium leemos sus números y el producto queda guardado. Gratis puedes buscarlo por su nombre o crearlo tú." />
+              </div>
+            ) : (
+              <p className="jb-body text-sm text-zinc-400 mb-4">
+                {errorEtiqueta === 'limite_alcanzado'
+                  ? 'Ya leíste 5 etiquetas hoy. Mañana puedes leer más; mientras tanto, búscalo escribiendo.'
+                  : errorEtiqueta}
+              </p>
+            )}
+            <p className="jb-body text-[11px] text-zinc-600 mb-3">Esta foto no gastó tus fotos de comida.</p>
+            {errorEtiqueta !== 'premium' && errorEtiqueta !== 'limite_alcanzado' && (
+              <button onClick={() => setEstado('elegir')} className={btnPrimary + ' w-full py-2.5 mb-2'}>Tomar otra foto a la tabla</button>
+            )}
+            <button onClick={onEscribir || onCerrar} className={btnGhost + ' w-full py-2.5'}>Buscarlo escribiendo</button>
           </div>
         )}
 
@@ -7644,19 +8289,26 @@ async function llamarProductos(body) {
   return data || {};
 }
 
-function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
+// "leida": tabla nutricional que ya leyó la foto de comida (sin código de
+// barras). Se abre directo en "confirmar", igual que tras "Tomar foto a la
+// tabla nutricional".
+function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
   const { premium } = usePremium();
-  const [estado, setEstado] = useState('camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
+  const [estado, setEstado] = useState(leida ? 'confirmar' : 'camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
   const [tardando, setTardando] = useState(false); // la cámara lleva un rato sin leer: se muestran consejos
   const [leido, setLeido] = useState(''); // destello "✓ código leído" antes de buscar
-  const [producto, setProducto] = useState(null); // fila de productos (o lo leído de la etiqueta)
-  const [nombreNuevo, setNombreNuevo] = useState('');
-  const [marcaNueva, setMarcaNueva] = useState('');
+  const [producto, setProducto] = useState(leida || null); // fila de productos (o lo leído de la etiqueta)
+  const [nombreNuevo, setNombreNuevo] = useState(leida?.nombre || '');
+  const [marcaNueva, setMarcaNueva] = useState(leida?.marca || '');
   const [unidad, setUnidad] = useState('porción');
   const [cantidad, setCantidad] = useState(1);
   const [mensaje, setMensaje] = useState('');
   const [guardando, setGuardando] = useState(false);
+  // "📦 ¿Tiene código de barras?": el producto se guardó desde la foto de
+  // comida (código interno 99…) y ahora se escanea su código para unirlo.
+  const [uniendo, setUniendo] = useState(false);
+  const sinCodigoReal = /^99\d{12}$/.test(String(producto?.codigo || ''));
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -7733,6 +8385,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
 
   function mostrarProducto(p) {
     setProducto(p);
+    setMensaje('');
     const conPorcion = Number(p.porcion_g) > 0;
     setUnidad(conPorcion ? 'porción' : 'gramos');
     setCantidad(conPorcion ? 1 : 100);
@@ -7740,6 +8393,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   }
 
   async function buscar(valor) {
+    if (uniendo) return unir(valor);
     setCodigo(valor);
     setEstado('buscando');
     try {
@@ -7748,6 +8402,22 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
       else { setMensaje(r.error || ''); setEstado('no_encontrado'); }
     } catch (e) { setMensaje(e.message); setEstado('error'); }
   }
+
+  async function unir(valor) {
+    setEstado('buscando');
+    try {
+      const r = await llamarProductos({ accion: 'unir_codigo', codigo: valor, producto: { codigo: producto.codigo } });
+      if (r.error || !r.producto) throw new Error(r.error || 'No se pudo unir el código.');
+      setUniendo(false);
+      mostrarProducto(r.producto);
+      showToast(r.yaExistia ? '📦 Ese código ya estaba registrado: usamos ese' : '✅ Código unido: quien lo escanee lo encuentra al toque');
+    } catch (err) {
+      setUniendo(false);
+      setMensaje(err.message);
+      setEstado('producto');
+    }
+  }
+  const volverSinUnir = () => { apagarCamara(); setUniendo(false); setMensaje(''); setEstado('producto'); };
 
   // Plan B cuando la cámara en vivo no lee: una foto normal del código.
   async function fotoCodigo(e) {
@@ -7820,7 +8490,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   // Si el alumno cierra con la etiqueta ya leída y un nombre, el producto se
   // guarda igual (antes se perdía si no tocaba "Guardar").
   function cerrar() {
-    if (estado === 'confirmar' && producto && codigo && nombreNuevo.trim()) {
+    if (estado === 'confirmar' && producto && nombreNuevo.trim()) {
       llamarProductos({ accion: 'guardar_producto', codigo, producto: { ...producto, nombre: nombreNuevo.trim(), marca: marcaNueva.trim() } }).catch(() => {});
     }
     onCerrar();
@@ -7876,7 +8546,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         <AsaHoja onCerrar={cerrar} />
         <style>{ESTILOS_ESCANER + ESTILOS_LASER}</style>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
+          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2">
+            {leida ? <>📋 TABLA NUTRICIONAL</> : <><ScanBarcode size={18} /> CÓDIGO DE BARRAS</>}
+          </h2>
           <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
@@ -7906,7 +8578,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
                 </div>
               )}
             </div>
-            <p className="jb-body text-sm text-zinc-300 text-center mb-3">Apunta al código de barras del producto. Se lee solo.</p>
+            <p className="jb-body text-sm text-zinc-300 text-center mb-3">
+              {uniendo ? <>Apunta al código de barras de <span className="text-orange-400 font-semibold">{producto?.nombre}</span> para unirlo. Se lee solo.</> : 'Apunta al código de barras del producto. Se lee solo.'}
+            </p>
             {tardando && (
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-3 jb-body text-xs text-zinc-400">
                 <p className="text-zinc-200 font-semibold mb-0.5">¿No lo lee?</p>
@@ -7915,7 +8589,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             )}
             {botonFotoCodigo(tardando)}
             {galeriaCodigo}
-            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
+            {uniendo
+              ? <button onClick={volverSinUnir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Volver sin unir</button>
+              : <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>}
           </div>
         )}
 
@@ -7926,7 +8602,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             {botonFotoCodigo(true)}
             {galeriaCodigo}
             <button onClick={() => { setMensaje(''); setEstado('camara'); }} className={btnGhost + ' w-full py-2.5 text-sm mt-2'}>Volver a la cámara en vivo</button>
-            <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>
+            {uniendo
+              ? <button onClick={volverSinUnir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Volver sin unir</button>
+              : <button onClick={onEscribir} className="w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 underline">Buscarlo por su nombre</button>}
           </div>
         )}
 
@@ -7953,7 +8631,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             {unidad === 'gramos' ? (
               // En gramos: regla (de 5 en 5 g) o tocar el número y escribirlo.
               <div className="mb-3 text-center">
-                <input type="number" inputMode="decimal" min="1" step="any" value={cantidad} aria-label="Gramos"
+                <input autoComplete="off" type="number" inputMode="decimal" min="1" step="any" value={cantidad} aria-label="Gramos"
                   onChange={e => setCantidad(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
                   className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[140px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
                 <p className="jb-body text-sm text-zinc-400 mt-1">gramos</p>
@@ -7986,6 +8664,14 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
               <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(macros.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
             </div>
             <button onClick={agregar} disabled={!gramos} className={btnPrimary + ' w-full py-3'}>Agregar a {meal.toLowerCase()}</button>
+            {sinCodigoReal && (
+              <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-center">
+                {mensaje && <p className="jb-body text-xs text-amber-400 mb-1">{mensaje}</p>}
+                <button type="button" onClick={() => { setMensaje(''); setUniendo(true); setEstado('camara'); }}
+                  className="jb-body text-sm text-orange-400 font-semibold hover:text-orange-300">📦 ¿Tiene código de barras? Escanéalo</button>
+                <p className="jb-body text-[11px] text-zinc-500 mt-0.5">Opcional: así quien lo escanee lo encuentra al toque.</p>
+              </div>
+            )}
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">Datos de la etiqueta del producto.</p>
           </div>
         )}
@@ -8024,10 +8710,10 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
             <p className="jb-body text-sm text-zinc-200 mb-1 flex items-center gap-1.5"><Check size={16} strokeWidth={3} className="text-orange-400" /> Leímos la etiqueta.</p>
             <p className="jb-body text-xs text-zinc-500 mb-3">Revisa el nombre y toca <span className="text-orange-400 font-semibold">Guardar producto</span> para que quede registrado.</p>
             <label className="jb-body text-[11px] text-zinc-500">Nombre del producto
-              <input value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
+              <input autoComplete="off" value={nombreNuevo} onChange={e => setNombreNuevo(e.target.value.slice(0, 80))} placeholder="Ej. Yogurt bebible fresa" className={inputCls + ' w-full text-sm mt-0.5 mb-2'} />
             </label>
             <label className="jb-body text-[11px] text-zinc-500">Marca (opcional)
-              <input value={marcaNueva} onChange={e => setMarcaNueva(e.target.value.slice(0, 40))} placeholder="Ej. Gloria" className={inputCls + ' w-full text-sm mt-0.5 mb-3'} />
+              <input autoComplete="off" value={marcaNueva} onChange={e => setMarcaNueva(e.target.value.slice(0, 40))} placeholder="Ej. Gloria" className={inputCls + ' w-full text-sm mt-0.5 mb-3'} />
             </label>
             <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4 jb-body text-xs text-zinc-400 tabular-nums">
               Por 100 g: <span className="text-zinc-100 font-semibold">{Math.round(producto.kcal)} kcal</span> · P {producto.proteina} g · C {producto.carbos} g · G {producto.grasa} g
@@ -8099,12 +8785,12 @@ function opcionesCantidad(food, unidad) {
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));
 }
 const textoCantidad = ({ unit, qty }) => {
-  if (unit === 'gramos' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
+  if (unit === 'gramos' || unit === 'ml' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
   if (/[\s/]/.test(unit)) return qty === 1 ? `1 ${unit}` : `${fraccion(qty)} × ${unit}`;
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
-function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar }) {
+function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar, onCambiarComida }) {
   const [texto, setTexto] = useState('');
   const [elegido, setElegido] = useState(null); // food
   const [unidad, setUnidad] = useState(null);
@@ -8163,7 +8849,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 
   function agregar(food, porcion, aceiteElegido) {
     const entry = { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty };
-    if (aceiteElegido && aceiteElegido !== 'normal' && esConAceite(food)) entry.aceite = aceiteElegido;
+    if (aceiteElegido && aceiteElegido !== 'normal' && preguntaAceite(food)?.opciones.some(o => o.key === aceiteElegido)) entry.aceite = aceiteElegido;
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
@@ -8186,6 +8872,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
           <h3 className="jb-display text-xl text-zinc-50 tracking-wide">{ICONO_COMIDA[meal]} {meal.toUpperCase()}</h3>
           <button onClick={onCerrar} className={btnPrimary + ' px-4 py-2 text-sm shrink-0'}>{agregados.length ? 'Listo ✅' : 'Cerrar'}</button>
         </div>
+        {/* La comida se puede cambiar aquí mismo (ej. un almuerzo tarde,
+            después de las 3:30). Una vez que anotó algo, queda fija. */}
+        {onCambiarComida && !agregados.length && (
+          <SelectorComida valor={meal} onCambio={onCambiarComida} ahora={comidaDeAhora()} className="mb-3 -mx-5 px-5" />
+        )}
 
         {agregados.length > 0 && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-3">
@@ -8205,6 +8896,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             <button onClick={() => setElegido(null)} className="jb-body text-sm text-zinc-400 self-start">← Elegir otro</button>
             <div>
               <p className="jb-display text-2xl text-zinc-50 leading-tight">{nombreAlimento(elegido).toUpperCase()}</p>
+              <NotaSinArroz food={elegido} className="!text-sm mt-1" />
               <p className="jb-body text-base text-zinc-400 mt-1">¿Cuánto comiste?</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -8226,7 +8918,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 <form className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onSubmit={e => { e.preventDefault(); if (valida) agregar(elegido, porcion, aceite); }}>
                   <p className="jb-body text-sm text-zinc-300 mb-2">✏️ ¿Sabes la cantidad exacta? Escríbela:</p>
                   <div className="flex items-center gap-2">
-                    <input type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
+                    <input autoComplete="off" type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
                       placeholder="Ej. 120" aria-label="Cantidad exacta"
                       className="flex-1 min-w-0 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
                     <button type="submit" disabled={!valida} className={btnPrimary + ' px-4 py-2.5 text-sm shrink-0 disabled:opacity-40'}>Agregar</button>
@@ -8245,11 +8937,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 </form>
               );
             })()}
-            {esConAceite(elegido) && (
+            {preguntaAceite(elegido) && (
               <div>
-                <p className="jb-body text-sm text-zinc-300 mb-1.5">🍳 ¿Cuánto aceite tenía?</p>
+                <p className="jb-body text-sm text-zinc-300 mb-1.5">{preguntaAceite(elegido).titulo}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {OPCIONES_ACEITE.map(o => (
+                  {preguntaAceite(elegido).opciones.map(o => (
                     <button key={o.key} onClick={() => setAceite(o.key)}
                       className={`jb-body text-sm px-3 py-2 rounded-full border ${aceite === o.key ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
                       {o.label}
@@ -8281,7 +8973,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             <label className="jb-display text-lg text-zinc-50" htmlFor="jb-que-comiste">
               {agregados.length ? `¿ALGO MÁS EN TU ${meal.toUpperCase()}?` : '¿QUÉ COMISTE?'}
             </label>
-            <input id="jb-que-comiste" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
+            <input autoComplete="off" id="jb-que-comiste" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
               placeholder="Escríbelo aquí: arroz, pollo, pan…"
               className="w-full jb-body text-lg rounded-2xl px-4 py-3.5 bg-zinc-950 border-2 border-orange-500/60 text-zinc-50 focus:outline-none focus:border-orange-500" />
 
@@ -8292,9 +8984,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   {frecuentes.map(fr => (
                     <button key={fr.food.key} onClick={() => agregar(fr.food, { unit: fr.unit, qty: fr.qty })}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[fr.food.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(fr.food)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(fr.food)}</span>
+                        <NotaSinArroz food={fr.food} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad({ unit: fr.unit, qty: fr.qty })} · ≈ {kcalDe(fr.food, fr)} kcal</span>
                       </span>
                       <span className="jb-display text-orange-400 text-xl shrink-0">+</span>
@@ -8311,9 +9004,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   return (
                     <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit); }}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{GROUP_EMOJI[f.group] || '🍴'}</span>
+                      <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}{clavesFrecuentes.has(f.key) ? ' ⭐' : ''}</span>
+                        <NotaSinArroz food={f} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad(d)} ≈ {kcalDe(f, d)} kcal{f.esPersonal ? ' · tuyo' : ''}</span>
                       </span>
                       <ChevronRight size={18} className="text-zinc-600 shrink-0" />
@@ -8394,7 +9088,7 @@ function SelectorComida({ valor, onCambio, ahora = null, className = '' }) {
   );
 }
 
-function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, username, mealPlan, setMealPlan }) {
+function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, onBuscarDespues, onAgregado, username, mealPlan, setMealPlan }) {
   const [modo, setModo] = useState(null); // null | 'voz'
   const { premium } = usePremium();
   const ahora = comidaDeAhora();
@@ -8456,19 +9150,39 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
         {modo === 'voz' && premium && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-4">
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
-              restricciones={mealPlan.restricciones || []} embebido meal={meal} />
+              restricciones={mealPlan.restricciones || []} embebido meal={meal}
+              onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined}
+              onAgregado={onAgregado} />
           </div>
         )}
 
         {username && (
           <div>
             <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Atajos para {meal.toLowerCase()}</p>
-            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} />
+            <AtajosComida username={username} meal={meal} mealPlan={mealPlan} setMealPlan={setMealPlan} onAgregado={onAgregado} />
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// Guisos que en Perú se comen con arroz pero cuyas calorías NO lo incluyen:
+// se avisa "Sin arroz: agrégalo aparte" para que no se olvide de anotarlo.
+// Los de la lista fija (RAW_FOODS) van aquí; los agregados desde el panel o
+// por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
+// Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
+// olla con arroz") no van.
+const PLATOS_SIN_ARROZ = new Set([
+  'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
+  'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
+  'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
+  'Sudado de pescado',
+]);
+const esPlatoSinArroz = food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
+function NotaSinArroz({ food, className = '' }) {
+  if (!esPlatoSinArroz(food)) return null;
+  return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;
 }
 
 // Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
@@ -8548,7 +9262,7 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
    al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
    entra con su correo. */
-function AbrirEnNavegadorModal({ username, onCerrar }) {
+function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
   useEffect(() => { registrarPasoPago('abrir_navegador', username, 'vio'); }, [username]);
   const [correo, setCorreo] = useState('');
@@ -8578,6 +9292,7 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
       <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
         <AsaHoja />
         <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        {trasPrimeraComida && <p className="jb-body text-sm text-orange-400 font-semibold mb-1">¡Bien ahí, ya registraste tu primera comida! 💪</p>}
         <h2 className="jb-display text-xl text-zinc-50 mb-3">UN ÚLTIMO PASO PARA ACOMPAÑARTE</h2>
         <p className="jb-body text-sm text-zinc-300 leading-relaxed">
           Estás usando la app dentro de {app === 'otra app' ? 'otra app' : app}. Ahí <b className="text-zinc-100">no te llegan mis avisos</b> ni puedes instalarla.
@@ -8607,6 +9322,94 @@ function AbrirEnNavegadorModal({ username, onCerrar }) {
         <button type="button" onClick={onCerrar} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">
           Seguir aquí por ahora
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* Llegó a Chrome/Safari desde la ventana "Ábrela en Chrome" (?desde=app,
+   ver src/App.jsx) y ya entró a su cuenta: se cambió justo para recibir los
+   avisos, así que apenas entra se le piden, en una sola pantalla. Antes
+   nadie se los pedía y ninguno de los que llegaba los activaba (revisión
+   del 10 de octubre: 0 de 7). En iPhone sin instalar, le enseña a instalarla. */
+function LlegasteAlNavegadorModal({ username, siguiente, onAnotar, onCerrar }) {
+  const [estado, setEstado] = useState('cargando'); // cargando | disponible | bloqueado | iosNoInstalado | nosoportado | listo
+  const [activando, setActivando] = useState(false);
+  useEffect(() => {
+    registrarPasoPago('abrir_navegador', username, 'llego');
+    (async () => {
+      const { dispositivo, instalada } = equipoDelAlumno();
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setEstado(dispositivo === 'iphone' && !instalada ? 'iosNoInstalado' : 'nosoportado');
+        return;
+      }
+      if (Notification.permission === 'denied') { setEstado('bloqueado'); return; }
+      if (Notification.permission === 'granted') {
+        try {
+          const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+          if (sub) { onCerrar(); return; } // ya los tenía activos: nada que pedir
+        } catch {}
+      }
+      setEstado('disponible');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username]);
+  async function activar() {
+    setActivando(true);
+    let final = 'disponible';
+    try { final = await activarPushAlumno(username); } catch {}
+    setActivando(false);
+    if (final === 'activo') { registrarPasoPago('abrir_navegador', username, 'aviso_ok'); vibrar(30); setEstado('listo'); }
+    else setEstado(final === 'bloqueado' ? 'bloqueado' : 'disponible');
+  }
+  function ahoraNo() { registrarPasoPago('abrir_navegador', username, 'aviso_no'); onCerrar(); }
+  if (estado === 'cargando') return null;
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
+      <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6 text-center">
+        <AsaHoja />
+        <div className="w-16 h-16 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-4xl mx-auto mb-3">🦍</div>
+        {estado === 'listo' ? (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">¡LISTO, QUEDAMOS CONECTADOS! 🦍</h2>
+            <p className="jb-body text-sm text-zinc-300 leading-relaxed">Te escribo a la hora de tus comidas para que no se te pase ninguna. Vamos juntos, comida a comida.</p>
+            {siguiente ? (
+              <button type="button" onClick={() => onAnotar(siguiente)} className={btnPrimary + ' w-full py-3 mt-5'}>🍽️ Anotar mi {siguiente.toLowerCase()}</button>
+            ) : (
+              <button type="button" onClick={onCerrar} className={btnPrimary + ' w-full py-3 mt-5'}>Ir a mi Inicio</button>
+            )}
+            {siguiente && <button type="button" onClick={onCerrar} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">Después</button>}
+          </>
+        ) : (
+          <>
+            <h2 className="jb-display text-xl text-zinc-50 mb-2">¡LISTO, YA ESTÁS EN {equipoDelAlumno().dispositivo === 'iphone' ? 'SAFARI' : 'CHROME'}!</h2>
+            {estado === 'iosNoInstalado' ? (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Último paso y quedamos conectados: en iPhone mis avisos solo llegan si la app está en tu pantalla de inicio. Toma 1 minuto.</p>
+                <div className="mt-3"><BotonGuiaIphone /></div>
+                <button type="button" onClick={ahoraNo} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-5">Ahora no</button>
+              </>
+            ) : estado === 'nosoportado' ? (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Tu cuenta y tu plan ya están aquí. Este navegador no recibe avisos, pero puedes seguir anotando tus comidas igual.</p>
+                <button type="button" onClick={onCerrar} className={btnPrimary + ' w-full py-3 mt-5'}>Seguir</button>
+              </>
+            ) : (
+              <>
+                <p className="jb-body text-sm text-zinc-300 leading-relaxed">Último toque y quedamos conectados: <b className="text-zinc-100">activa mis avisos</b> y te escribo a la hora de tus comidas para que no se te pase ninguna. Así vamos comida a comida.</p>
+                {estado === 'bloqueado' && (
+                  <p className="jb-body text-xs text-amber-400 bg-amber-950/20 border border-amber-800/40 rounded-lg p-2.5 mt-3 text-left">
+                    Los avisos están bloqueados en este navegador. Toca el candado 🔒 junto a la dirección (arriba) → <b>Permisos</b> o <b>Notificaciones</b> → <b>Permitir</b>, y vuelve a tocar el botón.
+                  </p>
+                )}
+                <button type="button" onClick={activar} disabled={activando} className={btnPrimary + ' w-full py-3.5 mt-5 text-base shadow-[0_0_24px_rgba(232,89,12,.35)]'}>
+                  {activando ? <Loader2 className="animate-spin" size={18} /> : '🔔 Activar mis avisos'}
+                </button>
+                <button type="button" onClick={ahoraNo} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-4">Ahora no</button>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -8648,9 +9451,10 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
         <div className="flex items-start gap-3 mb-5">
-          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+          <span className="w-11 h-11 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-xl shrink-0">{emojiAlimento(food)}</span>
           <div className="flex-1 min-w-0">
             <p className="jb-display text-lg text-zinc-50 leading-tight">{nombreAlimento(food)}</p>
+            <NotaSinArroz food={food} />
             <p className="jb-body text-xs text-zinc-500">{meal}</p>
           </div>
           <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
@@ -8666,7 +9470,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             fijar({ unit: porcion.unit, qty: nueva });
           }}>−</BotonPaso>}
           <div className="text-center min-w-[120px]">
-            <input type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
+            <input autoComplete="off" type="number" inputMode="decimal" min="0" step="any" aria-label="Cantidad (toca para escribirla)"
               value={escribiendo ?? porcion.qty}
               onFocus={e => { setEscribiendo(String(porcion.qty)); e.target.select(); }}
               onChange={e => setEscribiendo(e.target.value)}
@@ -8704,12 +9508,12 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
         </div>
-        {esConAceite(food) && (
+        {preguntaAceite(food) && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">
-            <p className="jb-body text-sm text-zinc-200">🍳 ¿Cuánto aceite tenía?</p>
-            <p className="jb-body text-[11px] text-zinc-500 mb-2">Ya incluye el aceite normal. ¿Lo hiciste en air fryer o con muy poco aceite? Elige "Air fryer / poco" (le resta un 30% de grasa). "Bastante" suma 1 cucharada de aceite y "Mucho", 2.</p>
+            <p className="jb-body text-sm text-zinc-200">{preguntaAceite(food).titulo}</p>
+            <p className="jb-body text-[11px] text-zinc-500 mb-2">{preguntaAceite(food).ayuda}</p>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Aceite">
-              {OPCIONES_ACEITE.map(o => {
+              {preguntaAceite(food).opciones.map(o => {
                 const activo = (en.aceite || 'normal') === o.key;
                 return (
                   <button key={o.key} type="button" aria-pressed={activo}
@@ -8772,7 +9576,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
                           }}
                           className={`jb-body text-xs bg-zinc-950 border rounded-lg px-3 py-2 text-left flex items-center justify-between gap-2 ${opt.esPreferido ? 'border-orange-500/50' : 'border-zinc-800 hover:border-orange-500/40'}`}>
                           <span className="text-zinc-200">
-                            {GROUP_EMOJI[opt.group] || '🍴'} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
+                            {emojiAlimento(opt)} {opt.name} <span className="text-zinc-500">· {eq.qty} {eq.unit}</span>
                             {opt.esPreferido && <span className="text-orange-400 ml-1">⭐ tu preferido</span>}
                           </span>
                           <span className="text-zinc-600 text-[10px] shrink-0">{explicacion}</span>
@@ -9034,6 +9838,10 @@ function MealTab(props) {
 
 function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null }) {
   const [personales, setPersonales] = useState([]);
+  // Aviso de que se revisó un alimento suyo (tarjeta arriba, no un toast:
+  // así alcanza a leerlo y, en la versión gratis, ve lo que da Premium).
+  const [avisoPropio, setAvisoPropio] = useState(null);
+  const { premium, onVerPremium } = usePremium();
   const [editarPropio, setEditarPropio] = useState(null);
   const [escribiendo, setEscribiendo] = useState(false);
   useEffect(() => {
@@ -9049,6 +9857,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
   const [codigoPara, setCodigoPara] = useState(null); // ídem, para el escáner de código de barras
+  const [etiquetaLeida, setEtiquetaLeida] = useState(null); // tabla nutricional leída desde la foto de comida
   // Destello al completar una comida (cuando recibe su primer alimento).
   const [destellos, setDestellos] = useState({});
   const conteosPrevios = useRef(null);
@@ -9073,6 +9882,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     else setHojaMeal(hojaInicial.meal);
   }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
+  const [recien, setRecien] = useState([]); // ids recién registrados (se resaltan 3 segundos)
+  // Al terminar de registrar por cualquier camino (hoja, voz, foto, código,
+  // escribir), la pantalla va a lo que se agregó y lo marca en verde: antes,
+  // con la foto, quedaba más abajo (en Cena o Agua) y no se veía.
+  const flujo = useRef(null); // { meal, antes: Set de ids que ya estaban }
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = esHoy ? comidaDeAhora() : null;
@@ -9087,8 +9901,51 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   // que se agregó.
   useEffect(() => {
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
-    if (m && MEAL_NAMES.indexOf(m) < idxAhora) setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    if (m) {
+      if (!flujo.current || flujo.current.meal !== m) flujo.current = { meal: m, antes: new Set((mealPlan.meals[m] || []).map(e => e.id)) };
+      return;
+    }
+    if (!flujo.current) return;
+    const { meal, antes } = flujo.current;
+    flujo.current = null;
+    const agregadas = (mealPlan.meals[meal] || []).filter(e => !antes.has(e.id));
+    const nuevos = agregadas.filter(e => e.foodKey).map(e => e.id);
+    if (!nuevos.length) return;
+    setRecien(nuevos);
+    setTimeout(() => setRecien([]), 3000);
+    // Si quedó una fila por buscar (voz: "No es ninguna"), la vista va a esa.
+    if (agregadas.some(e => !e.foodKey)) return;
+    setTimeout(() => {
+      const el = document.getElementById('entrada-' + nuevos[nuevos.length - 1]);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
   }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Al terminar de registrar, esa comida (pasada o la de AHORA) se cierra sola a los 6
+  // segundos (lo justo para ver lo agregado en verde): así la pantalla queda
+  // ordenada y no hay que bajar tanto. No se cierra si el alumno sigue
+  // haciendo algo (editando, escribiendo) o si quedó un alimento por buscar.
+  // También al abrirla tocándola: se cierra sola a los 8 segundos sin tocar
+  // nada (cada cambio de cantidad vuelve a contar).
+  const abiertaPorRegistro = useRef(null);
+  const esperaCierre = useRef(6000);
+  useEffect(() => {
+    const m = hojaMeal || fotoPara || codigoPara || escribirPara;
+    if (m && esHoy) {
+      abiertaPorRegistro.current = m;
+      esperaCierre.current = 6000;
+      setAbiertas(a => (a[m] ? a : { ...a, [m]: true }));
+    }
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const m = abiertaPorRegistro.current;
+    if (!m || hojaMeal || fotoPara || codigoPara || escribirPara || crearPara || editando || escribiendo) return;
+    const t = setTimeout(() => {
+      if ((mealPlan.meals[m] || []).some(en => !en.foodKey)) return; // falta elegir un alimento
+      abiertaPorRegistro.current = null;
+      setAbiertas(a => ({ ...a, [m]: false }));
+    }, esperaCierre.current);
+    return () => clearTimeout(t);
+  }, [hojaMeal, fotoPara, codigoPara, escribirPara, crearPara, editando, escribiendo, mealPlan, abiertas]); // eslint-disable-line react-hooks/exhaustive-deps
   // Al entrar a Comidas, si la comida de AHORA quedó fuera de la pantalla,
   // se baja hasta ella.
   useEffect(() => {
@@ -9129,11 +9986,11 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         if (nuevos.length) {
           const a = nuevos[0];
           const oficial = a.reemplazo && FOODS.find(f => f.key === a.reemplazo);
-          showToast(oficial && a.revision === 'aprobado'
+          setAvisoPropio(oficial && a.revision === 'aprobado'
             ? `➕ ¡Gracias! Jonah revisó "${a.nombre}" y ya está en la app para todos. Tus comidas ya se actualizaron.`
             : oficial
             ? `🔗 "${a.nombre}" ya estaba en la app: lo cambiamos por "${oficial.name}". Tus comidas ya se actualizaron.`
-            : `✏️ Revisamos y corregimos los datos de "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''}. Tus comidas ya se actualizaron.`);
+            : `✏️ Revisamos "${a.nombre}"${nuevos.length > 1 ? ` y ${nuevos.length - 1} más` : ''} y corregimos sus calorías. Tus comidas ya se actualizaron.`);
           localStorage.setItem('jb_alim_corregido_visto', nuevos.map(x => x.revisado_en).sort().pop());
         }
       } catch {}
@@ -9279,6 +10136,22 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      {avisoPropio && (
+        <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 flex flex-col gap-2">
+          <p className="jb-body text-sm text-zinc-100">{avisoPropio}</p>
+          {!premium && onVerPremium && (
+            <p className="jb-body text-xs text-zinc-400">👑 Con Premium no tienes ni que crearlos: me pides lo que no encuentres y yo te lo agrego con todo calculado. — Jonah</p>
+          )}
+          <div className="flex gap-2 mt-1">
+            {!premium && onVerPremium && (
+              <button onClick={() => { registrarPasoPago('alimento_revisado', username, 'ver_premium'); setAvisoPropio(null); onVerPremium(); }}
+                className={btnPrimary + ' flex-1 py-2.5 text-sm'}>Ver Premium</button>
+            )}
+            <button onClick={() => setAvisoPropio(null)}
+              className={(!premium && onVerPremium ? btnGhost : btnPrimary) + ' flex-1 py-2.5 text-sm'}>Entendido</button>
+          </div>
+        </div>
+      )}
       {esHoy && <MenuDelDia mealPlan={mealPlan} setMealPlan={setMealPlan} username={username} />}
       {hojaMeal && (
         <HojaRegistrar
@@ -9286,6 +10159,15 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
           onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onAgregado={() => setHojaMeal(null)} // al cerrarse, la vista baja a lo agregado (ver "flujo")
+          onBuscarDespues={(m, textos) => {
+            // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
+            // cada uno, con el buscador ya escrito ("Pedirle a Jonah" incluido).
+            setHojaMeal(null);
+            let ultimo = null;
+            textos.forEach(t => { const id = addEntry(m); ultimo = id; setTextoInicial(v => ({ ...v, [id]: t })); });
+            if (ultimo) setEnfocar(ultimo);
+          }}
           username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
         />
       )}
@@ -9293,7 +10175,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         <RegistroEscritoModal meal={escribirPara} username={username} todosLosAlimentos={todosLosAlimentos}
           mealPlan={mealPlan} setMealPlan={setMealPlan}
           onOtraForma={texto => { const m = escribirPara; setEscribirPara(null); const id = addEntry(m); setTextoInicial(t => ({ ...t, [id]: texto })); setEnfocar(id); }}
-          onCerrar={() => setEscribirPara(null)} />
+          onCerrar={() => setEscribirPara(null)}
+          onCambiarComida={m => { if (m !== escribirPara) setAbiertas(a => ({ ...a, [escribirPara]: false })); setEscribirPara(m); }} />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano (se
           esconde mientras escribe, para no tapar la lista del buscador). */}
@@ -9341,8 +10224,9 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       {codigoPara && (
         <EscanearCodigoModal
           meal={codigoPara}
-          onCerrar={() => setCodigoPara(null)}
-          onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEscribirPara(m); }}
+          leida={etiquetaLeida}
+          onCerrar={() => { setCodigoPara(null); setEtiquetaLeida(null); }}
+          onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEtiquetaLeida(null); setEscribirPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [codigoPara]: [...v.meals[codigoPara], entry] } }))}
         />
       )}
@@ -9354,6 +10238,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onVerPlanes={onVerPlanes ? () => { setFotoPara(null); onVerPlanes(); } : null}
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEscribirPara(m); }}
+          onCambiarComida={m => { if (m !== fotoPara) setAbiertas(a => ({ ...a, [fotoPara]: false })); setFotoPara(m); }}
+          onEtiqueta={producto => { const m = fotoPara; setFotoPara(null); setEtiquetaLeida(producto); setCodigoPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
         />
@@ -9376,6 +10262,10 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
         const vacia = entradas.length === 0;
         const esAhora = meal === mealAhora;
         const pasada = idx < idxAhora;
+        // Hoy, toda comida con algo registrado se ve cerrada en una línea
+        // (también la de AHORA: si ya la registró, ya está hecha; para
+        // agregar más la abre). No se cierra si quedó un alimento por buscar.
+        const plegable = esHoy && !vacia && !entradas.some(en => !en.foodKey);
         const kcalComida = entradas.reduce((a, en) => a + entryMacros(en).kcal, 0);
         // Ya pasó y no se registró: todas juntas en una línea delgada, en el
         // lugar de la última.
@@ -9408,18 +10298,21 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             </div>
           );
         }
-        // Ya pasó y tiene lo registrado: cerrada en una línea; se abre al tocarla.
-        if (pasada && !abiertas[meal]) {
+        // Tiene lo registrado: cerrada en una línea; se abre al tocarla.
+        if (plegable && !abiertas[meal]) {
           return (
-            <button key={meal} onClick={() => { vibrar(8); setAbiertas(a => ({ ...a, [meal]: true })); }}
+            <button key={meal} id={esAhora ? 'comida-ahora' : undefined} onClick={() => { vibrar(8); abiertaPorRegistro.current = meal; esperaCierre.current = 8000; setAbiertas(a => ({ ...a, [meal]: true })); }}
               aria-label={`Ver ${meal}`}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40">
+              className={`w-full bg-zinc-900 border rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-left hover:border-orange-500/40 ${esAhora ? 'border-orange-500/50' : 'border-zinc-800'}`}>
               <span className="relative w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 border bg-orange-500/20 border-orange-500/40">
                 {ICONO_COMIDA[meal] || '🍴'}
                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center border-2 border-zinc-900">✓</span>
               </span>
               <span className="flex-1 min-w-0">
-                <span className="jb-display text-sm tracking-wide text-orange-500 block">{meal.toUpperCase()}</span>
+                <span className="jb-display text-sm tracking-wide text-orange-500 flex items-center gap-2">
+                  {meal.toUpperCase()}
+                  {esAhora && <span className="jb-body text-[9px] font-semibold tracking-wider text-zinc-950 bg-orange-500 rounded-full px-1.5 py-0.5">AHORA</span>}
+                </span>
                 <span className="jb-body text-[11px] text-zinc-500 tabular-nums block">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></span>
               </span>
               <ChevronRight size={18} className="text-zinc-500 shrink-0" />
@@ -9446,8 +10339,8 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 ? <p className="jb-body text-[11px] text-zinc-600">{esAhora ? 'Es hora de registrar — toca +' : 'Sin registrar'}</p>
                 : <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{entradas.length} {entradas.length === 1 ? 'alimento' : 'alimentos'} · <span className="text-zinc-300">{Math.round(kcalComida)} kcal</span></p>}
             </div>
-            {pasada && !vacia && (
-              <button onClick={() => setAbiertas(a => ({ ...a, [meal]: false }))} aria-label={`Cerrar ${meal}`}
+            {plegable && (
+              <button onClick={() => { abiertaPorRegistro.current = null; setAbiertas(a => ({ ...a, [meal]: false })); }} aria-label={`Cerrar ${meal}`}
                 className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-zinc-500 hover:text-zinc-300">
                 <ChevronDown size={18} />
               </button>
@@ -9489,7 +10382,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                 const porcion = porcionDeEntrada(en);
                 const muyAlta = entryGrams(en) >= MAX_GRAMOS_ENTRADA;
                 return (
-                  <div key={en.id} id={'entrada-' + en.id} className="relative rounded-xl">
+                  <div key={en.id} id={'entrada-' + en.id} className={`relative rounded-xl transition-shadow duration-700 ${recien.includes(en.id) ? 'ring-2 ring-emerald-400' : ''}`}>
                     <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4 overflow-hidden">
                       <Trash2 size={16} className="text-zinc-950" />
                     </div>
@@ -9506,7 +10399,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                       <div className="flex-1 min-w-[8.5rem]">
                       <button type="button" onClick={() => setEditando({ meal, id: en.id })}
                         className="w-full min-w-0 flex items-center gap-2.5 text-left">
-                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{GROUP_EMOJI[food.group] || '🍴'}</span>
+                        <span className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs shrink-0">{emojiAlimento(food)}</span>
                         <span className="min-w-0">
                           <span className="block jb-body text-sm text-zinc-100 leading-snug line-clamp-2 break-words">{nombreAlimento(food)}</span>
                           <span className="block jb-body text-[11px] text-orange-400 font-semibold tabular-nums">{Math.round(m.kcal)} kcal</span>
@@ -10012,28 +10905,1091 @@ function MenuDelDia({ mealPlan, setMealPlan, username }) {
 }
 
 // arriba: en Comidas sube un poco para no chocar con el botón REGISTRAR.
-function WhatsAppButton({ arriba = false }) {
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  // Sin globo de "¿Necesitas ayuda?": el botón con la foto (y su pulso) ya
-  // se entiende como soporte, y el globo tapaba la pantalla.
+/* ------------------------------------------------------------------ */
+/* BEAST · TU COMPAÑERO (docs/idea-beast.md)                           */
+/* ------------------------------------------------------------------ */
+/* El gorila de la app conversa con el alumno (edge function
+   beast-chat). Beast nunca guarda nada solo: propone una acción y aquí
+   se muestra una tarjeta para confirmar. Las comidas se buscan con el
+   mismo motor del registro por voz (interpretarVarios) y se guardan
+   igual que desde Registrar, así el resultado es el mismo por cualquier
+   camino. La versión de prueba de Vercel habla con beast-chat-prueba. */
+// Cualquier parte de la app puede abrir el chat de Beast (con un texto ya
+// escrito, un aviso, etc.): lo escucha StudentDashboard.
+function abrirBeastDesde(detalle = {}) {
+  window.dispatchEvent(new CustomEvent('jb-abrir-beast', { detail: detalle }));
+}
+
+// Horas a las que suele anotar cada comida → hora de su aviso (una hora
+// después de la de siempre), dentro de la ventana de ese momento. La usan
+// los avisos del servidor (horaAviso en api/_lib/push.js) si el alumno no
+// eligió una hora en "Tus avisos".
+const MOMENTO_DE_COMIDA = { Desayuno: 'manana', Almuerzo: 'mediodia', Cena: 'noche' };
+const VENTANA_AVISO = { manana: [6, 11], mediodia: [12, 17], noche: [18, 23] };
+function horasAprendidas(horasComida) {
+  const aprendidas = {};
+  Object.entries(MOMENTO_DE_COMIDA).forEach(([comida, momento]) => {
+    const l = (horasComida?.[comida] || []).map(Number).filter(h => h >= 0 && h <= 23);
+    if (l.length < 3) return;
+    const orden = [...l].sort((a, b) => a - b);
+    const mediana = orden[Math.floor(orden.length / 2)];
+    const [min, max] = VENTANA_AVISO[momento];
+    aprendidas[momento] = Math.min(max, Math.max(min, mediana + 1));
+  });
+  return aprendidas;
+}
+
+// La siguiente comida principal por anotar: la de ahora si sigue vacía; si
+// no, el almuerzo o la cena. null si ya anotó la cena.
+function siguienteComida(mealPlan) {
+  const vacia = c => !(mealPlan?.meals?.[c] || []).some(e => e.foodKey);
+  const ahora = comidaDeAhora();
+  if (vacia(ahora)) return ahora;
+  const orden = ['Desayuno', 'Media mañana', 'Almuerzo', 'Media tarde', 'Cena'];
+  return ['Almuerzo', 'Cena'].find(c => orden.indexOf(c) > orden.indexOf(ahora) && vacia(c)) || null;
+}
+
+// Logros que Beast celebra (una vez cada uno, form.beastLogros).
+const LOGROS_BEAST = [
+  // Su primera comida anotada en la app (form.primeraComidaEn, hoy o ayer):
+  // Beast lo felicita con sus números y lo lleva a la siguiente comida.
+  { id: 'primera', cumple: d => d.primera, titulo: '¡Mi primera comida anotada!', primera: true,
+    texto: (n, h = {}) => {
+      const yo = h.presentarse ? ` Soy ${h.compa || 'Beast'}, tu compañero 🦍` : '';
+      const quedan = Math.round((h.metaKcal || 0) - (h.kcal || 0));
+      if (!h.metaKcal) return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada.${yo} Vamos juntos, comida a comida 💪`;
+      return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada: llevas ${Math.round(h.kcal || 0)} de tus ${Math.round(h.metaKcal)} kcal de hoy.${yo} `
+        + (quedan > 80 && h.siguiente ? `Para tu ${h.siguiente.toLowerCase()} te quedan unas ${quedan} kcal: ¿te digo qué puedes comer? 🍽️`
+          : quedan > 80 ? `Te quedan unas ${quedan} kcal para lo que queda del día 💪`
+          : 'Hoy ya llegaste a tu meta: mañana seguimos con todo 💪');
+    } },
+  { id: 'racha7', cumple: d => d.racha >= 7, titulo: '¡7 días seguidos!', texto: n => `¡${n}, 7 días seguidos anotando! 🔥 Eso ya no es suerte, es constancia de verdad. Así se construye el cambio, comida a comida 🦍` },
+  { id: 'kilo1', cumple: d => d.bajo >= 1, titulo: '¡Mi primer kilo menos!', texto: (n, h = {}) => `¡${h.suelto ? 'Oe, ' : ''}${n}! Tu primer kilo menos 🎉 Sé que no es magia: es todo lo que vienes anotando. ¡Vamos por el siguiente!` },
+  { id: 'mitad', cumple: d => d.total >= 2 && d.bajo >= d.total / 2, titulo: '¡Ya voy por la mitad!', texto: n => `¡${n}, ya vas por la mitad de tu meta! 🏆 Lo que falta lo hacemos igual: comida a comida 🦍` },
+  { id: 'kilos5', cumple: d => d.bajo >= 5, titulo: '¡5 kilos menos!', texto: (n, h = {}) => `¡5 kilos menos, ${n}! 🔥 Eso es disciplina pura. ${h.suelto ? 'Estoy orgulloso de ti, causa 🦍' : 'Me siento orgulloso de ti 🦍'}` },
+];
+function logroPendiente(form, racha) {
+  const pi = Number(form?.pesoInicial) || 0;
+  const p = Number(form?.peso) || 0;
+  const meta = Number(form?.pesoObjetivo) || 0;
+  const perder = !form?.objetivo || /perder/i.test(form.objetivo);
+  const d = {
+    racha: racha || 0,
+    bajo: perder && pi && p ? Math.round((pi - p) * 10) / 10 : 0,
+    total: perder && pi && meta && pi > meta ? pi - meta : 0,
+    primera: !!form?.primeraComidaEn && form.primeraComidaEn >= addDaysISO(todayISO(), -1),
+  };
+  const ya = new Set(Array.isArray(form?.beastLogros) ? form.beastLogros : []);
+  return LOGROS_BEAST.find(l => !ya.has(l.id) && l.cumple(d)) || null;
+}
+
+// Tarjeta para el estado de WhatsApp (1080×1920), con el gorila y el link.
+async function imagenLogro(titulo, nombre, nombreCompa = 'Beast') {
+  const c = document.createElement('canvas');
+  c.width = 1080; c.height = 1920;
+  const g = c.getContext('2d');
+  const fondo = g.createLinearGradient(0, 0, 0, 1920);
+  fondo.addColorStop(0, '#1c1917'); fondo.addColorStop(1, '#0c0a09');
+  g.fillStyle = fondo; g.fillRect(0, 0, 1080, 1920);
+  g.fillStyle = 'rgba(232,89,12,0.18)';
+  g.beginPath(); g.arc(540, 700, 430, 0, Math.PI * 2); g.fill();
+  try { await document.fonts?.load?.('120px Anton'); } catch {}
+  const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = IMAGEN_BEAST; });
+  if (img) {
+    g.save(); g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.clip();
+    g.drawImage(img, 210, 370, 660, 660); g.restore();
+    g.lineWidth = 16; g.strokeStyle = '#E8590C'; g.beginPath(); g.arc(540, 700, 330, 0, Math.PI * 2); g.stroke();
+  }
+  g.textAlign = 'center';
+  const firma = `${String(nombreCompa || 'Beast').toUpperCase()} ME FELICITÓ 🦍`;
+  let tam = 52;
+  do { g.font = `600 ${tam}px "Work Sans", sans-serif`; tam -= 2; } while (tam > 30 && g.measureText(firma).width > 980);
+  g.fillStyle = '#FF7020';
+  g.fillText(firma, 540, 1170);
+  g.fillStyle = '#fafaf9';
+  const palabras = String(titulo).toUpperCase().split(' ');
+  const lineas = []; let actual = '';
+  g.font = '130px Anton, Impact, sans-serif';
+  palabras.forEach(w => { const prueba = actual ? `${actual} ${w}` : w; if (g.measureText(prueba).width > 960 && actual) { lineas.push(actual); actual = w; } else actual = prueba; });
+  if (actual) lineas.push(actual);
+  lineas.forEach((l, i) => g.fillText(l, 540, 1330 + i * 150));
+  if (nombre) { g.fillStyle = '#d6d3d1'; g.font = '500 54px "Work Sans", sans-serif'; g.fillText(String(nombre).split(' ')[0], 540, 1330 + lineas.length * 150 + 30); }
+  g.fillStyle = '#E8590C'; g.fillRect(140, 1700, 800, 110);
+  g.fillStyle = '#0c0a09'; g.font = '68px Anton, Impact, sans-serif';
+  g.fillText('JONAHBEAST.COM', 540, 1780);
+  return new Promise(res => c.toBlob(b => res(b), 'image/png'));
+}
+async function compartirLogro(titulo, nombre, nombreCompa) {
+  const blob = await imagenLogro(titulo, nombre, nombreCompa);
+  if (!blob) return 'error';
+  const archivo = new File([blob], 'mi-logro-jonah-beast.png', { type: 'image/png' });
+  const texto = `${titulo} 🦍 Bajando de peso sin dejar mi comida peruana: https://jonahbeast.com/?fuente=estado`;
+  try {
+    if (navigator.canShare?.({ files: [archivo] })) { await navigator.share({ files: [archivo], text: texto }); return 'ok'; }
+  } catch (e) { if (e?.name === 'AbortError') return 'cancelado'; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = archivo.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return 'descargado';
+}
+
+// Mini meta de la semana (form.metaSemanal = { semana: lunes, tipo, informada }).
+const METAS_SEMANA = {
+  agua: { emoji: '💧', corto: 'Tomar mis vasos de agua', medir: (h, metaAguaVasos) => (Number(h.meal_plan?.agua) || 0) >= metaAguaVasos },
+  anotar: { emoji: '📝', corto: 'Anotar todos los días', medir: h => (Number(h.comidas_count) || 0) > 0 },
+  proteina: { emoji: '🍗', corto: 'Llegar a mi proteína', medir: h => {
+    const meta = ((Number(h.kcal_objetivo) || 0) * (h.meal_plan?.macros?.p || 0.3)) / 4;
+    return meta > 0 && (Number(h.proteina_g) || 0) >= meta * 0.9;
+  } },
+};
+
+// El alumno le puede poner otro nombre y elegir la voz (chat → ⋮ → "Ponle
+// nombre"). Se guarda en form.companero = { nombre, voz }. La imagen sigue
+// siendo el gorila; el nombre sale en el chat, la burbuja y los avisos.
+const NOMBRE_FEO = /(put[ao]|mierd|verg|ping[ao]|cojud|huev[oó]n|conch|carajo|maric|cabr[oó]n|imb[eé]cil|idiot|est[uú]pid|culo|chuch|mongol|zorr|perr[ao]|pendej|sexo|porno|nazi|hitler|tetas|poto|cachar|jonah)/i;
+function limpiarNombreCompanero(n) {
+  const t = String(n || '').replace(/[^\p{L} ]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 20).trim();
+  return t && !NOMBRE_FEO.test(t) ? t : '';
+}
+// Estilo: cada alumno con el suyo (Yara, 9 de octubre: "suelto, pero no
+// tan de barrio"). Por defecto "tranquilo" (cercano, sin oe/causa/pata);
+// "suelto" (con jerga) si lo elige, se lo pide a Beast o escribe con jerga.
+function companeroDe(form) {
+  const c = form?.companero || {};
+  const nombre = limpiarNombreCompanero(c.nombre) || 'Beast';
+  const femenina = c.voz === 'femenina';
+  const estilo = c.estilo === 'suelto' ? 'suelto' : 'tranquilo';
+  return { nombre, femenina, voz: femenina ? 'femenina' : 'masculina', compa: femenina ? 'compañera' : 'compañero',
+    estilo, suelto: estilo === 'suelto', estiloElegido: !!c.estiloElegido };
+}
+// Palabras de jerga de barrio: si el alumno escribe así (y no eligió su
+// estilo), Beast también se suelta.
+// Ojo: "causa" también es un plato (causa rellena) y "pata" puede ser de pollo,
+// así que solo cuentan como saludo o trato ("oe causa", "gracias causita").
+const JERGA_ALUMNO = /(^|[^a-záéíóúñ])oe([^a-záéíóúñ]|$)|\b(mi|oe|habla|hola|ya|gracias|dale|listo|si|sí|bien|tranqui)[ ,!]+(causa|causita|causón|pata|patita|broder|bro)\b|^(causa|causita|broder)\s*[,!]|\b(manyas?|chibolo|jato)\b/i;
+const useCompanero = () => usePremium().companero || companeroDe(null);
+
+// El gorila con los puños encendidos (el ícono de la app): más llamativo que
+// la cara sola, para la burbuja, el chat y la tarjeta de logros.
+const IMAGEN_BEAST = '/icon-512.png';
+
+function funcionBeast() {
+  return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';
+}
+async function llamarBeast(body) {
+  const { data, error } = await supabase.functions.invoke(funcionBeast(), { body });
+  if (!error) return data || {};
+  let cuerpo = null;
+  try { cuerpo = await error.context?.json(); } catch {}
+  return { ...(cuerpo || {}), error: cuerpo?.error || 'sin_conexion', status: error.context?.status };
+}
+// Una sola nota de voz suena a la vez; tocar ▶️ otra vez la para.
+let audioBeast = null;
+async function escucharBeast(texto, { bienvenida = false, celebracion = false, presentacion = false, companero = null } = {}) {
+  if (audioBeast) { const a = audioBeast; audioBeast = null; a.pause(); if (a.dataset?.texto === texto) return 'parado'; }
+  const { data: { session } = {} } = await supabase.auth.getSession();
+  const r = await fetch(`${supabaseUrl}/functions/v1/${funcionBeast()}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || supabaseKey}` },
+    body: JSON.stringify({ accion: 'voz', texto, bienvenida, celebracion, presentacion, companero: companero && { nombre: companero.nombre, voz: companero.voz, estilo: companero.estilo } }),
+  });
+  if (!r.ok || !(r.headers.get('content-type') || '').includes('audio')) {
+    let e = '';
+    try { e = (await r.json())?.error || ''; } catch {}
+    return e === 'limite_voz' ? 'limite' : e === 'premium' ? 'premium' : 'error';
+  }
+  const url = URL.createObjectURL(await r.blob());
+  const a = new Audio(url);
+  a.dataset.texto = texto;
+  audioBeast = a;
+  a.onended = () => { URL.revokeObjectURL(url); if (audioBeast === a) audioBeast = null; };
+  await a.play().catch(() => {});
+  return 'ok';
+}
+
+function BeastBurbuja({ arriba, punto, globo, textoGlobo, onAbrir, onCerrarGlobo }) {
+  const { nombre, compa, suelto } = useCompanero();
   return (
     <div className={`fixed right-4 z-40 flex flex-col items-end gap-2 transition-[bottom] ${arriba ? 'bottom-44' : 'bottom-24'}`}>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Consultar por WhatsApp"
-        className="relative flex items-center justify-center"
-      >
-        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-40" />
-        <span className="relative w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-900/40 overflow-hidden border-2 border-emerald-400/50">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-          <span style={{ display: 'none' }} className="w-full h-full items-center justify-center">
-            <MessageCircle size={26} strokeWidth={2.2} className="text-white" />
-          </span>
+      {globo && (
+        <div className="relative max-w-[220px] bg-zinc-900 border border-orange-500/50 rounded-2xl rounded-br-sm pl-3 pr-7 py-2 shadow-lg shadow-black/40">
+          <button onClick={onAbrir} className="jb-body text-xs text-zinc-100 text-left">{textoGlobo || <>{suelto ? '¡Oe!' : '¡Hola!'} Soy <b className="text-orange-400">{nombre}</b>, tu {compa} 🦍 Cuéntame qué comiste y te ayudo.</>}</button>
+          <button onClick={onCerrarGlobo} aria-label="Cerrar" className="absolute top-1 right-1 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
+        </div>
+      )}
+      <button onClick={onAbrir} aria-label={`Hablar con ${nombre}, tu ${compa}`} className="relative flex flex-col items-center">
+        <span className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-orange-400 bg-zinc-900 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
+          <img src={IMAGEN_BEAST} alt={nombre} className="w-full h-full object-cover scale-[1.6]" />
         </span>
-      </a>
+        {punto && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-zinc-950" />}
+        <span className="jb-display text-[10px] tracking-widest text-orange-400 -mt-1.5 bg-zinc-950 border border-orange-500/60 rounded-full px-1.5 leading-4 max-w-[72px] truncate">{nombre.toUpperCase()}</span>
+      </button>
+    </div>
+  );
+}
+
+const PRIVACIDAD_BEAST = [
+  'Tus conversaciones conmigo son privadas: Jonah no las lee.',
+  'Se borran solas a los 90 días, y puedes borrarlas antes cuando quieras.',
+  'Me acuerdo de lo importante que me cuentes; lo ves y lo borras en "Lo que Beast sabe de ti".',
+  'Soy inteligencia artificial: no soy nutricionista ni médico.',
+];
+
+function BeastConsentimiento({ onAceptar, onCerrar }) {
+  const [alerta, setAlerta] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col items-center text-center gap-4">
+      <span className="w-24 h-24 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_14px_3px_rgba(255,112,32,0.65)] animate-jb-brillo">
+        <img src={IMAGEN_BEAST} alt="Beast" className="w-full h-full object-cover scale-[1.6]" />
+      </span>
+      <div>
+        <p className="jb-display text-3xl text-zinc-50 tracking-wide">BEAST</p>
+        <p className="jb-body text-sm text-orange-400">tu compañero · IA de Jonah Beast Fuel</p>
+      </div>
+      <p className="jb-body text-sm text-zinc-300 max-w-sm">Te acompaño todos los días: me cuentas qué comiste y te lo anoto, te digo cómo vas y te echo una mano cuando el día se pone difícil. Antes de empezar:</p>
+      <ul className="jb-body text-sm text-zinc-300 text-left max-w-sm flex flex-col gap-2">
+        {PRIVACIDAD_BEAST.map(t => <li key={t} className="flex gap-2"><span className="text-orange-400">•</span><span>{t}</span></li>)}
+      </ul>
+      <label className="flex items-start gap-3 text-left max-w-sm bg-zinc-900 border border-zinc-800 rounded-xl p-3 cursor-pointer">
+        <input type="checkbox" checked={alerta} onChange={e => setAlerta(e.target.checked)} className="mt-1 w-4 h-4 accent-orange-500" />
+        <span className="jb-body text-xs text-zinc-300">Si me ves muy mal, <b className="text-zinc-100">avísale a Jonah</b> para que me escriba. (Solo le llega tu nombre, nunca lo que conversamos.)</span>
+      </label>
+      <button disabled={guardando} onClick={async () => { setGuardando(true); await onAceptar(alerta); setGuardando(false); }}
+        className={btnPrimary + ' w-full max-w-sm py-3'}>
+        {guardando ? <Loader2 size={18} className="animate-spin" /> : 'EMPEZAR CON BEAST'}
+      </button>
+      <div className="flex items-center gap-3">
+        <button onClick={onCerrar} className="jb-body text-xs text-zinc-500 underline">Ahora no</button>
+        <a href="https://jonahbeast.com/privacidad.html" target="_blank" rel="noopener noreferrer" className="jb-body text-xs text-zinc-500 underline">Política de privacidad</a>
+      </div>
+    </div>
+  );
+}
+
+// "Sí", "dale", "agrégalo", "confírmalo", "está bien"… (corto y sin "no").
+const PALABRAS_CONFIRMAR = new Set(('si sii siii dale ok okey okay listo ya perfecto correcto exacto eso asi es claro confirmo confirmado de una '
+  + 'agregalo agregala agregalos agregalas agregame anotalo anotala anotalos anotalas anotame confirmalo confirmala guardalo guardala '
+  + 'esta todo bien muy porfa por favor causa causita pata beast oe pe ps nomas no mas').split(' '));
+const PALABRAS_CONFIRMAR_CLAVE = /\b(si|sii+|dale|ok|okey|okay|listo|perfecto|correcto|exacto|confirmo|confirmado|agrega\w*|anota\w*|confirma\w*|guarda\w*|bien|de una|asi es)\b/;
+// "Sí", "dale", "agrégalo", "confírmalo", "sí, está bien"…: solo palabras de
+// confirmación (si dice algo más, como "ya almorcé arroz", va a Beast).
+function esConfirmacion(t) {
+  const n = String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n || n.length > 45 || /^no\b/.test(n)) return false;
+  if (n === 'ya' || n === 'ya pe' || n === 'ya causa') return true;
+  const palabras = n.split(' ');
+  if (palabras.includes('no') && !n.includes('no mas')) return false;
+  return palabras.every(w => PALABRAS_CONFIRMAR.has(w)) && PALABRAS_CONFIRMAR_CLAVE.test(n);
+}
+
+// Arma las entradas de comida igual que agregarVarios (registro por voz).
+function entradasDeItems(items, extra = {}) {
+  return items.map(it => {
+    if (it.gramos) return { id: uid(), foodKey: it.food.key, qty: Math.round(it.gramos), unit: 'gramos', ...extra };
+    if (it.gramosExplicitos) return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos', ...extra };
+    const d = unidadPorDefecto(it.food);
+    return { id: uid(), foodKey: it.food.key, qty: d.qty * (it.cantidad || 1), unit: d.unit, ...extra };
+  });
+}
+const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
+
+// Tarjeta de comida: lo que Beast entendió, buscado en la base de la app.
+// "Sí, agrégalo" (escrito o por voz) confirma la última tarjeta sin tocar
+// el botón: la tarjeta se registra aquí y el chat la llama.
+function useConfirmarTarjeta(registrar, fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => registrar?.(() => ref.current()), []);
+}
+
+function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar, registrarConfirmar }) {
+  const [items, setItems] = useState(() => interpretarVarios(accion.texto)
+    .map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia })));
+  const [comida, setComida] = useState(accion.comida || comidaDeAhora());
+  const [hecho, setHecho] = useState(false);
+  const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food);
+  const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
+  const pendiente = items.some(it => it.necesitaAclarar);
+  const propuesta = accion.tipo === 'proponer_comida';
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    if (pendiente) return 'dudas';
+    if (!activos.length) return 'vacia';
+    setHecho(true); onGuardar(activos, comida, Math.round(total));
+    return 'ok';
+  });
+
+  async function pedir(i) {
+    const it = items[i];
+    const nombre = String(it.textoBuscar || it.textoOriginal || '').trim().slice(0, 80);
+    if (nombre.length < 2) return;
+    setItems(v => v.map((x, j) => j === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false, pedido: { estado: 'enviando' } } : x));
+    const r = await pedirAlimentoDesdeVoz(nombre, username);
+    setItems(v => v.map((x, j) => j !== i ? x : r.food ? { ...x, food: r.food, buscar: false, activo: true, pedido: r } : { ...x, pedido: r }));
+  }
+
+  if (!items.length) {
+    return <p className="jb-body text-xs text-zinc-400 mt-2">No encontré eso en la app. Búscalo en <button onClick={onRegistrar} className="text-orange-400 underline">Registrar</button>.</p>;
+  }
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-1.5">
+      {items.map((it, i) => it.necesitaAclarar ? (
+        <div key={i} className="bg-orange-950/30 border border-orange-500/40 rounded-lg p-2">
+          <p className="jb-body text-[11px] text-orange-300 mb-1.5">🤔 "{it.textoOriginal}", ¿cuál fue?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {it.opciones.map((op, j) => (
+              <button key={j} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, food: op, necesitaAclarar: false, buscar: false, activo: true } : x))}
+                className="jb-body text-[11px] bg-zinc-950 border border-zinc-700 hover:border-orange-500/60 rounded-full px-2.5 py-1 text-zinc-200">
+                {emojiAlimento(op)} {nombreFood(op)}
+              </button>
+            ))}
+            <button disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, necesitaAclarar: false, buscar: true, activo: false } : x))}
+              className="jb-body text-[11px] text-zinc-400 underline px-1">Ninguna</button>
+          </div>
+        </div>
+      ) : it.buscar ? (
+        <div key={i} className="rounded-lg px-2.5 py-1.5 border border-dashed border-zinc-700">
+          <p className="jb-body text-xs text-zinc-300">🔎 "{it.textoBuscar || it.textoOriginal}" <span className="text-zinc-500">· no lo encontré en la app</span></p>
+          {!it.pedido && !hecho && (premium
+            ? <button onClick={() => pedir(i)} className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">🙋 Pedírselo a Jonah</button>
+            : <button onClick={onRegistrar} className="mt-1 jb-body text-[11px] text-orange-400 underline">Búscalo en Registrar</button>)}
+          {it.pedido && (
+            <p className={`jb-body text-[11px] mt-1 ${it.pedido.estado === 'error' ? 'text-red-400' : 'text-zinc-300'}`}>
+              {it.pedido.estado === 'enviando' && 'Enviando tu pedido…'}
+              {it.pedido.estado === 'jonah' && <>🕐 ¡Recibido! Te respondemos antes de las <b className="text-orange-400">{horaPeruCorta(it.pedido.limite)}</b>.</>}
+              {it.pedido.estado === 'partes' && <>🧩 Anótalo por partes: <b className="text-orange-400">{it.pedido.partes.join(' + ')}</b>.</>}
+              {it.pedido.estado === 'error' && it.pedido.error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <button key={i} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, activo: !x.activo } : x))}
+          className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'border-zinc-800 opacity-50'}`}>
+          <span className="shrink-0">{it.activo ? '✅' : '⬜'}</span>
+          <span className="jb-body text-xs text-zinc-200 flex-1">
+            {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos} g ` : it.cantidad > 1 ? `${it.cantidad} × ` : ''}{nombreFood(it.food)}
+            <NotaSinArroz food={it.food} />
+          </span>
+          <span className="jb-body text-[11px] text-zinc-400 shrink-0 tabular-nums">{Math.round(entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0))} kcal</span>
+        </button>
+      ))}
+      {!hecho && (
+        <>
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <select value={comida} onChange={e => setComida(e.target.value)}
+              className="jb-body text-xs bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-zinc-200">
+              {MEAL_NAMES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <span className="jb-display text-lg text-orange-400 tabular-nums">{Math.round(total)} kcal</span>
+          </div>
+          {pendiente
+            ? <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba</p>
+            : activos.length > 0 && (
+              <button onClick={() => { setHecho(true); onGuardar(activos, comida, Math.round(total)); }} className={btnPrimary + ' py-2 text-sm'}>
+                ✅ {propuesta ? 'Anotar esta' : `Agregar al ${comida.toLowerCase()}`}
+              </button>
+            )}
+          <p className="jb-body text-[10px] text-zinc-500 text-center">¿Algo no cuadra? Escríbeme la corrección ("eran 80 g de pollo", "quita el pan").</p>
+        </>
+      )}
+      {hecho && <p className="jb-body text-[11px] text-emerald-400">✓ Anotado en {comida}</p>}
+    </div>
+  );
+}
+
+// "¿Qué como?": las mismas sugerencias del botón "¿Qué puedo comer?".
+function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
+  const [pagina, setPagina] = useState(0);
+  const [hecho, setHecho] = useState(null);
+  const opciones = useMemo(() => {
+    const t = totalesDePlan(mealPlan);
+    const kcalMeta = Number(mealPlan.targetKcal) || 2000;
+    const protMeta = (kcalMeta * (mealPlan.macros?.p || 0.3)) / 4;
+    const parte = { 'Desayuno': 0.25, 'Media mañana': 0.10, 'Almuerzo': 0.35, 'Media tarde': 0.10, 'Cena': 0.20 }[comida] || 0.25;
+    const objetivo = {
+      kcal: Math.max(0, Math.min(kcalMeta - t.kcal, Math.max(kcalMeta * parte, 150))),
+      protein: Math.max(0, Math.min(protMeta - t.protein, protMeta * parte)),
+    };
+    return sugerenciasComida({ objetivo, comida, restricciones: mealPlan.restricciones || [], preferidos: new Set(), proteinas: [] });
+  }, [comida, mealPlan.targetKcal]);
+  if (!opciones.length) return <p className="jb-body text-xs text-zinc-400 mt-2">Por hoy ya casi llegaste a tu meta: si tienes hambre, algo ligero como una fruta 🍎</p>;
+  const vista = opciones.slice((pagina * 3) % opciones.length, (pagina * 3) % opciones.length + 3);
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      {vista.map(op => (
+        <div key={op.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="jb-body text-xs text-zinc-100 font-semibold">{op.emoji} {op.name}</p>
+            <span className="jb-body text-[11px] text-orange-400 tabular-nums shrink-0">{Math.round(op.kcal)} kcal · P {Math.round(op.protein)} g</span>
+          </div>
+          <p className="jb-body text-[11px] text-zinc-400 mt-0.5">{op.items.map(x => `${nombreFood(x.food)} ${Math.round(x.grams)} g`).join(' + ')}</p>
+          {hecho === op.id
+            ? <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ Anotado en {comida}</p>
+            : !hecho && <button onClick={() => { setHecho(op.id); onGuardar(op.items.map(x => ({ food: x.food, gramos: x.grams })), comida, Math.round(op.kcal)); }}
+                className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">✅ Anotar esta</button>}
+        </div>
+      ))}
+      {!hecho && opciones.length > 3 && (
+        <button onClick={() => setPagina(p => p + 1)} className="jb-body text-[11px] text-zinc-400 underline self-start">🔄 Ver otras opciones</button>
+      )}
+    </div>
+  );
+}
+
+function BeastTarjetaPeso({ kg, pesoAntes, onGuardar, registrarConfirmar }) {
+  const [hecho, setHecho] = useState(false);
+  useConfirmarTarjeta(registrarConfirmar, () => {
+    if (hecho) return 'hecho';
+    setHecho(true); onGuardar(kg);
+    return 'ok';
+  });
+  const raro = Number(pesoAntes) > 0 && Math.abs(kg - Number(pesoAntes)) >= 3;
+  if (hecho) return <p className="jb-body text-[11px] text-emerald-400 mt-2">✓ Peso anotado: {kg} kg</p>;
+  return (
+    <div className="mt-2 bg-zinc-950 border border-orange-500/30 rounded-xl p-2.5 flex flex-col gap-2">
+      <p className="jb-body text-xs text-zinc-200">⚖️ ¿Anoto <b className="text-orange-400">{String(kg).replace('.', ',')} kg</b> como tu peso de hoy?</p>
+      {raro && <p className="jb-body text-[11px] text-amber-300">Ojo: son {String(Math.round(Math.abs(kg - Number(pesoAntes)) * 10) / 10).replace('.', ',')} kg de diferencia con tu último peso ({String(pesoAntes).replace('.', ',')} kg). ¿Lo escribiste bien?</p>}
+      <button onClick={() => { setHecho(true); onGuardar(kg); }} className={btnPrimary + ' py-2 text-sm'}>{raro ? 'Sí, está bien' : '✅ Sí, anotar'}</button>
+    </div>
+  );
+}
+
+function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, versionGratis, onCerrar, onRegistrar, onVerPlanes, inicio = null, logro = null, onLogroVisto }) {
+  const premium = !versionGratis;
+  const [estado, setEstado] = useState('cargando'); // cargando | consentir | listo | error
+  const [mensajes, setMensajes] = useState([]);
+  const [libreta, setLibreta] = useState(null);
+  const [cuenta, setCuenta] = useState(null);
+  const [teniaHistoria, setTeniaHistoria] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [menu, setMenu] = useState(null); // null | 'menu' | 'libreta' | 'nombre'
+  const companero = useCompanero();
+  const { nombre: nombreCompa, femenina, compa } = companero;
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [vozNueva, setVozNueva] = useState('masculina');
+  const [estiloNuevo, setEstiloNuevo] = useState('tranquilo');
+  const [errorNombre, setErrorNombre] = useState('');
+  const [grabando, setGrabando] = useState(null); // null | 'grabando' | 'procesando'
+  const [deshacer, setDeshacer] = useState(null); // { id, fn, hasta }
+  const [sonando, setSonando] = useState(null);
+  const finRef = useRef(null);
+  const inputRef = useRef(null);
+  const confirmarRef = useRef(null); // { id, fn } de la última tarjeta para confirmar
+  const avisoRef = useRef(null); // el aviso desde el que abrió el chat (va con su primer mensaje)
+  const arranqueHecho = useRef(false);
+  const grabadorRef = useRef(null);
+  const mealPlanRef = useRef(mealPlan);
+  mealPlanRef.current = mealPlan;
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  async function cargar() {
+    setEstado('cargando');
+    const r = await llamarBeast({ accion: 'cargar' });
+    if (r.error) { setEstado('error'); return; }
+    setMensajes(r.mensajes || []);
+    setTeniaHistoria((r.mensajes || []).length > 0);
+    setLibreta(r.libreta);
+    setCuenta(r.cuenta);
+    setEstado(r.libreta?.consentimiento_en ? 'listo' : 'consentir');
+  }
+  useEffect(() => { cargar(); }, []);
+  // Al abrir (ya con permiso): el aviso que tocó, la mini meta de la semana
+  // y el logro por celebrar, como mensajes de Beast.
+  useEffect(() => {
+    if (estado !== 'listo' || arranqueHecho.current) return;
+    arranqueHecho.current = true;
+    if (inicio?.texto) { setTexto(inicio.texto); setTimeout(() => inputRef.current?.focus(), 300); }
+    if (logro) {
+      const mp = mealPlanRef.current;
+      const siguiente = logro.primera ? siguienteComida(mp) : null;
+      local(logro.texto(String(nombre || '').split(' ')[0] || (companero.suelto ? 'causa' : formRef.current.sexo === 'F' ? 'campeona' : 'campeón'), {
+        kcal: totalesDePlan(mp).kcal, metaKcal: Number(mp.targetKcal) || 0, siguiente,
+        presentarse: !teniaHistoria, compa: nombreCompa, suelto: companero.suelto,
+      }), { logro, celebracion: true, siguiente });
+      onLogroVisto?.(logro.id);
+      if (logro.primera) {
+        registrarPasoPago('primera_comida', username, 'beast');
+        // Si todavía no activó los avisos, se los ofrece aquí (segunda
+        // oportunidad, aunque haya dicho "ahora no" en la ventana).
+        estadoPushEquipo().then(e => {
+          if (e !== 'disponible') return;
+          const cena = comidaDeAhora() === 'Cena';
+          local(`¿Te aviso ${cena ? 'mañana' : 'más tarde'} para anotar ${cena ? 'tu desayuno' : 'tu siguiente comida'}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+        }).catch(() => {});
+      }
+    }
+    // El aviso que tocó va al final, justo encima de donde se escribe.
+    // El día de su primera comida no se le pregunta la mini meta (una cosa a la vez).
+    (logro?.primera ? Promise.resolve() : metaDeLaSemana()).finally(() => {
+      if (!inicio?.aviso) return;
+      avisoRef.current = inicio.aviso;
+      local(inicio.aviso, { avisoDe: { comida: inicio.comida || null, foto: !!inicio.foto } });
+    });
+  }, [estado]);
+
+  async function metaDeLaSemana() {
+    const hoy = todayISO();
+    const lunes = lunesDe(hoy);
+    const ms = formRef.current.metaSemanal;
+    const diaSemana = new Date(`${hoy}T12:00:00`).getDay(); // 0 domingo
+    const medir = async (desde) => {
+      const hasta = addDaysISO(desde, 6);
+      const { data } = await supabase.from('historial').select('fecha, comidas_count, proteina_g, kcal_objetivo, meal_plan')
+        .eq('username', username).gte('fecha', desde).lte('fecha', hasta);
+      const def = METAS_SEMANA[ms.tipo];
+      const vasos = metaAgua(formRef.current.peso);
+      return (data || []).filter(h => def?.medir(h, vasos)).length;
+    };
+    try {
+      if (ms?.tipo && ms.semana < lunes && !ms.informada) {
+        const n = await medir(ms.semana);
+        const def = METAS_SEMANA[ms.tipo];
+        local(n >= 5 ? `🏆 Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ¡${n} de 7 días! Así se hace${companero.suelto ? ', causa' : ''} 🔥`
+          : n >= 3 ? `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días 💪 Bien ahí, esta semana vamos por más.`
+          : `Tu mini meta de la semana pasada (${def.corto.toLowerCase()}): ${n} de 7 días. Ya fue, tranqui: esta semana la sacamos 🦍`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), informada: true } }));
+      }
+      if (ms?.tipo && ms.semana === lunes && diaSemana === 0 && !ms.domingo) {
+        const n = await medir(lunes);
+        local(`${METAS_SEMANA[ms.tipo].emoji} Tu mini meta de esta semana: vas ${n} de 7 días. ${n >= 5 ? '¡Semana de bestia! 🔥' : 'Hoy todavía suma 💪'}`);
+        setForm(v => ({ ...v, metaSemanal: { ...(v.metaSemanal || {}), domingo: true } }));
+      }
+      if ((!ms || ms.semana !== lunes) && (inicio?.meta || (diaSemana >= 1 && diaSemana <= 3))) {
+        local('¿Qué mini meta nos ponemos esta semana? Elige una y el domingo te cuento cómo te fue 🦍', { elegirMeta: lunes });
+      }
+    } catch {}
+  }
+  useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes.length, estado, enviando]);
+  useEffect(() => {
+    if (!deshacer) return;
+    const t = setTimeout(() => setDeshacer(d => (d && d.id === deshacer.id ? null : d)), Math.max(0, deshacer.hasta - Date.now()));
+    return () => clearTimeout(t);
+  }, [deshacer]);
+  useEffect(() => () => { if (audioBeast) { audioBeast.pause(); audioBeast = null; } grabadorRef.current?.cancelar?.(); }, []);
+
+  const local = (texto, extra = {}) => setMensajes(v => [...v, { id: `l${Date.now()}${Math.random()}`, rol: 'beast', texto, local: true, nuevo: true, ...extra }]);
+  const evento = (tipo, datos) => { llamarBeast({ accion: 'evento', tipo, datos }); };
+
+  function bienvenida() {
+    const comida = comidaDeAhora();
+    const qué = comida === 'Desayuno' ? 'desayunaste' : comida === 'Almuerzo' ? 'almorzaste' : comida === 'Cena' ? 'cenaste' : 'comiste';
+    return `¡Hola${nombre ? `, ${String(nombre).split(' ')[0]}` : ''}! Soy ${nombreCompa}, ${femenina ? 'la' : 'el'} ${compa} que Jonah armó para acompañarte todos los días 🦍 Él sigue aquí para lo importante. Cuéntame qué ${qué} hoy y te digo cuántas calorías tiene. ${premium ? 'Háblame o escríbeme' : 'Escríbeme'} 💪`;
+  }
+
+  function hoyParaBeast() {
+    const mp = mealPlanRef.current;
+    const t = totalesDePlan(mp);
+    const meta = Number(mp.targetKcal) || 0;
+    const comidas = Object.entries(mp.meals || {}).map(([m, l]) => [m, (l || []).filter(e => e.foodKey)])
+      .filter(([, l]) => l.length).map(([m, l]) => `${m}: ${l.map(e => buscarFood(e.foodKey)?.name).filter(Boolean).slice(0, 6).join(', ')}`).join('; ');
+    return {
+      kcal: t.kcal, metaKcal: meta, proteina: t.protein, metaProteina: (meta * (mp.macros?.p || 0.3)) / 4,
+      agua: mp.agua || 0, metaAgua: metaAgua(formRef.current.peso),
+      alimentos: Object.values(mp.meals || {}).reduce((n, l) => n + (l || []).filter(e => e.foodKey).length, 0),
+      comidas,
+    };
+  }
+
+  async function enviar(contenido, via = 'texto') {
+    const limpio = String(contenido || '').trim();
+    if (!limpio || enviando) return;
+    // "Sí", "agrégalo", "dale", "confirmo"… con una tarjeta abierta: se
+    // confirma aquí mismo (no gasta mensajes ni pasa por la IA).
+    if (confirmarRef.current && esConfirmacion(limpio)) {
+      const r = confirmarRef.current.fn();
+      if (r !== 'hecho') {
+        setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+        setTexto('');
+        if (r === 'dudas') local('Primero dime cuál fue en la tarjeta ☝️ y lo agrego.', { sistema: true });
+        if (r === 'vacia') local('No hay nada marcado en la tarjeta: marca lo que comiste ☝️', { sistema: true });
+        if (r === 'ok') confirmarRef.current = null;
+        return;
+      }
+      confirmarRef.current = null;
+    }
+    if (audioBeast) { audioBeast.pause(); audioBeast = null; setSonando(null); }
+    const idLocal = `a${Date.now()}`;
+    setMensajes(v => [...v, { id: idLocal, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
+    setTexto('');
+    setEnviando(true);
+    const aviso = avisoRef.current;
+    avisoRef.current = null;
+    // Si escribe con jerga (y no eligió su estilo), Beast también se suelta.
+    let estilo = companero.estilo;
+    if (estilo !== 'suelto' && !companero.estiloElegido && JERGA_ALUMNO.test(limpio)) {
+      estilo = 'suelto';
+      setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: 'suelto' } }));
+    }
+    const r = await llamarBeast({ accion: 'enviar', texto: limpio, via, hoy: hoyParaBeast(), aviso, companero: { nombre: nombreCompa, voz: companero.voz, estilo } });
+    setEnviando(false);
+    if (r.error === 'consentimiento') { setEstado('consentir'); return; }
+    if (r.error) {
+      const mensaje = r.status === 429 ? r.error : `Uy, se me fue la señal${companero.suelto ? ', causa' : ''} 😅 Dame un toque y lo intento de nuevo.`;
+      setMensajes(v => v.map(m => m.id === idLocal ? { ...m, fallo: r.status !== 429, via } : m));
+      local(mensaje, { sistema: true });
+      return;
+    }
+    if (r.cuenta) setCuenta(r.cuenta);
+    setMensajes(v => [...v, { id: r.id, rol: 'beast', texto: r.respuesta, datos: r.accion ? { accion: r.accion } : null, nuevo: true }]);
+    // Agua: directo (con Deshacer), como en la app.
+    if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
+    // "Beast, háblame menos": solo el aviso del almuerzo (y lo importante).
+    // Pidió que le hable distinto ("más tranqui", "no tan de barrio", "háblame suelto").
+    if (r.estilo === 'suelto' || r.estilo === 'tranquilo') setForm(v => ({ ...v, companero: { ...(v.companero || {}), estilo: r.estilo, estiloElegido: true } }));
+    if (r.accion?.tipo === 'avisos') setForm(v => ({ ...v, avisos: { ...(v.avisos || {}), pocos: r.accion.nivel === 'menos' } }));
+  }
+
+  function reintentar(m) {
+    setMensajes(v => v.filter(x => x.id !== m.id && !(x.sistema && x.local)));
+    enviar(m.texto, m.via || 'texto');
+  }
+
+  function ofrecerAvisos() {
+    const marca = 'jb_notif_tras_comida_' + username;
+    try { if (localStorage.getItem(marca)) return; } catch { return; }
+    estadoPushEquipo().then(e => {
+      if (e !== 'disponible') return;
+      try { localStorage.setItem(marca, '1'); } catch {}
+      const manana = comidaDeAhora() === 'Cena' ? 'tu desayuno' : 'tu siguiente comida';
+      local(`¿Te aviso ${comidaDeAhora() === 'Cena' ? 'mañana' : 'más tarde'} para anotar ${manana}? Así no se te pasa 🦍`, { ofrecerAvisos: true });
+    });
+  }
+
+  function guardarComida(items, comida, kcal, msgId) {
+    // Si es su primera comida del día y puede activar avisos, Beast se los
+    // ofrece en el chat (y no sale además la ventana de la app).
+    let ofrecer = false;
+    try { ofrecer = !localStorage.getItem('jb_notif_tras_comida_' + username); } catch {}
+    const nuevas = entradasDeItems(items, { viaBeast: true });
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: [...(v.meals[comida] || []), ...nuevas] } }));
+    vibrar(20);
+    const ids = new Set(nuevas.map(n => n.id));
+    const meta = Number(mealPlanRef.current.targetKcal) || 0;
+    const queda = Math.round(meta - totalesDePlan(mealPlanRef.current).kcal - kcal);
+    local(meta ? (queda > 0 ? `Listo 🦍 Te quedan ${queda} kcal para hoy.` : `Listo 🦍 Con esto llegaste a tu meta de hoy${queda < -150 ? ', te pasaste un poquito, tranqui: mañana seguimos' : ''}.`) : 'Listo 🦍 Anotado.');
+    evento('comida_anotada', { comida, alimentos: nuevas.length, kcal, msg: msgId });
+    setDeshacer({ id: `c${Date.now()}`, hasta: Date.now() + 12000, texto: `${nuevas.length} alimento(s) en ${comida}`,
+      fn: () => { setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: (v.meals[comida] || []).filter(e => !ids.has(e.id)) } })); evento('deshacer', { que: 'comida' }); } });
+    if (ofrecer) setTimeout(ofrecerAvisos, 600);
+  }
+
+  function sumarAgua(vasos, msgId) {
+    const antes = mealPlanRef.current.agua || 0;
+    const nuevo = Math.min(30, antes + vasos);
+    setMealPlan(v => ({ ...v, agua: nuevo }));
+    vibrar(15);
+    evento('agua', { vasos, msg: msgId });
+    local(`💧 Listo: ${nuevo} de ${metaAgua(formRef.current.peso)} vasos hoy.`);
+    setDeshacer({ id: `w${Date.now()}`, hasta: Date.now() + 12000, texto: `${vasos} vaso(s) de agua`,
+      fn: () => { setMealPlan(v => ({ ...v, agua: Math.max(0, (v.agua || 0) - vasos) })); evento('deshacer', { que: 'agua' }); } });
+  }
+
+  function guardarPeso(kg, msgId) {
+    const antes = { peso: formRef.current.peso, pesoFecha: formRef.current.pesoFecha, pesajes: formRef.current.pesajes };
+    setForm(v => ({ ...v, peso: kg, pesoFecha: todayISO() }));
+    vibrar(20);
+    evento('peso', { msg: msgId });
+    local(`⚖️ Listo, anoté ${String(kg).replace('.', ',')} kg. Lo ves en Progreso.`);
+    setDeshacer({ id: `p${Date.now()}`, hasta: Date.now() + 12000, texto: 'tu peso',
+      fn: () => { setForm(v => ({ ...v, ...antes })); evento('deshacer', { que: 'peso' }); } });
+  }
+
+  async function queComo(comida) {
+    if (!premium) {
+      const r = await usarSugerenciaGratis(username);
+      if (!r.ok) {
+        local('Ya usaste tus 3 sugerencias gratis de esta semana 🦍 Se renuevan el lunes. Con Premium te digo qué comer todos los días 👑', { accion: { tipo: 'ver_planes' } });
+        return;
+      }
+    }
+    evento('que_como', { comida });
+    local(`Mira, para tu ${comida.toLowerCase()} con lo que te queda hoy:`, { queComo: comida });
+  }
+
+  async function valorar(m, valor) {
+    const nuevo = m.valoracion === valor ? null : valor;
+    setMensajes(v => v.map(x => x.id === m.id ? { ...x, valoracion: nuevo } : x));
+    await llamarBeast({ accion: 'valorar', id: m.id, valor: nuevo });
+    if (nuevo === -1) showToast(`Gracias, con esto ${nombreCompa} mejora 🦍`);
+  }
+
+  async function escuchar(m) {
+    setSonando(m.id);
+    const r = await escucharBeast(m.texto, { bienvenida: m.bienvenida, celebracion: m.celebracion, presentacion: m.presentacion, companero });
+    if (r !== 'ok') setSonando(null);
+    else if (audioBeast) audioBeast.addEventListener('ended', () => setSonando(s => (s === m.id ? null : s)));
+    if (r === 'limite') showToast(cuenta?.tipo === 'prueba' ? 'Por hoy ya te mandé mis 5 notas de voz 🦍' : 'Por hoy ya te mandé muchas notas de voz 🦍 Mañana seguimos.');
+    if (r === 'premium') showToast(`Escuchar a ${nombreCompa} es de Premium 👑`);
+    if (r === 'error') showToast('No pude mandarte el audio ahora, inténtalo en un rato.');
+  }
+
+  async function empezarGrabar() {
+    const mime = tipoAudioGrabable();
+    if (mime === null || !navigator.mediaDevices?.getUserMedia) { showToast('Tu celular no deja grabar audio aquí: escríbeme 🦍'); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { showToast('Necesito permiso del micrófono para escucharte.'); return; }
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const partes = [];
+    let cancelado = false;
+    rec.ondataavailable = e => { if (e.data?.size) partes.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearTimeout(grabadorRef.current?.tope);
+      grabadorRef.current = null;
+      if (cancelado) { setGrabando(null); return; }
+      const blob = new Blob(partes, { type: rec.mimeType || mime || 'audio/webm' });
+      if (blob.size < 1500) { setGrabando(null); showToast('No se escuchó nada, intenta de nuevo.'); return; }
+      setGrabando('procesando');
+      try {
+        const audioBase64 = await blobABase64(blob);
+        const { data } = await supabase.functions.invoke('reconocer-comida', { body: { accion: 'transcribir_voz', audioBase64, mimeType: blob.type } });
+        setGrabando(null);
+        if (data?.texto) enviar(data.texto, 'voz');
+        else showToast(data?.error === 'premium' ? `Hablarle a ${nombreCompa} es de Premium 👑` : 'No te entendí bien, ¿me lo repites o me lo escribes?');
+      } catch { setGrabando(null); showToast('No te entendí bien, ¿me lo repites o me lo escribes?'); }
+    };
+    rec.start();
+    setGrabando('grabando');
+    grabadorRef.current = {
+      parar: () => { try { rec.stop(); } catch {} },
+      cancelar: () => { cancelado = true; try { rec.stop(); } catch {} },
+      tope: setTimeout(() => { try { rec.stop(); } catch {} }, MAX_SEGUNDOS_VOZ * 1000),
+    };
+  }
+
+  const irRegistrar = () => { evento('registrar'); onCerrar(); onRegistrar(comidaDeAhora()); };
+  const irPlanes = () => { evento('planes'); onCerrar(); onVerPlanes(); };
+  const urlJonah = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+
+  function abrirNombre() {
+    setNombreNuevo(nombreCompa === 'Beast' ? '' : nombreCompa);
+    setVozNueva(companero.voz);
+    setEstiloNuevo(companero.estilo);
+    setErrorNombre('');
+    setMenu('nombre');
+  }
+  function guardarNombre(volverABeast = false) {
+    const escrito = volverABeast ? '' : nombreNuevo.trim();
+    const limpio = limpiarNombreCompanero(escrito);
+    if (escrito && !limpio) { setErrorNombre('Ese nombre no se puede 🙈 Prueba con otro (solo letras).'); return; }
+    const voz = volverABeast ? 'masculina' : vozNueva;
+    const n = limpio || 'Beast';
+    const fem = voz === 'femenina';
+    const estilo = estiloNuevo;
+    const cambio = n !== nombreCompa || voz !== companero.voz;
+    const cambioEstilo = estilo !== companero.estilo;
+    setForm(v => ({ ...v, companero: { ...(v.companero || {}), nombre: n === 'Beast' ? '' : n, voz,
+      ...(cambioEstilo || v.companero?.estiloElegido ? { estilo, estiloElegido: true } : {}) } }));
+    setMenu(null);
+    if (!cambio && !cambioEstilo) return;
+    evento('nombre', { propio: n !== 'Beast', voz, estilo });
+    if (!cambio) { local(estilo === 'suelto' ? '¡Ya, causa! Desde ahora te hablo bien suelto 😎' : 'Listo, desde ahora te hablo más tranquilo 🙂', { presentacion: true }); return; }
+    local(n === 'Beast' && !fem
+      ? '¡Volví! Soy Beast otra vez, tu compañero de siempre 🦍 Cuéntame qué comes y seguimos, comida a comida 💪'
+      : `¡Me encanta! Desde ahora soy ${n}, tu ${fem ? 'compañera' : 'compañero'} 🦍 Igual que siempre: cuéntame qué comes y vamos ${fem && formRef.current.sexo === 'F' ? 'juntas' : 'juntos'}, comida a comida 💪`,
+      { presentacion: true });
+  }
+
+  function acciones(m) {
+    const a = m.datos?.accion || m.accion;
+    if (m.avisoDe) {
+      const comida = m.avisoDe.comida;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida || comidaDeAhora()); }}
+            className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Anotar en Registrar</button>
+          {comida && (premium || m.avisoDe.foto) && (
+            <button onClick={() => { evento('registrar'); onCerrar(); onRegistrar(comida, { foto: true }); }}
+              className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">📸 Foto</button>
+          )}
+          {premium && <p className="jb-body text-[11px] text-zinc-500 w-full">o cuéntamelo aquí abajo 👇</p>}
+        </div>
+      );
+    }
+    if (m.elegirMeta) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {Object.entries(METAS_SEMANA).map(([tipo, def]) => (
+            <button key={tipo} onClick={() => {
+              setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+              setForm(v => ({ ...v, metaSemanal: { semana: m.elegirMeta, tipo } }));
+              setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: `${def.emoji} ${def.corto}`, local: true }]);
+              local(`¡Hecho! Esta semana: ${def.corto.toLowerCase()} ${def.emoji} Te voy contando y el domingo vemos cómo te fue 🦍`, { sistema: true });
+            }} className="jb-body text-xs text-zinc-100 bg-zinc-950 border border-orange-500/50 hover:border-orange-500 rounded-full px-3 py-1.5">{def.emoji} {def.corto}</button>
+          ))}
+        </div>
+      );
+    }
+    if (m.logro?.primera) {
+      if (!m.siguiente) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, siguiente: null } : x)); queComo(m.siguiente); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ ¿Qué como en {m.siguiente === 'Almuerzo' || m.siguiente === 'Desayuno' ? 'el' : 'la'} {m.siguiente.toLowerCase()}?</button>
+      );
+    }
+    if (m.logro) {
+      return (
+        <button onClick={async () => {
+          const r = await compartirLogro(m.logro.titulo, nombre, nombreCompa);
+          if (r === 'descargado') showToast('Listo: la imagen se guardó. Súbela a tu estado 📲');
+          if (r === 'error') showToast('No pude armar la imagen, inténtalo de nuevo.');
+        }} className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📲 Compartir en mi estado</button>
+      );
+    }
+    if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, null)} />;
+    if (m.ofrecerAvisos) {
+      if (m.respondido) return null;
+      return (
+        <div className="flex gap-2 mt-2">
+          <button onClick={async () => {
+            setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x));
+            const r = await activarPushAlumno(username);
+            evento('avisos_si', { resultado: String(r) });
+            local(r === 'activo' ? '¡Listo! Te aviso para que no se te pase ninguna comida 🦍' : 'No pude activar los avisos en este celular. Puedes intentarlo en Mi perfil → Avisos.');
+          }} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">Sí, avísame</button>
+          <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, respondido: true } : x)); evento('avisos_no'); }}
+            className="jb-body text-xs text-zinc-400 border border-zinc-700 rounded-full px-3 py-1.5">No, gracias</button>
+        </div>
+      );
+    }
+    if (!a) return null;
+    // Las tarjetas que guardan algo solo se usan en el momento (no al volver
+    // a abrir el chat), para que nada se anote dos veces.
+    if (a.tipo === 'anotar_comida' || a.tipo === 'proponer_comida') {
+      if (!m.nuevo) return <p className="jb-body text-[11px] text-zinc-500 mt-1.5">🍽️ {a.texto}</p>;
+      return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar}
+        registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }}
+        onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
+    }
+    if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)}
+      registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }} /> : null;
+    if (a.tipo === 'que_como') {
+      if (!m.nuevo) return null;
+      return (
+        <button onClick={() => { setMensajes(v => v.map(x => x.id === m.id ? { ...x, nuevo: false } : x)); queComo(a.comida || comidaDeAhora()); }}
+          className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">🍽️ Ver opciones</button>
+      );
+    }
+    const botones = [];
+    if (a.tipo === 'ir_registrar') botones.push(<button key="r" onClick={irRegistrar} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📝 Ir a Registrar</button>);
+    if (a.tipo === 'ver_planes' || a.planes) botones.push(<button key="p" onClick={irPlanes} className="jb-body text-xs font-semibold border border-orange-500 text-orange-400 rounded-full px-3 py-1.5">👑 Ver Premium</button>);
+    if (a.tipo === 'nombre') botones.push(<button key="n" onClick={abrirNombre} className="jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">✏️ Ponerme nombre y voz</button>);
+    if (a.tipo === 'hablar_jonah') botones.push(<a key="j" href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-xs font-semibold bg-emerald-600 text-white rounded-full px-3 py-1.5">🙋 Escribirle a Jonah</a>);
+    return botones.length ? <div className="flex flex-wrap gap-2 mt-2">{botones}</div> : null;
+  }
+
+  const lista = estado === 'listo' && !teniaHistoria && !logro?.primera
+    ? [{ id: 'bienvenida', rol: 'beast', texto: bienvenida(), local: true, bienvenida: true }, ...mensajes]
+    : mensajes;
+  const quedan = cuenta?.quedan;
+  const contador = cuenta && cuenta.limite < 100000 && (cuenta.tipo === 'gratis' || quedan <= 5)
+    ? (quedan > 0 ? `Hoy te quedan ${quedan} ${quedan === 1 ? 'mensaje' : 'mensajes'}${cuenta.tipo === 'gratis' ? ` de ${cuenta.limite}` : ''}` : 'Por hoy ya conversamos: tus comidas las sigues anotando en Registrar')
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col min-h-0">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+          <span className="w-10 h-10 shrink-0 rounded-full overflow-hidden border-2 border-orange-400 shadow-[0_0_10px_2px_rgba(255,112,32,0.6)]">
+            <img src={IMAGEN_BEAST} alt={nombreCompa} className="w-full h-full object-cover scale-[1.6]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="jb-display text-lg text-zinc-50 tracking-wide leading-6 truncate">{nombreCompa.toUpperCase()} · TU {compa.toUpperCase()}</p>
+            <p className="jb-body text-[11px] text-zinc-500">IA de Jonah Beast Fuel</p>
+          </div>
+          {estado === 'listo' && (
+            <button onClick={() => setMenu(menu ? null : 'menu')} aria-label="Opciones" className="p-2 text-zinc-400 hover:text-zinc-200 text-xl leading-none">⋮</button>
+          )}
+          <button onClick={onCerrar} aria-label="Cerrar" className="p-2 text-zinc-400 hover:text-zinc-200"><X size={22} /></button>
+        </header>
+
+        {menu === 'menu' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col">
+            <button onClick={abrirNombre} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">✏️ {nombreCompa === 'Beast' ? `Ponle nombre a tu ${compa}` : 'Cambiar nombre y voz'}</button>
+            <button onClick={() => setMenu('libreta')} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">📒 Lo que {nombreCompa} sabe de ti</button>
+            <a href={urlJonah} target="_blank" rel="noopener noreferrer" onClick={() => evento('jonah')} className="jb-body text-sm text-zinc-200 px-4 py-3 hover:bg-zinc-800">🙋 Hablar con Jonah (persona) por WhatsApp</a>
+            <button onClick={async () => {
+              if (!(await confirmar(`¿Borrar toda tu conversación con ${nombreCompa}? No se puede deshacer.`))) return;
+              await llamarBeast({ accion: 'borrar' });
+              setMensajes([]); setTeniaHistoria(false); setMenu(null); showToast('Conversación borrada');
+            }} className="jb-body text-sm text-zinc-200 text-left px-4 py-3 hover:bg-zinc-800">🗑️ Borrar conversación</button>
+            <p className="jb-body text-[11px] text-zinc-500 px-4 py-2 border-t border-zinc-800">🔒 Jonah no lee tus conversaciones. Se borran solas a los 90 días.</p>
+          </div>
+        )}
+        {menu === 'libreta' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-2">
+            <p className="jb-display text-base text-zinc-50 tracking-wide">📒 LO QUE {nombreCompa.toUpperCase()} SABE DE TI</p>
+            {libreta?.notas
+              ? <ul className="jb-body text-xs text-zinc-300 flex flex-col gap-1">{libreta.notas.split('\n').filter(Boolean).map((l, i) => <li key={i}>• {l}</li>)}</ul>
+              : <p className="jb-body text-xs text-zinc-500">Todavía nada. Cuando me cuentes cosas de tu día (tu trabajo, tus horarios, lo que te cuesta), me acuerdo de lo importante.</p>}
+            <p className="jb-body text-[11px] text-zinc-500">Además sé tu nombre, tu meta, tu peso y lo que anotas en la app.</p>
+            <div className="flex gap-2 mt-1">
+              {libreta?.notas && (
+                <button onClick={async () => {
+                  if (!(await confirmar(`¿Borrar lo que ${nombreCompa} sabe de ti?`))) return;
+                  await llamarBeast({ accion: 'olvidar' });
+                  setLibreta(l => ({ ...(l || {}), notas: '' })); showToast(`Listo, ${nombreCompa} lo olvidó`);
+                }} className="jb-body text-xs text-red-300 border border-red-500/40 rounded-full px-3 py-1.5">Borrar todo</button>
+              )}
+              <button onClick={() => setMenu(null)} className="jb-body text-xs text-zinc-300 border border-zinc-700 rounded-full px-3 py-1.5">Cerrar</button>
+            </div>
+          </div>
+        )}
+
+        {menu === 'nombre' && (
+          <div className="mx-4 mt-2 bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
+            <p className="jb-display text-base text-zinc-50 tracking-wide">✏️ PONLE NOMBRE A TU {compa.toUpperCase()}</p>
+            <p className="jb-body text-xs text-zinc-400">{vozNueva === 'femenina' ? 'Llámala' : 'Llámalo'} como quieras: así te va a hablar y así te llegan sus avisos. Sigue siendo el gorila de siempre 🦍</p>
+            <input value={nombreNuevo} maxLength={20} autoFocus placeholder="Beast"
+              onChange={e => { setNombreNuevo(e.target.value); setErrorNombre(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') guardarNombre(); }}
+              className="bg-zinc-950 border border-zinc-700 focus:border-orange-500 rounded-xl px-3 py-2.5 jb-body text-sm text-zinc-100 placeholder-zinc-600 outline-none" />
+            {errorNombre && <p className="jb-body text-xs text-amber-300 -mt-1">{errorNombre}</p>}
+            <div>
+              <p className="jb-body text-xs text-zinc-300 mb-2">Su voz y su forma de hablarte</p>
+              <div className="flex gap-2">
+                {[['masculina', '🧔 Masculina'], ['femenina', '👩 Femenina']].map(([v, l]) => (
+                  <button key={v} onClick={() => setVozNueva(v)}
+                    className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${vozNueva === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                ))}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5 mb-3">{vozNueva === 'femenina' ? 'Te habla como tu compañera, con voz de mujer.' : 'Te habla como tu compañero, con voz de hombre.'} Toca ▶️ Escuchar en sus mensajes para oírla{premium ? '' : ' (en la versión gratis, solo en su saludo)'}.</p>
+              <p className="jb-body text-xs text-zinc-300 mb-2">Cómo te habla</p>
+              <div className="flex gap-2">
+                {[['tranquilo', '🙂 Tranquilo'], ['suelto', '😎 Bien suelto']].map(([v, l]) => (
+                  <button key={v} onClick={() => setEstiloNuevo(v)}
+                    className={`flex-1 jb-body text-sm rounded-full px-3 py-2 border ${estiloNuevo === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                ))}
+              </div>
+              <p className="jb-body text-[11px] text-zinc-500 mt-1.5">{estiloNuevo === 'suelto' ? 'Con jerga limeña de barrio: "oe", "causa", "al toque"… como tu pata de siempre.' : 'Cercano y alegre, pero sin jerga de barrio.'}</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => guardarNombre()} className={btnPrimary + ' flex-1 py-2.5 text-sm'}>GUARDAR</button>
+              <button onClick={() => setMenu(null)} className="jb-body text-xs text-zinc-300 border border-zinc-700 rounded-full px-4">Cancelar</button>
+            </div>
+            {(nombreCompa !== 'Beast' || femenina) && (
+              <button onClick={() => guardarNombre(true)} className="jb-body text-xs text-zinc-500 underline self-start">Volver a llamarlo Beast</button>
+            )}
+          </div>
+        )}
+
+        {estado === 'cargando' && <div className="flex-1 flex items-center justify-center"><Loader2 size={28} className="text-orange-500 animate-spin" /></div>}
+        {estado === 'error' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="jb-body text-sm text-zinc-300">Uy, se me fue la señal{companero.suelto ? ', causa' : ''} 😅</p>
+            <button onClick={cargar} className={btnPrimary + ' px-5 py-2 text-sm'}>Intentar de nuevo</button>
+          </div>
+        )}
+        {estado === 'consentir' && (
+          <BeastConsentimiento onCerrar={onCerrar} onAceptar={async alerta => {
+            const r = await llamarBeast({ accion: 'consentir', alerta_jonah: alerta });
+            if (r.error) { showToast('No se pudo guardar, intenta de nuevo.'); return; }
+            setLibreta(l => ({ ...(l || {}), consentimiento_en: new Date().toISOString(), alerta_jonah: alerta }));
+            setEstado('listo');
+          }} />
+        )}
+
+        {estado === 'listo' && (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5" onClick={() => menu && setMenu(null)}>
+              {lista.map(m => m.rol === 'alumno' ? (
+                <div key={m.id} className="self-end max-w-[85%] flex flex-col items-end">
+                  <p className="jb-body text-sm text-zinc-950 bg-orange-400 rounded-2xl rounded-br-sm px-3 py-2 whitespace-pre-wrap">{m.tipo === 'voz' ? '🎤 ' : ''}{m.texto}</p>
+                  {m.fallo && <button onClick={() => reintentar(m)} className="jb-body text-[11px] text-amber-300 mt-1">⚠️ No se envió · Reintentar</button>}
+                </div>
+              ) : (
+                <div key={m.id} className="self-start max-w-[92%] flex gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-3 py-2">
+                      <p className="jb-body text-sm text-zinc-100 whitespace-pre-wrap">{m.texto}</p>
+                      {acciones(m)}
+                    </div>
+                    {!m.sistema && !m.avisoDe && !m.elegirMeta && (
+                      <div className="flex items-center gap-3 mt-1 ml-1">
+                        {(m.bienvenida || m.celebracion || m.presentacion || (premium && typeof m.id === 'number')) && (
+                          <button onClick={() => escuchar(m)} className="jb-body text-[11px] text-zinc-500 hover:text-orange-400">
+                            {sonando === m.id ? '⏹ Parar' : '▶️ Escuchar'}
+                          </button>
+                        )}
+                        {typeof m.id === 'number' && (
+                          <>
+                            <button onClick={() => valorar(m, 1)} aria-label="Me sirvió" className={`text-xs ${m.valoracion === 1 ? '' : 'opacity-40 hover:opacity-80'}`}>👍</button>
+                            <button onClick={() => valorar(m, -1)} aria-label={`${nombreCompa} se equivocó`} className={`text-xs ${m.valoracion === -1 ? '' : 'opacity-40 hover:opacity-80'}`}>👎</button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {enviando && (
+                <div className="self-start flex items-center gap-2">
+                  <img src="/jonah-avatar.png" alt="" className="w-7 h-7 rounded-full border border-orange-500/60" />
+                  <p className="jb-body text-xs text-zinc-500 italic">{nombreCompa} está escribiendo…</p>
+                </div>
+              )}
+              <div ref={finRef} />
+            </div>
+
+            {deshacer && (
+              <div className="mx-4 mb-2 flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2">
+                <span className="jb-body text-xs text-zinc-300">✓ Anoté {deshacer.texto}</span>
+                <button onClick={() => { deshacer.fn(); setDeshacer(null); local('Listo, lo quité 👍', { sistema: true }); }}
+                  className="jb-body text-xs font-semibold text-orange-400">Deshacer</button>
+              </div>
+            )}
+
+            <div className="border-t border-zinc-800 px-3 pt-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                {[
+                  ['📈 ¿Cómo voy?', () => enviar('¿Cómo voy?')],
+                  ['🍽️ ¿Qué como?', () => queComo(comidaDeAhora())],
+                  ['💧 +1 vaso', () => sumarAgua(1, null)],
+                  ['📝 Anotar comida', () => premium ? (setTexto('Comí '), inputRef.current?.focus()) : irRegistrar()],
+                ].map(([t, fn]) => (
+                  <button key={t} onClick={fn} disabled={enviando}
+                    className="jb-body text-xs text-zinc-200 bg-zinc-900 border border-zinc-700 hover:border-orange-500/60 rounded-full px-3 py-1.5 whitespace-nowrap shrink-0">{t}</button>
+                ))}
+              </div>
+              {contador && <p className={`jb-body text-[11px] mb-1.5 ${quedan > 0 ? 'text-zinc-500' : 'text-orange-400'}`}>{contador}{quedan === 0 && cuenta.tipo === 'gratis' && <> · <button onClick={irPlanes} className="underline">Premium 👑</button></>}</p>}
+              {grabando ? (
+                <div className="flex items-center gap-3 py-1">
+                  {grabando === 'grabando' ? (
+                    <>
+                      <button onClick={() => grabadorRef.current?.cancelar()} aria-label="Cancelar" className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">🗑️</button>
+                      <p className="jb-body text-sm text-orange-400 flex-1 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Te escucho… toca ✓ cuando termines</p>
+                      <button onClick={() => grabadorRef.current?.parar()} aria-label="Enviar nota de voz" className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center"><Check size={22} strokeWidth={3} /></button>
+                    </>
+                  ) : <p className="jb-body text-sm text-zinc-400 flex items-center gap-2 py-2"><Loader2 size={16} className="animate-spin" /> Escuchando lo que dijiste…</p>}
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <textarea ref={inputRef} value={texto} onChange={e => setTexto(e.target.value.slice(0, 1200))} rows={1}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(texto); } }}
+                    placeholder={`Escríbele a ${nombreCompa}…`}
+                    className="flex-1 resize-none bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-2xl px-3 py-2.5 jb-body text-sm text-zinc-100 placeholder-zinc-500 outline-none max-h-28" />
+                  {texto.trim() ? (
+                    <button onClick={() => enviar(texto)} disabled={enviando} aria-label="Enviar"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><ChevronRight size={24} strokeWidth={3} /></button>
+                  ) : premium ? (
+                    <button onClick={empezarGrabar} disabled={enviando} aria-label="Mandar nota de voz"
+                      className="w-11 h-11 rounded-full bg-orange-500 text-zinc-950 flex items-center justify-center shrink-0 disabled:opacity-50"><Mic size={22} strokeWidth={2.4} /></button>
+                  ) : (
+                    <button onClick={() => showToast(`Hablarle a ${nombreCompa} con tu voz es de Premium 👑 Por ahora escríbeme.`)} aria-label="Nota de voz (Premium)"
+                      className="w-11 h-11 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center shrink-0"><Mic size={22} /></button>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -10101,7 +12057,7 @@ function EliminarCuentaModal({ username, onClose, onEliminado }) {
             <p className="jb-body text-sm text-zinc-300 mb-3">
               Escribe <strong className="text-white">ELIMINAR</strong> para confirmar que quieres borrar tu cuenta para siempre.
             </p>
-            <input value={confirmacion} onChange={e => setConfirmacion(e.target.value)}
+            <input autoComplete="off" value={confirmacion} onChange={e => setConfirmacion(e.target.value)}
               className={inputCls + ' w-full mb-2'} placeholder="ELIMINAR" autoFocus />
             {error && <p className="text-red-400 text-xs jb-body mb-2">{error}</p>}
             <div className="flex gap-2 mt-3">
@@ -10487,7 +12443,7 @@ function PesoRapidoModal({ form, setForm, onCerrar }) {
         <p className="jb-display text-xl text-zinc-50">¿CUÁNTO PESAS HOY? ⚖️</p>
         <p className="jb-body text-sm text-zinc-400 mt-1">Desliza la regla o toca el número para escribirlo.</p>
         <div className="flex items-baseline justify-center gap-1 mt-4">
-          <input type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
+          <input autoComplete="off" type="number" inputMode="decimal" step="0.1" min="30" max="250" value={valor}
             onChange={e => setValor(e.target.value)} aria-label="Tu peso de hoy en kilos"
             className="jb-display text-5xl text-orange-400 bg-transparent w-32 text-center tabular-nums focus:outline-none" />
           <span className="jb-body text-base text-zinc-400">kg</span>
@@ -10571,7 +12527,7 @@ function EncuestaFacilidad({ username, form, setForm }) {
             </button>
           );
         })}
-        <input value={otro} onChange={e => setOtro(e.target.value)} maxLength={200} placeholder="Otra cosa (opcional)"
+        <input autoComplete="off" value={otro} onChange={e => setOtro(e.target.value)} maxLength={200} placeholder="Otra cosa (opcional)"
           className="w-full jb-body text-sm rounded-xl px-3 py-2.5 bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-orange-500" />
       </div>
       <button onClick={enviar} className={btnPrimary + ' w-full py-3 mt-3'}>Enviar</button>
@@ -10612,6 +12568,11 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         setRegistrarAl(null); setVistaComunidad(ir === 'equipo' ? 'equipos' : 'muro'); setTab('equipo'); window.scrollTo({ top: 0 });
         return true;
       }
+      if (ir === 'beast') {
+        const q = new URL(url, window.location.origin).searchParams;
+        abrirBeast({ aviso: q.get('aviso') || null, comida: q.get('comida') || null, foto: q.get('foto') === '1', meta: q.get('meta') === '1' });
+        return true;
+      }
     } catch {}
     return false;
   }
@@ -10623,6 +12584,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       const u = new URL(window.location.href);
       if (u.searchParams.has('registrar') || u.searchParams.has('ir') || u.searchParams.has('equipo')) {
         u.searchParams.delete('registrar'); u.searchParams.delete('ir'); u.searchParams.delete('foto'); u.searchParams.delete('equipo');
+        u.searchParams.delete('aviso'); u.searchParams.delete('comida'); u.searchParams.delete('meta');
         window.history.replaceState(null, '', u.pathname + u.search + u.hash);
       }
     } catch {}
@@ -10706,6 +12668,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       return localStorage.getItem('jb-abrir-navegador') !== fechaLocalISO(new Date());
     } catch { return false; }
   });
+  // Llegó a Chrome/Safari desde "Ábrela en Chrome" (marca de src/App.jsx,
+  // válida 3 días): se le piden los avisos apenas entra.
+  const [llegoAlNavegador, setLlegoAlNavegador] = useState(() => {
+    try {
+      const en = Number(localStorage.getItem('jb-desde-app')) || 0;
+      localStorage.removeItem('jb-desde-app');
+      return en > 0 && Date.now() - en < 3 * 86400000 && !equipoDelAlumno().navegadorInterno;
+    } catch { return false; }
+  });
   function cerrarAbrirEnNavegador() {
     setAbrirEnNavegador(false);
     try { localStorage.setItem('jb-abrir-navegador', fechaLocalISO(new Date())); } catch {}
@@ -10726,6 +12697,72 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  // Beast · tu compañero: la burbuja del gorila (donde estaba el botón de
+  // WhatsApp) abre su chat. El globito de presentación sale una sola vez,
+  // en Inicio, cuando no hay otra ventana encima.
+  const [beastAbierto, setBeastAbierto] = useState(false);
+  const beastAbiertoRef = useRef(false);
+  beastAbiertoRef.current = beastAbierto;
+  const [beastVisto, setBeastVisto] = useState(() => { try { return !!localStorage.getItem('jb_beast_visto_' + username); } catch { return true; } });
+  const [globoBeastCerrado, setGloboBeastCerrado] = useState(false);
+  const [beastInicio, setBeastInicio] = useState(null); // { aviso, comida, foto, meta, texto }
+  function abrirBeast(inicio = null) {
+    setBeastInicio(inicio);
+    setBeastAbierto(true);
+    if (!beastVisto) { setBeastVisto(true); try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {} }
+  }
+  function cerrarGloboBeast() {
+    setGloboBeastCerrado(true);
+    setBeastVisto(true);
+    try { localStorage.setItem('jb_beast_visto_' + username, '1'); } catch {}
+  }
+  // Cualquier parte de la app puede abrir a Beast (abrirBeastDesde).
+  useEffect(() => {
+    const alAbrir = (e) => { setRegistrarAl(null); abrirBeast(e.detail || null); };
+    window.addEventListener('jb-abrir-beast', alAbrir);
+    return () => window.removeEventListener('jb-abrir-beast', alAbrir);
+  }, []);
+  // Logro por celebrar (primer kilo, 7 días seguidos, mitad de la meta…):
+  // la burbuja lo anuncia y Beast lo celebra al abrir.
+  const [rachaBeast, setRachaBeast] = useState(0);
+  useEffect(() => {
+    let vivo = true;
+    supabase.from('historial').select('fecha, comidas_count').eq('username', username).gte('fecha', addDaysISO(todayISO(), -15))
+      .then(({ data }) => {
+        if (!vivo) return;
+        const con = new Set((data || []).filter(h => (h.comidas_count || 0) > 0).map(h => h.fecha));
+        let n = 0;
+        for (let i = con.has(todayISO()) ? 0 : 1; i < 16 && con.has(addDaysISO(todayISO(), -i)); i++) n++;
+        setRachaBeast(n);
+      }, () => {});
+    return () => { vivo = false; };
+  }, [username]);
+  const anotoHoy = Object.values(mealPlan?.meals || {}).some(l => (l || []).some(e => e.foodKey));
+  const logroBeast = logroPendiente(form, rachaBeast + (anotoHoy && rachaBeast === 0 ? 1 : 0));
+  // Aprende a qué hora suele anotar desayuno, almuerzo y cena, para que su
+  // aviso llegue después de esa hora (horasAprendidas).
+  const cuentaComidas = useRef(null);
+  useEffect(() => {
+    const ahora = Object.fromEntries(Object.keys(MOMENTO_DE_COMIDA).map(c => [c, (mealPlan?.meals?.[c] || []).filter(e => e.foodKey).length]));
+    const antes = cuentaComidas.current;
+    cuentaComidas.current = ahora;
+    if (!antes) return;
+    const nuevas = Object.keys(ahora).filter(c => ahora[c] > antes[c] && antes[c] === 0);
+    if (!nuevas.length) return;
+    const hora = new Date().getHours();
+    setForm(v => {
+      const horasComida = { ...(v.horasComida || {}) };
+      nuevas.forEach(c => { horasComida[c] = [...(horasComida[c] || []), hora].slice(-7); });
+      const aprendidas = horasAprendidas(horasComida);
+      return { ...v, horasComida, avisos: { ...(v.avisos || {}), aprendidas } };
+    });
+  }, [mealPlan]);
+  // Fin de la prueba: pantalla de Jonah (FinPruebaModal) y, si elige "1 mes",
+  // los planes se abren con ese plan ya marcado.
+  const [verFinPrueba, setVerFinPrueba] = useState(false);
+  const [planDirecto, setPlanDirecto] = useState(null);
+  useEffect(() => { if (finPruebaPendiente(userRecord)) setVerFinPrueba(true); }, [userRecord?.username, userRecord?.fechaVencimiento, userRecord?.plan]);
+  useEffect(() => { if (tab !== 'planes') setPlanDirecto(null); }, [tab]);
   const [ajustarMeta, setAjustarMeta] = useState(false);
 
   // Anota en su ficha si le llegan los avisos (o por qué no), una vez al
@@ -10744,12 +12781,20 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const antes = alimentosAntes.current;
     alimentosAntes.current = alimentosHoy;
     if (!(antes === 0 && alimentosHoy > 0)) return;
+    // Su primera comida en la app: Beast lo felicita (logro "primera"),
+    // después de las ventanas de siempre (meta, avisos, abrir en Chrome).
+    if (nuncaAlAbrir.current === true && !form.primeraComidaEn) {
+      nuncaAlAbrir.current = false;
+      setForm(v => (v.primeraComidaEn ? v : { ...v, primeraComidaEn: todayISO() }));
+    }
     // Sin datos u objetivo: primero se le ofrece ajustar su meta (una vez
     // al día); los recordatorios se le ofrecen otro día.
     if (metaEstimada) {
       const marcaMeta = 'jb_ajusta_meta_' + username + '_' + todayISO();
       try { if (!localStorage.getItem(marcaMeta)) { localStorage.setItem(marcaMeta, '1'); setAjustarMeta(true); return; } } catch {}
     }
+    // Si anotó con Beast, Beast mismo le ofrece los avisos en el chat.
+    if (beastAbiertoRef.current) return;
     const marca = 'jb_notif_tras_comida_' + username;
     try { if (localStorage.getItem(marca)) return; } catch { return; }
     estadoPushEquipo().then(estado => {
@@ -10763,18 +12808,29 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // nunca registró una comida y ya tiene su meta lista. "Ahora no" la
   // guarda hasta el día siguiente.
   const [nuncaRegistro, setNuncaRegistro] = useState(null); // null = aún no se sabe
+  const nuncaAlAbrir = useRef(null); // lo que dijo la base al abrir (no cambia al empezar a registrar)
   const [primeraDescartada, setPrimeraDescartada] = useState(() => {
     try { return localStorage.getItem('jb_primera_comida_no_' + username) === todayISO(); } catch { return false; }
   });
   useEffect(() => {
     let vivo = true;
     supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).limit(1)
-      .then(({ data, error }) => { if (vivo) setNuncaRegistro(error ? false : (data || []).length === 0); })
+      .then(({ data, error }) => {
+        if (!vivo) return;
+        const nunca = error ? false : (data || []).length === 0;
+        nuncaAlAbrir.current = nunca;
+        setNuncaRegistro(nunca);
+      })
       .then(null, () => { if (vivo) setNuncaRegistro(false); });
     return () => { vivo = false; };
   }, [username]);
+  // Eligió cómo registrar su primera comida (foto, buscar, un plato o el de
+  // la prueba de la portada): el aviso de abrir la app en Chrome/Safari
+  // espera a que la guarde, para no taparle la cámara ni el buscador.
+  const [primeraEnCurso, setPrimeraEnCurso] = useState(false);
   function registrarPrimeraComida(meal, p) {
     registrarPasoPago('primera_comida', username, 'plato');
+    setPrimeraEnCurso(true);
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
     setNuncaRegistro(false);
     vibrar(30);
@@ -10793,7 +12849,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const premiumCtx = useMemo(() => ({
     premium: !versionGratis,
     onVerPremium: () => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); },
-  }), [versionGratis]);
+    companero: companeroDe(form),
+  }), [versionGratis, form.companero?.nombre, form.companero?.voz, form.companero?.estilo, form.companero?.estiloElegido]);
   const renewalElegible = !!(userRecord && userRecord.plan !== 'trial' && !versionGratis
     && daysLeft(userRecord.fechaVencimiento) !== null && daysLeft(userRecord.fechaVencimiento) <= 7);
   const trialElegible = !!trialDayOf(userRecord);
@@ -10810,8 +12867,22 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   const [mostrarNotif, setMostrarNotif] = useState(false);
 
   const PULL_UMBRAL = 70;
+  // "Jalar para actualizar" es solo para la pantalla de fondo. Si el dedo
+  // empieza dentro de una ventana u hoja abierta (foto, registrar, editar…,
+  // que están fijas en la pantalla) o de una lista que se desliza, no cuenta:
+  // antes, deslizar hacia abajo dentro de la foto recargaba la app y se
+  // perdía lo que el alumno estaba revisando.
+  function dentroDeVentanaOLista(el) {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const st = window.getComputedStyle(n);
+      if (st.position === 'fixed') return true;
+      if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+    }
+    return false;
+  }
   function onPullStart(e) {
     if (window.scrollY > 4) return;
+    if (dentroDeVentanaOLista(e.target)) { pullStartY.current = null; return; }
     pullStartY.current = e.touches[0].clientY;
   }
   function onPullMove(e) {
@@ -10896,6 +12967,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     const meal = comidaDeAhora(new Date(demo.hora));
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), ...entradas] } }));
     setNuncaRegistro(false);
+    setPrimeraEnCurso(true);
     registrarPasoPago('primera_comida', username, 'demo');
     showToast(`📸 El plato de tu prueba ya quedó registrado en tu ${meal.toLowerCase()}`);
   }, [nuncaRegistro, alimentosHoy, verGuia, username]);
@@ -10935,26 +13007,25 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         </div>
       )}
       <header className="sticky top-0 z-20 border-b border-zinc-800 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur-sm" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
           <Logo compacto />
-          <BeastMascot mood={moodPorHora()} size={22} className="hidden sm:inline-block" />
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           {/* En el celular no entra junto al logo (tapaba "FUEL"): ahí está en el pie de la pantalla. */}
           <span className="hidden sm:inline-flex"><SoundToggleButton /></span>
           <button onClick={() => setTab('planes')}
-            className={`p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi plan" aria-label="Mi plan">
             <CreditCard size={18} />
           </button>
           <button onClick={() => { setRegistrarAl(null); setTab('perfil'); window.scrollTo({ top: 0 }); }}
-            className={`p-2 rounded-lg transition-colors ${tab === 'perfil' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${tab === 'perfil' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi perfil y ajustes" aria-label="Mi perfil y ajustes">
             <Settings size={18} />
           </button>
           <IndicadorGuardado estado={estadoGuardado} />
           <span className="text-zinc-500 text-sm hidden sm:inline">{userRecord?.nombre || username}</span>
-          <button onClick={onLogout} className={btnGhost + ' px-2.5 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
+          <button onClick={onLogout} className={btnGhost + ' px-2 sm:px-4'} aria-label="Salir"><LogOut size={16} /> <span className="hidden sm:inline">Salir</span></button>
         </div>
       </header>
 
@@ -10963,16 +13034,28 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
         {/* Primero su primera comida (está motivado y ya está adentro); recién
             después se le pide abrir la app en Chrome/Safari, donde tiene que
-            volver a entrar con su correo. */}
-        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida && <AbrirEnNavegadorModal username={username} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+            volver a entrar con su correo. Si eligió foto o buscar, espera a
+            que la guarde y vuelva a Inicio: antes salía encima de la cámara. */}
+        {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida
+          && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta
+          && <AbrirEnNavegadorModal username={username} trasPrimeraComida={primeraEnCurso && alimentosHoy > 0} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
+        {llegoAlNavegador && !verGuia && !verPrimeraComida && !ajustarMeta && tab === 'dash' && (
+          <LlegasteAlNavegadorModal username={username} siguiente={siguienteComida(mealPlan)}
+            onAnotar={meal => { setLlegoAlNavegador(false); irARegistrar(meal); }}
+            onCerrar={() => setLlegoAlNavegador(false)} />
+        )}
         {/* Jonah le entrega su medalla a quien ganó en un reto de equipo. */}
         {!verGuia && userRecord && <MedallaNueva username={username} nombre={userRecord?.nombre} onVerEquipo={() => { setRegistrarAl(null); setVistaComunidad('equipos'); setTab('equipo'); window.scrollTo({ top: 0 }); }} />}
-        {ofrecerNotif && !verGuia && !abrirEnNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {ofrecerNotif && !verGuia && !abrirEnNavegador && !llegoAlNavegador && <NotifTrasComidaModal username={username} onClose={() => setOfrecerNotif(false)} />}
+        {verFinPrueba && tab === 'dash' && !verGuia && !ofrecerNotif && !verPrimeraComida && !ajustarMeta && !abrirEnNavegador && userRecord && (
+          <FinPruebaModal user={userRecord} onCerrar={() => setVerFinPrueba(false)}
+            onPlan={meses => { setVerFinPrueba(false); setPlanDirecto(meses); setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
+        )}
         {verPrimeraComida && !verGuia && !ofrecerNotif && !ajustarMeta && (
           <PrimeraComidaModal kcalMeta={metaListaPrimera}
             onElegir={registrarPrimeraComida}
-            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
-            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setNuncaRegistro(false); irARegistrar(meal); }}
+            onFoto={(meal) => { registrarPasoPago('primera_comida', username, 'foto'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal, { foto: true }); }}
+            onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
@@ -11063,6 +13146,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onFoto={() => irARegistrar(comidaDeAhora(), { foto: true })}
                     onEscribir={() => irARegistrar(comidaDeAhora(), { escribir: true })}
                     onPeso={() => setPesoFacil(true)} />
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}
@@ -11084,6 +13168,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                       🔠 Ver la app más grande y sencilla
                     </button>
                   )}
+                  <AbreDesdeIconoAviso username={username} />
                   {centro}
                   {avisos}
                   {avisoNotif}
@@ -11102,7 +13187,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}
-        {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} />}
+        {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} planInicial={planDirecto} />}
         {tab === 'perfil' && (
           <PerfilTab userRecord={userRecord} username={username} form={form} setForm={setForm}
             modoFacil={modoFacil} onModoFacil={v => elegirModoFacil(v)}
@@ -11133,7 +13218,23 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
-      <WhatsAppButton arriba={tab === 'meal'} />
+      <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto} />
+      {!beastAbierto && (
+        <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
+          textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
+            : beastVisto && logroBeast ? <>{form.companero?.estilo === 'suelto' ? '¡Oe! ' : ''}Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
+          globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
+            && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
+      )}
+      {beastAbierto && (
+        <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} versionGratis={versionGratis}
+          onCerrar={() => { setBeastAbierto(false); setBeastInicio(null); }}
+          onRegistrar={(meal, opciones) => irARegistrar(meal || comidaDeAhora(), opciones)}
+          inicio={beastInicio} logro={logroBeast}
+          onLogroVisto={id => setForm(v => ({ ...v, beastLogros: [...new Set([...(Array.isArray(v.beastLogros) ? v.beastLogros : []), id])] }))}
+          onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />
+      )}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-zinc-950 border-t border-zinc-800 flex"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {[
@@ -11143,7 +13244,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           { id: 'progress', icon: TrendingUp, label: 'Progreso', activo: tab === 'progress' || tab === 'photos' },
           { id: 'equipo', icon: Users, label: 'Comunidad', activo: tab === 'equipo', aviso: (avisoEquipo || avisoMuro) && tab !== 'equipo' },
         ].map(item => (
-          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); if (item.id === 'equipo') revisarAvisoEquipo(); }}
+          <button key={item.id} onClick={() => { setRegistrarAl(null); setTab(item.id); window.scrollTo({ top: 0 }); if (item.id === 'equipo') revisarAvisoEquipo(); }}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 transition-colors ${item.activo ? 'text-orange-500' : 'text-zinc-500'}`}>
             <span className="relative">
               <item.icon size={20} strokeWidth={item.activo ? 2.5 : 2} />

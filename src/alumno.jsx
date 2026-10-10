@@ -7230,9 +7230,14 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta }) {
   const { premium } = usePremium();
-  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | limite | error | compartir
+  const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | etiqueta | limite | error | compartir
+  // La foto era una tabla nutricional y no se pudo leer (Premium, tope del
+  // día o foto borrosa): 'premium' | 'limite_alcanzado' | mensaje.
+  const [errorEtiqueta, setErrorEtiqueta] = useState('');
+  // La IA vio un producto empacado sin su tabla nutricional a la vista.
+  const [envase, setEnvase] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   // La foto ya comprimida, por si la comparte en la Comunidad al terminar.
   const fotoBlob = useRef(null);
@@ -7314,6 +7319,13 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         if (data?.estado !== 'agregado' && data?.estado !== 'descartado') anotarPedidoEnCamino(username, nombre);
       }, () => anotarPedidoEnCamino(username, nombre));
   }
+  // Producto de paquete sin la tabla a la vista: con la foto de su tabla
+  // nutricional quedan sus números exactos (se lee desde aquí mismo).
+  const consejoEnvase = envase && (
+    <p className="jb-body text-[11px] text-zinc-300 mt-2 pt-2 border-t border-orange-500/20">
+      📦 <span className="text-zinc-100 font-semibold">¿Es un producto de paquete?</span> Voltea el envase y tómale foto a la <span className="text-orange-400 font-semibold">tabla nutricional</span>: leemos sus números exactos.
+    </p>
+  );
   const preguntaNoEncontrados = noEncontrados.length > 0 && (
     <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-2.5 text-left">
       <p className="jb-body text-xs text-zinc-300 mb-2">
@@ -7335,6 +7347,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
         ))}
       </div>
       {!premium && <p className="jb-body text-[11px] text-zinc-500 mt-1.5">Puedes crearlo tú con sus calorías.</p>}
+      {consejoEnvase}
     </div>
   );
   const [mensajeError, setMensajeError] = useState('');
@@ -7390,7 +7403,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
 
   async function analizar(base64, mimeType) {
     setEstado('analizando');
-    setNoEncontrados([]); setPedidosFoto({});
+    setNoEncontrados([]); setPedidosFoto({}); setEnvase(false);
     try {
       // Los productos escaneados no se mandan: la foto reconoce platos, y
       // los empacados se registran mejor con su código de barras.
@@ -7421,6 +7434,16 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       }
       if (data?.error) throw new Error(data.error);
       anotarCupo(data);
+      // Foto de la tabla nutricional de un producto: se leyeron sus números
+      // y se pasa a confirmarlos (la misma pantalla de "Código").
+      if (data?.etiqueta) {
+        registrarPasoPago('foto_comida', username, 'etiqueta');
+        if (data.etiqueta.producto && onEtiqueta) { onEtiqueta(data.etiqueta.producto); return; }
+        setErrorEtiqueta(data.etiqueta.error || 'No pudimos leer la tabla nutricional.');
+        setEstado('etiqueta');
+        return;
+      }
+      setEnvase(data?.envase === true);
       setNoEncontrados(Array.isArray(data?.noEncontrados) ? data.noEncontrados.filter(n => typeof n === 'string').slice(0, 3) : []);
       setAlternativasIA(data?.alternativas && typeof data.alternativas === 'object' ? data.alternativas : {});
 
@@ -8035,6 +8058,30 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
           </div>
         )}
 
+        {estado === 'etiqueta' && (
+          <div className="text-center py-2">
+            {previewUrl && <img src={previewUrl} alt="" className="w-full max-h-40 object-cover rounded-xl mb-4" />}
+            <p className="jb-body text-sm text-zinc-200 mb-1">📋 Es la tabla nutricional de un producto.</p>
+            {errorEtiqueta === 'premium' ? (
+              <div className="my-3">
+                <BloqueoPremium compacto titulo="Leer la tabla nutricional con foto es Premium"
+                  texto="Con Premium leemos sus números y el producto queda guardado. Gratis puedes buscarlo por su nombre o crearlo tú." />
+              </div>
+            ) : (
+              <p className="jb-body text-sm text-zinc-400 mb-4">
+                {errorEtiqueta === 'limite_alcanzado'
+                  ? 'Ya leíste 5 etiquetas hoy. Mañana puedes leer más; mientras tanto, búscalo escribiendo.'
+                  : errorEtiqueta}
+              </p>
+            )}
+            <p className="jb-body text-[11px] text-zinc-600 mb-3">Esta foto no gastó tus fotos de comida.</p>
+            {errorEtiqueta !== 'premium' && errorEtiqueta !== 'limite_alcanzado' && (
+              <button onClick={() => setEstado('elegir')} className={btnPrimary + ' w-full py-2.5 mb-2'}>Tomar otra foto a la tabla</button>
+            )}
+            <button onClick={onEscribir || onCerrar} className={btnGhost + ' w-full py-2.5'}>Buscarlo escribiendo</button>
+          </div>
+        )}
+
         {estado === 'error' && (
           <div className="text-center py-2">
             <AlertTriangle className="text-amber-500 mx-auto mb-3" size={28} />
@@ -8242,15 +8289,18 @@ async function llamarProductos(body) {
   return data || {};
 }
 
-function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
+// "leida": tabla nutricional que ya leyó la foto de comida (sin código de
+// barras). Se abre directo en "confirmar", igual que tras "Tomar foto a la
+// tabla nutricional".
+function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
   const { premium } = usePremium();
-  const [estado, setEstado] = useState('camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
+  const [estado, setEstado] = useState(leida ? 'confirmar' : 'camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
   const [tardando, setTardando] = useState(false); // la cámara lleva un rato sin leer: se muestran consejos
   const [leido, setLeido] = useState(''); // destello "✓ código leído" antes de buscar
-  const [producto, setProducto] = useState(null); // fila de productos (o lo leído de la etiqueta)
-  const [nombreNuevo, setNombreNuevo] = useState('');
-  const [marcaNueva, setMarcaNueva] = useState('');
+  const [producto, setProducto] = useState(leida || null); // fila de productos (o lo leído de la etiqueta)
+  const [nombreNuevo, setNombreNuevo] = useState(leida?.nombre || '');
+  const [marcaNueva, setMarcaNueva] = useState(leida?.marca || '');
   const [unidad, setUnidad] = useState('porción');
   const [cantidad, setCantidad] = useState(1);
   const [mensaje, setMensaje] = useState('');
@@ -8418,7 +8468,7 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
   // Si el alumno cierra con la etiqueta ya leída y un nombre, el producto se
   // guarda igual (antes se perdía si no tocaba "Guardar").
   function cerrar() {
-    if (estado === 'confirmar' && producto && codigo && nombreNuevo.trim()) {
+    if (estado === 'confirmar' && producto && nombreNuevo.trim()) {
       llamarProductos({ accion: 'guardar_producto', codigo, producto: { ...producto, nombre: nombreNuevo.trim(), marca: marcaNueva.trim() } }).catch(() => {});
     }
     onCerrar();
@@ -8474,7 +8524,9 @@ function EscanearCodigoModal({ meal, onCerrar, onAgregar, onEscribir }) {
         <AsaHoja onCerrar={cerrar} />
         <style>{ESTILOS_ESCANER + ESTILOS_LASER}</style>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><ScanBarcode size={18} /> CÓDIGO DE BARRAS</h2>
+          <h2 className="jb-display text-base text-orange-500 flex items-center gap-2">
+            {leida ? <>📋 TABLA NUTRICIONAL</> : <><ScanBarcode size={18} /> CÓDIGO DE BARRAS</>}
+          </h2>
           <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5" aria-label="Cerrar"><X size={18} /></button>
         </div>
 
@@ -9681,6 +9733,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   const [swipe, setSwipe] = useState({}); // id -> { dx, startX }
   const [fotoPara, setFotoPara] = useState(null); // nombre de la comida para la que se abrió el modal de foto
   const [codigoPara, setCodigoPara] = useState(null); // ídem, para el escáner de código de barras
+  const [etiquetaLeida, setEtiquetaLeida] = useState(null); // tabla nutricional leída desde la foto de comida
   // Destello al completar una comida (cuando recibe su primer alimento).
   const [destellos, setDestellos] = useState({});
   const conteosPrevios = useRef(null);
@@ -10047,8 +10100,9 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       {codigoPara && (
         <EscanearCodigoModal
           meal={codigoPara}
-          onCerrar={() => setCodigoPara(null)}
-          onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEscribirPara(m); }}
+          leida={etiquetaLeida}
+          onCerrar={() => { setCodigoPara(null); setEtiquetaLeida(null); }}
+          onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEtiquetaLeida(null); setEscribirPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [codigoPara]: [...v.meals[codigoPara], entry] } }))}
         />
       )}
@@ -10061,6 +10115,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onCerrar={() => setFotoPara(null)}
           onEscribir={() => { const m = fotoPara; setFotoPara(null); setEscribirPara(m); }}
           onCambiarComida={m => { if (m !== fotoPara) setAbiertas(a => ({ ...a, [fotoPara]: false })); setFotoPara(m); }}
+          onEtiqueta={producto => { const m = fotoPara; setFotoPara(null); setEtiquetaLeida(producto); setCodigoPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
         />

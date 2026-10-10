@@ -544,6 +544,10 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 **Platos de PECAFIT:** si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, la foto registra el plato de PECAFIT completo, por plato (ej. "1 bowl" de "Bowl andino (PECAFIT)"): sus calorías son las del plato servido, sin calcular gramos. Si no se ve la marca, lo registra por partes (quinua, pollo, verduras…), como cualquier plato. Lo más exacto para PECAFIT es la tarjeta "RESTAURANTES ALIADOS" (8.2 G).
 
+**Foto de la tabla nutricional de un producto:** si con la cámara de comida le tomas foto a la **tabla nutricional** (información nutricional) de un producto empacado, la app se da cuenta y **lee sus números** igual que en "Código" (8.2): se abre la ventana "📋 TABLA NUTRICIONAL" con "✓ Leímos la etiqueta.", el nombre y la marca para revisar (escríbelos si no salieron), sus valores por 100 g y la porción de la etiqueta. Tocas **"Guardar producto"**, eliges cuánto comiste ("porción" o "gramos") y **"Agregar a [comida]"**. El producto queda guardado para ti y para todos (grupo "Productos"). Esa foto **no gasta tus fotos de comida** (usa el límite de 5 etiquetas por día) y **leerla es Premium**: en la versión gratis sale "📋 Es la tabla nutricional de un producto." con "Leer la tabla nutricional con foto es Premium" y "Buscarlo escribiendo". Si la tabla no se leía, sale el motivo y **"Tomar otra foto a la tabla"**.
+
+**Foto del envase sin la tabla:** si la foto muestra un producto de paquete que no está en la app y no se ve su tabla, debajo de "pídeselo a Jonah" sale "📦 ¿Es un producto de paquete? Voltea el envase y tómale foto a la tabla nutricional: leemos sus números exactos." Con esa foto quedan sus calorías exactas, sin esperar a Jonah.
+
 ### 9.1 Cuántas fotos tengo
 
 | Situación | Fotos |
@@ -552,7 +556,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 | **Versión gratis** (cuando venció la prueba o el plan) | **3 fotos por semana**, se renuevan cada lunes ("Te quedan N de 3 fotos gratis esta semana") |
 
 - Si una foto falla por un error del sistema, **no se descuenta**.
-- Leer la **tabla nutricional** de un producto (en "Código") **no usa las fotos de comida**: se pueden leer hasta 5 etiquetas por día. Escanear el código de barras tampoco cuenta.
+- Leer la **tabla nutricional** de un producto (en "Código" o con la cámara de comida) **no usa las fotos de comida**: se pueden leer hasta 5 etiquetas por día. Escanear el código de barras tampoco cuenta.
 - Ya **no existe el complemento "Reconocimiento Inteligente"** que se pagaba aparte: la captura inteligente viene incluida en todos los planes. Quien lo tenía activo recibe lo mismo que un plan: 5 fotos por día.
 
 ### 9.2 Mensajes y qué hacer

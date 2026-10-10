@@ -5927,9 +5927,27 @@ export default function App() {
     setView(v);
   }
   function volver() {
-    if (VISTAS_CON_ATRAS.includes(window.history.state?.jb)) window.history.back();
-    else setView('landing');
+    if (!VISTAS_CON_ATRAS.includes(window.history.state?.jb)) { setView('landing'); return; }
+    // Si el navegador no tiene a dónde volver (la pantalla se abrió desde un
+    // link o tras recargar), "Atrás" no hacía nada: se va a la portada.
+    let movio = false;
+    const marca = () => { movio = true; };
+    window.addEventListener('popstate', marca, { once: true });
+    window.history.back();
+    setTimeout(() => {
+      window.removeEventListener('popstate', marca);
+      if (!movio) { try { window.history.replaceState({}, ''); } catch {} setView('landing'); }
+    }, 400);
   }
+  // Al salir de las pantallas de antes de entrar (entró a su cuenta, cerró
+  // sesión y quedó en la portada…), se borra la marca de esa pantalla. Si
+  // quedaba, al cerrar sesión y volver a "Entrar", "← Atrás" regresaba a
+  // la misma pantalla de entrar y parecía que no hacía nada.
+  useEffect(() => {
+    if (!VISTAS_CON_ATRAS.includes(view) && VISTAS_CON_ATRAS.includes(window.history.state?.jb)) {
+      try { window.history.replaceState({}, ''); } catch {}
+    }
+  }, [view]);
   useEffect(() => {
     const onPop = e => {
       const destino = VISTAS_CON_ATRAS.includes(e.state?.jb) ? e.state.jb : 'landing';

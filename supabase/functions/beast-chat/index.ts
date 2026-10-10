@@ -21,6 +21,8 @@
 // Publicación (CLAUDE.md): solo después del merge, con el código de main.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Los mismos pesajes que el alumno ve en Progreso (src/progreso.js).
+import { historialDePeso } from "../../../src/progreso.js";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
@@ -288,10 +290,13 @@ async function consentir(supabase: any, username: string, cuerpo: any) {
 // que manda la app (lo último que anotó todavía puede no haberse subido).
 async function datosDelAlumno(supabase: any, username: string, alumno: any, cuenta: Cuenta, hoyApp: any, libreta: any, companeroApp: any) {
   const desde = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [{ data: datos }, { data: hist }] = await Promise.all([
+  const desdePeso = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: datos }, { data: hist }, { data: histPeso }] = await Promise.all([
     supabase.from("datos_alumnos").select("form").eq("username", username).maybeSingle(),
     supabase.from("historial").select("fecha, peso, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count")
       .eq("username", username).gte("fecha", desde).order("fecha", { ascending: false }).limit(45),
+    supabase.from("historial").select("fecha, peso")
+      .eq("username", username).gte("fecha", desdePeso).order("fecha", { ascending: true }).limit(200),
   ]);
   const f = datos?.form || {};
   const filas = hist || [];
@@ -303,7 +308,13 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   const conComida = new Set(filas.filter((h: any) => (h.comidas_count || 0) > 0).map((h: any) => h.fecha));
   if (hoyApp?.alimentos > 0) conComida.add(hoy);
   for (let i = conComida.has(hoy) ? 0 : 1; i < 45 && conComida.has(hace(i)); i++) racha++;
-  const pesajes = Array.isArray(f.pesajes) ? f.pesajes.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ") : "";
+  // Pesajes reales: la lista del perfil empezó el 4 de octubre; los de
+  // antes están en el historial diario (antes solo se veía la lista y Beast
+  // decía "solo tienes un pesaje" a quien se pesa cada semana).
+  let puntos: { f: string; kg: number }[] = [];
+  try { puntos = historialDePeso(f, histPeso || [], alumno) || []; } catch (e) { console.error("pesajes:", (e as Error)?.message); }
+  if (!puntos.length && Array.isArray(f.pesajes)) puntos = f.pesajes;
+  const pesajes = puntos.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ");
   let edad: number | null = null;
   if (alumno.fecha_nacimiento) edad = Math.floor((Date.parse(hoy) - Date.parse(alumno.fecha_nacimiento)) / (365.25 * 86_400_000));
   else if (f.edad) edad = Number(f.edad) || null;
@@ -314,8 +325,8 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     (compa.nombre !== "Beast" || compa.femenina) && `Tu nombre con este alumno: ${compa.nombre} (te lo puso él).${compa.femenina ? " Hablas en femenino: eres su compañera." : ""}`,
     `Nombre: ${alumno.nombre || username}. Sexo: ${f.sexo === "F" ? "F (mujer)" : "M (hombre)"}. Edad: ${n(edad)}.`,
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
-    `Objetivo: ${n(f.objetivo)}. Peso inicial: ${n(f.pesoInicial)} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
-    pesajes && `Últimos pesajes: ${pesajes}.`,
+    `Objetivo: ${n(f.objetivo)}. Peso inicial: ${Number(f.pesoInicial) > 0 ? f.pesoInicial : puntos.length ? puntos[0].kg : "?"} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
+    pesajes && `Últimos pesajes (de más antiguo a más nuevo; ${puntos.length} en total en los últimos 6 meses): ${pesajes}.`,
     hoyApp && `Hoy (${horaLima()}): comió ${Math.round(hoyApp.kcal || 0)} de ${Math.round(hoyApp.metaKcal || 0)} kcal; proteína ${Math.round(hoyApp.proteina || 0)} de ${Math.round(hoyApp.metaProteina || 0)} g; agua ${hoyApp.agua || 0} de ${hoyApp.metaAgua || 0} vasos; comidas anotadas: ${hoyApp.comidas || "ninguna"}.`,
     `Últimos 7 días: anotó ${ult7.length} de 7 días; en ${enMeta} quedó dentro de sus calorías (±10%). Racha: ${racha} días seguidos anotando.`,
     f.metaSemanal?.tipo && f.metaSemanal?.semana && `Su mini meta de la semana (desde el ${f.metaSemanal.semana}): ${({ agua: "tomar sus vasos de agua todos los días", anotar: "anotar sus comidas todos los días", proteina: "llegar a su proteína" } as any)[f.metaSemanal.tipo] || f.metaSemanal.tipo}.`,

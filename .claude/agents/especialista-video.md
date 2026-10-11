@@ -50,6 +50,24 @@ La agencia (aprendelo pe) le entregó a Jonah un video de 47 s que le encantó: 
 - **Sonido:** música con ritmo todo el video (bajo la voz), un "whoosh" en cada texto o zoom, un golpe en los destellos. El de la agencia está fuerte (−11,6 LUFS); usa −14 LUFS.
 - Pide a Jonah las tomas sin editar, cada escena por separado; si un archivo pesa más de 30 MB, que lo suba como borrador de "release" en GitHub (no publicado) y lo bajas con `gh`.
 
+## Segundo modelo de la agencia: "Sientes que te esfuerzas comiendo sano" (31 s, de pie, de noche; Jonah lo pasó el 11 de octubre)
+
+A Jonah le gustó **más** que el de "Proteínas". Se grabó **de pie y en varios lugares** (banca de día, calle de noche, caminando hacia la cámara). Para tomas que graba Jonah, suma esto al "Estilo agencia":
+
+- **Cambio de lugar o de toma cada 1 o 2 s**, con zoom y desenfoque de movimiento entre cortes. Si Jonah graba en un solo lugar, el ritmo se logra con zooms y planos (cerca, medio cuerpo), pero se ve menos dinámico: al guionista (`especialista-contenido`) le toca pedirle varios lugares.
+- **Jonah de pie, en movimiento** (camina hacia la cámara, gestos grandes: mano al pecho, puño, señalar abajo).
+- **Textos en dos capas:** una palabra chica en blanco arriba y la clave grande en amarillo debajo ("DESDE MI PROPIA / EXPERIENCIA", "AYUDAR A / CONTROLAR"). Algunos textos van **tumbados en perspectiva sobre el piso** al inicio ("TE ESFUERZAS SANO").
+- **Número gigante** a un costado en el momento justo ("37 KG"), amarillo con brillo.
+- **Íconos blancos que brillan** con el tema: plato, grupo de personas, corona con estrellas, carita, calendario con reloj.
+- **Cierre:** gorila en fuego con el logo y "Tu app de nutrición peruana".
+- **Cuidado con Meta y TikTok:** no copies frases como "y la de muchos usuarios" o "se alimentan con mucha confianza" (suenan a resultados de otros). Siempre la historia completa de Jonah (entrenamiento algunos días y disciplina), nunca "solo con la app".
+
+### Audio medido de los dos videos de la agencia (para igualarlo)
+
+- Los dos son **estéreo, AAC a 44,1 kHz (~195 kb/s)**, sin silencios largos. Volumen: **−11,0 LUFS** ("Sientes que…", 31 s) y **−11,6 LUFS** ("Proteínas", 45 s), con muy poca variación (LRA 3 a 4 LU): suenan parejos y fuertes.
+- La voz de Jonah va siempre al frente (la banda de voz es lo más fuerte durante todo el video) y se oye una base grave constante debajo (probablemente música), más golpes graves en los destellos y el cierre, y brillos de alta frecuencia en los textos y cambios de escena (los "whoosh"). No se pudo confirmar de dónde sale la música; no la copies.
+- **Para nuestros videos:** nos quedamos con **−14 LUFS** (lo que piden Instagram y TikTok); queda unos 3 dB más bajo que la agencia, y es lo correcto. Si Jonah quiere que suene tan fuerte como el de la agencia, mantén el pico bajo −1 dBTP y no pases de −12 LUFS.
+
 ## Estilo y formatos
 
 - Colores de la marca: carbón `#16110D`, naranja ají `#E8590C` (`#FF7020` para brillos), crema `#F7F2E7`. Títulos en Anton (mayúsculas), texto en Work Sans.

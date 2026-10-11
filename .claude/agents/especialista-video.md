@@ -68,6 +68,21 @@ A Jonah le gustó **más** que el de "Proteínas". Se grabó **de pie y en vario
 - La voz de Jonah va siempre al frente (la banda de voz es lo más fuerte durante todo el video) y se oye una base grave constante debajo (probablemente música), más golpes graves en los destellos y el cierre, y brillos de alta frecuencia en los textos y cambios de escena (los "whoosh"). No se pudo confirmar de dónde sale la música; no la copies.
 - **Para nuestros videos:** nos quedamos con **−14 LUFS** (lo que piden Instagram y TikTok); queda unos 3 dB más bajo que la agencia, y es lo correcto. Si Jonah quiere que suene tan fuerte como el de la agencia, mantén el pico bajo −1 dBTP y no pases de −12 LUFS.
 
+## Nivel mínimo para los videos SIN Jonah (modelo: "Antojos de la calle SÚPER", 11 de octubre)
+
+A Jonah le encantó ("la versión con sonido está genial") y preguntó por qué no salieron así desde el principio. **Desde ahora, todo video sin Jonah sale a este nivel desde la primera versión**, no como tarjetas planas con texto. Receta:
+
+- **Gancho (primeros 2 s):** destello + temblor de cámara + zoom de golpe; la pregunta entra con giro 3D y desenfoque de movimiento sobre un símbolo gigante de brasas (ej. un "?").
+- **Cada elemento principal (plato, botón de la app, idea) es un ícono neón de líneas** que se dibuja solo (SVG con trazo animado) dentro de un círculo con brillo, sobre fondo negro con luz naranja; entra con barrido, giro 3D leve y chispas. Sin fotos realistas inventadas; si hay fotos reales buenas (las manda Jonah), úsalas recortadas con brillo.
+- **Números:** contador que sube rápido, zoom de golpe al llegar, barra que se llena con estela; el número más fuerte del video es el "golpe" (tensión + temblor + destello blanco + número en rojo pulsando).
+- **Textos en dos capas** (palabra chica blanca + clave grande amarilla `#FFD23F`), entradas con desenfoque de movimiento, algunos en perspectiva.
+- **Brasas suaves subiendo** de fondo todo el video y **un cambio cada 1 a 2 s** (barrido, desenfoque o destello blanco).
+- **Cierre:** repaso corto de lo mostrado + frase clave + el gorila entero (nunca redibujado), con golpe de sonido.
+- **Sonido (sintético, sin derechos de autor; se genera con numpy + ffmpeg):** ritmo ~105 a 110 bpm con bajo y notas, cada cambio de escena cae en el compás; whooshes que viajan de lado a lado; golpe grave en cada número; chispas/chisporroteo en los cambios; subida de tensión y "drop" 6 a 7 dB más fuerte en el golpe principal; golpe fuerte al entrar el gorila y cola suave al final (**nunca silencio digital**). −14 LUFS, pico bajo −1 dBTP, AAC 48 kHz estéreo.
+- **Dos archivos siempre:** con sonido y sin sonido (sin pista de audio), para que Jonah ponga música desde la app de la red. Dura 15 a 20 s con el cierre.
+- **Revisión obligatoria antes de entregar:** unos 45 cuadros (inicio, cada texto, cada ícono, cada cambio, final) mirados uno por uno, sin nada cortado, encimado ni vacío, y el audio medido (`ebur128`). Compara contra el modelo: si se ve más simple, mejóralo antes de entregar.
+- **Paquetes grandes (como la entrega semanal):** si el encargo trae demasiadas piezas para hacerlas bien, avisa y entrega **menos piezas, pero a este nivel**, en lugar de entregar todas flojas. Lo que no puedas oír, dilo: Jonah debe escucharlo una vez antes de publicar.
+
 ## Estilo y formatos
 
 - Colores de la marca: carbón `#16110D`, naranja ají `#E8590C` (`#FF7020` para brillos), crema `#F7F2E7`. Títulos en Anton (mayúsculas), texto en Work Sans.

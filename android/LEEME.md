@@ -11,3 +11,7 @@ pantalla completa. Se genera con Bubblewrap a partir de `twa-manifest.json`.
 - Para una versión nueva: subir `appVersionCode` y `appVersionName`,
   regenerar el proyecto con Bubblewrap, compilar `bundleRelease` y firmar el
   .aab con la llave.
+- Bubblewrap reciente pone `androidbrowserhelper:2.7.4`, que pide minSdk 24.
+  Para no dejar fuera a Android 6, en `app/build.gradle` se fija
+  `androidbrowserhelper:2.6.2` antes de compilar (`./gradlew bundleRelease`)
+  y luego se firma el .aab con `jarsigner` (alias `my-key-alias`).

@@ -384,7 +384,7 @@ const RAW_FOODS = [
   ["Platos preparados","Pierna de cerdo al horno","-",233,27.0,2.0,13.0,0.0],
   ["Postres","Panetón con chispas de chocolate","-",378,7.0,56.0,14.0,2.0],
   ["Bebidas","Vino espumante (champán)","-",76,0.2,4.5,0.0,0.0],
-  /* --- Carta PECAFIT (restaurante aliado) --- */
+  /* --- Carta PECAFIT (receta propia del restaurante, macros validados; ya no es aliado) --- */
   /* Valores por 100g, recalculados desde "Resumen de Macros Validados — Carta Pecafit"
      (correcciones: filete de pollo en sandwich y bowl andino, stevia en gotas para waffles,
      y 3 recetas nuevas). Peso de porción real en WEIGHT_TABLE más abajo. */
@@ -693,7 +693,7 @@ const UNITS_BY_NAME = {
   'Pieza de pollo Crujiente (KFC)': [['presa', 113]],
   'Alitas picantes (KFC)': [['unidad', 28], ['porción (2 unidades)', 56]],
   'Twister (KFC)': [['unidad', 235]],
-  /* --- Carta PECAFIT (restaurante aliado) --- */
+  /* --- Carta PECAFIT (receta propia del restaurante, macros validados; ya no es aliado) --- */
   'Sandwich de pollo (PECAFIT)': [['unidad', 220]],
   'Sandwich de atún (PECAFIT)': [['unidad', 230]],
   'Omelette (PECAFIT)': [['plato', 220]],

@@ -343,7 +343,7 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
   - La comida de **AHORA** sin nada registrado y las que todavía no llegan se ven completas, con su **+**. Si quedó un alimento por buscar, la comida se queda abierta hasta que lo elijas.
   - Al entrar a Comidas, si la comida de AHORA quedó más abajo, la pantalla baja sola hasta ella.
 - **Cada alimento** muestra su nombre, sus kcal y los botones **−** cantidad **+**. Si la pantalla es angosta o tienes la letra grande, los botones pasan debajo del nombre para que el nombre se lea entero.
-- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Beast qué puedes comer"** (debajo: "💬 ¿Estás fuera de casa? Cuéntale a Beast", que abre su chat con "Estoy fuera de casa, en " ya escrito) y **"RESTAURANTES ALIADOS"**.
+- Debajo de las comidas: **"💧 AGUA"** (ver 8.9). Más abajo: **"TOTAL DEL DÍA VS. OBJETIVO"**, **"NUNCA ME SUGIERAS ESTO"**, **"🦍 Pregúntale a Beast qué puedes comer"** (debajo: "💬 ¿Estás fuera de casa? Cuéntale a Beast", que abre su chat con "Estoy fuera de casa, en " ya escrito).
 - **Tira de días (arriba):** **"Hoy"** y los 6 días anteriores, cada uno con su número; un puntito verde marca los días que tienen comidas registradas. Toca un día anterior para **ver y corregir lo que comiste ese día** (por ejemplo, si olvidaste anotar la cena de ayer): sale "Estás viendo ayer / el lunes 29. Lo que agregues o cambies se guarda en ese día." con el botón **"Volver a hoy"**. En un día anterior se registra igual que hoy (foto, escribir, código, voz, atajos) y todas las comidas se ven abiertas; se guarda solo. Tu peso de ese día no cambia.
 - **El día se reinicia solo:** al abrir la app en un día nuevo, lo de ayer queda en el historial.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
@@ -450,10 +450,8 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
   - Si cambia una comida o el menú de un día, la lista de compras se actualiza sola.
 - **Es Premium.** En la versión gratis ve solo su **desayuno** de hoy; las demás comidas salen borrosas con **"Tu menú completo del día es Premium"** y "VER PREMIUM", y las pestañas "Semana" y "Compras" muestran "Tu menú de la semana es Premium" / "Tu lista de compras es Premium".
 
-**G) Restaurantes aliados**
-1. Toca **"RESTAURANTES ALIADOS"** (hoy: **PECAFIT**).
-2. Elige la comida y toca el plato → "✅ [plato] agregado a [comida]".
-- Estos platos **no salen en el buscador normal**, solo desde esta tarjeta.
+**G) Platos de PECAFIT**
+- PECAFIT ya no es restaurante aliado (desde el 12 de octubre ya no hay tarjeta "RESTAURANTES ALIADOS"). Sus platos siguen en la app con **"(PECAFIT)"** en el nombre (ej. "Quinua chaufa (PECAFIT)") y se buscan como cualquier alimento en "Escribir". Su receta tiene macros propios validados, así que no es lo mismo que la quinua chaufa de otro lugar: si comió en PECAFIT, que elija el que dice "(PECAFIT)". Se registran por plato (1 bowl, 1 sandwich…).
 
 ### 8.2.0 Bebidas: en vaso o en ml
 
@@ -542,7 +540,7 @@ Toca el botón naranja **"REGISTRAR"** (o el **+** de una comida). Se abre la ho
 
 ## 9. Captura inteligente: fotos de comida
 
-**Platos de PECAFIT:** si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, la foto registra el plato de PECAFIT completo, por plato (ej. "1 bowl" de "Bowl andino (PECAFIT)"): sus calorías son las del plato servido, sin calcular gramos. Si no se ve la marca, lo registra por partes (quinua, pollo, verduras…), como cualquier plato. Lo más exacto para PECAFIT es la tarjeta "RESTAURANTES ALIADOS" (8.2 G).
+**Platos de PECAFIT:** si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, la foto registra el plato de PECAFIT completo, por plato (ej. "1 bowl" de "Bowl andino (PECAFIT)"): sus calorías son las del plato servido, sin calcular gramos. Si no se ve la marca, lo registra por partes (quinua, pollo, verduras…), como cualquier plato. Lo más exacto para PECAFIT es buscar el plato con "(PECAFIT)" en "Escribir" (8.2 G).
 
 **Foto de la tabla nutricional de un producto:** si con la cámara de comida le tomas foto a la **tabla nutricional** (información nutricional) de un producto empacado, la app se da cuenta y **lee sus números** igual que en "Código" (8.2): se abre la ventana "📋 TABLA NUTRICIONAL" con "✓ Leímos la etiqueta.", el nombre y la marca para revisar (escríbelos si no salieron), sus valores por 100 g y la porción de la etiqueta. Tocas **"Guardar producto"**, eliges cuánto comiste ("porción" o "gramos") y **"Agregar a [comida]"**. El producto queda guardado para ti y para todos (grupo "Productos"). Debajo de "Agregar" sale **"📦 ¿Tiene código de barras? Escanéalo"** (opcional): al escanearlo, el código queda unido al producto ("✅ Código unido…") y quien lo escanee después lo encuentra al toque. Si alguien escanea en "Código" un producto que ya se guardó así (mismo nombre y marca), no se repite: se le une el código. Esa foto **no gasta tus fotos de comida** (usa el límite de 5 etiquetas por día) y **leerla es Premium**: en la versión gratis sale "📋 Es la tabla nutricional de un producto." con "Leer la tabla nutricional con foto es Premium" y "Buscarlo escribiendo". Si la tabla no se leía, sale el motivo y **"Tomar otra foto a la tabla"**.
 

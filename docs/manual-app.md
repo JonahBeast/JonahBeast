@@ -114,7 +114,7 @@ Errores: "Pon tu edad (entre 14 y 90 años)." · "Pon tu estatura en centímetro
 - Quien se registra con el código **RETO** (Reto Beast, 12.1) tiene 15 días de Premium.
 - Quien escribió en la calculadora un código de live con premio (2.1) suma esos días a su prueba al entrar por primera vez.
 
-Errores del registro y qué hacer (cada error sale **debajo de la casilla que hay que corregir**, marcada en rojo; abajo, junto al botón, dice "Revisa lo marcado en rojo arriba ☝️"):
+Errores del registro y qué hacer (cada error sale **debajo de la casilla que hay que corregir**, marcada en rojo, y **el cursor salta solo a esa casilla** para escribir ahí; abajo, junto al botón, dice "Revisa lo marcado en rojo arriba ☝️"). Si el celular o Instagram/Facebook llenaron solos el correo, la contraseña o el WhatsApp (autocompletar), la app los toma igual: ya no pide "Escribe tu correo" cuando el correo se ve escrito. Lo mismo al entrar con correo y contraseña y al pedir el código para cambiar la contraseña:
 
 | Mensaje | Qué hacer |
 |---|---|

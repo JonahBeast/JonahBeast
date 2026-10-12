@@ -44,6 +44,7 @@ Cuando el video lo graba Jonah y después lo edita el `especialista-video`, entr
 
 ## Reglas
 
+- **Marca universal, mensaje del país:** la marca es "Jonah Beast Fuel · Comida a comida" en todas partes; lo de la comida peruana va aparte (descripción, texto o anuncio), nunca pegado al nombre, al logo ni a la frase de marca (Jonah, 12 de octubre: algún día quizás otros países).
 - Cumple las reglas de Meta y TikTok para salud y peso: nada de antes/después, nada de cifras de kilos prometidas, nada que haga sentir mal a alguien por su cuerpo. Si usas voz o imagen hecha con IA, recuerda marcar "contenido generado por IA".
 - No uses casos de alumnos sin que Jonah lo apruebe. No uses los pesos de Jimena ni de Irvin (parecen errores). Si usas un nombre, solo con permiso.
 - **No publicas nada.** Entregas el texto listo y Jonah lo publica o lo manda.

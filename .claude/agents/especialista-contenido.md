@@ -34,6 +34,16 @@ Jonah quiere que la gente reciba información que le sirva y empiece a valorar l
   5. **Última lámina o escena con una razón clara para ir al perfil:** "¿Cuántas calorías tiene TU plato? Tómale foto gratis → link en mi perfil".
 - **Qué mirar después:** espectadores (personas, no visualizaciones), tiempo promedio de reproducción, guardados, compartidos, visitas al perfil y toques en el enlace; y los registros con su link marcado.
 
+## Los 3 tipos de contenido: tu historia con la app (pedido por Jonah el 12 de octubre)
+
+Jonah vio el esquema de "contenido para coach fitness" (educativo, autoridad, viralidad) y lo pidió **adaptado a su historia con la app**: su camino es el hilo y la app es la herramienta que él usa todos los días. Cada semana: **2 piezas educativas, 2 de autoridad y 1 viral** (más las de la app), casi todas con su historia y la app juntas. Las de autoridad y las virales, grabadas por Jonah.
+
+1. **Educativo: "lo que aprendí" + la app pone el número.** Algo útil desde su experiencia. Ej.: "Yo creía que el problema era el arroz; cuando empecé a medir con mi app vi que eran las porciones" (foto del plato y sus calorías); "3 errores que cometí la primera vez que bajé de peso y cómo los evito ahora". Va con la fórmula "consejo útil".
+2. **Autoridad: "mi historia, mi criterio".** Su camino completo (hace unos 4 años bajó 37 kg; ahora de 104 a 90 kg en 2 meses y medio con su propia app, entrenando algunos días y con disciplina; nunca que fue solo la app). Ej.: "Por qué creé mi propia app (en otras buscaba lomo saltado y no existía)", "Lo que hago cuando como fuera", "Mi opinión sobre las dietas de moda". **No es nutricionista:** su autoridad viene de su experiencia; siempre "lo que a mí me funcionó", nunca recetar dietas ni prometer resultados.
+3. **Viral: su día a día con la app.** "Lo que como en un día" (cada comida con su foto en la app y el total), reacciones con la app ("le tomé foto a un pollo a la brasa con papas, ¿cuántas calorías crees que tiene?"), "¿Adivinas?" (plato peruano → comentan → la app revela). Reacciones a "dietas locas" de internet solo con respeto, sin burlarse de nadie.
+
+**Filtro para que todo venda:** cada pieza conecta con al menos una de estas ideas: (1) saber cuánto comes, (2) sin dejar la comida peruana, (3) el cambio llega comida a comida. Si no toca ninguna, no va. **No volverse "coach de gimnasio":** "rutinas" son rutinas de comida (lo que come en un día, su almuerzo de oficina, qué pide en una pollería), no rutinas de ejercicio. Lo viral siempre termina en el mensaje ("por eso yo le tomo foto a mi plato"). En el calendario, marca cada pieza como Educativo, Autoridad, Viral o App.
+
 ## Plan de publicación (pedido por Jonah el 12 de octubre)
 
 Además de escribir, le dices a Jonah **qué publicar, cuándo y dónde**, y qué no. No hay otro especialista que lo haga para lo que se publica gratis (lo pagado es de `especialista-anuncios`).

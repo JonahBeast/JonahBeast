@@ -232,6 +232,13 @@ const RAW_FOODS = [
   ["Platos preparados","Pollo a la brasa (solo la presa)","-",215,25.0,0.5,12.5,0.0],
   ["Platos preparados","Pollo a la brasa con papas y ensalada","-",232,14.5,17.0,12.0,1.6],
   ["Platos preparados","Pollada (pollo frito)","-",250,22.0,10.0,14.0,0.8],
+  // Pollada y pollo a la brasa por corte (pedido de Jonah, 12 de octubre):
+  // en Perú se pide cuarto u octavo, pierna o pecho. Sin arroz ni papas
+  // (van aparte). Los de arriba quedan solo para lo ya anotado.
+  ["Platos preparados","Pollada pierna","-",260,20.0,10.0,15.5,0.8],
+  ["Platos preparados","Pollada pecho","-",240,25.0,10.0,11.0,0.8],
+  ["Platos preparados","Pollo a la brasa pierna (solo la presa)","-",230,23.0,0.5,15.0,0.0],
+  ["Platos preparados","Pollo a la brasa pecho (solo la presa)","-",200,28.0,0.5,9.5,0.0],
   ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
@@ -415,6 +422,14 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 
 const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
+// Alimentos que ya no se ofrecen (ni en el buscador ni en la foto) porque
+// se reemplazaron por versiones más precisas, pero siguen existiendo para
+// que lo que los alumnos ya anotaron con ellos no cambie.
+const ALIMENTOS_RETIRADOS = new Set([
+  'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
+  'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
+]);
+
 /* Alimentos que Jonah agrega desde el panel (tabla alimentos_extra, ver
    "Pedidos de alimentos"). Se suman a FOODS al abrir la app, sin publicar
    una versión nueva. Las pantallas que los muestran se enteran con
@@ -551,6 +566,11 @@ const UNITS_BY_NAME = {
   // Pollada y pollo frito se sirven en cuarto u octavo de pollo (carne sin
   // hueso, aprox.). La foto elige cuál según los gramos que calcula la IA.
   'Pollada (pollo frito)': [['cuarto de pollo', 220], ['octavo de pollo', 110]],
+  // Carne sin hueso de cada corte: el cuarto pierna es más chico que el pecho.
+  'Pollada pierna': [['cuarto de pollo', 210], ['octavo de pollo', 105]],
+  'Pollada pecho': [['cuarto de pollo', 240], ['octavo de pollo', 120]],
+  'Pollo a la brasa pierna (solo la presa)': [['cuarto de pollo', 230], ['octavo de pollo', 115]],
+  'Pollo a la brasa pecho (solo la presa)': [['cuarto de pollo', 270], ['octavo de pollo', 135]],
   'Chicharrón de pollo': [['porción', 200]],
   'Filete de pollo frito': [['filete', 150]],
   'Humita': [['unidad', 150]],
@@ -5858,7 +5878,7 @@ const ESTILOS_ESCANER = `
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
   if (unit === 'ml') return 50;
-  if (UNIDADES_DISCRETAS.includes(unit)) return 1;
+  if (UNIDADES_DISCRETAS.includes(unit) || unit === 'cuarto de pollo' || unit === 'octavo de pollo') return 1;
   return 0.5;
 }
 
@@ -6672,6 +6692,7 @@ export default function App() {
 }
 
 export {
+  ALIMENTOS_RETIRADOS,
   registrarPasoPago,
   leerPlatoDemo,
   borrarPlatoDemo,

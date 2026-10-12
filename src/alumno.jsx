@@ -6,6 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
 import {
+  ALIMENTOS_RETIRADOS,
   registrarPasoPago,
   leerPlatoDemo,
   borrarPlatoDemo,
@@ -188,12 +189,13 @@ function raizPalabra(w) {
 }
 function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
-  if (!q) return lista.slice(0, limite);
+  if (!q) return lista.filter(f => !ALIMENTOS_RETIRADOS.has(f.key)).slice(0, limite);
   const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
   if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
   const palabras = alternativas[0];
   const conPuntaje = [];
   for (const f of lista) {
+    if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
     let objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
     if (objetivo.includes('keke')) objetivo += ' queque';
     else if (objetivo.includes('queque')) objetivo += ' keke';
@@ -7316,7 +7318,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // Los propios del alumno van aparte: la lista común es igual para
       // todos y el servidor la deja en caché (cada foto sale más barata).
       const liviano = a => ({ key: a.key, name: a.name });
-      const lista = todosLosAlimentos.filter(a => !a.esProducto);
+      const lista = todosLosAlimentos.filter(a => !a.esProducto && !ALIMENTOS_RETIRADOS.has(a.key));
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
         body: {
           username, imagenBase64: base64, mimeType,
@@ -8683,6 +8685,11 @@ const fraccion = q => ({ 0.5: '½', 1.5: '1½', 2.5: '2½' }[q] || String(q));
 function opcionesCantidad(food, unidad) {
   const d = unidadPorDefecto(food);
   const unit = unidad || d.unit;
+  // Pollada y pollo a la brasa: se pide cuarto u octavo de pollo, nunca
+  // "½ cuarto".
+  if (!unidad && unitsFor(food).some(u => u[0] === 'octavo de pollo') && unitsFor(food).some(u => u[0] === 'cuarto de pollo')) {
+    return [{ unit: 'cuarto de pollo', qty: 1 }, { unit: 'octavo de pollo', qty: 1 }];
+  }
   if (unit === 'gramos') {
     const base = d.unit === 'gramos' ? d.qty : 100;
     return MULTIPLOS_MEDIDA.map(m => ({ unit, qty: Math.max(5, Math.round((base * m) / 5) * 5) }));

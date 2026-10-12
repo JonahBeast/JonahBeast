@@ -2827,7 +2827,7 @@ function Landing({ onChoose }) {
                 style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
           ))}
-          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
+          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.85) 0%, rgba(22,17,13,.45) 12%, rgba(22,17,13,0) 24%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
           <div className="absolute inset-x-0 bottom-0 h-48 hidden lg:block" style={{ background: 'linear-gradient(to top, rgba(22,17,13,.9), transparent)' }} />
           <div className="absolute left-6 bottom-6 hidden lg:block">{logro}</div>
           <div className="absolute right-5 top-5 hidden lg:flex gap-1.5" aria-hidden="true">
@@ -2840,8 +2840,8 @@ function Landing({ onChoose }) {
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
             <div className="leading-none">
-              <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
-              <div className="jb-body text-[9px] tracking-[0.25em] uppercase text-orange-400 mt-0.5">Comida a comida</div>
+              <span className="jb-display text-lg text-zinc-50 tracking-wide" style={{ textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[10px] font-semibold tracking-[0.25em] uppercase text-orange-400 mt-0.5" style={{ textShadow: '0 1px 5px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9)' }}>Comida a comida</div>
             </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">
@@ -3653,14 +3653,14 @@ function Bienvenida({ onEmpezar, onEntrar }) {
               style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
           </div>
         ))}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 34%, rgba(22,17,13,.9) 62%, #16110D 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.85) 0%, rgba(22,17,13,.45) 12%, rgba(22,17,13,0) 24%, rgba(22,17,13,0) 34%, rgba(22,17,13,.9) 62%, #16110D 100%)' }} />
 
         <div className="jbb-a absolute left-5 right-5 flex items-center justify-between" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
             <div className="leading-none">
-              <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
-              <div className="jb-body text-[9px] tracking-[0.25em] uppercase text-orange-400 mt-0.5">Comida a comida</div>
+              <span className="jb-display text-lg text-zinc-50 tracking-wide" style={{ textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[10px] font-semibold tracking-[0.25em] uppercase text-orange-400 mt-0.5" style={{ textShadow: '0 1px 5px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9)' }}>Comida a comida</div>
             </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">

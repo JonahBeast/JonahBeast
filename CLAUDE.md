@@ -12,6 +12,11 @@
 - Cuando hagas una mejora, **busca todos los lugares de la app donde pasa lo mismo y propónmelos juntos en el mismo cambio**, para que la experiencia del alumno quede pareja (ej. si el peso pasa a regla deslizable, que sea en todas las pantallas donde se pone el peso).
 - **Los detalles importan: queremos dar la mejor experiencia.** Antes de dar un cambio por terminado, recórrelo como lo haría el alumno, de principio a fin: qué ve justo después de tocar cada botón, si queda claro que se guardó, si la pantalla lo lleva a lo que acaba de hacer, si algo queda abierto o desordenado, y si todas las formas de hacer lo mismo (foto, código, escribir, voz, atajos…) se comportan igual. Si encuentras un detalle así, arréglalo en el mismo cambio o propónmelo.
 
+## App de Android (Google Play)
+
+- **Mientras la app esté en prueba cerrada, cada semana con mejoras se sube una versión nueva a Google Play** (subir `appVersionCode` y `appVersionName` en `android/twa-manifest.json`), con notas de novedades que digan qué se mejoró gracias a los verificadores. Aunque la app de Play Store muestra jonahbeast.com y los cambios se ven solos, Google solo cuenta las versiones subidas a la prueba (lo pidió al rechazar el acceso a producción el 11 de octubre). Claude avisa a Jonah cuándo toca, compila el `.aab` y lo firma con la llave del Drive (con su permiso cada vez); Jonah lo sube. Pasos en `android/LEEME.md`.
+- Antes de entregar una versión, revisar los requisitos actuales de Google Play (por ejemplo, la versión mínima de Android que exige).
+
 ## Base de datos y Supabase (proyecto `jnhvpjrxilubkyhculoh`)
 
 - **Nunca borres ni modifiques datos de alumnos, pagos o cuentas sin preguntarme antes**, y dime exactamente qué filas vas a tocar.

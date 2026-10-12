@@ -4013,6 +4013,8 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
   const [verCambio, setVerCambio] = useState(false);
   const [compartiendo, setCompartiendo] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // Si hay antes y después de varios ángulos, el alumno elige cuál comparte.
+  const [elegirFoto, setElegirFoto] = useState(false);
 
   useEffect(() => { cargar(); }, [username]);
 
@@ -4064,17 +4066,30 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
     setSubiendo(null);
   }
 
-  // Imagen de antes y después (primera foto vs. última del mismo ángulo)
+  // Pares de antes y después (primera fecha vs. última) de cada ángulo.
+  function paresCambio() {
+    if (porFecha.length < 2) return [];
+    const primeras = porFecha[porFecha.length - 1][1], ultimas = porFecha[0][1];
+    return ANGULOS.map(a => ({ ...a, antes: primeras.find(f => f.angulo === a.id), despues: ultimas.find(f => f.angulo === a.id) }))
+      .filter(p => p.antes && p.despues && p.antes.id !== p.despues.id);
+  }
+
+  // Con un solo ángulo se comparte directo; con varios, el alumno elige.
+  function tocarCompartirCambio() {
+    const pares = paresCambio();
+    if (pares.length > 1) setElegirFoto(true);
+    else if (pares.length === 1) compartirCambio(pares[0]);
+  }
+
+  // Imagen de antes y después (primera foto vs. última del ángulo elegido)
   // para compartir en historias, con su código de invitación.
-  async function compartirCambio() {
-    if (porFecha.length < 2) return;
+  async function compartirCambio(par) {
+    setElegirFoto(false);
+    if (!par) return;
     setCompartiendo(true); setErr('');
     copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
-      const primeras = porFecha[porFecha.length - 1][1], ultimas = porFecha[0][1];
-      const ang = ANGULOS.find(a => primeras.some(f => f.angulo === a.id) && ultimas.some(f => f.angulo === a.id));
-      if (!ang) throw new Error('sin par');
-      const fa = primeras.find(f => f.angulo === ang.id), fd = ultimas.find(f => f.angulo === ang.id);
+      const fa = par.antes, fd = par.despues;
       const datos = [];
       const kg = cambioEntreFotos(fa, fd, objetivo);
       if (kg) datos.push(kg);
@@ -4253,7 +4268,7 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
       {comparar && porFecha.length > 1 ? (
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-5">
           <h2 className="jb-display text-base text-zinc-200 mb-4">TU CAMBIO</h2>
-          <button onClick={compartirCambio} disabled={compartiendo} className={btnPrimary + ' w-full py-3 mb-2'}>
+          <button onClick={tocarCompartirCambio} disabled={compartiendo} className={btnPrimary + ' w-full py-3 mb-2'}>
             {compartiendo ? <Loader2 className="animate-spin" size={18} /> : '📲 Compartir mi antes y después'}
           </button>
           {linkCopiado && <AvisoLinkCopiado />}
@@ -4266,7 +4281,7 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
               <div key={a.id} className="mb-5">
                 <h3 className="jb-display text-xs text-orange-500 mb-2">{a.label.toUpperCase()}</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  {[[primera, 'ANTES', 'bg-zinc-700'], [ultima, 'AHORA', 'bg-emerald-500']].map(([f, etiqueta, color]) => (
+                  {[[primera, 'ANTES', 'bg-zinc-300'], [ultima, 'AHORA', 'bg-emerald-500']].map(([f, etiqueta, color]) => (
                     <div key={f.id} className="relative">
                       {urls[f.ruta] && (
                         <img src={urls[f.ruta]} alt={etiqueta} onClick={() => setVerGrande(urls[f.ruta])}
@@ -4325,6 +4340,12 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
             </div>
           </div>
         ))
+      )}
+
+      {elegirFoto && (
+        <ElegirFotoCompartir
+          opciones={paresCambio().map(p => ({ ...p, urlAntes: urls[p.antes.ruta], urlDespues: urls[p.despues.ruta] }))}
+          onElegir={compartirCambio} onCerrar={() => setElegirFoto(false)} />
       )}
 
       {verGrande && (
@@ -4772,14 +4793,87 @@ async function generarTarjeta({ nombre, datos, fotoAntes, fotoDespues, fechaAnte
   });
 }
 
+// Hoja para elegir qué antes y después va en la imagen para compartir
+// (de frente, de perfil, de espalda o la libre), en vez de que la app
+// ponga siempre la primera. Con "conSinFotos" también puede compartir solo
+// sus números.
+function ElegirFotoCompartir({ opciones, conSinFotos = false, onElegir, onCerrar }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl max-h-[88vh] overflow-y-auto px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        <p className="jb-display text-lg text-zinc-100">¿QUÉ FOTO QUIERES COMPARTIR?</p>
+        <p className="jb-body text-xs text-zinc-500 mb-4">Elige el antes y después que más te guste. Solo sale en la imagen que tú compartes.</p>
+        <div className="flex flex-col gap-2">
+          {opciones.map(o => (
+            <button key={o.id} onClick={() => onElegir(o)}
+              className="flex items-center gap-3 w-full text-left bg-zinc-950 border border-zinc-800 hover:border-orange-500 rounded-2xl p-2.5 transition-colors">
+              {[[o.urlAntes, 'ANTES', 'bg-zinc-300'], [o.urlDespues, 'AHORA', 'bg-emerald-500']].map(([u, etiqueta, color]) => (
+                <div key={etiqueta} className="relative w-14 shrink-0">
+                  {u ? <img src={u} alt={etiqueta} className="w-14 aspect-[3/4] object-cover rounded-lg" />
+                    : <div className="w-14 aspect-[3/4] rounded-lg bg-zinc-800" />}
+                  <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 jb-display text-[8px] px-1.5 py-0.5 rounded-full text-zinc-950 ${color}`}>{etiqueta}</span>
+                </div>
+              ))}
+              <div className="min-w-0 flex-1">
+                <p className="jb-body text-sm text-zinc-100 font-semibold">{o.emoji} {o.label}</p>
+                <p className="jb-body text-[11px] text-zinc-500">{fechaCorta(o.antes.fecha)} → {fechaCorta(o.despues.fecha)}</p>
+              </div>
+              <ChevronRight size={18} className="text-orange-400 shrink-0" />
+            </button>
+          ))}
+          {conSinFotos && (
+            <button onClick={() => onElegir(null)}
+              className="w-full text-left bg-zinc-950 border border-zinc-800 hover:border-orange-500 rounded-2xl px-4 py-3 jb-body text-sm text-zinc-300 transition-colors">
+              📊 Sin fotos <span className="text-zinc-500 text-xs">· solo mis números</span>
+            </button>
+          )}
+        </div>
+        <button onClick={onCerrar} className="w-full jb-body text-sm text-zinc-500 hover:text-zinc-300 py-3 mt-1">Ahora no</button>
+      </div>
+    </div>
+  );
+}
+
 function BotonCompartir({ username, nombre, rows, stats, form }) {
   const [generando, setGenerando] = useState(false);
   const [err, setErr] = useState('');
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // Antes y después que puede poner en la tarjeta (uno por ángulo): si
+  // tiene alguno, elige cuál o "sin fotos" antes de armarla.
+  const [opcionesFoto, setOpcionesFoto] = useState(null);
 
   const hayDatos = rows && rows.length >= 2;
 
-  async function compartir() {
+  async function tocar() {
+    setErr(''); setGenerando(true);
+    let pares = [];
+    try {
+      const { data: fotos } = await supabase.from('fotos_progreso')
+        .select('*').eq('username', username).order('fecha', { ascending: true }).limit(600);
+      pares = ANGULOS.map(ang => {
+        const delAngulo = (fotos || []).filter(f => f.angulo === ang.id);
+        const a = delAngulo[0], b = delAngulo[delAngulo.length - 1];
+        return a && b && a.fecha !== b.fecha ? { ...ang, antes: a, despues: b } : null;
+      }).filter(Boolean);
+      if (pares.length) {
+        const { data: signed } = await supabase.storage.from('fotos-progreso')
+          .createSignedUrls(pares.flatMap(p => [p.antes.ruta, p.despues.ruta]), 600);
+        const url = {};
+        (signed || []).forEach(x => { if (x.signedUrl) url[x.path] = x.signedUrl; });
+        pares = pares.map(p => ({ ...p, urlAntes: url[p.antes.ruta], urlDespues: url[p.despues.ruta] }))
+          .filter(p => p.urlAntes && p.urlDespues);
+      }
+    } catch { pares = []; }
+    if (pares.length) { setGenerando(false); setOpcionesFoto(pares); }
+    else compartir(null);
+  }
+
+  async function compartir(par) {
+    setOpcionesFoto(null);
     setErr(''); setGenerando(true);
     copiarLinkInvitacion().then(ok => { if (ok) setLinkCopiado(true); });
     try {
@@ -4789,27 +4883,12 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
       const pesos = historialDePeso(form || {}, rows);
       const datos = [];
 
-      // Fotos: primera y última del mismo ángulo (de frente, si hay). Si
-      // las dos tienen su peso, el cambio de peso sale de ellas: es el
-      // "antes" real (puede ser de antes de usar la app).
-      let fotoAntes = null, fotoDespues = null, kgFotos = null, fechaAntes = null, fechaDespues = null;
-      try {
-        const { data: fotos } = await supabase.from('fotos_progreso')
-          .select('*').eq('username', username).order('fecha', { ascending: true }).limit(600);
-        for (const ang of ['frente', 'perfil', 'espalda', 'relajado']) {
-          const delAngulo = (fotos || []).filter(f => f.angulo === ang);
-          if (delAngulo.length >= 2 && delAngulo[0].fecha !== delAngulo[delAngulo.length - 1].fecha) {
-            const a = delAngulo[0], b = delAngulo[delAngulo.length - 1];
-            const { data: signed } = await supabase.storage.from('fotos-progreso').createSignedUrls([a.ruta, b.ruta], 600);
-            if (signed && signed.length === 2) {
-              fotoAntes = signed[0].signedUrl; fotoDespues = signed[1].signedUrl;
-              fechaAntes = a.fecha; fechaDespues = b.fecha;
-              kgFotos = cambioEntreFotos(a, b, form?.objetivo || '');
-            }
-            break;
-          }
-        }
-      } catch {}
+      // Fotos: primera y última del ángulo que eligió. Si las dos tienen
+      // su peso, el cambio de peso sale de ellas: es el "antes" real
+      // (puede ser de antes de usar la app).
+      const fotoAntes = par?.urlAntes || null, fotoDespues = par?.urlDespues || null;
+      const fechaAntes = par?.antes.fecha || null, fechaDespues = par?.despues.fecha || null;
+      const kgFotos = par ? cambioEntreFotos(par.antes, par.despues, form?.objetivo || '') : null;
 
       // Kilos: de las fotos si las dos tienen su peso; si no, de sus
       // pesajes en la app (y la etiqueta lo dice, para que no se confunda
@@ -4893,9 +4972,13 @@ function BotonCompartir({ username, nombre, rows, stats, form }) {
 
   return (
     <div>
-      <button onClick={compartir} disabled={generando} className={btnPrimary + ' w-full py-3'}>
+      <button onClick={tocar} disabled={generando} className={btnPrimary + ' w-full py-3'}>
         {generando ? <Loader2 className="animate-spin" size={18} /> : <>📤 Compartir mi progreso</>}
       </button>
+      {opcionesFoto && (
+        <ElegirFotoCompartir opciones={opcionesFoto} conSinFotos
+          onElegir={compartir} onCerrar={() => setOpcionesFoto(null)} />
+      )}
       {err && <p className="text-amber-400 text-xs jb-body mt-2 text-center">{err}</p>}
       {linkCopiado && <AvisoLinkCopiado />}
       <p className="jb-body text-[11px] text-zinc-600 mt-2 text-center">

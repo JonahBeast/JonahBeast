@@ -2839,7 +2839,10 @@ function Landing({ onChoose }) {
         <div className="jbb-a absolute left-5 right-5 flex items-center justify-between lg:hidden" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
-            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+            <div className="leading-none">
+              <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[9px] tracking-[0.25em] uppercase text-orange-400 mt-0.5">Comida a comida</div>
+            </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">
             {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
@@ -2853,7 +2856,7 @@ function Landing({ onChoose }) {
             <img src="/logo-marca.webp" alt="" className="w-12" />
             <div>
               <div className="jb-display text-2xl text-zinc-50 tracking-wide leading-none">JONAH BEAST <span className="text-orange-400">FUEL</span></div>
-              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-zinc-400 mt-1">App de nutrición y pérdida de grasa</div>
+              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-orange-400 mt-1">Comida a comida</div>
             </div>
           </div>
           <div className="lg:hidden">{logro}</div>
@@ -3655,7 +3658,10 @@ function Bienvenida({ onEmpezar, onEntrar }) {
         <div className="jbb-a absolute left-5 right-5 flex items-center justify-between" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
-            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+            <div className="leading-none">
+              <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[9px] tracking-[0.25em] uppercase text-orange-400 mt-0.5">Comida a comida</div>
+            </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">
             {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === idx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}

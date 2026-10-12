@@ -51,6 +51,7 @@ La dirección oficial es **jonahbeast.com** (sin "www"): si alguien entra con "w
 La portada web se ve igual que la bienvenida de la app instalada:
 
 - **Al abrirla**, sale el logo animado (el gorila, "JONAH BEAST FUEL", una línea naranja y "NO ES QUÉ COMES. ES CUÁNTO."). Dura poco más de un segundo, solo sale la primera vez en esa visita y se salta tocando la pantalla.
+- **Arriba**, el gorila con "JONAH BEAST **FUEL**" y debajo, en naranja, **"COMIDA A COMIDA"** (en celular arriba a la izquierda, sobre la foto; en computadora, encima del título). La pestaña del navegador dice "Jonah Beast Fuel · Comida a comida".
 - **Primera pantalla**, a pantalla completa: la foto de Jonah ("−37 KG · Jonah · en 3 años y 8 meses") que se alterna con la de Andrea ("6 MESES · Andrea · de cambio visible"), con **"TU CAMBIO EMPIEZA AQUÍ"**, "Tu plan con comida peruana, justo para tu meta." y tres fotos pequeñas con "Hombres y mujeres reales ya empezaron su cambio". En computadora, la foto va a la izquierda y el texto a la derecha.
   - Botón principal **"EMPEZAR AHORA"** → recorrido de 6 pasos antes del registro (ver 3). Debajo dice "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
   - **"📸 Pruébala con tu plato"**: prueba sin registrarse (ver abajo).

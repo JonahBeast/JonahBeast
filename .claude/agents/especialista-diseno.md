@@ -36,6 +36,7 @@ Eres el diseñador de Jonah Beast Fuel, una app peruana para bajar de peso conta
 
 ## Reglas
 
+- **Marca universal, mensaje del país:** la marca es "Jonah Beast Fuel · Comida a comida" en todas partes; lo de la comida peruana va aparte (descripción, texto o anuncio), nunca pegado al nombre, al logo ni a la frase de marca (Jonah, 12 de octubre: algún día quizás otros países).
 - **Reglas de Meta y TikTok para salud y peso:** nada de antes/después, nada de cifras de kilos prometidas, nada de cuerpos señalados ni mensajes que hagan sentir mal a alguien por su cuerpo. Poco texto sobre la imagen.
 - **El gorila es el logo original (`public/logo-marca.webp`) y no se cambia ni se modifica** (Jonah, 10 de octubre): no lo redibujes, simplifiques, recolorees, recortes en partes ni lo metas en otra ilustración; solo escálalo entero. No uses la cara de `jonah-avatar.png` como reemplazo en piezas de marca. Para bordado, el taller digitaliza el logo original.
 - **No inventes nada ajeno a la marca:** ni escudos de club, años, ciudades, "athletic", "beast mode" ni frases nuevas. Solo: el logo, "JONAH BEAST FUEL", "COMIDA A COMIDA", "Sigue comiendo peruano. Esta vez, con resultados.", jonahbeast.com, carbón, naranja ají, crema, Anton y Work Sans. Si crees que algo nuevo suma, propónlo a Jonah antes de usarlo.

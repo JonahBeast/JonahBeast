@@ -5808,9 +5808,15 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
   if (unit === 'ml') return `${Math.round(qty)} ml`;
-  if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
+  // Piezas en cuartos y medios ("¼ unidad", "1½ unidades"), no "0.25".
+  let num = qty;
+  if (UNIDADES_DISCRETAS.includes(unit) && !Number.isInteger(Number(qty)) && Math.abs(qty * 4 - Math.round(qty * 4)) < 0.01) {
+    const entero = Math.floor(qty), fr = ['', '¼', '½', '¾'][Math.round((qty - entero) * 4)];
+    if (fr !== undefined) num = entero ? `${entero}${fr}` : fr;
+  }
+  if (qty <= 1 || /[\s/]/.test(unit)) return `${num} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
-  return `${qty} ${plural}`;
+  return `${num} ${plural}`;
 }
 
 
@@ -5856,8 +5862,15 @@ function pasoDeUnidad(unit) {
   return 0.5;
 }
 
-function cambiarCantidad(qty, unit, direccion) {
-  const paso = pasoDeUnidad(unit);
+// "gramosPieza": cuánto pesa 1 de esa medida. Las piezas grandes (una palta,
+// un camote) suben y bajan de a ½, y desde 150 g también de a ¼ por debajo
+// de ½ (¼ de palta en el pan).
+function cambiarCantidad(qty, unit, direccion, gramosPieza = 0) {
+  let paso = pasoDeUnidad(unit);
+  if (UNIDADES_DISCRETAS.includes(unit) && gramosPieza >= 100) {
+    const n = Number(qty) || 0;
+    paso = gramosPieza >= 150 && (direccion < 0 ? n <= 0.5 : n < 0.5) ? 0.25 : 0.5;
+  }
   const base = Math.round((Number(qty) || 0) / paso) * paso;
   const nueva = base + direccion * paso;
   return Math.max(paso, Math.round(nueva * 100) / 100);

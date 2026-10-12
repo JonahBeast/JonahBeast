@@ -1141,7 +1141,10 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
 // su selector de comida, porque la comida ya se eligió en la hoja).
 // onAgregado(meal, ids): en la hoja "Registrar", al agregar se cierra la hoja
 // y se lleva al alumno a lo que acaba de registrar.
-function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues, onAgregado }) {
+// onElegirFavorito(food): en la hoja "Registrar", tocar un favorito abre
+// "¿Cuánto comiste?" (como al buscarlo) en vez de anotarlo con la cantidad
+// por defecto: no todas las paltas pesan igual.
+function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restricciones, embebido = false, meal: mealFijo, onBuscarDespues, onAgregado, onElegirFavorito }) {
   const [open, setOpen] = useState(embebido);
   const { premium } = usePremium();
   const [modo, setModo] = useState(premium ? 'voz' : 'favoritos');
@@ -1203,7 +1206,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
             </button>
           ))}
         </div>
-        {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
+        {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={onElegirFavorito || agregarDirecta} />}
         {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} onBuscarDespues={onBuscarDespues} username={username} autoGrabar />}
       </div>
     );
@@ -1240,7 +1243,7 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
             ))}
           </div>
 
-          {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={agregarDirecta} />}
+          {modo === 'favoritos' && <ModoFavoritos favoritos={favoritos} onElegir={onElegirFavorito || agregarDirecta} />}
           {modo === 'voz' && <ModoVoz onElegirVarios={agregarVarios} username={username} />}
         </div>
       )}
@@ -8684,7 +8687,13 @@ function opcionesCantidad(food, unidad) {
     const base = d.unit === 'gramos' ? d.qty : 100;
     return MULTIPLOS_MEDIDA.map(m => ({ unit, qty: Math.max(5, Math.round((base * m) / 5) * 5) }));
   }
-  if (UNIDADES_DISCRETAS.includes(unit)) return [1, 2, 3, 4].map(qty => ({ unit, qty }));
+  if (UNIDADES_DISCRETAS.includes(unit)) {
+    // Piezas grandes (una palta ≈ 200 g, un camote): también ¼ y ½, porque
+    // casi nunca se come una entera en el pan o el plato.
+    const g = gramsPerUnit(food, unit);
+    const qs = g >= 150 ? [0.25, 0.5, 1, 2] : g >= 100 ? [0.5, 1, 1.5, 2] : [1, 2, 3, 4];
+    return qs.map(qty => ({ unit, qty }));
+  }
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));
 }
 const textoCantidad = ({ unit, qty }) => {
@@ -8693,10 +8702,14 @@ const textoCantidad = ({ unit, qty }) => {
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
-function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar, onCambiarComida }) {
+// alimentoInicial: { food, unit?, qty? } si se abrió eligiendo un favorito
+// (ej. ⭐ Favoritos del registro por voz): arranca en "¿Cuánto comiste?".
+function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, setMealPlan, onOtraForma, onCerrar, onCambiarComida, alimentoInicial = null }) {
   const [texto, setTexto] = useState('');
-  const [elegido, setElegido] = useState(null); // food
-  const [unidad, setUnidad] = useState(null);
+  const [elegido, setElegido] = useState(alimentoInicial?.food || null); // food
+  // Su cantidad de siempre (al elegir un favorito): sale primero, marcada.
+  const [deSiempre, setDeSiempre] = useState(alimentoInicial?.unit ? { unit: alimentoInicial.unit, qty: alimentoInicial.qty } : null);
+  const [unidad, setUnidad] = useState(alimentoInicial?.unit || null);
   const [aceite, setAceite] = useState('normal');
   const [otraMedida, setOtraMedida] = useState(false);
   // Cantidad exacta escrita a mano (para quien pesa su comida o sabe la medida).
@@ -8750,13 +8763,21 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
       .slice(0, 12).map(x => x.f);
   }, [texto, todosLosAlimentos, clavesFrecuentes]);
 
+  // Abre "¿Cuánto comiste?". Con "siempre" (un favorito), su cantidad de
+  // siempre sale primero y los botones van en esa misma medida.
+  function elegir(f, siempre = null) {
+    setElegido(f); setDeSiempre(siempre); setUnidad(siempre?.unit || null); setAceite('normal'); setOtraMedida(false); setExacta('');
+    setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit);
+  }
+  useEffect(() => { if (alimentoInicial?.food) setUnidadExacta(unitsFor(alimentoInicial.food).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(alimentoInicial.food).unit); }, []);
+
   function agregar(food, porcion, aceiteElegido) {
     const entry = { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty };
     if (aceiteElegido && aceiteElegido !== 'normal' && preguntaAceite(food)?.opciones.some(o => o.key === aceiteElegido)) entry.aceite = aceiteElegido;
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
-    setElegido(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto(''); setExacta('');
+    setElegido(null); setDeSiempre(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto(''); setExacta('');
     setTimeout(() => inputRef.current?.focus(), 50);
   }
   function quitar(id) {
@@ -8796,14 +8817,22 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 
         {elegido ? (
           <div className="flex flex-col gap-3">
-            <button onClick={() => setElegido(null)} className="jb-body text-sm text-zinc-400 self-start">← Elegir otro</button>
+            <button onClick={() => { setElegido(null); setDeSiempre(null); }} className="jb-body text-sm text-zinc-400 self-start">← Elegir otro</button>
             <div>
               <p className="jb-display text-2xl text-zinc-50 leading-tight">{nombreAlimento(elegido).toUpperCase()}</p>
               <NotaSinArroz food={elegido} className="!text-sm mt-1" />
               <p className="jb-body text-base text-zinc-400 mt-1">¿Cuánto comiste?</p>
             </div>
+            {deSiempre && (
+              <button onClick={() => agregar(elegido, deSiempre, aceite)}
+                className="w-full rounded-2xl border-2 border-orange-500 bg-orange-500/10 hover:bg-orange-500/20 px-3 py-3.5 text-center">
+                <span className="jb-body text-xs text-orange-300 block">⭐ Lo de siempre</span>
+                <span className="jb-display text-xl text-zinc-50 block">{textoCantidad(deSiempre)}</span>
+                <span className="jb-body text-sm text-orange-400 block mt-0.5">≈ {kcalDe(elegido, deSiempre, aceite)} kcal</span>
+              </button>
+            )}
             <div className="grid grid-cols-2 gap-2">
-              {opcionesCantidad(elegido, unidad).map(op => (
+              {opcionesCantidad(elegido, unidad).filter(op => !(deSiempre && op.unit === deSiempre.unit && op.qty === deSiempre.qty)).map(op => (
                 <button key={op.unit + op.qty} onClick={() => agregar(elegido, op, aceite)}
                   className="rounded-2xl border border-zinc-700 bg-zinc-950 hover:border-orange-500 px-3 py-4 text-center">
                   <span className="jb-display text-xl text-zinc-50 block">{textoCantidad(op)}</span>
@@ -8882,10 +8911,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 
             {!texto.trim() && frecuentes.length > 0 && (
               <div>
-                <p className="jb-body text-sm text-zinc-400 mb-1.5">⭐ Lo que comes siempre en tu {meal.toLowerCase()} (un toque y listo):</p>
+                <p className="jb-body text-sm text-zinc-400 mb-1.5">⭐ Lo que comes siempre en tu {meal.toLowerCase()} (tócalo y eliges cuánto):</p>
                 <div className="flex flex-col gap-1.5">
                   {frecuentes.map(fr => (
-                    <button key={fr.food.key} onClick={() => agregar(fr.food, { unit: fr.unit, qty: fr.qty })}
+                    <button key={fr.food.key} onClick={() => elegir(fr.food, { unit: fr.unit, qty: fr.qty })}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
                       <span className="text-xl shrink-0">{emojiAlimento(fr.food)}</span>
                       <span className="min-w-0 flex-1">
@@ -8893,7 +8922,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                         <NotaSinArroz food={fr.food} />
                         <span className="jb-body text-sm text-zinc-500 block">{textoCantidad({ unit: fr.unit, qty: fr.qty })} · ≈ {kcalDe(fr.food, fr)} kcal</span>
                       </span>
-                      <span className="jb-display text-orange-400 text-xl shrink-0">+</span>
+                      <ChevronRight size={18} className="text-zinc-600 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -8905,7 +8934,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 {resultados.map(f => {
                   const d = unidadPorDefecto(f);
                   return (
-                    <button key={f.key} onClick={() => { setElegido(f); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit); }}
+                    <button key={f.key} onClick={() => elegir(f)}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
                       <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
@@ -9055,7 +9084,7 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
             <RegistroRapido username={username} mealPlan={mealPlan} setMealPlan={setMealPlan}
               restricciones={mealPlan.restricciones || []} embebido meal={meal}
               onBuscarDespues={onBuscarDespues ? textos => onBuscarDespues(meal, textos) : undefined}
-              onAgregado={onAgregado} />
+              onAgregado={onAgregado} onElegirFavorito={food => onEscribir(meal, food)} />
           </div>
         )}
 
@@ -9367,7 +9396,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             unidades, tazas, platos… con − y +. */}
         <div className="flex items-center justify-center gap-5 mb-3">
           {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Menos" onClick={() => {
-            const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
+            const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1, gramsPerUnit(food, porcion.unit));
             // En lo mínimo, "−" lo quita (cero).
             if (nueva >= Number(porcion.qty)) { removeEntry(meal, en.id); onCerrar(); return; }
             fijar({ unit: porcion.unit, qty: nueva });
@@ -9382,7 +9411,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
               className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[120px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
             <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
           </div>
-          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>}
+          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1, gramsPerUnit(food, porcion.unit)) })}>+</BotonPaso>}
         </div>
         {porcion.unit === 'gramos' && (
           <div className="mb-3">
@@ -9791,6 +9820,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   // con la foto, quedaba más abajo (en Cena o Agua) y no se veía.
   const flujo = useRef(null); // { meal, antes: Set de ids que ya estaban }
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
+  const [favoritoInicial, setFavoritoInicial] = useState(null); // favorito elegido en la hoja: abre "¿Cuánto comiste?"
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
   const mealAhora = esHoy ? comidaDeAhora() : null;
   // Comidas que ya pasaron: las registradas se ven cerradas en una línea
@@ -10061,7 +10091,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           meal={hojaMeal} setMeal={setHojaMeal} onCerrar={() => setHojaMeal(null)}
           onFoto={m => { setHojaMeal(null); setFotoPara(m); }}
           onCodigo={m => { setHojaMeal(null); setCodigoPara(m); }}
-          onEscribir={m => { setHojaMeal(null); setEscribirPara(m); }}
+          onEscribir={(m, food) => { setHojaMeal(null); setFavoritoInicial(food ? { food } : null); setEscribirPara(m); }}
           onAgregado={() => setHojaMeal(null)} // al cerrarse, la vista baja a lo agregado (ver "flujo")
           onBuscarDespues={(m, textos) => {
             // Lo que dijo por voz y no está (o "No es ninguna"): una fila por
@@ -10076,9 +10106,9 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
       )}
       {escribirPara && (
         <RegistroEscritoModal meal={escribirPara} username={username} todosLosAlimentos={todosLosAlimentos}
-          mealPlan={mealPlan} setMealPlan={setMealPlan}
-          onOtraForma={texto => { const m = escribirPara; setEscribirPara(null); const id = addEntry(m); setTextoInicial(t => ({ ...t, [id]: texto })); setEnfocar(id); }}
-          onCerrar={() => setEscribirPara(null)}
+          mealPlan={mealPlan} setMealPlan={setMealPlan} alimentoInicial={favoritoInicial}
+          onOtraForma={texto => { const m = escribirPara; setEscribirPara(null); setFavoritoInicial(null); const id = addEntry(m); setTextoInicial(t => ({ ...t, [id]: texto })); setEnfocar(id); }}
+          onCerrar={() => { setEscribirPara(null); setFavoritoInicial(null); }}
           onCambiarComida={m => { if (m !== escribirPara) setAbiertas(a => ({ ...a, [escribirPara]: false })); setEscribirPara(m); }} />
       )}
       {/* Botón principal para registrar: uno solo, siempre a mano (se
@@ -10322,7 +10352,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                         <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => {
                           // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con
                           // pollo separado, pero sin lechuga.
-                          const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
+                          const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1, gramsPerUnit(food, porcion.unit));
                           if (nueva >= Number(porcion.qty)) { quitarConDeshacer(meal, en.id); return; }
                           updateEntry(meal, en.id, { unit: porcion.unit, qty: nueva, grams: undefined });
                         }}>−</BotonPaso>
@@ -10330,7 +10360,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                           className="jb-body text-[11px] text-zinc-200 text-center w-[58px] leading-tight tabular-nums">
                           {textoPorcion(porcion)}
                         </button>
-                        <BotonPaso etiqueta={`Más ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1), grams: undefined })}>+</BotonPaso>
+                        <BotonPaso etiqueta={`Más ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1, gramsPerUnit(food, porcion.unit)), grams: undefined })}>+</BotonPaso>
                       </div>
                     </div>
                   </div>

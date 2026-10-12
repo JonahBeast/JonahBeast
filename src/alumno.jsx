@@ -8688,11 +8688,11 @@ function opcionesCantidad(food, unidad) {
     return MULTIPLOS_MEDIDA.map(m => ({ unit, qty: Math.max(5, Math.round((base * m) / 5) * 5) }));
   }
   if (UNIDADES_DISCRETAS.includes(unit)) {
-    // Piezas grandes (una palta ≈ 200 g, un camote): también ¼ y ½, porque
-    // casi nunca se come una entera en el pan o el plato.
+    // Piezas grandes (una palta, un camote): en gramos, porque su tamaño
+    // cambia mucho y "media palta" no dice cuánto es (decisión de Jonah).
     const g = gramsPerUnit(food, unit);
-    const qs = g >= 150 ? [0.25, 0.5, 1, 2] : g >= 100 ? [0.5, 1, 1.5, 2] : [1, 2, 3, 4];
-    return qs.map(qty => ({ unit, qty }));
+    if (g >= 100 && !unidad) return [0.25, 0.5, 0.75, 1].map(m => ({ unit: 'gramos', qty: Math.max(5, Math.round((g * m) / 5) * 5) }));
+    return [1, 2, 3, 4].map(qty => ({ unit, qty }));
   }
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));
 }
@@ -8709,7 +8709,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   const [elegido, setElegido] = useState(alimentoInicial?.food || null); // food
   // Su cantidad de siempre (al elegir un favorito): sale primero, marcada.
   const [deSiempre, setDeSiempre] = useState(alimentoInicial?.unit ? { unit: alimentoInicial.unit, qty: alimentoInicial.qty } : null);
-  const [unidad, setUnidad] = useState(alimentoInicial?.unit || null);
+  const [unidad, setUnidad] = useState(null);
   const [aceite, setAceite] = useState('normal');
   const [otraMedida, setOtraMedida] = useState(false);
   // Cantidad exacta escrita a mano (para quien pesa su comida o sabe la medida).
@@ -8764,9 +8764,9 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   }, [texto, todosLosAlimentos, clavesFrecuentes]);
 
   // Abre "¿Cuánto comiste?". Con "siempre" (un favorito), su cantidad de
-  // siempre sale primero y los botones van en esa misma medida.
+  // siempre sale primero; debajo, las cantidades de siempre del alimento.
   function elegir(f, siempre = null) {
-    setElegido(f); setDeSiempre(siempre); setUnidad(siempre?.unit || null); setAceite('normal'); setOtraMedida(false); setExacta('');
+    setElegido(f); setDeSiempre(siempre); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta('');
     setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit);
   }
   useEffect(() => { if (alimentoInicial?.food) setUnidadExacta(unitsFor(alimentoInicial.food).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(alimentoInicial.food).unit); }, []);
@@ -8891,7 +8891,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {unitsFor(elegido).map(([u]) => (
                       <button key={u} onClick={() => setUnidad(u)}
-                        className={`jb-body text-sm px-3 py-2 rounded-full border ${(unidad || unidadPorDefecto(elegido).unit) === u ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                        className={`jb-body text-sm px-3 py-2 rounded-full border ${(unidad || opcionesCantidad(elegido, null)[0].unit) === u ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
                         {u}
                       </button>
                     ))}
@@ -9396,7 +9396,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
             unidades, tazas, platos… con − y +. */}
         <div className="flex items-center justify-center gap-5 mb-3">
           {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Menos" onClick={() => {
-            const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1, gramsPerUnit(food, porcion.unit));
+            const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
             // En lo mínimo, "−" lo quita (cero).
             if (nueva >= Number(porcion.qty)) { removeEntry(meal, en.id); onCerrar(); return; }
             fijar({ unit: porcion.unit, qty: nueva });
@@ -9411,7 +9411,7 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
               className="jb-display text-4xl text-zinc-50 tabular-nums leading-none bg-transparent text-center w-[120px] outline-none border-b-2 border-dashed border-zinc-700 focus:border-orange-500 pb-1" />
             <p className="jb-body text-sm text-zinc-400 mt-1">{porcion.unit === 'gramos' ? 'gramos' : textoPorcion(porcion).replace(/^\S+\s/, '')}</p>
           </div>
-          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1, gramsPerUnit(food, porcion.unit)) })}>+</BotonPaso>}
+          {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>}
         </div>
         {porcion.unit === 'gramos' && (
           <div className="mb-3">
@@ -10352,7 +10352,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                         <BotonPaso etiqueta={`Menos ${food.name}`} onClick={() => {
                           // Ya en lo mínimo, "−" lo quita (cero): ej. el pan con
                           // pollo separado, pero sin lechuga.
-                          const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1, gramsPerUnit(food, porcion.unit));
+                          const nueva = cambiarCantidad(porcion.qty, porcion.unit, -1);
                           if (nueva >= Number(porcion.qty)) { quitarConDeshacer(meal, en.id); return; }
                           updateEntry(meal, en.id, { unit: porcion.unit, qty: nueva, grams: undefined });
                         }}>−</BotonPaso>
@@ -10360,7 +10360,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
                           className="jb-body text-[11px] text-zinc-200 text-center w-[58px] leading-tight tabular-nums">
                           {textoPorcion(porcion)}
                         </button>
-                        <BotonPaso etiqueta={`Más ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1, gramsPerUnit(food, porcion.unit)), grams: undefined })}>+</BotonPaso>
+                        <BotonPaso etiqueta={`Más ${food.name}`} onClick={() => updateEntry(meal, en.id, { unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1), grams: undefined })}>+</BotonPaso>
                       </div>
                     </div>
                   </div>

@@ -5862,15 +5862,8 @@ function pasoDeUnidad(unit) {
   return 0.5;
 }
 
-// "gramosPieza": cuánto pesa 1 de esa medida. Las piezas grandes (una palta,
-// un camote) suben y bajan de a ½, y desde 150 g también de a ¼ por debajo
-// de ½ (¼ de palta en el pan).
-function cambiarCantidad(qty, unit, direccion, gramosPieza = 0) {
-  let paso = pasoDeUnidad(unit);
-  if (UNIDADES_DISCRETAS.includes(unit) && gramosPieza >= 100) {
-    const n = Number(qty) || 0;
-    paso = gramosPieza >= 150 && (direccion < 0 ? n <= 0.5 : n < 0.5) ? 0.25 : 0.5;
-  }
+function cambiarCantidad(qty, unit, direccion) {
+  const paso = pasoDeUnidad(unit);
   const base = Math.round((Number(qty) || 0) / paso) * paso;
   const nueva = base + direccion * paso;
   return Math.max(paso, Math.round(nueva * 100) / 100);

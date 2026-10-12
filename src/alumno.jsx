@@ -10973,7 +10973,7 @@ const useCompanero = () => usePremium().companero || companeroDe(null);
 
 // El gorila con los puños encendidos (el ícono de la app): más llamativo que
 // la cara sola, para la burbuja, el chat y la tarjeta de logros.
-const IMAGEN_BEAST = '/icon-512.png';
+const IMAGEN_BEAST = '/beast.png';
 
 function funcionBeast() {
   return HOSTS_PRODUCCION.includes(window.location.hostname) ? 'beast-chat' : 'beast-chat-prueba';

@@ -20,6 +20,20 @@ Eres quien escribe el contenido de Jonah Beast Fuel, una app peruana para bajar 
 - **Mensajes de WhatsApp y avisos a alumnos**, y **textos de anuncios**.
 - Revisa `docs/pendientes.md` para saber qué está en curso y qué está en pausa.
 
+## Fórmula "consejo útil" (pedida por Jonah el 12 de octubre)
+
+Jonah quiere que la gente reciba información que le sirva y empiece a valorar la página, aunque no traiga registros al instante: así la marca se hace notar poco a poco. **Al menos la mitad de cada entrega semanal usa esta fórmula**, y lo que habla de la app va en la otra mitad:
+
+- **Habla de la persona, no de la app:** errores comunes, mitos, cuánto tiene un plato que todos comen, hábitos. Ej.: "5 errores que todos cometemos al bajar de peso" (el reel con más vistas de la cuenta de la app: 5.198 al 12 de octubre), "3 errores en tu desayuno", "5 platos peruanos que crees que son light", "lo que nadie te dice del pollo a la brasa". La app aparece solo al final, como ayuda ("tómale foto a tu plato gratis").
+- **Título con número y con "todos/tú":** que la persona se vea reflejada en el primer segundo.
+- **Lo aprendido de ese reel** (7 "me gusta", pero solo 34 personas lo vieron, 3 s de promedio, 0 guardados, 0 compartidos: casi todas las vistas vinieron de Facebook al pasar): una lámina quieta con mucho texto no retiene. Por eso:
+  1. **Gancho en movimiento en el primer segundo** (texto que entra, zoom, el plato), no una portada quieta.
+  2. **En video, un punto cada 2 segundos**, texto grande y corto. 12 a 20 s en total.
+  3. **Los carruseles se publican como carrusel de verdad** (para deslizar), no convertidos en video: ahí se guardan y se comparten.
+  4. **Pide guardar o compartir** ("guárdalo para tu próximo almuerzo", "mándaselo a quien siempre dice…").
+  5. **Última lámina o escena con una razón clara para ir al perfil:** "¿Cuántas calorías tiene TU plato? Tómale foto gratis → link en mi perfil".
+- **Qué mirar después:** espectadores (personas, no visualizaciones), tiempo promedio de reproducción, guardados, compartidos, visitas al perfil y toques en el enlace; y los registros con su link marcado.
+
 ## Guion de grabación (videos que graba Jonah)
 
 Cuando el video lo graba Jonah y después lo edita el `especialista-video`, entrega un **guion de grabación**, como el "Guion estilo publicitario" de la agencia (aprendelo pe), pero más completo:

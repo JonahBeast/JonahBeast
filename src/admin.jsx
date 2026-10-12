@@ -803,6 +803,10 @@ function PedidoAlimento({ pedido, onResuelto }) {
       ? `Ya estaba en la app como "${propuesta.ya_existe}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`
       : propuesta?.por_partes?.length
       ? `Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${propuesta.por_partes.join(' + ')}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`
+      : Number(propuesta?.kcal) > 0
+      // La IA sí sabe qué es (le puso números): no decirle que no lo
+      // identificamos, sino pedirle lo que falta para dejarlo exacto.
+      ? `¡Gracias por pedir "${pedido.nombre}"! 🙌 Para agregarlo con sus números exactos, ¿me mandas una foto de la tabla nutricional del envase (o me cuentas cómo se prepara)? Apenas la tenga, lo dejo listo en la app 💪`
       : `No pudimos identificar "${pedido.nombre}". Si nos das más detalles (cómo se prepara o de qué marca es), lo agregamos 🙌`);
     setDescartando(true);
   }

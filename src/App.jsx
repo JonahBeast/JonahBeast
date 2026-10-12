@@ -3202,6 +3202,15 @@ function navegadorDentroDeApp() {
   } catch { return null; }
 }
 
+// El autocompletar del celular o el de Instagram/Facebook a veces llena una
+// casilla sin avisarle a la app: el correo se ve escrito, pero la app lo
+// tiene vacío y responde "Escribe tu correo". Al enviar, se lee lo que de
+// verdad hay en la casilla (por su "name").
+function casilla(form, nombre, valor) {
+  const real = form?.elements?.namedItem?.(nombre)?.value;
+  return typeof real === 'string' && real.trim() && real !== valor ? real : valor;
+}
+
 function BotonGoogle({ onClick, texto = 'Continuar con Google' }) {
   const app = navegadorDentroDeApp();
   if (app) {
@@ -3747,16 +3756,28 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   async function submit(e) {
     e.preventDefault();
     setErr(''); setAviso(''); setCampoErr('');
-    const email = f.email.trim().toLowerCase();
+    const form = e.currentTarget;
+    const datos = { ...f, email: casilla(form, 'email', f.email), password: casilla(form, 'password', f.password), telefono: casilla(form, 'telefono', f.telefono) };
+    const rescatados = ['email', 'password', 'telefono'].filter(c => datos[c] !== f[c]);
+    if (rescatados.length) {
+      // Se anota para medir cuántos registros se salvan así.
+      registrarEventoEmbudo('registro_autollenado', { detalle: rescatados.join(',') });
+      setF(datos);
+    }
+    const email = datos.email.trim().toLowerCase();
     // Cada tropiezo queda anotado en el embudo ("error_registro"), para
     // saber qué frena a quien quiere registrarse. "campo" dice debajo de
     // qué casilla se muestra el error.
-    const tropiezo = (detalle, texto, campo = '') => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo); };
+    const tropiezo = (detalle, texto, campo = '') => {
+      registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo);
+      // Lleva el cursor a la casilla que falta, para escribir sin buscarla.
+      try { form.elements.namedItem({ correo: 'email', contrasena: 'password', telefono: 'telefono' }[campo])?.focus(); } catch {}
+    };
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', email ? 'Ese correo no parece completo. Revísalo (ej. tunombre@gmail.com).' : 'Escribe tu correo.', 'correo');
-    if (f.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
+    if (datos.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
     // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
     // con quien llega desde un anuncio), es la única forma de escribirle.
-    const tel = f.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
+    const tel = datos.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
     if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
@@ -3773,7 +3794,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     }
 
     const { data, error } = await supabase.auth.signUp({
-      email, password: f.password,
+      email, password: datos.password,
       options: { data: { username: user, nombre: '', codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
@@ -3882,7 +3903,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
                 <ErrorCampo texto={campoErr === 'correo' ? err : ''} />
                 {campoErr === 'existe' && (
                   <span className="jb-body text-xs text-zinc-200 bg-zinc-950 border border-orange-500/50 rounded-lg p-2.5 mt-1 flex flex-col gap-2">
@@ -3896,7 +3917,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               </Field>
               <Field label="Contraseña">
                 <div className="relative">
-                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
+                  <input type={verPass ? 'text' : 'password'} name="password" autoComplete="new-password" value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
                   <button type="button" onClick={() => setVerPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
                     <Eye size={16} />
                   </button>
@@ -3904,7 +3925,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
                 {campoErr === 'contrasena' ? <ErrorCampo texto={err} /> : <AyudaContrasena valor={f.password} />}
               </Field>
               <Field label="Tu WhatsApp">
-                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
+                <input type="tel" inputMode="tel" name="telefono" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
                 {campoErr === 'telefono'
                   ? <ErrorCampo texto={err} />
                   : <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>}
@@ -3973,15 +3994,20 @@ function AdminAuth({ onBack, onLogin, busy }) {
   function submit(e) {
     e.preventDefault();
     setErr('');
-    if (!email.trim() || !pass) return setErr('Completa tu correo y contraseña.');
-    onLogin(email.trim(), pass, setErr);
+    const correo = casilla(e.currentTarget, 'email', email), clave = casilla(e.currentTarget, 'password', pass);
+    if (correo !== email) setEmail(correo);
+    if (clave !== pass) setPass(clave);
+    if (!correo.trim() || !clave) return setErr('Completa tu correo y contraseña.');
+    onLogin(correo.trim(), clave, setErr);
   }
 
   async function recuperar(e) {
     e.preventDefault();
     setErr('');
-    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    const correo = casilla(e.currentTarget, 'email', email);
+    if (correo !== email) setEmail(correo);
+    if (!correo.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(correo.trim().toLowerCase());
     if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
     setModo('codigo');
   }
@@ -4047,11 +4073,11 @@ function AdminAuth({ onBack, onLogin, busy }) {
           ) : (
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
               <Field label="Correo">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
+                <input type="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
-                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
+                  <input type="password" name="password" autoComplete="current-password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
                 </Field>
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -4206,15 +4232,20 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
     e.preventDefault();
     setErr('');
     if (onClearExpired) onClearExpired();
-    if (!email || !password) return setErr('Completa correo y contraseña.');
-    onLogin(email.trim().toLowerCase(), password, setErr);
+    const correo = casilla(e.currentTarget, 'email', email), clave = casilla(e.currentTarget, 'password', password);
+    if (correo !== email) setEmail(correo);
+    if (clave !== password) setPassword(clave);
+    if (!correo.trim() || !clave) return setErr('Completa correo y contraseña.');
+    onLogin(correo.trim().toLowerCase(), clave, setErr);
   }
 
   async function recuperar(e) {
     e.preventDefault();
     setErr(''); setAviso('');
-    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    const correo = casilla(e.currentTarget, 'email', email);
+    if (correo !== email) setEmail(correo);
+    if (!correo.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(correo.trim().toLowerCase());
     if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
     setModo('codigo');
   }
@@ -4397,11 +4428,11 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 </>
               )}
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                  <input type="password" name="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
                 </Field>
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -5777,9 +5808,15 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
   if (unit === 'ml') return `${Math.round(qty)} ml`;
-  if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
+  // Piezas en cuartos y medios ("¼ unidad", "1½ unidades"), no "0.25".
+  let num = qty;
+  if (UNIDADES_DISCRETAS.includes(unit) && !Number.isInteger(Number(qty)) && Math.abs(qty * 4 - Math.round(qty * 4)) < 0.01) {
+    const entero = Math.floor(qty), fr = ['', '¼', '½', '¾'][Math.round((qty - entero) * 4)];
+    if (fr !== undefined) num = entero ? `${entero}${fr}` : fr;
+  }
+  if (qty <= 1 || /[\s/]/.test(unit)) return `${num} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
-  return `${qty} ${plural}`;
+  return `${num} ${plural}`;
 }
 
 

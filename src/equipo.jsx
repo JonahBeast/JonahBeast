@@ -18,7 +18,7 @@
 //   cuenta solo si cada uno elige compartir su avance (nunca se ve el peso,
 //   solo kilos bajados), con tope de 1% por semana. Al terminar, la tarea
 //   diaria api/cron/equipos-cierre.js reparte las medallas.
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Copy, KeyRound, LogOut, Pencil, Users } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { btnPrimary, btnGhost, inputCls, showToast, confirmar, vibrar, Skeleton } from './App.jsx';

@@ -6,7 +6,7 @@
 // entrenos, y sumarlas otra vez sería contarlas dos veces. En cambio, cada 2
 // semanas compara lo que anota con su nivel de actividad y, si no coincide,
 // le sugiere cambiarlo (solo si él acepta).
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { btnPrimary, btnGhost, showToast, confirmar, vibrar, todayISO, addDaysISO } from './App.jsx';
@@ -21,7 +21,6 @@ export const TIPOS_ENTRENO = [
   { id: 'baile', label: 'Baile', emoji: '💃' },
   { id: 'otro', label: 'Otro', emoji: '✨' },
 ];
-const MINUTOS = [15, 30, 45, 60, 90, 120];
 const CLAVE_HOY_NO = 'jb-entreno-hoy-no';
 
 // Días de entreno por semana → nivel de actividad (los de "Mi cuerpo").
@@ -31,7 +30,6 @@ function nivelPorDias(porSemana) {
   if (porSemana < 5.5) return 'Moderado';
   return 'Intenso';
 }
-const ORDEN_NIVEL = ['Sedentario', 'Ligero', 'Moderado', 'Intenso', 'Muy intenso'];
 const textoTipos = tipos => tipos.map(t => TIPOS_ENTRENO.find(x => x.id === t)?.label || t).join(' + ');
 
 export function EntrenoHoy({ username, form, setForm }) {

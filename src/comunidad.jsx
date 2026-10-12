@@ -11,7 +11,7 @@
 //   (CompartirPlato). Jonah la aprueba en su panel (a quien ya le aprobó 5
 //   le salen solas); con 2 reportes se oculta sola.
 // - "Mis equipos": los retos en grupo (src/equipo.jsx).
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';

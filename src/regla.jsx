@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /* Regla deslizable para elegir un número (edad, estatura, peso, medidas):
    se desliza con el dedo a la izquierda o derecha y el número cambia en

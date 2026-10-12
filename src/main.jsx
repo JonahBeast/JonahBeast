@@ -4,6 +4,15 @@ import { inject } from '@vercel/analytics'
 import App from './App.jsx'
 import './index.css'
 
+// App de iPhone (App Store, carpeta ios/): ya es una app instalada, así
+// que se marca como tal para que no salgan "Agrégala a tu pantalla de
+// inicio" ni los pasos de Safari (todos miran navigator.standalone).
+try {
+  if (/JBFuel-iOS/.test(navigator.userAgent) && navigator.standalone !== true) {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })
+  }
+} catch {}
+
 // Analítica de Vercel (país, tipo de celular, de dónde viene la visita).
 // Igual que el contador propio de la landing: no cuentan las visitas de
 // Jonah (?preview=1 marca ese celular) ni los celulares donde ya entró un

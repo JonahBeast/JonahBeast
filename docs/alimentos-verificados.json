@@ -1889,6 +1889,26 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central: Wine, dessert/sparkling (espumante semiseco); las calorías incluyen el alcohol.",
    "verificado_en": "2026-10-03"
+  },
+  "Pollada pierna (-)": {
+   "estado": "verificado",
+   "fuente": "Receta promedio: pierna (muslo + pierna) y pecho (pechuga + ala) de pollo con piel, USDA FoodData Central; pollada apanada y frita, pollo a la brasa asado. Carne sin hueso. Pedido de Jonah (12 oct 2026): en Perú se pide cuarto u octavo, pierna o pecho",
+   "verificado_en": "2026-10-12"
+  },
+  "Pollada pecho (-)": {
+   "estado": "verificado",
+   "fuente": "Receta promedio: pierna (muslo + pierna) y pecho (pechuga + ala) de pollo con piel, USDA FoodData Central; pollada apanada y frita, pollo a la brasa asado. Carne sin hueso. Pedido de Jonah (12 oct 2026): en Perú se pide cuarto u octavo, pierna o pecho",
+   "verificado_en": "2026-10-12"
+  },
+  "Pollo a la brasa pierna (solo la presa) (-)": {
+   "estado": "verificado",
+   "fuente": "Receta promedio: pierna (muslo + pierna) y pecho (pechuga + ala) de pollo con piel, USDA FoodData Central; pollada apanada y frita, pollo a la brasa asado. Carne sin hueso. Pedido de Jonah (12 oct 2026): en Perú se pide cuarto u octavo, pierna o pecho",
+   "verificado_en": "2026-10-12"
+  },
+  "Pollo a la brasa pecho (solo la presa) (-)": {
+   "estado": "verificado",
+   "fuente": "Receta promedio: pierna (muslo + pierna) y pecho (pechuga + ala) de pollo con piel, USDA FoodData Central; pollada apanada y frita, pollo a la brasa asado. Carne sin hueso. Pedido de Jonah (12 oct 2026): en Perú se pide cuarto u octavo, pierna o pecho",
+   "verificado_en": "2026-10-12"
   }
  }
 }

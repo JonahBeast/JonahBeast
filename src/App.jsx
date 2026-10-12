@@ -501,7 +501,9 @@ function agregarProductoAFoods(p) {
   return claveProducto(p);
 }
 function usarAlimentosExtra() {
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   const [version, setVersion] = useState(versionAlimentos);
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   useEffect(() => {
     oyentesAlimentos.add(setVersion);
     setVersion(versionAlimentos);
@@ -5968,6 +5970,7 @@ function avisarRegistroTikTok(userId) {
    faltaba subir queda guardado en el celular y se sube al recargar. */
 const VERSION_APP = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '';
 function usarVersionNueva() {
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   useEffect(() => {
     if (!VERSION_APP) return;
     let ocultaDesde = document.visibilityState === 'hidden' ? Date.now() : null;

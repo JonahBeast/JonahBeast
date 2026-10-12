@@ -1,0 +1,15 @@
+{
+  "appId": "com.jonahbeast.app",
+  "appName": "Jonah Beast Fuel",
+  "webDir": "ios-web",
+  "server": {
+    "url": "https://jonahbeast.com",
+    "errorPath": "index.html"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0D0D0F",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "appendUserAgent": "JBFuel-iOS"
+}

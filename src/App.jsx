@@ -1445,6 +1445,21 @@ function esTWA() {
   try { return document.referrer.startsWith('android-app://'); } catch { return false; }
 }
 
+/* App de iPhone (App Store): es esta misma web dentro de la app nativa
+   (Capacitor, carpeta ios/). Igual que en Play Store, Apple no deja
+   cobrar Premium con Yape, Plin, transferencia ni Mercado Pago, ni
+   mandar a pagar por fuera: dentro de la app solo se compra con Apple.
+   Se reconoce por la marca que la app agrega al navegador
+   (appendUserAgent en capacitor.config.json) o por el puente nativo. */
+function esAppIOS() {
+  try { return /JBFuel-iOS/.test(navigator.userAgent) || window.Capacitor?.getPlatform?.() === 'ios'; } catch { return false; }
+}
+
+// App de tienda (Play Store o App Store): sin Yape, Plin ni Mercado Pago.
+function esAppTienda() {
+  return esTWA() || esAppIOS();
+}
+
 /* Pago con Google Play dentro de la app de Android (Digital Goods API).
    Solo existe cuando la app se abre desde la versión de Play Store que
    trae el cobro de Google activado; en la web o en una versión vieja de
@@ -3530,7 +3545,7 @@ function Recorrido({ onBack, onListo }) {
 function appInstalada() {
   try { if (new URLSearchParams(window.location.search).get('bienvenida') === '1') return true; } catch {}
   try {
-    return esTWA() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return esAppTienda() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   } catch { return false; }
 }
 
@@ -4765,7 +4780,7 @@ function RelojBono({ user, onVerPlanes }) {
           </div>
         ))}
       </div>
-      <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>
+      {!esAppTienda() && <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>}
       {onVerPlanes && (
         <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mt-3'}>
           Ver planes y suscribirme
@@ -5296,6 +5311,32 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           className="jb-body text-xs text-orange-400 text-center underline">
           Administrar mi suscripción en Google Play
         </a>
+      </div>
+    );
+  }
+
+  // App de iPhone: por ahora los planes solo como información (sin pagar
+  // por fuera, regla de Apple). El cobro con Apple llega en la parte 2.
+  if (esAppIOS()) {
+    return (
+      <div className="flex flex-col gap-5">
+        {relojBono}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-base text-zinc-100 mb-1">
+            {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu Premium de prueba` : 'Tu prueba de Premium terminó') : 'Tu plan'}
+          </p>
+          <p className="jb-body text-sm text-zinc-400">Muy pronto vas a poder activar Premium aquí mismo, desde tu iPhone.</p>
+        </div>
+        <div className="grid gap-2">
+          {PLANES_LISTA.map(plan => (
+            <div key={plan.meses} className={`bg-zinc-900 border rounded-xl p-3.5 flex items-center justify-between ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+              <div>
+                <p className="jb-body text-sm text-zinc-200">{plan.nombre}</p>
+                {plan.badge && <span className="jb-body text-[10px] text-orange-500">{plan.badge}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -6635,6 +6676,8 @@ export {
   esFritoOSaltado,
   sePuedeFreir,
   esTWA,
+  esAppIOS,
+  esAppTienda,
   fechaLocalISO,
   fetchTrialStats,
   fmtS,

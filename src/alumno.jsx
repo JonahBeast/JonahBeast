@@ -44,6 +44,7 @@ import {
   entryMacros,
   fechaLocalISO,
   esTWA,
+  esAppTienda,
   fetchTrialStats,
   fmtS,
   generateCombos,
@@ -3368,7 +3369,7 @@ function FinPruebaModal({ user, onPlan, onCerrar }) {
           <p>🍽️ Tu menú del día y de la semana, con comida peruana</p>
           <p>💬 Mi acompañamiento por WhatsApp</p>
         </div>
-        {esTWA() ? (
+        {esAppTienda() ? (
           <button onClick={() => elegir('planes', null)} className={btnPrimary + ' w-full py-3.5 rounded-2xl'}>
             <span className="jb-display text-base tracking-wide">SEGUIR CON PREMIUM</span>
           </button>

@@ -26,7 +26,7 @@ Jonah quiere que la gente reciba información que le sirva y empiece a valorar l
 
 - **Habla de la persona, no de la app:** errores comunes, mitos, cuánto tiene un plato que todos comen, hábitos. Ej.: "5 errores que todos cometemos al bajar de peso" (el reel con más vistas de la cuenta de la app: 5.198 al 12 de octubre), "3 errores en tu desayuno", "5 platos peruanos que crees que son light", "lo que nadie te dice del pollo a la brasa". La app aparece solo al final, como ayuda ("tómale foto a tu plato gratis").
 - **Título con número y con "todos/tú":** que la persona se vea reflejada en el primer segundo.
-- **Lo aprendido de ese reel** (7 "me gusta", pero solo 34 personas lo vieron, 3 s de promedio, 0 guardados, 0 compartidos: casi todas las vistas vinieron de Facebook al pasar): una lámina quieta con mucho texto no retiene. Por eso:
+- **Lo aprendido de ese reel** (5.198 visualizaciones: 5.152 en Facebook y solo 46 en Instagram, de 34 personas; el 94 % lo saltó, 3 s de promedio, 7 "me gusta", 0 guardados, 0 compartidos): una lámina quieta con mucho texto no retiene. Por eso:
   1. **Gancho en movimiento en el primer segundo** (texto que entra, zoom, el plato), no una portada quieta.
   2. **En video, un punto cada 2 segundos**, texto grande y corto. 12 a 20 s en total.
   3. **Los carruseles se publican como carrusel de verdad** (para deslizar), no convertidos en video: ahí se guardan y se comparten.

@@ -6969,6 +6969,16 @@ const TAMANOS_FOTO = [
   { key: 'mucho', label: 'Mucho', factor: 1.4 },
 ];
 
+// Pollada y pollo a la brasa: en vez de Poco / Normal / Mucho (que daban
+// 1/8, 1/4 y otra vez 1/4), se elige el pedido tal como se pide en Perú.
+const CORTES_POLLO = [
+  { key: 'octavo', label: '1/8 de pollo', unit: 'octavo de pollo', qty: 1 },
+  { key: 'cuarto', label: '1/4 de pollo', unit: 'cuarto de pollo', qty: 1 },
+  { key: 'medio', label: '1/2 pollo', unit: 'cuarto de pollo', qty: 2 },
+];
+const esCortePollo = food => unitsFor(food).some(u => u[0] === 'cuarto de pollo') && unitsFor(food).some(u => u[0] === 'octavo de pollo');
+const corteDePorcion = p => p.unit === 'octavo de pollo' ? 'octavo' : (p.qty >= 2 ? 'medio' : 'cuarto');
+
 function esPorPiezas(food) {
   return UNIDADES_DISCRETAS.includes(unidadPorDefecto(food).unit);
 }
@@ -7013,8 +7023,11 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
     const d = unidadPorDefecto(food);
     return { unit: d.unit, qty: Math.max(1, Math.round(Number(cantidadIA) || 1)) };
   }
-  // Pollada / pollo frito: 1/4 u 1/8 de pollo según los gramos de la IA,
-  // en unidades enteras (nadie come "½ cuarto de pollo").
+  // Pollada / pollo a la brasa: si el alumno eligió 1/8, 1/4 o 1/2 pollo,
+  // es eso; si no, 1/4 u 1/8 según los gramos de la IA, en unidades enteras
+  // (nadie come "½ cuarto de pollo").
+  const corte = CORTES_POLLO.find(c => c.key === tamano);
+  if (corte && esCortePollo(food)) return { unit: corte.unit, qty: corte.qty };
   const cuarto = gramsPerUnit(food, 'cuarto de pollo'), octavo = gramsPerUnit(food, 'octavo de pollo');
   if (unitsFor(food).some(u => u[0] === 'cuarto de pollo') && cuarto > 0 && octavo > 0) {
     const factor = (TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1;
@@ -7734,6 +7747,19 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                     <button type="button" aria-label="Una más"
                       onClick={() => setConteos(v => ({ ...v, [id]: pasoConteo(food, conteo, 1) }))}
                       className="w-9 h-9 rounded-full border border-zinc-700 text-zinc-200 jb-body text-base leading-none hover:border-orange-500">+</button>
+                  </div>
+                ) : esCortePollo(food) ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="¿Cuánto pollo?">
+                    {CORTES_POLLO.map(c => {
+                      const activo = corteDePorcion(porcion) === c.key;
+                      return (
+                        <button key={c.key} type="button" aria-pressed={activo}
+                          onClick={() => setTamanos(v => ({ ...v, [id]: c.key }))}
+                          className={`jb-body text-xs px-3 py-1 rounded-full border transition-colors ${activo ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+                          {c.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex gap-1.5 mt-2" role="group" aria-label="Tamaño de la porción">

@@ -459,6 +459,32 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     })
     .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
 
+  // Pollada y pollo a la brasa (pedido de Jonah, 12 de octubre): la IA ve
+  // las presas sueltas del plato (pechuga, ala, pierna, encuentro) aunque
+  // se le pida lo contrario. Si sugiere presas con piel, se juntan en UNA
+  // pregunta: pollada o brasa, pecho o pierna (en cuarto, que ajusta el
+  // alumno), y queda la presa suelta por si era pollo de casa.
+  const PRESA = /^Pollo (pierna|pechuga|encuentro|ala|entrepierna)\b/;
+  const CON_PIEL = /^Pollo (pierna|pechuga|encuentro|ala) \(con piel\)/;
+  const claves = (it: any): string[] => (it.key ? [it.key] : it.opciones || []);
+  const esPresa = (it: any) => claves(it).length > 0 && claves(it).every((k) => PRESA.test(k)) && claves(it).some((k) => CON_PIEL.test(k));
+  const presas = items.filter(esPresa);
+  const cortes = ["Pollada pecho (-)", "Pollada pierna (-)", "Pollo a la brasa pecho (solo la presa) (-)", "Pollo a la brasa pierna (solo la presa) (-)"];
+  if (presas.length && cortes.every((k) => clavesValidas.has(k))) {
+    const todas = presas.flatMap(claves);
+    const pecho = todas.some((k) => /^Pollo (pechuga|ala)/.test(k));
+    const [c1, c2] = pecho ? ["pecho", "pierna"] : ["pierna", "pecho"];
+    const opciones = [
+      `Pollada ${c1} (-)`, `Pollo a la brasa ${c1} (solo la presa) (-)`,
+      `Pollada ${c2} (-)`, `Pollo a la brasa ${c2} (solo la presa) (-)`,
+      todas.find((k) => CON_PIEL.test(k)) as string,
+    ];
+    items = [
+      ...items.filter((it) => !esPresa(it)),
+      { key: "", opciones, confianza: "media", cantidad: 1, gramos: null, aceite: presas.some((it: any) => it.aceite) },
+    ];
+  }
+
   // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
   // cuando la IA dijo cada uno de estos alimentos (solo los de esta foto).
   const alternativas: Record<string, string[]> = {};

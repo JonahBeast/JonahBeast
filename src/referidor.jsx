@@ -1,8 +1,8 @@
 // Parte de la app que se descarga solo cuando hace falta (referidor).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
-import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { useState, useEffect } from 'react';
+import { Loader2, MessageCircle } from 'lucide-react';
+import { supabase } from './supabaseClient';
 import {
   Logo,
   StatCard,

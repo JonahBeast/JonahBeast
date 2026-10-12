@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (admin).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
+import { Plus, Trash2, LogOut, Eye, X, ChevronRight, UserPlus, AlertTriangle, Loader2, MessageCircle } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
 import MANUAL_APP from '../docs/manual-app.md?raw';
@@ -1605,18 +1605,6 @@ function RelojPlazo({ desde }) {
       {texto}
     </span>
   );
-}
-
-// Lo que la IA recomienda hacer con un pedido (con sus macros ya calculados).
-function recomendacionPedido(p) {
-  if (!p || p.kcal == null) return null;
-  if (p.ya_existe) return `🔗 Ya existe como "${p.ya_existe}". Descártalo: el mensaje le dice con qué nombre buscarlo.`;
-  if (p.parecidos?.length) return `🔎 Se parece a "${p.parecidos[0]}"${p.parecidos.length > 1 ? ` (o ${p.parecidos.slice(1).map(x => `"${x}"`).join(', ')})` : ''}. Si es lo mismo, toca "🔗 Es este" abajo; si no, apruébalo con un nombre que lo distinga.`;
-  if (p.por_partes?.length) return `🧩 Que lo registre por partes: ${p.por_partes.join(' + ')}. Descártalo: el mensaje le explica cómo.`;
-  const cuadra = Math.abs(4 * (+p.proteina || 0) + 4 * (+p.carbos || 0) + 9 * (+p.grasa || 0) - (+p.kcal || 0)) <= Math.max(25, (+p.kcal || 0) * 0.15);
-  return cuadra
-    ? `✅ Aprobarlo con ${Math.round(p.kcal)} kcal · P ${p.proteina} · C ${p.carbos} · G ${p.grasa} (por 100 g). Revisa el nombre y toca "Aprobar y avisar".`
-    : '🤔 Los números de la IA no cuadran. Toca 🔄 para recalcular o corrígelos a mano.';
 }
 
 // Y con un alimento que creó un alumno.

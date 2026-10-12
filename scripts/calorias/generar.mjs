@@ -189,7 +189,7 @@ const linkApp = donde => `/?fuente=calorias&utm_campaign=paginas_calorias&utm_co
 
 function paginaPlato(p) {
   const { f, principal, medidas } = p;
-  const [medida, gramos] = principal;
+  const [, gramos] = principal;
   const kcal = kcalDe(f, gramos);
   const prot = grDe(f.protein, gramos), carb = grDe(f.carbs, gramos), gras = grDe(f.fat, gramos);
   // Reparto de las calorías: proteína y carbos 4 kcal/g, grasa 9 kcal/g.

@@ -193,7 +193,6 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
 export function mensajeAvisos(n, motivo, dispositivo, correo = null) {
   const hola = `Hola${n ? ' ' + n : ''} 👋 Soy Jonah.`;
   const cierre = 'Así te acompaño todos los días y no se te pasa ninguna comida 💪🦍';
-  const nav = dispositivo === 'iphone' ? 'Safari' : 'Chrome';
   if (motivo === 'navegador') {
     return mensajeInstalarApp(n, dispositivo, correo, { etapa: 'avisos', yaComio: true });
   }

@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import React, { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { Users, User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Settings, ChevronDown, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
+import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
@@ -44,11 +44,9 @@ import {
   entryGrams,
   entryMacros,
   fechaLocalISO,
-  esTWA,
   esAppTienda,
   fetchTrialStats,
   fmtS,
-  generateCombos,
   sugerenciasComida,
   PROTEINAS_SUGERENCIA,
   generateQuickOptions,
@@ -1166,21 +1164,6 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
     onAgregado?.(mealDestino, [id]);
   }
 
-  function agregarCombo(opt) {
-    setMealPlan(v => ({
-      ...v,
-      meals: {
-        ...v.meals,
-        [mealDestino]: [...v.meals[mealDestino], ...opt.items.map(it => {
-          const eq = gramosANatural(it.food, it.grams);
-          return { id: uid(), foodKey: it.food.key, qty: eq.qty, unit: eq.unit };
-        })],
-      },
-    }));
-    vibrar(15);
-    showToast(`✅ ${opt.name} agregado a ${mealDestino}`);
-  }
-
   function agregarVarios(items) {
     const nuevas = items.map(it => {
       // Si dijo el gramaje exacto en voz ("150 g de..."), se respeta tal cual.
@@ -1498,7 +1481,6 @@ function WhatCanIEat({ mealPlan, setMealPlan, username, remaining }) {
                       <div className="flex flex-col gap-1">
                         {opt.items.map((it, idx) => {
                           const bucket = grupoDeSustitucion(it.food);
-                          const swapKey = `${opt.id}::${idx}`;
                           return (
                             <div key={idx} className="text-zinc-600 text-[11px] jb-body flex items-center justify-between gap-1">
                               <span>{it.grams}g {it.food.name}</span>
@@ -1748,17 +1730,6 @@ function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil
   );
 }
 
-// El mismo interruptor de sonidos, como enlace del pie de la pantalla (en el celular).
-function SonidoPie() {
-  const [activo, setActivo] = useState(sonidoActivo);
-  return (
-    <button onClick={() => setActivo(alternarSonido())}
-      className="jb-body text-[11px] text-zinc-700 hover:text-orange-400 underline">
-      {activo ? '🔊 Quitar sonidos' : '🔇 Activar sonidos'}
-    </button>
-  );
-}
-
 const RACHA_HITOS = [
   { dias: 3, nombre: 'Cebiche Starter', emoji: '🐟' },
   { dias: 7, nombre: 'Ají de Gallina Warrior', emoji: '🌶️' },
@@ -1847,7 +1818,6 @@ function ResumenSemanalCard({ username }) {
         if (estaSemana.length === 0) { setCerrado(true); return; }
         const promedio = estaSemana.reduce((a, d) => a + d.kcal, 0) / estaSemana.length;
         const promedioAnterior = semanaPasada.length ? semanaPasada.reduce((a, k) => a + k, 0) / semanaPasada.length : null;
-        const mejorDia = [...estaSemana].sort((a, b) => a.kcal - b.kcal)[0];
         setDatos({
           promedio: Math.round(promedio),
           diasRegistrados: estaSemana.length,
@@ -5519,17 +5489,10 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   const [errNombre, setErrNombre] = useState('');
   const [errTelefono, setErrTelefono] = useState('');
   const [estadoPush, setEstadoPush] = useState('cargando'); // cargando | yaActivo | disponible | bloqueado | nosoportado | iosNoInstalado
-  const [incluirPasoNotif, setIncluirPasoNotif] = useState(null); // se fija una sola vez al cargar, para que el paso no aparezca/desaparezca a mitad de recorrido
   const [activandoPush, setActivandoPush] = useState(false);
   const nombreMostrar = nombre || nombreInput;
 
-  // Mismo chequeo que RecordatorioBanner, pero acá decide si el paso de
-  // notificaciones entra al recorrido del onboarding o no — si ya las
-  // tiene activas, no tiene sentido volver a pedírselas. Una vez que
-  // incluirPasoNotif queda fijado, ya no cambia en este recorrido —
-  // aunque el alumno las active a mitad de camino, el paso sigue
-  // existiendo hasta que él mismo avance, para que los índices de los
-  // demás pasos no se corran de golpe.
+  // Mismo chequeo que RecordatorioBanner: en qué estado están los avisos de este celular.
   useEffect(() => {
     (async () => {
       const ua = window.navigator.userAgent || '';
@@ -5538,20 +5501,19 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         || window.navigator.standalone === true;
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         const e = esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado';
-        setEstadoPush(e); setIncluirPasoNotif(true);
+        setEstadoPush(e);
         return;
       }
-      if (Notification.permission === 'denied') { setEstadoPush('bloqueado'); setIncluirPasoNotif(true); return; }
+      if (Notification.permission === 'denied') { setEstadoPush('bloqueado'); return; }
       if (Notification.permission === 'granted') {
         try {
           const reg = await navigator.serviceWorker.ready;
           const sub = await reg.pushManager.getSubscription();
           setEstadoPush(sub ? 'yaActivo' : 'disponible');
-          setIncluirPasoNotif(!sub);
-        } catch { setEstadoPush('disponible'); setIncluirPasoNotif(true); }
+        } catch { setEstadoPush('disponible'); }
         return;
       }
-      setEstadoPush('disponible'); setIncluirPasoNotif(true);
+      setEstadoPush('disponible');
     })();
   }, []);
 
@@ -9586,7 +9548,6 @@ function ObjetivoDiarioCard({ mealPlan, setMealPlan, targets, tdee }) {
   // Escribir las calorías y macros a mano es Premium. La meta calculada
   // según su objetivo es gratis.
   const { premium } = usePremium();
-  const macroSum = mealPlan.macros.p + mealPlan.macros.c + mealPlan.macros.f;
   const goalMismatch = targets && Math.abs(mealPlan.targetKcal - targets.kcal) > 5;
 
   function applyGoal() {
@@ -12716,7 +12677,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     hayAnuncioNuevo().then(setAvisoMuro, () => {});
   }, [username]);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
-  const [instalarElegible, setInstalarElegible] = useState(null);
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
   // Beast · tu compañero: la burbuja del gorila (donde estaba el botón de
   // WhatsApp) abre su chat. El globito de presentación sale una sola vez,
@@ -12894,7 +12854,6 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // activar notificaciones, para que el punto siga significando algo.
   const quedanPrueba = daysLeft(userRecord?.fechaVencimiento);
   const avisoInicio = renewalElegible || (trialElegible && quedanPrueba !== null && quedanPrueba <= 1);
-  const [guiaVista, setGuiaVista] = useState(true);
   const [pull, setPull] = useState({ y: 0, refrescando: false });
   const pullStartY = useRef(null);
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
@@ -12954,7 +12913,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       } catch (e) { avisarError(e); }
       try {
         const vista = localStorage.getItem('jb_guia_' + username);
-        if (!vista) { setVerGuia(true); setGuiaVista(false); }
+        if (!vista) setVerGuia(true);
       } catch (e) { avisarError(e); }
     })();
   }, [username, userRecord]);
@@ -13155,7 +13114,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             : !renewalElegible && (
               <>
                 <RecordatorioBanner username={username} onEligible={setRecordatorioElegible} />
-                {recordatorioElegible === false && <InstalarBanner onEligible={setInstalarElegible} />}
+                {recordatorioElegible === false && <InstalarBanner />}
               </>
             );
           const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;

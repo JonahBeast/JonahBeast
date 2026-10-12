@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
-import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { Eye, X, ChevronRight, Flame, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
+import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 
 // Partes que se descargan solo cuando hacen falta: quien entra a la
@@ -420,7 +420,6 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
   group, name, state, kcal, protein, carbs, fat, fiber, key: `${name} (${state})`,
 }));
 
-const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
 
 // Alimentos que ya no se ofrecen (ni en el buscador ni en la foto) porque
 // se reemplazaron por versiones más precisas, pero siguen existiendo para
@@ -1318,74 +1317,6 @@ function generateQuickOptions(remaining, restricciones = []) {
 
 
 
-function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo }) {
-  const combos = useMemo(
-    () => [...generateCombos(remaining, mealDestino, restricciones), ...generateQuickOptions(remaining, restricciones)],
-    [remaining, restricciones, mealDestino]
-  );
-  const [idx, setIdx] = useState(0);
-  const [dx, setDx] = useState(0);
-  const arrastrando = useRef(false);
-  const startXRef = useRef(null);
-
-  useEffect(() => { setIdx(0); }, [mealDestino]);
-
-  const actual = combos[idx % Math.max(1, combos.length)];
-
-  function onStart(x) { startXRef.current = x; arrastrando.current = true; }
-  function onMove(x) { if (startXRef.current === null) return; setDx(x - startXRef.current); }
-  function onEnd() {
-    arrastrando.current = false;
-    if (dx > 80 && actual) { onAgregarCombo(actual); siguiente(); }
-    else if (dx < -80) { siguiente(); }
-    setDx(0);
-    startXRef.current = null;
-  }
-  function siguiente() { setIdx(v => v + 1); }
-
-  if (!combos.length) {
-    return <p className="jb-body text-xs text-zinc-500 text-center py-6">No hay sugerencias disponibles con lo que te queda del día — vuelve más tarde.</p>;
-  }
-  if (!actual) return null;
-
-  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-orange-500/25';
-
-  return (
-    <div className="flex flex-col items-center gap-3 py-3">
-      <div className="flex items-center gap-3 w-full max-w-xs">
-        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx < -20 ? 'opacity-100' : 'opacity-30'}`}>
-          <span className="text-xl">◀</span>
-          <span className="jb-body text-[9px] text-zinc-500">Saltar</span>
-        </div>
-        <div
-          className={`relative bg-zinc-950 border-2 rounded-2xl p-5 flex-1 text-center select-none transition-colors ${tintado}`}
-          style={{
-            transform: `translateX(${dx}px) rotate(${dx / 20}deg)`,
-            transition: arrastrando.current ? 'none' : 'transform 0.25s ease, border-color 0.15s ease',
-            touchAction: 'pan-y',
-          }}
-          onTouchStart={e => onStart(e.touches[0].clientX)}
-          onTouchMove={e => onMove(e.touches[0].clientX)}
-          onTouchEnd={onEnd}
-        >
-          <div className="text-4xl mb-2">{actual.emoji}</div>
-          <p className="jb-display text-base text-zinc-100 mb-1">{actual.name}</p>
-          <p className="jb-body text-xs text-zinc-500">{Math.round(actual.kcal)} kcal · P {Math.round(actual.protein)}g</p>
-        </div>
-        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx > 20 ? 'opacity-100' : 'opacity-30'}`}>
-          <span className="text-xl">▶</span>
-          <span className="jb-body text-[9px] text-zinc-500">Agregar</span>
-        </div>
-      </div>
-      <div className="flex gap-6 mt-1">
-        <button onClick={siguiente} className="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-xl">✕</button>
-        <button onClick={() => { onAgregarCombo(actual); siguiente(); }} className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-xl">✓</button>
-      </div>
-      <p className="jb-body text-[10px] text-zinc-600">👆 Desliza la tarjeta a la derecha para agregar, a la izquierda para saltar</p>
-    </div>
-  );
-}
-
 
 
 
@@ -1700,210 +1631,24 @@ function addDaysISO(iso, days) {
 /* Resumen de un vistazo: kcal de hoy vs objetivo, racha y si el reto de
    la semana está pendiente — todo en una sola línea, arriba de todo,
    para que el alumno entienda su día en 1 segundo al abrir la app. */
-function ResumenDelDia({ username, totalsHoy, targets }) {
-  const [racha, setRacha] = useState(0);
-
-  useEffect(() => {
-    if (!username) return;
-    (async () => {
-      try {
-        const desde = addDaysISO(todayISO(), -60);
-        const { data } = await supabase.from('historial')
-          .select('fecha, comidas_count').eq('username', username).gte('fecha', desde);
-        const m = {};
-        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
-        const hoy = todayISO();
-        const registro = iso => (m[iso] || 0) > 0;
-        let r = 0;
-        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
-        while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
-        setRacha(r);
-      } catch {}
-    })();
-  }, [username]);
-
-  const objetivo = targets ? Math.round(targets.kcal) : 0;
-  const consumido = Math.round(totalsHoy.kcal);
-  const pct = objetivo ? Math.min(100, (consumido / objetivo) * 100) : 0;
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3 overflow-x-auto">
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span className="text-orange-500">🔥</span>
-        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{consumido}/{objetivo || '—'} kcal</span>
-      </div>
-      <div className="h-3 w-px bg-zinc-800 shrink-0" />
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span>💪</span>
-        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{racha > 0 ? `Racha ${racha}d` : 'Sin racha aún'}</span>
-      </div>
-    </div>
-  );
-}
 
 
 
 /* Check-in rápido: para días sin ganas de pensar mucho, registra de un
    toque el combo más frecuente de cada comida (de los últimos 45 días). */
-function CheckinRapidoButton({ username, mealPlan, setMealPlan }) {
-  const [cargando, setCargando] = useState(false);
-  const hoyVacio = Object.values(mealPlan.meals || {}).every(arr => arr.length === 0);
-  if (!hoyVacio) return null;
-
-  async function comiNormal() {
-    setCargando(true);
-    try {
-      const { data } = await supabase.from('historial')
-        .select('meal_plan').eq('username', username)
-        .not('meal_plan', 'is', null).order('fecha', { ascending: false }).limit(45);
-
-      const conteoPorComida = {};
-      (data || []).forEach(r => {
-        Object.entries(r.meal_plan?.meals || {}).forEach(([meal, lista]) => {
-          if (!MEAL_NAMES.includes(meal)) return;
-          conteoPorComida[meal] = conteoPorComida[meal] || {};
-          (lista || []).forEach(en => {
-            if (!en.foodKey) return;
-            const k = JSON.stringify({ f: en.foodKey, u: en.unit ?? null, q: en.qty ?? en.grams });
-            conteoPorComida[meal][k] = (conteoPorComida[meal][k] || 0) + 1;
-          });
-        });
-      });
-
-      const nuevosMeals = { ...mealPlan.meals };
-      let algo = false;
-      MEAL_NAMES.forEach(meal => {
-        const conteo = conteoPorComida[meal];
-        if (!conteo || Object.keys(conteo).length === 0) return;
-        // Toma los 2 alimentos más repetidos de esa comida
-        const top = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => JSON.parse(k));
-        nuevosMeals[meal] = top.map(it => ({
-          id: uid(), foodKey: it.f, qty: it.q ?? 100, unit: it.u ?? 'gramos',
-        }));
-        algo = true;
-      });
-
-      if (algo) {
-        setMealPlan(v => ({ ...v, meals: nuevosMeals }));
-        vibrar(20);
-        showToast('✅ Registramos tu día con lo que sueles comer');
-      } else {
-        showToast('Aún no tenemos suficiente historial para esto', 'error');
-      }
-    } catch {
-      showToast('No se pudo completar, intenta de nuevo', 'error');
-    }
-    setCargando(false);
-  }
-
-  return (
-    <button onClick={comiNormal} disabled={cargando}
-      className="w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-4 mb-6 flex items-center gap-3 text-left transition-colors">
-      <div className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-lg shrink-0">
-        {cargando ? <Loader2 className="animate-spin text-orange-500" size={18} /> : '⚡'}
-      </div>
-      <div>
-        <p className="jb-display text-sm text-zinc-100">COMÍ NORMAL HOY</p>
-        <p className="jb-body text-xs text-zinc-500">Registra tu día con lo que sueles comer, de un toque</p>
-      </div>
-    </button>
-  );
-}
 
 /* Sugiere un alimento real de proteína (de tu propia base de 230
    alimentos) y calcula la cantidad exacta para cubrir lo que le falta
    al alumno hoy — mismo cálculo que la sustitución inteligente, no
    texto inventado. */
-function sugerirProteinaJonah(gapProtein, remainingKcal) {
-  const candidatos = FOODS.filter(f =>
-    ['Carnes y aves', 'Pescados', 'Pescados y mariscos'].includes(f.group) && f.protein > 15);
-  if (!candidatos.length) return null;
-  const food = FOODS.find(f => f.name.toLowerCase().includes('pollo') && f.state === 'Cocido') || candidatos[0];
-  let grams = Math.max(50, Math.round((gapProtein / food.protein) * 100 / 5) * 5);
-  const kcalNecesarias = (food.kcal * grams) / 100;
-  if (remainingKcal > 0 && kcalNecesarias > remainingKcal * 1.3) {
-    grams = Math.max(50, Math.round(((remainingKcal / food.kcal) * 100) / 5) * 5);
-  }
-  return { food, grams };
-}
 
 /* Construye el consejo de Jonah a partir de los datos reales del día
    (no es texto generado por IA — son las mismas cifras que ya calcula
    la app, solo redactadas como si te hablara directamente). */
-function mensajeDeJonah(totalsHoy, targets) {
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-  if (!targets || !targets.kcal) {
-    return 'Termina de configurar tu objetivo en "Mi objetivo" y te doy recomendaciones reales para tu día.';
-  }
-  const kcalRestante = Math.round(targets.kcal - totalsHoy.kcal);
-  const protRestante = Math.round(targets.protein - totalsHoy.protein);
-  const carbRestante = Math.round((targets.carbs || 0) - (totalsHoy.carbs || 0));
-
-  if (kcalRestante <= 0) {
-    return pick([
-      `¡Ya cumpliste tu objetivo de ${Math.round(targets.kcal)} kcal de hoy! Así se hace 🔥`,
-      'Objetivo del día completado. Modo bestia activado 🦍🔥',
-      'Kcal de hoy: listas. Descansa tranquilo, lo hiciste bien.',
-    ]);
-  }
-
-  if (protRestante >= 15) {
-    const sug = sugerirProteinaJonah(protRestante, kcalRestante);
-    if (sug) {
-      const base = pick([
-        `Te faltan ${protRestante}g de proteína. Te recomiendo ${sug.grams}g de ${sug.food.name} + una ensalada.`,
-        `Aún necesitas ${protRestante}g de proteína hoy — ${sug.grams}g de ${sug.food.name} te los da de sobra.`,
-      ]);
-      return base + (carbRestante <= 20 ? ' Y ya no necesitas más carbohidratos por ahora.' : '');
-    }
-  }
-
-  const proteinaCubierta = protRestante < 15;
-  const carbsCubiertos = carbRestante <= 20;
-
-  if (proteinaCubierta && carbsCubiertos) {
-    return pick([
-      `Tu proteína y carbohidratos de hoy ya están cubiertos. Te quedan ${kcalRestante} kcal — ciérralas con algo ligero.`,
-      `Vas muy bien hoy. Con ${kcalRestante} kcal libres, cualquier snack pequeño te cierra el día perfecto.`,
-    ]);
-  }
-
-  if (proteinaCubierta && !carbsCubiertos) {
-    return pick([
-      `Tu proteína ya está cubierta. Te faltan ${Math.max(0, carbRestante)}g de carbohidratos — un poco de fruta o cereal te viene bien.`,
-      `Proteína lista 💪. Aún puedes sumar ${Math.max(0, carbRestante)}g de carbohidratos con algo de fruta o arroz.`,
-    ]);
-  }
-
-  return pick([
-    `Te quedan ${kcalRestante} kcal por hoy. Vas bien, sigue así.`,
-    `Llevas un buen ritmo — ${kcalRestante} kcal disponibles todavía.`,
-    `Todo en orden. Aún tienes ${kcalRestante} kcal para completar tu día.`,
-  ]);
-}
 
 /* Abanico de respuestas de Jonah cuando lo tocas repetido: alterna
    entre consejo real de macros, frase motivacional y recordatorio,
    para que no se sienta como un bucle de 2 mensajes. */
-const JONAH_FRASES_MOTIVACION = [
-  'Cada registro es un ladrillo más de tu resultado. Sigue así 🦍',
-  'No hace falta perfección, solo constancia.',
-  'Ya diste el paso más difícil: empezar.',
-  'Tu cuerpo ya empezó a notar el esfuerzo.',
-  'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧',
-  'Estoy contigo, acompañándote en tu proceso 🦍',
-  '¿Cómo va tu día? Aquí estoy si me necesitas.',
-  'Jonah siempre estará al pendiente de ti.',
-  'No caminas solo(a) en esto. Yo sigo aquí, contigo.',
-  'Cada pequeño paso de hoy es parte de tu mejor versión.',
-];
-const JONAH_FRASES_OCIO = [
-  '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
-  'Estoy aquí cuando me necesites 💪',
-  'Toca de nuevo y te doy otro consejo 🦍',
-  '¿Cómo vas con el agua hoy? Recuerda tus 2-3 litros diarios.',
-];
 
 /* Jonah, la mascota interactiva de la app. Se presenta la primera vez,
    se "golpea el pecho" cuando lleva un rato sin interacción, y al
@@ -1911,178 +1656,6 @@ const JONAH_FRASES_OCIO = [
 /* Versión de Jonah para pantallas sin sesión (Landing, registro) — sin
    datos de macros todavía, pero igual de viva: respira, se golpea el
    pecho y ruge sola, y al tocarla cambia de frase motivacional. */
-function JonahMiniIdle({ fraseInicial, frases }) {
-  const [golpeando, setGolpeando] = useState(false);
-  const [rugiendo, setRugiendo] = useState(false);
-  const [mensaje, setMensaje] = useState(fraseInicial);
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    let activo = true;
-    let t;
-    function loop(primeraVez) {
-      t = setTimeout(() => {
-        if (!activo) return;
-        if (Math.random() < 0.5) { setGolpeando(true); setTimeout(() => setGolpeando(false), 700); }
-        else { setRugiendo(true); setTimeout(() => setRugiendo(false), 900); }
-        loop(false);
-      }, primeraVez ? 1200 : 5000 + Math.random() * 3000);
-    }
-    loop(true);
-    return () => { activo = false; clearTimeout(t); };
-  }, []);
-
-  function tocar() {
-    setGolpeando(true);
-    vibrar(15);
-    setTimeout(() => setGolpeando(false), 500);
-    if (frases && frases.length) {
-      setMensaje(frases[idx % frases.length]);
-      setIdx(v => v + 1);
-    }
-  }
-
-  return (
-    <div className="text-center">
-      <div className="relative inline-block">
-        {rugiendo && (
-          <span className="absolute -top-2 -right-1 jb-display text-[9px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
-            ¡RAWR!
-          </span>
-        )}
-        {rugiendo && (
-          <>
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
-          </>
-        )}
-        <button onClick={tocar}
-          className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
-          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
-          title="Toca a Jonah">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }} />
-        </button>
-      </div>
-      <style>{`
-        @keyframes jb-jonah-golpe { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(-4deg); } }
-        @keyframes jb-jonah-rugido { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.36) rotate(3deg); } }
-        @keyframes jb-jonah-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
-        @keyframes jb-jonah-onda-expandir { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(1.9); opacity: 0; } }
-        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
-      `}</style>
-      {mensaje && <p className="jb-body text-xs text-zinc-400 mt-2 max-w-[240px] mx-auto">{mensaje}</p>}
-    </div>
-  );
-}
-
-function JonahGorila({ username, totalsHoy, targets }) {
-  const [presentado, setPresentado] = useState(() => {
-    try { return localStorage.getItem(`jb-jonah-intro-${username}`) === '1'; } catch { return false; }
-  });
-  const [mensaje, setMensaje] = useState(null);
-  const [golpeando, setGolpeando] = useState(false);
-  const [rugiendo, setRugiendo] = useState(false);
-  const [idx, setIdx] = useState(0);
-  const ociosoRef = useRef(null);
-
-  useEffect(() => {
-    if (!presentado) {
-      setMensaje('¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos.');
-      const t = setTimeout(() => {
-        setPresentado(true);
-        try { localStorage.setItem(`jb-jonah-intro-${username}`, '1'); } catch {}
-        setMensaje(null);
-      }, 4200);
-      return () => clearTimeout(t);
-    }
-  }, [presentado, username]);
-
-  // Cuando pasa un rato sin que lo toquen, alterna entre golpearse el
-  // pecho y rugir — nunca queda del todo estático.
-  useEffect(() => {
-    function reiniciarOcio(primeraVez) {
-      if (ociosoRef.current) clearTimeout(ociosoRef.current);
-      ociosoRef.current = setTimeout(() => {
-        if (Math.random() < 0.5) {
-          setGolpeando(true);
-          setTimeout(() => setGolpeando(false), 700);
-        } else {
-          setRugiendo(true);
-          setTimeout(() => setRugiendo(false), 900);
-        }
-        reiniciarOcio(false);
-      }, primeraVez ? 1200 : 6000 + Math.random() * 3000);
-    }
-    reiniciarOcio(true);
-    return () => { if (ociosoRef.current) clearTimeout(ociosoRef.current); };
-  }, []);
-
-  function tocar() {
-    if (!presentado) return; // deja que termine su presentación primero
-    setGolpeando(true);
-    vibrar(15);
-    setTimeout(() => setGolpeando(false), 500);
-
-    // Abanico de respuestas: alterna consejo real de macros, frase
-    // motivacional y recordatorio, para que no se sienta un bucle de 2.
-    const tipo = idx % 3;
-    if (tipo === 0) setMensaje(mensajeDeJonah(totalsHoy, targets));
-    else if (tipo === 1) setMensaje(JONAH_FRASES_MOTIVACION[Math.floor(Math.random() * JONAH_FRASES_MOTIVACION.length)]);
-    else setMensaje(JONAH_FRASES_OCIO[Math.floor(Math.random() * JONAH_FRASES_OCIO.length)]);
-    setIdx(v => v + 1);
-  }
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 flex items-start gap-3">
-      <div className="relative shrink-0">
-        {rugiendo && (
-          <span className="absolute -top-2 -right-1 jb-display text-[10px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
-            ¡RAWR!
-          </span>
-        )}
-        {rugiendo && (
-          <>
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
-          </>
-        )}
-        <button onClick={tocar}
-          className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
-          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
-          title="Toca a Jonah">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }} />
-        </button>
-      </div>
-      <style>{`
-        @keyframes jb-jonah-golpe {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.18) rotate(-4deg); }
-        }
-        @keyframes jb-jonah-rugido {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.36) rotate(3deg); }
-        }
-        @keyframes jb-jonah-respira {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.045); }
-        }
-        @keyframes jb-jonah-onda-expandir {
-          0% { transform: scale(1); opacity: 0.75; }
-          100% { transform: scale(1.9); opacity: 0; }
-        }
-        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
-      `}</style>
-      <div className="flex-1 min-w-0">
-        <p className="jb-display text-xs text-orange-500 mb-1">JONAH</p>
-        <p className="jb-body text-sm text-zinc-200 leading-snug">
-          {mensaje || 'Toca a Jonah para que te diga qué te conviene comer ahora.'}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 
 
@@ -2129,31 +1702,6 @@ function AnimatedNumber({ value, duration = 650 }) {
   }, [value]);
 
   return display;
-}
-
-function MacroRing({ pct, value, numeric, label, colorHex, size = 92, stroke = 9 }) {
-  const clamped = Math.max(0, Math.min(100, pct || 0));
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (clamped / 100) * c;
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size / 2} cy={size / 2} r={r} stroke="#27272a" strokeWidth={stroke} fill="none" />
-          <circle cx={size / 2} cy={size / 2} r={r} stroke={colorHex} strokeWidth={stroke} fill="none"
-            strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="jb-display text-base text-zinc-50">
-            {numeric !== undefined ? <AnimatedNumber value={numeric} /> : value}
-          </span>
-        </div>
-      </div>
-      <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500 text-center break-words" style={{ maxWidth: size + 12 }}>{label}</span>
-    </div>
-  );
 }
 
 function Field({ label, helpHref, children }) {
@@ -4001,8 +3549,6 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   );
 }
 
-function TrialSignupPlaceholder() { return null; }
-
 function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -4244,7 +3790,6 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [modo, setModo] = useState('login');
-  const [aviso, setAviso] = useState('');
   const [codigo, setCodigo] = useState('');
   const [passNueva, setPassNueva] = useState('');
   const [passNueva2, setPassNueva2] = useState('');
@@ -4263,7 +3808,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
 
   async function recuperar(e) {
     e.preventDefault();
-    setErr(''); setAviso('');
+    setErr('');
     const correo = casilla(e.currentTarget, 'email', email);
     if (correo !== email) setEmail(correo);
     if (!correo.trim()) return setErr('Escribe tu correo para enviarte el código.');
@@ -4649,26 +4194,6 @@ function marcarPantallaGratisVista(username, fechaVencimiento) {
 /* SEGURIDAD DE CONTRASEÑAS (PBKDF2 con Web Crypto)                    */
 /* ------------------------------------------------------------------ */
 
-function bufToHex(buf) {
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashPassword(password, saltHex) {
-  const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{2}/g).map(h => parseInt(h, 16)))
-    : crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, key, 256);
-  return { hash: bufToHex(bits), salt: bufToHex(salt) };
-}
-
-async function verifyPassword(password, hashHex, saltHex) {
-  if (!hashHex || !saltHex) return false;
-  const { hash } = await hashPassword(password, saltHex);
-  return hash === hashHex;
-}
-
 /* ------------------------------------------------------------------ */
 /* PRUEBA DE PREMIUM DE 7 DÍAS (después, versión gratis)               */
 /* ------------------------------------------------------------------ */
@@ -4690,7 +4215,6 @@ const TRIAL_DAYS = 7;
 
 
 
- 
 
 
 
@@ -5103,7 +4627,6 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [creandoMP, setCreandoMP] = useState(false);
   const [mpTipo, setMpTipo] = useState('unico');
   // Google Play (solo en la app de Android con el cobro de Google activado)
-  const [playSrv, setPlaySrv] = useState(null);
   const [playListo, setPlayListo] = useState(false);
   const [playDiag, setPlayDiag] = useState('');
   const [playBuscando, setPlayBuscando] = useState(() => esTWA());
@@ -5125,7 +4648,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       if (!vivo) return;
       setPlayDiag(r.diag); setPlayBuscando(false);
       if (!r.listo) return;
-      setPlayPrecios(r.precios); setPlaySrv(r.srv); setPlayListo(true);
+      setPlayPrecios(r.precios); setPlayListo(true);
       if (r.srv && await sincronizarComprasGoogle(r.srv)) window.location.reload();
     })();
     return () => { vivo = false; };
@@ -6078,7 +5601,6 @@ export default function App() {
   const [sesionRevisada, setSesionRevisada] = useState(false);
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState([]);
-  const [adminPass, setAdminPass] = useState('');
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [viewingStudent, setViewingStudent] = useState(null);
   const [expiredInfo, setExpiredInfo] = useState(null);
@@ -6209,15 +5731,6 @@ export default function App() {
     } catch (e) { avisarError(e); }
     setUsers(usersList);
     setLoading(false);
-  }
-
-  async function handleAdminSetup(pass) {
-    setBusy(true);
-    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch (e) { avisarError(e); }
-    setAdminPass(pass);
-    setBusy(false);
-    setAdminAuthed(true);
-    setView('admin');
   }
 
   async function handleAdminLogin(email, pass, setErr) {

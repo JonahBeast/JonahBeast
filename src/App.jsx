@@ -1411,14 +1411,11 @@ function esAppIOS() {
 /* Puente propio de la app de iPhone (ios/App/App/SceneDelegate.swift):
    "Continuar con Apple" y el ingreso de Google en la hoja segura de
    Apple. Solo existe dentro de la app instalada desde la App Store;
-   en Safari o en la web devuelve null. */
-let puenteIOS;
+   en Safari o en la web devuelve null. La app lo deja listo en
+   window.Capacitor.Plugins (la web no trae @capacitor/core, así que no
+   hay registerPlugin). */
 function nativoIOS() {
-  if (puenteIOS !== undefined) return puenteIOS;
-  try {
-    puenteIOS = esAppIOS() && window.Capacitor?.isPluginAvailable?.('JBNativo') ? window.Capacitor.registerPlugin('JBNativo') : null;
-  } catch { puenteIOS = null; }
-  return puenteIOS;
+  try { return (esAppIOS() && window.Capacitor?.Plugins?.JBNativo) || null; } catch { return null; }
 }
 
 // App de tienda (Play Store o App Store): sin Yape, Plin ni Mercado Pago.

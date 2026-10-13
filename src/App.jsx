@@ -1408,6 +1408,19 @@ function esAppIOS() {
   try { return /JBFuel-iOS/.test(navigator.userAgent) || window.Capacitor?.getPlatform?.() === 'ios'; } catch { return false; }
 }
 
+/* Puente propio de la app de iPhone (ios/App/App/SceneDelegate.swift):
+   "Continuar con Apple" y el ingreso de Google en la hoja segura de
+   Apple. Solo existe dentro de la app instalada desde la App Store;
+   en Safari o en la web devuelve null. */
+let puenteIOS;
+function nativoIOS() {
+  if (puenteIOS !== undefined) return puenteIOS;
+  try {
+    puenteIOS = esAppIOS() && window.Capacitor?.isPluginAvailable?.('JBNativo') ? window.Capacitor.registerPlugin('JBNativo') : null;
+  } catch { puenteIOS = null; }
+  return puenteIOS;
+}
+
 // App de tienda (Play Store o App Store): sin Yape, Plin ni Mercado Pago.
 function esAppTienda() {
   return esTWA() || esAppIOS();
@@ -2747,7 +2760,9 @@ function mensajeContrasenaRechazada(error) {
    con la sesión abierta; restoreSession la lleva a su prueba. La base le
    arma un usuario único a partir del correo (handle_new_user). */
 async function entrarConGoogle(setErr) {
-  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); } catch {}
+  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); sessionStorage.removeItem('jb-ingreso-con'); } catch {}
+  const nativo = nativoIOS();
+  if (nativo) return entrarConGoogleIOS(nativo, setErr);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/' + (window.location.search || '') },
@@ -2756,6 +2771,99 @@ async function entrarConGoogle(setErr) {
     registrarEventoEmbudo('error_registro', { detalle: 'google: ' + String(error.message || '').slice(0, 80) });
     if (setErr) setErr('No se pudo abrir Google. Intenta de nuevo o usa tu correo.');
   }
+}
+
+/* App de iPhone: Google no deja entrar dentro de la app, así que su
+   página se abre en la hoja segura de Apple y vuelve a la app por
+   com.jonahbeast.app://auth (permitida en Supabase → Authentication →
+   URL Configuration) con la sesión, que se guarda aquí. */
+const VUELTA_IOS = 'com.jonahbeast.app://auth';
+
+async function entrarConGoogleIOS(nativo, setErr) {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: VUELTA_IOS, skipBrowserRedirect: true },
+  });
+  if (error || !data?.url) {
+    registrarEventoEmbudo('error_registro', { detalle: 'google ios: ' + String(error?.message || 'sin url').slice(0, 80) });
+    if (setErr) setErr('No se pudo abrir Google. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  let vuelta;
+  try { vuelta = (await nativo.abrirWeb({ url: data.url, esquema: 'com.jonahbeast.app' })).url; }
+  catch (e) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    if (e?.code === 'CANCELADO') return;
+    registrarEventoEmbudo('error_registro', { detalle: 'google ios: ' + String(e?.message || '').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Google. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  if (await sesionDesdeVuelta(vuelta)) { window.location.reload(); return; }
+  try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+  registrarEventoEmbudo('error_registro', { detalle: 'google ios: vuelta sin sesión' });
+  if (setErr) setErr('No se pudo entrar con Google. Intenta de nuevo o usa tu correo.');
+}
+
+// La vuelta trae la sesión en el "#" (access_token y refresh_token) o un
+// código para canjear.
+async function sesionDesdeVuelta(direccion) {
+  try {
+    const u = new URL(direccion);
+    const q = u.searchParams;
+    const h = new URLSearchParams((u.hash || '').replace(/^#/, ''));
+    const codigo = q.get('code');
+    if (codigo) return !(await supabase.auth.exchangeCodeForSession(codigo)).error;
+    const access_token = h.get('access_token'), refresh_token = h.get('refresh_token');
+    if (access_token && refresh_token) return !(await supabase.auth.setSession({ access_token, refresh_token })).error;
+  } catch {}
+  return false;
+}
+
+/* "Continuar con Apple" (solo en la app de iPhone; Apple lo exige porque
+   hay "Continuar con Google"). Apple da el token y Supabase lo comprueba;
+   si la cuenta es nueva, la base la crea igual que con Google. Apple
+   manda el nombre solo la primera vez: se guarda si la cuenta no tiene. */
+async function entrarConApple(setErr) {
+  const nativo = nativoIOS();
+  if (!nativo) return;
+  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); sessionStorage.setItem('jb-ingreso-con', 'apple'); } catch {}
+  let r;
+  try { r = await nativo.iniciarConApple(); }
+  catch (e) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    if (e?.code === 'CANCELADO') return;
+    registrarEventoEmbudo('error_registro', { detalle: 'apple: ' + String(e?.message || '').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Apple. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: r.identityToken, nonce: r.nonce });
+  if (error || !data?.user) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    registrarEventoEmbudo('error_registro', { detalle: 'apple: ' + String(error?.message || 'sin usuario').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Apple. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  const nombre = [r.givenName, r.familyName].filter(Boolean).join(' ').trim();
+  if (nombre) {
+    try {
+      await supabase.from('profiles').update({ nombre }).eq('id', data.user.id).eq('nombre', '');
+      await supabase.from('alumnos').update({ nombre }).eq('user_id', data.user.id).eq('nombre', '');
+    } catch {}
+  }
+  window.location.reload();
+}
+
+function BotonApple({ onClick, texto = 'Continuar con Apple' }) {
+  if (!nativoIOS()) return null;
+  return (
+    <button type="button" onClick={onClick}
+      className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-50 text-zinc-50 jb-body font-semibold text-base py-3 transition-colors">
+      <svg width="17" height="20" viewBox="0 0 17 20" fill="currentColor" aria-hidden="true">
+        <path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.5 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/>
+      </svg>
+      {texto}
+    </button>
+  );
 }
 
 /* Navegador dentro de Instagram, Facebook, Messenger o TikTok (donde se
@@ -3470,6 +3578,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
             </div>
           ) : (
             <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+              <BotonApple onClick={() => entrarConApple(setErr)} />
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
@@ -3990,6 +4099,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
               {modo === 'login' && (
                 <>
+                  <BotonApple onClick={() => entrarConApple(setErr)} texto="Entrar con Apple" />
                   <BotonGoogle onClick={() => entrarConGoogle(setErr)} texto="Entrar con Google" />
                   <SeparadorO />
                 </>
@@ -5655,17 +5765,21 @@ export default function App() {
     if (view === 'studentAuth' || view === 'trial' || view === 'recorrido') import('./alumno.jsx').catch(() => {});
   }, [view]);
 
-  /* Vuelta de "Continuar con Google": si la cuenta se acaba de crear, se
+  /* Vuelta de "Continuar con Google" (o con Apple): si la cuenta se acaba de crear, se
      cuenta como 'registro' en el embudo y se avisa a TikTok y Meta, igual
      que el registro con correo. Solo si salió del botón en esta pestaña. */
   function volvioDeGoogle(user, perfil) {
     let inicio = null;
-    try { inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    let con = 'google';
+    try {
+      inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio');
+      con = sessionStorage.getItem('jb-ingreso-con') || 'google'; sessionStorage.removeItem('jb-ingreso-con');
+    } catch {}
     if (!inicio) return;
     const nueva = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 15 * 60 * 1000;
     if (nueva && perfil.role !== 'admin') {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
-      registrarRegistroEmbudo(perfil.username, 'google');
+      registrarRegistroEmbudo(perfil.username, con);
       avisarRegistroTikTok(user?.id);
       avisarMeta('CompleteRegistration');
     }

@@ -7024,8 +7024,14 @@ const CORTES_POLLO = [
 const esCortePollo = food => unitsFor(food).some(u => u[0] === 'cuarto de pollo') && unitsFor(food).some(u => u[0] === 'octavo de pollo');
 const corteDePorcion = p => p.unit === 'octavo de pollo' ? 'octavo' : (p.qty >= 2 ? 'medio' : 'cuarto');
 
+/* Envases que se cuentan enteros (1 lata de atún, 1 paquete de galletas):
+   en la foto se eligen con − / + como las piezas, en vez de calcularse
+   por los gramos que la IA ve (daba "1½ lata" con Poco para 1 lata). */
+const ENVASES_FOTO = ['lata', 'lata pequeña', 'lata grande', 'paquete', 'botella personal', 'botella grande', 'barra pequeña', 'mini panetón'];
+const contableEnFoto = unit => UNIDADES_DISCRETAS.includes(unit) || ENVASES_FOTO.includes(unit);
+
 function esPorPiezas(food) {
-  return UNIDADES_DISCRETAS.includes(unidadPorDefecto(food).unit);
+  return contableEnFoto(unidadPorDefecto(food).unit);
 }
 
 /* Piezas grandes (palta, mango, camote…): se comen enteras o a la mitad,
@@ -7081,7 +7087,7 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
     return { unit: 'cuarto de pollo', qty: Math.max(1, Math.round(g / cuarto)) };
   }
   const d = unidadPorDefecto(food);
-  if (UNIDADES_DISCRETAS.includes(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
+  if (contableEnFoto(d.unit)) return { unit: d.unit, qty: d.qty * (cantidadIA || 1) };
   const porUnidad = d.unit === 'gramos' ? 1 : gramsPerUnit(food, d.unit);
   const normal = d.qty * porUnidad;
   let calculado = Number(gramosIA) > 0 ? Math.min(normal * 3, Math.max(normal * 0.3, Number(gramosIA))) : normal;

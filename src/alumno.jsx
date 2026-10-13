@@ -11449,6 +11449,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
   const [deshacer, setDeshacer] = useState(null); // { id, fn, hasta }
   const [sonando, setSonando] = useState(null);
   const finRef = useRef(null);
+  const preguntaRef = useRef(null);
   const inputRef = useRef(null);
   const confirmarRef = useRef(null); // { id, fn } de la última tarjeta para confirmar
   const avisoRef = useRef(null); // el aviso desde el que abrió el chat (va con su primer mensaje)
@@ -11536,7 +11537,15 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       }
     } catch {}
   }
-  useEffect(() => { finRef.current?.scrollIntoView({ block: 'end' }); }, [mensajes.length, estado, enviando]);
+  // Al llegar su respuesta, la pregunta del alumno queda arriba y la
+  // respuesta se lee desde el inicio (si es larga, no salta al final).
+  useEffect(() => {
+    const pregunta = preguntaRef.current;
+    preguntaRef.current = null;
+    const el = pregunta && document.querySelector(`[data-msg="${pregunta}"]`);
+    if (el) el.scrollIntoView({ block: 'start' });
+    else finRef.current?.scrollIntoView({ block: 'end' });
+  }, [mensajes.length, estado, enviando]);
   useEffect(() => {
     if (!deshacer) return;
     const t = setTimeout(() => setDeshacer(d => (d && d.id === deshacer.id ? null : d)), Math.max(0, deshacer.hasta - Date.now()));
@@ -11621,6 +11630,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       return;
     }
     if (r.cuenta) setCuenta(r.cuenta);
+    preguntaRef.current = idLocal;
     setMensajes(v => [...v, { id: r.id, rol: 'beast', texto: r.respuesta, datos: r.accion ? { accion: r.accion } : null, nuevo: true }]);
     // Agua: directo (con Deshacer), como en la app.
     if (r.accion?.tipo === 'agua') sumarAgua(r.accion.vasos, r.id);
@@ -11986,7 +11996,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
           <>
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5" onClick={() => menu && setMenu(null)}>
               {lista.map(m => m.rol === 'alumno' ? (
-                <div key={m.id} className="self-end max-w-[85%] flex flex-col items-end">
+                <div key={m.id} data-msg={m.id} className="self-end max-w-[85%] flex flex-col items-end scroll-mt-3">
                   <p className="jb-body text-sm text-zinc-950 bg-orange-400 rounded-2xl rounded-br-sm px-3 py-2 whitespace-pre-wrap">{m.tipo === 'voz' ? '🎤 ' : ''}{m.texto}</p>
                   {m.fallo && <button onClick={() => reintentar(m)} className="jb-body text-[11px] text-amber-300 mt-1">⚠️ No se envió · Reintentar</button>}
                 </div>

@@ -1647,10 +1647,15 @@ function FilaPerfil({ titulo, ayuda, children, onClick }) {
     </Tag>
   );
 }
-function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil, onCelular, onNotif, onEliminar, onPlanes }) {
+function PerfilTab({ userRecord, username, form, setForm, modoFacil, onModoFacil, onCelular, onNotif, onEliminar, onPlanes, notifAbierto }) {
   const [estadoPush, setEstadoPush] = useState(null);
   const [sonido, setSonido] = useState(sonidoActivo);
-  useEffect(() => { estadoPushEquipo().then(setEstadoPush).catch(() => setEstadoPush('nosoportado')); }, []);
+  // Se vuelve a mirar al cerrar la ventana de avisos, para que diga
+  // "Avisos activados" apenas los activa.
+  useEffect(() => {
+    if (notifAbierto) return;
+    estadoPushEquipo(username).then(setEstadoPush).catch(() => setEstadoPush('nosoportado'));
+  }, [notifAbierto, username]);
   const avisos = form?.avisos || {};
   const apagados = Array.isArray(avisos.apagados) ? avisos.apagados : [];
   const horas = avisos.horas || {};
@@ -13310,7 +13315,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         )}
         {tab === 'planes' && <PlanesTab username={username} nombre={userRecord?.nombre} userRecord={userRecord} planInicial={planDirecto} />}
         {tab === 'perfil' && (
-          <PerfilTab userRecord={userRecord} username={username} form={form} setForm={setForm}
+          <PerfilTab userRecord={userRecord} username={username} form={form} setForm={setForm} notifAbierto={mostrarNotif}
             modoFacil={modoFacil} onModoFacil={v => elegirModoFacil(v)}
             onCelular={() => setMostrarCelular(true)} onNotif={() => setMostrarNotif(true)} onEliminar={() => setMostrarEliminar(true)}
             onPlanes={() => { setTab('planes'); window.scrollTo({ top: 0 }); }} />

@@ -7853,10 +7853,40 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                     </button>
                   </div>
                 ));
+                // Ya eligió cuál era: queda como las demás tarjetas (✓, nombre,
+                // porción y kcal a la derecha), para que se vea que se suma.
+                // "Cambiar" vuelve a mostrar las opciones.
+                if (f.esOpciones && food && corrigiendo !== id) {
+                  const soltar = () => {
+                    setElecciones(v => ({ ...v, [f.id]: undefined }));
+                    setCorrecciones(v => { const n = { ...v }; delete n[id]; return n; });
+                  };
+                  return (
+                    <div key={f.id} style={retraso} className="jbe-entrar bg-zinc-950 border border-orange-500/50 rounded-lg px-3 py-2.5 transition-colors">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked onChange={soltar} className="w-4 h-4 accent-orange-500 shrink-0" />
+                        <span className="flex-1 min-w-0">
+                          <span className="block jb-body text-sm text-zinc-100">{food.name}</span>
+                          <NotaSinArroz food={food} />
+                          <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
+                        </span>
+                        <span className="jb-display text-sm shrink-0 tabular-nums text-orange-400">{kcal} kcal</span>
+                      </label>
+                      {avisoCorregido && <div className="pl-7">{avisoCorregido}</div>}
+                      {!corregido && (
+                        <button type="button" onClick={soltar}
+                          className="ml-7 mt-1.5 jb-body text-xs text-orange-400 hover:text-orange-300 border border-orange-500/40 rounded-full px-2.5 py-0.5">
+                          ↺ Cambiar
+                        </button>
+                      )}
+                      {ajuste && <div className="pl-7">{ajuste}</div>}
+                    </div>
+                  );
+                }
                 if (f.esOpciones) {
                   return (
                     <div key={f.id} style={retraso} className={`jbe-entrar bg-zinc-950 border rounded-lg px-3 py-2.5 ${marcado ? 'border-orange-500/50' : 'border-zinc-800'}`}>
-                      <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es?</p>
+                      <p className="jb-body text-xs text-zinc-500 mb-2">No pudimos distinguirlo en la foto — ¿cuál es? <span className="text-zinc-400">Toca el tuyo para sumarlo.</span></p>
                       {corregido ? (
                         <p className="jb-body text-sm text-zinc-100">{corregido.name}</p>
                       ) : (

@@ -5,6 +5,7 @@
 
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import { enviarAviso } from './enviar-aviso.js';
 
 export function getSupabase() {
   return createClient(
@@ -116,11 +117,7 @@ export async function enviarPushA(supabase, usernames, { title, body, url = '/' 
       // (titulo, cuerpo, url) — deben coincidir exactamente o el mensaje
       // no se muestra y cae al texto genérico por defecto.
       const payload = JSON.stringify({ titulo: tituloDe(nombres, sub.username, title), cuerpo: body, url });
-      const webpush = (await import('web-push')).default;
-      await webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      );
+      await enviarAviso(sub, payload);
       enviados++;
     } catch (err) {
       // Antes esto se guardaba en silencio. Ahora queda registrado con

@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,8 +8,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Avisos: al tocarlos se abre su pantalla (ver JBAvisos en SceneDelegate.swift).
+        UNUserNotificationCenter.current().delegate = JBAvisos.shared
         return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        JBAvisos.shared.terminar(deviceToken.map { String(format: "%02x", $0) }.joined(), nil)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        JBAvisos.shared.terminar(nil, error.localizedDescription)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

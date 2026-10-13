@@ -39,6 +39,10 @@ import {
   showToast,
   tieneDatosBasicos,
   todayISO,
+  esAppIOS,
+  hayAvisosIOS,
+  estadoAvisosIOS,
+  activarAvisosIOS,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
@@ -5764,6 +5768,9 @@ function AdminNotifButton() {
 
   useEffect(() => {
     (async () => {
+      // App de iPhone: los avisos van por Apple, a nombre del admin.
+      const ios = await estadoAvisosIOS('jonabeast');
+      if (ios) { setEstado(ios); return; }
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         setEstado('nosoportado'); return;
       }
@@ -5786,6 +5793,11 @@ function AdminNotifButton() {
   async function activar() {
     setTrabajando(true);
     try {
+      if (hayAvisosIOS()) {
+        setEstado(await activarAvisosIOS('jonabeast'));
+        setTrabajando(false);
+        return;
+      }
       const permiso = await Notification.requestPermission();
       if (permiso !== 'granted') {
         setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
@@ -5823,7 +5835,7 @@ function AdminNotifButton() {
     return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">🔔 <span className="hidden sm:inline">Notificaciones </span>Activas</span>;
   }
   if (estado === 'bloqueado') {
-    return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas (revisa permisos del navegador)</span>;
+    return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas ({esAppIOS() ? 'Ajustes del iPhone → Jonah Beast Fuel → Notificaciones' : 'revisa permisos del navegador'})</span>;
   }
   return (
     <button onClick={activar} disabled={trabajando} className={btnGhost + ' text-xs py-1.5 px-3'}>

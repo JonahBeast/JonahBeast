@@ -16,6 +16,7 @@
 // ese alumno tiene una suscripción activa recién guardada.
 
 import { getSupabase, setupWebPush } from './_lib/push.js';
+import { enviarAviso } from './_lib/enviar-aviso.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -45,12 +46,8 @@ export default async function handler(req, res) {
       url: '/',
     });
 
-    const webpush = (await import('web-push')).default;
     const resultados = await Promise.allSettled(
-      subs.map(sub => webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      ))
+      subs.map(sub => enviarAviso(sub, payload))
     );
     const enviados = resultados.filter(r => r.status === 'fulfilled').length;
 

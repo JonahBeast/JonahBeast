@@ -35,6 +35,7 @@
 // esta semana (ver alumnosGratis en api/_lib/push.js).
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diaSemanaPeru, diasDesde, conPresupuesto, anotarAvisos, alumnosGratis, lunesDeSemana, addDaysISO, preferenciasAvisos, sinApagados, horaAviso, VENTANAS_AVISOS, hablaMenos, TITULO_BEAST, urlBeast, nombresCompanero, tituloDe } from '../_lib/push.js';
+import { enviarAviso } from '../_lib/enviar-aviso.js';
 
 const FOTOS_GRATIS_SEMANA = 3;
 
@@ -121,7 +122,6 @@ async function enviarLote(supabase, targets) {
   const subsPorUser = {};
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
-  const webpush = (await import('web-push')).default;
   const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
   for (const { username, mensaje } of targets) {
@@ -130,7 +130,7 @@ async function enviarLote(supabase, targets) {
     const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: mensaje.url || '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
-        webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
+        enviarAviso(sub, payload)
           .then(() => ({ ok: true, username }))
           .catch(err => {
             // Antes esto se guardaba en silencio. Ahora queda registrado

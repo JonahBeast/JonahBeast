@@ -45,6 +45,11 @@ import {
   entryMacros,
   fechaLocalISO,
   esAppTienda,
+  esAppIOS,
+  hayAvisosIOS,
+  estadoAvisosIOS,
+  activarAvisosIOS,
+  desactivarAvisosIOS,
   fetchTrialStats,
   fmtS,
   sugerenciasComida,
@@ -2570,13 +2575,27 @@ function RenewalBanner({ user, onRenovar }) {
   );
 }
 
+// En la app de iPhone los avisos se desbloquean en los Ajustes del iPhone.
+const DESBLOQUEAR_AVISOS_IOS = 'Los bloqueaste antes. En tu iPhone: Ajustes → Jonah Beast Fuel → Notificaciones → Permitir notificaciones. Luego vuelve aquí y toca el botón otra vez.';
+
+// La app está instalada: desde el ícono (pantalla de inicio) o es la app
+// de Play Store o de la App Store (ahí la web se abre por dentro y el
+// navegador no lo sabe).
+function estaInstalada() {
+  try {
+    return esAppTienda() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  } catch { return false; }
+}
+
 // Estado de las notificaciones en este equipo: 'activo', 'disponible'
 // (se pueden pedir), 'bloqueado', 'iosNoInstalado' o 'nosoportado'.
-async function estadoPushEquipo() {
+async function estadoPushEquipo(username) {
+  // App de iPhone: los avisos van por Apple, no por el navegador.
+  const ios = await estadoAvisosIOS(username);
+  if (ios) return ios;
   const ua = window.navigator.userAgent || '';
   const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-  const instalada = window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true;
+  const instalada = estaInstalada();
   if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
     return esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado';
   }
@@ -2596,7 +2615,7 @@ function equipoDelAlumno() {
   const iphone = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const dispositivo = iphone ? 'iphone' : /Android/i.test(ua) ? 'android'
     : /Windows|Macintosh|Linux|CrOS/.test(ua) ? 'computadora' : 'otro';
-  const instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const instalada = estaInstalada();
   const app = /FBAN|FBAV|FB_IAB|FBIOS|Messenger/i.test(ua) ? 'Facebook'
     : /Instagram/i.test(ua) ? 'Instagram'
     : /musical_ly|Bytedance|TikTok|trill|aweme/i.test(ua) ? 'TikTok'
@@ -2641,6 +2660,7 @@ async function activarPushAlumno(username) {
 }
 
 async function activarPushAlumnoInterno(username) {
+  if (hayAvisosIOS()) return activarAvisosIOS(username);
   const permiso = await Notification.requestPermission();
   if (permiso !== 'granted') return permiso === 'denied' ? 'bloqueado' : 'disponible';
   const reg = await navigator.serviceWorker.ready;
@@ -2715,7 +2735,7 @@ function NotifTrasComidaModal({ username, onClose }) {
         ) : resultado === 'bloqueado' ? (
           <>
             <h2 className="jb-display text-xl text-zinc-50 mb-3">ESTÁN BLOQUEADAS</h2>
-            <p className="jb-body text-sm text-zinc-300 mb-5">Tu navegador bloqueó las notificaciones de esta página. Puedes activarlas en los ajustes del navegador cuando quieras.</p>
+            <p className="jb-body text-sm text-zinc-300 mb-5">{esAppIOS() ? DESBLOQUEAR_AVISOS_IOS : 'Tu navegador bloqueó las notificaciones de esta página. Puedes activarlas en los ajustes del navegador cuando quieras.'}</p>
             <button onClick={onClose} className={btnPrimary + ' w-full'}>Entendido</button>
           </>
         ) : (
@@ -2885,8 +2905,7 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
     (async () => {
       const ua = window.navigator.userAgent || '';
       const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-      const instalada = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+      const instalada = estaInstalada();
 
       try {
         const marca = Number(localStorage.getItem('jb_notif_no'));
@@ -2894,6 +2913,9 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
         // avisos, el alumno se pierde casi todo el acompañamiento.
         if (marca && Date.now() - marca < 3 * 24 * 60 * 60 * 1000) setOcultoManual(true);
       } catch {}
+
+      const ios = await estadoAvisosIOS(username);
+      if (ios) { setEstado(ios); return; }
 
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         // En iPhone, esto es normal si todavía no instaló la app —
@@ -2925,6 +2947,13 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
   async function desactivar() {
     setTrabajando(true);
     try {
+      if (hayAvisosIOS()) {
+        await desactivarAvisosIOS();
+        setEstado('disponible');
+        anotarEstadoAvisos('disponible', username);
+        setTrabajando(false);
+        return;
+      }
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
@@ -3009,8 +3038,10 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
             <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
               <p className="jb-body text-[11px] text-zinc-300 font-semibold mb-1">Para desbloquearlos:</p>
               <p className="jb-body text-[11px] text-zinc-400">
+                {esAppIOS() ? DESBLOQUEAR_AVISOS_IOS : <>
                 Si abres la app desde Chrome: toca el candado o los tres puntos junto a la dirección → Permisos o Configuración del sitio → Notificaciones → Permitir.
                 Si la tienes instalada: Ajustes del celular → Apps → JB Fuel (o Chrome) → Notificaciones → Activar. Luego vuelve a abrir la app.
+                </>}
               </p>
             </div>
           ) : (
@@ -3034,8 +3065,7 @@ function InstalarBanner({ onEligible }) {
   useEffect(() => { if (onEligible) onEligible(!oculto); }, [oculto]);
 
   useEffect(() => {
-    const instalada = window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone === true;
+    const instalada = estaInstalada();
     if (instalada) return;
 
     try {
@@ -3839,7 +3869,7 @@ function AbreDesdeIconoAviso({ username }) {
   useEffect(() => {
     const ua = navigator.userAgent || '';
     const esIphone = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-    const instaladaAqui = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const instaladaAqui = estaInstalada();
     if (!esIphone || instaladaAqui) return;
     try { if (localStorage.getItem('jb-abre-icono-' + username) === todayISO()) return; } catch {}
     let vivo = true;
@@ -5578,10 +5608,11 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   // Mismo chequeo que RecordatorioBanner: en qué estado están los avisos de este celular.
   useEffect(() => {
     (async () => {
+      const ios = await estadoAvisosIOS(username);
+      if (ios) { setEstadoPush(ios === 'activo' ? 'yaActivo' : ios); return; }
       const ua = window.navigator.userAgent || '';
       const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-      const instalada = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+      const instalada = estaInstalada();
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         const e = esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado';
         setEstadoPush(e);
@@ -5603,24 +5634,12 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
   async function activarPush() {
     setActivandoPush(true);
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        setEstadoPush(permiso === 'denied' ? 'bloqueado' : 'disponible');
+      const final = await activarPushAlumnoInterno(username);
+      if (final !== 'activo') {
+        setEstadoPush(final);
         setActivandoPush(false);
         return;
       }
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
-        });
-      }
-      const j = sub.toJSON();
-      await supabase.from('push_subs').upsert({
-        username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
-      }, { onConflict: 'endpoint' });
       setEstadoPush('yaActivo');
       anotarEstadoAvisos('activo', username);
       // Recién acá existe una suscripción real a la que mandarle algo —
@@ -5748,7 +5767,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
             <div className="mt-4 text-left">
               {estadoPush === 'bloqueado' && (
                 <p className="jb-body text-xs text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg p-2.5">
-                  Parece que ya las bloqueaste antes. Puedes activarlas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y luego seguir aquí.
+                  {esAppIOS() ? DESBLOQUEAR_AVISOS_IOS : 'Parece que ya las bloqueaste antes. Puedes activarlas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y luego seguir aquí.'}
                 </p>
               )}
               {estadoPush === 'nosoportado' && (
@@ -9386,6 +9405,9 @@ function LlegasteAlNavegadorModal({ username, siguiente, onAnotar, onCerrar }) {
   useEffect(() => {
     registrarPasoPago('abrir_navegador', username, 'llego');
     (async () => {
+      const ios = await estadoAvisosIOS(username);
+      if (ios === 'activo') { onCerrar(); return; }
+      if (ios) { setEstado(ios); return; }
       const { dispositivo, instalada } = equipoDelAlumno();
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         setEstado(dispositivo === 'iphone' && !instalada ? 'iosNoInstalado' : 'nosoportado');
@@ -12141,10 +12163,11 @@ function NotificacionesModal({ username, onClose }) {
 
   useEffect(() => {
     (async () => {
+      const ios = await estadoAvisosIOS(username);
+      if (ios) { setEstado(ios === 'activo' ? 'yaActivo' : ios); return; }
       const ua = window.navigator.userAgent || '';
       const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-      const instalada = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+      const instalada = estaInstalada();
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         setEstado(esIOS && !instalada ? 'iosNoInstalado' : 'nosoportado');
         return;
@@ -12165,25 +12188,8 @@ function NotificacionesModal({ username, onClose }) {
   async function activar() {
     setActivando(true);
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
-        setActivando(false);
-        return;
-      }
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: base64ToUint8(VAPID_PUBLIC),
-        });
-      }
-      const j = sub.toJSON();
-      await supabase.from('push_subs').upsert({
-        username, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, activa: true,
-      }, { onConflict: 'endpoint' });
-      setEstado('yaActivo');
+      const final = await activarPushAlumno(username);
+      setEstado(final === 'activo' ? 'yaActivo' : final);
     } catch (e) { /* si falla, se queda en el estado que corresponda */ }
     setActivando(false);
   }
@@ -12206,7 +12212,7 @@ function NotificacionesModal({ username, onClose }) {
             </p>
             {estado === 'bloqueado' && (
               <p className="jb-body text-xs text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg p-2.5 mb-4">
-                Parece que ya las bloqueaste antes. Actívalas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y vuelve a intentar.
+                {esAppIOS() ? DESBLOQUEAR_AVISOS_IOS : 'Parece que ya las bloqueaste antes. Actívalas manualmente en los ajustes de notificaciones de tu navegador para este sitio, y vuelve a intentar.'}
               </p>
             )}
             {estado === 'nosoportado' && (

@@ -91,6 +91,7 @@ jobs:
             "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
           codesign -d --entitlements - "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" 2>/dev/null | tee "$RUNNER_TEMP/permisos.txt"
           grep -q "com.apple.developer.applesignin" "$RUNNER_TEMP/permisos.txt" || { echo "::error::La app no lleva el permiso de Continuar con Apple"; exit 1; }
+          grep -q "aps-environment" "$RUNNER_TEMP/permisos.txt" || { echo "::error::La app no lleva el permiso de avisos"; exit 1; }
       - name: Subir a TestFlight
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST

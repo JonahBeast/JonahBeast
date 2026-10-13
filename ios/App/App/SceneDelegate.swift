@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import AuthenticationServices
 import CryptoKit
+import UserNotifications
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -30,6 +31,72 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class JBViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(JBNativoPlugin())
+        JBAvisos.shared.pantalla = self
+    }
+
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        // La app se abrió tocando un aviso: va directo a su pantalla.
+        if let url = JBAvisos.shared.urlPendiente {
+            JBAvisos.shared.urlPendiente = nil
+            abrir(url)
+        }
+    }
+
+    func abrir(_ url: URL) {
+        bridge?.webView?.load(URLRequest(url: url))
+    }
+}
+
+// Avisos de la app (recordatorios de Beast, racha, pesaje…). Apple da un
+// número del iPhone (token); la web lo guarda en push_subs y el servidor
+// manda los avisos por Apple (api/_lib/enviar-aviso.js). Al tocar un
+// aviso se abre la pantalla que trae (url), solo dentro de jonahbeast.com.
+final class JBAvisos: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = JBAvisos()
+    weak var pantalla: JBViewController?
+    var urlPendiente: URL?
+    private var esperando: [(String?, String?) -> Void] = []
+
+    func pedirToken(_ listo: @escaping (String?, String?) -> Void) {
+        DispatchQueue.main.async {
+            self.esperando.append(listo)
+            UIApplication.shared.registerForRemoteNotifications()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+                self.terminar(nil, "Apple no respondió")
+            }
+        }
+    }
+
+    func terminar(_ token: String?, _ error: String?) {
+        DispatchQueue.main.async {
+            let lista = self.esperando
+            self.esperando = []
+            lista.forEach { $0(token, error) }
+        }
+    }
+
+    // Con la app abierta, el aviso también se muestra arriba.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let ruta = response.notification.request.content.userInfo["url"] as? String ?? "/"
+        if let base = URL(string: "https://jonahbeast.com"),
+           let url = URL(string: ruta, relativeTo: base)?.absoluteURL,
+           url.host == "jonahbeast.com" {
+            DispatchQueue.main.async {
+                if let pantalla = self.pantalla, pantalla.bridge?.webView != nil {
+                    pantalla.abrir(url)
+                } else {
+                    self.urlPendiente = url
+                }
+            }
+        }
+        completionHandler()
     }
 }
 
@@ -47,6 +114,8 @@ public class JBNativoPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "iniciarConApple", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abrirWeb", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "estadoAvisos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activarAvisos", returnType: CAPPluginReturnPromise),
     ]
 
     private var llamadaApple: CAPPluginCall?
@@ -137,6 +206,41 @@ public class JBNativoPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
 
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         ventana
+    }
+
+    // MARK: Avisos
+
+    // 'granted', 'denied' o 'notDetermined' (aún no se le preguntó).
+    @objc func estadoAvisos(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().getNotificationSettings { ajustes in
+            call.resolve(["estado": Self.textoPermiso(ajustes.authorizationStatus)])
+        }
+    }
+
+    // Pide el permiso (si ya lo dio, no vuelve a preguntar) y devuelve el
+    // número del iPhone para mandarle avisos.
+    @objc func activarAvisos(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { permitido, _ in
+            guard permitido else {
+                call.resolve(["estado": "denied"])
+                return
+            }
+            JBAvisos.shared.pedirToken { token, error in
+                if let token = token {
+                    call.resolve(["estado": "granted", "token": token])
+                } else {
+                    call.reject(error ?? "Sin número del iPhone", "SIN_TOKEN")
+                }
+            }
+        }
+    }
+
+    static func textoPermiso(_ estado: UNAuthorizationStatus) -> String {
+        switch estado {
+        case .authorized, .provisional, .ephemeral: return "granted"
+        case .denied: return "denied"
+        default: return "notDetermined"
+        }
     }
 
     // MARK: Ayudas

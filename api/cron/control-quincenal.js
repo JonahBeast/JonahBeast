@@ -23,6 +23,7 @@
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, diasDesde, conPresupuesto, anotarAvisos, preferenciasAvisos, sinApagados, nombresCompanero, tituloDe } from '../_lib/push.js';
 import { traerTodas } from '../../src/traerTodas.js';
+import { enviarAviso } from '../_lib/enviar-aviso.js';
 
 const INTERVALO_DIAS = 15;
 
@@ -47,7 +48,6 @@ async function enviarLote(supabase, targets) {
   const subsPorUser = {};
   (subs || []).forEach(s => { (subsPorUser[s.username] = subsPorUser[s.username] || []).push(s); });
 
-  const webpush = (await import('web-push')).default;
   // El título lleva el nombre que el alumno le puso a su compañero.
   const nombres = await nombresCompanero(supabase, usernames);
   const tareas = [];
@@ -55,7 +55,7 @@ async function enviarLote(supabase, targets) {
     const payload = JSON.stringify({ titulo: tituloDe(nombres, username, mensaje.title), cuerpo: mensaje.body, url: '/' });
     for (const sub of subsPorUser[username] || []) {
       tareas.push(
-        webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload)
+        enviarAviso(sub, payload)
           .then(() => ({ ok: true, username }))
           .catch(err => {
             console.error(`Push fallido para ${username} (endpoint ...${sub.endpoint.slice(-20)}): statusCode=${err.statusCode} body=${err.body || err.message}`);

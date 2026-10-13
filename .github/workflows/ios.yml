@@ -64,9 +64,11 @@ jobs:
         run: |
           printf '%s\n' "$LLAVE" > "$RUNNER_TEMP/AuthKey.p8"
           echo "LLAVE_P8=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
-      # Firma automática: Apple crea los certificados y perfiles que falten
-      # con la llave. El número de versión interno sube solo en cada envío.
-      - name: Armar la app firmada
+      # Se arma sin firmar (la firma de desarrollo pide un iPhone registrado)
+      # y la firma de tienda la pone el paso siguiente: Apple crea el
+      # certificado y el perfil que falten con la llave. El número de
+      # versión interno sube solo en cada envío.
+      - name: Armar la app
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App \
             -configuration Release -destination 'generic/platform=iOS' \
@@ -76,6 +78,7 @@ jobs:
             -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
             DEVELOPMENT_TEAM=$EQUIPO CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             archive | tail -60
           exit ${PIPESTATUS[0]}

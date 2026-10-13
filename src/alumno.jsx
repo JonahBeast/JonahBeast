@@ -7024,11 +7024,13 @@ const CORTES_POLLO = [
 const esCortePollo = food => unitsFor(food).some(u => u[0] === 'cuarto de pollo') && unitsFor(food).some(u => u[0] === 'octavo de pollo');
 const corteDePorcion = p => p.unit === 'octavo de pollo' ? 'octavo' : (p.qty >= 2 ? 'medio' : 'cuarto');
 
-/* Envases que se cuentan enteros (1 lata de atún, 1 paquete de galletas):
-   en la foto se eligen con − / + como las piezas, en vez de calcularse
-   por los gramos que la IA ve (daba "1½ lata" con Poco para 1 lata). */
-const ENVASES_FOTO = ['lata', 'lata pequeña', 'lata grande', 'paquete', 'botella personal', 'botella grande', 'barra pequeña', 'mini panetón'];
-const contableEnFoto = unit => UNIDADES_DISCRETAS.includes(unit) || ENVASES_FOTO.includes(unit);
+/* Envases y piezas que se cuentan enteros (1 lata de atún, 1 paquete de
+   galletas, 1 cajita de chocolatada, 1 filete): en la foto se eligen con
+   − / + como las piezas, en vez de calcularse por los gramos que la IA ve
+   (daba "1½ lata" con Poco para 1 lata). Vale también para las medidas de
+   los alimentos que se agregan desde el panel. */
+const CONTABLES_FOTO = /^(lata|botella|paquete|barra|cajita|caja|sobre|pote|frasco|filete|rodaja|trozo|par|cuadrito|mini |media pechuga|tajada|cancha|vaso (pequeño|mediano|grande))/i;
+const contableEnFoto = unit => UNIDADES_DISCRETAS.includes(unit) || CONTABLES_FOTO.test(String(unit || ''));
 
 function esPorPiezas(food) {
   return contableEnFoto(unidadPorDefecto(food).unit);

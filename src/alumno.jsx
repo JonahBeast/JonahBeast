@@ -13274,7 +13274,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {tab === 'equipo' && <ComunidadTab username={username} nombre={userRecord?.nombre} vista={vistaComunidad} onVista={setVistaComunidad}
           avisoEquipos={avisoEquipo} onAnimosVistos={revisarAvisoEquipo} onMuroVisto={() => setAvisoMuro(false)} />}
       </main>
-      <footer className="text-center py-4 pb-28 flex items-center justify-center gap-3 flex-wrap">
+      {/* El pie deja espacio debajo para que la burbuja de Beast (más alta en
+          Comidas) no tape "Mi perfil" ni "Política de Privacidad". */}
+      <footer className={`text-center py-4 flex items-center justify-center gap-3 flex-wrap ${tab === 'meal' ? 'pb-64' : 'pb-44'}`}>
         <button onClick={() => { setRegistrarAl(null); setTab('perfil'); window.scrollTo({ top: 0 }); }}
           className="jb-body text-xs text-zinc-500 hover:text-orange-400 underline px-2 py-2">
           ⚙️ Mi perfil y ajustes

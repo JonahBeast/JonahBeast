@@ -1418,6 +1418,51 @@ function nativoIOS() {
   try { return (esAppIOS() && window.Capacitor?.Plugins?.JBNativo) || null; } catch { return null; }
 }
 
+/* Avisos en la app de iPhone. Ahí no existe el Web Push del navegador:
+   Apple da un "número" del iPhone (token) y el servidor manda los avisos
+   por Apple (api/_lib/enviar-aviso.js). Se guarda en la misma tabla
+   push_subs, con endpoint "apns:<token>". En este celular se recuerda
+   a qué cuenta quedó y si el alumno los apagó desde la app.
+   Devuelven los mismos estados que en la web: 'activo', 'disponible' o
+   'bloqueado'; null si no es la app de iPhone. */
+const AVISOS_IOS_LOCAL = 'jb-avisos-ios';
+function avisosIOSGuardados() {
+  try { return JSON.parse(localStorage.getItem(AVISOS_IOS_LOCAL) || 'null'); } catch { return null; }
+}
+function hayAvisosIOS() {
+  return typeof nativoIOS()?.activarAvisos === 'function';
+}
+async function estadoAvisosIOS(username) {
+  const nativo = nativoIOS();
+  // Las versiones de la app sin avisos (TestFlight 15 o antes) no los traen.
+  if (typeof nativo?.estadoAvisos !== 'function') return null;
+  try {
+    const { estado } = await nativo.estadoAvisos();
+    if (estado === 'denied') return 'bloqueado';
+    if (estado !== 'granted') return 'disponible';
+    const g = avisosIOSGuardados();
+    return g?.token && !g.apagados && (!username || g.username === username) ? 'activo' : 'disponible';
+  } catch { return 'disponible'; }
+}
+async function activarAvisosIOS(username) {
+  const nativo = nativoIOS();
+  if (typeof nativo?.activarAvisos !== 'function' || !username) return 'disponible';
+  const r = await nativo.activarAvisos();
+  if (r?.estado === 'denied') return 'bloqueado';
+  if (!r?.token) return 'disponible';
+  const { error } = await supabase.from('push_subs').upsert({
+    username, endpoint: 'apns:' + r.token, p256dh: '', auth: '', activa: true,
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+  try { localStorage.setItem(AVISOS_IOS_LOCAL, JSON.stringify({ token: r.token, username })); } catch {}
+  return 'activo';
+}
+async function desactivarAvisosIOS() {
+  const g = avisosIOSGuardados();
+  if (g?.token) await supabase.from('push_subs').update({ activa: false }).eq('endpoint', 'apns:' + g.token);
+  try { localStorage.setItem(AVISOS_IOS_LOCAL, JSON.stringify({ ...(g || {}), apagados: true })); } catch {}
+}
+
 // App de tienda (Play Store o App Store): sin Yape, Plin ni Mercado Pago.
 function esAppTienda() {
   return esTWA() || esAppIOS();
@@ -6369,6 +6414,10 @@ export {
   esTWA,
   esAppIOS,
   esAppTienda,
+  hayAvisosIOS,
+  estadoAvisosIOS,
+  activarAvisosIOS,
+  desactivarAvisosIOS,
   fechaLocalISO,
   fetchTrialStats,
   fmtS,

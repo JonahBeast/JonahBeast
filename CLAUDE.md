@@ -10,6 +10,12 @@
 - Cuando termines un cambio, súbelo a la rama de trabajo y **espera a que Vercel construya la versión de prueba**. Luego dame el **link directo** a esa versión con `?preview=1` al final (por ejemplo `https://...vercel.app/?preview=1`). Ese parámetro hace que mis propias visitas no cuenten en las métricas de la landing.
 - **Nunca hagas el merge** de un pull request sin que yo lo pida explícitamente.
 - Cuando hagas una mejora, **busca todos los lugares de la app donde pasa lo mismo y propónmelos juntos en el mismo cambio**, para que la experiencia del alumno quede pareja (ej. si el peso pasa a regla deslizable, que sea en todas las pantallas donde se pone el peso).
+- **Sé proactivo: no arregles solo el caso que te muestro** (pedido de Jonah, 13 de octubre, tras el atún en lata). Cuando reporte un problema, antes de entregar:
+  1. **Busca la causa, no el síntoma**, y revisa **todos los casos que tienen esa misma causa**: los alimentos de la lista de la app, **los que se agregan desde el panel** (`alimentos_extra`, revisándolos en la base) y los productos escaneados.
+  2. Revisa **todas las formas de hacer lo mismo** (foto, código, escribir, voz, favoritos, Beast, WhatsApp) y que se comporten igual.
+  3. **Lo nuevo se ve y funciona como lo que ya existe** (ej. una tarjeta nueva lleva el mismo ✓, kcal a la derecha y botones que las demás).
+  4. Arréglalo todo en el mismo PR y dime en palabras simples **qué más encontraste**. Si algo es grande o cambia una decisión suya, propónmelo en vez de hacerlo.
+  5. Respeta siempre las dos formas de medir: **medida casera** (plato, unidad, lata) para quien no pesa y **gramos** ("⚖️ Lo pesé") para quien usa balanza.
 - **Los detalles importan: queremos dar la mejor experiencia.** Antes de dar un cambio por terminado, recórrelo como lo haría el alumno, de principio a fin: qué ve justo después de tocar cada botón, si queda claro que se guardó, si la pantalla lo lleva a lo que acaba de hacer, si algo queda abierto o desordenado, y si todas las formas de hacer lo mismo (foto, código, escribir, voz, atajos…) se comportan igual. Si encuentras un detalle así, arréglalo en el mismo cambio o propónmelo.
 
 ## App de Android (Google Play)

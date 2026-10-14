@@ -6,7 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
 import MANUAL_APP from '../docs/manual-app.md?raw';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay, tieneCelular } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -7754,7 +7754,8 @@ async function datosNegocioJarvis(users) {
   // de 3 días) pero nunca registraron una comida (mismo criterio que Rescate).
   let aMedias = null;
   try {
-    const nombresActivos = activosL.map(u => u.username);
+    // Solo los que tienen celular: el aviso manda a Rescate a escribirles.
+    const nombresActivos = activosL.filter(u => tieneCelular(u.telefono)).map(u => u.username);
     if (nombresActivos.length) {
       const { data: conComida } = await traerTodas(() => supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0));
       const comieron = new Set((conComida || []).map(r => r.username));
@@ -9522,6 +9523,9 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
     todos.forEach(u => { if (esVerificadorPlay(u)) VERIFICADORES.add(u.username); });
     return todos.filter(u => !VERIFICADORES.has(u.username));
   }, [todosLosUsuarios]);
+  // Para las listas de "escribirle por WhatsApp": sin celular no hay a
+  // quién escribirle, así que no salen (en los números sí cuentan).
+  const usersConCelular = useMemo(() => users.filter(u => tieneCelular(u.telefono)), [users]);
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -9706,10 +9710,10 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
             {verListas && (
               <div className="flex flex-col gap-4 pl-2 border-l-2 border-zinc-800">
                 <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
-                <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
-                <RescatePanel users={users} />
-                <SinAvisosPanel users={users} />
-                <CumpleanosPanel users={users} />
+                <VolverInvitarPanel users={usersConCelular} onAdjustDays={onAdjustDays} />
+                <RescatePanel users={usersConCelular} />
+                <SinAvisosPanel users={usersConCelular} />
+                <CumpleanosPanel users={usersConCelular} />
                 <EmbudoPanel />
               </div>
             )}

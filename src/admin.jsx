@@ -2849,6 +2849,13 @@ const FILAS_PRIMERA = [
     ['primera_comida', 'noche_ahora_no', 'En la noche tocaron "Ahora no"'],
     ['primera_comida', 'demo', 'Llegaron con el plato de la prueba'],
   ] },
+  // Desde el 14 de octubre: "¿Qué más comiste hoy?" tras la 1.ª comida.
+  { titulo: '¿Qué más comiste hoy?', filas: [
+    ['primera_comida', 'que_mas_vio', 'Vieron "¿Qué más comiste hoy?"'],
+    ['primera_comida', 'que_mas_toco', 'Tocaron otra comida para anotarla'],
+    ['primera_comida', 'que_mas_todo', 'Tocaron "Eso fue todo por hoy"'],
+    ['primera_comida', 'dos_comidas', 'Anotaron 2 comidas o más su primer día (todos)'],
+  ] },
   { titulo: 'Foto de la comida', filas: [
     ['foto_comida', 'resultado', 'La foto reconoció su comida'],
     ['foto_comida', 'vacio', 'No reconoció comida en la foto'],

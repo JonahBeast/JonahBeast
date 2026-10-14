@@ -21,7 +21,7 @@ Desde el 9 de octubre de 2026: Mensual S/24,90 · Trimestral S/59,90 (S/19,97 al
 
 - `embudo_landing_eventos` (columnas `evento`, `detalle`, `fuente`, `username`, `visitante_id` y fecha): los pasos.
   - Portada y registro: `vista`, `clic_cta`, `registro`, `error_registro`, `campana`, `demo_*`, `calculadora_*`.
-  - Primera comida: `primera_comida` (`vio`, `foto`, `plato`, `buscar`, `ahora_no`, `demo`), `foto_comida` (`resultado`, `vacio`, `error`, `limite`, `agrego`), `abrir_navegador` (`vio`, `toco`, `seguir`).
+  - Primera comida: `primera_comida` (`vio`, `foto`, `plato`, `buscar`, `ahora_no`, `noche`, `noche_aviso`, `noche_vio`, `noche_ahora_no`, `demo`, `beast`; desde el 14 de octubre "¿Qué más comiste hoy?": `que_mas_vio`, `que_mas_toco`, `que_mas_todo`, y `dos_comidas` = anotó 2+ comidas su primer día), `foto_comida` (`resultado`, `vacio`, `error`, `limite`, `agrego`), `abrir_navegador` (`vio`, `toco`, `seguir`).
   - Fin de prueba: `fin_prueba` (`vio`, `1mes`, `planes`, `ahora_no`).
   - Pago: `vio_planes`, `eligio_plan`, `eligio_metodo`, `pago_enviado` (en `detalle`, meses o medio de pago).
   - Las etiquetas de cada paso están en `src/admin.jsx` (`PASOS_PAGO`, `EVENTOS_PRIMERA`), igual que las ve Jonah en el panel (🎯 EMBUDO).

@@ -225,6 +225,16 @@ Para volver a verla: en Inicio, **"Ver guía"** o **"¿Cómo funciona la app?"**
 - **"Buscar otro plato"** abre la hoja "REGISTRAR" de esa comida.
 - Abajo dice **"🌙 Lo anoto en la noche"** (antes era "Ahora no"). Si puede recibir avisos y aún no los activó, le pregunta **"¡QUEDAMOS EN LA NOCHE!"** "¿Te mando un aviso en la noche para que no se te pase?" con **"🔔 Sí, recuérdamelo"** (activa los avisos) y "No hace falta, yo me acuerdo"; si no, se cierra con "🌙 Quedamos: en la noche anotas tu día". Esa misma noche, desde las 7 pm, al abrir la app la pantalla vuelve a salir como **"¡HORA DE ANOTAR TU DÍA! 🌙"** ("Como quedamos: anota lo que comiste hoy. Empieza por una comida."), con los mismos botones y "Ahora no" (que la cierra hasta el día siguiente). Tocar fuera de la pantalla la cierra hasta el día siguiente. Deja de aparecer para siempre cuando registra su primera comida.
 
+### 6.2.1 "¿Qué más comiste hoy?" (justo después de la primera comida)
+
+- Sale **una sola vez**, el día en que el alumno anota **su primera comida en la app**, por cualquier camino (foto, un plato con 1 toque, buscar, voz, escribir, Beast o el plato de la prueba).
+- Espera a que se cierre la pantalla donde anotó (cámara, buscador, "¿Activamos tus avisos?", el chat de Beast…) y sale un momento después, en Inicio o en Comidas. Así no interrumpe a quien sigue agregando cosas al mismo plato.
+- Dice **"¡PRIMERA COMIDA ANOTADA!"** y "Así empecé yo, comida a comida. **¿Qué más comiste hoy?** Anótalo ahora que lo tienes fresco y ves tu día completo."
+- Muestra un botón por cada comida principal de hoy que **ya pasó o es la de ahora y sigue vacía** (🍳 Desayuno, 🍛 Almuerzo, 🌙 Cena), y uno más chico **"Algo entre comidas (fruta, galletas, un café…)"** si ya pasó la media mañana o la media tarde. Cada uno dice **"Anotar"** y abre la hoja "REGISTRAR" de esa comida (foto, buscar, voz, escribir, favoritos).
+- **"Eso fue todo por hoy"** (o tocar afuera) la cierra y no vuelve a salir.
+- Si anotó su primera comida temprano (por ejemplo, el desayuno a las 8 am) y no hay ninguna comida anterior vacía, no sale.
+- El aviso "Abrir en Chrome/Safari" y el globito de Beast "¡Primera comida anotada!" esperan a que esta ventana se cierre.
+
 ---
 
 ### 6.4 🦍 Beast · tu compañero (chat con el gorila)

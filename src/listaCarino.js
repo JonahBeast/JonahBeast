@@ -52,6 +52,22 @@ export const MAX_LISTA = 20;
 const HITOS_RACHA = [7, 14, 21, 30, 60, 90];
 const CUENTAS_PROPIAS = ['martin'];
 
+/* Verificadores de Google Play (Testers Community, desde el 14 de octubre):
+   gente de otros países que usa la app para que Google la apruebe. No tienen
+   un celular peruano (lo dejan vacío o ponen uno inventado), así que no se
+   les escribe por WhatsApp ni cuentan como alumnos en los números. Regla:
+   se registró desde el 14 de octubre y su celular no es un móvil de Perú
+   (9 dígitos que empiezan con 9, con o sin el 51 adelante). */
+const INICIO_VERIFICADORES = '2026-10-14T05:00:00Z'; // 14 oct, 00:00 en Lima
+export function esCelularPeru(telefono) {
+  const d = String(telefono || '').replace(/\D/g, '');
+  return /^9\d{8}$/.test(d) || /^519\d{8}$/.test(d);
+}
+export function esVerificadorPlay(a) {
+  const creado = a?.created_at || a?.createdAt;
+  return !!creado && Date.parse(creado) >= Date.parse(INICIO_VERIFICADORES) && !esCelularPeru(a.telefono);
+}
+
 export const NIVELES = [
   { id: 'urgente', titulo: '🔴 URGENTE', ayuda: 'Hazlo primero: es ahora o se enfría.' },
   { id: 'importante', titulo: '🟠 IMPORTANTE', ayuda: 'Hoy, en cuanto puedas.' },
@@ -236,7 +252,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
 
   const lista = [];
   for (const a of alumnos || []) {
-    if (CUENTAS_PROPIAS.includes(a.username)) continue;
+    if (CUENTAS_PROPIAS.includes(a.username) || esVerificadorPlay(a)) continue;
     const n = primerNombre(a);
     const filas = (porUsuario[a.username] || []).slice().sort((x, y) => x.fecha.localeCompare(y.fecha));
     const conComida = new Set(filas.filter(f => Number(f.comidas_count) > 0).map(f => f.fecha));

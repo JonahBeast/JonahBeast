@@ -6,7 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
 import MANUAL_APP from '../docs/manual-app.md?raw';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -3662,8 +3662,11 @@ function ActivacionPanel({ users }) {
 // Cuentas del dueño (sus pruebas y pagos propios): no cuentan en las
 // métricas del negocio (alumnos pagando, ingresos, alumnos nuevos,
 // conversión, cobros de Jarvis).
+// Los verificadores de Google Play (ver esVerificadorPlay en listaCarino.js)
+// tampoco cuentan: el panel los anota aquí apenas carga la lista de alumnos.
 const CUENTAS_PROPIAS = ['martin'];
-const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username);
+const VERIFICADORES = new Set();
+const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username) || VERIFICADORES.has(username);
 
 function TableroPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
@@ -9511,7 +9514,14 @@ function WhatsAppPanel() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
+function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
+  // Los verificadores de Google Play quedan fuera de todo el panel (mensajes,
+  // rescate, números); en ALUMNOS salen aparte, en su propio grupo.
+  const users = useMemo(() => {
+    const todos = todosLosUsuarios || [];
+    todos.forEach(u => { if (esVerificadorPlay(u)) VERIFICADORES.add(u.username); });
+    return todos.filter(u => !VERIFICADORES.has(u.username));
+  }, [todosLosUsuarios]);
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -9584,7 +9594,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     const uname = newUser.username.trim();
     if (!uname || !newUser.password) return setFormErr('Completa usuario y contraseña.');
     if (!newUser.telefono.trim()) return setFormErr('Ingresa el celular del alumno.');
-    if (users.some(u => u.username.toLowerCase() === uname.toLowerCase())) return setFormErr('Ese usuario ya existe.');
+    if (todosLosUsuarios.some(u => u.username.toLowerCase() === uname.toLowerCase())) return setFormErr('Ese usuario ya existe.');
     const inicio = newUser.fechaInicio || todayISO();
     const meses = Number(newUser.meses) || 1;
     onAddUser({
@@ -9595,7 +9605,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     setNewUser({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   }
 
-  const usersFiltrados = users.filter(u => {
+  const usersFiltrados = (todosLosUsuarios || []).filter(u => {
     if (filtroProgreso !== 'todos' && progresoDe(u).grupo !== filtroProgreso) return false;
     if (!busqueda.trim()) return true;
     const q = busqueda.trim().toLowerCase();
@@ -9744,9 +9754,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 // por vencer se ven en el panel ⏰ Por vencer (y aquí dicen
                 // "Vence en N días").
                 const grupos = {
-                  deshabilitados: [], pruebaTerminada: [], planVencido: [], enPrueba: [], activos: [], reto: [],
+                  deshabilitados: [], pruebaTerminada: [], planVencido: [], enPrueba: [], activos: [], reto: [], verificadores: [],
                 };
                 usersFiltrados.forEach(u => {
+                  if (VERIFICADORES.has(u.username)) { grupos.verificadores.push(u); return; }
                   const dl = daysLeft(u.fechaVencimiento);
                   const esPrueba = u.plan === 'trial' || u.plan === 'prueba';
                   if (String(u.codigoReferido || '').toUpperCase() === 'RETO') grupos.reto.push(u);
@@ -9773,6 +9784,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   { key: 'activos', label: 'ACTIVOS (PAGAN)', color: '#4affb0', emoji: '🟢' },
                   { key: 'reto', label: 'RETO BEAST', color: '#E8590C', emoji: '🏁' },
                   { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
+                  { key: 'verificadores', label: 'VERIFICADORES DE GOOGLE PLAY · NO ESCRIBIRLES', color: '#8A7F6E', emoji: '🧪' },
                 ];
                 const seccionesConDatos = SECCIONES.filter(s => grupos[s.key].length > 0);
                 const seccionesAMostrar = filtroAlumnos === 'todos'

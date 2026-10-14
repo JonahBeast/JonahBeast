@@ -12,7 +12,7 @@
 // Cron en vercel.json: "0 13 * * *" (13:00 UTC = 8:00 Perú)
 
 import { getSupabase, setupWebPush, verificarCronSecret, horaYFechaPeru, addDaysISO, enviarPushA } from '../_lib/push.js';
-import { cargarDatosCarino, armarListaCarino } from '../../src/listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, esVerificadorPlay } from '../../src/listaCarino.js';
 import { puntoDePartidaSaldo, saldoEstimado, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from '../../src/saldoIA.js';
 import { traerTodas } from '../../src/traerTodas.js';
 
@@ -32,14 +32,16 @@ export default async function handler(req, res) {
     const { data: admin } = await supabase.from('profiles').select('username').eq('role', 'admin').limit(1).maybeSingle();
     if (!admin?.username) return res.status(200).json({ ok: true, enviado: false, motivo: 'sin admin' });
 
-    const [{ data: cobrados }, { data: pendientes }, { data: alumnos }] = await Promise.all([
+    const [{ data: cobrados }, { data: pendientes }, { data: todosLosAlumnos }] = await Promise.all([
       supabase.from('pagos').select('username, monto').eq('estado', 'aprobado').gt('monto', 0)
         .gte('creado_en', `${ayer}T00:00:00-05:00`).lt('creado_en', `${hoyISO}T00:00:00-05:00`).range(0, 999),
       supabase.from('pagos').select('id').eq('estado', 'pendiente').range(0, 999),
-      traerTodas(() => supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento, fecha_inicio').eq('enabled', true).gte('fecha_vencimiento', hoyISO), 'username'),
+      traerTodas(() => supabase.from('alumnos').select('username, plan, enabled, fecha_vencimiento, fecha_inicio, telefono, created_at').eq('enabled', true).gte('fecha_vencimiento', hoyISO), 'username'),
     ]);
 
     const esPrueba = a => a.plan === 'trial' || a.plan === 'prueba';
+    // Los verificadores de Google Play no cuentan (ver src/listaCarino.js).
+    const alumnos = (todosLosAlumnos || []).filter(a => !esVerificadorPlay(a));
     // Las cuentas del dueño (sus pruebas y pagos propios) no cuentan.
     const CUENTAS_PROPIAS = ['martin'];
     const cobradosReales = (cobrados || []).filter(p => !CUENTAS_PROPIAS.includes(p.username));

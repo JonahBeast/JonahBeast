@@ -505,6 +505,7 @@ function ModoFavoritos({ favoritos, onElegir }) {
           className="bg-zinc-950 border border-zinc-800 hover:border-orange-500/50 rounded-xl p-3 flex flex-col items-center gap-1.5 transition-colors">
           <span className="text-2xl">{emojiAlimento(f)}</span>
           <span className="jb-body text-[11px] text-zinc-300 text-center leading-tight">{f.name}</span>
+          {f.state && f.state !== '-' && <span className="jb-body text-[10px] text-zinc-500 text-center leading-tight -mt-1">{f.state.toLowerCase()}</span>}
         </button>
       ))}
     </div>
@@ -7892,7 +7893,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                       <label className="flex items-center gap-3 cursor-pointer">
                         <input type="checkbox" checked onChange={soltar} className="w-4 h-4 accent-orange-500 shrink-0" />
                         <span className="flex-1 min-w-0">
-                          <span className="block jb-body text-sm text-zinc-100">{food.name}</span>
+                          <span className="block jb-body text-sm text-zinc-100">{nombreAlimento(food)}</span>
                           <NotaSinArroz food={food} />
                           <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                         </span>
@@ -7954,7 +7955,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                         }}
                         className="w-4 h-4 accent-orange-500 shrink-0" />
                       <span className="flex-1 min-w-0">
-                        <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{food.name}</span>
+                        <span className={`block jb-body text-sm ${marcado ? 'text-zinc-100' : 'text-zinc-400'}`}>{nombreAlimento(food)}</span>
                         <NotaSinArroz food={food} />
                         <span className="block jb-body text-xs text-zinc-500">{textoPorcionFoto(food, porcion)}</span>
                       </span>

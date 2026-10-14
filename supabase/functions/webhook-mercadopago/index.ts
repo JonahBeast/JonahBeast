@@ -47,7 +47,7 @@ async function yaPagoUnPlan(supabase: any, username: string): Promise<boolean> {
 // Mismo cálculo que crear-pago-unico / crear-suscripcion: precio de config
 // (o de respaldo) menos el descuento del código de referido del alumno.
 // Devuelve null si el alumno no existe.
-async function precioDelPlan(supabase: any, username: string, meses: number): Promise<number | null> {
+async function precioDelPlan(supabase: any, username: string, meses: number, cuponPct = 0): Promise<number | null> {
   const [{ data: config }, { data: alumno }] = await Promise.all([
     supabase.from("config").select("value").eq("key", `precio_${meses}`).maybeSingle(),
     supabase.from("alumnos").select("codigo_referido").eq("username", username).maybeSingle(),
@@ -64,6 +64,9 @@ async function precioDelPlan(supabase: any, username: string, meses: number): Pr
     descuento = Math.min(Math.max(Number(referidor?.descuento_pct) || 0, 0), 100);
     if (descuento > 0 && referidor?.tipo === "alumno" && await yaPagoUnPlan(supabase, username)) descuento = 0;
   }
+  // Cupón de descuento (crear-pago-unico ya lo revisó al armar el cobro):
+  // queda el mayor de los dos descuentos.
+  descuento = Math.max(descuento, Math.min(Math.max(Number(cuponPct) || 0, 0), 100));
   return Math.round(base * (1 - descuento / 100) * 100) / 100;
 }
 
@@ -240,11 +243,20 @@ Deno.serve(async (req: Request) => {
     }
 
     // --- Pago de un PLAN (usuario::meses), unico o de suscripcion ---
-    const [username, mesesStr] = referencia.split("::");
+    // Con cupón la referencia es usuario::meses::CUPON (crear-pago-unico, que
+    // lo validó al armar el cobro). Aquí basta con que el cupón exista y sea
+    // de descuento: si venció o se agotó mientras pagaba, se respeta igual.
+    const [username, mesesStr, cuponRef] = referencia.split("::");
     const meses = parseInt(mesesStr, 10);
     if (!username || !PRECIOS_RESPALDO[meses]) return new Response("ok", { status: 200 });
+    let cupon: string | null = null;
+    let cuponPct = 0;
+    if (cuponRef) {
+      const { data: c } = await supabase.from("cupones").select("codigo, tipo, valor").eq("codigo", cuponRef.toUpperCase()).maybeSingle();
+      if (c?.tipo === "descuento") { cupon = c.codigo; cuponPct = Number(c.valor) || 0; }
+    }
 
-    let esperado = await precioDelPlan(supabase, username, meses);
+    let esperado = await precioDelPlan(supabase, username, meses, cuponPct);
     if (esperado === null) return new Response("ok", { status: 200 }); // el alumno no existe
     if (montoSuscripcion > 0) esperado = Math.min(esperado, montoSuscripcion);
 
@@ -253,7 +265,7 @@ Deno.serve(async (req: Request) => {
     // el panel si lo aprueba.
     if (monto + TOLERANCIA < esperado) {
       await supabase.from("pagos").insert({
-        username, plan_meses: meses, monto, metodo: "Mercado Pago", operacion: String(pago.id), estado: "pendiente",
+        username, plan_meses: meses, monto, metodo: "Mercado Pago", operacion: String(pago.id), estado: "pendiente", ...(cupon ? { cupon } : {}),
         nota_admin: `Se pagó ${soles(monto)} y el plan cuesta ${soles(esperado)}: no se activó automáticamente.`,
       });
       console.error("Plan pagado de menos:", pago.id, username, monto, esperado);
@@ -266,7 +278,7 @@ Deno.serve(async (req: Request) => {
     const bono = ganaBono(alumno, primerPlan, pago.date_created || null);
 
     const { error: errPago } = await supabase.from("pagos").insert({
-      username, plan_meses: meses, monto, metodo: "Mercado Pago", operacion: String(pago.id), estado: "aprobado",
+      username, plan_meses: meses, monto, metodo: "Mercado Pago", operacion: String(pago.id), estado: "aprobado", ...(cupon ? { cupon } : {}),
       ...(bono ? { nota_admin: `Incluye +${BONO_DIAS} días de regalo por suscribirse a tiempo.` } : {}),
     });
     if (errPago) return new Response("ok", { status: 200 }); // ya procesado, no duplicar

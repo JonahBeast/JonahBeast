@@ -435,10 +435,10 @@ function ReferidosPanel({ users, onCambio }) {
                           {montoPend > 0 && (
                             <>
                               <span className="jb-display text-sm text-emerald-400">S/{montoPend.toFixed(2)}</span>
-                              <a href={waRef(r, montoPend, porPagar.length)} target="_blank" rel="noopener noreferrer"
+                              {tieneCelular(r.telefono) ? <a href={waRef(r, montoPend, porPagar.length)} target="_blank" rel="noopener noreferrer"
                                 className={btnGhost + ' py-1.5 px-3 text-xs'}>
                                 <MessageCircle size={13} />
-                              </a>
+                              </a> : <SinCelular />}
                             </>
                           )}
                           {!editandoEste && (
@@ -2658,12 +2658,12 @@ function LeadsPanel() {
                     <div className="text-xs text-zinc-400 jb-body">
                       {l.grasa_pct}% grasa · IMC {l.imc} · {l.tdee} kcal
                     </div>
-                    <a href={l.telefono
+                    {tieneCelular(l.telefono) ? <a href={l.telefono
                       ? `https://wa.me/${l.telefono.replace(/\D/g,'').length <= 9 ? '51' + l.telefono.replace(/\D/g,'') : l.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${l.nombre || ''}, vi que te mediste en Jonah Beast Fuel. ¿Quieres que revisemos tus resultados juntos?`)}`
                       : `https://wa.me/?text=${encodeURIComponent('Hola, vi que te mediste en Jonah Beast Fuel.')}`}
                       target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
                       <MessageCircle size={13} /> Contactar
-                    </a>
+                    </a> : <SinCelular />}
                   </div>
                 ))}
               </div>
@@ -3666,6 +3666,8 @@ function ActivacionPanel({ users }) {
 // tampoco cuentan: el panel los anota aquí apenas carga la lista de alumnos.
 const CUENTAS_PROPIAS = ['martin'];
 const VERIFICADORES = new Set();
+// En vez del botón de WhatsApp, cuando no hay número al que escribir.
+const SinCelular = () => <span className="jb-body text-[11px] text-zinc-500 shrink-0">sin celular</span>;
 const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username) || VERIFICADORES.has(username);
 
 function TableroPanel({ users: todosLosUsuarios }) {
@@ -7292,9 +7294,9 @@ function EmbudoPanel() {
             {alerta && <div className="text-amber-400 text-xs jb-body mt-0.5">⚠️ {alerta}</div>}
           </div>
           <div className="flex gap-2 shrink-0">
-            <a href={waLink(telefono, nombre, mensajeWa)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
+            {tieneCelular(telefono) ? <a href={waLink(telefono, nombre, mensajeWa)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
               <MessageCircle size={13} />
-            </a>
+            </a> : <SinCelular />}
             <button onClick={() => { setNotaAbierta(abierta ? null : clave); setTextoNota(''); setFechaAccion(''); }}
               className={btnGhost + ' py-1 px-2 text-xs'}>
               {abierta ? 'Cerrar' : `+ Nota${misNotas.length ? ` (${misNotas.length})` : ''}`}
@@ -7375,9 +7377,9 @@ function EmbudoPanel() {
                             {p.nota.nota} {p.nota.proxima_accion < hoy && <span className="text-red-400">· atrasado</span>}
                           </div>
                         </div>
-                        <a href={waLink(p.telefono, p.nombre)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs shrink-0'}>
+                        {tieneCelular(p.telefono) ? <a href={waLink(p.telefono, p.nombre)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs shrink-0'}>
                           <MessageCircle size={13} /> Escribir
-                        </a>
+                        </a> : <SinCelular />}
                       </div>
                     ))}
                   </div>
@@ -11494,9 +11496,9 @@ function RescatePanel({ users }) {
                                 </div>
                               )}
                             </div>
-                            <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                            {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
                               <MessageCircle size={13} /> Escribir
-                            </a>
+                            </a> : <SinCelular />}
                           </div>
                         ))}
                       </div>
@@ -11655,10 +11657,10 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
           <LineaMotivo m={motivoDe[u.username]} />
         </div>
         <div className="flex items-center gap-2">
-          <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
+          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> Escribir
-          </a>
+          </a> : <SinCelular />}
           {u.esPrueba && u.dl < 0 && onAdjustDays && (
             <button onClick={() => {
               if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
@@ -11942,10 +11944,10 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
+          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> {u.yaInvitado ? 'Escribir otra vez' : 'Escribir'}
-          </a>
+          </a> : <SinCelular />}
           {u.esPrueba && (
             <button type="button" onClick={() => darSieteDias(u)} className={btnGhost + ' py-1.5 px-3 text-xs'}>+7 días</button>
           )}
@@ -12987,10 +12989,10 @@ function TiendaAdminPanel() {
                           S/{Number(p.monto_total).toFixed(2)} · hace {Math.floor((Date.now() - new Date(p.creado_en).getTime()) / 3600000)}h
                         </div>
                       </div>
-                      <a href={waLinkCarritoAbandonado(p)} target="_blank" rel="noopener noreferrer"
+                      {tieneCelular(p.telefono_cliente) ? <a href={waLinkCarritoAbandonado(p)} target="_blank" rel="noopener noreferrer"
                         className="bg-emerald-600 text-white text-xs font-semibold rounded-lg px-3 py-1.5 flex items-center gap-1.5">
                         <MessageCircle size={13} /> Recordar
-                      </a>
+                      </a> : <SinCelular />}
                     </div>
                   ))}
                 </div>

@@ -63,6 +63,10 @@ export function esCelularPeru(telefono) {
   const d = String(telefono || '').replace(/\D/g, '');
   return /^9\d{8}$/.test(d) || /^519\d{8}$/.test(d);
 }
+// Tiene un número al que se le puede escribir por WhatsApp (de Perú o de otro país).
+export function tieneCelular(telefono) {
+  return String(telefono || '').replace(/\D/g, '').length >= 9;
+}
 export function esVerificadorPlay(a) {
   const creado = a?.created_at || a?.createdAt;
   return !!creado && Date.parse(creado) >= Date.parse(INICIO_VERIFICADORES) && !esCelularPeru(a.telefono);
@@ -252,7 +256,8 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
 
   const lista = [];
   for (const a of alumnos || []) {
-    if (CUENTAS_PROPIAS.includes(a.username) || esVerificadorPlay(a)) continue;
+    // Sin celular no hay a quién escribirle: no entra en la lista.
+    if (CUENTAS_PROPIAS.includes(a.username) || esVerificadorPlay(a) || !tieneCelular(a.telefono)) continue;
     const n = primerNombre(a);
     const filas = (porUsuario[a.username] || []).slice().sort((x, y) => x.fecha.localeCompare(y.fecha));
     const conComida = new Set(filas.filter(f => Number(f.comidas_count) > 0).map(f => f.fecha));

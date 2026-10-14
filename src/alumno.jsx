@@ -12347,6 +12347,58 @@ const PLATOS_PRIMERA_COMIDA = {
 // compromiso de anotar en la noche. Si puede recibir avisos y no los
 // tiene, se le ofrece que el aviso de la noche se lo recuerde. Esa noche
 // (desde las 7pm) esta pantalla vuelve a salir sola: "¡Hora de anotar tu día!".
+/* "¿Qué más comiste hoy?": sale una sola vez, el día de su primera comida,
+   apenas la guarda (cuando ya no hay otra ventana abierta). Le ofrece las
+   comidas de hoy que ya pasaron y siguen vacías. Quien anota 2 o más
+   comidas su primer día vuelve mucho más al día siguiente (5 de 6, contra
+   2 de 15 con una sola). */
+const EMOJI_COMIDA = { Desayuno: '🍳', 'Media mañana': '🍎', Almuerzo: '🍛', 'Media tarde': '☕', Cena: '🌙' };
+function comidasQueFaltanHoy(mealPlan) {
+  const idxAhora = MEAL_NAMES.indexOf(comidaDeAhora());
+  const vacia = m => !(mealPlan?.meals?.[m] || []).some(e => e.foodKey);
+  // Las principales primero; las de entre comidas solo si ya pasaron.
+  const principales = ['Desayuno', 'Almuerzo', 'Cena'].filter(m => MEAL_NAMES.indexOf(m) <= idxAhora && vacia(m));
+  const entre = ['Media mañana', 'Media tarde'].filter(m => MEAL_NAMES.indexOf(m) < idxAhora && vacia(m));
+  return { principales, entre: entre.length ? entre[entre.length - 1] : null };
+}
+function QueMasComisteModal({ mealPlan, onAnotar, onCerrar }) {
+  const { principales, entre } = comidasQueFaltanHoy(mealPlan);
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <style>{ESTILOS_COMIDAS}</style>
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 text-center max-h-[92vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-5" />
+        <div className="w-14 h-14 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center text-2xl mx-auto mb-3">💪</div>
+        <h3 className="jb-display text-2xl text-zinc-50 leading-none mb-2">¡PRIMERA COMIDA ANOTADA!</h3>
+        <p className="jb-body text-sm text-zinc-300 mb-5 max-w-xs mx-auto">
+          Así empecé yo, comida a comida. <b className="text-zinc-100">¿Qué más comiste hoy?</b> Anótalo ahora que lo tienes fresco y ves tu día completo.
+        </p>
+        <div className="flex flex-col gap-2 mb-2">
+          {principales.map(m => (
+            <button key={m} onClick={() => onAnotar(m)}
+              className="bg-zinc-950 border border-zinc-800 hover:border-orange-500 active:scale-[0.98] rounded-xl px-4 py-3 flex items-center gap-3 text-left transition-all">
+              <span className="text-2xl">{EMOJI_COMIDA[m]}</span>
+              <span className="jb-body text-base text-zinc-50 font-semibold flex-1">{m}</span>
+              <span className="jb-body text-xs text-orange-400 font-semibold">Anotar</span>
+            </button>
+          ))}
+          {entre && (
+            <button onClick={() => onAnotar(entre)}
+              className="bg-zinc-950 border border-zinc-800 hover:border-orange-500 active:scale-[0.98] rounded-xl px-4 py-2.5 flex items-center gap-3 text-left transition-all">
+              <span className="text-xl">{EMOJI_COMIDA[entre]}</span>
+              <span className="jb-body text-sm text-zinc-300 flex-1">Algo entre comidas (fruta, galletas, un café…)</span>
+              <span className="jb-body text-xs text-orange-400 font-semibold">Anotar</span>
+            </button>
+          )}
+        </div>
+        <button onClick={onCerrar} className="jb-body text-sm text-zinc-500 hover:text-zinc-300 py-2 w-full">Eso fue todo por hoy</button>
+      </div>
+    </div>
+  );
+}
+
 function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onOtro, onNoche, onCerrar }) {
   const meal = comidaDeAhora();
   const [paso, setPaso] = useState('elegir'); // elegir | noche
@@ -12820,6 +12872,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   }, [username]);
   const [recordatorioElegible, setRecordatorioElegible] = useState(null); // null = aún no se sabe
   const [ofrecerNotif, setOfrecerNotif] = useState(false);
+  const [recienPrimera, setRecienPrimera] = useState(false); // anotó su primera comida en esta visita
   // Beast · tu compañero: la burbuja del gorila (donde estaba el botón de
   // WhatsApp) abre su chat. El globito de presentación sale una sola vez,
   // en Inicio, cuando no hay otra ventana encima.
@@ -12908,6 +12961,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     // después de las ventanas de siempre (meta, avisos, abrir en Chrome).
     if (nuncaAlAbrir.current === true && !form.primeraComidaEn) {
       nuncaAlAbrir.current = false;
+      setRecienPrimera(true);
       setForm(v => (v.primeraComidaEn ? v : { ...v, primeraComidaEn: todayISO() }));
     }
     // Sin datos u objetivo: primero se le ofrece ajustar su meta (una vez
@@ -12979,6 +13033,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setPrimeraDescartada(true);
     showToast(conAviso ? '🌙 Listo: en la noche te aviso para anotar tu día' : '🌙 Quedamos: en la noche anotas tu día');
   }
+
 
   // Prioridad de banners: solo se muestra el más relevante a la vez,
   // en vez de apilar todos. Vencimiento > Trial > Notificaciones > Instalar.
@@ -13107,6 +13162,51 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     registrarPasoPago('primera_comida', username, 'demo');
     showToast(`📸 El plato de tu prueba ya quedó registrado en tu ${meal.toLowerCase()}`);
   }, [nuncaRegistro, alimentosHoy, verGuia, username]);
+
+  // "¿Qué más comiste hoy?" (QueMasComisteModal): el día de su primera
+  // comida, una sola vez, apenas no haya otra ventana abierta (foto,
+  // buscador, avisos, Beast…). Así no lo interrumpe si sigue agregando
+  // cosas al mismo plato.
+  const marcaQueMas = 'jb_que_mas_' + username;
+  const [queMasVisto, setQueMasVisto] = useState(() => { try { return !!localStorage.getItem(marcaQueMas); } catch { return true; } });
+  const [verQueMas, setVerQueMas] = useState(false);
+  const diaUno = form.primeraComidaEn === todayISO();
+  const faltanHoy = comidasQueFaltanHoy(mealPlan);
+  const queMasPorMostrar = recienPrimera && !queMasVisto && alimentosHoy > 0
+    && (faltanHoy.principales.length > 0 || !!faltanHoy.entre);
+  const otraVentana = verGuia || ofrecerNotif || ajustarMeta || verPrimeraComida || beastAbierto || verFinPrueba;
+  useEffect(() => {
+    if (!queMasPorMostrar || verQueMas || otraVentana || (tab !== 'dash' && tab !== 'meal')) return;
+    // Espera a que se cierre la hoja donde registró (y 1,5 s para que vea
+    // lo que agregó marcado en verde).
+    let libreDesde = null;
+    const revisar = setInterval(() => {
+      if (document.querySelector('.fixed.inset-0:not(.pointer-events-none)')) { libreDesde = null; return; }
+      if (libreDesde === null) { libreDesde = Date.now(); return; }
+      if (Date.now() - libreDesde < 1500) return;
+      clearInterval(revisar);
+      try { localStorage.setItem(marcaQueMas, '1'); } catch {}
+      setQueMasVisto(true);
+      setVerQueMas(true);
+      registrarPasoPago('primera_comida', username, 'que_mas_vio');
+    }, 500);
+    return () => clearInterval(revisar);
+  }, [queMasPorMostrar, verQueMas, otraVentana, tab, username]);
+  function anotarQueMas(meal) {
+    registrarPasoPago('primera_comida', username, 'que_mas_toco');
+    setVerQueMas(false);
+    irARegistrar(meal);
+  }
+  function cerrarQueMas() {
+    registrarPasoPago('primera_comida', username, 'que_mas_todo');
+    setVerQueMas(false);
+  }
+  // Medición para todos los del día 1 (lo hayan visto o no): cuántos
+  // llegan a 2 comidas distintas anotadas su primer día.
+  const comidasConAlgo = MEAL_NAMES.filter(m => (mealPlan?.meals?.[m] || []).some(e => e.foodKey)).length;
+  useEffect(() => {
+    if (diaUno && comidasConAlgo >= 2) registrarPasoPago('primera_comida', username, 'dos_comidas');
+  }, [diaUno, comidasConAlgo, username]);
   const firmaObjetivo = targetsObjetivo
     ? [targetsObjetivo.kcal, targetsObjetivo.protein, targetsObjetivo.fat].map(Math.round).join('|') : '';
   const firmaAntes = useRef(null);
@@ -13173,9 +13273,9 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             volver a entrar con su correo. Si eligió foto o buscar, espera a
             que la guarde y vuelva a Inicio: antes salía encima de la cámara. */}
         {abrirEnNavegador && !verGuia && nuncaRegistro !== null && !verPrimeraComida
-          && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta
+          && !(primeraEnCurso && alimentosHoy === 0) && tab === 'dash' && !ajustarMeta && !queMasPorMostrar && !verQueMas
           && <AbrirEnNavegadorModal username={username} trasPrimeraComida={primeraEnCurso && alimentosHoy > 0} onCerrar={() => { registrarPasoPago('abrir_navegador', username, 'seguir'); cerrarAbrirEnNavegador(); }} />}
-        {llegoAlNavegador && !verGuia && !verPrimeraComida && !ajustarMeta && tab === 'dash' && (
+        {llegoAlNavegador && !verGuia && !verPrimeraComida && !ajustarMeta && !verQueMas && tab === 'dash' && (
           <LlegasteAlNavegadorModal username={username} siguiente={siguienteComida(mealPlan)}
             onAnotar={meal => { setLlegoAlNavegador(false); irARegistrar(meal); }}
             onCerrar={() => setLlegoAlNavegador(false)} />
@@ -13194,6 +13294,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             onOtro={(meal) => { registrarPasoPago('primera_comida', username, 'buscar'); setPrimeraEnCurso(true); setNuncaRegistro(false); irARegistrar(meal); }}
             onCerrar={descartarPrimeraComida} />
         )}
+        {verQueMas && <QueMasComisteModal mealPlan={mealPlan} onAnotar={anotarQueMas} onCerrar={cerrarQueMas} />}
         {tab === 'dash' && !verGuia && !ofrecerNotif && !ajustarMeta && userRecord && (
           <InvitaMomento user={userRecord} mealPlan={mealPlan} />
         )}
@@ -13356,13 +13457,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       {mostrarEliminar && (
         <EliminarCuentaModal username={username} onClose={() => setMostrarEliminar(false)} onEliminado={onLogout} />
       )}
-      <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto} />
+      <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto || queMasPorMostrar || verQueMas} />
       {!beastAbierto && (
         <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
           textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
             : beastVisto && logroBeast ? <>{form.companero?.estilo === 'suelto' ? '¡Oe! ' : ''}Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
           globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
-            && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba} />
+            && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba && !queMasPorMostrar && !verQueMas} />
       )}
       {beastAbierto && (
         <BeastChat username={username} nombre={userRecord?.nombre} form={form} setForm={setForm}

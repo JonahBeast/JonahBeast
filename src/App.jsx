@@ -1537,6 +1537,43 @@ async function enviarCompraGoogle(purchaseToken) {
   return data;
 }
 
+/* Pago con Apple dentro de la app de iPhone (StoreKit, por el puente
+   JBNativo de ios/App/App/SceneDelegate.swift). Solo existe desde la
+   versión de la app que trae el cobro con Apple; en una versión vieja de
+   TestFlight se sigue mostrando "Muy pronto". El plan lo activa el
+   servidor (/api/apple/verificar) después de comprobar la firma de Apple;
+   las renovaciones llegan solas por /api/apple/notificaciones. */
+const PRODUCTOS_APPLE = { 1: 'jb_plan_mensual', 3: 'jb_plan_trimestral', 12: 'jb_plan_anual' };
+// Condiciones de uso estándar de Apple para suscripciones (Apple pide el
+// enlace junto al botón de suscribirse).
+const URL_TERMINOS_APPLE = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+function hayComprasIOS() {
+  return typeof nativoIOS()?.comprar === 'function';
+}
+
+async function enviarComprasApple(compras) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch('/api/apple/verificar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify({ compras }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) throw new Error(data.error || 'No pudimos activar tu plan.');
+  return data;
+}
+
+/* Reenvía al servidor las suscripciones de Apple vigentes de este iPhone,
+   por si alguna quedó sin activar. Devuelve true si activó algún plan. */
+async function sincronizarComprasApple() {
+  try {
+    const { compras } = await nativoIOS().comprobantes();
+    if (!compras?.length) return false;
+    const r = await enviarComprasApple(compras);
+    return !!r.activado;
+  } catch { return false; }
+}
+
 /* Reenvía al servidor las compras de Google que tenga el celular, por si
    alguna quedó sin activar (se cerró la app o falló el internet justo
    después de pagar). Devuelve true si activó algún plan. */
@@ -4909,6 +4946,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [playPrecios, setPlayPrecios] = useState({});
   const [comprandoPlay, setComprandoPlay] = useState(null);
   const [playMsg, setPlayMsg] = useState('');
+  // Apple (solo en la app de iPhone que trae el cobro con Apple)
+  const [appleBuscando, setAppleBuscando] = useState(() => esAppIOS() && hayComprasIOS());
+  const [applePrecios, setApplePrecios] = useState({});
+  const [comprandoApple, setComprandoApple] = useState(null);
+  const [restaurandoApple, setRestaurandoApple] = useState(false);
+  const [appleMsg, setAppleMsg] = useState('');
+  const [appleIntento, setAppleIntento] = useState(0);
 
   useEffect(() => { cargar(); }, [username]);
   useEffect(() => {
@@ -4929,6 +4973,74 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     })();
     return () => { vivo = false; };
   }, [username]);
+
+  // iPhone: precios de Apple y, por si quedó alguna compra sin activar,
+  // se reenvían al servidor las suscripciones vigentes de este iPhone.
+  useEffect(() => {
+    if (!esAppIOS() || !hayComprasIOS()) return;
+    let vivo = true;
+    (async () => {
+      setAppleBuscando(true);
+      try {
+        const { productos } = await nativoIOS().productos({ ids: Object.values(PRODUCTOS_APPLE) });
+        const m = {};
+        (productos || []).forEach(p => { m[p.id] = p; });
+        if (vivo) setApplePrecios(m);
+      } catch { if (vivo) setApplePrecios({}); }
+      if (vivo) setAppleBuscando(false);
+      if (vivo && await sincronizarComprasApple()) window.location.reload();
+    })();
+    return () => { vivo = false; };
+  }, [username, appleIntento]);
+
+  function avisarResultadoApple(r) {
+    showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).'
+      : r.bono ? '¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁'
+      : r.activado ? '¡Listo! Tu plan ya está activo 💪'
+      : 'Tu Premium ya estaba activo 💪');
+    if (r.activado) setTimeout(() => window.location.reload(), 1200);
+  }
+
+  async function comprarConApple(plan) {
+    const id = PRODUCTOS_APPLE[plan.meses];
+    if (!id || comprandoApple || restaurandoApple) return;
+    setAppleMsg(''); setComprandoApple(id);
+    registrarPasoPago('eligio_plan', username, plan.meses);
+    registrarPasoPago('eligio_metodo', username, 'App Store');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await nativoIOS().comprar({ id, cuenta: session?.user?.id || '' });
+      if (r?.estado === 'ok' && r.compra) {
+        registrarPasoPago('pago_enviado', username, 'App Store');
+        try {
+          avisarResultadoApple(await enviarComprasApple([r.compra]));
+        } catch {
+          setAppleMsg('Tu pago quedó registrado en Apple. Estamos activando tu plan: vuelve a abrir Planes en unos minutos. Si no se activa, toca "Restaurar compras" o escríbenos.');
+        }
+      } else if (r?.estado === 'pendiente') {
+        setAppleMsg('Tu compra está esperando aprobación (por ejemplo, de quien administra tu cuenta de Apple). Apenas se apruebe, tu plan se activa solo.');
+      }
+      // 'cancelado': el alumno cerró la ventana de Apple, no es un error.
+    } catch {
+      setAppleMsg('No se pudo completar el pago con Apple. Intenta de nuevo.');
+    }
+    setComprandoApple(null);
+  }
+
+  async function restaurarComprasApple() {
+    if (restaurandoApple || comprandoApple) return;
+    setAppleMsg(''); setRestaurandoApple(true);
+    try {
+      const r = await nativoIOS().restaurar();
+      if (r?.estado !== 'cancelado') {
+        if (!r?.compras?.length) setAppleMsg('No encontramos una suscripción vigente de Jonah Beast Fuel en este Apple ID.');
+        else avisarResultadoApple(await enviarComprasApple(r.compras));
+      }
+    } catch (e) {
+      setAppleMsg(e?.message || 'No pudimos restaurar tus compras. Intenta de nuevo en un momento.');
+    }
+    setRestaurandoApple(false);
+  }
 
   async function comprarConGooglePlay(plan) {
     const sku = PRODUCTOS_PLAY[plan.meses];
@@ -5182,8 +5294,104 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     );
   }
 
-  // App de iPhone: por ahora los planes solo como información (sin pagar
-  // por fuera, regla de Apple). El cobro con Apple llega en la parte 2.
+  // App de iPhone con el cobro con Apple: se paga con Apple, con
+  // renovación automática. Precios de Apple. Apple pide que el monto que
+  // se cobra sea lo más visible (no el precio por mes), y que junto al
+  // botón estén la renovación automática, las condiciones de uso, la
+  // política de privacidad y "Restaurar compras".
+  if (esAppIOS() && hayComprasIOS()) {
+    if (appleBuscando) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-12">
+          <Loader2 className="animate-spin text-orange-500" size={28} />
+          <p className="jb-body text-sm text-zinc-400">Conectando con la App Store…</p>
+        </div>
+      );
+    }
+    const hayPrecios = Object.keys(applePrecios).length > 0;
+    return (
+      <div className="flex flex-col gap-5">
+        {relojBono}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
+          <p className="jb-body text-sm text-zinc-400">
+            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de Premium de prueba. ` : 'Tu prueba de Premium terminó. ') : ''}
+            Paga seguro con tu cuenta de Apple.
+          </p>
+        </div>
+
+        {hayPrecios ? (
+          <div className="grid gap-3">
+            {PLANES_LISTA.map(plan => {
+              const id = PRODUCTOS_APPLE[plan.meses];
+              const producto = applePrecios[id];
+              if (!producto) return null;
+              const cargando = comprandoApple === id;
+              const periodo = plan.meses === 12 ? 'al año' : plan.meses > 1 ? `cada ${plan.meses} meses` : 'al mes';
+              return (
+                <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
+                      {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
+                    </div>
+                    <div className="text-right">
+                      <p className="jb-display text-2xl text-orange-500">{producto.precio}<span className="jb-body text-xs text-zinc-400"> {periodo}</span></p>
+                      {plan.meses > 1 && Number(producto.valor) > 0 && (
+                        <p className="jb-body text-xs text-zinc-400">equivale a {fmtS(Number(producto.valor) / plan.meses)} al mes</p>
+                      )}
+                    </div>
+                  </div>
+                  {plan.destacado && <p className="jb-body text-xs text-zinc-300 -mt-1 mb-3">{FRASE_ANUAL}</p>}
+                  <button onClick={() => comprarConApple(plan)} disabled={!!comprandoApple || restaurandoApple}
+                    className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
+                    {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+            <p className="jb-body text-sm text-zinc-300 mb-3">No pudimos conectar con la App Store. Revisa tu internet e intenta de nuevo.</p>
+            <button onClick={() => setAppleIntento(n => n + 1)} className={btnPrimary + ' w-full justify-center py-2.5'}>Intentar de nuevo</button>
+          </div>
+        )}
+
+        {appleMsg && <p className="jb-body text-sm text-amber-300 text-center">{appleMsg}</p>}
+
+        <div className="flex flex-col gap-1.5">
+          {BENEFICIOS.map(b => (
+            <p key={b} className="jb-body text-sm text-zinc-300">✅ {b}</p>
+          ))}
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 text-center">
+          El pago se carga a tu cuenta de Apple al confirmar la compra. La suscripción se renueva sola al mismo precio al
+          terminar cada periodo, salvo que la canceles al menos 24 horas antes. Puedes cancelarla cuando quieras desde los
+          ajustes de tu cuenta de Apple y mantienes tu acceso hasta el final del periodo pagado.
+        </p>
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          <button onClick={restaurarComprasApple} disabled={restaurandoApple || !!comprandoApple}
+            className="jb-body text-xs text-orange-400 underline disabled:opacity-60 inline-flex items-center gap-1">
+            {restaurandoApple && <Loader2 className="animate-spin" size={12} />} Restaurar compras
+          </button>
+          <button onClick={() => nativoIOS()?.gestionarSuscripcion?.().catch(() => {})}
+            className="jb-body text-xs text-orange-400 underline">
+            Administrar mi suscripción
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-4">
+          <a href={URL_TERMINOS_APPLE} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-zinc-500 underline">Condiciones de uso</a>
+          <a href="/privacidad.html" target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-zinc-500 underline">Política de privacidad</a>
+        </div>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
+      </div>
+    );
+  }
+
+  // App de iPhone de una versión que aún no trae el cobro con Apple: los
+  // planes solo como información (sin pagar por fuera, regla de Apple).
   if (esAppIOS()) {
     return (
       <div className="flex flex-col gap-5">

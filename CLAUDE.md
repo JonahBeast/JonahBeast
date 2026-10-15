@@ -27,6 +27,7 @@
 
 - **Nunca borres ni modifiques datos de alumnos, pagos o cuentas sin preguntarme antes**, y dime exactamente qué filas vas a tocar.
 - **Los cambios en la estructura de la base** (columnas o tablas nuevas) **me los explicas antes de hacerlos.**
+- **Al aplicar una migración con el conector de Supabase, quita los `drop … if exists` que no hacen falta** (lo que se va a crear todavía no existe) y, si es larga, aplícala por partes. Una orden con `drop` pide una confirmación extra que en el celular de Jonah no llega y se cancela sola (pasó 5 veces con los cupones el 14 de octubre). Si de verdad hay que reemplazar algo que ya existe, avísale para hacerlo desde la computadora o el editor SQL de Supabase.
 - **Las edge functions solo se publican después del merge**, y siempre con el código que quedó en `main`, para que GitHub y Supabase nunca tengan versiones distintas. Después de publicar, dime qué versión quedó.
   - **Excepciones:** las copias de prueba de Jarvis (`jarvis-chat-prueba`) y de Beast (`beast-chat-prueba`, autorizada por Jonah el 9 de octubre) se pueden publicar desde la rama de un PR para probarlas en la versión de prueba de Vercel (que llama a esas copias). Los reales, `jarvis-chat` y `beast-chat`, solo se publican después del merge.
 - **Beast (`beast-chat`) se publica con `verify_jwt` en `false`**: el alumno sale de su sesión dentro del código.

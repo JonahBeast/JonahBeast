@@ -843,6 +843,17 @@ Problemas:
 - Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados. El de un amigo ("Invita a un amigo") vale solo para el primer plan; el de un embajador o influencer vale para todos los planes.
 - **"Tengo una consulta antes de pagar"** abre WhatsApp.
 
+### 13.1.1 🎟️ Cupones ("¿Tienes un cupón?")
+
+- En Planes, encima de la lista de planes, está el link **"🎟️ ¿Tienes un cupón?"**. Al tocarlo sale **"Ingresa tu cupón"**, un campo (ej. "JONAH-20") y el botón **"Aplicar"**.
+- Los cupones los crea Jonah (ej. para quien termina su prueba, aliados, premios o regalos). Cada persona usa un mismo cupón **una sola vez**. Un cupón puede ser solo para un alumno, tener un número de usos y una fecha de vencimiento.
+- Si Jonah manda el link con el cupón (`jonahbeast.com/?ir=planes&cupon=CODIGO`), el cupón ya aparece escrito y se revisa solo (también si primero tiene que entrar a su cuenta).
+- **Cupón de días gratis:** sale **"🎁 X DÍAS DE PREMIUM GRATIS"** ("Se suman a tu Premium al toque, sin pagar nada") con el botón **"Canjear mis X días"**. Al canjear: **"🎉 ¡LISTO, X DÍAS MÁS!"** con la nueva fecha de vencimiento y el botón **"Seguir"**. Los días se suman a lo que ya tenía (si su prueba o plan ya venció, cuentan desde hoy). También se puede canjear en la app de Play Store y en la de iPhone.
+- **Cupón de descuento:** sale **"🎟️ Cupón CODIGO: X% de descuento"** ("Ya aplicado en los precios · vale para el pago único") con **"Quitar"**, y los precios de los planes salen rebajados (con el precio anterior tachado). Vale pagando con **Yape, Plin, transferencia** o **Mercado Pago "Pago único"**. Con **"Suscripción automática"** no aplica (se repetiría en cada cobro): sale "🎟️ Tu cupón vale para el pago único. Elige "Pago único" para usar tu descuento." y el precio vuelve al normal. En la app de Play Store o de iPhone un cupón de descuento no se puede usar ("Este cupón es de descuento y por ahora no se puede usar en esta app.").
+- **No se suman descuentos:** si ya tiene descuento por su código de referido, queda el mayor. Si el del referido es igual o mayor: "Ya tienes X% de descuento por tu código de referido, que es igual o mayor: se queda ese."
+- El cupón de descuento se gasta cuando Jonah aprueba el pago (Yape, Plin, transferencia) o cuando Mercado Pago lo aprueba. Si venció o se agotó antes de enviar el pago: "Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a enviar tu pago."
+- Mensajes si no vale: "Ese cupón no existe o ya no está activo. Revisa cómo está escrito." · "Ese cupón ya venció 😕" · "Ese cupón ya se usó todas las veces que permitía." · "Ya usaste este cupón antes." · "Ese cupón es para otra persona."
+
 ### 13.2 Pagar con Yape, Plin o transferencia
 
 1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra hasta 40%"). Al elegir el anual, el resumen dice "12 meses de acceso · S/14.99 al mes".

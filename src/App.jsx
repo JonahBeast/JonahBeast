@@ -3,6 +3,13 @@ import { Eye, X, ChevronRight, Flame, AlertTriangle, Loader2, MessageCircle, Cre
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 
+// Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
+// abrir la app para que llegue a Planes aunque tenga que entrar primero.
+try {
+  const cuponLink = new URLSearchParams(window.location.search).get('cupon');
+  if (cuponLink) localStorage.setItem('jb_cupon', cuponLink.trim().toUpperCase().slice(0, 30));
+} catch { /* sin almacenamiento */ }
+
 // Partes que se descargan solo cuando hacen falta: quien entra a la
 // portada no baja el panel de admin, la app del alumno ni la tienda.
 // Si alguien tenía la app abierta durante una actualización, la parte que
@@ -4757,11 +4764,128 @@ const BENEFICIOS = [
 
 
 
+/* "🎟️ ¿Tienes un cupón?" en Planes. Los cupones los crea Jonah en el
+   panel (Negocio → Anuncios y embudo → 🎟️ CUPONES). La base dice si vale
+   (validar_cupon); los de días se canjean al toque (canjear_cupon) y los de
+   descuento bajan el precio del pago único (el servidor lo vuelve a revisar).
+   Un link con ?cupon=CODIGO lo deja escrito (se guarda al abrir la app). */
+const MENSAJE_CUPON = {
+  invalido: 'Ese cupón no existe o ya no está activo. Revisa cómo está escrito.',
+  vencido: 'Ese cupón ya venció 😕',
+  agotado: 'Ese cupón ya se usó todas las veces que permitía.',
+  ya_usado: 'Ya usaste este cupón antes.',
+  no_es_para_ti: 'Ese cupón es para otra persona.',
+  sin_sesion: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
+  sin_cuenta: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
+};
+const MESES_CUPON = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+const fechaCuponLarga = iso => { const [, m, d] = String(iso || '').slice(0, 10).split('-').map(Number); return m ? `${d} de ${MESES_CUPON[m - 1]}` : ''; };
+function leerCuponPendiente() { try { return localStorage.getItem('jb_cupon') || ''; } catch { return ''; } }
+function borrarCuponPendiente() { try { localStorage.removeItem('jb_cupon'); } catch {} }
+function CuponBox({ aplicado, onDescuento, refPct = 0, soloDias = false }) {
+  const [abierto, setAbierto] = useState(() => !!leerCuponPendiente());
+  const [codigo, setCodigo] = useState(() => leerCuponPendiente());
+  const [revisando, setRevisando] = useState(false);
+  const [res, setRes] = useState(null); // respuesta de validar_cupon
+  const [canjeando, setCanjeando] = useState(false);
+  const [canjeado, setCanjeado] = useState(null); // { dias, fecha_vencimiento }
+  async function revisar(c = codigo) {
+    const limpio = String(c || '').trim().toUpperCase();
+    if (!limpio) return;
+    setRevisando(true); setRes(null);
+    let r = { estado: 'invalido' };
+    try { const { data, error } = await supabase.rpc('validar_cupon', { p_codigo: limpio }); if (!error && data) r = data; } catch {}
+    setRevisando(false);
+    setRes(r);
+    if (r.estado === 'ok' && r.tipo === 'descuento' && !soloDias && Number(r.valor) > refPct) {
+      onDescuento({ codigo: r.codigo, valor: Number(r.valor) });
+      vibrar(30);
+    }
+    if (r.estado !== 'ok') borrarCuponPendiente();
+  }
+  // Llegó con el cupón en el link: se revisa solo.
+  useEffect(() => { if (leerCuponPendiente()) revisar(leerCuponPendiente()); }, []);
+  async function canjear() {
+    setCanjeando(true);
+    let r = { estado: 'invalido' };
+    try { const { data, error } = await supabase.rpc('canjear_cupon', { p_codigo: res.codigo }); if (!error && data) r = data; } catch {}
+    setCanjeando(false);
+    if (r.estado === 'ok') { setCanjeado(r); borrarCuponPendiente(); vibrar([30, 50, 30]); }
+    else setRes(r);
+  }
+  function quitar() {
+    onDescuento(null); setRes(null); setCodigo(''); borrarCuponPendiente();
+  }
+
+  if (canjeado) {
+    return (
+      <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 text-center">
+        <p className="jb-display text-lg text-zinc-50 mb-1">🎉 ¡LISTO, {canjeado.dias} DÍAS MÁS!</p>
+        <p className="jb-body text-sm text-zinc-300 mb-3">Se sumaron a tu Premium{canjeado.fecha_vencimiento ? `: ahora vence el ${fechaCuponLarga(canjeado.fecha_vencimiento)}` : ''}. Aprovéchalos, comida a comida 💪</p>
+        <button onClick={() => window.location.reload()} className={btnPrimary + ' w-full py-2.5'}>Seguir</button>
+      </div>
+    );
+  }
+  if (aplicado) {
+    return (
+      <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span className="text-xl">🎟️</span>
+        <div className="flex-1 min-w-0">
+          <p className="jb-body text-sm text-emerald-300 font-semibold">Cupón {aplicado.codigo}: {aplicado.valor}% de descuento</p>
+          <p className="jb-body text-[11px] text-zinc-400">Ya aplicado en los precios · vale para el pago único</p>
+        </div>
+        <button onClick={quitar} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
+      </div>
+    );
+  }
+  if (!abierto) {
+    return (
+      <button onClick={() => setAbierto(true)} className="jb-body text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 self-center">
+        🎟️ ¿Tienes un cupón?
+      </button>
+    );
+  }
+  const okDias = res?.estado === 'ok' && res.tipo === 'dias';
+  const okDescuento = res?.estado === 'ok' && res.tipo === 'descuento';
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+      <p className="jb-body text-sm text-zinc-200 font-semibold mb-2">🎟️ Ingresa tu cupón</p>
+      <form onSubmit={e => { e.preventDefault(); revisar(); }} className="flex gap-2">
+        <input value={codigo} onChange={e => { setCodigo(e.target.value.toUpperCase().replace(/\s/g, '')); setRes(null); }}
+          placeholder="Ej. JONAH-20" autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={30}
+          className={inputCls + ' flex-1 font-mono tracking-wider'} />
+        <button type="submit" disabled={revisando || !codigo.trim()} className={btnPrimary + ' px-4'}>
+          {revisando ? <Loader2 className="animate-spin" size={16} /> : 'Aplicar'}
+        </button>
+      </form>
+      {res && res.estado !== 'ok' && (
+        <p className="jb-body text-xs text-red-400 mt-2 flex items-center gap-1.5"><AlertTriangle size={13} />{MENSAJE_CUPON[res.estado] || MENSAJE_CUPON.invalido}</p>
+      )}
+      {okDias && (
+        <div className="mt-3 bg-zinc-950 border border-orange-500/40 rounded-xl p-3 text-center">
+          <p className="jb-display text-lg text-orange-400">🎁 {res.valor} DÍAS DE PREMIUM GRATIS</p>
+          <p className="jb-body text-xs text-zinc-400 mb-3">Se suman a tu Premium al toque, sin pagar nada.</p>
+          <button onClick={canjear} disabled={canjeando} className={btnPrimary + ' w-full py-2.5'}>
+            {canjeando ? <Loader2 className="animate-spin" size={16} /> : `Canjear mis ${res.valor} días`}
+          </button>
+        </div>
+      )}
+      {okDescuento && soloDias && (
+        <p className="jb-body text-xs text-amber-300 mt-2">Este cupón es de descuento y por ahora no se puede usar en esta app.</p>
+      )}
+      {okDescuento && !soloDias && Number(res.valor) <= refPct && (
+        <p className="jb-body text-xs text-amber-300 mt-2">Ya tienes {refPct}% de descuento por tu código de referido, que es igual o mayor: se queda ese.</p>
+      )}
+    </div>
+  );
+}
+
 function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false, planInicial = null }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
+  const [cupon, setCupon] = useState(null); // { codigo, valor }: cupón de descuento aplicado (CuponBox)
   const [datosPago, setDatosPago] = useState({});
   // "planInicial" (meses): llega con un plan ya marcado, por ejemplo desde
   // el aviso de fin de prueba ("Seguir con 1 mes"), y va directo a pagar.
@@ -4873,8 +4997,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     const v = Number(precios[plan.configKey]);
     return v > 0 ? v : plan.precioDefault;
   }
+  // El cupón de descuento vale para el pago único (no para el cobro
+  // automático de Mercado Pago, que lo repetiría cada mes) y no se suma al
+  // del código de referido: queda el mayor.
+  const cuponAplica = !!cupon && cupon.valor > dcto && !(metodo === 'Mercado Pago' && mpTipo === 'recurrente');
+  const dctoFinal = cuponAplica ? cupon.valor : dcto;
   function precioDe(plan) {
-    return precioBase(plan) * (1 - dcto / 100);
+    return Math.round(precioBase(plan) * (1 - dctoFinal / 100) * 100) / 100;
   }
   // Cuánto ahorra por mes frente a pagar mes a mes (con precios sin descuento).
   function ahorroDe(plan) {
@@ -4905,9 +5034,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       const { error: dbErr } = await supabase.from('pagos').insert({
         username, nombre: nombre || '', plan_meses: seleccion.meses,
         monto: precioDe(seleccion), metodo, operacion: operacion.trim() || null,
-        comprobante_ruta: ruta, estado: 'pendiente',
+        comprobante_ruta: ruta, estado: 'pendiente', ...(cuponAplica ? { cupon: cupon.codigo } : {}),
       });
-      if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
+      if (dbErr) throw new Error(/Cupón no válido/i.test(dbErr.message)
+        ? 'Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a enviar tu pago.'
+        : 'Al registrar el pago: ' + dbErr.message);
+      if (cuponAplica) borrarCuponPendiente();
       registrarPasoPago('pago_enviado', username, metodo);
       // Aviso al toque al celular de Jonah (api/pago-enviado.js). Si falla,
       // la revisión de cada hora lo avisa igual.
@@ -4952,7 +5084,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       }
       const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
       const { data, error } = await supabase.functions.invoke(funcion, {
-        body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dcto },
+        body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dctoFinal, cupon: cuponAplica ? cupon.codigo : null },
       });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
       // Se anota antes de salir a Mercado Pago (máximo 1.5 s de espera).
@@ -5041,6 +5173,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           La suscripción se renueva sola al terminar cada periodo. Puedes cancelarla cuando quieras desde Google Play y
           mantienes tu acceso hasta el final del periodo pagado.
         </p>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
         <a href={URL_SUSCRIPCIONES_PLAY} target="_blank" rel="noopener noreferrer"
           className="jb-body text-xs text-orange-400 text-center underline">
           Administrar mi suscripción en Google Play
@@ -5061,6 +5194,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           </p>
           <p className="jb-body text-sm text-zinc-400">Muy pronto vas a poder activar Premium aquí mismo, desde tu iPhone.</p>
         </div>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
         <div className="grid gap-2">
           {PLANES_LISTA.map(plan => (
             <div key={plan.meses} className={`bg-zinc-900 border rounded-xl p-3.5 flex items-center justify-between ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
@@ -5077,7 +5211,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
   if (esTWA()) {
     const waUrlPlan = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-      `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;
+      `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.${cuponAplica ? ` Tengo el cupón ${cupon.codigo}.` : ''}`)}`;
     return (
       <div className="flex flex-col gap-5">
         {relojBono}
@@ -5107,7 +5241,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           ))}
         </div>
 
-        {dcto > 0 && (
+        <CuponBox aplicado={cupon && cupon.valor > dcto ? cupon : null} onDescuento={setCupon} refPct={dcto} />
+        {dcto > 0 && !(cupon && cupon.valor > dcto) && (
           <p className="jb-body text-xs text-emerald-400 text-center">
             🎉 Tienes {dcto}% de descuento{refNombre ? ` por ${refNombre}` : ''} — ya aplicado en los precios de arriba.
           </p>
@@ -5183,7 +5318,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           </button>
           <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra hasta {ahorroMaximo}%:</p>
 
-          {dcto > 0 && (
+          <CuponBox aplicado={cupon && cupon.valor > dcto ? cupon : null} onDescuento={setCupon} refPct={dcto} />
+
+          {dcto > 0 && !(cupon && cupon.valor > dcto) && (
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
               <span className="text-lg">🎁</span>
               <p className="jb-body text-sm text-emerald-300">
@@ -5209,7 +5346,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                     </span>
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
-                  {dcto > 0 && (
+                  {dctoFinal > 0 && (
                     <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan) / plan.meses)} al mes</div>
                   )}
                   <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(porMes)}<span className="jb-body text-sm text-zinc-400"> al mes</span></div>
@@ -5339,6 +5476,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a elegir tu plan y pagar.'
                   : `Se te cobrará automáticamente cada ${seleccion.meses === 1 ? 'mes' : `${seleccion.meses} meses`} hasta que canceles la suscripción desde tu cuenta de Mercado Pago.`}
               </p>
+              {cupon && cupon.valor > dcto && mpTipo === 'recurrente' && (
+                <p className="jb-body text-[11px] text-amber-300 text-center -mt-1">🎟️ Tu cupón vale para el pago único. Elige "Pago único" para usar tu descuento.</p>
+              )}
               <Field label="Tu correo electrónico">
                 <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
                   className={inputCls} placeholder="tucorreo@ejemplo.com" />

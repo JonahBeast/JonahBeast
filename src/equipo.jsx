@@ -112,6 +112,7 @@ function textoInvitacionEquipo(eq, ref) {
       + `${fraseReto(eq.objetivo, eq.sentido, eq.meta_tipo, eq.meta_valor)}\n`
       + `📅 Del ${fechaLarga(eq.inicio)} al ${fechaLarga(eq.fin)}\n`
       + (eq.premio ? `🎁 Premio: ${eq.premio}\n` : '')
+      + (eq.objetivo === 'carrera' ? '✅ El ganador se confirma con un pesaje en persona frente al grupo\n' : '')
       + `\nEntra con este enlace: ${link} (o pon el código ${eq.codigo} en Comunidad → Mis equipos). `
       + `Al entrar, anota tu peso en "Mi cuerpo" y en "TU AVANCE" toca "${eq.objetivo === 'carrera' ? 'Competir con mi avance' : 'Mostrar mi avance'}". `
       + `Nadie ve tu peso, solo los kilos que ${subir ? 'subes' : 'bajas'} 🔒 Vamos juntos, comida a comida 💪`;
@@ -166,6 +167,8 @@ const ERRORES = {
   meta_rapida: 'Esa meta es muy rápida para hacerla bien. Dales más tiempo o pon una meta menor (como mucho 1 kg o 1% por semana).',
   meta_rapida_subir: 'Esa meta es muy rápida para subir bien. Dales más tiempo o pon una meta menor (como mucho ½ kg por semana: más rápido es grasa, no músculo).',
   oficial_comer: 'El Team Beast es un reto de comer mejor.',
+  sin_ganador: 'Todavía nadie llegó a la meta.',
+  no_capitan: 'Esto lo confirma el capitán del equipo.',
   en_curso: 'El reto todavía no termina.',
 };
 const mensajeError = (r, error) => (error ? 'No se pudo conectar. Revisa tu internet e intenta de nuevo.' : ERRORES[r?.error] || 'Algo falló. Intenta de nuevo.');
@@ -268,6 +271,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos, onAnotarPeso, peso
               inv.inicio && inv.fin ? `📅 Del ${fechaLarga(inv.inicio)} al ${fechaLarga(inv.fin)}` : null,
               inv.premio ? (/^\p{Extended_Pictographic}/u.test(inv.premio) ? inv.premio : `🎁 ${inv.premio}`) : null,
               conPesoInv ? `🔒 Nadie ve tu peso, solo los kilos que ${inv.sentido === 'subir' ? 'subes' : 'bajas'}` : null,
+              inv.objetivo === 'carrera' ? '✅ El ganador se confirma con un pesaje en persona' : null,
             ].filter(Boolean);
             return (
               <>
@@ -699,6 +703,7 @@ function PasosReto({ eq, nombre, onCancelar, onListo, onCreado }) {
     c.premio.trim() ? (/^\p{Extended_Pictographic}/u.test(c.premio.trim()) ? c.premio.trim() : `🎁 ${c.premio.trim()}`) : '🏅 Premio: la medalla',
     ...(c.objetivo === 'comer' ? ['✓ 3 comidas o más en el día = 10 puntos · 1 o 2 = 5 puntos'] : [
       '⚖️ Se cuenta con el pesaje de cada semana (el del domingo en Inicio)',
+      ...(c.objetivo === 'carrera' ? ['✅ El ganador se confirma con un pesaje en persona frente al grupo'] : []),
       `🔒 Nadie ve el peso de nadie, solo los ${kilosDe(c)}`,
       ...(subir ? ['🌱 Como mucho ½ kg por semana: músculo, no grasa'] : []),
     ]),
@@ -850,7 +855,7 @@ function PasosReto({ eq, nombre, onCancelar, onListo, onCreado }) {
                 <p className="jb-body text-base text-zinc-50 mb-1">{fraseReto(c.objetivo, c.sentido, c.metaTipo, valor)}</p>
                 <p className="jb-body text-xs text-zinc-400">
                   {c.objetivo === 'carrera'
-                    ? 'Se cuenta con el pesaje de cada semana. Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca.'
+                    ? 'Se cuenta con el pesaje de cada semana. Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca. El ganador se confirma con un pesaje en persona.'
                     : c.metaTipo === 'kg_cada'
                       ? 'Quien llega a sus kilos gana su medalla 🎯. Si llegan todos, todos ganan la medalla del equipo 🏆.'
                       : 'Si llegan entre todos, todos ganan la medalla del equipo 🏆.'}
@@ -1155,6 +1160,7 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos, onAnot
 
       {empezo && !eq.terminado && <ComoVas eq={eq} indiceHoy={indiceHoy} />}
       {eq.progreso && (eq.objetivo !== 'carrera' || !empezo || eq.terminado) && <MetaEquipo eq={eq} />}
+      {eq.objetivo === 'carrera' && ganadorCarrera && <ConfirmarGanador eq={eq} ganador={ganadorCarrera} onListo={() => cargar()} />}
       {empezo && !eq.terminado && eq.objetivo === 'carrera' && <QuienVaGanando eq={eq} />}
       {empezo && !eq.terminado && <PodioConstancia eq={eq} />}
 
@@ -1455,7 +1461,7 @@ function MetaEquipo({ eq }) {
     titulo = `🏁 CARRERA: EL PRIMERO EN ${subir ? 'SUBIR' : 'BAJAR'} ${fmtNum(meta)}${unidad.toUpperCase()}`;
     const lider = eq.miembros.filter(m => m.peso).sort((a, b) => barraPeso(eq, b.peso) - barraPeso(eq, a.peso))[0];
     const gan = eq.miembros.find(m => m.ganador);
-    linea = gan ? `🏁 ¡${gan.yo ? 'Llegaste' : `${gan.nombre} llegó`} primero!`
+    linea = gan ? `🏁 ¡${gan.yo ? 'Llegaste' : `${gan.nombre} llegó`} primero!${p.confirmado ? ' ✅ Confirmado en persona' : ' · por confirmar en persona'}`
       : lider ? `Va adelante: ${lider.yo ? 'tú' : lider.nombre} (${unidad === '%' ? `${fmtNum(lider.peso.pct)}%` : `${fmtNum(lider.peso.kg)} kg`})` : '';
     extra = p.participantes ? `${p.participantes} ${p.participantes === 1 ? 'persona compite' : 'personas compiten'}` : '';
     avance = lider ? barraPeso(eq, lider.peso) : 0;
@@ -1517,7 +1523,9 @@ function ComoVas({ eq, indiceHoy }) {
   const signo = subir ? 'Subiste' : 'Bajaste';
   let grande = null, linea = null, barra = null, extra = null;
   if (eq.objetivo === 'carrera') {
-    if (sumo && posCarrera) {
+    if (eq.descartado) {
+      linea = 'Tu pesaje en persona no coincidió: en este reto ya no compites por la carrera, pero sigues sumando puntos de constancia 💪';
+    } else if (sumo && posCarrera) {
       grande = <>{lugar(posCarrera)} <span className="jb-body text-sm text-zinc-300">de {comps.length} en la carrera</span></>;
       const lider = comps[0];
       if (lider && !lider.yo) {
@@ -1572,7 +1580,7 @@ function ComoVas({ eq, indiceHoy }) {
       {reglas && (
         <ul className="jb-body text-xs text-zinc-300 space-y-1.5 mt-2">
           <li className="text-zinc-100 font-semibold">{fraseReto(eq.objetivo, eq.sentido, eq.meta_tipo, eq.meta_valor)}</li>
-          {eq.objetivo === 'carrera' && <li>Se cuenta con el pesaje de cada semana. Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca.</li>}
+          {eq.objetivo === 'carrera' && <li>Se cuenta con el pesaje de cada semana. Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca. El ganador se confirma con un pesaje en persona frente al grupo.</li>}
           {eq.objetivo === 'juntos' && <li>{eq.meta_tipo === 'kg_cada' ? 'Quien llega a sus kilos gana su medalla 🎯. Si llegan todos, todos ganan 🏆.' : 'Si llegan entre todos, todos ganan la medalla del equipo 🏆.'}</li>}
           {eq.objetivo !== 'comer' && <li>{subir ? 'Por salud, cada semana cuenta como mucho ½ kg (músculo, no grasa).' : 'Por salud, cada semana cuenta como mucho 1% de tu peso.'} Nadie ve tu peso, solo tus {kilosDe(eq)}.</li>}
           <li>🥇🥈🥉 Aparte, el podio es para los más constantes: ✓ 3 comidas o más en el día = 10 pts, 1 o 2 = 5 pts.</li>
@@ -1637,6 +1645,64 @@ function PodioConstancia({ eq }) {
       {top.map(fila)}
       {yoPos >= 3 && fila(lista[yoPos], yoPos)}
     </Tarjeta>
+  );
+}
+
+// GANADOR POR CONFIRMAR (carrera): la app no puede saber si alguien miente
+// con su peso, así que el que llega primero se confirma con un pesaje en
+// persona frente al grupo. Confirma el capitán; si el que llegó es el
+// capitán, cualquier otro integrante. "No coincidió" lo saca de la carrera
+// de este reto y pasa el siguiente (equipo_confirmar_ganador).
+function ConfirmarGanador({ eq, ganador, onListo }) {
+  const [ocupado, setOcupado] = useState(false);
+  const confirmado = !!eq.progreso?.confirmado;
+  const puedo = !ganador.yo && (eq.soy_capitan || ganador.capitan);
+  const nombre = ganador.yo ? 'Tú' : ganador.nombre;
+  async function decidir(ok) {
+    if (!ok && !(await confirmar({ titulo: `¿NO COINCIDIÓ EL PESAJE DE ${ganador.nombre.toUpperCase()}?`,
+      texto: 'Sale de la carrera de este reto (sigue sumando constancia) y pasa el siguiente que haya llegado. Si nadie más llegó, gana al final el que quede más cerca.',
+      si: 'Sí, no coincidió', peligro: true }))) return;
+    setOcupado(true);
+    const { r, ok: bien, error: e } = await llamar('equipo_confirmar_ganador', { p_id: eq.id, p_ok: ok });
+    setOcupado(false);
+    if (!bien) { showToast(mensajeError(r, e), 'error'); return; }
+    vibrar(30);
+    showToast(ok ? `🏁 ¡Listo! ${ganador.nombre} ganó la carrera, confirmado en persona.` : 'Listo: pasa el siguiente de la carrera.');
+    onListo();
+  }
+  if (confirmado) {
+    if (eq.terminado) return null; // lo dice el podio
+    return (
+      <div className="rounded-2xl border border-emerald-800/70 bg-emerald-950/50 p-4 mb-3">
+        <p className="jb-display text-lg text-emerald-200">🏁 {ganador.yo ? '¡GANASTE LA CARRERA!' : `¡${ganador.nombre.toUpperCase()} GANÓ LA CARRERA!`}</p>
+        <p className="jb-body text-sm text-emerald-200/90 mt-1">✅ Confirmado en persona{eq.premio ? ` · ${/^\p{Extended_Pictographic}/u.test(eq.premio) ? '' : '🎁 '}${eq.premio}` : ''}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-orange-500/70 bg-zinc-900 p-4 mb-3">
+      <p className="jb-display text-lg text-zinc-50 leading-tight">🏁 {ganador.peso?.llego === false
+        ? (ganador.yo ? '¡QUEDASTE MÁS CERCA DE LA META!' : `${ganador.nombre.toUpperCase()} QUEDÓ MÁS CERCA DE LA META`)
+        : (ganador.yo ? '¡LLEGASTE PRIMERO!' : `${ganador.nombre.toUpperCase()} LLEGÓ PRIMERO`)}</p>
+      <p className="jb-body text-xs text-orange-300 uppercase tracking-wider mt-0.5">Por confirmar en persona</p>
+      {puedo ? (
+        <>
+          <p className="jb-body text-sm text-zinc-300 mt-2">Pésenlo frente al grupo, en la misma balanza del inicio. Si coincide, confírmalo; si no, sale de la carrera y pasa el siguiente.</p>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <button onClick={() => decidir(true)} disabled={ocupado} className={btnPrimary + ' py-2.5 rounded-xl text-sm'}>
+              {ocupado ? <Loader2 className="animate-spin" size={15} /> : '✅ Confirmado en persona'}
+            </button>
+            <button onClick={() => decidir(false)} disabled={ocupado} className={btnGhost + ' py-2.5 rounded-xl text-sm'}>❌ No coincidió</button>
+          </div>
+        </>
+      ) : (
+        <p className="jb-body text-sm text-zinc-300 mt-2">
+          {ganador.yo
+            ? `Falta confirmarlo con un pesaje en persona frente al grupo. Coordínalo con ${ganador.capitan ? 'un compañero' : 'tu capitán'}: al confirmarlo, ganas la carrera${eq.premio ? ` y el premio (${eq.premio})` : ''}.`
+            : `${nombre} se pesará frente al grupo para confirmarlo. Hasta entonces, la carrera sigue.`}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1759,7 +1825,11 @@ function Podio({ eq, podio, ganadorCarrera }) {
       style={{ boxShadow: '0 0 40px -16px rgba(232,89,12,.6)' }}>
       <p className="jb-display text-xl text-zinc-50 mb-3">🏆 ¡ASÍ TERMINÓ EL RETO!</p>
       {ganadorCarrera && (
-        <p className="jb-body text-base text-orange-300 mb-3">🏁 {ganadorCarrera.yo ? '¡Ganaste la carrera!' : `¡${ganadorCarrera.nombre} ganó la carrera!`}</p>
+        <p className="jb-body text-base text-orange-300 mb-3">
+          {eq.progreso?.confirmado
+            ? <>🏁 {ganadorCarrera.yo ? '¡Ganaste la carrera!' : `¡${ganadorCarrera.nombre} ganó la carrera!`} ✅ Confirmado en persona</>
+            : <>🏁 {ganadorCarrera.yo ? 'Llegaste primero' : `${ganadorCarrera.nombre} llegó primero`} · falta confirmarlo con un pesaje en persona (la medalla llega al confirmarlo)</>}
+        </p>
       )}
       {podio.length > 0 && (
         <div className="space-y-1.5 mb-3">

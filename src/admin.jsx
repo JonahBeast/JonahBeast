@@ -74,6 +74,290 @@ function formatActivity(lastActivity) {
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
 }
 
+/* 🎟️ CUPONES: Jonah crea códigos que el alumno escribe en Planes
+   ("¿Tienes un cupón?"). Dos tipos: % de descuento en su próximo pago
+   único (Yape, Plin, transferencia o Mercado Pago) o días de Premium
+   gratis (se canjean al toque). Cada alumno usa un cupón una sola vez; el
+   cupón puede ser para cualquiera o solo para un alumno, con tope de usos
+   y fecha de vencimiento. Tablas cupones y cupones_usos (solo admin). */
+const PRESETS_CUPON = { descuento: [10, 15, 20, 30], dias: [7, 15, 30] };
+function textoCupon(c) {
+  return c.tipo === 'dias' ? `${c.valor} días de Premium gratis` : `${c.valor}% de descuento en tu plan`;
+}
+function fechaCupon(iso) {
+  if (!iso) return '';
+  const [, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return `${d} de ${MESES_LARGOS[m - 1]}`;
+}
+function mensajeCupon(c, nombre) {
+  const n = String(nombre || '').trim().split(/\s+/)[0];
+  const hola = n ? `¡Hola ${n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()}!` : '¡Hola!';
+  const vence = c.vence ? ` Vale hasta el ${fechaCupon(c.vence)}.` : '';
+  const queHacer = c.tipo === 'dias'
+    ? 'toca "Canjear" y tus días se suman al toque.'
+    : 'elige tu plan: el descuento ya sale en el precio.';
+  return `${hola} Soy Jonah 🦍 Te dejo un cupón${c.para_username ? ' solo para ti' : ''}: *${c.codigo}*, con ${textoCupon(c)}.${vence} Entra aquí y tu cupón ya queda escrito: https://jonahbeast.com/?ir=planes&cupon=${c.codigo} Ahí ${queHacer} (Si no se abre, en Planes toca "🎟️ ¿Tienes un cupón?" y escríbelo.) El cambio llega poco a poco, comida a comida, y aquí seguimos juntos 💪 Cualquier duda me escribes aquí.`;
+}
+function linkWhatsApp(telefono, texto) {
+  const num = String(telefono || '').replace(/\D/g, '');
+  const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+  return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+}
+function CuponesPanel({ users }) {
+  const [cupones, setCupones] = useState(null);
+  const [usos, setUsos] = useState([]);
+  const [pagosCupon, setPagosCupon] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [creando, setCreando] = useState(false);
+  const vencePorDefecto = addDaysISO(todayISO(), 5);
+  const vacio = { tipo: 'descuento', valor: 20, para: '', codigo: '', usos: '1', vence: vencePorDefecto, nota: '' };
+  const [nuevo, setNuevo] = useState(vacio);
+  const [guardando, setGuardando] = useState(false);
+  const [err, setErr] = useState('');
+  const [recien, setRecien] = useState(null); // cupón recién creado: su mensaje listo
+  const [expandido, setExpandido] = useState(null);
+
+  async function cargar() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const [c, u, p] = await Promise.all([
+      supabase.from('cupones').select('*').order('creado_en', { ascending: false }),
+      supabase.from('cupones_usos').select('*').order('usado_en', { ascending: false }),
+      supabase.from('pagos').select('cupon, username, estado, monto, plan_meses, metodo, creado_en').not('cupon', 'is', null),
+    ]);
+    if (c.error) { setCupones([]); setErr('No se pudieron cargar los cupones: ' + c.error.message); return; }
+    setCupones(c.data || []); setUsos(u.data || []); setPagosCupon(p.data || []);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  const alumno = useMemo(() => (users || []).find(u => u.username.toLowerCase() === nuevo.para.trim().toLowerCase()) || null, [users, nuevo.para]);
+  // Código sugerido: NOMBRE-20 si es para un alumno, o JB-XXXX al azar.
+  function sugerirCodigo(v = nuevo) {
+    const al = (users || []).find(u => u.username.toLowerCase() === v.para.trim().toLowerCase());
+    const base = al ? String(al.nombre || al.username).trim().split(/\s+/)[0] : '';
+    const limpio = base.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    const fin = v.tipo === 'dias' ? `${v.valor}D` : String(v.valor);
+    return limpio ? `${limpio}-${fin}` : `JB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${fin}`;
+  }
+  function cambiar(campos) {
+    setNuevo(v => {
+      const n = { ...v, ...campos };
+      // El código sigue a lo elegido mientras no lo haya escrito a mano.
+      if (!v.codigoManual) n.codigo = sugerirCodigo(n);
+      return n;
+    });
+  }
+
+  async function crear() {
+    setErr('');
+    const codigo = nuevo.codigo.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,30}$/.test(codigo)) { setErr('El código va con letras, números o guiones (3 a 30), sin espacios ni tildes.'); return; }
+    const valor = Number(nuevo.valor);
+    if (nuevo.tipo === 'descuento' ? !(valor >= 1 && valor <= 100) : !(valor >= 1 && valor <= 365)) {
+      setErr(nuevo.tipo === 'descuento' ? 'El descuento va de 1 a 100 %.' : 'Los días van de 1 a 365.'); return;
+    }
+    if (nuevo.para.trim() && !alumno) { setErr('No encontré a ese alumno. Escribe su usuario tal cual (ej. doris).'); return; }
+    const fila = {
+      codigo, tipo: nuevo.tipo, valor,
+      usos_maximos: nuevo.usos === '' ? null : Math.max(1, Number(nuevo.usos) || 1),
+      para_username: alumno ? alumno.username : null,
+      vence: nuevo.vence || null,
+      nota: nuevo.nota.trim() || null,
+    };
+    setGuardando(true);
+    const { error } = await supabase.from('cupones').insert(fila);
+    setGuardando(false);
+    if (error) { setErr(/duplicate|unique/i.test(error.message) ? 'Ya existe un cupón con ese código. Cambia una letra o un número.' : 'No se pudo crear: ' + error.message); return; }
+    setRecien({ ...fila, nombre: alumno?.nombre || '', telefono: alumno?.telefono || '' });
+    setNuevo({ ...vacio, codigo: '' });
+    setCreando(false);
+    showToast('🎟️ Cupón creado');
+    cargar();
+  }
+
+  async function cambiarActivo(c) {
+    const { error } = await supabase.from('cupones').update({ activo: !c.activo }).eq('codigo', c.codigo);
+    if (error) { showToast('No se pudo cambiar: ' + error.message, 'error'); return; }
+    cargar();
+  }
+  async function borrar(c) {
+    if (!window.confirm(`¿Borrar el cupón ${c.codigo}? Nadie lo usó todavía, así que no se pierde ningún historial.`)) return;
+    const { error } = await supabase.from('cupones').delete().eq('codigo', c.codigo);
+    if (error) { showToast('No se pudo borrar: ' + error.message, 'error'); return; }
+    cargar();
+  }
+  async function copiar(texto) {
+    try { await navigator.clipboard.writeText(texto); showToast('📋 Mensaje copiado'); } catch { showToast('No se pudo copiar', 'error'); }
+  }
+
+  const hoy = todayISO();
+  const estadoDe = c => !c.activo ? ['Apagado', 'text-zinc-500']
+    : c.vence && hoy > c.vence ? ['Vencido', 'text-zinc-500']
+    : c.usos_maximos && c.usos >= c.usos_maximos ? ['Agotado', 'text-amber-400']
+    : ['Activo', 'text-emerald-400'];
+  const lista = cupones || [];
+  const activos = lista.filter(c => estadoDe(c)[0] === 'Activo').length;
+  const pagaronConCupon = new Set(pagosCupon.filter(p => p.estado === 'aprobado').map(p => p.username)).size;
+  const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div>
+          <p className="jb-display text-lg text-zinc-50">🎟️ CUPONES</p>
+          <p className="jb-body text-xs text-zinc-500">
+            {cupones === null ? 'Cargando…' : `${activos} activo(s) · ${usos.length} uso(s) · ${pagaronConCupon} pagaron con cupón`}
+          </p>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-5 pb-5">
+          <p className="jb-body text-xs text-zinc-400 mb-3">
+            El alumno lo escribe en <b className="text-zinc-200">Planes → "🎟️ ¿Tienes un cupón?"</b>. Úsalo para quien termina su prueba, aliados, premios o regalos. Cada persona lo usa una sola vez.
+            El descuento vale para Yape, Plin, transferencia y Mercado Pago pago único (no en el cobro automático ni en Play Store o iPhone).
+          </p>
+
+          {recien && (
+            <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-3 mb-3">
+              <p className="jb-body text-sm text-emerald-300 font-semibold mb-1">✅ {recien.codigo} listo · {textoCupon(recien)}</p>
+              <p className="jb-body text-[11px] text-zinc-400 mb-2">Mensaje listo para mandarlo{recien.nombre ? ` a ${recien.nombre}` : ''}:</p>
+              <p className="jb-body text-xs text-zinc-200 bg-zinc-950 rounded-lg p-2.5 whitespace-pre-wrap">{mensajeCupon(recien, recien.nombre)}</p>
+              <div className="flex gap-2 mt-2">
+                <a href={linkWhatsApp(recien.telefono, mensajeCupon(recien, recien.nombre))} target="_blank" rel="noreferrer" className={btnPrimary + ' flex-1 py-2 text-xs'}>
+                  <MessageCircle size={14} /> Mandar por WhatsApp
+                </a>
+                <button onClick={() => copiar(mensajeCupon(recien, recien.nombre))} className={btnGhost + ' py-2 text-xs'}>Copiar</button>
+                <button onClick={() => setRecien(null)} className={btnGhost + ' py-2 text-xs'}><X size={14} /></button>
+              </div>
+            </div>
+          )}
+
+          {!creando ? (
+            <button onClick={() => { setCreando(true); setRecien(null); setNuevo({ ...vacio, codigo: sugerirCodigo(vacio) }); }} className={btnPrimary + ' w-full py-2.5 mb-4'}>
+              <Plus size={16} /> Crear cupón
+            </button>
+          ) : (
+            <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 mb-4 flex flex-col gap-3">
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Qué regala?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['descuento', '💸 % de descuento'], ['dias', '🎁 Días de Premium']].map(([t, l]) => (
+                    <button key={t} onClick={() => cambiar({ tipo: t, valor: t === 'dias' ? 7 : 20 })}
+                      className={`jb-body text-sm py-2 rounded-lg border ${nuevo.tipo === t ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">{nuevo.tipo === 'dias' ? '¿Cuántos días?' : '¿Cuánto descuento?'}</p>
+                <div className="flex gap-2 flex-wrap items-center">
+                  {PRESETS_CUPON[nuevo.tipo].map(v => (
+                    <button key={v} onClick={() => cambiar({ valor: v })}
+                      className={`jb-body text-sm px-3 py-1.5 rounded-full border ${Number(nuevo.valor) === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                      {nuevo.tipo === 'dias' ? `${v} días` : `${v}%`}
+                    </button>
+                  ))}
+                  <input type="number" inputMode="numeric" value={nuevo.valor} onChange={e => cambiar({ valor: e.target.value })} className={inputCls + ' w-20 py-1.5'} />
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Para un alumno en especial? (opcional: su usuario)</p>
+                <input list="cupon-alumnos" value={nuevo.para} onChange={e => cambiar({ para: e.target.value, usos: e.target.value.trim() ? '1' : nuevo.usos })}
+                  placeholder="Vacío = para cualquiera" className={inputCls} />
+                <datalist id="cupon-alumnos">
+                  {(users || []).map(u => <option key={u.username} value={u.username}>{u.nombre || ''}</option>)}
+                </datalist>
+                {alumno && <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ {alumno.nombre || alumno.username}{alumno.telefono ? '' : ' (sin celular: copia el mensaje)'}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Cuántas personas lo pueden usar?</p>
+                  <select value={nuevo.usos} onChange={e => setNuevo(v => ({ ...v, usos: e.target.value }))} className={inputCls}>
+                    <option value="1">1 sola</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="">Sin límite</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="jb-body text-xs text-zinc-400 mb-1.5">Vale hasta (incluido)</p>
+                  <input type="date" value={nuevo.vence} min={hoy} onChange={e => setNuevo(v => ({ ...v, vence: e.target.value }))} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">Código</p>
+                <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value.toUpperCase().replace(/\s/g, ''), codigoManual: true }))}
+                  className={inputCls + ' font-mono tracking-wider'} />
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">Nota (solo la ves tú)</p>
+                <input value={nuevo.nota} onChange={e => setNuevo(v => ({ ...v, nota: e.target.value }))} placeholder="Ej. fin de prueba, gimnasio X, premio del reto" className={inputCls} />
+              </div>
+              {err && <p className="text-red-400 text-sm flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <div className="flex gap-2">
+                <button onClick={crear} disabled={guardando} className={btnPrimary + ' flex-1 py-2.5'}>
+                  {guardando ? <Loader2 className="animate-spin" size={16} /> : '🎟️ Crear cupón'}
+                </button>
+                <button onClick={() => { setCreando(false); setErr(''); }} className={btnGhost + ' py-2.5'}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {!creando && err && <p className="text-red-400 text-sm mb-3 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+          {cupones !== null && lista.length === 0 && <p className="jb-body text-sm text-zinc-500 text-center py-3">Todavía no creaste cupones.</p>}
+          <div className="flex flex-col gap-2">
+            {lista.map(c => {
+              const [estado, color] = estadoDe(c);
+              const susUsos = usos.filter(u => u.codigo === c.codigo);
+              const pendientes = pagosCupon.filter(p => p.cupon === c.codigo && p.estado === 'pendiente');
+              const abierto = expandido === c.codigo;
+              return (
+                <div key={c.codigo} className="bg-zinc-950/60 border border-zinc-800 rounded-xl">
+                  <button onClick={() => setExpandido(abierto ? null : c.codigo)} className="w-full p-3 flex items-center gap-3 text-left">
+                    <div className="flex-1 min-w-0">
+                      <p className="jb-body text-sm text-zinc-50 font-mono font-semibold truncate">{c.codigo}</p>
+                      <p className="jb-body text-[11px] text-zinc-400 truncate">
+                        {c.tipo === 'dias' ? `🎁 ${c.valor} días` : `💸 ${c.valor}%`}
+                        {c.para_username ? ` · solo ${nombreDe(c.para_username)}` : ' · para cualquiera'}
+                        {c.vence ? ` · hasta el ${fechaCupon(c.vence)}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`jb-body text-[11px] font-semibold ${color}`}>{estado}</p>
+                      <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{c.usos}/{c.usos_maximos || '∞'} usos</p>
+                    </div>
+                  </button>
+                  {abierto && (
+                    <div className="px-3 pb-3 border-t border-zinc-800 pt-2">
+                      {c.nota && <p className="jb-body text-[11px] text-zinc-500 mb-2">📝 {c.nota}</p>}
+                      {susUsos.length === 0 && pendientes.length === 0 && <p className="jb-body text-xs text-zinc-500 mb-2">Nadie lo usó todavía.</p>}
+                      {susUsos.map(u => (
+                        <p key={u.id} className="jb-body text-xs text-zinc-300 mb-1">
+                          ✅ {nombreDe(u.username)} · {fechaCupon(u.usado_en)}{c.tipo === 'descuento' ? ' · pagó' : ' · canjeó sus días'}
+                        </p>
+                      ))}
+                      {pendientes.map(p => (
+                        <p key={p.username + p.creado_en} className="jb-body text-xs text-amber-300 mb-1">⏳ {nombreDe(p.username)} envió su pago (S/{Number(p.monto).toFixed(2)}): falta aprobarlo</p>
+                      ))}
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        <button onClick={() => copiar(mensajeCupon(c, c.para_username ? nombreDe(c.para_username) : ''))} className={btnGhost + ' py-1.5 text-xs'}>📋 Copiar mensaje</button>
+                        <button onClick={() => cambiarActivo(c)} className={btnGhost + ' py-1.5 text-xs'}>{c.activo ? 'Apagar' : 'Encender'}</button>
+                        {c.usos === 0 && pendientes.length === 0 && <button onClick={() => borrar(c)} className={btnDanger + ' py-1.5 text-xs'}><Trash2 size={12} /> Borrar</button>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferidosPanel({ users, onCambio }) {
   const [refs, setRefs] = useState([]);
   const [refsCargados, setRefsCargados] = useState(false); // true solo cuando la lista llegó bien
@@ -9938,6 +10222,7 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
                 <ActivacionPanel users={users} />
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
+                <CuponesPanel users={users} />
                 <VozParaVideosPanel />
               </>
             )}
@@ -12179,10 +12464,16 @@ function PagosPanel({ onAprobado }) {
             let monto = null;
             if (Number(ref.comision_pct) > 0) {
               // Porcentaje sobre el precio de lista, no sobre el ya descontado
+              // Con cupón el monto trae otro descuento: se usa el precio de lista.
               const dctoRef = Number(ref.descuento_pct) || 0;
-              const listaAprox = dctoRef > 0
+              let listaAprox = dctoRef > 0
                 ? Number(pago.monto) / (1 - dctoRef / 100)
                 : Number(pago.monto);
+              if (pago.cupon) {
+                const { data: pl } = await supabase.from('config').select('value').eq('key', `precio_${pago.plan_meses}`).maybeSingle();
+                const lista = Number(pl?.value) || PLANES.find(x => x.meses === pago.plan_meses)?.precioDefault;
+                if (lista > 0) listaAprox = lista;
+              }
               monto = listaAprox * (Number(ref.comision_pct) / 100);
             } else {
               const tabla = { 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 };
@@ -12364,6 +12655,9 @@ function PagosPanel({ onAprobado }) {
                       <div className="text-zinc-500 text-xs jb-body mt-0.5">
                         {p.metodo}{p.operacion ? ` · Op. ${p.operacion}` : ' · solo captura'} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
+                      {p.cupon && (
+                        <div className="text-xs jb-body mt-0.5 text-emerald-400">🎟️ Con cupón {p.cupon}: por eso el monto es menor</div>
+                      )}
                       {p.estado === 'pendiente' && (
                         <div className={`text-xs jb-body mt-0.5 ${horasEsperando(p) >= 12 ? 'text-red-400 font-semibold' : 'text-amber-400'}`}>
                           ⏰ Esperando hace {textoHoras(horasEsperando(p))}

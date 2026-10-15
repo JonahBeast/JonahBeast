@@ -46,8 +46,10 @@ async function yaPagoUnPlan(supabase: any, username: string): Promise<boolean> {
 // Precio del plan calculado aquí: el de la tabla config (o el de respaldo)
 // menos el descuento del código de referido del alumno, si el código sigue
 // activo. Es el mismo cálculo que muestra la app. Nunca se usa un % que
-// mande el navegador. Devuelve null si el alumno no existe.
-async function precioDelPlan(supabase: any, username: string, meses: number): Promise<number | null> {
+// mande el navegador. Con un cupón de descuento válido (cuponPct, revisado
+// en la base) queda el mayor de los dos descuentos, no la suma.
+// Devuelve null si el alumno no existe.
+async function precioDelPlan(supabase: any, username: string, meses: number, cuponPct = 0): Promise<number | null> {
   const [{ data: config }, { data: alumno }] = await Promise.all([
     supabase.from("config").select("value").eq("key", `precio_${meses}`).maybeSingle(),
     supabase.from("alumnos").select("codigo_referido").eq("username", username).maybeSingle(),
@@ -64,7 +66,16 @@ async function precioDelPlan(supabase: any, username: string, meses: number): Pr
     descuento = Math.min(Math.max(Number(referidor?.descuento_pct) || 0, 0), 100);
     if (descuento > 0 && referidor?.tipo === "alumno" && await yaPagoUnPlan(supabase, username)) descuento = 0;
   }
+  descuento = Math.max(descuento, Math.min(Math.max(Number(cuponPct) || 0, 0), 100));
   return Math.round(base * (1 - descuento / 100) * 100) / 100;
+}
+
+// % de un cupón de descuento que le sirve a este alumno (cupon_para en la
+// base: activo, sin vencer, con usos y no usado antes por él); 0 si no vale.
+async function porcentajeCupon(supabase: any, codigo: string, username: string): Promise<number> {
+  if (!codigo) return 0;
+  const { data } = await supabase.rpc("cupon_para", { p_codigo: codigo, p_username: username });
+  return data?.estado === "ok" && data?.tipo === "descuento" ? Number(data.valor) || 0 : 0;
 }
 
 Deno.serve(async (req: Request) => {
@@ -73,7 +84,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { meses, correo } = await req.json();
+    const { meses, correo, cupon } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -89,14 +100,21 @@ Deno.serve(async (req: Request) => {
       return responder({ error: "Falta un correo valido del alumno." }, 400);
     }
 
-    const precio = await precioDelPlan(supabase, username, mesesNum);
+    const cuponCodigo = typeof cupon === "string" ? cupon.trim().toUpperCase().slice(0, 30) : "";
+    const cuponPct = await porcentajeCupon(supabase, cuponCodigo, username);
+    if (cuponCodigo && !cuponPct) {
+      return responder({ error: "Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a intentar." }, 400);
+    }
+    const precio = await precioDelPlan(supabase, username, mesesNum, cuponPct);
     if (!precio) return responder({ error: "No encontramos tu cuenta de alumno." }, 404);
 
     const accessToken = Deno.env.get("MP_ACCESS_TOKEN");
     if (!accessToken) return responder({ error: "Falta configurar MP_ACCESS_TOKEN." }, 500);
 
     const nombrePlan = mesesNum === 1 ? "Mensual" : mesesNum === 3 ? "Trimestral" : mesesNum === 6 ? "Semestral" : "Anual";
-    const referencia = `${username}::${mesesNum}`;
+    // Con cupón: usuario::meses::CUPON (el webhook lo lee para el precio y lo
+    // anota en el pago).
+    const referencia = cuponPct ? `${username}::${mesesNum}::${cuponCodigo}` : `${username}::${mesesNum}`;
 
     // Checkout Pro: preferencia de pago UNICO, sin cobro automatico futuro.
     const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {

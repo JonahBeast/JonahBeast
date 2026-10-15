@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import AuthenticationServices
 import CryptoKit
+import StoreKit
 import UserNotifications
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -116,11 +117,35 @@ public class JBNativoPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
         CAPPluginMethod(name: "abrirWeb", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "estadoAvisos", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activarAvisos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "productos", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "comprar", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "comprobantes", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "restaurar", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "gestionarSuscripcion", returnType: CAPPluginReturnPromise),
     ]
 
     private var llamadaApple: CAPPluginCall?
     private var nonceApple = ""
     private var sesionWeb: ASWebAuthenticationSession?
+    private var escuchaCompras: Task<Void, Never>?
+
+    // Compras que llegan fuera de la pantalla de pago (renovaciones,
+    // compras aprobadas después, "Pedir permiso para comprar"): se cierran
+    // aquí. El servidor ya las recibe directo de Apple
+    // (api/apple/notificaciones.js) y al abrir Planes se vuelven a revisar.
+    override public func load() {
+        escuchaCompras = Task.detached {
+            for await resultado in Transaction.updates {
+                if case .verified(let compra) = resultado {
+                    await compra.finish()
+                }
+            }
+        }
+    }
+
+    deinit {
+        escuchaCompras?.cancel()
+    }
 
     private var ventana: ASPresentationAnchor {
         bridge?.webView?.window ?? UIApplication.shared.connectedScenes
@@ -241,6 +266,121 @@ public class JBNativoPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
         case .denied: return "denied"
         default: return "notDetermined"
         }
+    }
+
+    // MARK: Compras con Apple (Premium)
+
+    // Los planes tal como están en App Store Connect, con el precio y el
+    // nombre que muestra Apple en el país del alumno.
+    @objc func productos(_ call: CAPPluginCall) {
+        let ids = call.getArray("ids", String.self) ?? []
+        Task {
+            do {
+                let lista = try await Product.products(for: ids)
+                call.resolve(["productos": lista.map { producto -> [String: Any] in
+                    [
+                        "id": producto.id,
+                        "nombre": producto.displayName,
+                        "precio": producto.displayPrice,
+                        "valor": NSDecimalNumber(decimal: producto.price).doubleValue,
+                        "moneda": producto.priceFormatStyle.currencyCode,
+                    ]
+                }])
+            } catch {
+                call.reject(error.localizedDescription, "ERROR")
+            }
+        }
+    }
+
+    // Abre la ventana de pago de Apple. "cuenta" es el id de la cuenta del
+    // alumno en Jonah Beast Fuel: Apple lo guarda en la compra y lo devuelve
+    // en cada renovación, así el servidor sabe de quién es.
+    // Devuelve estado 'ok' (con la compra firmada por Apple), 'cancelado' o
+    // 'pendiente' (por ejemplo, espera que un padre la apruebe).
+    @objc func comprar(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("Falta el plan", "SIN_PLAN")
+            return
+        }
+        let cuenta = call.getString("cuenta").flatMap { UUID(uuidString: $0) }
+        Task {
+            do {
+                guard let producto = try await Product.products(for: [id]).first else {
+                    call.reject("Apple no encontró este plan", "SIN_PRODUCTO")
+                    return
+                }
+                var opciones: Set<Product.PurchaseOption> = []
+                if let cuenta = cuenta { opciones.insert(.appAccountToken(cuenta)) }
+                let resultado = try await producto.purchase(options: opciones)
+                switch resultado {
+                case .success(let verificacion):
+                    guard case .verified(let compra) = verificacion else {
+                        call.reject("Apple no pudo confirmar la compra", "NO_VERIFICADA")
+                        return
+                    }
+                    await compra.finish()
+                    call.resolve(["estado": "ok", "compra": verificacion.jwsRepresentation])
+                case .userCancelled:
+                    call.resolve(["estado": "cancelado"])
+                case .pending:
+                    call.resolve(["estado": "pendiente"])
+                @unknown default:
+                    call.resolve(["estado": "pendiente"])
+                }
+            } catch {
+                call.reject(error.localizedDescription, "ERROR")
+            }
+        }
+    }
+
+    // Las suscripciones vigentes de este iPhone, firmadas por Apple, para
+    // que el servidor active lo que falte.
+    @objc func comprobantes(_ call: CAPPluginCall) {
+        Task {
+            call.resolve(["compras": await Self.comprasVigentes()])
+        }
+    }
+
+    // "Restaurar compras": le pide a Apple las compras de este Apple ID
+    // (puede pedir la contraseña) y las devuelve como comprobantes.
+    @objc func restaurar(_ call: CAPPluginCall) {
+        Task {
+            do {
+                try await AppStore.sync()
+            } catch StoreKitError.userCancelled {
+                call.resolve(["estado": "cancelado", "compras": []])
+                return
+            } catch {
+                // Si no se pudo sincronizar, igual se mandan las que ya conoce.
+            }
+            call.resolve(["estado": "ok", "compras": await Self.comprasVigentes()])
+        }
+    }
+
+    // Abre la pantalla de Apple para cambiar de plan o cancelar.
+    @objc func gestionarSuscripcion(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            guard let escena = self.bridge?.webView?.window?.windowScene else {
+                call.reject("Sin pantalla", "ERROR")
+                return
+            }
+            do {
+                try await AppStore.showManageSubscriptions(in: escena)
+                call.resolve()
+            } catch {
+                call.reject(error.localizedDescription, "ERROR")
+            }
+        }
+    }
+
+    static func comprasVigentes() async -> [String] {
+        var compras: [String] = []
+        for await resultado in Transaction.currentEntitlements {
+            if case .verified = resultado {
+                compras.append(resultado.jwsRepresentation)
+            }
+        }
+        return compras
     }
 
     // MARK: Ayudas

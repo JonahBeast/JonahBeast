@@ -843,6 +843,17 @@ Problemas:
 - Si te registraste con un código de descuento, verás "🎁 Tienes X% de descuento…" y los precios ya rebajados. El de un amigo ("Invita a un amigo") vale solo para el primer plan; el de un embajador o influencer vale para todos los planes.
 - **"Tengo una consulta antes de pagar"** abre WhatsApp.
 
+### 13.1.1 🎟️ Cupones ("¿Tienes un cupón?")
+
+- En Planes, encima de la lista de planes, está el link **"🎟️ ¿Tienes un cupón?"**. Al tocarlo sale **"Ingresa tu cupón"**, un campo (ej. "JONAH-20") y el botón **"Aplicar"**.
+- Los cupones los crea Jonah (ej. para quien termina su prueba, aliados, premios o regalos). Cada persona usa un mismo cupón **una sola vez**. Un cupón puede ser solo para un alumno, tener un número de usos y una fecha de vencimiento.
+- Si Jonah manda el link con el cupón (`jonahbeast.com/?ir=planes&cupon=CODIGO`), el cupón ya aparece escrito y se revisa solo (también si primero tiene que entrar a su cuenta).
+- **Cupón de días gratis:** sale **"🎁 X DÍAS DE PREMIUM GRATIS"** ("Se suman a tu Premium al toque, sin pagar nada") con el botón **"Canjear mis X días"**. Al canjear: **"🎉 ¡LISTO, X DÍAS MÁS!"** con la nueva fecha de vencimiento y el botón **"Seguir"**. Los días se suman a lo que ya tenía (si su prueba o plan ya venció, cuentan desde hoy). También se puede canjear en la app de Play Store y en la de iPhone.
+- **Cupón de descuento:** sale **"🎟️ Cupón CODIGO: X% de descuento"** ("Ya aplicado en los precios · vale para el pago único") con **"Quitar"**, y los precios de los planes salen rebajados (con el precio anterior tachado). Vale pagando con **Yape, Plin, transferencia** o **Mercado Pago "Pago único"**. Con **"Suscripción automática"** no aplica (se repetiría en cada cobro): sale "🎟️ Tu cupón vale para el pago único. Elige "Pago único" para usar tu descuento." y el precio vuelve al normal. En la app de Play Store o de iPhone un cupón de descuento no se puede usar ("Este cupón es de descuento y por ahora no se puede usar en esta app.").
+- **No se suman descuentos:** si ya tiene descuento por su código de referido, queda el mayor. Si el del referido es igual o mayor: "Ya tienes X% de descuento por tu código de referido, que es igual o mayor: se queda ese."
+- El cupón de descuento se gasta cuando Jonah aprueba el pago (Yape, Plin, transferencia) o cuando Mercado Pago lo aprueba. Si venció o se agotó antes de enviar el pago: "Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a enviar tu pago."
+- Mensajes si no vale: "Ese cupón no existe o ya no está activo. Revisa cómo está escrito." · "Ese cupón ya venció 😕" · "Ese cupón ya se usó todas las veces que permitía." · "Ya usaste este cupón antes." · "Ese cupón es para otra persona."
+
 ### 13.2 Pagar con Yape, Plin o transferencia
 
 1. Toca **"EMPEZAR CON 1 MES"** (el botón naranja grande arriba de los planes: S/24.90, "menos de S/1 al día") o **"Elegir"** en otro plan ("O elige un plan más largo y ahorra hasta 40%"). Al elegir el anual, el resumen dice "12 meses de acceso · S/14.99 al mes".
@@ -877,6 +888,18 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 - El plan se activa solo cuando Google confirma el pago.
 - Si sale "Conectando con Google Play…" por mucho rato o la app no logra conectar con Google, se ven los precios con el botón **"Escribir por WhatsApp para activar"** y el pago se coordina por WhatsApp.
 
+### 13.4.1 App de iPhone (App Store)
+
+- En "Planes" sale "Conectando con la App Store…" y luego **"ELIGE TU PLAN"** ("Paga seguro con tu cuenta de Apple") con 3 planes: **Anual** (primero, borde naranja, "MEJOR PRECIO"), **Trimestral** y **Mensual**, cada uno con el botón **"Suscribirme"**. Los precios los muestra Apple (en Perú: S/199,90 al año, S/69,90 cada 3 meses, S/29,90 al mes); en grande sale lo que se cobra y debajo "equivale a S/… al mes".
+- Al tocar "Suscribirme" se abre la ventana de pago de Apple (Face ID o clave del iPhone). Al pagar: "¡Listo! Tu plan ya está activo 💪" (o "…con +7 días de regalo 🎁" si se suscribió a tiempo, 13.7) y la app se recarga con el plan activo. Si cierra la ventana de Apple, no pasa nada.
+- Es una **suscripción con renovación automática**: se renueva sola al mismo precio al terminar cada periodo, salvo que se cancele al menos 24 horas antes. Cada renovación se suma sola al plan, aunque no abra la app.
+- **"Administrar mi suscripción"** abre la pantalla de Apple para cambiar de plan o cancelar. El acceso sigue hasta el final del periodo pagado. También se puede desde Ajustes del iPhone → su nombre → Suscripciones.
+- **"Restaurar compras"**: para quien cambió de iPhone o reinstaló la app. Busca su suscripción en su cuenta de Apple y la vuelve a activar. Si no tiene ninguna vigente: "No encontramos una suscripción vigente de Jonah Beast Fuel en este Apple ID." Una suscripción de Apple queda unida a la cuenta de Jonah Beast Fuel con la que se compró: si intenta usarla en otra cuenta, sale "Esta compra ya está vinculada a otra cuenta de Jonah Beast Fuel."
+- Si la compra queda **esperando aprobación** (por ejemplo, la cuenta de Apple de un menor con "Pedir permiso para comprar"): "Tu compra está esperando aprobación… Apenas se apruebe, tu plan se activa solo."
+- Si pagó y no se activó: "Tu pago quedó registrado en Apple. Estamos activando tu plan: vuelve a abrir Planes en unos minutos. Si no se activa, toca "Restaurar compras" o escríbenos."
+- Abajo están "Condiciones de uso" y "Política de privacidad". En la app de iPhone no hay Yape, Plin, transferencia ni Mercado Pago (regla de Apple); los cupones de días sí se canjean.
+- En las versiones de prueba (TestFlight) la compra es de prueba, no se cobra dinero real y sale "Compra de prueba registrada (no suma tiempo al plan)."
+
 ### 13.5 Los 7 días de Premium de prueba dentro de la app
 
 - **Días 1 a 5: "Premium de prueba · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
@@ -899,11 +922,11 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 - **Quién:** alumnos en su prueba de Premium, en su **primer plan pagado** (cualquier plan: 1, 3 o 12 meses).
 - **Hasta cuándo:** si envían el pago **antes de que termine su prueba o hasta 48 horas después**. Con Yape, Plin o transferencia cuenta **cuándo enviaron el comprobante**, aunque Jonah lo apruebe después.
-- **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
+- **Qué reciben:** su plan **+7 días**, que se suman **solos** al aprobarse el pago (Mercado Pago, Google Play, App Store, Yape, Plin o transferencia). Si pagan antes de que termine la prueba, **no pierden sus días de prueba**: el plan empieza a contar cuando termina la prueba.
 - **Dónde se ve:** un reloj en vivo arriba de "Planes" en los 3 últimos días de la prueba (desde el día 5) y en "Inicio" en los 2 últimos: **"🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS"** (días, horas, minutos y segundos hasta que termina la prueba). Después de vencer, durante 48 horas, en la pantalla de planes: **"⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS"**.
 - **Avisos al celular:** a 2 días de terminar ("Te quedan 2 días de Premium…"), el último día ("Hoy termina tu Premium de prueba… Mañana sigues gratis… te regalamos 7 días extra 🎁") y al día siguiente ("Ya estás en la versión gratis… Última oportunidad…").
 - Las **renovaciones** de los meses siguientes no vuelven a sumar los 7 días. En la app de Play Store el precio es el mismo de Google; los 7 días se suman igual.
-- En Google Play el aviso de activación dice "¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁".
+- En Google Play y en la app de iPhone el aviso de activación dice "¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁".
 
 ### 13.8 Versión gratis y Premium
 
@@ -1039,7 +1062,7 @@ Tocar un aviso de comida abre el chat de Beast con ese aviso y el botón "📝 A
 | ¿Pierdo mis datos si no renuevo? | No, el historial y las fotos se guardan. |
 | ¿Cuánto tarda la aprobación de Yape/Plin? | A Jonah le llega el aviso al momento y lo activa apenas lo ve (de 7am a 10pm; de noche, a primera hora). El acceso se activa solo. |
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |
-| ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. |
+| ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. Si pagó en la app de iPhone: Planes → "Administrar mi suscripción" (o Ajustes del iPhone → su nombre → Suscripciones). |
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |
 | ¿Cada cuánto me peso y tomo fotos? | El peso, **cada domingo** en ayunas (la app lo pide en Inicio). Medidas con cinta y fotos, **cada 2 semanas** (la app avisa). |
 | ¿La foto calcula la porción? | Reconoce el plato; la porción la ajustas tú. |

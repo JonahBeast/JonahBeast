@@ -123,11 +123,11 @@ export const PLATOS = [
     consejo: 'Tiene muchas verduras y frejol, buen plato para llenarte con pocas calorías. Si va con carne, mejor: le sumas proteína.' },
 
   // Al paso
-  { slug: 'pan-con-chicharron', frase: 'Un pan con chicharrón', alimento: 'Pan con chicharrón', nombre: 'Pan con chicharrón', grupo: 'paso',
+  { slug: 'pan-con-chicharron', frase: 'Un pan con chicharrón', alimento: 'Pan con chicharrón', estado: 'Pan blanco', nombre: 'Pan con chicharrón', grupo: 'paso',
     consejo: 'Es un clásico del domingo y no tienes por qué dejarlo. Uno, con su camote y su sarsa, y el resto del día comes más ligero. Comida a comida.' },
   { slug: 'salchipapa', el: 'la', alimento: 'Salchipapa', nombre: 'Salchipapa', grupo: 'paso',
     consejo: 'Papas fritas, salchicha y cremas: es de lo que más suma. Si te provoca, comparte la porción o pide la chica, y ojo con las cremas.' },
-  { slug: 'butifarra', frase: 'Una butifarra', el: 'la', alimento: 'Butifarra', nombre: 'Butifarra', grupo: 'paso',
+  { slug: 'butifarra', frase: 'Una butifarra', el: 'la', alimento: 'Butifarra', estado: 'Pan blanco', nombre: 'Butifarra', grupo: 'paso',
     consejo: 'Un pan con jamón del país y sarsa: ni tan pesado ni tan ligero. Uno está bien para un desayuno o lonche; dos ya es mucho.' },
 
   // Postres
@@ -178,13 +178,13 @@ export const PLATOS = [
     consejo: 'Seis alitas con su salsa ya son casi mil calorías, y eso sin papas. Pide 4, compártelas, y cambia las papas por ensalada.' },
   { slug: 'salchipollo', alimento: 'Salchipollo', nombre: 'Salchipollo', grupo: 'paso',
     consejo: 'Pollo frito, salchicha y papas fritas: de lo que más suma. Si te provoca, que sea compartido y de vez en cuando, sin culpa.' },
-  { slug: 'pan-con-pollo', alimento: 'Pan con pollo', nombre: 'Pan con pollo', grupo: 'paso',
+  { slug: 'pan-con-pollo', alimento: 'Pan con pollo', estado: 'Pan blanco', nombre: 'Pan con pollo', grupo: 'paso',
     frase: 'Un pan con pollo',
     consejo: 'Uno de los panes más balanceados: pollo deshilachado y pan. Ojo con la mayonesa, que es la que más suma; con lechuga y tomate queda igual de rico.' },
-  { slug: 'pan-con-jamonada', alimento: 'Pan con jamonada', nombre: 'Pan con jamonada', grupo: 'paso',
+  { slug: 'pan-con-jamonada', alimento: 'Pan con jamonada', estado: 'Pan blanco', nombre: 'Pan con jamonada', grupo: 'paso',
     frase: 'Un pan con jamonada',
     consejo: 'Un pan con jamonada no es tan pesado, pero tiene poca proteína. Si lo cambias por pan con huevo o queso fresco, te llena más.' },
-  { slug: 'hamburguesa-de-carretilla', el: 'la', alimento: 'Hamburguesa de carretilla', nombre: 'Hamburguesa de carretilla', grupo: 'paso',
+  { slug: 'hamburguesa-de-carretilla', el: 'la', alimento: 'Hamburguesa de carretilla', estado: 'Pan blanco', nombre: 'Hamburguesa de carretilla', grupo: 'paso',
     frase: 'Una hamburguesa de carretilla',
     consejo: 'La carne y el pan no son el problema: son las papitas al hilo y las cremas. Pídela con lechuga y tomate, y menos cremas.' },
   { slug: 'empanada-de-carne', el: 'la', alimento: 'Empanada de carne', nombre: 'Empanada de carne', grupo: 'paso',

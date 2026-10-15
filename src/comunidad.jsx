@@ -10,6 +10,10 @@
 //   inteligente, el alumno puede compartirla con una frase lista
 //   (CompartirPlato). Jonah la aprueba en su panel (a quien ya le aprobó 5
 //   le salen solas); con 2 reportes se oculta sola.
+// - En cada publicación de otro alumno, "⋯" → "Reportar esta foto" o
+//   "No ver a [nombre]" (Apple lo exige con contenido de los usuarios). Quien
+//   reporta deja de ver esa foto; quien elige no ver a alguien deja de ver
+//   sus logros y fotos (comunidad_bloqueos) y puede volver a verlo abajo.
 // - "Mis equipos": los retos en grupo (src/equipo.jsx).
 import { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -165,6 +169,9 @@ function Muro({ onIrEquipos, onVisto }) {
   const [ocupado, setOcupado] = useState(false);
   const [urls, setUrls] = useState({}); // ruta → enlace temporal de la foto
   const [reportadas, setReportadas] = useState([]);
+  const [menu, setMenu] = useState(null); // publicación con el menú "⋯" abierto
+  const [ocultos, setOcultos] = useState([]); // claves de quienes acaba de dejar de ver
+  const [verNoVes, setVerNoVes] = useState(false);
   const [preguntaPlatos, setPreguntaPlatos] = useState(preguntarCompartirPlato);
   const [nuevas, setNuevas] = useState(null); // muro más reciente aún no mostrado (pastilla "N nuevas")
   const [fotoGrande, setFotoGrande] = useState(null);
@@ -202,11 +209,28 @@ function Muro({ onIrEquipos, onVisto }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function reportar(ev) {
-    if (!(await confirmar({ titulo: '¿REPORTAR ESTA FOTO?', texto: 'Si la reportan 2 personas se oculta y Jonah la revisa.', si: 'Reportar', peligro: true }))) return;
+    setMenu(null);
+    if (!(await confirmar({ titulo: '¿REPORTAR ESTA FOTO?', texto: 'Dejas de verla al toque y Jonah la revisa. Si la reportan 2 personas, se oculta para todos.', si: 'Reportar', peligro: true }))) return;
     const { ok } = await llamar('comunidad_foto_reportar', { p_id: ev.foto_id });
     if (!ok) { showToast('No se pudo enviar el reporte. Intenta de nuevo.', 'error'); return; }
     setReportadas(x => [...x, ev.id]);
     showToast('Gracias por avisar. Jonah la va a revisar. 🙏');
+  }
+  async function noVer(ev) {
+    setMenu(null);
+    if (!(await confirmar({ titulo: `¿DEJAR DE VER A ${String(ev.quien || '').toUpperCase()}?`, texto: 'Ya no verás sus logros ni sus fotos en el muro. Puedes volver a verle cuando quieras, al final del muro.', si: 'No verle más', peligro: true }))) return;
+    const { ok } = await llamar('comunidad_no_ver', { p_ref: ev.autor, p_no_ver: true });
+    if (!ok) { showToast('No se pudo guardar. Intenta de nuevo.', 'error'); return; }
+    setOcultos(x => [...x, ev.autor]);
+    showToast(`Listo: ya no verás a ${ev.quien} en el muro. 🙈`);
+    cargar();
+  }
+  async function volverAVer(persona) {
+    const { ok } = await llamar('comunidad_no_ver', { p_ref: persona.ref, p_no_ver: false });
+    if (!ok) { showToast('No se pudo guardar. Intenta de nuevo.', 'error'); return; }
+    setOcultos(x => x.filter(r => r !== persona.ref));
+    showToast(`Listo: vuelves a ver a ${persona.nombre}. 👋`);
+    cargar();
   }
   useEffect(() => {
     cargar().then(() => { marcarMuroVisto(); onVisto?.(); });
@@ -260,8 +284,31 @@ function Muro({ onIrEquipos, onVisto }) {
   }
 
   const { yo, anuncios, eventos } = muro;
+  const noVes = yo.no_ves || [];
+  // Botón "⋯" de las publicaciones de otros alumnos (reportar / no ver).
+  const botonMenu = ev => (!ev.yo && ev.autor) ? (
+    <button onClick={() => { vibrar(10); setMenu(ev); }} aria-label="Más opciones"
+      className="jb-body text-lg leading-none text-zinc-500 hover:text-zinc-300 w-10 h-10 -mr-2 -mt-1 flex items-center justify-center shrink-0">⋯</button>
+  ) : null;
   return (
     <div>
+      {menu && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setMenu(null)} />
+          <div className="relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3"
+            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
+            <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+            <p className="jb-display text-lg text-zinc-50 tracking-wide">{menu.tipo === 'foto' ? 'FOTO' : 'LOGRO'} DE {String(menu.quien || '').toUpperCase()}</p>
+            <div className="flex flex-col gap-2 mt-4">
+              {menu.tipo === 'foto' && (
+                <button onClick={() => reportar(menu)} className="jb-body text-sm text-left text-zinc-200 rounded-xl px-4 py-3 border border-zinc-700">🚩 Reportar esta foto</button>
+              )}
+              <button onClick={() => noVer(menu)} className="jb-body text-sm text-left text-zinc-200 rounded-xl px-4 py-3 border border-zinc-700">🙈 No ver a {menu.quien}</button>
+              <button onClick={() => setMenu(null)} className="jb-body text-sm text-zinc-300 rounded-xl py-3 mt-1">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {nuevas && (
         <div className="sticky top-20 z-20 flex justify-center -mb-2 pointer-events-none">
           <button onClick={() => { vibrar(10); mostrar(nuevas.r); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -333,7 +380,7 @@ function Muro({ onIrEquipos, onVisto }) {
         </Tarjeta>
       ) : (
         <div className="space-y-2">
-          {eventos.filter(ev => !reportadas.includes(ev.id)).map(ev => {
+          {eventos.filter(ev => !reportadas.includes(ev.id) && !(ev.autor && ocultos.includes(ev.autor))).map(ev => {
             if (ev.tipo === 'foto') {
               return (
                 <Tarjeta key={ev.id} className={ev.yo ? 'border-orange-500/40' : ''}>
@@ -343,6 +390,7 @@ function Muro({ onIrEquipos, onVisto }) {
                       <span className="block jb-body text-sm text-zinc-200 leading-snug">{ev.yo ? 'Tú compartiste tu plato' : <><b>{ev.quien}</b> compartió su plato</>}</span>
                       <span className="block jb-body text-[10px] text-zinc-500 mt-0.5">{haceCuanto(ev.cuando)}</span>
                     </span>
+                    {botonMenu(ev)}
                   </div>
                   {urls[ev.ruta]
                     ? <button type="button" onClick={() => setFotoGrande(urls[ev.ruta])} className="block w-full" aria-label="Ver la foto en grande">
@@ -355,10 +403,7 @@ function Muro({ onIrEquipos, onVisto }) {
                       {ev.plato.split(' · ').map((l, i) => <li key={i}>• {l}</li>)}
                     </ul>
                   )}
-                  <div className="flex items-end justify-between gap-2">
-                    <Reacciones item={ev} propio={ev.yo} onReaccionar={reaccionar} />
-                    {!ev.yo && <button onClick={() => reportar(ev)} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 px-2 py-2 -mr-2">Reportar</button>}
-                  </div>
+                  <Reacciones item={ev} propio={ev.yo} onReaccionar={reaccionar} />
                 </Tarjeta>
               );
             }
@@ -371,6 +416,7 @@ function Muro({ onIrEquipos, onVisto }) {
                     <span className="block jb-body text-sm text-zinc-200 leading-snug">{texto}</span>
                     <span className="block jb-body text-[10px] text-zinc-500 mt-0.5">{haceCuanto(ev.cuando)}</span>
                   </span>
+                  {botonMenu(ev)}
                 </div>
                 <Reacciones item={ev} propio={ev.yo && ev.tipo !== 'meta_equipo'} onReaccionar={reaccionar} />
               </Tarjeta>
@@ -388,6 +434,23 @@ function Muro({ onIrEquipos, onVisto }) {
               ? <>No apareces en el muro. <button onClick={() => aparecer(true)} disabled={ocupado} className="text-orange-400 underline">Quiero aparecer</button></>
               : null}
       </p>
+      {noVes.length > 0 && (
+        <div className="jb-body text-[11px] text-zinc-500 text-center mt-2">
+          <button onClick={() => setVerNoVes(v => !v)} className="text-orange-400 underline">
+            🙈 Personas que no ves ({noVes.length})
+          </button>
+          {verNoVes && (
+            <div className="mt-2 flex flex-col gap-1.5 max-w-xs mx-auto">
+              {noVes.map(p => (
+                <div key={p.ref} className="flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
+                  <span className="text-sm text-zinc-300 truncate">{p.nombre}</span>
+                  <button onClick={() => volverAVer(p)} className="text-xs text-orange-400 shrink-0">Volver a ver</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {!preguntaPlatos && !yo.menor && (
         <p className="jb-body text-[11px] text-zinc-500 text-center mt-2">
           <button onClick={() => { volverAPreguntar(); setPreguntaPlatos(true); showToast('📸 Listo: al registrar con foto te preguntaremos si quieres compartir tu plato.'); }}

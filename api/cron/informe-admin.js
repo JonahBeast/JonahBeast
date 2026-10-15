@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     // Los verificadores de Google Play no cuentan (ver src/listaCarino.js).
     const alumnos = (todosLosAlumnos || []).filter(a => !esVerificadorPlay(a));
     // Las cuentas del dueño (sus pruebas y pagos propios) no cuentan.
-    const CUENTAS_PROPIAS = ['martin'];
+    const CUENTAS_PROPIAS = ['martin', 'jhc10_05apple', '4hfy7tnvwh'];
     const cobradosReales = (cobrados || []).filter(p => !CUENTAS_PROPIAS.includes(p.username));
     const cobrado = Math.round(cobradosReales.reduce((s, p) => s + (Number(p.monto) || 0), 0) * 100) / 100;
     const nPendientes = (pendientes || []).length;

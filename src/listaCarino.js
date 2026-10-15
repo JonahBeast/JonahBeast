@@ -50,7 +50,7 @@ export const LINK_PRIMERA_COMIDA = 'https://jonahbeast.com/?registrar=ahora&foto
 export const CLAVE_ESCRITOS = 'lista_carino_escritos';
 export const MAX_LISTA = 20;
 const HITOS_RACHA = [7, 14, 21, 30, 60, 90];
-const CUENTAS_PROPIAS = ['martin'];
+const CUENTAS_PROPIAS = ['martin', 'jhc10_05apple', '4hfy7tnvwh']; // Jonah, la cuenta para el revisor de Apple y su cuenta de prueba con Apple (13 oct)
 
 /* Verificadores de Google Play (Testers Community, desde el 14 de octubre):
    gente de otros países que usa la app para que Google la apruebe. No tienen

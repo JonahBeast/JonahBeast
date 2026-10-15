@@ -173,6 +173,13 @@ const SINONIMOS = {
   'bellaco': 'platano bellaco', 'platano verde': 'platano bellaco', 'platano sancochado': 'platano bellaco', 'platano de freir': 'platano bellaco', 'platano para sancochar': 'platano bellaco',
   'pecana': 'pecanas', 'pecan': 'pecanas', 'nuez pecana': 'pecanas', 'nueces pecanas': 'pecanas',
   'papa': 'papa', 'arroz': 'arroz',
+  // Ingredientes de casa (15 oct 2026): cómo los llama la gente.
+  'pollo sancochado': 'pollo pechuga cocida', 'calamar': 'pota', 'calamares': 'pota',
+  'mejillon': 'choros', 'mejillones': 'choros', 'conchas': 'conchas de abanico', 'mahi mahi': 'perico',
+  'azucar morena': 'azucar rubia', 'panela': 'chancaca', 'salsa de soya': 'sillao', 'sillado': 'sillao',
+  'catsup': 'ketchup', 'sesamo': 'ajonjoli', 'castana': 'castanas', 'nuez de brasil': 'castanas',
+  'pasa': 'pasas', 'evaporada': 'leche evaporada', 'leche gloria': 'leche evaporada',
+  'callos': 'mondongo', 'pancita': 'mondongo', 'physalis': 'aguaymanto', 'fruta del dragon': 'pitahaya',
 };
 
 /* Busca alimentos por palabras sueltas y en cualquier orden:

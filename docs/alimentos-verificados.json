@@ -1984,6 +1984,241 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central (pan blanco de molde ~265 kcal/100 g); rebanada típica de 30 g",
    "verificado_en": "2026-10-15"
+  },
+  "Jurel (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Caballa (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Merluza (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Perico (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Pejerrey (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Tilapia (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Lenguado (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Salmón (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Pota (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Choros (Cocidos)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Conchas de abanico (Cocidas)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Pulpo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Filete de caballa en lata (escurrido) (-)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Sardina en lata en salsa de tomate (-)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Mondongo (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Cuy (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Leche evaporada entera (-)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Leche evaporada light (-)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Queso mantecoso (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Arroz integral (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Mote (Cocido)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Harina de trigo (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Maicena (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Papa amarilla (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Plátano maduro (Sancochado)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Granadilla (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Maracuyá (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Chirimoya (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Lúcuma (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Aguaymanto (Crudo)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Guanábana (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Pitahaya (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Kiwi (Crudo)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Ciruela (Cruda)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Higo (Crudo)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Pasas (Secas)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Sacha inchi (Tostado)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Castañas (Crudas)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Ajonjolí (Tostado)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Azúcar rubia (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Chancaca (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Maca en polvo (-)": {
+   "estado": "verificado",
+   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
+   "verificado_en": "2026-10-15"
+  },
+  "Sillao (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Ketchup (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Mostaza (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Berenjena (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
+  },
+  "Acelga (Cocida)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
+   "verificado_en": "2026-10-15"
   }
  }
 }

@@ -175,7 +175,7 @@ const HISTORIA = 'Soy Jonah. Hace unos años bajé 37 kg, y ahora bajé de 104 a
 function pie() {
   return `<footer>
   <p class="historia">${esc(HISTORIA)}</p>
-  <p><a href="/calorias">Calorías de la comida peruana</a> · <a href="/">Jonah Beast Fuel</a> · <a href="/privacidad.html">Privacidad</a></p>
+  <p><a href="/contador-de-calorias">Contador de calorías de comida peruana</a> · <a href="/calorias">Calorías de la comida peruana</a> · <a href="/">Jonah Beast Fuel</a> · <a href="/privacidad.html">Privacidad</a></p>
 </footer>
 </div>
 </body>
@@ -280,7 +280,7 @@ function paginaIndice() {
   return `${cabecera({ titulo, descripcion, ruta: '/calorias', jsonld })}
 <nav class="migas"><a href="/">Inicio</a> › Calorías</nav>
 <h1 class="display">Calorías de la <em>comida peruana</em></h1>
-<p class="bajada">No tienes que dejar tu lomo saltado ni tu ceviche para bajar de peso: tienes que saber cuánto comes. Aquí están ${platos.length} platos de siempre con sus calorías, su proteína y un consejo mío para cada uno.</p>
+<p class="bajada">No tienes que dejar tu lomo saltado ni tu ceviche para bajar de peso: tienes que saber cuánto comes. Aquí están ${platos.length} platos de siempre como se sirven en casa, con sus calorías (la Tabla Peruana del CENAN es nuestra primera fuente), su proteína y un consejo mío para cada uno.</p>
 <input class="buscar" type="search" placeholder="Busca un plato (ej. chaufa)" aria-label="Buscar un plato" oninput="filtrar(this.value)">
 ${GRUPOS.map(g => {
   const lista = platos.filter(p => p.grupo === g.id);
@@ -292,7 +292,7 @@ ${lista.map(p => `    <a href="/calorias/${p.slug}" data-buscar="${esc((p.nombre
   </div>
 </section>`;
 }).join('\n')}
-<p class="nota">Calorías de ${'"'}una porción${'"'} como se sirve normalmente (cada página dice de cuántos gramos). Valores aproximados: cambian según la receta.</p>
+<p class="nota">Calorías de ${'"'}una porción${'"'} como se sirve normalmente (cada página dice de cuántos gramos). Valores aproximados: cambian según la receta. La primera fuente es la Tabla Peruana de Composición de Alimentos del CENAN (Instituto Nacional de Salud). <a href="/contador-de-calorias">Cómo contamos las calorías →</a></p>
 <div class="tarjeta cta">
   <h2 class="display">¿Tu plato no está aquí?</h2>
   <p>Tómale foto y Jonah Beast Fuel te dice cuánto tiene: calorías, proteína, carbohidratos y grasa. Gratis para siempre, sin tarjeta.</p>
@@ -305,6 +305,143 @@ document.querySelectorAll('section.grupo').forEach(function(s){var n=0;s.querySe
 ${pie()}`;
 }
 
+// De dónde salen los números: cuántos alimentos de la app vienen de la Tabla
+// Peruana del CENAN (se cuenta solo, para que la página nunca diga de más).
+const totalAlimentos = RAW_FOODS.length;
+const conCenan = Object.values(verificados).filter(v => /CENAN/i.test(v.fuente || '')).length;
+if (conCenan < totalAlimentos / 2) throw new Error(`Contador: solo ${conCenan} de ${totalAlimentos} alimentos citan el CENAN; revisa el texto de /contador-de-calorias.`);
+
+// Precios de la web (los mismos que la app muestra por defecto).
+const PLANES = literal('PLANES');
+const precio = m => PLANES.find(p => p.meses === m)?.precioDefault;
+if (!precio(1) || !precio(12)) throw new Error('Contador: no encontré el precio mensual o anual en PLANES.');
+const soles = v => `S/${v.toFixed(2).replace('.', ',')}`;
+
+// Página "Contador de calorías de comida peruana": la explica de corrido,
+// para que Google (y su resumen con IA) sepa qué es la app y la recomiende.
+function paginaContador() {
+  const lomo = platos.find(p => p.slug === 'lomo-saltado');
+  const arroz = RAW_FOODS.find(r => r[1] === 'Arroz blanco' && r[2] === 'Cocido');
+  if (!lomo || !arroz) throw new Error('Contador: falta el lomo saltado o el arroz blanco cocido.');
+  const kLomo = kcalDe(lomo.f, lomo.principal[1]);
+  const gArroz = 150;
+  const kArroz = Math.round(arroz[3] * gArroz / 100);
+  const pct = Math.round(conCenan / totalAlimentos * 100);
+  const mensual = soles(precio(1)), anual = soles(precio(12)), anualMes = soles(precio(12) / 12);
+
+  const titulo = 'Contador de calorías de comida peruana | Jonah Beast Fuel';
+  const descripcion = `App para contar calorías de tu comida peruana con una foto, tu voz o escribiendo. Números de la Tabla Peruana de Alimentos (CENAN) y platos como se sirven en casa, con o sin arroz. Gratis, sin tarjeta.`;
+  const ruta = '/contador-de-calorias';
+  const preguntas = [
+    ['¿Sirve para contar las calorías de la comida peruana?',
+      `Sí. Jonah Beast Fuel tiene ${totalAlimentos} alimentos y platos de lo que se come en Perú (lomo saltado, ají de gallina, pollo a la brasa, chaufa, panes, frutas, bebidas) y puedes crear el tuyo si no está. Lo anotas con una foto, con tu voz o escribiendo, y ves cuánto llevas frente a tu meta del día.`],
+    ['¿De dónde salen las calorías?',
+      `La primera fuente es la Tabla Peruana de Composición de Alimentos del CENAN (Instituto Nacional de Salud): ${conCenan} de los ${totalAlimentos} alimentos de la app se calculan con ella. Si un alimento no está en esa tabla, se usa la etiqueta del producto, la base del USDA o una receta promedio. Cada alimento de la lista se revisa antes de entrar a la app.`],
+    ['¿Tengo que pesar mi comida?',
+      'No. Puedes anotar en medida casera (un plato, una unidad, un cucharón, una lata) o, si usas balanza, en gramos con "⚖️ Lo pesé".'],
+    ['¿Las calorías del guiso incluyen el arroz?',
+      `Depende del plato, y la app te lo dice. En los guisos que se comen con arroz y no lo incluyen (como el lomo saltado o el ají de gallina) verás "🍚 Sin arroz: agrégalo aparte". Por ejemplo, un plato de lomo saltado tiene unas ${kLomo} kcal y una porción de arroz blanco (${gArroz} g) suma unas ${kArroz} kcal más.`],
+    ['¿Es gratis?',
+      `Sí: la versión gratis es para siempre y no pide tarjeta. Al crear tu cuenta tienes 7 días de Premium incluidos; cuando terminan, sigues gratis y nadie te cobra solo. Premium cuesta ${mensual} al mes o ${anual} al año (${anualMes} al mes), en jonahbeast.com.`],
+    ['¿En qué celular funciona?',
+      'En cualquier celular con internet, Android o iPhone: entras a jonahbeast.com desde el navegador y puedes agregarla a tu pantalla de inicio como una app.'],
+  ];
+  const jsonld = [
+    { '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Jonah Beast Fuel', url: `${SITIO}/`,
+      applicationCategory: 'HealthApplication', operatingSystem: 'Android, iOS, navegador web', inLanguage: 'es-PE',
+      description: descripcion,
+      offers: [
+        { '@type': 'Offer', name: 'Gratis', price: '0', priceCurrency: 'PEN' },
+        { '@type': 'Offer', name: 'Premium mensual', price: precio(1).toFixed(2), priceCurrency: 'PEN' },
+        { '@type': 'Offer', name: 'Premium anual', price: precio(12).toFixed(2), priceCurrency: 'PEN' },
+      ],
+      author: { '@type': 'Person', name: 'Jonah' } },
+    { '@context': 'https://schema.org', '@type': 'FAQPage',
+      mainEntity: preguntas.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: `${SITIO}/` },
+      { '@type': 'ListItem', position: 2, name: 'Contador de calorías de comida peruana', item: `${SITIO}${ruta}` },
+    ] },
+  ];
+  const formas = [
+    ['📸', 'Foto', 'Le tomas foto a tu plato y la app reconoce lo que hay, con su porción. Tú la ajustas si tu plato es más grande o más chico.'],
+    ['🎙️', 'Voz', 'Dices "un cuarto de pollo a la brasa con papas y ensalada" y queda anotado.'],
+    ['⌨️', 'Escribir', `Buscas entre ${totalAlimentos} alimentos y platos y eliges cuánto comiste.`],
+    ['🔲', 'Código de barras', 'Escaneas el paquete de lo que compraste y queda anotado.'],
+    ['⭐', 'Favoritos', 'Lo que comes seguido queda a un toque.'],
+    ['🦍', 'Beast', 'Tu compañero en la app: le hablas, te anota la comida y te responde "¿qué como?" con lo que te queda del día.'],
+  ];
+
+  return `${cabecera({ titulo, descripcion, ruta, jsonld })}
+<nav class="migas"><a href="/">Inicio</a> › Contador de calorías</nav>
+<h1 class="display">Contador de calorías de <em>comida peruana</em></h1>
+<p class="bajada">Jonah Beast Fuel es una app para contar calorías sin dejar tu comida de siempre: tu lomo saltado, tu ají de gallina, tu pollo a la brasa, tu chaufa. Lo anotas con una foto, con tu voz o escribiendo, y ves cuánto llevas frente a tu meta.</p>
+<p><a class="btn" href="${linkApp('contador_arriba')}">Empezar gratis</a></p>
+<p class="nota">Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta</p>
+
+<div class="tarjeta">
+  <h2 class="display">De dónde salen los números</h2>
+  <p>La primera fuente es la <b>Tabla Peruana de Composición de Alimentos del CENAN</b> (Centro Nacional de Alimentación y Nutrición, del Instituto Nacional de Salud): <b>${conCenan} de los ${totalAlimentos} alimentos</b> de la app (${pct}%) se calculan con ella.</p>
+  <p>Si un ingrediente o alimento no está en esa tabla, usamos la etiqueta del producto, la base del USDA o una receta promedio. Cada alimento de la lista se revisa antes de entrar: que los números cuadren, que no esté repetido y que tenga su medida casera.</p>
+</div>
+
+<div class="tarjeta">
+  <h2 class="display">Tu plato, como se sirve en casa</h2>
+  <p><b>Sin balanza:</b> anotas en medida casera: un plato, una unidad, un cucharón, una lata. <b>Con balanza:</b> anotas los gramos exactos con "⚖️ Lo pesé".</p>
+  <p><b>Con arroz o sin arroz.</b> Cada plato dice si sus calorías incluyen el arroz. En los guisos que se comen con arroz y no lo incluyen, verás "🍚 Sin arroz: agrégalo aparte", para que no se te pase.</p>
+  <table>
+    <thead><tr><th>Ejemplo</th><th class="n">Calorías</th></tr></thead>
+    <tbody>
+      <tr><td><a href="/calorias/${lomo.slug}">Lomo saltado</a> (${esc(lomo.etiqueta.toLowerCase())}, ${lomo.principal[1]} g)</td><td class="n">${kLomo} kcal</td></tr>
+      <tr><td>+ Arroz blanco (una porción, ${gArroz} g)</td><td class="n">${kArroz} kcal</td></tr>
+      <tr><td><b>Tu plato completo</b></td><td class="n"><b>${kLomo + kArroz} kcal</b></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="tarjeta">
+  <h2 class="display">Anótalo como te quede más fácil</h2>
+  <table>
+    <tbody>
+${formas.map(([ico, t, d]) => `      <tr><td style="width:36px;font-size:22px">${ico}</td><td><b>${esc(t)}.</b> ${esc(d)}</td></tr>`).join('\n')}
+    </tbody>
+  </table>
+</div>
+
+<div class="tarjeta">
+  <h2 class="display">Gratis y Premium</h2>
+  <table>
+    <thead><tr><th>Gratis, para siempre</th><th>👑 Premium</th></tr></thead>
+    <tbody>
+      <tr><td>Anotar tus comidas escribiendo y con código de barras</td><td>Foto en todas tus comidas y registro por voz</td></tr>
+      <tr><td>Tu meta de calorías</td><td>Beast contigo todos los días, sin monedas ni cobros extra</td></tr>
+      <tr><td>3 fotos por semana</td><td>Tu menú del día y de la semana, y tu lista de compras</td></tr>
+      <tr><td>Tu peso y tu racha</td><td>"¿Qué puedo comer?" con comida peruana</td></tr>
+      <tr><td>Tendencias de 7 días</td><td>Tu % de grasa y músculo, fotos de progreso y Jonah por WhatsApp</td></tr>
+    </tbody>
+  </table>
+  <p class="nota" style="margin-top:12px">Premium: ${mensual} al mes o ${anual} al año (${anualMes} al mes), en jonahbeast.com. Al crear tu cuenta tienes 7 días de Premium incluidos, sin tarjeta; cuando terminan sigues gratis y nadie te cobra solo.</p>
+</div>
+
+<div class="tarjeta consejo">
+  <img src="/jonah-avatar.png" alt="Jonah" width="52" height="52">
+  <div><div class="quien">💬 Quién está detrás</div><p>${esc(HISTORIA)} Por eso armé esta app: para que cuentes tu comida peruana sin adivinar.</p></div>
+</div>
+
+<div class="tarjeta">
+  <h2 class="display">Preguntas frecuentes</h2>
+${preguntas.map(([q, a]) => `  <h3 style="font-size:16px;margin:14px 0 4px">${esc(q)}</h3>\n  <p style="margin:0;color:var(--crema2)">${esc(a)}</p>`).join('\n')}
+</div>
+
+<div class="tarjeta cta">
+  <h2 class="display">Cuenta tu primera comida hoy</h2>
+  <p>Tómale foto a tu plato y mira cuánto tiene. Gratis para siempre, sin tarjeta.</p>
+  <a class="btn" href="${linkApp('contador_abajo')}">Empezar gratis</a>
+</div>
+<p><a href="/calorias">Mira las calorías de ${platos.length} platos peruanos →</a></p>
+${pie()}`;
+}
+
 function escribir(ruta, html) {
   const carpeta = new URL(ruta.replace(/^\//, '') + '/', dist);
   mkdirSync(carpeta, { recursive: true });
@@ -312,10 +449,11 @@ function escribir(ruta, html) {
 }
 
 escribir('/calorias', paginaIndice());
+escribir('/contador-de-calorias', paginaContador());
 for (const p of platos) escribir(`/calorias/${p.slug}`, paginaPlato(p));
 
 const hoy = new Date().toISOString().slice(0, 10);
-const urls = ['/', '/calorias', ...platos.map(p => `/calorias/${p.slug}`)];
+const urls = ['/', '/contador-de-calorias', '/calorias', ...platos.map(p => `/calorias/${p.slug}`)];
 writeFileSync(new URL('sitemap.xml', dist), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${SITIO}${u}</loc><lastmod>${hoy}</lastmod></url>`).join('\n')}
@@ -328,4 +466,4 @@ Disallow: /api/
 Sitemap: ${SITIO}/sitemap.xml
 `);
 
-console.log(`✅ Páginas de calorías: ${platos.length} platos + índice, sitemap.xml y robots.txt.`);
+console.log(`✅ Páginas de calorías: ${platos.length} platos + índice, contador (${conCenan}/${totalAlimentos} con CENAN), sitemap.xml y robots.txt.`);

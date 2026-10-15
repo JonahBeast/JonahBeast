@@ -764,7 +764,10 @@ Al crear sale **"¡TU RETO ESTÁ LISTO! 🦍"** con **"Invitar por WhatsApp"** (
 **Qué se ve dentro del equipo:**
 - **"DÍA X DE Y"** del reto y la fecha en que termina (o "EMPIEZA EL…" si aún no empieza, o "¡RETO TERMINADO! 🏆").
 - **Comidas registradas por el equipo** esta semana y en todo el reto.
-- La **semana** (con flechas para ver semanas anteriores) con una casilla por día para cada integrante y sus **puntos** de todo el reto, ordenados de mayor a menor:
+- **"CÓMO VAS, [NOMBRE]"** (mientras el reto está en marcha, arriba): su lugar en grande (en la carrera, "2.º de 7 en la carrera", contando solo a los que compiten; en Comer mejor, su lugar en constancia), cuánto lleva y cuánto le falta con una barra ("Bajaste 1.8 kg de 3 kg · te faltan 1.2 kg"; en Subir: "Subiste…"), a cuánto está del primero ("🥇 A 0.4 kg de Ana, que va primero" o "🏁 ¡Vas primero!"), su constancia ("🔥 Constancia: 4.º con 160 pts · 16 días cumplidos"), **"⚖️ Pesaje de esta semana: hasta el [día]"** y cómo va hoy ("✅ Hoy ya cumpliste", "🍽️ Hoy: te falta llegar a 3 comidas" o "aún no anotas"). Si todavía no compite, le dice qué tocar. Abajo, **"❓ ¿Cómo se gana este reto?"** → **"Ver"** muestra las reglas (cómo se gana, el tope sano por semana, el podio de constancia y el premio).
+- **"🏁 QUIÉN VA GANANDO"** (solo en la carrera): los que compiten, del que va más cerca de la meta al más lejos, con sus kilos (o %) y una barra; él sale resaltado como "Tú". Muestra 4 y **"Ver los N que compiten"**.
+- **"🥇 PODIO DE CONSTANCIA"** (en Comer mejor se llama **"🏆 QUIÉN VA GANANDO"**): los 3 con más puntos y, si no está entre ellos, su lugar resaltado. En los retos de peso, la tarjeta **"META"** (abajo) sigue mostrando la meta del equipo en Juntos.
+- **"📅 La semana de cada uno (✓ – ✗) y dar ánimo"** → **"Ver"** (se pliega con "Ocultar"): la **semana** (con flechas para ver semanas anteriores) con una casilla por día para cada integrante y sus **puntos** de todo el reto, ordenados de mayor a menor:
   - **✓ (naranja) = 10 puntos:** registró **3 comidas o más** ese día.
   - **– = 5 puntos:** registró 1 o 2 comidas.
   - **✗ = 0 puntos:** no registró. Hoy, mientras no registre, sale un punto con borde de rayas.

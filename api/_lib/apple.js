@@ -12,7 +12,6 @@
 // hace falta ninguna llave guardada en Vercel.
 
 import crypto from 'node:crypto';
-import { avisarCompraMeta } from './meta-compra.js';
 
 export const PAQUETE_IOS = 'com.jonahbeast.app';
 
@@ -206,8 +205,8 @@ export async function procesarTransaccion(supabase, tx, { username = null, cuent
     .update({ fecha_vencimiento: nuevaFecha, enabled: true, plan: 'pago' })
     .eq('username', dueno);
 
-  // Avisa a Meta la compra (no frena la activación si falla).
-  await avisarCompraMeta(supabase, { username: dueno, monto, eventoId: `ap_${tx.transactionId}` });
+  // Las compras del iPhone no se avisan a Meta: Apple lo cuenta como
+  // "rastreo" y la app no pide ese permiso (ver index.html).
 
   return { ok: true, activado: true, estado, fechaVencimiento: nuevaFecha, bono };
 }

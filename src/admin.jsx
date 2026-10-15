@@ -3279,7 +3279,7 @@ function EquiposPanel({ users }) {
                 )}
                 <p className="jb-body text-[11px] text-zinc-500 mb-2">
                   {!e.oficial && <>Código: <span className="text-orange-400 tracking-widest">{e.codigo}</span> · </>}
-                  {{ comer: '🍽️ Comer mejor', juntos: '🤝 Meta juntos', carrera: '🏁 Carrera' }[e.objetivo] || '🍽️ Comer mejor'}
+                  {{ comer: '🍽️ Comer mejor', juntos: '🤝 Meta juntos', carrera: '🏁 Carrera' }[e.objetivo] || '🍽️ Comer mejor'}{e.sentido === 'subir' ? ' (subir de peso)' : ''}
                   {e.meta_valor ? ` · meta ${e.meta_valor}${{ comidas: ' comidas', pct_total: '% entre todos', kg_total: ' kg entre todos', kg_cada: ' kg cada uno', carrera_kg: ' kg (carrera)', carrera_pct: '% (carrera)' }[e.meta_tipo] || ''}` : ''}
                   {' '}· del {e.inicio} al {e.fin || addDaysISO(e.inicio, e.dias - 1)}
                   {e.premio ? <> · 🎁 {e.premio}</> : null}

@@ -127,6 +127,7 @@ const RAW_FOODS = [
   ["Otros","Rapiditas Integrales (Bimbo)","-",292,9.5,45.0,8.0,6.0],
   ["Otros","Rapiditas XL (Bimbo)","-",315,8.5,47.7,10.0,1.8],
   ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
+  ["Otros","Pan de molde blanco","-",265,8.5,49.0,3.5,2.5],
   ["Otros","Pan árabe","-",275,9.1,55.7,1.2,2.2],
   ["Otros","Pan árabe integral","-",262,9.8,55.0,2.6,7.4],
   // Comidas que los alumnos tuvieron que crear a mano o que faltaban
@@ -135,11 +136,23 @@ const RAW_FOODS = [
   ["Carnes y aves","Salchicha (hot dog)","-",290,11.0,3.0,26.0,0.0],
   ["Otros","Tostadas","-",390,12.0,70.0,6.0,4.0],
   ["Platos preparados","Pan con jamonada","-",265,10.1,37.3,8.5,1.5],
+  ["Platos preparados","Pan con jamonada","Pan blanco",265,10.1,37.3,8.5,1.5],
+  ["Platos preparados","Pan con jamonada","Pan integral",250,10.4,32.3,9.4,4.0],
   ["Platos preparados","Pan con pollo","-",230,13.0,24.0,9.0,1.5],
+  ["Platos preparados","Pan con pollo","Pan blanco",230,13.0,24.0,9.0,1.5],
+  ["Platos preparados","Pan con pollo","Pan integral",225,13.1,22.4,9.3,2.3],
   ["Platos preparados","Pan con chicharrón","-",280,12.0,25.0,15.0,1.5],
+  ["Platos preparados","Pan con chicharrón","Pan blanco",280,12.0,25.0,15.0,1.5],
+  ["Platos preparados","Pan con chicharrón","Pan integral",276,12.1,23.5,15.3,2.2],
   ["Platos preparados","Butifarra","-",230,11.0,22.0,11.0,1.5],
+  ["Platos preparados","Butifarra","Pan blanco",230,11.0,22.0,11.0,1.5],
+  ["Platos preparados","Butifarra","Pan integral",225,11.1,20.2,11.3,2.4],
   ["Platos preparados","Hot dog","-",260,9.0,23.0,15.0,1.0],
+  ["Platos preparados","Hot dog","Pan blanco",260,9.0,23.0,15.0,1.0],
+  ["Platos preparados","Hot dog","Pan integral",251,9.2,20.0,15.5,2.5],
   ["Platos preparados","Hamburguesa de carretilla","-",250,11.0,25.0,12.0,1.5],
+  ["Platos preparados","Hamburguesa de carretilla","Pan blanco",250,11.0,25.0,12.0,1.5],
+  ["Platos preparados","Hamburguesa de carretilla","Pan integral",245,11.1,23.4,12.3,2.3],
   ["Platos preparados","Pizza americana","-",266,11.0,33.0,10.0,2.3],
   ["Platos preparados","Pollo broaster","-",290,22.0,12.0,17.0,0.5],
   ["Platos preparados","Salchipollo","-",260,11.0,22.0,14.0,2.0],
@@ -300,6 +313,8 @@ const RAW_FOODS = [
   ["Platos preparados","Menestrón","-",90,4.5,11.0,3.0,2.2],
   ["Platos preparados","Ensalada de pollo","-",110,12.0,6.0,4.5,1.8],
   ["Platos preparados","Sándwich de pollo","-",230,14.0,26.0,8.0,1.6],
+  ["Platos preparados","Sándwich de pollo","Pan blanco",237,13.6,27.1,8.1,1.0],
+  ["Platos preparados","Sándwich de pollo","Pan integral",230,14.0,26.0,8.0,2.8],
   ["Platos preparados","Panqueques de avena","Estimado - varía según receta",180,7.0,22.0,6.0,2.5],
   ["Platos preparados","Wafle de avena","Estimado - varía según receta",200,6.5,23.0,8.0,2.5],
   ["Cereales","Fideos / pasta","Crudos",371,13.0,74.7,1.5,3.2],
@@ -434,6 +449,9 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 const ALIMENTOS_RETIRADOS = new Set([
   'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
   'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
+  // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
+  'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
+  'Hot dog (-)', 'Hamburguesa de carretilla (-)', 'Sándwich de pollo (-)',
 ]);
 
 /* Alimentos que Jonah agrega desde el panel (tabla alimentos_extra, ver
@@ -593,6 +611,7 @@ const UNITS_BY_NAME = {
   'Quinua': [['taza', 185]],
   'Fresa': [['unidad', 15]],
   'Pan integral': [['rebanada', 30]],
+  'Pan de molde blanco': [['rebanada', 30]],
   'Galleta de soda': [['unidad', 6], ['paquete', 34]],
   'Aceite vegetal': [['cucharada', 14], ['cucharadita', 5]],
   'Arroz verde': [['porción', 150], ['plato', 250]],
@@ -1018,7 +1037,7 @@ const COMBOS_REALES = [
   { comida: 'Cena', emoji: '🐟', nombre: 'Pescado al vapor con verduras',
     items: [['Sudado de pescado (-)', 250], ['Papa (Cocida)', 150], ['Brócoli (Cocido)', 100]] },
   { comida: 'Cena', emoji: '🥪', nombre: 'Sándwich de pollo con té',
-    items: [['Sándwich de pollo (-)', 150], ['Té / infusión sin azúcar (-)', 200]] },
+    items: [['Sándwich de pollo (Pan integral)', 150], ['Té / infusión sin azúcar (-)', 200]] },
   { comida: 'Cena', emoji: '🥗', nombre: 'Ensalada de pollo',
     items: [['Ensalada de pollo (-)', 300], ['Pan integral (-)', 30]] },
 

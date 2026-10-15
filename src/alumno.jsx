@@ -317,7 +317,7 @@ const EMOJI_POR_NOMBRE = [
   [/picar[oó]n|churro|donut|dona\b/, '🍩'], [/helado/, '🍨'],
   [/ceviche|tiradito|sudado|parihuela/, '🐟'], [/sopa|caldo|chupe|aguadito|sancochado|patasca|menestr[oó]n|locro/, '🍲'],
   [/pollo a la brasa|broaster|pollada/, '🍗'], [/tamal|humita|juane/, '🫔'], [/wrap|twister/, '🌯'],
-  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
+  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|^triple\b|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
   [/tallar[ií]n|fideo|spaghetti|espagueti|pasta\b|lasa[ñn]a/, '🍝'],
   [/chaufa|arroz/, '🍚'], [/avena|quinua|granola|cereal|kiwicha|ca[ñn]ihua/, '🥣'],
   [/huevo|clara|yema|omelette|tortilla de/, '🥚'],
@@ -637,6 +637,7 @@ function interpretarVarios(textoCompleto) {
     // está claro cuál es — en vez de adivinar en silencio.
     const candidatas = [];
     for (const f of FOODS) {
+      if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
       let nombreLower = f.name.toLowerCase();
       if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
       else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
@@ -12340,12 +12341,12 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
 // platos comunes de la hora: un toque y la comida queda registrada.
 const PLATOS_PRIMERA_COMIDA = {
   'Desayuno': [
-    ['Pan con pollo (-)', '🥪'], ['Pan con jamonada (-)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
+    ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
     ['Avena (Cocida)', '🥣'], ['Pan francés (-)', '🥖'], ['Yogur natural (-)', '🥛'],
   ],
   'Media mañana': [
     ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
-    ['Yogur natural (-)', '🥛'], ['Pan con pollo (-)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
+    ['Yogur natural (-)', '🥛'], ['Pan con pollo (Pan blanco)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
   ],
   'Almuerzo': [
     ['Lomo saltado (-)', '🥩'], ['Arroz con pollo (-)', '🍗'], ['Ají de gallina (-)', '🍛'],
@@ -12353,11 +12354,11 @@ const PLATOS_PRIMERA_COMIDA = {
   ],
   'Media tarde': [
     ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
-    ['Yogur natural (-)', '🥛'], ['Pan con pollo (-)', '🥪'], ['Pan con jamonada (-)', '🥪'],
+    ['Yogur natural (-)', '🥛'], ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'],
   ],
   'Cena': [
     ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Lomo saltado (-)', '🥩'], ['Tallarines verdes (-)', '🍝'],
-    ['Caldo de gallina (-)', '🍲'], ['Estofado de pollo (-)', '🍛'], ['Pan con pollo (-)', '🥪'],
+    ['Caldo de gallina (-)', '🍲'], ['Estofado de pollo (-)', '🍛'], ['Pan con pollo (Pan blanco)', '🥪'],
   ],
 };
 

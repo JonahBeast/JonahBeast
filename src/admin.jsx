@@ -10744,7 +10744,7 @@ Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, un reto 
 
 ¿Cómo funciona? Simple: cada día que registras tus comidas sumas puntos. Con 3 comidas o más, el día queda con ✓. Aquí *no gana el que más baja, gana el más constante*. Y nadie ve tu peso ni lo que comes, solo tus días cumplidos.
 
-Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
+Hace unos años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
 
 👉 Para unirte:
 1. Abre la app.

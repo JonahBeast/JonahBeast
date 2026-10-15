@@ -31,7 +31,7 @@ import { traerTodas } from './traerTodas.js';
 
    El tono es el de Jonah: cercano, humano, motivador, nunca de robot. Su
    historia (bajó de 104 a 90 kg en 2 meses y medio con su propia app, entrenamiento y
-   disciplina; hace unos 4 años ya había bajado 37 kg) y la idea de
+   disciplina; hace unos años ya había bajado 37 kg) y la idea de
    que el cambio llega poco a poco, comida a comida.
 
    Se usa en tres lugares, con los mismos datos y las mismas reglas:
@@ -203,7 +203,7 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
     : etapa === 'primera'
       ? 'Vi que creaste tu cuenta y quiero ayudarte a arrancar. Ya diste el primer paso, que es el que más cuesta 💪'
       : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
-  const historia = 'Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
+  const historia = 'Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
   const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
   const comunidad = etapa === 'bienvenida' ? `${INVITAR_COMUNIDAD}\n\n` : '';
   return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${comunidad}${CIERRE_JUNTOS}`;

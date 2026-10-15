@@ -8,7 +8,7 @@ Reglas: la marca va primero ("Jonah Beast Fuel"); lo peruano va en la descripci�
 
 - **Nombre** (máx. 30): `Jonah Beast Fuel: Calorías`
 - **Descripción breve** (máx. 80): `Contador de calorías sin dieta: tómale foto a tu comida peruana y listo`
-- **Descripción completa:** la actual (empieza "Soy Jonah. Hace unos 4 años bajé 37 kg…"), con este bloque agregado después de la historia y antes del final. Google no tiene casilla de palabras clave: lee el nombre, la descripción breve y la completa, así que las palabras van escritas de forma natural (3 a 5 veces cada una, sin listas sueltas).
+- **Descripción completa:** la actual (empieza "Soy Jonah. Hace unos años bajé 37 kg…"; decidido por Jonah el 15 de octubre: "hace unos años" y no "hace unos 4 años", para que no envejezca), con este bloque agregado después de la historia y antes del final. Google no tiene casilla de palabras clave: lee el nombre, la descripción breve y la completa, así que las palabras van escritas de forma natural (3 a 5 veces cada una, sin listas sueltas).
 
 ```
 ¿Qué puedes hacer con la app?

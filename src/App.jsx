@@ -2553,6 +2553,11 @@ function Landing({ onChoose }) {
             <span className="jbb-a block text-orange-400" style={anim('jbb-sube', .7)}>EMPIEZA AQUÍ</span>
           </h1>
           <p className="jbb-a jb-body text-base lg:text-lg text-zinc-300" style={anim('jbb-sube', .85)}>Tu plan con comida peruana, justo para tu meta.</p>
+          {/* De dónde salen los números (lo lee Google): lleva a la página
+              /contador-de-calorias, que lo explica de corrido. */}
+          <a href="/contador-de-calorias" className="jbb-a jb-body text-xs text-zinc-400 hover:text-zinc-200 -mt-1 leading-snug" style={{ ...anim('jbb-sube', .92), textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>
+            Calorías de la <span className="text-zinc-200">Tabla Peruana de Alimentos (CENAN)</span>, con tus platos como se sirven en casa: con o sin arroz. <span className="text-orange-400 whitespace-nowrap">Cómo funciona →</span>
+          </a>
           <div className="jbb-a flex items-center gap-3" style={anim('jbb-sube', 1)}>
             <div className="flex">
               {['martin', 'andrea', 'cesar'].map((n, i) => (

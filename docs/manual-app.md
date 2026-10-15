@@ -719,31 +719,32 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
 
 **Nombres:** cada equipo de un alumno se llama solo **"Team Beast de [nombre del capitán]"** (ej. "Team Beast de Pedro"). Ese nombre no se elige ni se cambia; si el capitán sale del equipo, toma el nombre del nuevo capitán. Además, el capitán puede ponerle un **apodo** opcional (de 2 a 24 letras, sin groserías ni promesas de kilos), y se ve como **"Team Beast de Pedro · Los Imparables"**. El Team Beast oficial no lleva apodo.
 
-**Crear un equipo propio:**
-1. **"Comunidad"** → **"Mis equipos"** → **"Crear mi equipo"**.
-2. Ahí ves cómo se llamará ("TEAM BEAST DE [TU NOMBRE]"). Si quieres, escribe un **"Apodo del equipo (opcional)"** (ej. "Los Imparables").
-3. Elige el **"Tipo de reto"** (ver "Tipos de reto" abajo) y su **meta**.
-4. Elige **cuándo empiezan** (**"Hoy"**, el próximo **lunes** o el lunes siguiente) y la **duración**: **14, 28 o 56 días** o **"Hasta una fecha"** (de 14 a 120 días; ej. "hasta el 20 de diciembre"), que se elige con las **ruedas de día, mes y año**.
-5. Opcional: el **"Premio"** (hasta 80 letras; ej. "Los demás le invitan el ceviche 🐟"). Se ve arriba en el equipo.
-6. Opcional: el **enlace de su grupo de WhatsApp** (en el grupo: tocar el nombre del grupo → "Invitar al grupo mediante enlace" → "Copiar enlace"; debe empezar con https://chat.whatsapp.com/).
-7. **"Crear equipo"**. Quien lo crea es el **capitán** (🦍). Cada persona puede ser capitán de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
+**Crear un equipo propio (paso a paso):** **"Comunidad"** → **"Mis equipos"** → **"Crear mi equipo"**. Se arma con una sola pregunta por pantalla, con botones grandes, una barra arriba ("Paso 2 de 5") y **"Volver"** en cada paso (la ✕ cierra sin crear nada):
+1. **"¿QUÉ QUIEREN LOGRAR?"**: 🍽️ **Comer mejor** (sin kilos de por medio: gana el que más días anota sus comidas; "Ideal para empezar"), ⬇️ **Bajar de peso** o 💪 **Subir de peso** (ganar músculo comiendo bien; "Ideal para los flacos que quieren subir").
+2. **"¿CÓMO QUIEREN JUGAR?"** (solo si eligieron bajar o subir): 🤝 **Juntos** (todos van por la meta y se ayudan: si llegan, ganan todos; ideal para la familia o la pareja) o 🏁 **Carrera** (compiten: gana el primero en llegar a la meta; ideal para amigos o compañeros del trabajo).
+3. **La meta**, con botones:
+   - Carrera: **"¿CUÁNTOS KILOS PARA GANAR?"** → 2 · 3 · 4 · 5 kg (para subir: 1 · 2 · 3 · 4 kg) u **"Otro"**. Para bajar, el enlace **"¿Pesan muy distinto? Usar % (más justo)"** cambia la meta a % del peso.
+   - Juntos: **"¿CUÁL ES LA META?"** → **"Cada uno baja"** (o "Cada uno sube") ___ kg, o **"Entre todos (%)"** (para subir: "Entre todos (kg)"). En **"Más opciones"** está también "Entre todos (kg)" para bajar.
+   - Comer mejor: **"¿CÓMO SE GANA?"** lo explica (✓ 3 comidas = 10 puntos, 1 o 2 = 5) y deja elegir una meta de comidas entre todos (Sin meta · 300 · 500 · 1000).
+   Debajo sale la frase armada, por ejemplo **"🏁 Carrera: gana el primero en bajar 3 kg"**, con cómo se gana.
+4. **"¿CUÁNDO?"**: empiezan **Hoy**, el próximo **lunes** o el lunes siguiente, y duran **2, 4 u 8 semanas** o **"Hasta una fecha"** (de 14 a 120 días, con ruedas de día, mes y año). La app revisa ahí mismo si la meta es sana: **"✅ 3 kg en 7½ semanas = unos 400 g por semana. ¡Meta sana!"**; si es muy rápida, sale **"⚠️ Es muy rápido para hacerlo bien…"** con el botón **"Darles [N] semanas"** (lo arregla solo) o **"O bajar la meta"**.
+5. **"¿QUÉ GANA EL GANADOR?"** (en Juntos: "¿QUÉ GANAN SI LLEGAN?"): premios listos para tocar (ej. "💰 Cada uno le da S/20 al ganador", "🐟 Los demás le invitan el ceviche", "🍖 Si llegamos, parrillada todos juntos"), **"🏅 Solo la medalla"** o **"✏️ Escribir otro"** (hasta 80 letras). Aquí también va el **apodo del equipo** (opcional).
+6. **"ASÍ QUEDA TU RETO"**: el resumen en palabras simples (cómo se gana, fechas, premio, "se cuenta con el pesaje de cada semana", "nadie ve el peso de nadie", "el podio es para los más constantes") y **"Crear mi reto"**. Con **"¿Algo no está bien? Cambiar"** vuelve al paso 1 sin perder lo elegido.
 
-**Tipos de reto:**
-- 🍽️ **Comer mejor**: gana el más constante. Meta opcional de **comidas entre todos** (ej. 500): si la cumplen, todos ganan la medalla 🏆.
-- 🤝 **Meta juntos** (bajar de peso en equipo, ideal para la familia): una meta común. Puede ser:
-  - **"Cada uno baja ___ kg"** (ej. 5 kg cada uno),
-  - **"Entre todos ___ kg"** (ej. 30 kg sumando a todos) o
-  - **"Entre todos ___ %"** (ej. 4%; es lo más justo para todos los pesos).
-  Si llegan, todos ganan 🏆; con "cada uno", quien llega a sus kilos gana además 🎯.
-- 🏁 **Carrera** (entre amigos): **"El primero en bajar ___ kg"** (o ___ %) antes de la fecha final gana 🏁. Se cuenta con el **pesaje de cada semana** (no con pesajes diarios). Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca.
-- En **todos**, el **podio 🥇🥈🥉 es para los 3 más constantes** (más puntos), nunca para el que más baja.
-- **Metas sanas:** como mucho **1 kg o 1% por persona por semana** de reto. Si la meta es más rápida, sale "Esa meta es muy rápida para hacerla bien…" y hay que dar más tiempo o bajar la meta. Además, en el conteo **cada semana suma como mucho 1% del peso** de cada uno (si alguien baja más rápido, lo de más no cuenta).
+Al crear sale **"¡TU RETO ESTÁ LISTO! 🦍"** con **"Invitar por WhatsApp"** (botón verde: el mensaje ya lleva las reglas del reto, las fechas, el premio, el enlace y, en los retos de peso, que anoten su peso y toquen "Competir con mi avance" o "Mostrar mi avance"), **"Copiar enlace"**, el **código del equipo** y **"Ir a mi equipo"**. El enlace del grupo de WhatsApp del equipo se pone después, dentro del equipo (lápiz ✏️ o "Agregar el grupo de WhatsApp del equipo"). Cada persona puede ser capitán (🦍) de **un solo equipo** a la vez (en otros puede estar como integrante); por eso, si ya es capitán, no le sale "Crear mi equipo".
+
+**Tipos de reto (lo que se guarda):**
+- 🍽️ **Comer mejor**: gana el más constante. Meta opcional de **comidas entre todos**: si la cumplen, todos ganan la medalla 🏆.
+- 🤝 **Bajar juntos** / **Subir juntos**: una meta común: **"cada uno baja (o sube) ___ kg"**, **"entre todos ___ %"** (solo bajar; lo más justo para todos los pesos) o **"entre todos ___ kg"**. Si llegan, todos ganan 🏆; con "cada uno", quien llega a sus kilos gana además 🎯.
+- 🏁 **Carrera para bajar** / **Carrera para subir**: **"El primero en bajar (o subir) ___ kg"** (para bajar también en %) antes de la fecha final gana 🏁. Se cuenta con el **pesaje de cada semana** (no con pesajes diarios). Si dos llegan la misma semana, gana el más constante. Si nadie llega, gana el que quedó más cerca.
+- En **todos**, el **podio 🥇🥈🥉 es para los 3 más constantes** (más puntos), nunca para el que más baja o sube.
+- **Metas sanas:** para **bajar**, como mucho **1 kg o 1% por persona por semana**; para **subir**, como mucho **½ kg por semana** (más rápido es grasa, no músculo). En el conteo, cada semana suma como mucho eso (1% del peso al bajar, ½ kg al subir): lo de más no cuenta.
 - **Menores de 18** participan solo con su constancia (no suman peso ni compiten en la carrera).
 
 **El peso es privado ("TU AVANCE"):** en los retos de peso, cada uno elige qué comparte, en la tarjeta **"TU AVANCE"** del equipo:
 - **"Solo constancia"** (así empieza): su peso no cuenta; sigue sumando puntos.
 - **"Sumar en privado"** (solo en Meta juntos): su avance suma al total del equipo, pero no se ve por separado.
-- **"Mostrar mi avance"** / **"Competir con mi avance"** (carrera): el equipo ve su barrita y sus **kilos bajados** (ej. "−2.4 kg · 2.6%"), **nunca su peso**. Para la carrera es obligatorio.
+- **"Mostrar mi avance"** / **"Competir con mi avance"** (carrera): el equipo ve su barrita y sus **kilos bajados** (ej. "−2.4 kg · 2.6%"; en los retos de subir, sus **kilos ganados**, ej. "+1.5 kg"), **nunca su peso**. Para la carrera es obligatorio.
 - Para sumar hay que tener un **peso anotado** ("Mi cuerpo" o el pesaje del domingo en Inicio): cuenta el peso de hasta 14 días antes del inicio o el de la primera semana del reto. Si no hay, sale "⚖️ Para sumar, anota tu peso…".
 
 **Al terminar el reto:** al día siguiente, como a las 8am, a todos les llega "🏆 ¡Terminó el reto! Entra a ver el podio y quién ganó" (o "🏁 ¡Terminó la carrera!…"). En el equipo sale **"🏆 ¡ASÍ TERMINÓ EL RETO!"** con el ganador de la carrera, el podio de los más constantes, si cumplieron la meta y el premio. Las medallas (🥇 🥈 🥉 🏆 🎯 🏁) quedan para siempre en **"MIS MEDALLAS"**, arriba en "Mis equipos" (al tocarla se ven todas). **A quien gana una medalla, al abrir la app le sale una tarjeta donde Jonah el gorila se la entrega** ("¡CAMPEÓN!", "¡SEGUNDO LUGAR!", "¡TERCER LUGAR!", "¡GANASTE LA CARRERA!", "¡META CUMPLIDA!" o "¡LLEGASTE A TU META!"), con un mensaje de Jonah y el premio del reto. Botones: **"📲 Compartir mi medalla"** (arma una imagen con el estilo de la tarjeta "MI CAMBIO": la medalla, Jonah con su globo "¡ASÍ SE HACE!", el equipo y su código de invitación; sin kilos), **"Ver el podio"** y **"Cerrar"**. Sale una sola vez por medalla (en los 14 días siguientes); si ganó varias, muestra la más importante y nombra las demás. El premio lo coordinan entre ellos (en el Team Beast, lo coordina Jonah).
@@ -774,15 +775,16 @@ Retos en grupo para registrar las comidas acompañado. Es para todos: Premium y 
   - "🔥 [Nombre] le mandó ánimo a [Nombre]"
   Junto a los logros de los compañeros hay un botón (👏 ¡Bien ahí!, 🔥 ¡Sigue así! o 💪 ¡Vamos!) para mandarle ánimo ahí mismo (cuenta como el ánimo del día para esa persona). Solo cuenta lo que pasó desde que cada uno entró al equipo. Al principio sale vacía ("Todavía no hay movimiento…").
 - **"Ir al chat del equipo"**: abre el grupo de WhatsApp del equipo (si el capitán puso el enlace). Para el Team Beast es la comunidad de WhatsApp de Jonah. Dentro de la app no hay chat (no se escribe texto): ahí van los ánimos, la actividad y el muro de la comunidad (12.3); la conversación libre, si el equipo quiere, es en su grupo de WhatsApp (es opcional: si no hay enlace, el botón no sale). En el Team Beast, el canal de avisos de la comunidad es para los mensajes de Jonah (los alumnos pueden reaccionar o escribirle por privado).
-- El **capitán** puede poner o cambiar el **apodo**, el enlace del grupo de WhatsApp y el **premio** (lápiz ✏️ arriba a la derecha). Mientras el reto no empieza, puede cambiar todo el reto con **"⚙️ Cambiar el reto: tipo, meta, fechas y premio"** (en el Team Beast: "📅 Cambiar fechas, meta y premio del reto", en cualquier momento). Cuando el reto termina, le sale **"ARRANCA OTRO RETO"**.
+- El **capitán** puede poner o cambiar el **apodo**, el enlace del grupo de WhatsApp y el **premio** (lápiz ✏️ arriba a la derecha). Mientras el reto no empieza, puede cambiar todo el reto con **"⚙️ Cambiar el reto: tipo, meta, fechas y premio"**, que abre los mismos pasos de "Crear mi equipo" (sin el apodo) y termina en **"Guardar reto"**. Cuando el reto termina, le sale **"🔁 Arrancar otro reto"** (los mismos pasos). En el Team Beast: "📅 Cambiar fechas, meta y premio del reto", en cualquier momento, y "ARRANCA OTRO RETO" al terminar.
 - **"Salir del equipo"** (abajo, letra pequeña): pregunta "¿SALIR DE …?" con **"Salir del equipo"** o **"Cancelar"**. Si sale el capitán, el integrante más antiguo pasa a ser capitán.
 
 Problemas:
 - "No encontramos un equipo con ese código" → revisar que esté bien escrito; si el equipo se cerró, ya no se puede entrar.
 - "Ese equipo ya está completo" → llegó a 30 integrantes.
 - "Ya estás en 3 equipos" → salir de uno para entrar a otro.
-- "Bajé de peso y no se ve en el equipo" → revisar en "TU AVANCE" que no esté en "Solo constancia" y que tenga un peso anotado al empezar; se cuenta con el pesaje de cada semana y como mucho 1% por semana.
-- "Esa meta es muy rápida" → como mucho 1 kg o 1% por semana de reto: alargar la fecha o bajar la meta.
+- "Bajé (o subí) de peso y no se ve en el equipo" → revisar en "TU AVANCE" que no esté en "Solo constancia" y que tenga un peso anotado al empezar; se cuenta con el pesaje de cada semana y como mucho 1% por semana al bajar (½ kg al subir).
+- "Esa meta es muy rápida" → como mucho 1 kg o 1% por semana para bajar, ½ kg por semana para subir: en el paso "¿CUÁNDO?" tocar "Darles [N] semanas" o bajar la meta.
+- "¿Cómo armo un reto con mis compañeros del trabajo para bajar 3 kg?" → "Crear mi equipo" → Bajar de peso → Carrera (o Juntos) → 3 kg → cuándo → premio → "Crear mi reto" → "Invitar por WhatsApp".
 - "Registré y no me sale el ✓" → el ✓ es con 3 comidas o más del día (desayuno, media mañana, almuerzo, media tarde y cena cuentan por separado); con 1 o 2 sale "–". Se actualiza al volver a abrir el equipo.
 
 

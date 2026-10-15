@@ -38,7 +38,7 @@ bajar,peso,adelgazar,kcal,proteina,macros,comida,peruana,foto,plato,nutricion,me
 Tómale foto a tu plato y mira sus calorías al toque. Sin dietas raras: sigues comiendo lo que te gusta, comida a comida.
 ```
 
-- **Descripción** (máx. 4000; **sin emojis**: Apple marcó "caracteres no válidos" el 15 de octubre):
+- **Descripción** (máx. 4000; **sin emojis ni viñetas "•"**, solo guiones: Apple marcó "caracteres no válidos" el 15 de octubre):
 
 ```
 Soy Jonah. Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi propia app, sumándole entrenamiento algunos días y disciplina. No dejé la comida peruana: aprendí a medirla. El cambio llega poco a poco, comida a comida.
@@ -46,13 +46,13 @@ Soy Jonah. Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 mese
 Jonah Beast Fuel es un contador de calorías sin dieta: no te prohíbe nada, te ayuda a saber cuánto comes para que llegues a tu meta.
 
 ¿Qué puedes hacer con la app?
-• Contar calorías con una foto: tómale foto a tu plato y la app reconoce tu comida y calcula sus calorías, proteína, carbohidratos y grasa.
-• Calorías de la comida peruana: lomo saltado, ají de gallina, pollo a la brasa, ceviche, menú del día y cientos de platos más, en medida casera (plato, unidad, porción) o en gramos si usas balanza.
-• Bajar de peso sin dieta: sigues comiendo lo que te gusta y la app te dice cuánto te queda cada día para llegar a tu meta.
-• Proteína y macros: tu plan de calorías y proteína según tu peso, tu objetivo y tu actividad, para bajar grasa o ganar músculo.
-• Beast, tu compañero: escríbele o háblale para anotar tu comida, saber cómo vas o qué comer.
-• Tu progreso: peso, grasa, músculo y racha de días, semana a semana.
-• Recordatorios para que no se te pase anotar.
+- Contar calorías con una foto: tómale foto a tu plato y la app reconoce tu comida y calcula sus calorías, proteína, carbohidratos y grasa.
+- Calorías de la comida peruana: lomo saltado, ají de gallina, pollo a la brasa, ceviche, menú del día y cientos de platos más, en medida casera (plato, unidad, porción) o en gramos si usas balanza.
+- Bajar de peso sin dieta: sigues comiendo lo que te gusta y la app te dice cuánto te queda cada día para llegar a tu meta.
+- Proteína y macros: tu plan de calorías y proteína según tu peso, tu objetivo y tu actividad, para bajar grasa o ganar músculo.
+- Beast, tu compañero: escríbele o háblale para anotar tu comida, saber cómo vas o qué comer.
+- Tu progreso: peso, grasa, músculo y racha de días, semana a semana.
+- Recordatorios para que no se te pase anotar.
 
 Cada persona es distinta y los resultados también: la app te acompaña, el cambio lo haces tú.
 

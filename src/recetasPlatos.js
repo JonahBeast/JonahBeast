@@ -12,27 +12,51 @@
    Solo platos que se arman con partes que ya están en la app. Los
    guisos (ají de gallina, lomo saltado…) se quedan como plato. */
 export const RECETAS_PLATOS = {
-  'Pan con pollo (-)': [
+  'Pan con pollo (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Pollo pechuga (Cocida)', 90, 'gramos'],
     ['Mayonesa (-)', 1, 'cucharada'], ['Lechuga (Cruda)', 10, 'gramos'],
   ],
-  'Pan con jamonada (-)': [
+  'Pan con pollo (Pan integral)': [
+    ['Pan integral (-)', 35, 'gramos'], ['Pollo pechuga (Cocida)', 90, 'gramos'],
+    ['Mayonesa (-)', 1, 'cucharada'], ['Lechuga (Cruda)', 10, 'gramos'],
+  ],
+  'Pan con jamonada (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Jamonada (-)', 2, 'rebanada'],
   ],
-  'Pan con chicharrón (-)': [
+  'Pan con jamonada (Pan integral)': [
+    ['Pan integral (-)', 35, 'gramos'], ['Jamonada (-)', 2, 'rebanada'],
+  ],
+  'Pan con chicharrón (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Chicharrón de chancho (-)', 100, 'gramos'],
     ['Camote (Cocido)', 60, 'gramos'], ['Cebolla (Cruda)', 25, 'gramos'],
   ],
-  'Hot dog (-)': [
+  'Pan con chicharrón (Pan integral)': [
+    ['Pan integral (-)', 35, 'gramos'], ['Chicharrón de chancho (-)', 100, 'gramos'],
+    ['Camote (Cocido)', 60, 'gramos'], ['Cebolla (Cruda)', 25, 'gramos'],
+  ],
+  'Hot dog (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Salchicha (hot dog) (-)', 1, 'unidad'],
     ['Mayonesa (-)', 1, 'cucharadita'],
   ],
-  'Hamburguesa de carretilla (-)': [
+  'Hot dog (Pan integral)': [
+    ['Pan integral (-)', 35, 'gramos'], ['Salchicha (hot dog) (-)', 1, 'unidad'],
+    ['Mayonesa (-)', 1, 'cucharadita'],
+  ],
+  'Hamburguesa de carretilla (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Carne molida de res (Cocida)', 80, 'gramos'],
     ['Papas fritas (comida rápida) (-)', 40, 'gramos'], ['Mayonesa (-)', 2, 'cucharadita'],
     ['Lechuga (Cruda)', 10, 'gramos'], ['Tomate (Crudo)', 15, 'gramos'],
   ],
-  'Sándwich de pollo (-)': [
+  'Hamburguesa de carretilla (Pan integral)': [
+    ['Pan integral (-)', 35, 'gramos'], ['Carne molida de res (Cocida)', 80, 'gramos'],
+    ['Papas fritas (comida rápida) (-)', 40, 'gramos'], ['Mayonesa (-)', 2, 'cucharadita'],
+    ['Lechuga (Cruda)', 10, 'gramos'], ['Tomate (Crudo)', 15, 'gramos'],
+  ],
+  'Sándwich de pollo (Pan blanco)': [
+    ['Pan de molde blanco (-)', 2, 'rebanada'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
+    ['Mayonesa (-)', 2, 'cucharadita'], ['Lechuga (Cruda)', 10, 'gramos'], ['Tomate (Crudo)', 20, 'gramos'],
+  ],
+  'Sándwich de pollo (Pan integral)': [
     ['Pan integral (-)', 2, 'rebanada'], ['Pollo pechuga (Cocida)', 70, 'gramos'],
     ['Mayonesa (-)', 2, 'cucharadita'], ['Lechuga (Cruda)', 10, 'gramos'], ['Tomate (Crudo)', 20, 'gramos'],
   ],
@@ -94,3 +118,9 @@ export const RECETAS_PLATOS = {
     ['Lechuga (Cruda)', 40, 'gramos'], ['Tomate (Crudo)', 30, 'gramos'],
   ],
 };
+
+// Lo que ya se anotó antes de separar los sándwiches por pan (15 oct)
+// era en pan blanco: se separa con la misma receta.
+for (const n of ['Pan con pollo', 'Pan con jamonada', 'Pan con chicharrón', 'Hot dog', 'Hamburguesa de carretilla', 'Sándwich de pollo']) {
+  RECETAS_PLATOS[`${n} (-)`] = RECETAS_PLATOS[`${n} (Pan blanco)`];
+}

@@ -1909,6 +1909,81 @@
    "estado": "verificado",
    "fuente": "Receta promedio: pierna (muslo + pierna) y pecho (pechuga + ala) de pollo con piel, USDA FoodData Central; pollada apanada y frita, pollo a la brasa asado. Carne sin hueso. Pedido de Jonah (12 oct 2026): en Perú se pide cuarto u octavo, pierna o pecho",
    "verificado_en": "2026-10-12"
+  },
+  "Pan con jamonada (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan con jamonada (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan con pollo (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan con pollo (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan con chicharrón (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan con chicharrón (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Butifarra (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Butifarra (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Hot dog (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Hot dog (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Hamburguesa de carretilla (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Hamburguesa de carretilla (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Sándwich de pollo (Pan blanco)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Sándwich de pollo (Pan integral)": {
+   "estado": "verificado",
+   "fuente": "Calculado (15 oct) desde el plato verificado: mismo relleno, cambiando el pan por pan integral o pan blanco con sus valores de TPCA Perú 2017 / USDA FoodData Central",
+   "verificado_en": "2026-10-15"
+  },
+  "Pan de molde blanco (-)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central (pan blanco de molde ~265 kcal/100 g); rebanada típica de 30 g",
+   "verificado_en": "2026-10-15"
   }
  }
 }

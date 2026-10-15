@@ -4785,6 +4785,12 @@ function fmtS(n) {
   return 'S/' + Number(n).toFixed(2);
 }
 
+// Precio en la moneda de la tienda de Apple (en Perú, soles; con un Apple ID de otro país, su moneda).
+function fmtMoneda(n, moneda) {
+  if (!moneda || moneda === 'PEN') return fmtS(n);
+  try { return new Intl.NumberFormat('es-PE', { style: 'currency', currency: moneda }).format(n); } catch { return fmtS(n); }
+}
+
 // Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
   'Beast, tu compañero, contigo todos los días: le hablas y te anota todo. Sin monedas, sin cobros extra',
@@ -5336,9 +5342,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                       {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
                     </div>
                     <div className="text-right">
-                      <p className="jb-display text-2xl text-orange-500">{producto.precio}<span className="jb-body text-xs text-zinc-400"> {periodo}</span></p>
+                      <p className="jb-display text-2xl text-orange-500">{producto.precio}<span className="jb-body text-xs text-zinc-400 whitespace-nowrap"> {periodo}</span></p>
                       {plan.meses > 1 && Number(producto.valor) > 0 && (
-                        <p className="jb-body text-xs text-zinc-400">equivale a {fmtS(Number(producto.valor) / plan.meses)} al mes</p>
+                        <p className="jb-body text-xs text-zinc-400">equivale a {fmtMoneda(Number(producto.valor) / plan.meses, producto.moneda)} al mes</p>
                       )}
                     </div>
                   </div>

@@ -41,7 +41,7 @@ Tómale foto a tu plato y mira sus calorías al toque. Sin dietas raras: sigues 
 - **Descripción** (máx. 4000; **sin emojis ni viñetas "•"**, solo guiones: Apple marcó "caracteres no válidos" el 15 de octubre):
 
 ```
-Soy Jonah. Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi propia app, sumándole entrenamiento algunos días y disciplina. No dejé la comida peruana: aprendí a medirla. El cambio llega poco a poco, comida a comida.
+Soy Jonah. Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi propia app, sumándole entrenamiento algunos días y disciplina. No dejé la comida peruana: aprendí a medirla. El cambio llega poco a poco, comida a comida.
 
 Jonah Beast Fuel es un contador de calorías sin dieta: no te prohíbe nada, te ayuda a saber cuánto comes para que llegues a tu meta.
 

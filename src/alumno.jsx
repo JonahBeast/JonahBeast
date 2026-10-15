@@ -13452,7 +13452,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             onPlanes={() => { setTab('planes'); window.scrollTo({ top: 0 }); }} />
         )}
         {tab === 'equipo' && <ComunidadTab username={username} nombre={userRecord?.nombre} vista={vistaComunidad} onVista={setVistaComunidad}
-          avisoEquipos={avisoEquipo} onAnimosVistos={revisarAvisoEquipo} onMuroVisto={() => setAvisoMuro(false)} />}
+          avisoEquipos={avisoEquipo} onAnimosVistos={revisarAvisoEquipo} onMuroVisto={() => setAvisoMuro(false)}
+          onAnotarPeso={() => setPesoFacil(true)} pesoFecha={form.pesoFecha} />}
       </main>
       {/* El pie deja espacio debajo para que la burbuja de Beast (más alta en
           Comidas) no tape "Mi perfil" ni "Política de Privacidad". */}

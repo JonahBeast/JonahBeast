@@ -140,7 +140,7 @@ export function CompartirPlato({ username, comida, blob, previewUrl, plato, onLi
 }
 
 
-export function ComunidadTab({ username, nombre, vista, onVista, avisoEquipos, onAnimosVistos, onMuroVisto }) {
+export function ComunidadTab({ username, nombre, vista, onVista, avisoEquipos, onAnimosVistos, onMuroVisto, onAnotarPeso, pesoFecha }) {
   function cambiar(v) { guardarVistaComunidad(v); onVista(v); window.scrollTo({ top: 0 }); }
   return (
     <div className="pt-2">
@@ -159,7 +159,7 @@ export function ComunidadTab({ username, nombre, vista, onVista, avisoEquipos, o
       </div>
       {vista === 'muro'
         ? <Muro onIrEquipos={() => cambiar('equipos')} onVisto={onMuroVisto} />
-        : <EquipoTab username={username} nombre={nombre} onAnimosVistos={onAnimosVistos} sinTitulo />}
+        : <EquipoTab username={username} nombre={nombre} onAnimosVistos={onAnimosVistos} onAnotarPeso={onAnotarPeso} pesoFecha={pesoFecha} sinTitulo />}
     </div>
   );
 }

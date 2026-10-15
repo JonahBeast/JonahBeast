@@ -23,7 +23,7 @@
 // - Crear (o cambiar) un reto se hace PASO A PASO (PasosReto): qué quieren
 //   lograr → cómo quieren jugar → la meta → cuándo → el premio → resumen,
 //   una pregunta por pantalla (pedido por Jonah el 15 de octubre).
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Copy, KeyRound, LogOut, Pencil, Users } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { btnPrimary, btnGhost, inputCls, showToast, confirmar, vibrar, Skeleton } from './App.jsx';
@@ -119,6 +119,15 @@ function textoInvitacionEquipo(eq, ref) {
   return `¡Únete a mi equipo, el ${nombreCompleto(eq)}, en Jonah Beast Fuel! 🦍 Es un reto en grupo: registramos lo que comemos y nos damos ánimo, comida a comida.${eq.premio ? ` 🎁 Premio: ${eq.premio}.` : ''} Entra con este enlace: ${link} (o pon el código ${eq.codigo} en Comunidad → Mis equipos)`;
 }
 
+// Recordatorio del capitán para los que todavía no están listos.
+function textoRecordatorio(eq, ref) {
+  const boton = eq.objetivo === 'carrera' ? 'Competir con mi avance' : 'Mostrar mi avance';
+  return `¡Equipo! 🦍 Para que sus kilos cuenten en el reto ${nombreCompleto(eq)} (${fraseReto(eq.objetivo, eq.sentido, eq.meta_tipo, eq.meta_valor).replace(/^\S+\s/, '')}), hagan estos 2 pasos en la app:\n`
+    + `1) Entren al equipo (Comunidad → Mis equipos) y toquen "${boton}".\n`
+    + `2) Toquen "⚖️ Anotar mi peso" ahí mismo.\n`
+    + `Nadie ve su peso, solo los kilos que ${eq.sentido === 'subir' ? 'suben' : 'bajan'} 🔒 Entren aquí: ${linkEquipo(eq.codigo, ref)}`;
+}
+
 // "🏁 Carrera: gana el primero en bajar 3 kg", "🤝 Juntos: cada uno sube 2 kg"…
 function fraseReto(objetivo, sentido, metaTipo, metaValor) {
   const v = fmtNum(metaValor);
@@ -170,7 +179,7 @@ export function Tarjeta({ children, className = '' }) {
   return <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 ${className}`}>{children}</div>;
 }
 
-export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false }) {
+export function EquipoTab({ username, nombre, onAnimosVistos, onAnotarPeso, pesoFecha, sinTitulo = false }) {
   const [mis, setMis] = useState(null);
   const [abierto, setAbierto] = useState(null); // id del equipo abierto
   const [vista, setVista] = useState('lista'); // lista | crear | codigo
@@ -196,9 +205,13 @@ export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false 
     });
   }, [username]);
 
-  async function unirse(codigo, porEnlace = false) {
+  // nivel: 'avance' (entra compitiendo) o 'total' (suma su avance en
+  // privado), elegido con el botón de la invitación; sin nivel, solo
+  // constancia.
+  async function unirse(codigo, porEnlace = false, nivel = null) {
     setOcupado(true);
     const { r, ok, error } = await llamar('equipo_unirse', { p_codigo: codigo, p_por_enlace: porEnlace });
+    if (ok && nivel && r?.id) await llamar('equipo_compartir', { p_id: r.id, p_nivel: nivel });
     setOcupado(false);
     if (!ok) { showToast(mensajeError(r, error), 'error'); return false; }
     olvidarInvitacionEquipo();
@@ -212,7 +225,7 @@ export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false 
   }
 
   if (abierto) {
-    return <EquipoDetalle id={abierto} username={username}
+    return <EquipoDetalle id={abierto} username={username} onAnotarPeso={onAnotarPeso} pesoFecha={pesoFecha}
       onVolver={() => { setAbierto(null); cargar(); }}
       onSalio={() => { setAbierto(null); cargar(); }}
       onAnimosVistos={onAnimosVistos} />;
@@ -243,9 +256,41 @@ export function EquipoTab({ username, nombre, onAnimosVistos, sinTitulo = false 
           <p className="jb-display text-xl text-zinc-50">{invitacion.nombre}</p>
           {invitacion.apodo && <p className="jb-display text-base text-orange-400 -mt-0.5">{invitacion.apodo}</p>}
           <p className="jb-body text-xs text-zinc-400 mb-3">{invitacion.miembros} {invitacion.miembros === 1 ? 'integrante' : 'integrantes'}</p>
-          <button onClick={() => unirse(invitacion.codigo, true)} disabled={ocupado} className={btnPrimary + ' w-full py-3'}>
-            {ocupado ? <Loader2 className="animate-spin" size={16} /> : 'Unirme al equipo'}
-          </button>
+          {(() => {
+            // "Así se juega este reto": cómo se gana, fechas, premio y, en los
+            // de peso, que nadie ve su peso. En los de peso se entra ya
+            // compitiendo (carrera) o sumando en privado (juntos) con un toque.
+            const inv = invitacion;
+            const conPesoInv = !inv.oficial && inv.objetivo && inv.objetivo !== 'comer' && inv.meta_tipo;
+            const nivel = inv.objetivo === 'carrera' ? 'avance' : 'total';
+            const lineas = inv.oficial || !inv.objetivo ? [] : [
+              fraseReto(inv.objetivo, inv.sentido, inv.meta_tipo, inv.meta_valor),
+              inv.inicio && inv.fin ? `📅 Del ${fechaLarga(inv.inicio)} al ${fechaLarga(inv.fin)}` : null,
+              inv.premio ? (/^\p{Extended_Pictographic}/u.test(inv.premio) ? inv.premio : `🎁 ${inv.premio}`) : null,
+              conPesoInv ? `🔒 Nadie ve tu peso, solo los kilos que ${inv.sentido === 'subir' ? 'subes' : 'bajas'}` : null,
+            ].filter(Boolean);
+            return (
+              <>
+                {lineas.length > 0 && (
+                  <>
+                    <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Así se juega este reto</p>
+                    <ul className="mb-4">
+                      {lineas.map((l, i) => (
+                        <li key={i} className={`jb-body text-sm py-1.5 ${i ? 'border-t border-zinc-800 text-zinc-200' : 'font-semibold text-zinc-50'}`}>{l}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                <button onClick={() => unirse(inv.codigo, true, conPesoInv ? nivel : null)} disabled={ocupado} className={btnPrimary + ' w-full py-3'}>
+                  {ocupado ? <Loader2 className="animate-spin" size={16} /> : conPesoInv ? (nivel === 'avance' ? 'Unirme y competir' : 'Unirme y sumar mi avance') : 'Unirme al equipo'}
+                </button>
+                {conPesoInv && (
+                  <button onClick={() => unirse(inv.codigo, true)} disabled={ocupado}
+                    className="block mx-auto jb-body text-xs text-zinc-400 hover:text-zinc-200 mt-2.5">Unirme solo con mi constancia</button>
+                )}
+              </>
+            );
+          })()}
           <button onClick={() => { olvidarInvitacionEquipo(); setInvitacion(null); }}
             className="block mx-auto jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-2">Ahora no</button>
         </Tarjeta>
@@ -937,7 +982,7 @@ function Casilla({ estado }) {
   return <span className={`${base} opacity-0`} />;
 }
 
-function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
+function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos, onAnotarPeso, pesoFecha }) {
   const [eq, setEq] = useState(null);
   const [semana, setSemana] = useState(null); // lunes de la semana que se ve (null = la actual)
   const [abiertoRef, setAbiertoRef] = useState(null);
@@ -958,6 +1003,18 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
     }
   }
   useEffect(() => { cargar(semana); }, [id, semana]);
+  // Si anota su peso (con "⚖️ Anotar mi peso"), se marca al toque y se
+  // vuelve a cargar el equipo cuando el peso ya llegó a la base.
+  const [pesoRecien, setPesoRecien] = useState(false);
+  const pesoFechaInicial = useRef(pesoFecha);
+  useEffect(() => {
+    if (!pesoFecha || pesoFecha === pesoFechaInicial.current) return;
+    pesoFechaInicial.current = pesoFecha;
+    setPesoRecien(true);
+    const t1 = setTimeout(() => cargar(), 3000);
+    const t2 = setTimeout(() => cargar(), 9000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [pesoFecha]);
   const [actividad, setActividad] = useState(null);
   function cargarActividad() {
     llamar('equipo_actividad', { p_id: id }).then(({ r, ok }) => setActividad(ok ? r.eventos || [] : []));
@@ -1079,6 +1136,20 @@ function EquipoDetalle({ id, username, onVolver, onSalio, onAnimosVistos }) {
 
       {eq.terminado && (podio.length > 0 || ganadorCarrera || eq.progreso?.cumplida) && (
         <Podio eq={eq} podio={podio} ganadorCarrera={ganadorCarrera} />
+      )}
+
+      {conPeso && eq.yo && !eq.terminado && (
+        <ListoParaCompetir eq={eq} pesoRecien={pesoRecien} onCompartir={compartir} onAnotarPeso={onAnotarPeso} />
+      )}
+      {conPeso && eq.soy_capitan && eq.faltan > 0 && !eq.terminado && eq.dia_actual <= 7 && (
+        <Tarjeta className="mb-3">
+          <p className="jb-display text-base text-zinc-100 mb-1">⏳ {eq.faltan} DE {eq.adultos} TODAVÍA NO {eq.faltan === 1 ? 'ESTÁ LISTO' : 'ESTÁN LISTOS'}</p>
+          <p className="jb-body text-xs text-zinc-400 mb-3">Les falta anotar su peso de inicio o tocar "{eq.objetivo === 'carrera' ? 'Competir con mi avance' : 'Mostrar mi avance'}". Sin eso, sus kilos no cuentan. (No sabemos quiénes: el peso de cada uno es privado.)</p>
+          <a href={`https://wa.me/?text=${encodeURIComponent(textoRecordatorio(eq, ref))}`} target="_blank" rel="noopener noreferrer"
+            className={btnGhost + ' w-full py-2.5 rounded-xl text-sm'}>
+            <MessageCircle size={15} /> Recordarles por WhatsApp
+          </a>
+        </Tarjeta>
       )}
 
       {eq.progreso && <MetaEquipo eq={eq} />}
@@ -1407,6 +1478,69 @@ function MetaEquipo({ eq }) {
         <p className="jb-body text-sm text-orange-300 mt-2">🏆 ¡Meta cumplida! Al terminar el reto, todos reciben la medalla.</p>
       )}
     </Tarjeta>
+  );
+}
+
+// LISTO PARA COMPETIR: en los retos de peso, arriba en el equipo, los 2
+// pasos para que sus kilos cuenten: elegir competir (o sumar su avance) y
+// anotar su peso de inicio ahí mismo. Al completarlos sale "¡Listo para
+// competir!" ese día; después se oculta. Pasada la primera semana del reto
+// ya no se puede fijar el peso de inicio, así que no sale.
+function ListoParaCompetir({ eq, pesoRecien, onCompartir, onAnotarPeso }) {
+  const yo = eq.yo;
+  const hoy = hoyISO();
+  const clave = `jb-listo-${eq.id}`;
+  const desde = masDias(eq.inicio, -14);
+  const carrera = eq.objetivo === 'carrera';
+  const compartido = yo.comparte !== 'nada';
+  const conPeso = !yo.sin_pesaje || (pesoRecien && hoy >= desde);
+  const listo = compartido && conPeso;
+  const [vistoListo] = useState(() => { try { return localStorage.getItem(clave); } catch { return null; } });
+  useEffect(() => {
+    if (listo && !vistoListo) { try { localStorage.setItem(clave, hoy); } catch { /* sin almacenamiento */ } }
+  }, [listo]);
+  if (yo.menor || hoy > masDias(eq.inicio, 6)) return null;
+
+  if (listo) {
+    if (vistoListo && vistoListo < hoy) return null;
+    return (
+      <div className="rounded-2xl border border-emerald-800/70 bg-emerald-950/50 p-4 mb-3">
+        <p className="jb-display text-lg text-emerald-200">✅ ¡LISTO PARA {carrera ? 'COMPETIR' : 'SUMAR'}!</p>
+        <p className="jb-body text-sm text-emerald-200/90 mt-1">
+          Tu peso de inicio quedó guardado (solo lo ves tú). Cada domingo anota tu pesaje en Inicio y registra tus comidas: comida a comida 💪
+        </p>
+      </div>
+    );
+  }
+
+  const faltan = (compartido ? 0 : 1) + (conPeso ? 0 : 1);
+  const paso = (hecho, titulo, ayuda, boton) => (
+    <li className="flex items-start gap-3 py-2.5 border-t border-zinc-800 first:border-t-0">
+      <span className={`w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center text-xs font-bold ${hecho ? 'bg-emerald-500 border-emerald-500 text-zinc-950' : 'border-zinc-600'}`}>{hecho ? '✓' : ''}</span>
+      <span className="flex-1 min-w-0">
+        <span className={`block jb-body text-sm ${hecho ? 'text-zinc-400' : 'text-zinc-50 font-semibold'}`}>{titulo}</span>
+        {!hecho && ayuda && <span className="block jb-body text-xs text-zinc-400 mt-0.5">{ayuda}</span>}
+        {!hecho && boton}
+      </span>
+    </li>
+  );
+  return (
+    <div className="rounded-2xl border border-orange-500/70 bg-zinc-900 p-4 mb-3">
+      <p className="jb-display text-lg text-zinc-50 leading-tight">PARA {carrera ? 'COMPETIR' : 'SUMAR TU AVANCE'} TE {faltan === 1 ? 'FALTA 1 PASO' : 'FALTAN 2 PASOS'}</p>
+      <p className="jb-body text-xs text-zinc-400 mb-1">{eq.dia_actual > 0 ? 'El reto ya empezó: hazlo hoy para que tus kilos cuenten.' : `Empieza el ${fechaLarga(eq.inicio)}.`}</p>
+      <ul>
+        {paso(compartido, carrera ? 'Competir con mi avance' : 'Sumar mi avance',
+          carrera ? 'El equipo ve tus kilos, nunca tu peso.' : 'Tu avance suma al total del equipo, sin verse por separado.',
+          <button onClick={() => onCompartir(carrera ? 'avance' : 'total')} className={btnPrimary + ' w-full py-2.5 rounded-xl text-sm mt-2'}>
+            {carrera ? '🏁 Competir con mi avance' : '🤝 Sumar mi avance'}
+          </button>)}
+        {paso(conPeso, 'Anotar mi peso de inicio',
+          hoy < desde ? `Anótalo a partir del ${fechaLarga(desde)} (vale el de hasta 2 semanas antes de empezar).` : 'Sin peso de inicio, tus kilos no cuentan. Solo lo ves tú.',
+          hoy >= desde && (onAnotarPeso
+            ? <button onClick={onAnotarPeso} className={btnPrimary + ' w-full py-2.5 rounded-xl text-sm mt-2'}>⚖️ Anotar mi peso</button>
+            : <span className="block jb-body text-xs text-orange-300 mt-1">Anótalo en la pestaña "Mi cuerpo".</span>))}
+      </ul>
+    </div>
   );
 }
 

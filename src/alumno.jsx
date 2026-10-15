@@ -7229,7 +7229,7 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta }) {
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta, onPersonales }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | etiqueta | limite | error | compartir
   // La foto era una tabla nutricional y no se pudo leer (Premium, tope del
@@ -7287,6 +7287,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   // no vio (queda marcado como _manual: no cuenta como acierto ni error de
   // la IA).
   const [agregandoExtra, setAgregandoExtra] = useState(false);
+  // "No encontramos…" → "+ Crear mi alimento" en la foto: se crea aquí mismo y
+  // queda en el plato (antes el botón solo cerraba el buscador). { texto, para: id | null }
+  const [creando, setCreando] = useState(null);
   function agregarFaltante(key) {
     const food = buscarFood(key);
     setAgregandoExtra(false);
@@ -7672,6 +7675,20 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-5" onClick={e => e.stopPropagation()}>
         <AsaHoja onCerrar={cerrar} />
         <style>{ESTILOS_ESCANER}</style>
+        {creando && (
+          <CrearAlimentoModal username={username} nombreInicial={creando.texto}
+            onCerrar={() => setCreando(null)} onRevisado={onPersonales}
+            onCreado={async nombre => {
+              await onPersonales?.();
+              const key = (nombre || creando.texto).trim() + ' (mío)';
+              if (creando.para) { setCorrecciones(v => ({ ...v, [creando.para]: key })); setCorrigiendo(null); }
+              else agregarFaltante(key);
+            }}
+            onElegirExistente={food => {
+              if (creando.para) { setCorrecciones(v => ({ ...v, [creando.para]: food.key })); setCorrigiendo(null); }
+              else agregarFaltante(food.key);
+            }} />
+        )}
         <div className="flex items-center justify-between mb-4">
           <h2 className="jb-display text-base text-orange-500 flex items-center gap-2"><Camera size={18} /> RECONOCER POR FOTO</h2>
           <button onClick={cerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5"><X size={18} /></button>
@@ -7800,7 +7817,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                     <p className="jb-body text-[11px] text-zinc-400 mb-1">{rapidas.length ? 'Si no, búscalo' : 'Búscalo'} y la próxima foto ya lo sabrá:</p>
                     <BuscadorAlimento username={username} valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
                       onElegir={key => { setCorrecciones(v => ({ ...v, [id]: key })); setCorrigiendo(null); }}
-                      onNoEncuentra={() => setCorrigiendo(null)} />
+                      onNoEncuentra={texto => setCreando({ texto, para: id })} />
                     <button type="button" onClick={() => setCorrigiendo(null)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
                   </div>
                 ) : null;
@@ -7978,7 +7995,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 mb-4">
                 <p className="jb-body text-[11px] text-zinc-400 mb-1">¿Qué más tenía tu plato? Búscalo:</p>
                 <BuscadorAlimento username={username} valor="" alimentos={todosLosAlimentos.filter(a => !a.esProducto)} autoFocus permitirPedido={false}
-                  onElegir={agregarFaltante} onNoEncuentra={() => setAgregandoExtra(false)} />
+                  onElegir={agregarFaltante} onNoEncuentra={texto => setCreando({ texto, para: null })} />
                 <button type="button" onClick={() => setAgregandoExtra(false)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 mt-1 underline">Cancelar</button>
               </div>
             ) : (
@@ -10318,6 +10335,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onEtiqueta={producto => { const m = fotoPara; setFotoPara(null); setEtiquetaLeida(producto); setCodigoPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
+          onPersonales={cargarPersonales}
         />
       )}
       {!ayudaCerrada && (

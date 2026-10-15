@@ -5976,7 +5976,8 @@ try {
 function avisarRegistroTikTok(userId) {
   const eventId = userId ? `reg_${userId}` : undefined;
   try { if (window.ttq) window.ttq.track('CompleteRegistration', {}, eventId ? { event_id: eventId } : undefined); } catch (e) {}
-  if (!userId) return;
+  // En la app de iPhone no se mide para anuncios (Apple lo cuenta como rastreo).
+  if (!userId || esAppIOS()) return;
   try {
     let ttclid = null;
     try {

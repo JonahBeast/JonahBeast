@@ -3948,7 +3948,7 @@ function ActivacionPanel({ users }) {
 // conversión, cobros de Jarvis).
 // Los verificadores de Google Play (ver esVerificadorPlay en listaCarino.js)
 // tampoco cuentan: el panel los anota aquí apenas carga la lista de alumnos.
-const CUENTAS_PROPIAS = ['martin'];
+const CUENTAS_PROPIAS = ['martin', 'jhc10_05apple', '4hfy7tnvwh']; // Jonah, la cuenta para el revisor de Apple y su cuenta de prueba con Apple (13 oct)
 const VERIFICADORES = new Set();
 // En vez del botón de WhatsApp, cuando no hay número al que escribir.
 const SinCelular = () => <span className="jb-body text-[11px] text-zinc-500 shrink-0">sin celular</span>;
@@ -10744,7 +10744,7 @@ Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, un reto 
 
 ¿Cómo funciona? Simple: cada día que registras tus comidas sumas puntos. Con 3 comidas o más, el día queda con ✓. Aquí *no gana el que más baja, gana el más constante*. Y nadie ve tu peso ni lo que comes, solo tus días cumplidos.
 
-Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
+Hace unos años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
 
 👉 Para unirte:
 1. Abre la app.

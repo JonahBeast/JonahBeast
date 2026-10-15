@@ -170,7 +170,7 @@ ${PIXEL}
 </header>`;
 }
 
-const HISTORIA = 'Soy Jonah. Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi propia app, sumándole entrenamiento algunos días y disciplina. No dejé la comida peruana: aprendí a medirla. El cambio llega poco a poco, comida a comida.';
+const HISTORIA = 'Soy Jonah. Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi propia app, sumándole entrenamiento algunos días y disciplina. No dejé la comida peruana: aprendí a medirla. El cambio llega poco a poco, comida a comida.';
 
 function pie() {
   return `<footer>

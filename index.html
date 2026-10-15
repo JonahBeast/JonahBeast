@@ -55,9 +55,13 @@
     <meta name="apple-mobile-web-app-title" content="JB Fuel" />
     <meta name="mobile-web-app-capable" content="yes" />
 
+    <!-- Píxeles de TikTok y Meta: no se cargan dentro de la app de iPhone
+         (Apple cuenta la medición de anuncios como "rastreo" y exige pedir
+         permiso con su ventana; ahí no medimos). En la web y Android, igual. -->
+    <script>window.__jbSinPixeles = /JBFuel-iOS/.test(navigator.userAgent);</script>
     <!-- Píxel de TikTok Ads -->
     <script>
-    !function (w, d, t) {
+    if (!window.__jbSinPixeles) !function (w, d, t) {
       w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<e.methods.length;n++)ttq.setAndDefer(e,e.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
 
       ttq.load('DAJMS3JC77UES9751Q2G');
@@ -67,6 +71,7 @@
 
     <!-- Píxel de Meta (Facebook / Instagram Ads) -->
     <script>
+    if (!window.__jbSinPixeles) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -77,6 +82,7 @@
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '1084905720987308');
     fbq('track', 'PageView');
+    }
     </script>
   </head>
   <body>

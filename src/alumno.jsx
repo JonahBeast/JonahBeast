@@ -317,7 +317,7 @@ const EMOJI_POR_NOMBRE = [
   [/picar[oó]n|churro|donut|dona\b/, '🍩'], [/helado/, '🍨'],
   [/ceviche|tiradito|sudado|parihuela/, '🐟'], [/sopa|caldo|chupe|aguadito|sancochado|patasca|menestr[oó]n|locro/, '🍲'],
   [/pollo a la brasa|broaster|pollada/, '🍗'], [/tamal|humita|juane/, '🫔'], [/wrap|twister/, '🌯'],
-  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
+  [/ensalada/, '🥗'], [/sandwich|s[aá]ndwich|s[aá]nguche|^triple\b|butifarra|pan con|^pan\b|tostada|rapiditas|cachanga/, '🍞'],
   [/tallar[ií]n|fideo|spaghetti|espagueti|pasta\b|lasa[ñn]a/, '🍝'],
   [/chaufa|arroz/, '🍚'], [/avena|quinua|granola|cereal|kiwicha|ca[ñn]ihua/, '🥣'],
   [/huevo|clara|yema|omelette|tortilla de/, '🥚'],

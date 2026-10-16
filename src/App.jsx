@@ -303,6 +303,13 @@ const RAW_FOODS = [
   ["Platos preparados","Escabeche de pollo","-",130,13.0,7.0,5.5,1.4],
   ["Platos preparados","Salchipapa","-",292,8.0,27.7,16.5,2.5],
   ["Platos preparados","Pollo al horno","-",190,26.0,1.0,9.0,0.2],
+  // Pollo al horno por presa y con o sin piel (pedido por Jonah, 16 oct: sus
+  // 2 entrepiernas salían como 2 presas de 200 g con un solo número para
+  // todo el pollo). Carne sin hueso, USDA asado; la piel es lo que más suma.
+  ["Platos preparados","Pollo al horno pierna","Con piel",232,23.5,0.0,15.0,0.0],
+  ["Platos preparados","Pollo al horno pierna","Sin piel",177,24.2,0.0,8.1,0.0],
+  ["Platos preparados","Pollo al horno pecho","Con piel",197,29.8,0.0,7.8,0.0],
+  ["Platos preparados","Pollo al horno pecho","Sin piel",165,31.0,0.0,3.6,0.0],
   ["Platos preparados","Pollo a la olla (presa con papa y verduras)","-",130,10.7,8.0,5.3,1.4],
   ["Platos preparados","Pollo a la olla con arroz","-",128,7.9,14.9,3.6,1.1],
   ["Platos preparados","Estofado de pollo","-",130,13.0,10.0,4.0,1.3],
@@ -499,6 +506,7 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 const ALIMENTOS_RETIRADOS = new Set([
   'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
   'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
+  'Pollo al horno (-)', // → Pollo al horno pierna / pecho, con o sin piel (16 oct)
   // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
   'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
   'Hot dog (-)', 'Hamburguesa de carretilla (-)', 'Sándwich de pollo (-)',
@@ -623,6 +631,16 @@ const UNITS_BY_NAME = {
   'Pescado frito': [['porción', 180], ['plato', 180]],
   'Milanesa de pollo': [['filete', 150], ['plato', 150]],
   'Pollo al horno': [['presa', 200], ['plato', 400]],
+  // Carne sin hueso de una presa de casa: la pierna (o entrepierna) pesa
+  // menos que el pecho.
+  // Entradas: una porción de entrada es más chica que un plato de fondo
+  // (antes salían como "1 plato" de 400 g por no tener medida propia).
+  'Causa limeña': [['porción', 250], ['plato', 400]],
+  'Papa a la huancaína': [['porción', 250], ['plato', 400]],
+  'Ocopa arequipeña': [['porción', 250], ['plato', 400]],
+  'Rocoto relleno': [['unidad', 220], ['plato', 400]],
+  'Pollo al horno pierna': [['presa', 150]],
+  'Pollo al horno pecho': [['presa', 200]],
   'Panqueques de avena': [['unidad', 50], ['plato', 150]],
   'Wafle de avena': [['unidad', 75], ['plato', 150]],
   'Leche de coco': [['cucharada', 15]],

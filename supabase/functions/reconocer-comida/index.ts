@@ -335,6 +335,7 @@ En estos casos, los gramos del plato combinado son los de los fideos más la sal
 - Pollada, pollo frito, broaster y chicharrón de pollo: su clave es SOLO el pollo. Las papas (fritas, doradas o sancochadas), la yuca, el mote, la ensalada y las cremas van aparte, cada una con su propia clave y sus gramos. Una pollada suele ser 1/4 de pollo (≈ 220 g de carne) o 1/8 (≈ 110 g); casi nunca más.
 - Sándwiches por PAN (pan con pollo, con jamonada, con chicharrón, butifarra, hot dog, hamburguesa de carretilla, sándwich de pollo, triples y mixto): cada uno está en "Pan blanco" y en "Pan integral". Si el pan se ve claramente integral (marrón, con granos o salvado), usa la versión "Pan integral"; si se ve blanco (pan francés, de molde blanco, de hot dog), "Pan blanco". Si no se distingue, usa "opciones" con las dos (pan blanco primero) y confianza "media".
 - Pollada y pollo a la brasa por CORTE: en Perú se piden por cuarto u octavo de pollo, pierna o pecho. Una pollada o un pollo a la brasa servido NUNCA son presas sueltas ("Pollo pierna", "Pollo pechuga", "Pollo encuentro"): usa "Pollada pierna" / "Pollada pecho" o "Pollo a la brasa pierna (solo la presa)" / "Pollo a la brasa pecho (solo la presa)". La pierna se reconoce por el muslo y el hueso de la pierna; el pecho, por la pechuga ancha y a veces el ala. Si no ves con claridad cuál es, usa "opciones" con las dos (pierna primero y pecho después) y confianza "media". En "gramos" pon la carne sin hueso: cuarto pierna ≈ 210 g (pollada) o 230 g (brasa); cuarto pecho ≈ 240 g (pollada) o 270 g (brasa); un octavo, la mitad. Pollada = pollo frito, apanado o dorado en aceite (piel crocante); pollo a la brasa = piel tostada oscura, sin apanado.
+- Pollo al HORNO (asado en casa, piel dorada pareja, sin apanado ni el tostado oscuro de la brasa): usa "Pollo al horno pierna" (pierna, entrepierna o muslo, se reconoce por el hueso redondo) o "Pollo al horno pecho" (pechuga ancha, a veces con el ala), cada uno "Con piel" o "Sin piel". Si se ve la piel, "Con piel"; si la carne se ve sin piel, "Sin piel"; si no se distingue, usa "opciones" con las dos (Con piel primero) y confianza "media". Cuenta las presas en "cantidad" (2 entrepiernas = 2) y en "gramos" pon la carne sin hueso (pierna ≈ 150 g, pecho ≈ 200 g por presa). No uses "Pollo al horno" a secas ni repitas las mismas presas como "Pollo pierna" o "Pollada". Los platos que ya traen su presa (arroz con pollo, arroz a la jardinera, estofado de pollo, escabeche de pollo, pollo a la olla, pollo al sillao, tallarines rojos con pollo, aguadito, caldo de gallina, sopa de pollo) ya cuentan ese pollo: no agregues la presa aparte.
 - PECAFIT (restaurante con receta propia y macros validados, sus platos están en la lista con "(PECAFIT)" en el nombre): si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, usa el plato de PECAFIT que corresponda como UN solo alimento, sin separar sus partes; en "cantidad" pon cuántos platos o unidades ves (sus valores son por plato servido). Si NO se ve la marca, no asumas que es de PECAFIT aunque se parezca: registra el plato por partes, como siempre.
 
 Si te paso "Correcciones que este alumno ya hizo", son fotos anteriores donde la IA se equivocó y el alumno eligió el alimento correcto (ej. la IA dijo pollo y era pavita). Si algo de esta foto se parece a lo que la IA dijo antes, lo más probable es que sea lo que el alumno corrigió: úsalo como "key", o en "opciones" en primer lugar si no estás seguro.
@@ -489,13 +490,24 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
   const esPresa = (it: any) => claves(it).length > 0 && claves(it).every((k) => PRESA.test(k)) && claves(it).some((k) => CON_PIEL.test(k));
   const presas = items.filter(esPresa);
   const cortes = ["Pollada pecho (-)", "Pollada pierna (-)", "Pollo a la brasa pecho (solo la presa) (-)", "Pollo a la brasa pierna (solo la presa) (-)"];
-  if (presas.length && cortes.every((k) => clavesValidas.has(k))) {
+  // Si la foto ya trae el pollo como plato (al horno, pollada, a la brasa,
+  // broaster) o un plato que ya lleva su presa (arroz con pollo, estofado,
+  // aguadito, caldo, pollo a la olla…), las presas sueltas son ese mismo
+  // pollo contado dos veces (visto por Jonah, 16 oct: sus 2 entrepiernas al
+  // horno salían también como "¿cuál es?" pollada/brasa): se quitan.
+  const PLATO_POLLO = /^(Pollo al horno|Pollada|Pollo a la brasa|Pollo broaster|Pieza de pollo|Pollo a la olla|Pollo al sillao|Arroz con pollo|Arroz a la jardinera|Estofado de pollo|Escabeche de pollo|Tallarines rojos con pollo|Aguadito de pollo|Caldo de gallina|Sopa de pollo)\b/;
+  const yaHayPollo = items.some((it) => !esPresa(it) && claves(it).some((k) => PLATO_POLLO.test(k)));
+  if (presas.length && yaHayPollo) {
+    items = items.filter((it) => !esPresa(it));
+  } else if (presas.length && cortes.every((k) => clavesValidas.has(k))) {
     const todas = presas.flatMap(claves);
     const pecho = todas.some((k) => /^Pollo (pechuga|ala)/.test(k));
     const [c1, c2] = pecho ? ["pecho", "pierna"] : ["pierna", "pecho"];
+    const horno = (c: string) => `Pollo al horno ${c} (Con piel)`;
     const opciones = [
       `Pollada ${c1} (-)`, `Pollo a la brasa ${c1} (solo la presa) (-)`,
       `Pollada ${c2} (-)`, `Pollo a la brasa ${c2} (solo la presa) (-)`,
+      ...[horno(c1), horno(c2)].filter((k) => clavesValidas.has(k)),
       todas.find((k) => CON_PIEL.test(k)) as string,
     ];
     items = [

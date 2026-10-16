@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
+import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, slugAlimento } from './buscador.js';
 
 // Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
 // abrir la app para que llegue a Planes aunque tenga que entrar primero.
@@ -27,6 +28,7 @@ const StudentDataModal = React.lazy(cargarParte(() => import('./admin.jsx').then
 const StudentDashboard = React.lazy(cargarParte(() => import('./alumno.jsx').then(m => ({ default: m.StudentDashboard }))));
 const TiendaPublica = React.lazy(cargarParte(() => import('./tienda.jsx').then(m => ({ default: m.TiendaPublica }))));
 const PanelReferidor = React.lazy(cargarParte(() => import('./referidor.jsx').then(m => ({ default: m.PanelReferidor }))));
+const BuscadorPortada = React.lazy(cargarParte(() => import('./buscadorPortada.jsx')));
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -328,6 +330,20 @@ const RAW_FOODS = [
   ["Platos preparados","Pollo al horno pecho","Sin piel",165,31.0,0.0,3.6,0.0],
   ["Platos preparados","Pollo a la olla (presa con papa y verduras)","-",130,10.7,8.0,5.3,1.4],
   ["Platos preparados","Pollo a la olla con arroz","-",128,7.9,14.9,3.6,1.1],
+  // Guisos "con arroz" (pedido por Jonah, 16 oct): el plato servido como en
+  // Perú, con su arroz incluido. Mezcla real de 300 g del guiso de esta
+  // lista + 180 g de "Arroz blanco (Cocido)" = 480 g ("1 plato"). El guiso
+  // solo (sin arroz) sigue igual. Fuente en docs/alimentos-verificados.json.
+  ["Platos preparados","Lomo saltado con arroz","-",158,7.9,19.2,5.1,1.0],
+  ["Platos preparados","Ají de gallina con arroz","-",152,6.6,18.0,5.7,0.8],
+  ["Platos preparados","Ají de pollo con arroz","-",149,7.0,18.0,5.4,0.8],
+  ["Platos preparados","Seco de res con frejoles y arroz","-",149,8.5,19.2,4.2,2.0],
+  ["Platos preparados","Estofado de pollo con arroz","-",130,9.1,16.8,2.6,1.0],
+  ["Platos preparados","Estofado de carne con arroz","-",142,8.8,16.8,4.5,0.9],
+  ["Platos preparados","Cau cau con arroz","-",124,6.6,18.0,2.6,1.1],
+  ["Platos preparados","Olluquito con charqui y arroz","-",118,5.7,18.6,2.3,1.3],
+  ["Platos preparados","Pollo al sillao con arroz","-",164,12.6,14.6,6.0,0.5],
+  ["Platos preparados","Sudado de pescado con arroz","-",108,10.4,13.3,1.2,0.7],
   ["Platos preparados","Estofado de pollo","-",130,13.0,10.0,4.0,1.3],
   ["Platos preparados","Estofado de carne","-",150,12.5,10.0,7.0,1.2],
   ["Platos preparados","Aguadito de pollo","-",70,5.5,7.5,2.0,0.8],
@@ -516,20 +532,7 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 }));
 
 
-// Alimentos que ya no se ofrecen (ni en el buscador ni en la foto) porque
-// se reemplazaron por versiones más precisas, pero siguen existiendo para
-// que lo que los alumnos ya anotaron con ellos no cambie.
-const ALIMENTOS_RETIRADOS = new Set([
-  'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
-  'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
-  // → con piel / sin piel (16 oct)
-  'Pollada pierna (-)', 'Pollada pecho (-)',
-  'Pollo a la brasa pierna (solo la presa) (-)', 'Pollo a la brasa pecho (solo la presa) (-)',
-  'Pollo al horno (-)', // → Pollo al horno pierna / pecho, con o sin piel (16 oct)
-  // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
-  'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
-  'Hot dog (-)', 'Hamburguesa de carretilla (-)', 'Sándwich de pollo (-)',
-]);
+// ALIMENTOS_RETIRADOS vive en src/buscador.js (lo usa también el buscador de la portada).
 
 /* Alimentos que Jonah agrega desde el panel (tabla alimentos_extra, ver
    "Pedidos de alimentos"). Se suman a FOODS al abrir la app, sin publicar
@@ -807,6 +810,17 @@ const UNITS_BY_NAME = {
   'Pollo al sillao': [['plato', 300], ['porción', 200]],
   'Pollo a la olla (presa con papa y verduras)': [['plato', 380], ['presa con papa', 280]],
   'Pollo a la olla con arroz': [['plato', 580], ['plato chico', 420]],
+  // Guisos con arroz (16 oct): 1 plato = 300 g de guiso + 180 g de arroz.
+  'Lomo saltado con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Ají de gallina con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Ají de pollo con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Seco de res con frejoles y arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Estofado de pollo con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Estofado de carne con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Cau cau con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Olluquito con charqui y arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Pollo al sillao con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  'Sudado de pescado con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
   'Papa dorada al sillao': [['porción', 150]],
   'Papa rellena': [['unidad', 200]],
   'Empanada de carne': [['unidad', 130]],
@@ -2332,6 +2346,11 @@ function registrarEventoEmbudo(evento, extra = {}) {
    panel sabe qué campaña trajo a cada alumno sin cambiar la tabla. */
 function registrarRegistroEmbudo(username, detalle = null) {
   registrarEventoEmbudo('registro', detalle ? { username, detalle } : { username });
+  // ¿Usó el buscador de la portada antes de registrarse? (src/buscadorPortada.jsx)
+  try {
+    const plato = sessionStorage.getItem('jb-desde-buscador');
+    if (plato) registrarEventoEmbudo('buscador_portada', { username, detalle: ('registro:' + plato).slice(0, 120) });
+  } catch {}
   const campana = campanaEmbudo();
   if (campana) registrarEventoEmbudo('campana', { username, detalle: campana });
 }
@@ -2481,7 +2500,7 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
         body: {
           demo: true, visitante: visitanteDemo(), mimeType: 'image/jpeg',
           imagenBase64: dataUrl.split(',')[1] || '',
-          alimentos: FOODS.map(f => ({ key: f.key, name: f.name })),
+          alimentos: FOODS.filter(vaEnLaFoto).map(f => ({ key: f.key, name: f.name })),
         },
       });
       if (error) throw error;
@@ -2599,6 +2618,42 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
   );
 }
 
+/* Fichas de platos populares bajo el buscador de la portada (16 oct): las
+   kcal de la PORCIÓN CASERA real, con su medida y sus gramos ("Ceviche ·
+   1 plato (300 g) · 255 kcal"), nunca "por 100 g" sin decirlo (como hace la
+   portada de NutriKaloría). Todo sale de la lista de la app. */
+const FICHAS_PORTADA = [
+  'Lomo saltado con arroz (-)', 'Ceviche de pescado (-)', 'Pollo a la brasa con papas y ensalada (-)',
+  'Ají de gallina (-)', 'Arroz con pollo (-)', 'Arroz chaufa (-)',
+];
+function fichaPlato(key) {
+  const food = FOODS.find(f => f.key === key);
+  if (!food) return null;
+  const porcion = unidadPorDefectoBase(food, unitsFor);
+  const gramos = Math.round(entryGrams({ foodKey: key, unit: porcion.unit, qty: porcion.qty }));
+  const kcal = Math.round(entryMacros({ foodKey: key, unit: porcion.unit, qty: porcion.qty }).kcal);
+  const medida = porcion.unit === 'gramos' ? `${gramos} g` : `${textoPorcion(porcion)} (${gramos} g)`;
+  return { food, medida, kcal, sinArroz: arrozDelPlato(food) === 'sin' };
+}
+function FichasPlatos({ onElegir, className = '', fila = false, style }) {
+  const fichas = FICHAS_PORTADA.map(fichaPlato).filter(Boolean);
+  return (
+    <div style={style} className={(fila ? 'flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 snap-x [scrollbar-width:none] ' : 'grid grid-cols-2 gap-2 ') + className}>
+      {fichas.map(f => (
+        <button key={f.food.key} type="button" onClick={() => onElegir(f.food)}
+          className={(fila ? 'shrink-0 w-[150px] snap-start ' : '') + 'text-left bg-zinc-950/85 backdrop-blur border border-zinc-700 hover:border-orange-500 rounded-xl px-3 py-2'}>
+          <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
+          <span className="block jb-body text-[11px] text-zinc-400 leading-tight mt-0.5 truncate">{f.medida}</span>
+          <span className="flex items-center justify-between gap-1 mt-1">
+            <span className="jb-display text-base text-orange-400 tabular-nums leading-none">{f.kcal} <span className="jb-body text-[10px] font-semibold text-orange-300">kcal</span></span>
+            {f.sinArroz && <span className="jb-body text-[10px] text-amber-300/90 whitespace-nowrap" title="Sin arroz: agrégalo aparte">🍚 sin arroz</span>}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Landing({ onChoose }) {
 
 
@@ -2613,13 +2668,26 @@ function Landing({ onChoose }) {
       .catch(() => registrarEventoEmbudo('vista'));
   }, []);
   const [demoAbierta, setDemoAbierta] = useState(false);
+  // Buscador "¿Cuántas calorías tiene tu plato?" (src/buscadorPortada.jsx).
+  const [buscador, setBuscador] = useState(() => qDelLink() ? { q: qDelLink() } : null);
+  function cerrarBuscador() {
+    setBuscador(null);
+    // Que al recargar no se vuelva a abrir el plato del link.
+    try {
+      if (qDelLink()) {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('q');
+        window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
+      }
+    } catch {}
+  }
   function abrirDemo() {
     registrarEventoEmbudo('demo_abrir');
     avisarMeta('ViewContent');
     setDemoAbierta(true);
   }
-  function registrarClicCTA() {
-    registrarEventoEmbudo('clic_cta');
+  function registrarClicCTA(detalle) {
+    registrarEventoEmbudo('clic_cta', typeof detalle === 'string' ? { detalle } : {});
     // Avisa a Meta que alguien mostró interés (tocó "prueba gratis").
     avisarMeta('Lead');
     // Antes de crear la cuenta: su objetivo y sus datos (Recorrido). Si ya
@@ -2702,7 +2770,7 @@ function Landing({ onChoose }) {
 
         {/* Texto y botones */}
         <div className="relative z-10 min-h-[100svh] lg:min-h-0 flex flex-col justify-end lg:justify-center gap-3 px-5 lg:px-0 max-w-md mx-auto lg:mx-0 w-full"
-          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingTop: 'calc(max(1.25rem, env(safe-area-inset-top)) + 3.5rem)' }}>
           <div className="jbb-a hidden lg:flex items-center gap-3 mb-4" style={anim('jbb-baja', .1)}>
             <img src="/logo-marca.webp" alt="" className="w-12" />
             <div>
@@ -2730,6 +2798,21 @@ function Landing({ onChoose }) {
             </div>
             <p className="jb-body text-xs text-zinc-300 leading-snug">Hombres y mujeres reales<br />ya empezaron su cambio</p>
           </div>
+          {/* Buscador de calorías sin registrarse: se abre a pantalla completa. */}
+          <button type="button" onClick={() => setBuscador({ q: null })}
+            className="jbb-a w-full flex items-center gap-2.5 bg-zinc-950/80 backdrop-blur border border-zinc-600 hover:border-orange-500 rounded-full pl-4 pr-3 py-2.5 text-left"
+            style={anim('jbb-sube', 1.05)} aria-label="¿Cuántas calorías tiene tu plato? Búscalo sin registrarte">
+            <span className="text-lg leading-none" aria-hidden="true">🔎</span>
+            <span className="flex-1 min-w-0">
+              <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight">¿Cuántas calorías tiene tu plato?</span>
+              <span className="block jb-body text-xs text-zinc-400 leading-tight mt-0.5 truncate">Ej: lomo saltado · sin registrarte</span>
+            </span>
+            <span className="jb-body text-xs font-semibold text-orange-400 shrink-0">Buscar</span>
+          </button>
+          <FichasPlatos fila className="jbb-a -mt-1" style={anim('jbb-sube', 1.1)} onElegir={food => {
+            registrarEventoEmbudo('buscador_portada', { detalle: ('ficha:' + food.key).slice(0, 120) });
+            setBuscador({ q: slugAlimento(food), ficha: true });
+          }} />
           <button onClick={registrarClicCTA} className="jbb-a w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mt-1"
             style={{ ...anim('jbb-pop', 1.15), boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
             <span className="inline-block" style={{ animation: 'jbb-late 1.6s ease-in-out 2s infinite' }}>EMPEZAR AHORA</span>
@@ -2757,6 +2840,13 @@ function Landing({ onChoose }) {
       </section>
 
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
+      {buscador && (
+        <React.Suspense fallback={<div className="fixed inset-0 z-50 bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" size={28} /></div>}>
+          <BuscadorPortada q={buscador.q} ficha={!!buscador.ficha} onCerrar={cerrarBuscador}
+            onRegistrar={() => { setBuscador(null); registrarClicCTA('buscador'); }}
+            onFoto={() => { setBuscador(null); abrirDemo(); }} />
+        </React.Suspense>
+      )}
     </div>
   );
 }
@@ -3578,9 +3668,15 @@ const SPLASH_WEB_MS = 1600;
 function splashWebPendiente() {
   try {
     if (sessionStorage.getItem('jb-splash-visto') === '1') return false;
+    // Link de un plato compartido (?q=): directo al plato, sin la animación.
+    if (qDelLink()) return false;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
     return true;
   } catch { return false; }
+}
+// "?q=lomo-saltado" abre el buscador de la portada con ese plato.
+function qDelLink() {
+  try { return (new URLSearchParams(window.location.search).get('q') || '').trim().slice(0, 100) || null; } catch { return null; }
 }
 function marcarSplashWebVisto() {
   try { sessionStorage.setItem('jb-splash-visto', '1'); } catch {}
@@ -6140,6 +6236,8 @@ function textoPorcion({ unit, qty }) {
     const entero = Math.floor(qty), fr = ['', '¼', '½', '¾'][Math.round((qty - entero) * 4)];
     if (fr !== undefined) num = entero ? `${entero}${fr}` : fr;
   }
+  // "1/4 con papas" ya dice cuánto: 1 de esa medida no es "1 1/4 con papas".
+  if (Number(qty) === 1 && /^\d/.test(unit)) return unit;
   if (qty <= 1 || /[\s/]/.test(unit)) return `${num} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${num} ${plural}`;
@@ -6996,6 +7094,8 @@ export default function App() {
 
 export {
   ALIMENTOS_RETIRADOS,
+  FichasPlatos,
+  registrarEventoEmbudo,
   EncuestaSalida,
   yaRespondioSalida,
   avisarMeta,

@@ -331,6 +331,7 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 - La ocopa y la huancaína son salsas que se sirven sobre PAPA sancochada (en rodajas), no sobre fideos; la huancaína es amarilla y la ocopa verde-amarillenta y espesa.
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
 - Arroces de color: el arroz VERDE (con culantro) es "Arroz verde"; el arroz AMARILLO con arvejas, zanahoria y choclo es "Arroz amarillo (a la jardinera)"; el arroz ROJIZO o anaranjado con aderezo de ají panca es "Arroz aderezado (con ají panca)"; el arroz DORADO o marrón claro por el sillao, salteado, con pedacitos de huevo revuelto y cebolla china, es chaufa: "Arroz chaufa (solo el arroz)"; la carne del chaufa puede ser pollo, res o chancho (cerdo): si no se distingue, usa "opciones"; si se ven varias carnes mezcladas (chaufa especial), registra cada carne aparte con sus gramos, o "Arroz chaufa especial" si no se pueden separar. Si se ve la presa o la carne junto al arroz (arroz con pollo, con pato, a la jardinera, con chancho, chaufa), registra el arroz y la carne APARTE, cada uno con su clave y sus gramos. Si solo se ve el arroz, sin carne, usa solo la clave del arroz.
+- Platos que en su nombre ya dicen "con arroz" o "y arroz" (ej. "Pollo a la olla con arroz", "Menestra de lentejas con arroz", "Frejolada (frejol con arroz)") ya incluyen su arroz: si usas uno de ellos, NO agregues además "Arroz blanco". Un guiso servido con arroz al lado (lomo saltado, ají de gallina, seco, estofado, cau cau…) va como el guiso y el arroz APARTE, cada uno con sus gramos.
 - Ensalada rusa vs. ensalada de betarraga: si las verduras picadas (papa, betarraga, zanahoria, vainita) se ven cubiertas o mezcladas con MAYONESA (blanca o rosada y cremosa), es "Ensalada rusa". Si la betarraga se ve sola o con cebolla, suelta y brillante de limón, sin crema, es "Ensalada de betarraga".
 - Pollada, pollo frito, broaster y chicharrón de pollo: su clave es SOLO el pollo. Las papas (fritas, doradas o sancochadas), la yuca, el mote, la ensalada y las cremas van aparte, cada una con su propia clave y sus gramos. Una pollada suele ser 1/4 de pollo (≈ 220 g de carne) o 1/8 (≈ 110 g); casi nunca más.
 - Sándwiches por PAN (pan con pollo, con jamonada, con chicharrón, butifarra, hot dog, hamburguesa de carretilla, sándwich de pollo, triples y mixto): cada uno está en "Pan blanco" y en "Pan integral". Si el pan se ve claramente integral (marrón, con granos o salvado), usa la versión "Pan integral"; si se ve blanco (pan francés, de molde blanco, de hot dog), "Pan blanco". Si no se distingue, usa "opciones" con las dos (pan blanco primero) y confianza "media".
@@ -515,6 +516,15 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
       { key: "", opciones, confianza: "media", cantidad: 1, gramos: null, aceite: presas.some((it: any) => it.aceite) },
     ];
   }
+
+  // Platos que ya traen su arroz ("Pollo a la olla con arroz", "Frejolada
+  // (frejol con arroz)", "Menestra de lentejas con arroz", "Lomo saltado con
+  // arroz"…): si la IA además ve el arroz blanco suelto, es el mismo arroz
+  // contado dos veces (revisión de cálculos, 16 oct): se quita el arroz.
+  const CON_ARROZ = /\b(con|y) arroz\b/i;
+  const ARROZ_SOLO = /^Arroz blanco \(/;
+  const yaTraeArroz = items.some((it) => claves(it).length > 0 && claves(it).every((k) => CON_ARROZ.test(k) && !/^Arroz\b/.test(k)));
+  if (yaTraeArroz) items = items.filter((it) => !(claves(it).length > 0 && claves(it).every((k) => ARROZ_SOLO.test(k))));
 
   // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
   // cuando la IA dijo cada uno de estos alimentos (solo los de esta foto).

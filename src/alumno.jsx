@@ -77,6 +77,8 @@ import {
   sePuedeFreir,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
+import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, nombreAlimento, vaEnLaFoto } from './buscador.js';
+import { BotonCompartirPlato } from './compartirPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
@@ -84,6 +86,9 @@ import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
 import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, historialDePeso, corregirHistorial, serieDelHistorial } from './progreso.js';
+
+// La medida casera por defecto (src/buscador.js) con las medidas de la app.
+const unidadPorDefecto = food => unidadPorDefectoCon(food, unitsFor);
 
 /* Alimentos para el buscador general. Antes se quitaban los platos de
    PECAFIT (solo salían en la tarjeta "RESTAURANTES ALIADOS"); desde el 12
@@ -146,143 +151,7 @@ function sustitucionEquivalente(valorObjetivo, nuevoFood, macro) {
   return { unit: d.unit, qty: qtyEnUnidad };
 }
 
-/* Quita tildes y pasa a minúsculas para que "platano" encuentre "Plátano"
-   y "cafe" encuentre "Café". */
-function normalizar(txt) {
-  return String(txt || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
-/* Sinónimos y nombres alternativos que la gente usa. */
-const SINONIMOS = {
-  'frijol': 'frejol', 'frijoles': 'frejol', 'poroto': 'frejol',
-  'macdonald': 'mcdonald', 'macdonalds': 'mcdonald', "macdonald's": 'mcdonald', 'mcdonalds': 'mcdonald',
-  'vembos': 'bembos', 'vembo': 'bembos',
-  'yogurt': 'yogur', 'yoghurt': 'yogur',
-  'palta': 'palta aguacate', 'aguacate': 'palta',
-  'maiz': 'choclo', 'elote': 'choclo',
-  'camote': 'camote batata', 'batata': 'camote',
-  'chancho': 'cerdo', 'res': 'res carne',
-  'gaseosa': 'gaseosa refresco', 'refresco': 'gaseosa',
-  'pan de molde': 'pan integral', 'galletas': 'galleta',
-  'menestra': 'lenteja frejol garbanzo', 'menestras': 'lenteja frejol garbanzo',
-  'avena': 'avena', 'quaker': 'avena',
-  'clara': 'clara huevo', 'claras': 'clara huevo',
-  'atun': 'atun', 'pechuga': 'pechuga pollo',
-  'bellaco': 'platano bellaco', 'platano verde': 'platano bellaco', 'platano sancochado': 'platano bellaco', 'platano de freir': 'platano bellaco', 'platano para sancochar': 'platano bellaco',
-  'pecana': 'pecanas', 'pecan': 'pecanas', 'nuez pecana': 'pecanas', 'nueces pecanas': 'pecanas',
-  'papa': 'papa', 'arroz': 'arroz',
-  // Ingredientes de casa (15 oct 2026): cómo los llama la gente.
-  'pollo sancochado': 'pollo pechuga cocida', 'calamar': 'pota', 'calamares': 'pota',
-  'mejillon': 'choros', 'mejillones': 'choros', 'conchas': 'conchas de abanico', 'mahi mahi': 'perico',
-  'azucar morena': 'azucar rubia', 'panela': 'chancaca', 'salsa de soya': 'sillao', 'sillado': 'sillao',
-  'catsup': 'ketchup', 'sesamo': 'ajonjoli', 'castana': 'castanas', 'nuez de brasil': 'castanas',
-  'pasa': 'pasas', 'evaporada': 'leche evaporada', 'leche gloria': 'leche evaporada',
-  'callos': 'mondongo', 'pancita': 'mondongo', 'physalis': 'aguaymanto', 'fruta del dragon': 'pitahaya',
-};
-
-/* Busca alimentos por palabras sueltas y en cualquier orden:
-   "pollo pechuga" encuentra "Pechuga de pollo". */
-// El sinónimo SUMA resultados, no reemplaza lo escrito: antes "refresco"
-// buscaba solo "gaseosa" y el "Refresco de cebada" no aparecía (el alumno
-// creía que no estaba y lo creaba de nuevo).
-// Cada palabra se busca por su raíz: "papas fritas" encuentra "Papa (Frita)"
-// y "yuca frito" encuentra "Yuca (Frita)" (plural y masculino/femenino de
-// cómo está preparado no deben esconder el alimento).
-const PREPARACION_RAIZ = /^(frit|cocid|crud|sancochad|hornead|asad|guisad|apanad|rellen|salad|dorad)(o|a|os|as)$/;
-function raizPalabra(w) {
-  const m = w.match(PREPARACION_RAIZ);
-  if (m) return m[1];
-  if (w.length >= 5 && /[lnrd]es$/.test(w)) return w.slice(0, -2); // frejoles, panes, limones
-  return w.length >= 4 && w.endsWith('s') ? w.slice(0, -1) : w;
-}
-function buscarAlimentos(lista, texto, limite = 40) {
-  const q = normalizar(texto);
-  if (!q) return lista.filter(f => !ALIMENTOS_RETIRADOS.has(f.key)).slice(0, limite);
-  const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
-  if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
-  const palabras = alternativas[0];
-  const conPuntaje = [];
-  for (const f of lista) {
-    if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
-    let objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
-    if (objetivo.includes('keke')) objetivo += ' queque';
-    else if (objetivo.includes('queque')) objetivo += ' keke';
-    if (!alternativas.some(ps => ps.every(w => objetivo.includes(w)))) continue;
-    const nombreNorm = normalizar(f.name);
-    let puntaje = 3;
-    if (nombreNorm.startsWith(q)) puntaje = 0;
-    else if (nombreNorm.includes(q)) puntaje = 1;
-    else if (objetivo.includes(q)) puntaje = 2;
-    conPuntaje.push({ f, puntaje });
-  }
-  conPuntaje.sort((a, b) => a.puntaje - b.puntaje || a.f.name.localeCompare(b.f.name));
-  if (conPuntaje.length === 0 && palabras.length > 1) {
-    // Nada coincidió con todo: buscar solo por la palabra más larga
-    const clave = palabras.slice().sort((a, b) => b.length - a.length)[0];
-    return lista
-      .filter(f => normalizar(f.key + ' ' + f.name).includes(clave))
-      .slice(0, limite);
-  }
-  return conPuntaje.slice(0, limite).map(x => x.f);
-}
-
-/* Al elegir un alimento, propone la medida más natural.
-   Para una torta: "1 tajada", no "100 gramos".                */
-// Alimentos donde conviene forzar gramos aunque exista una unidad
-// casera registrada (ej. Quinua tiene "taza" como medida, pero en un
-// plato peruano se pesa en gramos, no se sirve por tazas).
-const GRAMOS_DEFAULT_POR_NOMBRE = {
-  'Cereal cornflakes sin gluten': 100,
-  'Chicharrón de chancho': 180,
-  // Cereales de plato (arroz, quinua, etc.) se pesan en gramos en la
-  // práctica — nadie mide un plato de arroz peruano en tazas.
-  'Quinua': 150,
-};
-
-function unidadPorDefecto(food) {
-  if (!food) return { unit: 'gramos', qty: 100 };
-  if (GRAMOS_DEFAULT_POR_NOMBRE[food.name]) {
-    return { unit: 'gramos', qty: GRAMOS_DEFAULT_POR_NOMBRE[food.name] };
-  }
-  const lista = unitsFor(food);
-
-  // Si solo existe "gramos", se usa una cantidad razonable según el grupo
-  if (lista.length <= 1) {
-    const porGrupo = {
-      'Grasas': 15, 'Otros': 30, 'Bebidas': 200, 'Postres': 120,
-      'Platos preparados': 350, 'Verduras': 100, 'Frutas': 150,
-      'Cereales': 150, 'Menestras': 180, 'Lácteos': 200,
-      'Carnes y aves': 150, 'Pescados y mariscos': 150, 'Huevos': 100,
-      'Tubérculos': 150,
-    };
-    return { unit: 'gramos', qty: porGrupo[food.group] || 100 };
-  }
-
-  /* Se prefiere la medida de casa más común, en este orden */
-  const preferidas = [
-    '1/4 con papas', '1/4 de pollo', 'presa', 'plato', 'tajada', 'unidad',
-    'porción', 'taza', 'vaso', 'rebanada', 'bola', 'scoop', 'puñado',
-    'lata pequeña', 'cucharada', 'palito', 'mitad',
-  ];
-  // Bebidas: en Perú se toman en vaso, no en taza.
-  for (const pref of food.group === 'Bebidas' ? ['vaso', ...preferidas] : preferidas) {
-    const encontrada = lista.find(u => u[0] === pref);
-    if (!encontrada) continue;
-    // Descartar medidas demasiado pequeñas para ser una porción real
-    // (ej. "1 almendra" = 1 g). Se pide al menos 10 g.
-    if (encontrada[1] < 10) continue;
-    return { unit: encontrada[0], qty: 1 };
-  }
-
-  // Si no hay ninguna conocida, se usa la primera que no sea gramos
-  const otra = lista.find(u => u[0] !== 'gramos');
-  return otra ? { unit: otra[0], qty: 1 } : { unit: 'gramos', qty: 100 };
-}
 
 function gramosANatural(food, gramos) {
   if (!food) return { unit: 'gramos', qty: gramos };
@@ -352,7 +221,8 @@ const EMOJI_POR_NOMBRE = [
 ];
 function emojiAlimento(food) {
   if (!food) return '🍴';
-  const nombre = String(food.name || '').toLowerCase();
+  // "Lomo saltado con arroz" lleva el ícono del guiso, no el del arroz.
+  const nombre = String(food.name || '').toLowerCase().replace(/ (con|y) arroz$/, '');
   const regla = EMOJI_POR_NOMBRE.find(([re]) => re.test(nombre));
   return regla ? regla[1] : (GROUP_EMOJI[food.group] || '🍴');
 }
@@ -7482,7 +7352,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
       // Los propios del alumno van aparte: la lista común es igual para
       // todos y el servidor la deja en caché (cada foto sale más barata).
       const liviano = a => ({ key: a.key, name: a.name });
-      const lista = todosLosAlimentos.filter(a => !a.esProducto && !ALIMENTOS_RETIRADOS.has(a.key));
+      const lista = todosLosAlimentos.filter(a => !a.esProducto && vaEnLaFoto(a));
       const { data, error } = await supabase.functions.invoke('reconocer-comida', {
         body: {
           username, imagenBase64: base64, mimeType,
@@ -9277,6 +9147,11 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                 )}
               </div>
             )}
+            {/* Compartir este plato (16 oct): la tarjeta con su medida de casa. */}
+            <div className="flex justify-center pt-1">
+              <BotonCompartirPlato food={elegido} porcion={unidadPorDefecto(elegido)}
+                onCompartido={r => registrarPasoPago('compartir_plato', username, `buscador:${r}`)} />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -9483,23 +9358,11 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
 // por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
 // Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
 // olla con arroz") no van.
-const PLATOS_SIN_ARROZ = new Set([
-  'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
-  'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
-  'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
-  'Sudado de pescado',
-]);
-const esPlatoSinArroz = food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
 function NotaSinArroz({ food, className = '' }) {
   if (!esPlatoSinArroz(food)) return null;
   return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;
 }
 
-// Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
-function nombreAlimento(food) {
-  if (!food) return '';
-  return food.state && food.state !== '-' ? `${food.name} · ${food.state.toLowerCase()}` : food.name;
-}
 
 // Unidad y cantidad actuales de una entrada (las antiguas guardaban solo gramos).
 function porcionDeEntrada(en) {
@@ -9848,6 +9711,11 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
         <div className="bg-zinc-950 border border-orange-500/30 rounded-2xl px-4 py-3 mb-4 flex items-center justify-between">
           <p className="jb-display text-2xl text-orange-500 tabular-nums">{Math.round(m.kcal)} <span className="text-sm text-orange-400">kcal</span></p>
           <p className="jb-body text-xs text-zinc-400 tabular-nums">P {Math.round(m.protein)}g · C {Math.round(m.carbs)}g · G {Math.round(m.fat)}g</p>
+        </div>
+        {/* Compartir este plato (16 oct): con lo que anotó (su porción y su aceite). */}
+        <div className="flex justify-center -mt-1 mb-4">
+          <BotonCompartirPlato food={food} porcion={{ ...porcion, aceite: en.aceite }}
+            onCompartido={r => registrarPasoPago('compartir_plato', username, `anotado:${r}`)} />
         </div>
         {preguntaAceite(food) && (
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 mb-4">

@@ -13,6 +13,7 @@
 
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import { enviarAviso } from './_lib/enviar-aviso.js';
 
 const MENSAJES = [
   '¿Ya registraste tus comidas de hoy? Toma menos de un minuto.',
@@ -102,10 +103,7 @@ export default async function handler(req, res) {
     });
 
     try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        carga
-      );
+      await enviarAviso(s, carga);
       enviados++;
     } catch (err) {
       fallidos++;

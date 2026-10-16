@@ -21,6 +21,8 @@
 // Publicación (CLAUDE.md): solo después del merge, con el código de main.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Los mismos pesajes que el alumno ve en Progreso (src/progreso.js).
+import { historialDePeso, historialComposicion, analizarProgreso, corregirHistorial, serieDelHistorial } from "../../../src/progreso.js";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
@@ -104,7 +106,7 @@ const INSTRUCCIONES_VOZ =
 
 const SISTEMA = `Eres Beast, "tu compañero" dentro de la app Jonah Beast Fuel (app peruana para bajar de peso registrando lo que comes, sin dejar la comida peruana). Eres el gorila de la marca, con inteligencia artificial: si te preguntan, dices con naturalidad que eres la IA de la app. Nunca digas que eres nutricionista, médico ni psicólogo, ni que eres Jonah.
 
-QUIÉN ES JONAH (en tercera persona, nunca como si tú lo hubieras vivido): Jonah creó la app. Hace unos 4 años bajó 37 kg, y ahora bajó de 104 a 90 kg en 2 meses y medio usando su propia app, sumándole entrenamiento (algunos días, no todos) y disciplina. Nunca digas que fue solo la app. La idea: el cambio llega poco a poco, comida a comida. Detrás de la app hay una persona real: Jonah, por WhatsApp, para pagos o algo serio (suele responder en el día; no prometas "al toque").
+QUIÉN ES JONAH (en tercera persona, nunca como si tú lo hubieras vivido): Jonah creó la app. Hace unos años bajó 37 kg, y ahora bajó de 104 a 90 kg en 2 meses y medio usando su propia app, sumándole entrenamiento (algunos días, no todos) y disciplina. Nunca digas que fue solo la app. La idea: el cambio llega poco a poco, comida a comida. Detrás de la app hay una persona real: Jonah, por WhatsApp, para pagos o algo serio (suele responder en el día; no prometas "al toque").
 
 CÓMO HABLAS:
 - Cercano, humano, motivador y con humor, como un amigo de confianza. Cada alumno tiene su ESTILO (bloque DATOS):
@@ -128,7 +130,15 @@ LO QUE NO HACES:
 
 TEMAS DELICADOS: si el alumno está triste, ansioso, se siente mal consigo mismo o habla de atracones, vómitos o dejar de comer: deja el humor, escucha, valida lo que siente, sin juzgar, y si es fuerte sugiere hablar con alguien de confianza o un profesional. Si habla de hacerse daño, de no querer vivir o de quitarse la vida: responde con mucho tacto, quédate en la conversación, dile que no está solo y dale ayuda real: la Línea 113, opción 5 (salud mental del MINSA, gratis, todo el día); si hay peligro inmediato, que llame al 113 o al 105 o vaya a emergencias. Marca "riesgo": true.
 
-"¿CÓMO VOY?": usa SOLO los datos del bloque DATOS DEL ALUMNO. Primero lo bueno, luego UNA sola cosa por mejorar y un empujón. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él (ej. "anotaste solo 2 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido): díselo con cariño y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
+"¿CÓMO VOY?": es tu momento más importante: que sienta que alguien de verdad lo acompaña, lo felicita cuando lo hace bien y lo corrige cuando algo no va. Usa SOLO los datos del bloque DATOS DEL ALUMNO, con números concretos (nada de frases genéricas que le servirían a cualquiera). En este orden:
+1) Lo bueno, con su número (lo que bajó, su ritmo solo si es sano, su racha, los días que cumplió, lo que bajó su grasa).
+2) UNA sola corrección, la que más le ayudaría, sacada de SU SEMANA y no solo de hoy (ej. "esta semana llegaste a tu proteína solo 2 de 6 días"), con el porqué en una frase y un cambio fácil y peruano (ej. "suma un huevo o un poco de pollo al desayuno"). Si todo va bien, dilo y que siga igual.
+3) Cierra con UN compromiso pequeño para mañana o hoy, como pregunta (ej. "¿te parece si mañana llegamos a 8 vasos?"), y ponlo en "compromiso" (corto, ej. "llegar a 8 vasos de agua mañana"). Solo en "¿cómo voy?" o cuando él quiera mejorar algo; no en cada mensaje.
+Si en sus datos hay COMPROMISO PENDIENTE: pregúntale por él al empezar tu respuesta (mira sus datos: si se ve que lo cumplió, felicítalo con ganas; si no, sin regañar, anímalo) y pon "compromiso_revisado": true.
+Usa lo que sabes de su vida (libreta) para que el consejo le calce (ej. si trabaja de noche, no le pidas desayunar temprano).
+UNA SOLA VERDAD: si en sus datos está "LO QUE VE EN SU PANTALLA DE PROGRESO", tu respuesta debe decir lo mismo (mismo ritmo, mismo diagnóstico, misma recomendación): el alumno lo está viendo en su pantalla y si le dices otra cosa pierde la confianza. Si dice que baja muy rápido, no lo felicites por el ritmo: reconoce su esfuerzo y su constancia, y tu corrección es esa (comer un poco más y priorizar la proteína para no perder músculo). Si no hay veredicto: si baja entre ~0,3 y 1 kg por semana es un ritmo sano. Si no baja o subió: el peso sube y baja día a día, mira la tendencia y busca la causa con él en su semana (ej. "anotaste solo 2 días", "te pasaste 3 días"). Si un peso se ve raro (cambio de varios kilos en un día): pregunta si lo anotó bien antes de felicitar o preocupar. Si baja muy rápido (más de ~1,5 kg por semana sostenido) o comió muy poco varios días: díselo con cariño (comer muy poco hace perder músculo) y que lo consulte con un profesional. Si casi no hay datos: no inventes; anímalo a anotar unos días. Si su prueba está por terminar, cuéntaselo con naturalidad y invítalo a Premium (sin presionar).
+Composición corporal: si tiene % de grasa y de masa muscular, inclúyelos siempre en "¿cómo voy?". Su pantalla tiene tres gráficos: "% GRASA CORPORAL", "% MASA MUSCULAR" y "MASA MUSCULAR EN KILOS": usa esos mismos números. Habla del músculo en % (qué parte de su cuerpo es músculo, lo que mejor dice si mejora) y menciona también los kilos. Si el % subió pero en kilos bajó, dilo claro y sin contradecirte (ej. "tu músculo pasó de 38,7% a 39,9% de tu cuerpo; en kilos bajaste 0,7, y casi todo lo que bajaste fue grasa"); para cuidar el músculo ayudan la proteína y los ejercicios de fuerza. Si en kilos bajó mucho, esa es tu corrección. Bajar grasa y mantener el músculo es lo que más vale, aunque la balanza se mueva poco. Si su última medida tiene más de 3 semanas, invítalo a medirse de nuevo con la cinta en "Mi cuerpo" → "Mis datos". Si no tiene medidas y pregunta por grasa o músculo, explícale que se miden con cinta (cuello, cintura y cadera) en "Mi cuerpo" → "Mis datos". Es una estimación con cinta: no la presentes como exacta.
+Sé breve: máximo unas 7 frases, sin listas.
 
 ACCIONES (la app muestra una tarjeta y el alumno confirma; tú no guardas nada):
 - "anotar_comida": cuando cuenta lo que comió o pide anotarlo. "texto" = lo que comió con sus cantidades, separado por comas, en palabras simples para buscar en la base y lo más específico posible en tipo y preparación (ej. "150 gramos de arroz blanco cocido, 120 gramos de pechuga de pollo a la plancha, 1 ensalada de lechuga y tomate"; "1 cuarto de pollo a la brasa, papas fritas, ensalada de lechuga"). Si no dijo cantidad, no la inventes. "comida" = "Desayuno" | "Media mañana" | "Almuerzo" | "Media tarde" | "Cena" si lo dijo; si no, null (la app usa la de la hora). Solo se anota en el día de hoy: si habla de ayer, dile que eso lo anota en Registrar. Si corrige ("no, eran 80 gramos de pollo", "quita el pan"), vuelve a proponer anotar_comida con TODO corregido.
@@ -157,7 +167,7 @@ MEMORIA: en "recordar" pon UN dato nuevo y útil de su vida que valga la pena re
 Si el alumno solo confirma ("sí", "agrégalo") una tarjeta que ya le mostraste, la app la guarda sola: responde corto (ej. "¡Listo!") con accion null.
 
 Responde SIEMPRE, aunque sea un mensaje corto, ÚNICAMENTE con JSON válido, sin texto antes ni después:
-{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"} | {"tipo": "nombre"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "riesgo": false, "estilo": "" | "tranquilo" | "suelto" (solo si pidió que le hables distinto)}`;
+{"respuesta": "tu mensaje al alumno", "accion": null | {"tipo": "anotar_comida"|"proponer_comida", "texto": "...", "comida": null} | {"tipo": "que_como", "comida": null} | {"tipo": "agua", "vasos": 1} | {"tipo": "peso", "kg": 80.5} | {"tipo": "ir_registrar"} | {"tipo": "ver_planes"} | {"tipo": "hablar_jonah"} | {"tipo": "avisos", "nivel": "menos"} | {"tipo": "nombre"}, "tema": "comida"|"progreso"|"animo"|"ejercicio"|"app"|"planes"|"otro", "recordar": "", "compromiso": "", "compromiso_revisado": false, "riesgo": false, "estilo": "" | "tranquilo" | "suelto" (solo si pidió que le hables distinto)}`;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "content-type": "application/json" } });
@@ -286,12 +296,15 @@ async function consentir(supabase: any, username: string, cuerpo: any) {
 
 // Datos que ve Beast: del servidor (perfil, historial, libreta) y lo del día
 // que manda la app (lo último que anotó todavía puede no haberse subido).
-async function datosDelAlumno(supabase: any, username: string, alumno: any, cuenta: Cuenta, hoyApp: any, libreta: any, companeroApp: any) {
+async function datosDelAlumno(supabase: any, username: string, alumno: any, cuenta: Cuenta, hoyApp: any, libreta: any, companeroApp: any, compromiso: any = null) {
   const desde = new Date(Date.now() - 45 * 86_400_000).toISOString().slice(0, 10);
-  const [{ data: datos }, { data: hist }] = await Promise.all([
+  const desdePeso = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: datos }, { data: hist }, { data: histPeso }] = await Promise.all([
     supabase.from("datos_alumnos").select("form").eq("username", username).maybeSingle(),
-    supabase.from("historial").select("fecha, peso, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count")
+    supabase.from("historial").select("fecha, peso, grasa_pct, masa_muscular, kcal_consumidas, kcal_objetivo, proteina_g, comidas_count, agua:meal_plan->agua, macros:meal_plan->macros")
       .eq("username", username).gte("fecha", desde).order("fecha", { ascending: false }).limit(45),
+    supabase.from("historial").select("fecha, peso, grasa_pct, masa_muscular")
+      .eq("username", username).gte("fecha", desdePeso).order("fecha", { ascending: true }).limit(200),
   ]);
   const f = datos?.form || {};
   const filas = hist || [];
@@ -303,7 +316,70 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
   const conComida = new Set(filas.filter((h: any) => (h.comidas_count || 0) > 0).map((h: any) => h.fecha));
   if (hoyApp?.alimentos > 0) conComida.add(hoy);
   for (let i = conComida.has(hoy) ? 0 : 1; i < 45 && conComida.has(hace(i)); i++) racha++;
-  const pesajes = Array.isArray(f.pesajes) ? f.pesajes.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ") : "";
+  // Pesajes reales: la lista del perfil empezó el 4 de octubre; los de
+  // antes están en el historial diario (antes solo se veía la lista y Beast
+  // decía "solo tienes un pesaje" a quien se pesa cada semana).
+  let puntos: { f: string; kg: number }[] = [];
+  try { puntos = historialDePeso(f, histPeso || [], alumno) || []; } catch (e) { console.error("pesajes:", (e as Error)?.message); }
+  if (!puntos.length && Array.isArray(f.pesajes)) puntos = f.pesajes;
+  const pesajes = puntos.slice(-10).map((p: any) => `${p.f}: ${p.kg} kg`).join(", ");
+  // Lo que le dice su pantalla de Progreso (últimos 30 días, igual que la
+  // app): el veredicto del coach y los gráficos de grasa y masa muscular.
+  // Beast dice lo mismo que el alumno ve, nunca lo contrario.
+  const ult30 = corregirHistorial(filas.filter((h: any) => h.fecha >= hace(29)), f)
+    .sort((a: any, b: any) => String(a.fecha).localeCompare(String(b.fecha)));
+  let veredicto = "";
+  try {
+    const a = ult30.length ? analizarProgreso(ult30, f, { todas: corregirHistorial(histPeso || [], f) }) : null;
+    if (a && a.estado !== "inicial") {
+      veredicto = `LO QUE VE EN SU PANTALLA DE PROGRESO (últimos 30 días): "${a.titulo}". ${a.mensaje} Qué hacer: ${a.accion}${Number.isFinite(a.porSemana) ? ` Ritmo: ${a.porSemana > 0 ? "+" : ""}${Number(a.porSemana).toFixed(1)} kg por semana.` : ""}${a.adherencia !== null && a.adherencia !== undefined ? ` Días dentro de sus calorías (±15%): ${a.adherencia}%.` : ""}`;
+    }
+  } catch (e) { console.error("veredicto:", (e as Error)?.message); }
+  const graf = (campo: string, suf: string) => {
+    const pts = serieDelHistorial(ult30, campo);
+    if (pts.length < 2) return "";
+    const ini = pts[0], fin = pts[pts.length - 1], dif = Math.round((fin.v - ini.v) * 10) / 10;
+    return `${ini.v.toFixed(1)}${suf} → ${fin.v.toFixed(1)}${suf} (${dif > 0 ? "+" : ""}${dif}${suf})`;
+  };
+  const musculoKg = graf("masa_muscular", " kg");
+  // % de masa muscular, igual que su gráfico "% MASA MUSCULAR" de Progreso.
+  const ptsMus = serieDelHistorial(ult30, "masa_muscular").map((p: any) => {
+    const r = ult30.find((x: any) => x.fecha === p.fecha);
+    return Number(r?.peso) > 0 ? Math.round(p.v / Number(r.peso) * 1000) / 10 : NaN;
+  }).filter(Number.isFinite);
+  const musculoPct = ptsMus.length >= 2 ? `${ptsMus[0].toFixed(1)}% → ${ptsMus[ptsMus.length - 1].toFixed(1)}%` : "";
+  const grasaGraf = graf("grasa_pct", "%");
+  const graficos = (musculoKg || grasaGraf || musculoPct)
+    ? `Sus gráficos de Progreso (últimos 30 días): ${grasaGraf ? `% de grasa ${grasaGraf}` : ""}${grasaGraf && musculoKg ? "; " : ""}${musculoPct ? `% de masa muscular ${musculoPct}; ` : ""}${musculoKg ? `masa muscular en kilos ${musculoKg}` : ""}.`
+    : "";
+  // Su semana (los 7 días antes de hoy, solo los que anotó): para corregir
+  // con patrones ("llegaste a tu proteína 2 de 7 días") y no solo con hoy.
+  const semana = filas.filter((h: any) => h.fecha > hace(8) && h.fecha < hoy && (h.comidas_count || 0) > 0);
+  let suSemana = "";
+  if (semana.length) {
+    const prom = (l: number[]) => Math.round(l.reduce((a, b) => a + b, 0) / l.length);
+    const metaProtDe = (h: any) => (Number(h.kcal_objetivo) || 0) * (Number(h.macros?.p) || 0.3) / 4;
+    const conProt = semana.filter((h: any) => metaProtDe(h) > 0 && Number(h.proteina_g) >= metaProtDe(h) * 0.9).length;
+    const metaAguaHoy = Number(hoyApp?.metaAgua) || 0;
+    const conAgua = semana.filter((h: any) => Number(h.agua) > 0).length;
+    const aguaOk = metaAguaHoy ? semana.filter((h: any) => Number(h.agua) >= metaAguaHoy).length : 0;
+    const pasados = semana.filter((h: any) => h.kcal_objetivo && h.kcal_consumidas > h.kcal_objetivo * 1.1).length;
+    const cortos = semana.filter((h: any) => h.kcal_objetivo && h.kcal_consumidas < h.kcal_objetivo * 0.7).length;
+    suSemana = `Su semana (los ${semana.length} días que anotó de los 7 antes de hoy): promedio ${prom(semana.map((h: any) => Number(h.kcal_consumidas) || 0))} kcal de ${prom(semana.map((h: any) => Number(h.kcal_objetivo) || 0))}; se pasó (+10%) ${pasados} días; comió muy poco (menos del 70%) ${cortos} días; llegó a su proteína ${conProt} de ${semana.length} días (promedio ${prom(semana.map((h: any) => Number(h.proteina_g) || 0))} g); agua: anotó agua ${conAgua} de ${semana.length} días${metaAguaHoy ? ` y llegó a sus ${metaAguaHoy} vasos ${aguaOk}` : ""}.`;
+  }
+  // % de grasa y % de masa muscular (estimados con sus medidas con cinta),
+  // igual que en su pantalla de Progreso y en el panel de Jonah. La medida
+  // de hoy la calcula la app con su peso actual (hoyApp.composicion).
+  const ac = hoyApp?.composicion;
+  const actualComp = ac && Number(ac.grasa) > 0 && Number(ac.musculo) > 0 ? { grasa: Number(ac.grasa), musculo: Number(ac.musculo) } : null;
+  let comp: { grasa: { f: string; v: number }[]; musculo: { f: string; v: number }[] } = { grasa: [], musculo: [] };
+  try { comp = historialComposicion(histPeso || [], alumno, f, actualComp) || comp; } catch (e) { console.error("composicion:", (e as Error)?.message); }
+  const serieComp = (l: { f: string; v: number }[]) => l.slice(-6).map(p => `${p.f}: ${p.v}%`).join(", ");
+  const ultMedida = f.medidasFecha || comp.grasa[comp.grasa.length - 1]?.f || null;
+  const diasMedida = ultMedida ? Math.round((Date.parse(hoy) - Date.parse(ultMedida)) / 86_400_000) : null;
+  const composicion = comp.grasa.length
+    ? `Composición corporal (estimada con sus medidas con cinta: cuello, cintura${f.sexo === "F" ? ", cadera" : ""}; última medida el ${ultMedida}${diasMedida !== null ? `, hace ${diasMedida} días` : ""}): % de grasa ${serieComp(comp.grasa)}; % de masa muscular ${serieComp(comp.musculo)} (de más antiguo a más nuevo).`
+    : "Composición corporal: no tiene medidas con cinta anotadas (cuello, cintura y cadera), así que no hay % de grasa ni de masa muscular.";
   let edad: number | null = null;
   if (alumno.fecha_nacimiento) edad = Math.floor((Date.parse(hoy) - Date.parse(alumno.fecha_nacimiento)) / (365.25 * 86_400_000));
   else if (f.edad) edad = Number(f.edad) || null;
@@ -314,8 +390,13 @@ async function datosDelAlumno(supabase: any, username: string, alumno: any, cuen
     (compa.nombre !== "Beast" || compa.femenina) && `Tu nombre con este alumno: ${compa.nombre} (te lo puso él).${compa.femenina ? " Hablas en femenino: eres su compañera." : ""}`,
     `Nombre: ${alumno.nombre || username}. Sexo: ${f.sexo === "F" ? "F (mujer)" : "M (hombre)"}. Edad: ${n(edad)}.`,
     `Cuenta: ${cuenta.tipo}${cuenta.tipo === "prueba" ? ` (día ${cuenta.dia} de 7; le quedan ${n(cuenta.diasQuedan)} días)` : ""}${cuenta.tipo === "premium" && cuenta.diasQuedan !== null && cuenta.diasQuedan <= 7 ? ` (su plan vence en ${cuenta.diasQuedan} días)` : ""}.`,
-    `Objetivo: ${n(f.objetivo)}. Peso inicial: ${n(f.pesoInicial)} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
-    pesajes && `Últimos pesajes: ${pesajes}.`,
+    `Objetivo: ${n(f.objetivo)}. Peso inicial: ${Number(f.pesoInicial) > 0 ? f.pesoInicial : puntos.length ? puntos[0].kg : "?"} kg. Peso actual: ${n(f.peso)} kg${f.pesoFecha ? ` (anotado el ${f.pesoFecha})` : ""}. Peso meta: ${n(f.pesoObjetivo)} kg.`,
+    composicion,
+    veredicto,
+    graficos,
+    suSemana,
+    compromiso?.texto && `COMPROMISO PENDIENTE (lo acordaron el ${compromiso.fecha}): "${compromiso.texto}". Pregúntale si lo cumplió, mirando sus datos.`,
+    pesajes && `Últimos pesajes (de más antiguo a más nuevo; ${puntos.length} en total en los últimos 6 meses): ${pesajes}.`,
     hoyApp && `Hoy (${horaLima()}): comió ${Math.round(hoyApp.kcal || 0)} de ${Math.round(hoyApp.metaKcal || 0)} kcal; proteína ${Math.round(hoyApp.proteina || 0)} de ${Math.round(hoyApp.metaProteina || 0)} g; agua ${hoyApp.agua || 0} de ${hoyApp.metaAgua || 0} vasos; comidas anotadas: ${hoyApp.comidas || "ninguna"}.`,
     `Últimos 7 días: anotó ${ult7.length} de 7 días; en ${enMeta} quedó dentro de sus calorías (±10%). Racha: ${racha} días seguidos anotando.`,
     f.metaSemanal?.tipo && f.metaSemanal?.semana && `Su mini meta de la semana (desde el ${f.metaSemanal.semana}): ${({ agua: "tomar sus vasos de agua todos los días", anotar: "anotar sus comidas todos los días", proteina: "llegar a su proteína" } as any)[f.metaSemanal.tipo] || f.metaSemanal.tipo}.`,
@@ -331,6 +412,20 @@ function extraerJson(t: string): any {
     if (i < 0 || j <= i) return null;
     return JSON.parse(t.slice(i, j + 1));
   } catch { return null; }
+}
+
+// Si el JSON vino roto (una comilla sin escapar o cortado), se rescata al
+// menos el texto de "respuesta" para no mostrarle llaves y comillas al
+// alumno (pasó con "¿cómo voy?": salía {"respuesta": "Vas muy bien…).
+function rescatarRespuesta(t: string): string | null {
+  const m = t.match(/"respuesta"\s*:\s*"/);
+  if (!m || m.index === undefined) return null;
+  let resto = t.slice(m.index + m[0].length);
+  const fin = resto.search(/"\s*,\s*"(accion|tema|recordar|compromiso|compromiso_revisado|riesgo|estilo)"\s*:/);
+  if (fin >= 0) resto = resto.slice(0, fin);
+  else resto = resto.replace(/"\s*}?\s*(```)?\s*$/, "");
+  const limpio = resto.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\").trim();
+  return limpio || null;
 }
 
 const ACCIONES = ["anotar_comida", "proponer_comida", "que_como", "agua", "peso", "ir_registrar", "ver_planes", "hablar_jonah", "avisos", "nombre"];
@@ -392,7 +487,17 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   }
   if (mensajes.length && mensajes[0].role === "assistant") mensajes.shift();
 
-  const datos = await datosDelAlumno(supabase, username, alumno, cuenta, cuerpo.hoy, libreta, cuerpo.companero);
+  // Último compromiso de "¿cómo voy?" que aún no se le preguntó (de ayer
+  // o antes, máx. 4 días): Beast le pregunta si lo cumplió.
+  const hace4 = new Date(Date.now() - 4 * 86_400_000).toISOString();
+  const { data: conCompromiso } = await supabase.from("beast_mensajes").select("id, creado_en, datos")
+    .eq("username", username).eq("rol", "beast").not("datos->compromiso", "is", null).gte("creado_en", hace4)
+    .order("id", { ascending: false }).limit(1);
+  const filaComp = conCompromiso?.[0];
+  const fechaComp = filaComp ? fechaLima(new Date(filaComp.creado_en)) : null;
+  const compromiso = filaComp && !filaComp.datos?.revisado && fechaComp && fechaComp < fechaLima()
+    ? { id: filaComp.id, texto: String(filaComp.datos.compromiso).slice(0, 160), fecha: fechaComp, datos: filaComp.datos } : null;
+  const datos = await datosDelAlumno(supabase, username, alumno, cuenta, cuerpo.hoy, libreta, cuerpo.companero, compromiso);
   const quedan = Math.max(0, cuenta.limite - cupo.usados);
   const nota = [
     "DATOS DEL ALUMNO:", datos,
@@ -413,7 +518,7 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
       headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: modelo,
-        max_tokens: 1200,
+        max_tokens: 2000,
         system: [{ type: "text", text: SISTEMA, cache_control: { type: "ephemeral" } }],
         messages: mensajes,
       }),
@@ -426,6 +531,11 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
     await anotarUsoIA(supabase, username, modelo, data.usage);
     const crudo = (data.content || []).map((c: any) => c.text || "").join("");
     salida = extraerJson(crudo);
+    if (!salida && crudo.trim()) {
+      const rescatada = rescatarRespuesta(crudo);
+      console.log(JSON.stringify({ evento: "beast_json_roto", username, corte: data.stop_reason, largo: crudo.length, rescatada: !!rescatada, crudo: crudo.slice(-300) }));
+      if (rescatada) salida = { respuesta: rescatada, accion: null, tema: "progreso", recordar: "", riesgo: false };
+    }
     // Si la IA respondió sin el formato pedido (pasa con respuestas cortas,
     // como a un "sí, confirmo"), se usa su texto tal cual, sin acción.
     if (!salida && crudo.trim()) {
@@ -451,9 +561,15 @@ async function enviar(supabase: any, username: string, alumno: any, cuenta: Cuen
   await supabase.from("beast_mensajes").insert({
     username, rol: "alumno", texto, tipo: via, cuenta: gasta, alerta: riesgo && libreta.alerta_jonah === true,
   });
+  const nuevoCompromiso = typeof salida.compromiso === "string" && !riesgo ? salida.compromiso.trim().slice(0, 160) : "";
+  const datosBeast = accion || nuevoCompromiso ? { ...(accion ? { accion } : {}), ...(nuevoCompromiso ? { compromiso: nuevoCompromiso } : {}) } : null;
   const { data: fila } = await supabase.from("beast_mensajes").insert({
-    username, rol: "beast", texto: respuesta, datos: accion ? { accion } : null, tema, modelo,
+    username, rol: "beast", texto: respuesta, datos: datosBeast, tema, modelo,
   }).select("id").single();
+  // El compromiso pendiente ya se le preguntó: no se repite.
+  if (compromiso && salida.compromiso_revisado === true) {
+    await supabase.from("beast_mensajes").update({ datos: { ...compromiso.datos, revisado: true } }).eq("id", compromiso.id);
+  }
 
   // Libreta: un dato nuevo por vez, máx. ≈ 1 página (se quitan los más viejos).
   const recordar = typeof salida.recordar === "string" ? salida.recordar.trim().slice(0, 160) : "";

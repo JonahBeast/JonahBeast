@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Verificación del dominio jonahbeast.com en Meta (portafolio Jonah Beast Fuel, 10 oct 2026).
+         Va dos veces porque en la captura no se distinguía si era "0" (cero) u "o"; Meta solo busca la suya. -->
+    <meta name="facebook-domain-verification" content="2q58ofm5qlsn7404t5q8vvhs0otwoq" />
+    <meta name="facebook-domain-verification" content="2q58ofm5qlsn7404t5q8vvhsootwoq" />
     <script>
       // iPhone/iPad: al tocar una casilla con letra pequeña, Safari acerca la
       // pantalla y la deja agrandada. Con maximum-scale=1 no lo hace (y en
@@ -12,8 +16,10 @@
         document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover');
       }
     </script>
-    <title>Jonah Beast Fuel — Baja de peso sin dejar la comida peruana</title>
-    <meta name="description" content="App de nutrición para bajar de peso sin dejar la comida peruana: registra tus comidas con una foto, mide tu cuerpo y sigue tu progreso día a día." />
+    <!-- La marca va igual en todos los países ("Jonah Beast Fuel · Comida a comida");
+         lo de la comida peruana va en la descripción, que se adapta por país. -->
+    <title>Jonah Beast Fuel · Comida a comida</title>
+    <meta name="description" content="Contador de calorías para bajar de peso sin dejar la comida peruana: anota con una foto, tu voz o escribiendo, con la Tabla Peruana de Alimentos (CENAN) y tus platos con o sin arroz." />
 
     <!-- Dirección oficial para Google (sin "www" y sin ?fuente=…), la misma
          de las páginas de calorías y del sitemap. Así Google no ve como
@@ -53,9 +59,14 @@
          prueba de Vercel, la compu local, las visitas con ?preview=1 y los
          celulares donde entró un admin (marcados con jb-no-contar, las
          mismas reglas del embudo de la app) no le avisan nada a Meta ni a
-         TikTok, para no ensuciar lo que aprenden sus anuncios. -->
+         TikTok, para no ensuciar lo que aprenden sus anuncios. Tampoco se
+         cargan dentro de la app de iPhone (Apple cuenta la medición de
+         anuncios como "rastreo" y exige pedir permiso con su ventana; ahí no
+         medimos). En la web y Android, igual. -->
     <script>
+      window.__jbSinPixeles = /JBFuel-iOS/.test(navigator.userAgent);
       window.__jbMedirAnuncios = (function () {
+        if (window.__jbSinPixeles) return false;
         try {
           if (['jonahbeast.com', 'www.jonahbeast.com', 'jonah-beast.vercel.app'].indexOf(location.hostname) < 0) return false;
           if (new URLSearchParams(location.search).get('preview') === '1') { localStorage.setItem('jb-no-contar', '1'); return false; }

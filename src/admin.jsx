@@ -1,12 +1,12 @@
 // Parte de la app que se descarga solo cuando hace falta (admin).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Plus, Trash2, LogOut, Eye, X, ChevronRight, UserPlus, AlertTriangle, Loader2, MessageCircle } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
 import MANUAL_APP from '../docs/manual-app.md?raw';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay, tieneCelular } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -39,6 +39,10 @@ import {
   showToast,
   tieneDatosBasicos,
   todayISO,
+  esAppIOS,
+  hayAvisosIOS,
+  estadoAvisosIOS,
+  activarAvisosIOS,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
@@ -68,6 +72,290 @@ function formatActivity(lastActivity) {
   if (days < 7) return { text: `Hace ${days} días`, color: 'text-amber-400', dot: 'bg-amber-500' };
   if (days < 30) return { text: `Hace ${days} días`, color: 'text-red-400', dot: 'bg-red-500' };
   return { text: `Hace ${Math.floor(days / 30)} mes(es)`, color: 'text-red-400', dot: 'bg-red-500' };
+}
+
+/* 🎟️ CUPONES: Jonah crea códigos que el alumno escribe en Planes
+   ("¿Tienes un cupón?"). Dos tipos: % de descuento en su próximo pago
+   único (Yape, Plin, transferencia o Mercado Pago) o días de Premium
+   gratis (se canjean al toque). Cada alumno usa un cupón una sola vez; el
+   cupón puede ser para cualquiera o solo para un alumno, con tope de usos
+   y fecha de vencimiento. Tablas cupones y cupones_usos (solo admin). */
+const PRESETS_CUPON = { descuento: [10, 15, 20, 30], dias: [7, 15, 30] };
+function textoCupon(c) {
+  return c.tipo === 'dias' ? `${c.valor} días de Premium gratis` : `${c.valor}% de descuento en tu plan`;
+}
+function fechaCupon(iso) {
+  if (!iso) return '';
+  const [, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return `${d} de ${MESES_LARGOS[m - 1]}`;
+}
+function mensajeCupon(c, nombre) {
+  const n = String(nombre || '').trim().split(/\s+/)[0];
+  const hola = n ? `¡Hola ${n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()}!` : '¡Hola!';
+  const vence = c.vence ? ` Vale hasta el ${fechaCupon(c.vence)}.` : '';
+  const queHacer = c.tipo === 'dias'
+    ? 'toca "Canjear" y tus días se suman al toque.'
+    : 'elige tu plan: el descuento ya sale en el precio.';
+  return `${hola} Soy Jonah 🦍 Te dejo un cupón${c.para_username ? ' solo para ti' : ''}: *${c.codigo}*, con ${textoCupon(c)}.${vence} Entra aquí y tu cupón ya queda escrito: https://jonahbeast.com/?ir=planes&cupon=${c.codigo} Ahí ${queHacer} (Si no se abre, en Planes toca "🎟️ ¿Tienes un cupón?" y escríbelo.) El cambio llega poco a poco, comida a comida, y aquí seguimos juntos 💪 Cualquier duda me escribes aquí.`;
+}
+function linkWhatsApp(telefono, texto) {
+  const num = String(telefono || '').replace(/\D/g, '');
+  const full = num ? (num.length <= 9 ? '51' + num : num) : '';
+  return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+}
+function CuponesPanel({ users }) {
+  const [cupones, setCupones] = useState(null);
+  const [usos, setUsos] = useState([]);
+  const [pagosCupon, setPagosCupon] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [creando, setCreando] = useState(false);
+  const vencePorDefecto = addDaysISO(todayISO(), 5);
+  const vacio = { tipo: 'descuento', valor: 20, para: '', codigo: '', usos: '1', vence: vencePorDefecto, nota: '' };
+  const [nuevo, setNuevo] = useState(vacio);
+  const [guardando, setGuardando] = useState(false);
+  const [err, setErr] = useState('');
+  const [recien, setRecien] = useState(null); // cupón recién creado: su mensaje listo
+  const [expandido, setExpandido] = useState(null);
+
+  async function cargar() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const [c, u, p] = await Promise.all([
+      supabase.from('cupones').select('*').order('creado_en', { ascending: false }),
+      supabase.from('cupones_usos').select('*').order('usado_en', { ascending: false }),
+      supabase.from('pagos').select('cupon, username, estado, monto, plan_meses, metodo, creado_en').not('cupon', 'is', null),
+    ]);
+    if (c.error) { setCupones([]); setErr('No se pudieron cargar los cupones: ' + c.error.message); return; }
+    setCupones(c.data || []); setUsos(u.data || []); setPagosCupon(p.data || []);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  const alumno = useMemo(() => (users || []).find(u => u.username.toLowerCase() === nuevo.para.trim().toLowerCase()) || null, [users, nuevo.para]);
+  // Código sugerido: NOMBRE-20 si es para un alumno, o JB-XXXX al azar.
+  function sugerirCodigo(v = nuevo) {
+    const al = (users || []).find(u => u.username.toLowerCase() === v.para.trim().toLowerCase());
+    const base = al ? String(al.nombre || al.username).trim().split(/\s+/)[0] : '';
+    const limpio = base.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    const fin = v.tipo === 'dias' ? `${v.valor}D` : String(v.valor);
+    return limpio ? `${limpio}-${fin}` : `JB-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${fin}`;
+  }
+  function cambiar(campos) {
+    setNuevo(v => {
+      const n = { ...v, ...campos };
+      // El código sigue a lo elegido mientras no lo haya escrito a mano.
+      if (!v.codigoManual) n.codigo = sugerirCodigo(n);
+      return n;
+    });
+  }
+
+  async function crear() {
+    setErr('');
+    const codigo = nuevo.codigo.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,30}$/.test(codigo)) { setErr('El código va con letras, números o guiones (3 a 30), sin espacios ni tildes.'); return; }
+    const valor = Number(nuevo.valor);
+    if (nuevo.tipo === 'descuento' ? !(valor >= 1 && valor <= 100) : !(valor >= 1 && valor <= 365)) {
+      setErr(nuevo.tipo === 'descuento' ? 'El descuento va de 1 a 100 %.' : 'Los días van de 1 a 365.'); return;
+    }
+    if (nuevo.para.trim() && !alumno) { setErr('No encontré a ese alumno. Escribe su usuario tal cual (ej. doris).'); return; }
+    const fila = {
+      codigo, tipo: nuevo.tipo, valor,
+      usos_maximos: nuevo.usos === '' ? null : Math.max(1, Number(nuevo.usos) || 1),
+      para_username: alumno ? alumno.username : null,
+      vence: nuevo.vence || null,
+      nota: nuevo.nota.trim() || null,
+    };
+    setGuardando(true);
+    const { error } = await supabase.from('cupones').insert(fila);
+    setGuardando(false);
+    if (error) { setErr(/duplicate|unique/i.test(error.message) ? 'Ya existe un cupón con ese código. Cambia una letra o un número.' : 'No se pudo crear: ' + error.message); return; }
+    setRecien({ ...fila, nombre: alumno?.nombre || '', telefono: alumno?.telefono || '' });
+    setNuevo({ ...vacio, codigo: '' });
+    setCreando(false);
+    showToast('🎟️ Cupón creado');
+    cargar();
+  }
+
+  async function cambiarActivo(c) {
+    const { error } = await supabase.from('cupones').update({ activo: !c.activo }).eq('codigo', c.codigo);
+    if (error) { showToast('No se pudo cambiar: ' + error.message, 'error'); return; }
+    cargar();
+  }
+  async function borrar(c) {
+    if (!window.confirm(`¿Borrar el cupón ${c.codigo}? Nadie lo usó todavía, así que no se pierde ningún historial.`)) return;
+    const { error } = await supabase.from('cupones').delete().eq('codigo', c.codigo);
+    if (error) { showToast('No se pudo borrar: ' + error.message, 'error'); return; }
+    cargar();
+  }
+  async function copiar(texto) {
+    try { await navigator.clipboard.writeText(texto); showToast('📋 Mensaje copiado'); } catch { showToast('No se pudo copiar', 'error'); }
+  }
+
+  const hoy = todayISO();
+  const estadoDe = c => !c.activo ? ['Apagado', 'text-zinc-500']
+    : c.vence && hoy > c.vence ? ['Vencido', 'text-zinc-500']
+    : c.usos_maximos && c.usos >= c.usos_maximos ? ['Agotado', 'text-amber-400']
+    : ['Activo', 'text-emerald-400'];
+  const lista = cupones || [];
+  const activos = lista.filter(c => estadoDe(c)[0] === 'Activo').length;
+  const pagaronConCupon = new Set(pagosCupon.filter(p => p.estado === 'aprobado').map(p => p.username)).size;
+  const nombreDe = un => (users || []).find(u => u.username === un)?.nombre || un;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <button onClick={() => setOpen(v => !v)} className="w-full px-5 py-4 flex items-center justify-between text-left">
+        <div>
+          <p className="jb-display text-lg text-zinc-50">🎟️ CUPONES</p>
+          <p className="jb-body text-xs text-zinc-500">
+            {cupones === null ? 'Cargando…' : `${activos} activo(s) · ${usos.length} uso(s) · ${pagaronConCupon} pagaron con cupón`}
+          </p>
+        </div>
+        <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-5 pb-5">
+          <p className="jb-body text-xs text-zinc-400 mb-3">
+            El alumno lo escribe en <b className="text-zinc-200">Planes → "🎟️ ¿Tienes un cupón?"</b>. Úsalo para quien termina su prueba, aliados, premios o regalos. Cada persona lo usa una sola vez.
+            El descuento vale para Yape, Plin, transferencia y Mercado Pago pago único (no en el cobro automático ni en Play Store o iPhone).
+          </p>
+
+          {recien && (
+            <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-3 mb-3">
+              <p className="jb-body text-sm text-emerald-300 font-semibold mb-1">✅ {recien.codigo} listo · {textoCupon(recien)}</p>
+              <p className="jb-body text-[11px] text-zinc-400 mb-2">Mensaje listo para mandarlo{recien.nombre ? ` a ${recien.nombre}` : ''}:</p>
+              <p className="jb-body text-xs text-zinc-200 bg-zinc-950 rounded-lg p-2.5 whitespace-pre-wrap">{mensajeCupon(recien, recien.nombre)}</p>
+              <div className="flex gap-2 mt-2">
+                <a href={linkWhatsApp(recien.telefono, mensajeCupon(recien, recien.nombre))} target="_blank" rel="noreferrer" className={btnPrimary + ' flex-1 py-2 text-xs'}>
+                  <MessageCircle size={14} /> Mandar por WhatsApp
+                </a>
+                <button onClick={() => copiar(mensajeCupon(recien, recien.nombre))} className={btnGhost + ' py-2 text-xs'}>Copiar</button>
+                <button onClick={() => setRecien(null)} className={btnGhost + ' py-2 text-xs'}><X size={14} /></button>
+              </div>
+            </div>
+          )}
+
+          {!creando ? (
+            <button onClick={() => { setCreando(true); setRecien(null); setNuevo({ ...vacio, codigo: sugerirCodigo(vacio) }); }} className={btnPrimary + ' w-full py-2.5 mb-4'}>
+              <Plus size={16} /> Crear cupón
+            </button>
+          ) : (
+            <div className="bg-zinc-950/60 border border-zinc-800 rounded-xl p-4 mb-4 flex flex-col gap-3">
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Qué regala?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['descuento', '💸 % de descuento'], ['dias', '🎁 Días de Premium']].map(([t, l]) => (
+                    <button key={t} onClick={() => cambiar({ tipo: t, valor: t === 'dias' ? 7 : 20 })}
+                      className={`jb-body text-sm py-2 rounded-lg border ${nuevo.tipo === t ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">{nuevo.tipo === 'dias' ? '¿Cuántos días?' : '¿Cuánto descuento?'}</p>
+                <div className="flex gap-2 flex-wrap items-center">
+                  {PRESETS_CUPON[nuevo.tipo].map(v => (
+                    <button key={v} onClick={() => cambiar({ valor: v })}
+                      className={`jb-body text-sm px-3 py-1.5 rounded-full border ${Number(nuevo.valor) === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                      {nuevo.tipo === 'dias' ? `${v} días` : `${v}%`}
+                    </button>
+                  ))}
+                  <input type="number" inputMode="numeric" value={nuevo.valor} onChange={e => cambiar({ valor: e.target.value })} className={inputCls + ' w-20 py-1.5'} />
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Para un alumno en especial? (opcional: su usuario)</p>
+                <input list="cupon-alumnos" value={nuevo.para} onChange={e => cambiar({ para: e.target.value, usos: e.target.value.trim() ? '1' : nuevo.usos })}
+                  placeholder="Vacío = para cualquiera" className={inputCls} />
+                <datalist id="cupon-alumnos">
+                  {(users || []).map(u => <option key={u.username} value={u.username}>{u.nombre || ''}</option>)}
+                </datalist>
+                {alumno && <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ {alumno.nombre || alumno.username}{alumno.telefono ? '' : ' (sin celular: copia el mensaje)'}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Cuántas personas lo pueden usar?</p>
+                  <select value={nuevo.usos} onChange={e => setNuevo(v => ({ ...v, usos: e.target.value }))} className={inputCls}>
+                    <option value="1">1 sola</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="">Sin límite</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="jb-body text-xs text-zinc-400 mb-1.5">Vale hasta (incluido)</p>
+                  <input type="date" value={nuevo.vence} min={hoy} onChange={e => setNuevo(v => ({ ...v, vence: e.target.value }))} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">Código</p>
+                <input value={nuevo.codigo} onChange={e => setNuevo(v => ({ ...v, codigo: e.target.value.toUpperCase().replace(/\s/g, ''), codigoManual: true }))}
+                  className={inputCls + ' font-mono tracking-wider'} />
+              </div>
+              <div>
+                <p className="jb-body text-xs text-zinc-400 mb-1.5">Nota (solo la ves tú)</p>
+                <input value={nuevo.nota} onChange={e => setNuevo(v => ({ ...v, nota: e.target.value }))} placeholder="Ej. fin de prueba, gimnasio X, premio del reto" className={inputCls} />
+              </div>
+              {err && <p className="text-red-400 text-sm flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+              <div className="flex gap-2">
+                <button onClick={crear} disabled={guardando} className={btnPrimary + ' flex-1 py-2.5'}>
+                  {guardando ? <Loader2 className="animate-spin" size={16} /> : '🎟️ Crear cupón'}
+                </button>
+                <button onClick={() => { setCreando(false); setErr(''); }} className={btnGhost + ' py-2.5'}>Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {!creando && err && <p className="text-red-400 text-sm mb-3 flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
+          {cupones !== null && lista.length === 0 && <p className="jb-body text-sm text-zinc-500 text-center py-3">Todavía no creaste cupones.</p>}
+          <div className="flex flex-col gap-2">
+            {lista.map(c => {
+              const [estado, color] = estadoDe(c);
+              const susUsos = usos.filter(u => u.codigo === c.codigo);
+              const pendientes = pagosCupon.filter(p => p.cupon === c.codigo && p.estado === 'pendiente');
+              const abierto = expandido === c.codigo;
+              return (
+                <div key={c.codigo} className="bg-zinc-950/60 border border-zinc-800 rounded-xl">
+                  <button onClick={() => setExpandido(abierto ? null : c.codigo)} className="w-full p-3 flex items-center gap-3 text-left">
+                    <div className="flex-1 min-w-0">
+                      <p className="jb-body text-sm text-zinc-50 font-mono font-semibold truncate">{c.codigo}</p>
+                      <p className="jb-body text-[11px] text-zinc-400 truncate">
+                        {c.tipo === 'dias' ? `🎁 ${c.valor} días` : `💸 ${c.valor}%`}
+                        {c.para_username ? ` · solo ${nombreDe(c.para_username)}` : ' · para cualquiera'}
+                        {c.vence ? ` · hasta el ${fechaCupon(c.vence)}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`jb-body text-[11px] font-semibold ${color}`}>{estado}</p>
+                      <p className="jb-body text-[11px] text-zinc-500 tabular-nums">{c.usos}/{c.usos_maximos || '∞'} usos</p>
+                    </div>
+                  </button>
+                  {abierto && (
+                    <div className="px-3 pb-3 border-t border-zinc-800 pt-2">
+                      {c.nota && <p className="jb-body text-[11px] text-zinc-500 mb-2">📝 {c.nota}</p>}
+                      {susUsos.length === 0 && pendientes.length === 0 && <p className="jb-body text-xs text-zinc-500 mb-2">Nadie lo usó todavía.</p>}
+                      {susUsos.map(u => (
+                        <p key={u.id} className="jb-body text-xs text-zinc-300 mb-1">
+                          ✅ {nombreDe(u.username)} · {fechaCupon(u.usado_en)}{c.tipo === 'descuento' ? ' · pagó' : ' · canjeó sus días'}
+                        </p>
+                      ))}
+                      {pendientes.map(p => (
+                        <p key={p.username + p.creado_en} className="jb-body text-xs text-amber-300 mb-1">⏳ {nombreDe(p.username)} envió su pago (S/{Number(p.monto).toFixed(2)}): falta aprobarlo</p>
+                      ))}
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        <button onClick={() => copiar(mensajeCupon(c, c.para_username ? nombreDe(c.para_username) : ''))} className={btnGhost + ' py-1.5 text-xs'}>📋 Copiar mensaje</button>
+                        <button onClick={() => cambiarActivo(c)} className={btnGhost + ' py-1.5 text-xs'}>{c.activo ? 'Apagar' : 'Encender'}</button>
+                        {c.usos === 0 && pendientes.length === 0 && <button onClick={() => borrar(c)} className={btnDanger + ' py-1.5 text-xs'}><Trash2 size={12} /> Borrar</button>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ReferidosPanel({ users, onCambio }) {
@@ -431,10 +719,10 @@ function ReferidosPanel({ users, onCambio }) {
                           {montoPend > 0 && (
                             <>
                               <span className="jb-display text-sm text-emerald-400">S/{montoPend.toFixed(2)}</span>
-                              <a href={waRef(r, montoPend, porPagar.length)} target="_blank" rel="noopener noreferrer"
+                              {tieneCelular(r.telefono) ? <a href={waRef(r, montoPend, porPagar.length)} target="_blank" rel="noopener noreferrer"
                                 className={btnGhost + ' py-1.5 px-3 text-xs'}>
                                 <MessageCircle size={13} />
-                              </a>
+                              </a> : <SinCelular />}
                             </>
                           )}
                           {!editandoEste && (
@@ -803,6 +1091,10 @@ function PedidoAlimento({ pedido, onResuelto }) {
       ? `Ya estaba en la app como "${propuesta.ya_existe}". Búscalo con ese nombre en "REGISTRAR" → "Escribir" 🙌`
       : propuesta?.por_partes?.length
       ? `Lo puedes registrar por partes, cada uno con tu cantidad 💪: ${propuesta.por_partes.join(' + ')}. Así es más exacto y luego te sale en ⭐ Favoritos o con "Repetir ayer" 🦍`
+      : Number(propuesta?.kcal) > 0
+      // La IA sí sabe qué es (le puso números): no decirle que no lo
+      // identificamos, sino pedirle lo que falta para dejarlo exacto.
+      ? `¡Gracias por pedir "${pedido.nombre}"! 🙌 Para agregarlo con sus números exactos, ¿me mandas una foto de la tabla nutricional del envase (o me cuentas cómo se prepara)? Apenas la tenga, lo dejo listo en la app 💪`
       : `No pudimos identificar "${pedido.nombre}". Si nos das más detalles (cómo se prepara o de qué marca es), lo agregamos 🙌`);
     setDescartando(true);
   }
@@ -1601,18 +1893,6 @@ function RelojPlazo({ desde }) {
       {texto}
     </span>
   );
-}
-
-// Lo que la IA recomienda hacer con un pedido (con sus macros ya calculados).
-function recomendacionPedido(p) {
-  if (!p || p.kcal == null) return null;
-  if (p.ya_existe) return `🔗 Ya existe como "${p.ya_existe}". Descártalo: el mensaje le dice con qué nombre buscarlo.`;
-  if (p.parecidos?.length) return `🔎 Se parece a "${p.parecidos[0]}"${p.parecidos.length > 1 ? ` (o ${p.parecidos.slice(1).map(x => `"${x}"`).join(', ')})` : ''}. Si es lo mismo, toca "🔗 Es este" abajo; si no, apruébalo con un nombre que lo distinga.`;
-  if (p.por_partes?.length) return `🧩 Que lo registre por partes: ${p.por_partes.join(' + ')}. Descártalo: el mensaje le explica cómo.`;
-  const cuadra = Math.abs(4 * (+p.proteina || 0) + 4 * (+p.carbos || 0) + 9 * (+p.grasa || 0) - (+p.kcal || 0)) <= Math.max(25, (+p.kcal || 0) * 0.15);
-  return cuadra
-    ? `✅ Aprobarlo con ${Math.round(p.kcal)} kcal · P ${p.proteina} · C ${p.carbos} · G ${p.grasa} (por 100 g). Revisa el nombre y toca "Aprobar y avisar".`
-    : '🤔 Los números de la IA no cuadran. Toca 🔄 para recalcular o corrígelos a mano.';
 }
 
 // Y con un alimento que creó un alumno.
@@ -2662,12 +2942,12 @@ function LeadsPanel() {
                     <div className="text-xs text-zinc-400 jb-body">
                       {l.grasa_pct}% grasa · IMC {l.imc} · {l.tdee} kcal
                     </div>
-                    <a href={l.telefono
+                    {tieneCelular(l.telefono) ? <a href={l.telefono
                       ? `https://wa.me/${l.telefono.replace(/\D/g,'').length <= 9 ? '51' + l.telefono.replace(/\D/g,'') : l.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${l.nombre || ''}, vi que te mediste en Jonah Beast Fuel. ¿Quieres que revisemos tus resultados juntos?`)}`
                       : `https://wa.me/?text=${encodeURIComponent('Hola, vi que te mediste en Jonah Beast Fuel.')}`}
                       target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-3 text-xs'}>
                       <MessageCircle size={13} /> Contactar
-                    </a>
+                    </a> : <SinCelular />}
                   </div>
                 ))}
               </div>
@@ -2846,8 +3126,19 @@ const FILAS_PRIMERA = [
     ['primera_comida', 'foto', 'Tocaron "Tómale foto"'],
     ['primera_comida', 'plato', 'Eligieron un plato con 1 toque'],
     ['primera_comida', 'buscar', 'Tocaron "Buscar otro plato"'],
-    ['primera_comida', 'ahora_no', 'Tocaron "Ahora no"'],
+    ['primera_comida', 'ahora_no', 'Tocaron "Ahora no" (o tocaron afuera)'],
+    ['primera_comida', 'noche', 'Tocaron "Lo anoto en la noche"'],
+    ['primera_comida', 'noche_aviso', '…y activaron el aviso para recordarlo'],
+    ['primera_comida', 'noche_vio', 'En la noche vieron "¡Hora de anotar tu día!"'],
+    ['primera_comida', 'noche_ahora_no', 'En la noche tocaron "Ahora no"'],
     ['primera_comida', 'demo', 'Llegaron con el plato de la prueba'],
+  ] },
+  // Desde el 14 de octubre: "¿Qué más comiste hoy?" tras la 1.ª comida.
+  { titulo: '¿Qué más comiste hoy?', filas: [
+    ['primera_comida', 'que_mas_vio', 'Vieron "¿Qué más comiste hoy?"'],
+    ['primera_comida', 'que_mas_toco', 'Tocaron otra comida para anotarla'],
+    ['primera_comida', 'que_mas_todo', 'Tocaron "Eso fue todo por hoy"'],
+    ['primera_comida', 'dos_comidas', 'Anotaron 2 comidas o más su primer día (todos)'],
   ] },
   { titulo: 'Foto de la comida', filas: [
     ['foto_comida', 'resultado', 'La foto reconoció su comida'],
@@ -2860,6 +3151,9 @@ const FILAS_PRIMERA = [
     ['abrir_navegador', 'vio', 'Vieron el aviso'],
     ['abrir_navegador', 'toco', 'Tocaron "Abrir en…"'],
     ['abrir_navegador', 'seguir', 'Tocaron "Seguir aquí por ahora"'],
+    ['abrir_navegador', 'llego', 'Llegaron a Chrome/Safari y entraron'],
+    ['abrir_navegador', 'aviso_ok', 'Activaron los avisos al llegar'],
+    ['abrir_navegador', 'aviso_no', 'Tocaron "Ahora no" al llegar'],
   ] },
   { titulo: 'Pantalla "¿Seguimos juntos?" (fin de la prueba)', filas: [
     ['fin_prueba', 'vio', 'La vieron'],
@@ -2985,7 +3279,7 @@ function EquiposPanel({ users }) {
                 )}
                 <p className="jb-body text-[11px] text-zinc-500 mb-2">
                   {!e.oficial && <>Código: <span className="text-orange-400 tracking-widest">{e.codigo}</span> · </>}
-                  {{ comer: '🍽️ Comer mejor', juntos: '🤝 Meta juntos', carrera: '🏁 Carrera' }[e.objetivo] || '🍽️ Comer mejor'}
+                  {{ comer: '🍽️ Comer mejor', juntos: '🤝 Meta juntos', carrera: '🏁 Carrera' }[e.objetivo] || '🍽️ Comer mejor'}{e.sentido === 'subir' ? ' (subir de peso)' : ''}
                   {e.meta_valor ? ` · meta ${e.meta_valor}${{ comidas: ' comidas', pct_total: '% entre todos', kg_total: ' kg entre todos', kg_cada: ' kg cada uno', carrera_kg: ' kg (carrera)', carrera_pct: '% (carrera)' }[e.meta_tipo] || ''}` : ''}
                   {' '}· del {e.inicio} al {e.fin || addDaysISO(e.inicio, e.dias - 1)}
                   {e.premio ? <> · 🎁 {e.premio}</> : null}
@@ -3652,8 +3946,13 @@ function ActivacionPanel({ users }) {
 // Cuentas del dueño (sus pruebas y pagos propios): no cuentan en las
 // métricas del negocio (alumnos pagando, ingresos, alumnos nuevos,
 // conversión, cobros de Jarvis).
-const CUENTAS_PROPIAS = ['martin'];
-const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username);
+// Los verificadores de Google Play (ver esVerificadorPlay en listaCarino.js)
+// tampoco cuentan: el panel los anota aquí apenas carga la lista de alumnos.
+const CUENTAS_PROPIAS = ['martin', 'jhc10_05apple', '4hfy7tnvwh']; // Jonah, la cuenta para el revisor de Apple y su cuenta de prueba con Apple (13 oct)
+const VERIFICADORES = new Set();
+// En vez del botón de WhatsApp, cuando no hay número al que escribir.
+const SinCelular = () => <span className="jb-body text-[11px] text-zinc-500 shrink-0">sin celular</span>;
+const esCuentaPropia = username => CUENTAS_PROPIAS.includes(username) || VERIFICADORES.has(username);
 
 function TableroPanel({ users: todosLosUsuarios }) {
   const users = (todosLosUsuarios || []).filter(u => !esCuentaPropia(u.username));
@@ -5765,6 +6064,9 @@ function AdminNotifButton() {
 
   useEffect(() => {
     (async () => {
+      // App de iPhone: los avisos van por Apple, a nombre del admin.
+      const ios = await estadoAvisosIOS('jonabeast');
+      if (ios) { setEstado(ios); return; }
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         setEstado('nosoportado'); return;
       }
@@ -5787,6 +6089,11 @@ function AdminNotifButton() {
   async function activar() {
     setTrabajando(true);
     try {
+      if (hayAvisosIOS()) {
+        setEstado(await activarAvisosIOS('jonabeast'));
+        setTrabajando(false);
+        return;
+      }
       const permiso = await Notification.requestPermission();
       if (permiso !== 'granted') {
         setEstado(permiso === 'denied' ? 'bloqueado' : 'disponible');
@@ -5824,7 +6131,7 @@ function AdminNotifButton() {
     return <span className="jb-body text-xs text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">🔔 <span className="hidden sm:inline">Notificaciones </span>Activas</span>;
   }
   if (estado === 'bloqueado') {
-    return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas (revisa permisos del navegador)</span>;
+    return <span className="jb-body text-xs text-zinc-600">🔕 Notificaciones bloqueadas ({esAppIOS() ? 'Ajustes del iPhone → Jonah Beast Fuel → Notificaciones' : 'revisa permisos del navegador'})</span>;
   }
   return (
     <button onClick={activar} disabled={trabajando} className={btnGhost + ' text-xs py-1.5 px-3'}>
@@ -5837,6 +6144,7 @@ function AdminNotifButton() {
 // Open Food Facts o de la etiqueta que leyó la IA; aquí Jonah revisa los
 // más recientes y corrige los números si alguno se leyó mal. El nombre no
 // se cambia: los alumnos que ya lo registraron lo tienen guardado así.
+// "🗑️ Quitar" borra repetidos (avisa si no tiene otro igual).
 const FUENTES_PRODUCTO = { open_food_facts: 'Open Food Facts', etiqueta: 'Etiqueta (IA)', admin: 'Admin' };
 
 function ProductosPanel() {
@@ -5845,6 +6153,7 @@ function ProductosPanel() {
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState(null); // { codigo, kcal, proteina, carbos, grasa, fibra, porcion_g }
   const [error, setError] = useState('');
+  const [quitando, setQuitando] = useState(null); // código del producto que pide confirmar "Quitar"
 
   useEffect(() => { cargar(); }, []);
 
@@ -5871,6 +6180,15 @@ function ProductosPanel() {
     setEditando(null);
   }
 
+  // "🗑️ Quitar": para repetidos o productos mal leídos. Pide confirmar.
+  async function quitar(codigo) {
+    setError('');
+    const { error: err } = await supabase.from('productos').delete().eq('codigo', codigo);
+    if (err) { setError('No se pudo quitar: ' + err.message); return; }
+    setFilas(fs => fs.filter(f => f.codigo !== codigo));
+    setQuitando(null);
+  }
+
   const deEtiqueta = filas.filter(f => f.fuente === 'etiqueta').length;
 
   return (
@@ -5892,6 +6210,9 @@ function ProductosPanel() {
                 const kcalMacros = Math.round(4 * Number(f.proteina) + 4 * Number(f.carbos) + 9 * Number(f.grasa));
                 const raro = Number(f.kcal) > 0 && Math.abs(kcalMacros - Number(f.kcal)) > Math.max(30, Number(f.kcal) * 0.2);
                 const enEdicion = editando?.codigo === f.codigo;
+                // Otro producto con el mismo nombre y marca: es un repetido y
+                // los alumnos lo siguen viendo por el otro.
+                const repetido = filas.some(o => o.codigo !== f.codigo && o.nombre === f.nombre && (o.marca || '') === (f.marca || ''));
                 return (
                   <div key={f.codigo} className={`bg-zinc-950 border rounded-lg p-3 ${raro ? 'border-amber-700/60' : 'border-zinc-800'}`}>
                     <div className="flex items-start justify-between gap-3">
@@ -5905,11 +6226,33 @@ function ProductosPanel() {
                         </p>
                         {raro && <p className="jb-body text-[11px] text-amber-400 mt-0.5">Ojo: con esos macros saldrían ~{kcalMacros} kcal. Revisa los números.</p>}
                       </div>
-                      {!enEdicion && (
-                        <button onClick={() => { setError(''); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
+                      {!enEdicion && quitando !== f.codigo && (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                        <button onClick={() => { setError(''); setQuitando(null); setEditando({ codigo: f.codigo, kcal: f.kcal, proteina: f.proteina, carbos: f.carbos, grasa: f.grasa, fibra: f.fibra, porcion_g: f.porcion_g || '' }); }}
                           className={btnGhost + ' py-1 px-3 text-xs shrink-0'}>Corregir</button>
+                        <button onClick={() => { setError(''); setEditando(null); setQuitando(f.codigo); }}
+                          className="jb-body text-[11px] text-zinc-500 hover:text-red-400 py-1">🗑️ Quitar</button>
+                        </div>
                       )}
                     </div>
+                    {repetido && <p className="jb-body text-[11px] text-amber-400 mt-1">Repetido: hay otro "{f.nombre}"{f.marca ? ` de ${f.marca}` : ''} en la lista.{/^99\d{12}$/.test(f.codigo) ? ' Este no tiene código de barras (se leyó desde la foto de comida): es el que conviene quitar.' : ''}</p>}
+                    {quitando === f.codigo && (
+                      <div className="mt-3 bg-red-950/30 border border-red-900/50 rounded-lg p-3">
+                        <p className="jb-body text-xs text-zinc-200 mb-1">¿Quitar "{f.nombre}" ({f.codigo})?</p>
+                        <p className="jb-body text-[11px] text-zinc-400 mb-2">
+                          {repetido
+                            ? 'Es un repetido: los alumnos lo siguen viendo por el otro, con su mismo nombre.'
+                            : Number(f.veces_usado) > 0
+                              ? 'Ojo: no tiene repetido. Quien ya lo registró podría dejar de ver sus calorías en esos días, y nadie lo encontrará al escanearlo.'
+                              : 'Nadie lo ha usado todavía.'}
+                        </p>
+                        {error && <p className="jb-body text-xs text-red-400 mb-2">{error}</p>}
+                        <div className="flex gap-2">
+                          <button onClick={() => quitar(f.codigo)} className="jb-body text-sm py-1.5 flex-1 rounded-lg bg-red-600 hover:bg-red-500 text-zinc-50 font-semibold">Sí, quitar</button>
+                          <button onClick={() => setQuitando(null)} className={btnGhost + ' text-sm py-1.5'}>Cancelar</button>
+                        </div>
+                      </div>
+                    )}
                     {enEdicion && (
                       <div className="mt-3 flex flex-col gap-2">
                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
@@ -7235,9 +7578,9 @@ function EmbudoPanel() {
             {alerta && <div className="text-amber-400 text-xs jb-body mt-0.5">⚠️ {alerta}</div>}
           </div>
           <div className="flex gap-2 shrink-0">
-            <a href={waLink(telefono, nombre, mensajeWa)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
+            {tieneCelular(telefono) ? <a href={waLink(telefono, nombre, mensajeWa)} target="_blank" rel="noopener noreferrer" className={btnGhost + ' py-1 px-2 text-xs'}>
               <MessageCircle size={13} />
-            </a>
+            </a> : <SinCelular />}
             <button onClick={() => { setNotaAbierta(abierta ? null : clave); setTextoNota(''); setFechaAccion(''); }}
               className={btnGhost + ' py-1 px-2 text-xs'}>
               {abierta ? 'Cerrar' : `+ Nota${misNotas.length ? ` (${misNotas.length})` : ''}`}
@@ -7318,9 +7661,9 @@ function EmbudoPanel() {
                             {p.nota.nota} {p.nota.proxima_accion < hoy && <span className="text-red-400">· atrasado</span>}
                           </div>
                         </div>
-                        <a href={waLink(p.telefono, p.nombre)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs shrink-0'}>
+                        {tieneCelular(p.telefono) ? <a href={waLink(p.telefono, p.nombre)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1 px-3 text-xs shrink-0'}>
                           <MessageCircle size={13} /> Escribir
-                        </a>
+                        </a> : <SinCelular />}
                       </div>
                     ))}
                   </div>
@@ -7697,7 +8040,8 @@ async function datosNegocioJarvis(users) {
   // de 3 días) pero nunca registraron una comida (mismo criterio que Rescate).
   let aMedias = null;
   try {
-    const nombresActivos = activosL.map(u => u.username);
+    // Solo los que tienen celular: el aviso manda a Rescate a escribirles.
+    const nombresActivos = activosL.filter(u => tieneCelular(u.telefono)).map(u => u.username);
     if (nombresActivos.length) {
       const { data: conComida } = await traerTodas(() => supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0));
       const comieron = new Set((conComida || []).map(r => r.username));
@@ -9181,6 +9525,20 @@ function WhatsAppPanel() {
     } catch { setCosto(null); }
   }
 
+  // Lo que el asistente "recuerda" de la prueba: las imágenes que mandó van
+  // como texto junto a su respuesta, para que no las vuelva a mandar.
+  function historialSimulador(lista) {
+    const out = [];
+    for (const m of lista) {
+      const role = m.role === 'imagen' ? 'assistant' : m.role;
+      if (role !== 'user' && role !== 'assistant') continue;
+      const content = m.role === 'imagen' ? `(imagen enviada: ${m.content})` : m.content;
+      if (out.length && out[out.length - 1].role === role) out[out.length - 1].content += `\n${content}`;
+      else out.push({ role, content });
+    }
+    return out;
+  }
+
   async function simular() {
     const t = simTexto.trim();
     if (!t || simEnviando) return;
@@ -9191,13 +9549,15 @@ function WhatsAppPanel() {
       const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-webhook`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: supabaseKey, authorization: `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({ simular: { mensajes: lista.filter(m => m.role === 'user' || m.role === 'assistant').map(({ role, content }) => ({ role, content })), username: simComo.trim() } }),
+        body: JSON.stringify({ simular: { mensajes: historialSimulador(lista), username: simComo.trim() } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.error) throw new Error(d.error || `Error ${r.status}`);
       if (d.personal) setSimMensajes([...lista, { role: 'nota', content: `🚫 No respondería: le pareció un mensaje personal (${d.personal}).` }]);
       else {
-        const nuevos = [...lista, { role: 'assistant', content: d.texto || '(sin respuesta)' }];
+        const nuevos = [...lista];
+        if (d.texto || !(d.imagenes || []).length) nuevos.push({ role: 'assistant', content: d.texto || '(sin respuesta)' });
+        (d.imagenes || []).forEach(img => nuevos.push({ role: 'imagen', content: img.titulo, url: img.url }));
         if (d.pasar) nuevos.push({ role: 'nota', content: `🙋 Aquí te pasaría el chat y te llegaría un aviso: ${d.pasar.resumen}` });
         if (d.pedido) nuevos.push({ role: 'nota', content: `🍽️ Anotaría el pedido "${d.pedido}" en Alimentos por revisar.` });
         setSimMensajes(nuevos);
@@ -9387,7 +9747,13 @@ function WhatsAppPanel() {
           <input value={simComo} onChange={e => setSimComo(e.target.value)} className={inputCls} placeholder="Vacío = cliente nuevo sin cuenta" />
         </Field>
         <div className="flex flex-col gap-1.5 my-3 max-h-96 overflow-y-auto">
-          {simMensajes.map((m, i) => (
+          {simMensajes.map((m, i) => m.role === 'imagen' ? (
+            // La imagen que recibiría el cliente: tocarla la abre en grande.
+            <a key={i} href={m.url} target="_blank" rel="noopener noreferrer" className="self-start bg-zinc-800 rounded-lg p-1.5 max-w-[60%]">
+              <div className="jb-body text-[10px] text-zinc-500 mb-1 px-1">Asistente · {m.content}</div>
+              <img src={m.url} alt={m.content} className="rounded-md w-full max-w-[220px]" />
+            </a>
+          ) : (
             <div key={i} className={`jb-body text-xs rounded-lg px-2.5 py-1.5 max-w-[85%] whitespace-pre-wrap break-words ${
               m.role === 'user' ? 'bg-orange-500/20 text-orange-100 self-end' : m.role === 'nota' ? 'bg-zinc-950 border border-zinc-700 text-zinc-300 self-center max-w-full' : 'bg-zinc-800 text-zinc-100 self-start'}`}>
               {m.role !== 'nota' && <div className="text-[10px] text-zinc-500 mb-0.5">{m.role === 'user' ? 'Cliente (tú)' : 'Asistente'}</div>}
@@ -9435,12 +9801,36 @@ function WhatsAppPanel() {
   );
 }
 
-function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
+function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDeleteUser, onLogout, onViewStudent, onRenew, onAdjustDays, onActivarAddOnFoto, onDesactivarAddOnFoto, onRecargar }) {
+  // Los verificadores de Google Play quedan fuera de todo el panel (mensajes,
+  // rescate, números); en ALUMNOS salen aparte, en su propio grupo.
+  const users = useMemo(() => {
+    const todos = todosLosUsuarios || [];
+    todos.forEach(u => { if (esVerificadorPlay(u)) VERIFICADORES.add(u.username); });
+    return todos.filter(u => !VERIFICADORES.has(u.username));
+  }, [todosLosUsuarios]);
+  // Para las listas de "escribirle por WhatsApp": sin celular no hay a
+  // quién escribirle, así que no salen (en los números sí cuentan).
+  const usersConCelular = useMemo(() => users.filter(u => tieneCelular(u.telefono)), [users]);
   const [newUser, setNewUser] = useState({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   const [formErr, setFormErr] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // Pagos por revisar: si estás en otra pestaña, un aviso arriba te lleva a
+  // HOY, donde los pagos salen primero.
+  const [pagosPendientes, setPagosPendientes] = useState(0);
+  const contarPagosPendientes = useCallback(async () => {
+    try {
+      const { count } = await supabase.from('pagos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
+      setPagosPendientes(count || 0);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    contarPagosPendientes();
+    const t = setInterval(contarPagosPendientes, 60000);
+    return () => clearInterval(t);
+  }, [contarPagosPendientes]);
   // Si la sesión de admin se cierra con el panel abierto (por ejemplo, otro
   // inicio o cierre de sesión en otra pestaña), la base responde vacío y el
   // panel mostraba "0" o "No se pudo revisar" sin decir por qué. Ahora avisa
@@ -9508,7 +9898,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     const uname = newUser.username.trim();
     if (!uname || !newUser.password) return setFormErr('Completa usuario y contraseña.');
     if (!newUser.telefono.trim()) return setFormErr('Ingresa el celular del alumno.');
-    if (users.some(u => u.username.toLowerCase() === uname.toLowerCase())) return setFormErr('Ese usuario ya existe.');
+    if (todosLosUsuarios.some(u => u.username.toLowerCase() === uname.toLowerCase())) return setFormErr('Ese usuario ya existe.');
     const inicio = newUser.fechaInicio || todayISO();
     const meses = Number(newUser.meses) || 1;
     onAddUser({
@@ -9519,7 +9909,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
     setNewUser({ username: '', password: '', nombre: '', telefono: '', fechaInicio: todayISO(), meses: 1 });
   }
 
-  const usersFiltrados = users.filter(u => {
+  const usersFiltrados = (todosLosUsuarios || []).filter(u => {
     if (filtroProgreso !== 'todos' && progresoDe(u).grupo !== filtroProgreso) return false;
     if (!busqueda.trim()) return true;
     const q = busqueda.trim().toLowerCase();
@@ -9565,6 +9955,17 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
         </div>
 
 
+        {pagosPendientes > 0 && tabActiva !== 'hoy' && (
+          <button type="button" onClick={() => { setTabActiva('hoy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="w-full bg-orange-500/15 border border-orange-500/60 rounded-2xl px-5 py-3.5 flex items-center justify-between gap-3 text-left -mb-4">
+            <span className="jb-body text-sm text-zinc-100">
+              💳 <b>{pagosPendientes === 1 ? '1 pago por revisar' : `${pagosPendientes} pagos por revisar`}</b>
+              <span className="text-zinc-400"> · {pagosPendientes === 1 ? 'el alumno espera' : 'esperan'} su acceso</span>
+            </span>
+            <span className="jb-display text-xs text-orange-400 shrink-0 flex items-center gap-1">REVISAR <ChevronRight size={14} /></span>
+          </button>
+        )}
+
         {(() => {
           const TABS = [
             { id: 'hoy', label: 'HOY', emoji: '📋' },
@@ -9599,8 +10000,11 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 que puede esperar. Los números van en NEGOCIO y lo de la IA
                 (saldo, costo, precisión) en IA. Muchas tarjetas solo salen
                 cuando tienen algo pendiente. */}
+            {/* Pagos primero: un alumno que pagó está esperando su acceso
+                (pedido por Jonah, 16 oct: tenía que bajar por todos los
+                alumnos para llegar a aprobar). */}
+            <PagosPanel onCambio={contarPagosPendientes} />
             <MensajesDelDiaPanel />
-            <PagosPanel />
             <PedidosAlimentosPanel />
             <ComunidadHoyPanel users={users} />
             <ListosParaPagarPanel />
@@ -9620,10 +10024,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
             {verListas && (
               <div className="flex flex-col gap-4 pl-2 border-l-2 border-zinc-800">
                 <VencimientosPanel users={users} onRenew={onRenew} onAdjustDays={onAdjustDays} />
-                <VolverInvitarPanel users={users} onAdjustDays={onAdjustDays} />
-                <RescatePanel users={users} />
-                <SinAvisosPanel users={users} />
-                <CumpleanosPanel users={users} />
+                <VolverInvitarPanel users={usersConCelular} onAdjustDays={onAdjustDays} />
+                <RescatePanel users={usersConCelular} />
+                <SinAvisosPanel users={usersConCelular} />
+                <CumpleanosPanel users={usersConCelular} />
                 <EmbudoPanel />
               </div>
             )}
@@ -9668,9 +10072,10 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 // por vencer se ven en el panel ⏰ Por vencer (y aquí dicen
                 // "Vence en N días").
                 const grupos = {
-                  deshabilitados: [], pruebaTerminada: [], planVencido: [], enPrueba: [], activos: [], reto: [],
+                  deshabilitados: [], pruebaTerminada: [], planVencido: [], enPrueba: [], activos: [], reto: [], verificadores: [],
                 };
                 usersFiltrados.forEach(u => {
+                  if (VERIFICADORES.has(u.username)) { grupos.verificadores.push(u); return; }
                   const dl = daysLeft(u.fechaVencimiento);
                   const esPrueba = u.plan === 'trial' || u.plan === 'prueba';
                   if (String(u.codigoReferido || '').toUpperCase() === 'RETO') grupos.reto.push(u);
@@ -9697,6 +10102,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                   { key: 'activos', label: 'ACTIVOS (PAGAN)', color: '#4affb0', emoji: '🟢' },
                   { key: 'reto', label: 'RETO BEAST', color: '#E8590C', emoji: '🏁' },
                   { key: 'deshabilitados', label: 'DESHABILITADOS', color: '#6f92a8', emoji: '⚪' },
+                  { key: 'verificadores', label: 'VERIFICADORES DE GOOGLE PLAY · NO ESCRIBIRLES', color: '#8A7F6E', emoji: '🧪' },
                 ];
                 const seccionesConDatos = SECCIONES.filter(s => grupos[s.key].length > 0);
                 const seccionesAMostrar = filtroAlumnos === 'todos'
@@ -9844,6 +10250,7 @@ function AdminDashboard({ users, onAddUser, onToggleUser, onDeleteUser, onLogout
                 <ActivacionPanel users={users} />
                 <LeadsPanel />
                 <ReferidosPanel users={users} onCambio={onRecargar} />
+                <CuponesPanel users={users} />
                 <VozParaVideosPanel />
               </>
             )}
@@ -10365,7 +10772,7 @@ Te cuento algo que me tiene muy emocionado: arrancamos el *Team Beast*, un reto 
 
 ¿Cómo funciona? Simple: cada día que registras tus comidas sumas puntos. Con 3 comidas o más, el día queda con ✓. Aquí *no gana el que más baja, gana el más constante*. Y nadie ve tu peso ni lo que comes, solo tus días cumplidos.
 
-Hace unos 4 años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
+Hace unos años bajé 37 kg, y ahora pasé de 104 a 90 kg en 2 meses y medio registrando mis comidas con la app, sumándole entrenamiento algunos días y disciplina. Lo que más me ayudó fue no hacerlo solo. Por eso quiero que lo hagamos juntos: el cambio llega poco a poco, comida a comida.
 
 👉 Para unirte:
 1. Abre la app.
@@ -11402,9 +11809,9 @@ function RescatePanel({ users }) {
                                 </div>
                               )}
                             </div>
-                            <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                            {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
                               <MessageCircle size={13} /> Escribir
-                            </a>
+                            </a> : <SinCelular />}
                           </div>
                         ))}
                       </div>
@@ -11563,10 +11970,10 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
           <LineaMotivo m={motivoDe[u.username]} />
         </div>
         <div className="flex items-center gap-2">
-          <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
+          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> Escribir
-          </a>
+          </a> : <SinCelular />}
           {u.esPrueba && u.dl < 0 && onAdjustDays && (
             <button onClick={() => {
               if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
@@ -11850,10 +12257,10 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
+          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
             className={btnPrimary + ' py-1.5 px-3 text-xs'}>
             <MessageCircle size={13} /> {u.yaInvitado ? 'Escribir otra vez' : 'Escribir'}
-          </a>
+          </a> : <SinCelular />}
           {u.esPrueba && (
             <button type="button" onClick={() => darSieteDias(u)} className={btnGhost + ' py-1.5 px-3 text-xs'}>+7 días</button>
           )}
@@ -12023,7 +12430,7 @@ function CumpleanosPanel({ users }) {
   );
 }
 
-function PagosPanel({ onAprobado }) {
+function PagosPanel({ onAprobado, onCambio }) {
   const [pagos, setPagos] = useState([]);
   const [urls, setUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -12031,6 +12438,7 @@ function PagosPanel({ onAprobado }) {
   const [procesando, setProcesando] = useState(null);
   const [verGrande, setVerGrande] = useState(null);
   const [filtro, setFiltro] = useState('pendiente');
+  const yaAbrio = useRef(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -12041,6 +12449,10 @@ function PagosPanel({ onAprobado }) {
         .order('creado_en', { ascending: false }).limit(100);
       const lista = data || [];
       setPagos(lista);
+      // Al entrar, abierta solo si hay algo que aprobar; si no, queda como
+      // una línea arriba que no estorba.
+      if (!yaAbrio.current) { yaAbrio.current = true; setOpen(lista.some(p => p.estado === 'pendiente')); }
+      if (onCambio) onCambio();
       const rutas = lista.filter(p => p.comprobante_ruta).map(p => p.comprobante_ruta);
       if (rutas.length) {
         const { data: signed } = await supabase.storage.from('comprobantes').createSignedUrls(rutas, 3600);
@@ -12085,10 +12497,16 @@ function PagosPanel({ onAprobado }) {
             let monto = null;
             if (Number(ref.comision_pct) > 0) {
               // Porcentaje sobre el precio de lista, no sobre el ya descontado
+              // Con cupón el monto trae otro descuento: se usa el precio de lista.
               const dctoRef = Number(ref.descuento_pct) || 0;
-              const listaAprox = dctoRef > 0
+              let listaAprox = dctoRef > 0
                 ? Number(pago.monto) / (1 - dctoRef / 100)
                 : Number(pago.monto);
+              if (pago.cupon) {
+                const { data: pl } = await supabase.from('config').select('value').eq('key', `precio_${pago.plan_meses}`).maybeSingle();
+                const lista = Number(pl?.value) || PLANES.find(x => x.meses === pago.plan_meses)?.precioDefault;
+                if (lista > 0) listaAprox = lista;
+              }
               monto = listaAprox * (Number(ref.comision_pct) / 100);
             } else {
               const tabla = { 1: ref.comision_1, 3: ref.comision_3, 6: ref.comision_6, 12: ref.comision_12 };
@@ -12270,6 +12688,9 @@ function PagosPanel({ onAprobado }) {
                       <div className="text-zinc-500 text-xs jb-body mt-0.5">
                         {p.metodo}{p.operacion ? ` · Op. ${p.operacion}` : ' · solo captura'} · {new Date(p.creado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
+                      {p.cupon && (
+                        <div className="text-xs jb-body mt-0.5 text-emerald-400">🎟️ Con cupón {p.cupon}: por eso el monto es menor</div>
+                      )}
                       {p.estado === 'pendiente' && (
                         <div className={`text-xs jb-body mt-0.5 ${horasEsperando(p) >= 12 ? 'text-red-400 font-semibold' : 'text-amber-400'}`}>
                           ⏰ Esperando hace {textoHoras(horasEsperando(p))}
@@ -12895,10 +13316,10 @@ function TiendaAdminPanel() {
                           S/{Number(p.monto_total).toFixed(2)} · hace {Math.floor((Date.now() - new Date(p.creado_en).getTime()) / 3600000)}h
                         </div>
                       </div>
-                      <a href={waLinkCarritoAbandonado(p)} target="_blank" rel="noopener noreferrer"
+                      {tieneCelular(p.telefono_cliente) ? <a href={waLinkCarritoAbandonado(p)} target="_blank" rel="noopener noreferrer"
                         className="bg-emerald-600 text-white text-xs font-semibold rounded-lg px-3 py-1.5 flex items-center gap-1.5">
                         <MessageCircle size={13} /> Recordar
-                      </a>
+                      </a> : <SinCelular />}
                     </div>
                   ))}
                 </div>

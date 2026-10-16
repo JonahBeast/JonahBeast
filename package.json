@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/manual-jarvis.mjs --revisar && node scripts/verificar-alimentos.mjs && vite build && node scripts/calorias/generar.mjs",
+    "build": "eslint . --quiet && node scripts/manual-jarvis.mjs --revisar && node scripts/verificar-alimentos.mjs && vite build && node scripts/calorias/generar.mjs",
+    "revisar": "eslint .",
     "verificar-alimentos": "node scripts/verificar-alimentos.mjs",
     "manual-jarvis": "node scripts/manual-jarvis.mjs",
     "preview": "vite preview"
@@ -21,8 +22,16 @@
     "zxing-wasm": "3.1.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@eslint/js": "9.39.5",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "eslint": "9.39.5",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "17.13.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "vite": "^5.3.1"

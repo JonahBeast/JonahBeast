@@ -31,7 +31,7 @@ import { traerTodas } from './traerTodas.js';
 
    El tono es el de Jonah: cercano, humano, motivador, nunca de robot. Su
    historia (bajó de 104 a 90 kg en 2 meses y medio con su propia app, entrenamiento y
-   disciplina; hace unos 4 años ya había bajado 37 kg) y la idea de
+   disciplina; hace unos años ya había bajado 37 kg) y la idea de
    que el cambio llega poco a poco, comida a comida.
 
    Se usa en tres lugares, con los mismos datos y las mismas reglas:
@@ -50,7 +50,27 @@ export const LINK_PRIMERA_COMIDA = 'https://jonahbeast.com/?registrar=ahora&foto
 export const CLAVE_ESCRITOS = 'lista_carino_escritos';
 export const MAX_LISTA = 20;
 const HITOS_RACHA = [7, 14, 21, 30, 60, 90];
-const CUENTAS_PROPIAS = ['martin'];
+const CUENTAS_PROPIAS = ['martin', 'jhc10_05apple', '4hfy7tnvwh']; // Jonah, la cuenta para el revisor de Apple y su cuenta de prueba con Apple (13 oct)
+
+/* Verificadores de Google Play (Testers Community, desde el 14 de octubre):
+   gente de otros países que usa la app para que Google la apruebe. No tienen
+   un celular peruano (lo dejan vacío o ponen uno inventado), así que no se
+   les escribe por WhatsApp ni cuentan como alumnos en los números. Regla:
+   se registró desde el 14 de octubre y su celular no es un móvil de Perú
+   (9 dígitos que empiezan con 9, con o sin el 51 adelante). */
+const INICIO_VERIFICADORES = '2026-10-14T05:00:00Z'; // 14 oct, 00:00 en Lima
+export function esCelularPeru(telefono) {
+  const d = String(telefono || '').replace(/\D/g, '');
+  return /^9\d{8}$/.test(d) || /^519\d{8}$/.test(d);
+}
+// Tiene un número al que se le puede escribir por WhatsApp (de Perú o de otro país).
+export function tieneCelular(telefono) {
+  return String(telefono || '').replace(/\D/g, '').length >= 9;
+}
+export function esVerificadorPlay(a) {
+  const creado = a?.created_at || a?.createdAt;
+  return !!creado && Date.parse(creado) >= Date.parse(INICIO_VERIFICADORES) && !esCelularPeru(a.telefono);
+}
 
 export const NIVELES = [
   { id: 'urgente', titulo: '🔴 URGENTE', ayuda: 'Hazlo primero: es ahora o se enfría.' },
@@ -183,7 +203,7 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
     : etapa === 'primera'
       ? 'Vi que creaste tu cuenta y quiero ayudarte a arrancar. Ya diste el primer paso, que es el que más cuesta 💪'
       : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
-  const historia = 'Hace unos 4 años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
+  const historia = 'Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
   const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
   const comunidad = etapa === 'bienvenida' ? `${INVITAR_COMUNIDAD}\n\n` : '';
   return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${comunidad}${CIERRE_JUNTOS}`;
@@ -193,7 +213,6 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
 export function mensajeAvisos(n, motivo, dispositivo, correo = null) {
   const hola = `Hola${n ? ' ' + n : ''} 👋 Soy Jonah.`;
   const cierre = 'Así te acompaño todos los días y no se te pasa ninguna comida 💪🦍';
-  const nav = dispositivo === 'iphone' ? 'Safari' : 'Chrome';
   if (motivo === 'navegador') {
     return mensajeInstalarApp(n, dispositivo, correo, { etapa: 'avisos', yaComio: true });
   }
@@ -237,7 +256,8 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
 
   const lista = [];
   for (const a of alumnos || []) {
-    if (CUENTAS_PROPIAS.includes(a.username)) continue;
+    // Sin celular no hay a quién escribirle: no entra en la lista.
+    if (CUENTAS_PROPIAS.includes(a.username) || esVerificadorPlay(a) || !tieneCelular(a.telefono)) continue;
     const n = primerNombre(a);
     const filas = (porUsuario[a.username] || []).slice().sort((x, y) => x.fecha.localeCompare(y.fecha));
     const conComida = new Set(filas.filter(f => Number(f.comidas_count) > 0).map(f => f.fecha));

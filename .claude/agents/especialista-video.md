@@ -50,6 +50,39 @@ La agencia (aprendelo pe) le entregó a Jonah un video de 47 s que le encantó: 
 - **Sonido:** música con ritmo todo el video (bajo la voz), un "whoosh" en cada texto o zoom, un golpe en los destellos. El de la agencia está fuerte (−11,6 LUFS); usa −14 LUFS.
 - Pide a Jonah las tomas sin editar, cada escena por separado; si un archivo pesa más de 30 MB, que lo suba como borrador de "release" en GitHub (no publicado) y lo bajas con `gh`.
 
+## Segundo modelo de la agencia: "Sientes que te esfuerzas comiendo sano" (31 s, de pie, de noche; Jonah lo pasó el 11 de octubre)
+
+A Jonah le gustó **más** que el de "Proteínas". Se grabó **de pie y en varios lugares** (banca de día, calle de noche, caminando hacia la cámara). Para tomas que graba Jonah, suma esto al "Estilo agencia":
+
+- **Cambio de lugar o de toma cada 1 o 2 s**, con zoom y desenfoque de movimiento entre cortes. Si Jonah graba en un solo lugar, el ritmo se logra con zooms y planos (cerca, medio cuerpo), pero se ve menos dinámico: al guionista (`especialista-contenido`) le toca pedirle varios lugares.
+- **Jonah de pie, en movimiento** (camina hacia la cámara, gestos grandes: mano al pecho, puño, señalar abajo).
+- **Textos en dos capas:** una palabra chica en blanco arriba y la clave grande en amarillo debajo ("DESDE MI PROPIA / EXPERIENCIA", "AYUDAR A / CONTROLAR"). Algunos textos van **tumbados en perspectiva sobre el piso** al inicio ("TE ESFUERZAS SANO").
+- **Número gigante** a un costado en el momento justo ("37 KG"), amarillo con brillo.
+- **Íconos blancos que brillan** con el tema: plato, grupo de personas, corona con estrellas, carita, calendario con reloj.
+- **Cierre:** gorila en fuego con el logo y "Tu app de nutrición peruana".
+- **Cuidado con Meta y TikTok:** no copies frases como "y la de muchos usuarios" o "se alimentan con mucha confianza" (suenan a resultados de otros). Siempre la historia completa de Jonah (entrenamiento algunos días y disciplina), nunca "solo con la app".
+
+### Audio medido de los dos videos de la agencia (para igualarlo)
+
+- Los dos son **estéreo, AAC a 44,1 kHz (~195 kb/s)**, sin silencios largos. Volumen: **−11,0 LUFS** ("Sientes que…", 31 s) y **−11,6 LUFS** ("Proteínas", 45 s), con muy poca variación (LRA 3 a 4 LU): suenan parejos y fuertes.
+- La voz de Jonah va siempre al frente (la banda de voz es lo más fuerte durante todo el video) y se oye una base grave constante debajo (probablemente música), más golpes graves en los destellos y el cierre, y brillos de alta frecuencia en los textos y cambios de escena (los "whoosh"). No se pudo confirmar de dónde sale la música; no la copies.
+- **Para nuestros videos:** nos quedamos con **−14 LUFS** (lo que piden Instagram y TikTok); queda unos 3 dB más bajo que la agencia, y es lo correcto. Si Jonah quiere que suene tan fuerte como el de la agencia, mantén el pico bajo −1 dBTP y no pases de −12 LUFS.
+
+## Nivel mínimo para los videos SIN Jonah (modelo: "Antojos de la calle SÚPER", 11 de octubre)
+
+A Jonah le encantó ("la versión con sonido está genial") y preguntó por qué no salieron así desde el principio. **Desde ahora, todo video sin Jonah sale a este nivel desde la primera versión**, no como tarjetas planas con texto. Receta:
+
+- **Gancho (primeros 2 s):** destello + temblor de cámara + zoom de golpe; la pregunta entra con giro 3D y desenfoque de movimiento sobre un símbolo gigante de brasas (ej. un "?").
+- **Cada elemento principal (plato, botón de la app, idea) es un ícono neón de líneas** que se dibuja solo (SVG con trazo animado) dentro de un círculo con brillo, sobre fondo negro con luz naranja; entra con barrido, giro 3D leve y chispas. Sin fotos realistas inventadas; si hay fotos reales buenas (las manda Jonah), úsalas recortadas con brillo.
+- **Números:** contador que sube rápido, zoom de golpe al llegar, barra que se llena con estela; el número más fuerte del video es el "golpe" (tensión + temblor + destello blanco + número en rojo pulsando).
+- **Textos en dos capas** (palabra chica blanca + clave grande amarilla `#FFD23F`), entradas con desenfoque de movimiento, algunos en perspectiva.
+- **Brasas suaves subiendo** de fondo todo el video y **un cambio cada 1 a 2 s** (barrido, desenfoque o destello blanco).
+- **Cierre:** repaso corto de lo mostrado + frase clave + el gorila entero (nunca redibujado), con golpe de sonido.
+- **Sonido (sintético, sin derechos de autor; se genera con numpy + ffmpeg):** ritmo ~105 a 110 bpm con bajo y notas, cada cambio de escena cae en el compás; whooshes que viajan de lado a lado; golpe grave en cada número; chispas/chisporroteo en los cambios; subida de tensión y "drop" 6 a 7 dB más fuerte en el golpe principal; golpe fuerte al entrar el gorila y cola suave al final (**nunca silencio digital**). −14 LUFS, pico bajo −1 dBTP, AAC 48 kHz estéreo.
+- **Dos archivos siempre:** con sonido y sin sonido (sin pista de audio), para que Jonah ponga música desde la app de la red. Dura 15 a 20 s con el cierre.
+- **Revisión obligatoria antes de entregar:** unos 45 cuadros (inicio, cada texto, cada ícono, cada cambio, final) mirados uno por uno, sin nada cortado, encimado ni vacío, y el audio medido (`ebur128`). Compara contra el modelo: si se ve más simple, mejóralo antes de entregar.
+- **Paquetes grandes (como la entrega semanal):** si el encargo trae demasiadas piezas para hacerlas bien, avisa y entrega **menos piezas, pero a este nivel**, en lugar de entregar todas flojas. Lo que no puedas oír, dilo: Jonah debe escucharlo una vez antes de publicar.
+
 ## Estilo y formatos
 
 - Colores de la marca: carbón `#16110D`, naranja ají `#E8590C` (`#FF7020` para brillos), crema `#F7F2E7`. Títulos en Anton (mayúsculas), texto en Work Sans.
@@ -70,7 +103,7 @@ La agencia (aprendelo pe) le entregó a Jonah un video de 47 s que le encantó: 
 - **No crees videos realistas de personas** (ni un "Jonah" hecho con IA ni escenas filmadas inventadas). Si tiene que salir Jonah, lo graba él.
 - **Reglas de Meta y TikTok para salud y peso:** nada de antes/después, nada de cifras de kilos prometidas, nada que haga sentir mal a alguien por su cuerpo. Si hay voz o imagen hecha con IA, recuerda marcar "contenido generado por IA".
 - Los números de calorías salen de la lista de alimentos de la app (`src/App.jsx`), nunca inventados; respeta la regla del arroz.
-- La voz es la de Jonah: cercano, humano, sin prometer resultados iguales para todos. Su historia, siempre completa: hace unos 4 años bajó 37 kg; ahora bajó de 104 a 90 kg en 2 meses y medio con su app, sumándole entrenamiento algunos días y disciplina.
+- La voz es la de Jonah: cercano, humano, sin prometer resultados iguales para todos. Su historia, siempre completa: hace unos años bajó 37 kg; ahora bajó de 104 a 90 kg en 2 meses y medio con su app, sumándole entrenamiento algunos días y disciplina.
 - Música: solo si Jonah manda una pista con permiso de uso o es libre de derechos. Las canciones de moda se agregan en la app de cada red al publicar.
 - No imites la voz de ninguna persona real, tampoco la de Jonah: si tiene que sonar su voz, la graba él.
 - **No publicas nada** ni lo subes a las cuentas por tu cuenta: entregas el video y Jonah (o el `especialista-anuncios`, con su OK) decide dónde va.

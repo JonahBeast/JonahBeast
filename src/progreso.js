@@ -317,3 +317,23 @@ export function historialComposicion(hist = [], al = null, form = {}, actual = n
   };
   return { grasa: serie(grasaDe, 8, 'grasa'), musculo: serie(musculoDe, 8, 'musculo') };
 }
+
+/* Serie de un campo del historial diario (peso, % de grasa, masa
+   muscular…) tal como la dibujan los gráficos de Progreso: sin vacíos y,
+   en la composición corporal, sin valores atípicos aislados (más de 15%
+   lejos de la mediana, ej. un registro viejo con el peso de fábrica).
+   Beast usa la misma para decir los mismos números que ve el alumno. */
+export const CAMPOS_CORPORALES = ['peso', 'grasa_pct', 'masa_muscular', 'masa_magra', 'imc'];
+export function serieDelHistorial(rows = [], campo) {
+  let base = rows
+    .filter(r => r[campo] !== null && r[campo] !== undefined && Number.isFinite(Number(r[campo])))
+    .map(r => ({ v: Number(r[campo]), fecha: r.fecha }));
+  if (CAMPOS_CORPORALES.includes(campo) && base.length >= 3) {
+    const ordenados = base.map(p => p.v).slice().sort((a, b) => a - b);
+    const mediana = ordenados.length % 2
+      ? ordenados[(ordenados.length - 1) / 2]
+      : (ordenados[ordenados.length / 2 - 1] + ordenados[ordenados.length / 2]) / 2;
+    if (mediana > 0) base = base.filter(p => Math.abs(p.v - mediana) / mediana <= 0.15);
+  }
+  return base;
+}

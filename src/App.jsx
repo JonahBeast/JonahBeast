@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Plus, Trash2, LogOut, Eye, ShieldCheck, X, ChevronRight, Flame, Salad, UserPlus, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, CreditCard, Mic, ShoppingCart, Phone } from 'lucide-react';
-import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
+import { Eye, X, ChevronRight, Flame, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
+import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
+
+// Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
+// abrir la app para que llegue a Planes aunque tenga que entrar primero.
+try {
+  const cuponLink = new URLSearchParams(window.location.search).get('cupon');
+  if (cuponLink) localStorage.setItem('jb_cupon', cuponLink.trim().toUpperCase().slice(0, 30));
+} catch { /* sin almacenamiento */ }
 
 // Partes que se descargan solo cuando hacen falta: quien entra a la
 // portada no baja el panel de admin, la app del alumno ni la tienda.
@@ -33,9 +40,9 @@ const RAW_FOODS = [
   ["Cereales","Arroz aderezado (con ají panca)","Cocido",165,3.0,27.0,5.0,1.0],
   ["Cereales","Arroz chaufa (solo el arroz)","Cocido",156,4.0,21.6,5.5,0.6],
   ["Cereales","Quinua","Cruda",368,14.1,64.2,6.1,7.0],
-  ["Cereales","Quinua","Cocida",120,4.4,21.3,1.9,2.8],
+  ["Cereales","Quinua","Cocida",89,2.8,16.3,1.3,0.0],
   ["Cereales","Avena en hojuelas","Cruda",389,16.9,66.3,6.9,10.6],
-  ["Cereales","Avena","Cocida",71,2.5,12.0,1.5,1.7],
+  ["Cereales","Avena","Cocida",54,1.3,10.9,0.5,0.0],
   ["Cereales","Kiwicha","Cruda",371,13.6,65.3,7.0,6.7],
   ["Cereales","Kiwicha","Cocida",102,3.8,19.0,1.6,2.1],
   ["Cereales","Cañihua","Cruda",350,15.0,63.0,7.6,8.0],
@@ -57,15 +64,15 @@ const RAW_FOODS = [
   ["Tubérculos","Papa","Cocida",87,1.9,20.1,0.1,1.8],
   ["Tubérculos","Camote","Crudo",86,1.6,20.1,0.1,3.0],
   ["Tubérculos","Camote","Cocido",90,2.0,20.7,0.1,3.3],
-  ["Tubérculos","Yuca","Cruda",160,1.4,38.1,0.3,1.8],
-  ["Tubérculos","Yuca","Cocida",112,0.6,27.1,0.1,1.2],
+  ["Tubérculos","Yuca","Cruda",115,0.7,31.8,0.5,3.5],
+  ["Tubérculos","Yuca","Cocida",136,0.5,36.4,0.2,1.8],
   ["Tubérculos","Olluco","Crudo",62,1.5,13.9,0.1,1.9],
   ["Tubérculos","Olluco","Cocido",54,1.2,12.3,0.1,1.6],
   ["Tubérculos","Plátano bellaco","Sancochado",116,0.8,31.2,0.2,2.3],
   ["Carnes y aves","Pollo pechuga","Cruda",110,23.0,0.0,1.5,0.0],
   ["Carnes y aves","Pollo pechuga","Cocida",165,31.0,0.0,3.6,0.0],
-  ["Carnes y aves","Carne de res (bistec)","Cruda",143,21.4,0.0,6.0,0.0],
-  ["Carnes y aves","Carne de res (bistec)","Cocida",217,26.7,0.0,11.8,0.0],
+  ["Carnes y aves","Carne de res (bistec)","Cruda",105,21.3,0.0,1.6,0.0],
+  ["Carnes y aves","Carne de res (bistec)","Cocida",134,27.3,0.0,2.0,0.0],
   ["Carnes y aves","Churrasco","Cruda (sin hueso)",155,21.0,0.0,8.0,0.0],
   ["Carnes y aves","Churrasco","Cocida (sin hueso)",235,26.5,0.0,14.0,0.0],
   ["Carnes y aves","Churrasco","Cruda (con hueso)",140,18.9,0.0,7.2,0.0],
@@ -74,10 +81,10 @@ const RAW_FOODS = [
   ["Carnes y aves","Cerdo (lomo)","Cocido",212,27.8,0.0,10.7,0.0],
   ["Carnes y aves","Chuleta de cerdo","Cocida",231,25.7,0.0,13.9,0.0],
   ["Carnes y aves","Mollejitas de pollo","Cocidas",154,30.4,0.0,2.7,0.0],
-  ["Pescados","Bonito","Crudo",110,22.0,0.0,2.5,0.0],
-  ["Pescados","Bonito","Cocido",136,26.0,0.0,3.2,0.0],
-  ["Pescados","Atún","Crudo",116,25.4,0.0,1.0,0.0],
-  ["Pescados","Atún","Cocido",132,28.2,0.0,1.3,0.0],
+  ["Pescados","Bonito","Crudo",138,23.4,0.0,4.2,0.0],
+  ["Pescados","Bonito","Cocido",136,24.0,0.0,3.7,0.0],
+  ["Pescados","Atún","Crudo",141,23.3,0.0,4.6,0.0],
+  ["Pescados","Atún","Cocido",180,29.8,0.0,5.9,0.0],
   ["Huevos","Huevo de gallina","Crudo",143,12.6,0.7,9.5,0.0],
   ["Huevos","Huevo de gallina","Cocido",155,12.6,1.1,10.6,0.0],
   ["Huevos","Huevo de gallina","Frito",196,13.6,0.8,14.8,0.0],
@@ -119,20 +126,33 @@ const RAW_FOODS = [
   ["Otros","Rapiditas Clásicas (Bimbo)","-",315,8.5,47.7,10.0,1.8],
   ["Otros","Rapiditas Integrales (Bimbo)","-",292,9.5,45.0,8.0,6.0],
   ["Otros","Rapiditas XL (Bimbo)","-",315,8.5,47.7,10.0,1.8],
-  ["Otros","Pan integral","-",247,9.6,46.2,3.3,6.9],
+  ["Otros","Pan integral","-",339,9.1,55.5,9.0,0.0],
+  ["Otros","Pan de molde blanco","-",265,8.5,49.0,3.5,2.5],
   ["Otros","Pan árabe","-",275,9.1,55.7,1.2,2.2],
   ["Otros","Pan árabe integral","-",262,9.8,55.0,2.6,7.4],
   // Comidas que los alumnos tuvieron que crear a mano o que faltaban
   // (valores por 100 g, estimados de preparaciones típicas en Lima).
-  ["Carnes y aves","Jamonada","-",250,12.0,4.0,21.0,0.0],
-  ["Carnes y aves","Salchicha (hot dog)","-",290,11.0,3.0,26.0,0.0],
+  ["Carnes y aves","Jamonada","-",344,15.7,2.8,29.5,0.0],
+  ["Carnes y aves","Salchicha (hot dog)","-",364,11.0,2.1,34.3,0.0],
   ["Otros","Tostadas","-",390,12.0,70.0,6.0,4.0],
-  ["Platos preparados","Pan con jamonada","-",265,10.1,37.3,8.5,1.5],
+  ["Platos preparados","Pan con jamonada","-",308,11.8,36.7,12.4,1.5],
+  ["Platos preparados","Pan con jamonada","Pan blanco",308,11.8,36.7,12.4,1.5],
+  ["Platos preparados","Pan con jamonada","Pan integral",343,11.8,36.8,16.4,0.3],
   ["Platos preparados","Pan con pollo","-",230,13.0,24.0,9.0,1.5],
+  ["Platos preparados","Pan con pollo","Pan blanco",230,13.0,24.0,9.0,1.5],
+  ["Platos preparados","Pan con pollo","Pan integral",241,13.0,24.0,10.3,1.1],
   ["Platos preparados","Pan con chicharrón","-",280,12.0,25.0,15.0,1.5],
+  ["Platos preparados","Pan con chicharrón","Pan blanco",280,12.0,25.0,15.0,1.5],
+  ["Platos preparados","Pan con chicharrón","Pan integral",291,12.0,25.0,16.2,1.1],
   ["Platos preparados","Butifarra","-",230,11.0,22.0,11.0,1.5],
-  ["Platos preparados","Hot dog","-",260,9.0,23.0,15.0,1.0],
+  ["Platos preparados","Butifarra","Pan blanco",230,11.0,22.0,11.0,1.5],
+  ["Platos preparados","Butifarra","Pan integral",225,11.1,20.2,11.3,2.4],
+  ["Platos preparados","Hot dog","-",290,9.0,22.6,18.4,1.0],
+  ["Platos preparados","Hot dog","Pan blanco",290,9.0,22.6,18.4,1.0],
+  ["Platos preparados","Hot dog","Pan integral",311,9.0,22.6,20.7,0.3],
   ["Platos preparados","Hamburguesa de carretilla","-",250,11.0,25.0,12.0,1.5],
+  ["Platos preparados","Hamburguesa de carretilla","Pan blanco",250,11.0,25.0,12.0,1.5],
+  ["Platos preparados","Hamburguesa de carretilla","Pan integral",261,11.0,25.0,13.3,1.1],
   ["Platos preparados","Pizza americana","-",266,11.0,33.0,10.0,2.3],
   ["Platos preparados","Pollo broaster","-",290,22.0,12.0,17.0,0.5],
   ["Platos preparados","Salchipollo","-",260,11.0,22.0,14.0,2.0],
@@ -144,7 +164,7 @@ const RAW_FOODS = [
   ["Grasas","Mantequilla de maní","-",588,25.0,20.0,50.0,6.0],
   ["Bebidas","Refresco de cebada","Con azúcar",40,0.3,10.0,0.0,0.0],
   ["Bebidas","Cerveza","-",43,0.5,3.6,0.0,0.0],
-  ["Otros","Cachanga","Frita",320,6.5,42.0,13.5,1.5],
+  ["Otros","Cachanga","Frita",445,7.7,47.4,26.1,0.0],
   ["Otros","Chía","Cruda",486,16.5,42.1,30.7,34.4],
   ["Carnes y aves","Pollo pierna (con piel)","Cocida",232,23.5,0.0,15.0,0.0],
   ["Carnes y aves","Pato (sin piel)","Cocido",201,23.5,0.0,11.2,0.0],
@@ -232,12 +252,19 @@ const RAW_FOODS = [
   ["Platos preparados","Pollo a la brasa (solo la presa)","-",215,25.0,0.5,12.5,0.0],
   ["Platos preparados","Pollo a la brasa con papas y ensalada","-",232,14.5,17.0,12.0,1.6],
   ["Platos preparados","Pollada (pollo frito)","-",250,22.0,10.0,14.0,0.8],
+  // Pollada y pollo a la brasa por corte (pedido de Jonah, 12 de octubre):
+  // en Perú se pide cuarto u octavo, pierna o pecho. Sin arroz ni papas
+  // (van aparte). Los de arriba quedan solo para lo ya anotado.
+  ["Platos preparados","Pollada pierna","-",260,20.0,10.0,15.5,0.8],
+  ["Platos preparados","Pollada pecho","-",240,25.0,10.0,11.0,0.8],
+  ["Platos preparados","Pollo a la brasa pierna (solo la presa)","-",230,23.0,0.5,15.0,0.0],
+  ["Platos preparados","Pollo a la brasa pecho (solo la presa)","-",200,28.0,0.5,9.5,0.0],
   ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
-  ["Platos preparados","Arroz chaufa de carne","-",167,8.0,17.8,6.6,0.5],
+  ["Platos preparados","Arroz chaufa de carne","-",152,8.1,17.8,4.9,0.5],
   ["Platos preparados","Arroz chaufa de chancho","-",166,8.2,17.8,6.4,0.5],
-  ["Platos preparados","Arroz chaufa especial","-",169,11.4,15.1,6.5,0.4],
+  ["Platos preparados","Arroz chaufa especial","-",161,11.5,15.1,5.5,0.4],
   ["Platos preparados","Arroz a la jardinera","-",175,9.3,18.2,7.0,1.3],
   ["Platos preparados","Arroz con chancho","-",202,9.6,18.9,9.8,0.7],
   ["Platos preparados","Ensalada rusa","-",105,1.6,12.7,5.6,2.1],
@@ -274,7 +301,7 @@ const RAW_FOODS = [
   ["Platos preparados","Pescado frito","-",200,22.0,7.0,9.5,0.4],
   ["Platos preparados","Sudado de pescado","-",95,15.0,4.5,1.8,0.9],
   ["Platos preparados","Escabeche de pollo","-",130,13.0,7.0,5.5,1.4],
-  ["Platos preparados","Salchipapa","-",270,8.0,28.0,14.0,2.5],
+  ["Platos preparados","Salchipapa","-",292,8.0,27.7,16.5,2.5],
   ["Platos preparados","Pollo al horno","-",190,26.0,1.0,9.0,0.2],
   ["Platos preparados","Pollo a la olla (presa con papa y verduras)","-",130,10.7,8.0,5.3,1.4],
   ["Platos preparados","Pollo a la olla con arroz","-",128,7.9,14.9,3.6,1.1],
@@ -286,6 +313,8 @@ const RAW_FOODS = [
   ["Platos preparados","Menestrón","-",90,4.5,11.0,3.0,2.2],
   ["Platos preparados","Ensalada de pollo","-",110,12.0,6.0,4.5,1.8],
   ["Platos preparados","Sándwich de pollo","-",230,14.0,26.0,8.0,1.6],
+  ["Platos preparados","Sándwich de pollo","Pan blanco",237,13.6,27.1,8.1,1.0],
+  ["Platos preparados","Sándwich de pollo","Pan integral",267,13.8,29.7,10.3,0.0],
   ["Platos preparados","Panqueques de avena","Estimado - varía según receta",180,7.0,22.0,6.0,2.5],
   ["Platos preparados","Wafle de avena","Estimado - varía según receta",200,6.5,23.0,8.0,2.5],
   ["Cereales","Fideos / pasta","Crudos",371,13.0,74.7,1.5,3.2],
@@ -341,7 +370,7 @@ const RAW_FOODS = [
   ["Bebidas","Yogur bebible","-",70,3.0,11.0,1.5,0.0],
   ["Otros","Azúcar blanca","-",387,0.0,100.0,0.0,0.0],
   ["Otros","Miel de abeja","-",304,0.3,82.4,0.0,0.2],
-  ["Otros","Mermelada","-",278,0.4,68.9,0.1,1.1],
+  ["Otros","Mermelada","-",229,0.4,59.4,0.2,0.0],
   ["Otros","Galleta de soda","-",421,9.5,71.0,10.6,2.6],
   ["Otros","Avena instantánea en polvo","-",379,13.2,67.7,6.5,10.1],
   ["Otros","Proteína en polvo (whey)","-",400,80.0,8.0,6.0,1.0],
@@ -384,7 +413,7 @@ const RAW_FOODS = [
   ["Platos preparados","Pierna de cerdo al horno","-",233,27.0,2.0,13.0,0.0],
   ["Postres","Panetón con chispas de chocolate","-",378,7.0,56.0,14.0,2.0],
   ["Bebidas","Vino espumante (champán)","-",76,0.2,4.5,0.0,0.0],
-  /* --- Carta PECAFIT (restaurante aliado) --- */
+  /* --- Carta PECAFIT (receta propia del restaurante, macros validados; ya no es aliado) --- */
   /* Valores por 100g, recalculados desde "Resumen de Macros Validados — Carta Pecafit"
      (correcciones: filete de pollo en sandwich y bowl andino, stevia en gotas para waffles,
      y 3 recetas nuevas). Peso de porción real en WEIGHT_TABLE más abajo. */
@@ -407,13 +436,73 @@ const RAW_FOODS = [
   ["Platos preparados","Torta de cacao (PECAFIT)","-",465.39,12.83,49.35,26.57,0.0],
   ["Platos preparados","Cheesecake (PECAFIT)","-",426.54,15.28,50.41,20.43,0.0],
   ["Platos preparados","Parfait (PECAFIT)","-",138.27,4.63,13.26,8.08,0.0],
+  /* --- Ingredientes de casa (15 oct 2026, pedido por Jonah): pescados,
+     frutas peruanas, lácteos y básicos de cocina que faltaban. Una versión
+     por alimento, como se come, con su medida casera. --- */
+  ["Pescados","Jurel","Cocido",154,25.2,0.0,5.1,0.0],
+  ["Pescados","Caballa","Cocida",163,25.0,0.0,6.3,0.0],
+  ["Pescados","Merluza","Cocida",92,20.2,0.0,0.6,0.0],
+  ["Pescados","Perico","Cocido",116,26.2,0.0,0.5,0.0],
+  ["Pescados","Pejerrey","Cocido",134,25.1,0.0,3.1,0.0],
+  ["Pescados","Tilapia","Cocida",123,25.7,0.0,2.2,0.0],
+  ["Pescados","Lenguado","Cocido",116,24.1,0.0,1.5,0.0],
+  ["Pescados","Salmón","Cocido",206,22.1,0.0,12.4,0.0],
+  ["Pescados","Pota","Cocida",116,20.5,4.0,1.4,0.0],
+  ["Pescados","Choros","Cocidos",116,16.6,4.7,2.9,0.0],
+  ["Pescados","Conchas de abanico","Cocidas",118,20.4,2.4,2.3,0.0],
+  ["Pescados","Pulpo","Cocido",102,17.4,2.8,1.8,0.0],
+  ["Pescados y mariscos","Filete de caballa en lata (escurrido)","-",225,24.8,0.0,14.0,0.0],
+  ["Pescados y mariscos","Sardina en lata en salsa de tomate","-",186,20.9,0.7,10.5,0.0],
+  ["Carnes y aves","Mondongo","Cocido",116,19.7,0.4,4.1,0.0],
+  ["Carnes y aves","Cuy","Cocido",123,24.3,0.1,2.0,0.0],
+  ["Lácteos","Leche evaporada entera","-",133,6.3,10.9,7.7,0.0],
+  ["Lácteos","Leche evaporada light","-",91,7.0,10.5,2.3,0.0],
+  ["Lácteos","Queso mantecoso","-",396,28.0,3.3,30.0,0.0],
+  ["Cereales","Arroz integral","Cocido",123,2.7,25.6,1.0,1.6],
+  ["Cereales","Mote","Cocido",103,2.6,21.1,1.3,0.0],
+  ["Otros","Harina de trigo","-",362,10.5,76.3,2.0,2.7],
+  ["Otros","Maicena","-",365,0.3,91.3,0.1,0.9],
+  ["Tubérculos","Papa amarilla","Cocida",101,2.0,23.3,0.4,0.4],
+  ["Tubérculos","Plátano maduro","Sancochado",103,1.2,27.0,0.2,2.6],
+  ["Frutas","Granadilla","Cruda",51,2.5,5.7,2.7,5.8],
+  ["Frutas","Maracuyá","Cruda",97,2.2,23.4,0.7,10.4],
+  ["Frutas","Chirimoya","Cruda",72,1.9,17.7,0.3,4.0],
+  ["Frutas","Lúcuma","Cruda",97,2.1,24.7,0.2,10.2],
+  ["Frutas","Aguaymanto","Crudo",51,1.9,12.4,0.0,4.9],
+  ["Frutas","Guanábana","Cruda",44,0.9,14.3,0.2,3.3],
+  ["Frutas","Pitahaya","Cruda",60,1.2,13.0,0.4,3.0],
+  ["Frutas","Kiwi","Crudo",39,2.9,10.6,0.3,3.2],
+  ["Frutas","Ciruela","Cruda",82,1.0,21.5,0.2,0.0],
+  ["Frutas","Higo","Crudo",65,0.9,19.9,0.1,2.9],
+  ["Frutas","Pasas","Secas",228,2.4,60.1,0.4,3.7],
+  ["Grasas","Sacha inchi","Tostado",572,30.2,9.9,54.4,7.1],
+  ["Grasas","Castañas","Crudas",646,15.4,8.4,69.0,4.7],
+  ["Grasas","Ajonjolí","Tostado",525,17.7,11.7,49.7,11.8],
+  ["Otros","Azúcar rubia","-",380,0.0,97.5,0.0,0.0],
+  ["Otros","Chancaca","-",324,0.0,83.9,0.0,0.0],
+  ["Otros","Maca en polvo","-",301,11.8,66.3,1.6,0.0],
+  ["Otros","Sillao","-",53,8.1,4.9,0.6,0.8],
+  ["Otros","Ketchup","-",101,1.0,27.4,0.1,0.3],
+  ["Otros","Mostaza","-",60,3.7,5.8,3.3,4.0],
+  ["Verduras","Berenjena","Cocida",35,0.8,8.7,0.2,2.5],
+  ["Verduras","Acelga","Cocida",20,1.9,4.1,0.1,2.1],
 ];
 
 const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fiber]) => ({
   group, name, state, kcal, protein, carbs, fat, fiber, key: `${name} (${state})`,
 }));
 
-const FOOD_GROUPS = [...new Set(FOODS.map(f => f.group))];
+
+// Alimentos que ya no se ofrecen (ni en el buscador ni en la foto) porque
+// se reemplazaron por versiones más precisas, pero siguen existiendo para
+// que lo que los alumnos ya anotaron con ellos no cambie.
+const ALIMENTOS_RETIRADOS = new Set([
+  'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
+  'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
+  // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
+  'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
+  'Hot dog (-)', 'Hamburguesa de carretilla (-)', 'Sándwich de pollo (-)',
+]);
 
 /* Alimentos que Jonah agrega desde el panel (tabla alimentos_extra, ver
    "Pedidos de alimentos"). Se suman a FOODS al abrir la app, sin publicar
@@ -486,7 +575,9 @@ function agregarProductoAFoods(p) {
   return claveProducto(p);
 }
 function usarAlimentosExtra() {
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   const [version, setVersion] = useState(versionAlimentos);
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   useEffect(() => {
     oyentesAlimentos.add(setVersion);
     setVersion(versionAlimentos);
@@ -551,6 +642,11 @@ const UNITS_BY_NAME = {
   // Pollada y pollo frito se sirven en cuarto u octavo de pollo (carne sin
   // hueso, aprox.). La foto elige cuál según los gramos que calcula la IA.
   'Pollada (pollo frito)': [['cuarto de pollo', 220], ['octavo de pollo', 110]],
+  // Carne sin hueso de cada corte: el cuarto pierna es más chico que el pecho.
+  'Pollada pierna': [['cuarto de pollo', 210], ['octavo de pollo', 105]],
+  'Pollada pecho': [['cuarto de pollo', 240], ['octavo de pollo', 120]],
+  'Pollo a la brasa pierna (solo la presa)': [['cuarto de pollo', 230], ['octavo de pollo', 115]],
+  'Pollo a la brasa pecho (solo la presa)': [['cuarto de pollo', 270], ['octavo de pollo', 135]],
   'Chicharrón de pollo': [['porción', 200]],
   'Filete de pollo frito': [['filete', 150]],
   'Humita': [['unidad', 150]],
@@ -565,6 +661,7 @@ const UNITS_BY_NAME = {
   'Quinua': [['taza', 185]],
   'Fresa': [['unidad', 15]],
   'Pan integral': [['rebanada', 30]],
+  'Pan de molde blanco': [['rebanada', 30]],
   'Galleta de soda': [['unidad', 6], ['paquete', 34]],
   'Aceite vegetal': [['cucharada', 14], ['cucharadita', 5]],
   'Arroz verde': [['porción', 150], ['plato', 250]],
@@ -693,7 +790,7 @@ const UNITS_BY_NAME = {
   'Pieza de pollo Crujiente (KFC)': [['presa', 113]],
   'Alitas picantes (KFC)': [['unidad', 28], ['porción (2 unidades)', 56]],
   'Twister (KFC)': [['unidad', 235]],
-  /* --- Carta PECAFIT (restaurante aliado) --- */
+  /* --- Carta PECAFIT (receta propia del restaurante, macros validados; ya no es aliado) --- */
   'Sandwich de pollo (PECAFIT)': [['unidad', 220]],
   'Sandwich de atún (PECAFIT)': [['unidad', 230]],
   'Omelette (PECAFIT)': [['plato', 220]],
@@ -714,6 +811,59 @@ const UNITS_BY_NAME = {
   /* Pesos estimados — PENDIENTE confirmar con el peso real */
   'Cheesecake (PECAFIT)': [['tajada', 112.5]],
   'Parfait (PECAFIT)': [['porción', 350]],
+  /* Ingredientes de casa (15 oct 2026) */
+  'Jurel': [['filete', 120]],
+  'Caballa': [['filete', 120]],
+  'Merluza': [['filete', 120]],
+  'Perico': [['filete', 120]],
+  'Pejerrey': [['porción', 120]],
+  'Tilapia': [['filete', 120]],
+  'Lenguado': [['filete', 120]],
+  'Salmón': [['filete', 120]],
+  'Pota': [['porción', 120]],
+  'Choros': [['porción', 100], ['unidad', 15]],
+  'Conchas de abanico': [['porción', 100], ['unidad', 10]],
+  'Pulpo': [['porción', 100]],
+  'Filete de caballa en lata (escurrido)': [['lata', 120]],
+  'Sardina en lata en salsa de tomate': [['lata', 125]],
+  'Mondongo': [['porción', 100]],
+  'Cuy': [['porción', 150]],
+  'Leche evaporada entera': [['cucharada', 15], ['lata', 400]],
+  'Leche evaporada light': [['cucharada', 15], ['lata', 400]],
+  'Queso mantecoso': [['tajada', 30]],
+  'Arroz integral': [['porción', 150], ['plato', 250]],
+  'Mote': [['porción', 150], ['taza', 160]],
+  'Harina de trigo': [['cucharada', 8], ['taza', 120]],
+  'Maicena': [['cucharada', 8]],
+  'Papa amarilla': [['unidad', 100]],
+  'Plátano maduro': [['unidad', 250], ['mitad', 125], ['rodaja', 25]],
+  'Granadilla': [['unidad', 50]],
+  'Maracuyá': [['unidad', 40]],
+  'Chirimoya': [['porción', 150], ['unidad', 300]],
+  'Lúcuma': [['unidad', 150]],
+  'Aguaymanto': [['puñado', 30], ['unidad', 5]],
+  'Guanábana': [['porción', 150]],
+  'Pitahaya': [['porción', 150]],
+  'Kiwi': [['unidad', 75]],
+  'Ciruela': [['unidad', 65]],
+  'Higo': [['unidad', 50]],
+  'Pasas': [['puñado', 30], ['cucharada', 10]],
+  'Sacha inchi': [['puñado', 30]],
+  'Castañas': [['puñado', 30], ['unidad', 5]],
+  'Ajonjolí': [['cucharada', 9]],
+  'Azúcar rubia': [['cucharada', 12], ['cucharadita', 4]],
+  'Chancaca': [['cucharada', 15]],
+  'Maca en polvo': [['cucharada', 10]],
+  'Sillao': [['cucharada', 16]],
+  'Ketchup': [['cucharada', 15]],
+  'Mostaza': [['cucharadita', 5], ['cucharada', 15]],
+  'Berenjena': [['porción', 100]],
+  'Acelga': [['porción', 100]],
+  /* Medida casera para los que solo tenían gramos (15 oct 2026). */
+  'Papa': [['unidad', 150]],
+  'Bonito': [['filete', 120]],
+  'Trucha': [['filete', 120]],
+  'Pollo pechuga': [['filete', 120]],
 };
 const UNITS_BY_GROUP = {
   // En Perú las bebidas se toman en vaso (o se compran en ml): vaso primero
@@ -990,7 +1140,7 @@ const COMBOS_REALES = [
   { comida: 'Cena', emoji: '🐟', nombre: 'Pescado al vapor con verduras',
     items: [['Sudado de pescado (-)', 250], ['Papa (Cocida)', 150], ['Brócoli (Cocido)', 100]] },
   { comida: 'Cena', emoji: '🥪', nombre: 'Sándwich de pollo con té',
-    items: [['Sándwich de pollo (-)', 150], ['Té / infusión sin azúcar (-)', 200]] },
+    items: [['Sándwich de pollo (Pan integral)', 150], ['Té / infusión sin azúcar (-)', 200]] },
   { comida: 'Cena', emoji: '🥗', nombre: 'Ensalada de pollo',
     items: [['Ensalada de pollo (-)', 300], ['Pan integral (-)', 30]] },
 
@@ -1296,74 +1446,6 @@ function generateQuickOptions(remaining, restricciones = []) {
 
 
 
-function ModoDeslizar({ remaining, restricciones, mealDestino, onAgregarCombo }) {
-  const combos = useMemo(
-    () => [...generateCombos(remaining, mealDestino, restricciones), ...generateQuickOptions(remaining, restricciones)],
-    [remaining, restricciones, mealDestino]
-  );
-  const [idx, setIdx] = useState(0);
-  const [dx, setDx] = useState(0);
-  const arrastrando = useRef(false);
-  const startXRef = useRef(null);
-
-  useEffect(() => { setIdx(0); }, [mealDestino]);
-
-  const actual = combos[idx % Math.max(1, combos.length)];
-
-  function onStart(x) { startXRef.current = x; arrastrando.current = true; }
-  function onMove(x) { if (startXRef.current === null) return; setDx(x - startXRef.current); }
-  function onEnd() {
-    arrastrando.current = false;
-    if (dx > 80 && actual) { onAgregarCombo(actual); siguiente(); }
-    else if (dx < -80) { siguiente(); }
-    setDx(0);
-    startXRef.current = null;
-  }
-  function siguiente() { setIdx(v => v + 1); }
-
-  if (!combos.length) {
-    return <p className="jb-body text-xs text-zinc-500 text-center py-6">No hay sugerencias disponibles con lo que te queda del día — vuelve más tarde.</p>;
-  }
-  if (!actual) return null;
-
-  const tintado = dx > 30 ? 'border-emerald-500/70 bg-emerald-950/20' : dx < -30 ? 'border-red-500/70 bg-red-950/10' : 'border-orange-500/25';
-
-  return (
-    <div className="flex flex-col items-center gap-3 py-3">
-      <div className="flex items-center gap-3 w-full max-w-xs">
-        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx < -20 ? 'opacity-100' : 'opacity-30'}`}>
-          <span className="text-xl">◀</span>
-          <span className="jb-body text-[9px] text-zinc-500">Saltar</span>
-        </div>
-        <div
-          className={`relative bg-zinc-950 border-2 rounded-2xl p-5 flex-1 text-center select-none transition-colors ${tintado}`}
-          style={{
-            transform: `translateX(${dx}px) rotate(${dx / 20}deg)`,
-            transition: arrastrando.current ? 'none' : 'transform 0.25s ease, border-color 0.15s ease',
-            touchAction: 'pan-y',
-          }}
-          onTouchStart={e => onStart(e.touches[0].clientX)}
-          onTouchMove={e => onMove(e.touches[0].clientX)}
-          onTouchEnd={onEnd}
-        >
-          <div className="text-4xl mb-2">{actual.emoji}</div>
-          <p className="jb-display text-base text-zinc-100 mb-1">{actual.name}</p>
-          <p className="jb-body text-xs text-zinc-500">{Math.round(actual.kcal)} kcal · P {Math.round(actual.protein)}g</p>
-        </div>
-        <div className={`flex flex-col items-center gap-0.5 shrink-0 transition-opacity ${dx > 20 ? 'opacity-100' : 'opacity-30'}`}>
-          <span className="text-xl">▶</span>
-          <span className="jb-body text-[9px] text-zinc-500">Agregar</span>
-        </div>
-      </div>
-      <div className="flex gap-6 mt-1">
-        <button onClick={siguiente} className="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-xl">✕</button>
-        <button onClick={() => { onAgregarCombo(actual); siguiente(); }} className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-xl">✓</button>
-      </div>
-      <p className="jb-body text-[10px] text-zinc-600">👆 Desliza la tarjeta a la derecha para agregar, a la izquierda para saltar</p>
-    </div>
-  );
-}
-
 
 
 
@@ -1445,6 +1527,76 @@ function esTWA() {
   try { return document.referrer.startsWith('android-app://'); } catch { return false; }
 }
 
+/* App de iPhone (App Store): es esta misma web dentro de la app nativa
+   (Capacitor, carpeta ios/). Igual que en Play Store, Apple no deja
+   cobrar Premium con Yape, Plin, transferencia ni Mercado Pago, ni
+   mandar a pagar por fuera: dentro de la app solo se compra con Apple.
+   Se reconoce por la marca que la app agrega al navegador
+   (appendUserAgent en capacitor.config.json) o por el puente nativo. */
+function esAppIOS() {
+  try { return /JBFuel-iOS/.test(navigator.userAgent) || window.Capacitor?.getPlatform?.() === 'ios'; } catch { return false; }
+}
+
+/* Puente propio de la app de iPhone (ios/App/App/SceneDelegate.swift):
+   "Continuar con Apple" y el ingreso de Google en la hoja segura de
+   Apple. Solo existe dentro de la app instalada desde la App Store;
+   en Safari o en la web devuelve null. La app lo deja listo en
+   window.Capacitor.Plugins (la web no trae @capacitor/core, así que no
+   hay registerPlugin). */
+function nativoIOS() {
+  try { return (esAppIOS() && window.Capacitor?.Plugins?.JBNativo) || null; } catch { return null; }
+}
+
+/* Avisos en la app de iPhone. Ahí no existe el Web Push del navegador:
+   Apple da un "número" del iPhone (token) y el servidor manda los avisos
+   por Apple (api/_lib/enviar-aviso.js). Se guarda en la misma tabla
+   push_subs, con endpoint "apns:<token>". En este celular se recuerda
+   a qué cuenta quedó y si el alumno los apagó desde la app.
+   Devuelven los mismos estados que en la web: 'activo', 'disponible' o
+   'bloqueado'; null si no es la app de iPhone. */
+const AVISOS_IOS_LOCAL = 'jb-avisos-ios';
+function avisosIOSGuardados() {
+  try { return JSON.parse(localStorage.getItem(AVISOS_IOS_LOCAL) || 'null'); } catch { return null; }
+}
+function hayAvisosIOS() {
+  return typeof nativoIOS()?.activarAvisos === 'function';
+}
+async function estadoAvisosIOS(username) {
+  const nativo = nativoIOS();
+  // Las versiones de la app sin avisos (TestFlight 15 o antes) no los traen.
+  if (typeof nativo?.estadoAvisos !== 'function') return null;
+  try {
+    const { estado } = await nativo.estadoAvisos();
+    if (estado === 'denied') return 'bloqueado';
+    if (estado !== 'granted') return 'disponible';
+    const g = avisosIOSGuardados();
+    return g?.token && !g.apagados && (!username || g.username === username) ? 'activo' : 'disponible';
+  } catch { return 'disponible'; }
+}
+async function activarAvisosIOS(username) {
+  const nativo = nativoIOS();
+  if (typeof nativo?.activarAvisos !== 'function' || !username) return 'disponible';
+  const r = await nativo.activarAvisos();
+  if (r?.estado === 'denied') return 'bloqueado';
+  if (!r?.token) return 'disponible';
+  const { error } = await supabase.from('push_subs').upsert({
+    username, endpoint: 'apns:' + r.token, p256dh: '', auth: '', activa: true,
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+  try { localStorage.setItem(AVISOS_IOS_LOCAL, JSON.stringify({ token: r.token, username })); } catch {}
+  return 'activo';
+}
+async function desactivarAvisosIOS() {
+  const g = avisosIOSGuardados();
+  if (g?.token) await supabase.from('push_subs').update({ activa: false }).eq('endpoint', 'apns:' + g.token);
+  try { localStorage.setItem(AVISOS_IOS_LOCAL, JSON.stringify({ ...(g || {}), apagados: true })); } catch {}
+}
+
+// App de tienda (Play Store o App Store): sin Yape, Plin ni Mercado Pago.
+function esAppTienda() {
+  return esTWA() || esAppIOS();
+}
+
 /* Pago con Google Play dentro de la app de Android (Digital Goods API).
    Solo existe cuando la app se abre desde la versión de Play Store que
    trae el cobro de Google activado; en la web o en una versión vieja de
@@ -1505,6 +1657,43 @@ async function enviarCompraGoogle(purchaseToken) {
   const data = await r.json().catch(() => ({}));
   if (!r.ok || !data.ok) throw new Error(data.error || 'No pudimos activar tu plan.');
   return data;
+}
+
+/* Pago con Apple dentro de la app de iPhone (StoreKit, por el puente
+   JBNativo de ios/App/App/SceneDelegate.swift). Solo existe desde la
+   versión de la app que trae el cobro con Apple; en una versión vieja de
+   TestFlight se sigue mostrando "Muy pronto". El plan lo activa el
+   servidor (/api/apple/verificar) después de comprobar la firma de Apple;
+   las renovaciones llegan solas por /api/apple/notificaciones. */
+const PRODUCTOS_APPLE = { 1: 'jb_plan_mensual', 3: 'jb_plan_trimestral', 12: 'jb_plan_anual' };
+// Condiciones de uso estándar de Apple para suscripciones (Apple pide el
+// enlace junto al botón de suscribirse).
+const URL_TERMINOS_APPLE = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+function hayComprasIOS() {
+  return typeof nativoIOS()?.comprar === 'function';
+}
+
+async function enviarComprasApple(compras) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const r = await fetch('/api/apple/verificar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify({ compras }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) throw new Error(data.error || 'No pudimos activar tu plan.');
+  return data;
+}
+
+/* Reenvía al servidor las suscripciones de Apple vigentes de este iPhone,
+   por si alguna quedó sin activar. Devuelve true si activó algún plan. */
+async function sincronizarComprasApple() {
+  try {
+    const { compras } = await nativoIOS().comprobantes();
+    if (!compras?.length) return false;
+    const r = await enviarComprasApple(compras);
+    return !!r.activado;
+  } catch { return false; }
 }
 
 /* Reenvía al servidor las compras de Google que tenga el celular, por si
@@ -1663,210 +1852,24 @@ function addDaysISO(iso, days) {
 /* Resumen de un vistazo: kcal de hoy vs objetivo, racha y si el reto de
    la semana está pendiente — todo en una sola línea, arriba de todo,
    para que el alumno entienda su día en 1 segundo al abrir la app. */
-function ResumenDelDia({ username, totalsHoy, targets }) {
-  const [racha, setRacha] = useState(0);
-
-  useEffect(() => {
-    if (!username) return;
-    (async () => {
-      try {
-        const desde = addDaysISO(todayISO(), -60);
-        const { data } = await supabase.from('historial')
-          .select('fecha, comidas_count').eq('username', username).gte('fecha', desde);
-        const m = {};
-        (data || []).forEach(r => { m[r.fecha] = Number(r.comidas_count) || 0; });
-        const hoy = todayISO();
-        const registro = iso => (m[iso] || 0) > 0;
-        let r = 0;
-        let cursor = registro(hoy) ? hoy : addDaysISO(hoy, -1);
-        while (registro(cursor)) { r++; cursor = addDaysISO(cursor, -1); }
-        setRacha(r);
-      } catch {}
-    })();
-  }, [username]);
-
-  const objetivo = targets ? Math.round(targets.kcal) : 0;
-  const consumido = Math.round(totalsHoy.kcal);
-  const pct = objetivo ? Math.min(100, (consumido / objetivo) * 100) : 0;
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3 overflow-x-auto">
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span className="text-orange-500">🔥</span>
-        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{consumido}/{objetivo || '—'} kcal</span>
-      </div>
-      <div className="h-3 w-px bg-zinc-800 shrink-0" />
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span>💪</span>
-        <span className="jb-body text-xs text-zinc-300 whitespace-nowrap">{racha > 0 ? `Racha ${racha}d` : 'Sin racha aún'}</span>
-      </div>
-    </div>
-  );
-}
 
 
 
 /* Check-in rápido: para días sin ganas de pensar mucho, registra de un
    toque el combo más frecuente de cada comida (de los últimos 45 días). */
-function CheckinRapidoButton({ username, mealPlan, setMealPlan }) {
-  const [cargando, setCargando] = useState(false);
-  const hoyVacio = Object.values(mealPlan.meals || {}).every(arr => arr.length === 0);
-  if (!hoyVacio) return null;
-
-  async function comiNormal() {
-    setCargando(true);
-    try {
-      const { data } = await supabase.from('historial')
-        .select('meal_plan').eq('username', username)
-        .not('meal_plan', 'is', null).order('fecha', { ascending: false }).limit(45);
-
-      const conteoPorComida = {};
-      (data || []).forEach(r => {
-        Object.entries(r.meal_plan?.meals || {}).forEach(([meal, lista]) => {
-          if (!MEAL_NAMES.includes(meal)) return;
-          conteoPorComida[meal] = conteoPorComida[meal] || {};
-          (lista || []).forEach(en => {
-            if (!en.foodKey) return;
-            const k = JSON.stringify({ f: en.foodKey, u: en.unit ?? null, q: en.qty ?? en.grams });
-            conteoPorComida[meal][k] = (conteoPorComida[meal][k] || 0) + 1;
-          });
-        });
-      });
-
-      const nuevosMeals = { ...mealPlan.meals };
-      let algo = false;
-      MEAL_NAMES.forEach(meal => {
-        const conteo = conteoPorComida[meal];
-        if (!conteo || Object.keys(conteo).length === 0) return;
-        // Toma los 2 alimentos más repetidos de esa comida
-        const top = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => JSON.parse(k));
-        nuevosMeals[meal] = top.map(it => ({
-          id: uid(), foodKey: it.f, qty: it.q ?? 100, unit: it.u ?? 'gramos',
-        }));
-        algo = true;
-      });
-
-      if (algo) {
-        setMealPlan(v => ({ ...v, meals: nuevosMeals }));
-        vibrar(20);
-        showToast('✅ Registramos tu día con lo que sueles comer');
-      } else {
-        showToast('Aún no tenemos suficiente historial para esto', 'error');
-      }
-    } catch {
-      showToast('No se pudo completar, intenta de nuevo', 'error');
-    }
-    setCargando(false);
-  }
-
-  return (
-    <button onClick={comiNormal} disabled={cargando}
-      className="w-full bg-zinc-900 border border-zinc-800 hover:border-orange-500/40 rounded-2xl p-4 mb-6 flex items-center gap-3 text-left transition-colors">
-      <div className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-lg shrink-0">
-        {cargando ? <Loader2 className="animate-spin text-orange-500" size={18} /> : '⚡'}
-      </div>
-      <div>
-        <p className="jb-display text-sm text-zinc-100">COMÍ NORMAL HOY</p>
-        <p className="jb-body text-xs text-zinc-500">Registra tu día con lo que sueles comer, de un toque</p>
-      </div>
-    </button>
-  );
-}
 
 /* Sugiere un alimento real de proteína (de tu propia base de 230
    alimentos) y calcula la cantidad exacta para cubrir lo que le falta
    al alumno hoy — mismo cálculo que la sustitución inteligente, no
    texto inventado. */
-function sugerirProteinaJonah(gapProtein, remainingKcal) {
-  const candidatos = FOODS.filter(f =>
-    ['Carnes y aves', 'Pescados', 'Pescados y mariscos'].includes(f.group) && f.protein > 15);
-  if (!candidatos.length) return null;
-  const food = FOODS.find(f => f.name.toLowerCase().includes('pollo') && f.state === 'Cocido') || candidatos[0];
-  let grams = Math.max(50, Math.round((gapProtein / food.protein) * 100 / 5) * 5);
-  const kcalNecesarias = (food.kcal * grams) / 100;
-  if (remainingKcal > 0 && kcalNecesarias > remainingKcal * 1.3) {
-    grams = Math.max(50, Math.round(((remainingKcal / food.kcal) * 100) / 5) * 5);
-  }
-  return { food, grams };
-}
 
 /* Construye el consejo de Jonah a partir de los datos reales del día
    (no es texto generado por IA — son las mismas cifras que ya calcula
    la app, solo redactadas como si te hablara directamente). */
-function mensajeDeJonah(totalsHoy, targets) {
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-  if (!targets || !targets.kcal) {
-    return 'Termina de configurar tu objetivo en "Mi objetivo" y te doy recomendaciones reales para tu día.';
-  }
-  const kcalRestante = Math.round(targets.kcal - totalsHoy.kcal);
-  const protRestante = Math.round(targets.protein - totalsHoy.protein);
-  const carbRestante = Math.round((targets.carbs || 0) - (totalsHoy.carbs || 0));
-
-  if (kcalRestante <= 0) {
-    return pick([
-      `¡Ya cumpliste tu objetivo de ${Math.round(targets.kcal)} kcal de hoy! Así se hace 🔥`,
-      'Objetivo del día completado. Modo bestia activado 🦍🔥',
-      'Kcal de hoy: listas. Descansa tranquilo, lo hiciste bien.',
-    ]);
-  }
-
-  if (protRestante >= 15) {
-    const sug = sugerirProteinaJonah(protRestante, kcalRestante);
-    if (sug) {
-      const base = pick([
-        `Te faltan ${protRestante}g de proteína. Te recomiendo ${sug.grams}g de ${sug.food.name} + una ensalada.`,
-        `Aún necesitas ${protRestante}g de proteína hoy — ${sug.grams}g de ${sug.food.name} te los da de sobra.`,
-      ]);
-      return base + (carbRestante <= 20 ? ' Y ya no necesitas más carbohidratos por ahora.' : '');
-    }
-  }
-
-  const proteinaCubierta = protRestante < 15;
-  const carbsCubiertos = carbRestante <= 20;
-
-  if (proteinaCubierta && carbsCubiertos) {
-    return pick([
-      `Tu proteína y carbohidratos de hoy ya están cubiertos. Te quedan ${kcalRestante} kcal — ciérralas con algo ligero.`,
-      `Vas muy bien hoy. Con ${kcalRestante} kcal libres, cualquier snack pequeño te cierra el día perfecto.`,
-    ]);
-  }
-
-  if (proteinaCubierta && !carbsCubiertos) {
-    return pick([
-      `Tu proteína ya está cubierta. Te faltan ${Math.max(0, carbRestante)}g de carbohidratos — un poco de fruta o cereal te viene bien.`,
-      `Proteína lista 💪. Aún puedes sumar ${Math.max(0, carbRestante)}g de carbohidratos con algo de fruta o arroz.`,
-    ]);
-  }
-
-  return pick([
-    `Te quedan ${kcalRestante} kcal por hoy. Vas bien, sigue así.`,
-    `Llevas un buen ritmo — ${kcalRestante} kcal disponibles todavía.`,
-    `Todo en orden. Aún tienes ${kcalRestante} kcal para completar tu día.`,
-  ]);
-}
 
 /* Abanico de respuestas de Jonah cuando lo tocas repetido: alterna
    entre consejo real de macros, frase motivacional y recordatorio,
    para que no se sienta como un bucle de 2 mensajes. */
-const JONAH_FRASES_MOTIVACION = [
-  'Cada registro es un ladrillo más de tu resultado. Sigue así 🦍',
-  'No hace falta perfección, solo constancia.',
-  'Ya diste el paso más difícil: empezar.',
-  'Tu cuerpo ya empezó a notar el esfuerzo.',
-  'No olvides la importancia de hidratarte: toma mínimo 2 a 3 litros de agua al día 💧',
-  'Estoy contigo, acompañándote en tu proceso 🦍',
-  '¿Cómo va tu día? Aquí estoy si me necesitas.',
-  'Jonah siempre estará al pendiente de ti.',
-  'No caminas solo(a) en esto. Yo sigo aquí, contigo.',
-  'Cada pequeño paso de hoy es parte de tu mejor versión.',
-];
-const JONAH_FRASES_OCIO = [
-  '¿Ya registraste algo hoy? Toca para que te diga cómo vas.',
-  'Estoy aquí cuando me necesites 💪',
-  'Toca de nuevo y te doy otro consejo 🦍',
-  '¿Cómo vas con el agua hoy? Recuerda tus 2-3 litros diarios.',
-];
 
 /* Jonah, la mascota interactiva de la app. Se presenta la primera vez,
    se "golpea el pecho" cuando lleva un rato sin interacción, y al
@@ -1874,178 +1877,6 @@ const JONAH_FRASES_OCIO = [
 /* Versión de Jonah para pantallas sin sesión (Landing, registro) — sin
    datos de macros todavía, pero igual de viva: respira, se golpea el
    pecho y ruge sola, y al tocarla cambia de frase motivacional. */
-function JonahMiniIdle({ fraseInicial, frases }) {
-  const [golpeando, setGolpeando] = useState(false);
-  const [rugiendo, setRugiendo] = useState(false);
-  const [mensaje, setMensaje] = useState(fraseInicial);
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    let activo = true;
-    let t;
-    function loop(primeraVez) {
-      t = setTimeout(() => {
-        if (!activo) return;
-        if (Math.random() < 0.5) { setGolpeando(true); setTimeout(() => setGolpeando(false), 700); }
-        else { setRugiendo(true); setTimeout(() => setRugiendo(false), 900); }
-        loop(false);
-      }, primeraVez ? 1200 : 5000 + Math.random() * 3000);
-    }
-    loop(true);
-    return () => { activo = false; clearTimeout(t); };
-  }, []);
-
-  function tocar() {
-    setGolpeando(true);
-    vibrar(15);
-    setTimeout(() => setGolpeando(false), 500);
-    if (frases && frases.length) {
-      setMensaje(frases[idx % frases.length]);
-      setIdx(v => v + 1);
-    }
-  }
-
-  return (
-    <div className="text-center">
-      <div className="relative inline-block">
-        {rugiendo && (
-          <span className="absolute -top-2 -right-1 jb-display text-[9px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
-            ¡RAWR!
-          </span>
-        )}
-        {rugiendo && (
-          <>
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
-          </>
-        )}
-        <button onClick={tocar}
-          className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
-          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
-          title="Toca a Jonah">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }} />
-        </button>
-      </div>
-      <style>{`
-        @keyframes jb-jonah-golpe { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.18) rotate(-4deg); } }
-        @keyframes jb-jonah-rugido { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.36) rotate(3deg); } }
-        @keyframes jb-jonah-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
-        @keyframes jb-jonah-onda-expandir { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(1.9); opacity: 0; } }
-        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
-      `}</style>
-      {mensaje && <p className="jb-body text-xs text-zinc-400 mt-2 max-w-[240px] mx-auto">{mensaje}</p>}
-    </div>
-  );
-}
-
-function JonahGorila({ username, totalsHoy, targets }) {
-  const [presentado, setPresentado] = useState(() => {
-    try { return localStorage.getItem(`jb-jonah-intro-${username}`) === '1'; } catch { return false; }
-  });
-  const [mensaje, setMensaje] = useState(null);
-  const [golpeando, setGolpeando] = useState(false);
-  const [rugiendo, setRugiendo] = useState(false);
-  const [idx, setIdx] = useState(0);
-  const ociosoRef = useRef(null);
-
-  useEffect(() => {
-    if (!presentado) {
-      setMensaje('¡Hola! Soy Jonah 🦍 y estoy aquí para lograr tus objetivos, juntos.');
-      const t = setTimeout(() => {
-        setPresentado(true);
-        try { localStorage.setItem(`jb-jonah-intro-${username}`, '1'); } catch {}
-        setMensaje(null);
-      }, 4200);
-      return () => clearTimeout(t);
-    }
-  }, [presentado, username]);
-
-  // Cuando pasa un rato sin que lo toquen, alterna entre golpearse el
-  // pecho y rugir — nunca queda del todo estático.
-  useEffect(() => {
-    function reiniciarOcio(primeraVez) {
-      if (ociosoRef.current) clearTimeout(ociosoRef.current);
-      ociosoRef.current = setTimeout(() => {
-        if (Math.random() < 0.5) {
-          setGolpeando(true);
-          setTimeout(() => setGolpeando(false), 700);
-        } else {
-          setRugiendo(true);
-          setTimeout(() => setRugiendo(false), 900);
-        }
-        reiniciarOcio(false);
-      }, primeraVez ? 1200 : 6000 + Math.random() * 3000);
-    }
-    reiniciarOcio(true);
-    return () => { if (ociosoRef.current) clearTimeout(ociosoRef.current); };
-  }, []);
-
-  function tocar() {
-    if (!presentado) return; // deja que termine su presentación primero
-    setGolpeando(true);
-    vibrar(15);
-    setTimeout(() => setGolpeando(false), 500);
-
-    // Abanico de respuestas: alterna consejo real de macros, frase
-    // motivacional y recordatorio, para que no se sienta un bucle de 2.
-    const tipo = idx % 3;
-    if (tipo === 0) setMensaje(mensajeDeJonah(totalsHoy, targets));
-    else if (tipo === 1) setMensaje(JONAH_FRASES_MOTIVACION[Math.floor(Math.random() * JONAH_FRASES_MOTIVACION.length)]);
-    else setMensaje(JONAH_FRASES_OCIO[Math.floor(Math.random() * JONAH_FRASES_OCIO.length)]);
-    setIdx(v => v + 1);
-  }
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 flex items-start gap-3">
-      <div className="relative shrink-0">
-        {rugiendo && (
-          <span className="absolute -top-2 -right-1 jb-display text-[10px] bg-orange-500 text-zinc-950 px-1.5 py-0.5 rounded-full z-10 whitespace-nowrap">
-            ¡RAWR!
-          </span>
-        )}
-        {rugiendo && (
-          <>
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" />
-            <span className="jb-jonah-onda absolute inset-0 rounded-full border-2 border-orange-400 pointer-events-none" style={{ animationDelay: '0.15s' }} />
-          </>
-        )}
-        <button onClick={tocar}
-          className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center overflow-hidden"
-          style={{ animation: golpeando ? 'jb-jonah-golpe 0.35s ease-in-out 2' : rugiendo ? 'jb-jonah-rugido 0.45s ease-in-out 2' : 'jb-jonah-respira 2.6s ease-in-out infinite' }}
-          title="Toca a Jonah">
-          <img src="/jonah-avatar.png" alt="Jonah" className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }} />
-        </button>
-      </div>
-      <style>{`
-        @keyframes jb-jonah-golpe {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.18) rotate(-4deg); }
-        }
-        @keyframes jb-jonah-rugido {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.36) rotate(3deg); }
-        }
-        @keyframes jb-jonah-respira {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.045); }
-        }
-        @keyframes jb-jonah-onda-expandir {
-          0% { transform: scale(1); opacity: 0.75; }
-          100% { transform: scale(1.9); opacity: 0; }
-        }
-        .jb-jonah-onda { animation: jb-jonah-onda-expandir 0.9s ease-out; }
-      `}</style>
-      <div className="flex-1 min-w-0">
-        <p className="jb-display text-xs text-orange-500 mb-1">JONAH</p>
-        <p className="jb-body text-sm text-zinc-200 leading-snug">
-          {mensaje || 'Toca a Jonah para que te diga qué te conviene comer ahora.'}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 
 
@@ -2092,31 +1923,6 @@ function AnimatedNumber({ value, duration = 650 }) {
   }, [value]);
 
   return display;
-}
-
-function MacroRing({ pct, value, numeric, label, colorHex, size = 92, stroke = 9 }) {
-  const clamped = Math.max(0, Math.min(100, pct || 0));
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (clamped / 100) * c;
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size / 2} cy={size / 2} r={r} stroke="#27272a" strokeWidth={stroke} fill="none" />
-          <circle cx={size / 2} cy={size / 2} r={r} stroke={colorHex} strokeWidth={stroke} fill="none"
-            strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="jb-display text-base text-zinc-50">
-            {numeric !== undefined ? <AnimatedNumber value={numeric} /> : value}
-          </span>
-        </div>
-      </div>
-      <span className="jb-body text-[11px] uppercase tracking-wider text-zinc-500 text-center break-words" style={{ maxWidth: size + 12 }}>{label}</span>
-    </div>
-  );
 }
 
 function Field({ label, helpHref, children }) {
@@ -2181,7 +1987,7 @@ function Logo({ size = 'md', compacto = false }) {
       </div>
       {/* compacto (barra de arriba de la app): en celulares angostos la letra se
           achica sola para que "FUEL" no quede tapado por los botones. */}
-      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(13px,4.1vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
+      <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(12px,3.9vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
     </div>
   );
 }
@@ -2315,8 +2121,8 @@ const TESTIMONIOS = [
     nombre: 'Jonah Beast',
     antes: '/testimonios/martin-antes.jpg',
     despues: '/testimonios/martin-despues.jpg',
-    dato: '37 kg perdidos en 3 años y 8 meses',
-    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'en 3 años y 8 meses',
+    dato: '37 kg perdidos',
+    cifra: 37, prefijo: '−', unidad: 'KG', detalle: 'creador de la app',
     quote: 'Como fundador de Jonah Beast Fuel, quiero ayudar a otras personas a lograr sus objetivos.',
   },
   {
@@ -2819,7 +2625,7 @@ function Landing({ onChoose }) {
                 style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
             </div>
           ))}
-          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
+          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.85) 0%, rgba(22,17,13,.45) 12%, rgba(22,17,13,0) 24%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
           <div className="absolute inset-x-0 bottom-0 h-48 hidden lg:block" style={{ background: 'linear-gradient(to top, rgba(22,17,13,.9), transparent)' }} />
           <div className="absolute left-6 bottom-6 hidden lg:block">{logro}</div>
           <div className="absolute right-5 top-5 hidden lg:flex gap-1.5" aria-hidden="true">
@@ -2831,7 +2637,10 @@ function Landing({ onChoose }) {
         <div className="jbb-a absolute left-5 right-5 flex items-center justify-between lg:hidden" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
-            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+            <div className="leading-none">
+              <span className="jb-display text-lg text-zinc-50 tracking-wide" style={{ textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[10px] font-semibold tracking-[0.25em] uppercase text-orange-400 mt-0.5" style={{ textShadow: '0 1px 5px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9)' }}>Comida a comida</div>
+            </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">
             {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
@@ -2845,7 +2654,7 @@ function Landing({ onChoose }) {
             <img src="/logo-marca.webp" alt="" className="w-12" />
             <div>
               <div className="jb-display text-2xl text-zinc-50 tracking-wide leading-none">JONAH BEAST <span className="text-orange-400">FUEL</span></div>
-              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-zinc-400 mt-1">App de nutrición y pérdida de grasa</div>
+              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-orange-400 mt-1">Comida a comida</div>
             </div>
           </div>
           <div className="lg:hidden">{logro}</div>
@@ -2854,6 +2663,11 @@ function Landing({ onChoose }) {
             <span className="jbb-a block text-orange-400" style={anim('jbb-sube', .7)}>EMPIEZA AQUÍ</span>
           </h1>
           <p className="jbb-a jb-body text-base lg:text-lg text-zinc-300" style={anim('jbb-sube', .85)}>Tu plan con comida peruana, justo para tu meta.</p>
+          {/* De dónde salen los números (lo lee Google): lleva a la página
+              /contador-de-calorias, que lo explica de corrido. */}
+          <a href="/contador-de-calorias" className="jbb-a jb-body text-xs text-zinc-400 hover:text-zinc-200 -mt-1 leading-snug" style={{ ...anim('jbb-sube', .92), textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>
+            Calorías de la <span className="text-zinc-200">Tabla Peruana de Alimentos (CENAN)</span>, con tus platos como se sirven en casa: con o sin arroz. <span className="text-orange-400 whitespace-nowrap">Cómo funciona →</span>
+          </a>
           <div className="jbb-a flex items-center gap-3" style={anim('jbb-sube', 1)}>
             <div className="flex">
               {['martin', 'andrea', 'cesar'].map((n, i) => (
@@ -2881,6 +2695,11 @@ function Landing({ onChoose }) {
           <button onClick={() => onChoose('free')} className="jbb-a jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-1 self-center" style={anim('jbb-sube', 1.4)}>
             📏 ¿Solo quieres medirte? Hazlo sin registro →
           </button>
+          {/* Datos del negocio (los mismos de la verificación de Meta). */}
+          <p className="jbb-a jb-body text-[10px] leading-snug text-zinc-600 text-center mt-1" style={anim('jbb-sube', 1.45)}>
+            MARTIN JONATHAN HUAMANI CABANA · RUC 10454924024<br />
+            Ate, Lima, Perú · WhatsApp +51 963 760 819 · <a href="/privacidad.html" className="underline hover:text-zinc-400">Privacidad</a>
+          </p>
         </div>
       </section>
 
@@ -3161,7 +2980,9 @@ function mensajeContrasenaRechazada(error) {
    con la sesión abierta; restoreSession la lleva a su prueba. La base le
    arma un usuario único a partir del correo (handle_new_user). */
 async function entrarConGoogle(setErr) {
-  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); } catch {}
+  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); sessionStorage.removeItem('jb-ingreso-con'); } catch {}
+  const nativo = nativoIOS();
+  if (nativo) return entrarConGoogleIOS(nativo, setErr);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/' + (window.location.search || '') },
@@ -3170,6 +2991,99 @@ async function entrarConGoogle(setErr) {
     registrarEventoEmbudo('error_registro', { detalle: 'google: ' + String(error.message || '').slice(0, 80) });
     if (setErr) setErr('No se pudo abrir Google. Intenta de nuevo o usa tu correo.');
   }
+}
+
+/* App de iPhone: Google no deja entrar dentro de la app, así que su
+   página se abre en la hoja segura de Apple y vuelve a la app por
+   com.jonahbeast.app://auth (permitida en Supabase → Authentication →
+   URL Configuration) con la sesión, que se guarda aquí. */
+const VUELTA_IOS = 'com.jonahbeast.app://auth';
+
+async function entrarConGoogleIOS(nativo, setErr) {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: VUELTA_IOS, skipBrowserRedirect: true },
+  });
+  if (error || !data?.url) {
+    registrarEventoEmbudo('error_registro', { detalle: 'google ios: ' + String(error?.message || 'sin url').slice(0, 80) });
+    if (setErr) setErr('No se pudo abrir Google. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  let vuelta;
+  try { vuelta = (await nativo.abrirWeb({ url: data.url, esquema: 'com.jonahbeast.app' })).url; }
+  catch (e) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    if (e?.code === 'CANCELADO') return;
+    registrarEventoEmbudo('error_registro', { detalle: 'google ios: ' + String(e?.message || '').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Google. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  if (await sesionDesdeVuelta(vuelta)) { window.location.reload(); return; }
+  try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+  registrarEventoEmbudo('error_registro', { detalle: 'google ios: vuelta sin sesión' });
+  if (setErr) setErr('No se pudo entrar con Google. Intenta de nuevo o usa tu correo.');
+}
+
+// La vuelta trae la sesión en el "#" (access_token y refresh_token) o un
+// código para canjear.
+async function sesionDesdeVuelta(direccion) {
+  try {
+    const u = new URL(direccion);
+    const q = u.searchParams;
+    const h = new URLSearchParams((u.hash || '').replace(/^#/, ''));
+    const codigo = q.get('code');
+    if (codigo) return !(await supabase.auth.exchangeCodeForSession(codigo)).error;
+    const access_token = h.get('access_token'), refresh_token = h.get('refresh_token');
+    if (access_token && refresh_token) return !(await supabase.auth.setSession({ access_token, refresh_token })).error;
+  } catch {}
+  return false;
+}
+
+/* "Continuar con Apple" (solo en la app de iPhone; Apple lo exige porque
+   hay "Continuar con Google"). Apple da el token y Supabase lo comprueba;
+   si la cuenta es nueva, la base la crea igual que con Google. Apple
+   manda el nombre solo la primera vez: se guarda si la cuenta no tiene. */
+async function entrarConApple(setErr) {
+  const nativo = nativoIOS();
+  if (!nativo) return;
+  try { sessionStorage.setItem('jb-google-inicio', String(Date.now())); sessionStorage.setItem('jb-ingreso-con', 'apple'); } catch {}
+  let r;
+  try { r = await nativo.iniciarConApple(); }
+  catch (e) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    if (e?.code === 'CANCELADO') return;
+    registrarEventoEmbudo('error_registro', { detalle: 'apple: ' + String(e?.message || '').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Apple. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: r.identityToken, nonce: r.nonce });
+  if (error || !data?.user) {
+    try { sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    registrarEventoEmbudo('error_registro', { detalle: 'apple: ' + String(error?.message || 'sin usuario').slice(0, 80) });
+    if (setErr) setErr('No se pudo entrar con Apple. Intenta de nuevo o usa tu correo.');
+    return;
+  }
+  const nombre = [r.givenName, r.familyName].filter(Boolean).join(' ').trim();
+  if (nombre) {
+    try {
+      await supabase.from('profiles').update({ nombre }).eq('id', data.user.id).eq('nombre', '');
+      await supabase.from('alumnos').update({ nombre }).eq('user_id', data.user.id).eq('nombre', '');
+    } catch {}
+  }
+  window.location.reload();
+}
+
+function BotonApple({ onClick, texto = 'Continuar con Apple' }) {
+  if (!nativoIOS()) return null;
+  return (
+    <button type="button" onClick={onClick}
+      className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-black hover:bg-zinc-900 border border-zinc-50 text-zinc-50 jb-body font-semibold text-base py-3 transition-colors">
+      <svg width="17" height="20" viewBox="0 0 17 20" fill="currentColor" aria-hidden="true">
+        <path d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.5 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9 0 0-2.7-1-2.7-4.1zM11.6 3c.7-.9 1.2-2 1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.2.1 2.3-.6 3.1-1.5z"/>
+      </svg>
+      {texto}
+    </button>
+  );
 }
 
 /* Navegador dentro de Instagram, Facebook, Messenger o TikTok (donde se
@@ -3184,6 +3098,15 @@ function navegadorDentroDeApp() {
     if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return 'TikTok';
     return null;
   } catch { return null; }
+}
+
+// El autocompletar del celular o el de Instagram/Facebook a veces llena una
+// casilla sin avisarle a la app: el correo se ve escrito, pero la app lo
+// tiene vacío y responde "Escribe tu correo". Al enviar, se lee lo que de
+// verdad hay en la casilla (por su "name").
+function casilla(form, nombre, valor) {
+  const real = form?.elements?.namedItem?.(nombre)?.value;
+  return typeof real === 'string' && real.trim() && real !== valor ? real : valor;
 }
 
 function BotonGoogle({ onClick, texto = 'Continuar con Google' }) {
@@ -3532,7 +3455,7 @@ function Recorrido({ onBack, onListo }) {
 function appInstalada() {
   try { if (new URLSearchParams(window.location.search).get('bienvenida') === '1') return true; } catch {}
   try {
-    return esTWA() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return esAppTienda() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   } catch { return false; }
 }
 
@@ -3593,7 +3516,7 @@ function marcarSplashWebVisto() {
 }
 
 const BIENVENIDA_FOTOS = [
-  { src: '/testimonios/martin-despues.jpg', logro: '−37 KG', nombre: 'Jonah · en 3 años y 8 meses', ms: 3400 },
+  { src: '/testimonios/martin-despues.jpg', logro: '−37 KG', nombre: 'Jonah · creador de la app', ms: 3400 },
   { src: '/testimonios/andrea-despues.jpg', logro: '6 MESES', nombre: 'Andrea · de cambio visible', ms: 3000 },
 ];
 
@@ -3637,12 +3560,15 @@ function Bienvenida({ onEmpezar, onEntrar }) {
               style={{ objectPosition: '50% 18%', animation: i === idx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
           </div>
         ))}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.55) 0%, rgba(22,17,13,0) 20%, rgba(22,17,13,0) 34%, rgba(22,17,13,.9) 62%, #16110D 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.85) 0%, rgba(22,17,13,.45) 12%, rgba(22,17,13,0) 24%, rgba(22,17,13,0) 34%, rgba(22,17,13,.9) 62%, #16110D 100%)' }} />
 
         <div className="jbb-a absolute left-5 right-5 flex items-center justify-between" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
           <div className="flex items-center gap-2">
             <img src="/logo-marca.webp" alt="" className="w-8" />
-            <span className="jb-display text-lg text-zinc-50 tracking-wide">JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+            <div className="leading-none">
+              <span className="jb-display text-lg text-zinc-50 tracking-wide" style={{ textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>JONAH BEAST <span className="text-orange-400">FUEL</span></span>
+              <div className="jb-body text-[10px] font-semibold tracking-[0.25em] uppercase text-orange-400 mt-0.5" style={{ textShadow: '0 1px 5px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9)' }}>Comida a comida</div>
+            </div>
           </div>
           <div className="flex gap-1.5" aria-hidden="true">
             {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === idx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
@@ -3728,16 +3654,28 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   async function submit(e) {
     e.preventDefault();
     setErr(''); setAviso(''); setCampoErr('');
-    const email = f.email.trim().toLowerCase();
+    const form = e.currentTarget;
+    const datos = { ...f, email: casilla(form, 'email', f.email), password: casilla(form, 'password', f.password), telefono: casilla(form, 'telefono', f.telefono) };
+    const rescatados = ['email', 'password', 'telefono'].filter(c => datos[c] !== f[c]);
+    if (rescatados.length) {
+      // Se anota para medir cuántos registros se salvan así.
+      registrarEventoEmbudo('registro_autollenado', { detalle: rescatados.join(',') });
+      setF(datos);
+    }
+    const email = datos.email.trim().toLowerCase();
     // Cada tropiezo queda anotado en el embudo ("error_registro"), para
     // saber qué frena a quien quiere registrarse. "campo" dice debajo de
     // qué casilla se muestra el error.
-    const tropiezo = (detalle, texto, campo = '') => { registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo); };
+    const tropiezo = (detalle, texto, campo = '') => {
+      registrarEventoEmbudo('error_registro', { detalle }); setErr(texto); setCampoErr(campo);
+      // Lleva el cursor a la casilla que falta, para escribir sin buscarla.
+      try { form.elements.namedItem({ correo: 'email', contrasena: 'password', telefono: 'telefono' }[campo])?.focus(); } catch {}
+    };
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return tropiezo(email ? 'correo_invalido' : 'correo_vacio', email ? 'Ese correo no parece completo. Revísalo (ej. tunombre@gmail.com).' : 'Escribe tu correo.', 'correo');
-    if (f.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
+    if (datos.password.length < MIN_CONTRASENA) return tropiezo('contrasena_corta', `Tu contraseña necesita al menos ${MIN_CONTRASENA} letras o números.`, 'contrasena');
     // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
     // con quien llega desde un anuncio), es la única forma de escribirle.
-    const tel = f.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
+    const tel = datos.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
     if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
@@ -3754,7 +3692,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     }
 
     const { data, error } = await supabase.auth.signUp({
-      email, password: f.password,
+      email, password: datos.password,
       options: { data: { username: user, nombre: '', codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
@@ -3860,10 +3798,11 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
             </div>
           ) : (
             <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+              <BotonApple onClick={() => entrarConApple(setErr)} />
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
                 <ErrorCampo texto={campoErr === 'correo' ? err : ''} />
                 {campoErr === 'existe' && (
                   <span className="jb-body text-xs text-zinc-200 bg-zinc-950 border border-orange-500/50 rounded-lg p-2.5 mt-1 flex flex-col gap-2">
@@ -3877,7 +3816,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               </Field>
               <Field label="Contraseña">
                 <div className="relative">
-                  <input type={verPass ? 'text' : 'password'} value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
+                  <input type={verPass ? 'text' : 'password'} name="password" autoComplete="new-password" value={f.password} onChange={e => { setF(v => ({ ...v, password: e.target.value })); if (campoErr === 'contrasena') { setCampoErr(''); setErr(''); } }} className={inputCls + ' pr-10 w-full' + conError(campoErr === 'contrasena')} placeholder="Mínimo 6 letras o números" />
                   <button type="button" onClick={() => setVerPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
                     <Eye size={16} />
                   </button>
@@ -3885,7 +3824,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
                 {campoErr === 'contrasena' ? <ErrorCampo texto={err} /> : <AyudaContrasena valor={f.password} />}
               </Field>
               <Field label="Tu WhatsApp">
-                <input type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
+                <input type="tel" inputMode="tel" name="telefono" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
                 {campoErr === 'telefono'
                   ? <ErrorCampo texto={err} />
                   : <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>}
@@ -3939,8 +3878,6 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   );
 }
 
-function TrialSignupPlaceholder() { return null; }
-
 function AdminAuth({ onBack, onLogin, busy }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -3954,15 +3891,20 @@ function AdminAuth({ onBack, onLogin, busy }) {
   function submit(e) {
     e.preventDefault();
     setErr('');
-    if (!email.trim() || !pass) return setErr('Completa tu correo y contraseña.');
-    onLogin(email.trim(), pass, setErr);
+    const correo = casilla(e.currentTarget, 'email', email), clave = casilla(e.currentTarget, 'password', pass);
+    if (correo !== email) setEmail(correo);
+    if (clave !== pass) setPass(clave);
+    if (!correo.trim() || !clave) return setErr('Completa tu correo y contraseña.');
+    onLogin(correo.trim(), clave, setErr);
   }
 
   async function recuperar(e) {
     e.preventDefault();
     setErr('');
-    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    const correo = casilla(e.currentTarget, 'email', email);
+    if (correo !== email) setEmail(correo);
+    if (!correo.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(correo.trim().toLowerCase());
     if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
     setModo('codigo');
   }
@@ -4028,11 +3970,11 @@ function AdminAuth({ onBack, onLogin, busy }) {
           ) : (
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
               <Field label="Correo">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
+                <input type="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} autoFocus />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
-                  <input type="password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
+                  <input type="password" name="password" autoComplete="current-password" value={pass} onChange={e => setPass(e.target.value)} className={inputCls} />
                 </Field>
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -4177,7 +4119,6 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [modo, setModo] = useState('login');
-  const [aviso, setAviso] = useState('');
   const [codigo, setCodigo] = useState('');
   const [passNueva, setPassNueva] = useState('');
   const [passNueva2, setPassNueva2] = useState('');
@@ -4187,15 +4128,20 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
     e.preventDefault();
     setErr('');
     if (onClearExpired) onClearExpired();
-    if (!email || !password) return setErr('Completa correo y contraseña.');
-    onLogin(email.trim().toLowerCase(), password, setErr);
+    const correo = casilla(e.currentTarget, 'email', email), clave = casilla(e.currentTarget, 'password', password);
+    if (correo !== email) setEmail(correo);
+    if (clave !== password) setPassword(clave);
+    if (!correo.trim() || !clave) return setErr('Completa correo y contraseña.');
+    onLogin(correo.trim().toLowerCase(), clave, setErr);
   }
 
   async function recuperar(e) {
     e.preventDefault();
-    setErr(''); setAviso('');
-    if (!email.trim()) return setErr('Escribe tu correo para enviarte el código.');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    setErr('');
+    const correo = casilla(e.currentTarget, 'email', email);
+    if (correo !== email) setEmail(correo);
+    if (!correo.trim()) return setErr('Escribe tu correo para enviarte el código.');
+    const { error } = await supabase.auth.resetPasswordForEmail(correo.trim().toLowerCase());
     if (error) return setErr('No se pudo enviar el código. Intenta de nuevo en un momento.');
     setModo('codigo');
   }
@@ -4373,16 +4319,17 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
             <form onSubmit={modo === 'login' ? submit : recuperar} className="flex flex-col gap-4">
               {modo === 'login' && (
                 <>
+                  <BotonApple onClick={() => entrarConApple(setErr)} texto="Entrar con Apple" />
                   <BotonGoogle onClick={() => entrarConGoogle(setErr)} texto="Entrar con Google" />
                   <SeparadorO />
                 </>
               )}
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                  <input type="password" name="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
                 </Field>
               )}
               {err && <p className="text-red-400 text-sm jb-body flex items-center gap-1.5"><AlertTriangle size={14} />{err}</p>}
@@ -4577,26 +4524,6 @@ function marcarPantallaGratisVista(username, fechaVencimiento) {
 /* SEGURIDAD DE CONTRASEÑAS (PBKDF2 con Web Crypto)                    */
 /* ------------------------------------------------------------------ */
 
-function bufToHex(buf) {
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashPassword(password, saltHex) {
-  const salt = saltHex
-    ? Uint8Array.from(saltHex.match(/.{2}/g).map(h => parseInt(h, 16)))
-    : crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' }, key, 256);
-  return { hash: bufToHex(bits), salt: bufToHex(salt) };
-}
-
-async function verifyPassword(password, hashHex, saltHex) {
-  if (!hashHex || !saltHex) return false;
-  const { hash } = await hashPassword(password, saltHex);
-  return hash === hashHex;
-}
-
 /* ------------------------------------------------------------------ */
 /* PRUEBA DE PREMIUM DE 7 DÍAS (después, versión gratis)               */
 /* ------------------------------------------------------------------ */
@@ -4618,7 +4545,6 @@ const TRIAL_DAYS = 7;
 
 
 
- 
 
 
 
@@ -4767,7 +4693,7 @@ function RelojBono({ user, onVerPlanes }) {
           </div>
         ))}
       </div>
-      <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>
+      {!esAppTienda() && <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>}
       {onVerPlanes && (
         <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mt-3'}>
           Ver planes y suscribirme
@@ -4993,6 +4919,12 @@ function fmtS(n) {
   return 'S/' + Number(n).toFixed(2);
 }
 
+// Precio en la moneda de la tienda de Apple (en Perú, soles; con un Apple ID de otro país, su moneda).
+function fmtMoneda(n, moneda) {
+  if (!moneda || moneda === 'PEN') return fmtS(n);
+  try { return new Intl.NumberFormat('es-PE', { style: 'currency', currency: moneda }).format(n); } catch { return fmtS(n); }
+}
+
 // Lo que suma Premium frente a la versión gratis (ver docs/manual-app.md 13.8).
 const BENEFICIOS = [
   'Beast, tu compañero, contigo todos los días: le hablas y te anota todo. Sin monedas, sin cobros extra',
@@ -5009,11 +4941,128 @@ const BENEFICIOS = [
 
 
 
+/* "🎟️ ¿Tienes un cupón?" en Planes. Los cupones los crea Jonah en el
+   panel (Negocio → Anuncios y embudo → 🎟️ CUPONES). La base dice si vale
+   (validar_cupon); los de días se canjean al toque (canjear_cupon) y los de
+   descuento bajan el precio del pago único (el servidor lo vuelve a revisar).
+   Un link con ?cupon=CODIGO lo deja escrito (se guarda al abrir la app). */
+const MENSAJE_CUPON = {
+  invalido: 'Ese cupón no existe o ya no está activo. Revisa cómo está escrito.',
+  vencido: 'Ese cupón ya venció 😕',
+  agotado: 'Ese cupón ya se usó todas las veces que permitía.',
+  ya_usado: 'Ya usaste este cupón antes.',
+  no_es_para_ti: 'Ese cupón es para otra persona.',
+  sin_sesion: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
+  sin_cuenta: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
+};
+const MESES_CUPON = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+const fechaCuponLarga = iso => { const [, m, d] = String(iso || '').slice(0, 10).split('-').map(Number); return m ? `${d} de ${MESES_CUPON[m - 1]}` : ''; };
+function leerCuponPendiente() { try { return localStorage.getItem('jb_cupon') || ''; } catch { return ''; } }
+function borrarCuponPendiente() { try { localStorage.removeItem('jb_cupon'); } catch {} }
+function CuponBox({ aplicado, onDescuento, refPct = 0, soloDias = false }) {
+  const [abierto, setAbierto] = useState(() => !!leerCuponPendiente());
+  const [codigo, setCodigo] = useState(() => leerCuponPendiente());
+  const [revisando, setRevisando] = useState(false);
+  const [res, setRes] = useState(null); // respuesta de validar_cupon
+  const [canjeando, setCanjeando] = useState(false);
+  const [canjeado, setCanjeado] = useState(null); // { dias, fecha_vencimiento }
+  async function revisar(c = codigo) {
+    const limpio = String(c || '').trim().toUpperCase();
+    if (!limpio) return;
+    setRevisando(true); setRes(null);
+    let r = { estado: 'invalido' };
+    try { const { data, error } = await supabase.rpc('validar_cupon', { p_codigo: limpio }); if (!error && data) r = data; } catch {}
+    setRevisando(false);
+    setRes(r);
+    if (r.estado === 'ok' && r.tipo === 'descuento' && !soloDias && Number(r.valor) > refPct) {
+      onDescuento({ codigo: r.codigo, valor: Number(r.valor) });
+      vibrar(30);
+    }
+    if (r.estado !== 'ok') borrarCuponPendiente();
+  }
+  // Llegó con el cupón en el link: se revisa solo.
+  useEffect(() => { if (leerCuponPendiente()) revisar(leerCuponPendiente()); }, []);
+  async function canjear() {
+    setCanjeando(true);
+    let r = { estado: 'invalido' };
+    try { const { data, error } = await supabase.rpc('canjear_cupon', { p_codigo: res.codigo }); if (!error && data) r = data; } catch {}
+    setCanjeando(false);
+    if (r.estado === 'ok') { setCanjeado(r); borrarCuponPendiente(); vibrar([30, 50, 30]); }
+    else setRes(r);
+  }
+  function quitar() {
+    onDescuento(null); setRes(null); setCodigo(''); borrarCuponPendiente();
+  }
+
+  if (canjeado) {
+    return (
+      <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-4 text-center">
+        <p className="jb-display text-lg text-zinc-50 mb-1">🎉 ¡LISTO, {canjeado.dias} DÍAS MÁS!</p>
+        <p className="jb-body text-sm text-zinc-300 mb-3">Se sumaron a tu Premium{canjeado.fecha_vencimiento ? `: ahora vence el ${fechaCuponLarga(canjeado.fecha_vencimiento)}` : ''}. Aprovéchalos, comida a comida 💪</p>
+        <button onClick={() => window.location.reload()} className={btnPrimary + ' w-full py-2.5'}>Seguir</button>
+      </div>
+    );
+  }
+  if (aplicado) {
+    return (
+      <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span className="text-xl">🎟️</span>
+        <div className="flex-1 min-w-0">
+          <p className="jb-body text-sm text-emerald-300 font-semibold">Cupón {aplicado.codigo}: {aplicado.valor}% de descuento</p>
+          <p className="jb-body text-[11px] text-zinc-400">Ya aplicado en los precios · vale para el pago único</p>
+        </div>
+        <button onClick={quitar} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
+      </div>
+    );
+  }
+  if (!abierto) {
+    return (
+      <button onClick={() => setAbierto(true)} className="jb-body text-sm text-orange-400 hover:text-orange-300 underline underline-offset-2 self-center">
+        🎟️ ¿Tienes un cupón?
+      </button>
+    );
+  }
+  const okDias = res?.estado === 'ok' && res.tipo === 'dias';
+  const okDescuento = res?.estado === 'ok' && res.tipo === 'descuento';
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+      <p className="jb-body text-sm text-zinc-200 font-semibold mb-2">🎟️ Ingresa tu cupón</p>
+      <form onSubmit={e => { e.preventDefault(); revisar(); }} className="flex gap-2">
+        <input value={codigo} onChange={e => { setCodigo(e.target.value.toUpperCase().replace(/\s/g, '')); setRes(null); }}
+          placeholder="Ej. JONAH-20" autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={30}
+          className={inputCls + ' flex-1 font-mono tracking-wider'} />
+        <button type="submit" disabled={revisando || !codigo.trim()} className={btnPrimary + ' px-4'}>
+          {revisando ? <Loader2 className="animate-spin" size={16} /> : 'Aplicar'}
+        </button>
+      </form>
+      {res && res.estado !== 'ok' && (
+        <p className="jb-body text-xs text-red-400 mt-2 flex items-center gap-1.5"><AlertTriangle size={13} />{MENSAJE_CUPON[res.estado] || MENSAJE_CUPON.invalido}</p>
+      )}
+      {okDias && (
+        <div className="mt-3 bg-zinc-950 border border-orange-500/40 rounded-xl p-3 text-center">
+          <p className="jb-display text-lg text-orange-400">🎁 {res.valor} DÍAS DE PREMIUM GRATIS</p>
+          <p className="jb-body text-xs text-zinc-400 mb-3">Se suman a tu Premium al toque, sin pagar nada.</p>
+          <button onClick={canjear} disabled={canjeando} className={btnPrimary + ' w-full py-2.5'}>
+            {canjeando ? <Loader2 className="animate-spin" size={16} /> : `Canjear mis ${res.valor} días`}
+          </button>
+        </div>
+      )}
+      {okDescuento && soloDias && (
+        <p className="jb-body text-xs text-amber-300 mt-2">Este cupón es de descuento y por ahora no se puede usar en esta app.</p>
+      )}
+      {okDescuento && !soloDias && Number(res.valor) <= refPct && (
+        <p className="jb-body text-xs text-amber-300 mt-2">Ya tienes {refPct}% de descuento por tu código de referido, que es igual o mayor: se queda ese.</p>
+      )}
+    </div>
+  );
+}
+
 function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado = false, sinRelojBono = false, planInicial = null }) {
   const [precios, setPrecios] = useState({});
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
+  const [cupon, setCupon] = useState(null); // { codigo, valor }: cupón de descuento aplicado (CuponBox)
   const [datosPago, setDatosPago] = useState({});
   // "planInicial" (meses): llega con un plan ya marcado, por ejemplo desde
   // el aviso de fin de prueba ("Seguir con 1 mes"), y va directo a pagar.
@@ -5031,13 +5080,19 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [creandoMP, setCreandoMP] = useState(false);
   const [mpTipo, setMpTipo] = useState('unico');
   // Google Play (solo en la app de Android con el cobro de Google activado)
-  const [playSrv, setPlaySrv] = useState(null);
   const [playListo, setPlayListo] = useState(false);
   const [playDiag, setPlayDiag] = useState('');
   const [playBuscando, setPlayBuscando] = useState(() => esTWA());
   const [playPrecios, setPlayPrecios] = useState({});
   const [comprandoPlay, setComprandoPlay] = useState(null);
   const [playMsg, setPlayMsg] = useState('');
+  // Apple (solo en la app de iPhone que trae el cobro con Apple)
+  const [appleBuscando, setAppleBuscando] = useState(() => esAppIOS() && hayComprasIOS());
+  const [applePrecios, setApplePrecios] = useState({});
+  const [comprandoApple, setComprandoApple] = useState(null);
+  const [restaurandoApple, setRestaurandoApple] = useState(false);
+  const [appleMsg, setAppleMsg] = useState('');
+  const [appleIntento, setAppleIntento] = useState(0);
 
   useEffect(() => { cargar(); }, [username]);
   useEffect(() => {
@@ -5053,11 +5108,79 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       if (!vivo) return;
       setPlayDiag(r.diag); setPlayBuscando(false);
       if (!r.listo) return;
-      setPlayPrecios(r.precios); setPlaySrv(r.srv); setPlayListo(true);
+      setPlayPrecios(r.precios); setPlayListo(true);
       if (r.srv && await sincronizarComprasGoogle(r.srv)) window.location.reload();
     })();
     return () => { vivo = false; };
   }, [username]);
+
+  // iPhone: precios de Apple y, por si quedó alguna compra sin activar,
+  // se reenvían al servidor las suscripciones vigentes de este iPhone.
+  useEffect(() => {
+    if (!esAppIOS() || !hayComprasIOS()) return;
+    let vivo = true;
+    (async () => {
+      setAppleBuscando(true);
+      try {
+        const { productos } = await nativoIOS().productos({ ids: Object.values(PRODUCTOS_APPLE) });
+        const m = {};
+        (productos || []).forEach(p => { m[p.id] = p; });
+        if (vivo) setApplePrecios(m);
+      } catch { if (vivo) setApplePrecios({}); }
+      if (vivo) setAppleBuscando(false);
+      if (vivo && await sincronizarComprasApple()) window.location.reload();
+    })();
+    return () => { vivo = false; };
+  }, [username, appleIntento]);
+
+  function avisarResultadoApple(r) {
+    showToast(r.prueba ? 'Compra de prueba registrada (no suma tiempo al plan).'
+      : r.bono ? '¡Listo! Tu plan ya está activo, con +7 días de regalo 🎁'
+      : r.activado ? '¡Listo! Tu plan ya está activo 💪'
+      : 'Tu Premium ya estaba activo 💪');
+    if (r.activado) setTimeout(() => window.location.reload(), 1200);
+  }
+
+  async function comprarConApple(plan) {
+    const id = PRODUCTOS_APPLE[plan.meses];
+    if (!id || comprandoApple || restaurandoApple) return;
+    setAppleMsg(''); setComprandoApple(id);
+    registrarPasoPago('eligio_plan', username, plan.meses);
+    registrarPasoPago('eligio_metodo', username, 'App Store');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await nativoIOS().comprar({ id, cuenta: session?.user?.id || '' });
+      if (r?.estado === 'ok' && r.compra) {
+        registrarPasoPago('pago_enviado', username, 'App Store');
+        try {
+          avisarResultadoApple(await enviarComprasApple([r.compra]));
+        } catch {
+          setAppleMsg('Tu pago quedó registrado en Apple. Estamos activando tu plan: vuelve a abrir Planes en unos minutos. Si no se activa, toca "Restaurar compras" o escríbenos.');
+        }
+      } else if (r?.estado === 'pendiente') {
+        setAppleMsg('Tu compra está esperando aprobación (por ejemplo, de quien administra tu cuenta de Apple). Apenas se apruebe, tu plan se activa solo.');
+      }
+      // 'cancelado': el alumno cerró la ventana de Apple, no es un error.
+    } catch {
+      setAppleMsg('No se pudo completar el pago con Apple. Intenta de nuevo.');
+    }
+    setComprandoApple(null);
+  }
+
+  async function restaurarComprasApple() {
+    if (restaurandoApple || comprandoApple) return;
+    setAppleMsg(''); setRestaurandoApple(true);
+    try {
+      const r = await nativoIOS().restaurar();
+      if (r?.estado !== 'cancelado') {
+        if (!r?.compras?.length) setAppleMsg('No encontramos una suscripción vigente de Jonah Beast Fuel en este Apple ID.');
+        else avisarResultadoApple(await enviarComprasApple(r.compras));
+      }
+    } catch (e) {
+      setAppleMsg(e?.message || 'No pudimos restaurar tus compras. Intenta de nuevo en un momento.');
+    }
+    setRestaurandoApple(false);
+  }
 
   async function comprarConGooglePlay(plan) {
     const sku = PRODUCTOS_PLAY[plan.meses];
@@ -5126,8 +5249,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     const v = Number(precios[plan.configKey]);
     return v > 0 ? v : plan.precioDefault;
   }
+  // El cupón de descuento vale para el pago único (no para el cobro
+  // automático de Mercado Pago, que lo repetiría cada mes) y no se suma al
+  // del código de referido: queda el mayor.
+  const cuponAplica = !!cupon && cupon.valor > dcto && !(metodo === 'Mercado Pago' && mpTipo === 'recurrente');
+  const dctoFinal = cuponAplica ? cupon.valor : dcto;
   function precioDe(plan) {
-    return precioBase(plan) * (1 - dcto / 100);
+    return Math.round(precioBase(plan) * (1 - dctoFinal / 100) * 100) / 100;
   }
   // Cuánto ahorra por mes frente a pagar mes a mes (con precios sin descuento).
   function ahorroDe(plan) {
@@ -5158,9 +5286,12 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       const { error: dbErr } = await supabase.from('pagos').insert({
         username, nombre: nombre || '', plan_meses: seleccion.meses,
         monto: precioDe(seleccion), metodo, operacion: operacion.trim() || null,
-        comprobante_ruta: ruta, estado: 'pendiente',
+        comprobante_ruta: ruta, estado: 'pendiente', ...(cuponAplica ? { cupon: cupon.codigo } : {}),
       });
-      if (dbErr) throw new Error('Al registrar el pago: ' + dbErr.message);
+      if (dbErr) throw new Error(/Cupón no válido/i.test(dbErr.message)
+        ? 'Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a enviar tu pago.'
+        : 'Al registrar el pago: ' + dbErr.message);
+      if (cuponAplica) borrarCuponPendiente();
       registrarPasoPago('pago_enviado', username, metodo);
       // Aviso al toque al celular de Jonah (api/pago-enviado.js). Si falla,
       // la revisión de cada hora lo avisa igual.
@@ -5205,7 +5336,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
       }
       const funcion = mpTipo === 'recurrente' ? 'crear-suscripcion' : 'crear-pago-unico';
       const { data, error } = await supabase.functions.invoke(funcion, {
-        body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dcto },
+        body: { username, meses: seleccion.meses, correo: correo.trim(), descuentoPct: dctoFinal, cupon: cuponAplica ? cupon.codigo : null },
       });
       if (error || !data?.init_point) throw new Error(data?.error || 'No se pudo iniciar el pago.');
       // Se anota antes de salir a Mercado Pago (máximo 1.5 s de espera).
@@ -5294,6 +5425,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           La suscripción se renueva sola al terminar cada periodo. Puedes cancelarla cuando quieras desde Google Play y
           mantienes tu acceso hasta el final del periodo pagado.
         </p>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
         <a href={URL_SUSCRIPCIONES_PLAY} target="_blank" rel="noopener noreferrer"
           className="jb-body text-xs text-orange-400 text-center underline">
           Administrar mi suscripción en Google Play
@@ -5302,9 +5434,132 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
     );
   }
 
+  // App de iPhone con el cobro con Apple: se paga con Apple, con
+  // renovación automática. Precios de Apple. Apple pide que el monto que
+  // se cobra sea lo más visible (no el precio por mes), y que junto al
+  // botón estén la renovación automática, las condiciones de uso, la
+  // política de privacidad y "Restaurar compras".
+  if (esAppIOS() && hayComprasIOS()) {
+    if (appleBuscando) {
+      return (
+        <div className="flex flex-col items-center gap-3 py-12">
+          <Loader2 className="animate-spin text-orange-500" size={28} />
+          <p className="jb-body text-sm text-zinc-400">Conectando con la App Store…</p>
+        </div>
+      );
+    }
+    const hayPrecios = Object.keys(applePrecios).length > 0;
+    return (
+      <div className="flex flex-col gap-5">
+        {relojBono}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</p>
+          <p className="jb-body text-sm text-zinc-400">
+            {esTrial ? (dl >= 0 ? `Te quedan ${dl} día(s) de Premium de prueba. ` : 'Tu prueba de Premium terminó. ') : ''}
+            Paga seguro con tu cuenta de Apple.
+          </p>
+        </div>
+
+        {hayPrecios ? (
+          <div className="grid gap-3">
+            {PLANES_LISTA.map(plan => {
+              const id = PRODUCTOS_APPLE[plan.meses];
+              const producto = applePrecios[id];
+              if (!producto) return null;
+              const cargando = comprandoApple === id;
+              const periodo = plan.meses === 12 ? 'al año' : plan.meses > 1 ? `cada ${plan.meses} meses` : 'al mes';
+              return (
+                <div key={plan.meses} className={`bg-zinc-900 border rounded-2xl p-4 ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="jb-display text-lg text-zinc-50">{plan.nombre.toUpperCase()}</p>
+                      {plan.badge && <span className="jb-body text-[10px] font-semibold text-orange-400">{plan.badge}</span>}
+                    </div>
+                    <div className="text-right">
+                      <p className="jb-display text-2xl text-orange-500">{producto.precio}<span className="jb-body text-xs text-zinc-400 whitespace-nowrap"> {periodo}</span></p>
+                      {plan.meses > 1 && Number(producto.valor) > 0 && (
+                        <p className="jb-body text-xs text-zinc-400">equivale a {fmtMoneda(Number(producto.valor) / plan.meses, producto.moneda)} al mes</p>
+                      )}
+                    </div>
+                  </div>
+                  {plan.destacado && <p className="jb-body text-xs text-zinc-300 -mt-1 mb-3">{FRASE_ANUAL}</p>}
+                  <button onClick={() => comprarConApple(plan)} disabled={!!comprandoApple || restaurandoApple}
+                    className={btnPrimary + ' w-full justify-center py-3 disabled:opacity-60'}>
+                    {cargando ? <Loader2 className="animate-spin" size={18} /> : <CreditCard size={18} />} Suscribirme
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+            <p className="jb-body text-sm text-zinc-300 mb-3">No pudimos conectar con la App Store. Revisa tu internet e intenta de nuevo.</p>
+            <button onClick={() => setAppleIntento(n => n + 1)} className={btnPrimary + ' w-full justify-center py-2.5'}>Intentar de nuevo</button>
+          </div>
+        )}
+
+        {appleMsg && <p className="jb-body text-sm text-amber-300 text-center">{appleMsg}</p>}
+
+        <div className="flex flex-col gap-1.5">
+          {BENEFICIOS.map(b => (
+            <p key={b} className="jb-body text-sm text-zinc-300">✅ {b}</p>
+          ))}
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 text-center">
+          El pago se carga a tu cuenta de Apple al confirmar la compra. La suscripción se renueva sola al mismo precio al
+          terminar cada periodo, salvo que la canceles al menos 24 horas antes. Puedes cancelarla cuando quieras desde los
+          ajustes de tu cuenta de Apple y mantienes tu acceso hasta el final del periodo pagado.
+        </p>
+        <div className="flex items-center justify-center gap-4 flex-wrap">
+          <button onClick={restaurarComprasApple} disabled={restaurandoApple || !!comprandoApple}
+            className="jb-body text-xs text-orange-400 underline disabled:opacity-60 inline-flex items-center gap-1">
+            {restaurandoApple && <Loader2 className="animate-spin" size={12} />} Restaurar compras
+          </button>
+          <button onClick={() => nativoIOS()?.gestionarSuscripcion?.().catch(() => {})}
+            className="jb-body text-xs text-orange-400 underline">
+            Administrar mi suscripción
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-4">
+          <a href={URL_TERMINOS_APPLE} target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-zinc-500 underline">Condiciones de uso</a>
+          <a href="/privacidad.html" target="_blank" rel="noopener noreferrer" className="jb-body text-[11px] text-zinc-500 underline">Política de privacidad</a>
+        </div>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
+      </div>
+    );
+  }
+
+  // App de iPhone de una versión que aún no trae el cobro con Apple: los
+  // planes solo como información (sin pagar por fuera, regla de Apple).
+  if (esAppIOS()) {
+    return (
+      <div className="flex flex-col gap-5">
+        {relojBono}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
+          <p className="jb-display text-base text-zinc-100 mb-1">
+            {esTrial ? (dl >= 0 ? `${dl} día(s) restantes de tu Premium de prueba` : 'Tu prueba de Premium terminó') : 'Tu plan'}
+          </p>
+          <p className="jb-body text-sm text-zinc-400">Muy pronto vas a poder activar Premium aquí mismo, desde tu iPhone.</p>
+        </div>
+        <CuponBox aplicado={null} onDescuento={() => {}} soloDias />
+        <div className="grid gap-2">
+          {PLANES_LISTA.map(plan => (
+            <div key={plan.meses} className={`bg-zinc-900 border rounded-xl p-3.5 flex items-center justify-between ${plan.destacado ? 'border-orange-500/60' : 'border-zinc-800'}`}>
+              <div>
+                <p className="jb-body text-sm text-zinc-200">{plan.nombre}</p>
+                {plan.badge && <span className="jb-body text-[10px] text-orange-500">{plan.badge}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (esTWA()) {
     const waUrlPlan = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-      `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.`)}`;
+      `Hola, soy ${nombre || username} y quiero activar mi plan de Jonah Beast Fuel.${cuponAplica ? ` Tengo el cupón ${cupon.codigo}.` : ''}`)}`;
     return (
       <div className="flex flex-col gap-5">
         {relojBono}
@@ -5334,7 +5589,8 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           ))}
         </div>
 
-        {dcto > 0 && (
+        <CuponBox aplicado={cupon && cupon.valor > dcto ? cupon : null} onDescuento={setCupon} refPct={dcto} />
+        {dcto > 0 && !(cupon && cupon.valor > dcto) && (
           <p className="jb-body text-xs text-emerald-400 text-center">
             🎉 Tienes {dcto}% de descuento{refNombre ? ` por ${refNombre}` : ''} — ya aplicado en los precios de arriba.
           </p>
@@ -5410,7 +5666,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
           </button>
           <p className="jb-body text-xs text-zinc-500 text-center -mt-3">O elige un plan más largo y ahorra hasta {ahorroMaximo}%:</p>
 
-          {dcto > 0 && (
+          <CuponBox aplicado={cupon && cupon.valor > dcto ? cupon : null} onDescuento={setCupon} refPct={dcto} />
+
+          {dcto > 0 && !(cupon && cupon.valor > dcto) && (
             <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-3 flex items-center gap-2">
               <span className="text-lg">🎁</span>
               <p className="jb-body text-sm text-emerald-300">
@@ -5436,7 +5694,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                     </span>
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
-                  {dcto > 0 && (
+                  {dctoFinal > 0 && (
                     <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan) / plan.meses)} al mes</div>
                   )}
                   <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(porMes)}<span className="jb-body text-sm text-zinc-400"> al mes</span></div>
@@ -5566,6 +5824,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   ? 'Pagas una sola vez. Cuando se acerque el vencimiento, vuelves a elegir tu plan y pagar.'
                   : `Se te cobrará automáticamente cada ${seleccion.meses === 1 ? 'mes' : `${seleccion.meses} meses`} hasta que canceles la suscripción desde tu cuenta de Mercado Pago.`}
               </p>
+              {cupon && cupon.valor > dcto && mpTipo === 'recurrente' && (
+                <p className="jb-body text-[11px] text-amber-300 text-center -mt-1">🎟️ Tu cupón vale para el pago único. Elige "Pago único" para usar tu descuento.</p>
+              )}
               <Field label="Tu correo electrónico">
                 <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
                   className={inputCls} placeholder="tucorreo@ejemplo.com" />
@@ -5732,9 +5993,15 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 function textoPorcion({ unit, qty }) {
   if (unit === 'gramos') return `${Math.round(qty)} g`;
   if (unit === 'ml') return `${Math.round(qty)} ml`;
-  if (qty === 1 || /[\s/]/.test(unit)) return `${qty} ${unit}`;
+  // Piezas en cuartos y medios ("¼ unidad", "1½ unidades"), no "0.25".
+  let num = qty;
+  if (UNIDADES_DISCRETAS.includes(unit) && !Number.isInteger(Number(qty)) && Math.abs(qty * 4 - Math.round(qty * 4)) < 0.01) {
+    const entero = Math.floor(qty), fr = ['', '¼', '½', '¾'][Math.round((qty - entero) * 4)];
+    if (fr !== undefined) num = entero ? `${entero}${fr}` : fr;
+  }
+  if (qty <= 1 || /[\s/]/.test(unit)) return `${num} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
-  return `${qty} ${plural}`;
+  return `${num} ${plural}`;
 }
 
 
@@ -5776,7 +6043,7 @@ const ESTILOS_ESCANER = `
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
   if (unit === 'ml') return 50;
-  if (UNIDADES_DISCRETAS.includes(unit)) return 1;
+  if (UNIDADES_DISCRETAS.includes(unit) || unit === 'cuarto de pollo' || unit === 'octavo de pollo') return 1;
   return 0.5;
 }
 
@@ -5843,8 +6110,9 @@ try {
 function avisarRegistroTikTok(userId) {
   const eventId = userId ? `reg_${userId}` : undefined;
   try { if (window.ttq) window.ttq.track('CompleteRegistration', {}, eventId ? { event_id: eventId } : undefined); } catch (e) {}
-  // Versiones de prueba y celulares de admin: no se avisa (ver index.html).
-  if (!userId || window.__jbMedirAnuncios === false) return;
+  // En la app de iPhone no se mide para anuncios (Apple lo cuenta como
+  // rastreo), ni en versiones de prueba o celulares de admin (ver index.html).
+  if (!userId || esAppIOS() || window.__jbMedirAnuncios === false) return;
   try {
     let ttclid = null;
     try {
@@ -5867,6 +6135,7 @@ function avisarRegistroTikTok(userId) {
    faltaba subir queda guardado en el celular y se sube al recargar. */
 const VERSION_APP = typeof __VERSION__ !== 'undefined' ? __VERSION__ : '';
 function usarVersionNueva() {
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- es un hook propio ("usar…" en vez de "use…")
   useEffect(() => {
     if (!VERSION_APP) return;
     let ocultaDesde = document.visibilityState === 'hidden' ? Date.now() : null;
@@ -5918,6 +6187,14 @@ export default function App() {
       // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
       // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
       // (no a la portada); al entrar, lo lleva a registrar su comida.
+      // Viene de la ventana "Ábrela en Chrome" (navegador de Instagram,
+      // Facebook o TikTok): se anota para pedirle activar los avisos apenas
+      // entre a su cuenta (src/alumno.jsx, LlegasteAlNavegadorModal) y va
+      // directo a entrar con su correo.
+      if (params.get('desde') === 'app') {
+        try { localStorage.setItem('jb-desde-app', String(Date.now())); } catch {}
+        return 'studentAuth';
+      }
       return params.get('registrar') ? 'studentAuth' : 'landing';
     } catch { return 'landing'; }
   });
@@ -5930,9 +6207,27 @@ export default function App() {
     setView(v);
   }
   function volver() {
-    if (VISTAS_CON_ATRAS.includes(window.history.state?.jb)) window.history.back();
-    else setView('landing');
+    if (!VISTAS_CON_ATRAS.includes(window.history.state?.jb)) { setView('landing'); return; }
+    // Si el navegador no tiene a dónde volver (la pantalla se abrió desde un
+    // link o tras recargar), "Atrás" no hacía nada: se va a la portada.
+    let movio = false;
+    const marca = () => { movio = true; };
+    window.addEventListener('popstate', marca, { once: true });
+    window.history.back();
+    setTimeout(() => {
+      window.removeEventListener('popstate', marca);
+      if (!movio) { try { window.history.replaceState({}, ''); } catch {} setView('landing'); }
+    }, 400);
   }
+  // Al salir de las pantallas de antes de entrar (entró a su cuenta, cerró
+  // sesión y quedó en la portada…), se borra la marca de esa pantalla. Si
+  // quedaba, al cerrar sesión y volver a "Entrar", "← Atrás" regresaba a
+  // la misma pantalla de entrar y parecía que no hacía nada.
+  useEffect(() => {
+    if (!VISTAS_CON_ATRAS.includes(view) && VISTAS_CON_ATRAS.includes(window.history.state?.jb)) {
+      try { window.history.replaceState({}, ''); } catch {}
+    }
+  }, [view]);
   useEffect(() => {
     const onPop = e => {
       const destino = VISTAS_CON_ATRAS.includes(e.state?.jb) ? e.state.jb : 'landing';
@@ -5948,7 +6243,6 @@ export default function App() {
   const [sesionRevisada, setSesionRevisada] = useState(false);
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState([]);
-  const [adminPass, setAdminPass] = useState('');
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [viewingStudent, setViewingStudent] = useState(null);
   const [expiredInfo, setExpiredInfo] = useState(null);
@@ -6003,17 +6297,21 @@ export default function App() {
     if (view === 'studentAuth' || view === 'trial' || view === 'recorrido') import('./alumno.jsx').catch(() => {});
   }, [view]);
 
-  /* Vuelta de "Continuar con Google": si la cuenta se acaba de crear, se
+  /* Vuelta de "Continuar con Google" (o con Apple): si la cuenta se acaba de crear, se
      cuenta como 'registro' en el embudo y se avisa a TikTok y Meta, igual
      que el registro con correo. Solo si salió del botón en esta pestaña. */
   function volvioDeGoogle(user, perfil) {
     let inicio = null;
-    try { inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio'); } catch {}
+    let con = 'google';
+    try {
+      inicio = sessionStorage.getItem('jb-google-inicio'); sessionStorage.removeItem('jb-google-inicio');
+      con = sessionStorage.getItem('jb-ingreso-con') || 'google'; sessionStorage.removeItem('jb-ingreso-con');
+    } catch {}
     if (!inicio) return;
     const nueva = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 15 * 60 * 1000;
     if (nueva && perfil.role !== 'admin') {
       // Antes de marcarlo como conocido: si no, el embudo ya no lo cuenta.
-      registrarRegistroEmbudo(perfil.username, 'google');
+      registrarRegistroEmbudo(perfil.username, con);
       avisarRegistroTikTok(user?.id);
       avisarMeta('CompleteRegistration');
     }
@@ -6079,15 +6377,6 @@ export default function App() {
     } catch (e) { avisarError(e); }
     setUsers(usersList);
     setLoading(false);
-  }
-
-  async function handleAdminSetup(pass) {
-    setBusy(true);
-    try { await supabase.from('config').upsert({ key: 'admin_password', value: pass }); } catch (e) { avisarError(e); }
-    setAdminPass(pass);
-    setBusy(false);
-    setAdminAuthed(true);
-    setView('admin');
   }
 
   async function handleAdminLogin(email, pass, setErr) {
@@ -6565,6 +6854,7 @@ export default function App() {
 }
 
 export {
+  ALIMENTOS_RETIRADOS,
   avisarMeta,
   registrarPasoPago,
   leerPlatoDemo,
@@ -6613,6 +6903,12 @@ export {
   esFritoOSaltado,
   sePuedeFreir,
   esTWA,
+  esAppIOS,
+  esAppTienda,
+  hayAvisosIOS,
+  estadoAvisosIOS,
+  activarAvisosIOS,
+  desactivarAvisosIOS,
   fechaLocalISO,
   fetchTrialStats,
   fmtS,

@@ -10,12 +10,24 @@
 - Cuando termines un cambio, súbelo a la rama de trabajo y **espera a que Vercel construya la versión de prueba**. Luego dame el **link directo** a esa versión con `?preview=1` al final (por ejemplo `https://...vercel.app/?preview=1`). Ese parámetro hace que mis propias visitas no cuenten en las métricas de la landing.
 - **Nunca hagas el merge** de un pull request sin que yo lo pida explícitamente.
 - Cuando hagas una mejora, **busca todos los lugares de la app donde pasa lo mismo y propónmelos juntos en el mismo cambio**, para que la experiencia del alumno quede pareja (ej. si el peso pasa a regla deslizable, que sea en todas las pantallas donde se pone el peso).
+- **Sé proactivo: no arregles solo el caso que te muestro** (pedido de Jonah, 13 de octubre, tras el atún en lata). Cuando reporte un problema, antes de entregar:
+  1. **Busca la causa, no el síntoma**, y revisa **todos los casos que tienen esa misma causa**: los alimentos de la lista de la app, **los que se agregan desde el panel** (`alimentos_extra`, revisándolos en la base) y los productos escaneados.
+  2. Revisa **todas las formas de hacer lo mismo** (foto, código, escribir, voz, favoritos, Beast, WhatsApp) y que se comporten igual.
+  3. **Lo nuevo se ve y funciona como lo que ya existe** (ej. una tarjeta nueva lleva el mismo ✓, kcal a la derecha y botones que las demás).
+  4. Arréglalo todo en el mismo PR y dime en palabras simples **qué más encontraste**. Si algo es grande o cambia una decisión suya, propónmelo en vez de hacerlo.
+  5. Respeta siempre las dos formas de medir: **medida casera** (plato, unidad, lata) para quien no pesa y **gramos** ("⚖️ Lo pesé") para quien usa balanza.
 - **Los detalles importan: queremos dar la mejor experiencia.** Antes de dar un cambio por terminado, recórrelo como lo haría el alumno, de principio a fin: qué ve justo después de tocar cada botón, si queda claro que se guardó, si la pantalla lo lleva a lo que acaba de hacer, si algo queda abierto o desordenado, y si todas las formas de hacer lo mismo (foto, código, escribir, voz, atajos…) se comportan igual. Si encuentras un detalle así, arréglalo en el mismo cambio o propónmelo.
+
+## App de Android (Google Play)
+
+- **Mientras la app esté en prueba cerrada, cada semana con mejoras se sube una versión nueva a Google Play** (subir `appVersionCode` y `appVersionName` en `android/twa-manifest.json`), con notas de novedades que digan qué se mejoró gracias a los verificadores. Aunque la app de Play Store muestra jonahbeast.com y los cambios se ven solos, Google solo cuenta las versiones subidas a la prueba (lo pidió al rechazar el acceso a producción el 11 de octubre). Claude avisa a Jonah cuándo toca, compila el `.aab` y lo firma con la llave del Drive (con su permiso cada vez); Jonah lo sube. Pasos en `android/LEEME.md`.
+- Antes de entregar una versión, revisar los requisitos actuales de Google Play (por ejemplo, la versión mínima de Android que exige).
 
 ## Base de datos y Supabase (proyecto `jnhvpjrxilubkyhculoh`)
 
 - **Nunca borres ni modifiques datos de alumnos, pagos o cuentas sin preguntarme antes**, y dime exactamente qué filas vas a tocar.
 - **Los cambios en la estructura de la base** (columnas o tablas nuevas) **me los explicas antes de hacerlos.**
+- **Al aplicar una migración con el conector de Supabase, quita los `drop … if exists` que no hacen falta** (lo que se va a crear todavía no existe) y, si es larga, aplícala por partes. Una orden con `drop` pide una confirmación extra que en el celular de Jonah no llega y se cancela sola (pasó 5 veces con los cupones el 14 de octubre). Si de verdad hay que reemplazar algo que ya existe, avísale para hacerlo desde la computadora o el editor SQL de Supabase.
 - **Las edge functions solo se publican después del merge**, y siempre con el código que quedó en `main`, para que GitHub y Supabase nunca tengan versiones distintas. Después de publicar, dime qué versión quedó.
   - **Excepciones:** las copias de prueba de Jarvis (`jarvis-chat-prueba`) y de Beast (`beast-chat-prueba`, autorizada por Jonah el 9 de octubre) se pueden publicar desde la rama de un PR para probarlas en la versión de prueba de Vercel (que llama a esas copias). Los reales, `jarvis-chat` y `beast-chat`, solo se publican después del merge.
 - **Beast (`beast-chat`) se publica con `verify_jwt` en `false`**: el alumno sale de su sesión dentro del código.
@@ -34,18 +46,20 @@
 - Títulos en **Anton** (clase `jb-display`) y texto normal en **Work Sans** (clase `jb-body`).
 - Los colores están definidos en `tailwind.config.js`: la escala `zinc` es la paleta carbón → crema (`zinc-950` carbón, `zinc-50` crema) y la escala `orange` es el naranja ají (`orange-500` `#E8590C`, `orange-400` `#FF7020`).
 - Mantén este estilo en cualquier pantalla nueva o modificada.
+- **El gorila de la marca es el logo original (`public/logo-marca.webp`, el gorila de fuego) y no se cambia ni se modifica** (decisión de Jonah, 10 de octubre): no se redibuja, simplifica, recolorea ni recorta; solo se escala entero. En diseños (polos, anuncios, flyers) **no inventar nada ajeno a la marca**: solo el logo, "JONAH BEAST FUEL", "COMIDA A COMIDA", "Sigue comiendo peruano. Esta vez, con resultados.", jonahbeast.com, los colores y las tipografías. Para bordado, el taller digitaliza el logo original.
+- **La marca es universal; lo peruano es el mensaje del país** (decisión de Jonah, 12 de octubre: hoy empezamos en Perú y algún día quizás en otros países). La marca va igual en todas partes: **"Jonah Beast Fuel · Comida a comida"**, el gorila de fuego, la historia de Jonah, los colores y las tipografías. Lo de la comida peruana ("sin dejar la comida peruana", "Sigue comiendo peruano…", los platos) va **aparte**, en descripciones, textos y anuncios que se puedan cambiar por país; nunca pegado al nombre, al logo ni a la frase de marca.
 
 ## Tono de los mensajes
 
 - **Todo mensaje a alumnos o clientes** (WhatsApp, avisos, textos de la app, mensajes listos del panel) va en la voz de Jonah: **cercano, humano y motivador, nunca de robot**.
-- Habla como persona ("Soy Jonah", "vamos juntos", "cualquier duda me escribes aquí"), usa su historia cuando sume, **siempre completa y sin exagerar**: hace unos 4 años bajó 37 kg, y ahora bajó de 104 a 90 kg en 2 meses y medio con su propia app **sumándole entrenamiento (algunos días, no todos) y disciplina**. Nunca decir que fue solo la app y la idea de que **el cambio llega poco a poco, comida a comida**.
+- Habla como persona ("Soy Jonah", "vamos juntos", "cualquier duda me escribes aquí"), usa su historia cuando sume, **siempre completa y sin exagerar**: hace unos años bajó 37 kg (sin el número de años, para que no envejezca; decisión de Jonah del 15 de octubre), y ahora bajó de 104 a 90 kg en 2 meses y medio con su propia app **sumándole entrenamiento (algunos días, no todos) y disciplina**. Nunca decir que fue solo la app y la idea de que **el cambio llega poco a poco, comida a comida**.
 - Nada de textos fríos o de trámite. Sin prometer resultados iguales para todos.
 
 ## Datos del proyecto
 
 - App React + Vite + Tailwind, con Supabase como base de datos y publicada en Vercel.
 - La app está en `src/`: `App.jsx` tiene la portada, el registro/ingreso y todo lo compartido; `alumno.jsx` (app del alumno), `admin.jsx` (panel de admin y Jarvis), `tienda.jsx` y `referidor.jsx` se descargan solo cuando hacen falta. Las funciones de servidor y tareas automáticas están en `api/`.
-- Comprueba que compila con `npm run build` antes de subir cambios.
+- Comprueba que compila con `npm run build` antes de subir cambios. El build empieza con el **revisor automático** (`eslint.config.js`): si encuentra un error real (un nombre que no existe, una pieza borrada que se sigue usando, un hook mal puesto), frena el build y Vercel no publica. `npm run revisar` muestra además los avisos de código que no se usa (no frenan).
 
 ## Manual de la app y Jarvis
 

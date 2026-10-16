@@ -12,7 +12,7 @@
 // Lo que sale después lo manda /api/cron/mensajes-programados.
 
 import { getSupabase, setupWebPush, enviarPushA } from './_lib/push.js';
-import { PUBLICOS, contarPublico, enviarMensajeMasivo, esHoraDeSonar, proximas8am, fechaPeru, HORA_DESDE, HORA_HASTA } from './_lib/mensaje-masivo.js';
+import { PUBLICOS, contarPublico, enviarMensajeMasivo, esHoraDeSonar, fechaPeru, HORA_DESDE, HORA_HASTA } from './_lib/mensaje-masivo.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });

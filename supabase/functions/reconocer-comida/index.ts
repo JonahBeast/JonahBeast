@@ -150,6 +150,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       return json({ codigo: await leerNumerosCodigo(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "codigo", username, modelo: MODELO_FOTOS, usage })) });
     }
     if (accion === "guardar_producto") return json(await guardarProducto(supabase, codigo, producto, username));
+    if (accion === "unir_codigo") return json(await unirCodigo(supabase, codigo, producto?.codigo));
     if (accion === "transcribir_voz") {
       if (!premium && !sinLimite) return json({ error: "premium", funcion: "voz" }, 200);
       if (typeof audioBase64 !== "string" || !audioBase64) return json({ error: "Falta el audio." }, 400);
@@ -168,24 +169,12 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       }
       return json({ texto });
     }
+    // Leer la tabla nutricional con IA es Premium (ver leerEtiquetaConCupo).
     if (accion === "leer_etiqueta") {
-      // Leer la tabla nutricional con IA es Premium.
-      if (!premium && !sinLimite) return json({ error: "premium", funcion: "etiqueta" }, 200);
       if (typeof imagenBase64 !== "string" || !imagenBase64) return json({ error: "Falta la foto de la etiqueta." }, 400);
       if (imagenBase64.length > MAX_IMAGEN_BASE64) return json({ error: "La foto es demasiado pesada." }, 413);
-      const periodoEtiqueta = `etiqueta-${hoyLima}`;
-      const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
-        p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
-      });
-      if (errEtiqueta) return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 500);
-      if (usadasEtiqueta === null || usadasEtiqueta === undefined) return json({ error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO }, 200);
-      const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: MODELO_FOTOS, usage }));
-      if (!leida.ok) {
-        // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
-        if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
-        return json({ error: leida.error }, leida.fallo ? 502 : 200);
-      }
-      return json({ producto: leida.producto });
+      const r = await leerEtiquetaConCupo(supabase, username, { premium, sinLimite, hoyLima, imagenBase64, mimeType });
+      return json(r.producto ? { producto: r.producto } : { error: r.error, ...(r.limite ? { limite: r.limite } : {}) }, r.status || 200);
     }
 
     // "¿Qué puedo comer?": no usa IA, pero en la versión gratis se puede
@@ -270,7 +259,17 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       await devolverFoto();
       return json({ error: "No se pudo procesar la foto. Intenta de nuevo." }, 502);
     }
-    const { items, noEncontrados, alternativas } = r;
+    const { items, noEncontrados, alternativas, etiqueta, envase } = r;
+
+    // La foto es la tabla nutricional de un producto empacado: en vez de
+    // buscar platos, se leen sus números (como en "Código" → "Tomar foto a
+    // la tabla nutricional"). La foto de comida se devuelve: leer la
+    // etiqueta usa su propio cupo.
+    if (etiqueta && !items.length) {
+      await devolverFoto();
+      const leida = await leerEtiquetaConCupo(supabase, username, { premium, sinLimite, hoyLima, imagenBase64, mimeType: tipoImagen });
+      return json({ items: [], noEncontrados: [], alternativas: {}, etiqueta: leida.producto ? { producto: leida.producto } : { error: leida.error }, ...cupo, usadas: Math.max(0, Number(usadas) - 1) });
+    }
 
     // Platos que la IA vio pero no tenemos: quedan anotados para que el
     // admin los vea en su panel y los agregue. Si falla, no afecta al alumno.
@@ -281,7 +280,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
     }
 
     // La foto ya quedó contada al reservarla, antes de llamar a la IA.
-    return json({ items, noEncontrados, alternativas, ...cupo, usadas });
+    return json({ items, noEncontrados, alternativas, envase, ...cupo, usadas });
   } catch (e) {
     console.error("reconocer-comida:", (e as Error)?.message);
     return json({ error: "Error inesperado." }, 500);
@@ -293,7 +292,7 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
 async function reconocerPlato(supabase: any, { imagenBase64, tipoImagen, alimentosComunes, alimentosPersonales, frecuentes, corregidos, deTodos, porciones = [], usuarioUso }: {
   imagenBase64: string; tipoImagen: string; alimentosComunes: any[]; alimentosPersonales: any[]; frecuentes: string[]; corregidos: string[];
   deTodos: CorreccionesDeTodos; porciones?: string[]; usuarioUso: string;
-}): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]> } | null> {
+}): Promise<{ items: any[]; noEncontrados: string[]; alternativas: Record<string, string[]>; etiqueta: boolean; envase: boolean } | null> {
   const alimentosValidos = [...alimentosPersonales, ...alimentosComunes];
   // Solo la clave (ej. "Pollo pechuga (Cocida)"): ya incluye el nombre, así
   // la lista pesa casi la mitad que mandando "clave :: nombre".
@@ -316,7 +315,9 @@ En estos casos, los gramos del plato combinado son los de los fideos más la sal
 - Arroces de color: el arroz VERDE (con culantro) es "Arroz verde"; el arroz AMARILLO con arvejas, zanahoria y choclo es "Arroz amarillo (a la jardinera)"; el arroz ROJIZO o anaranjado con aderezo de ají panca es "Arroz aderezado (con ají panca)"; el arroz DORADO o marrón claro por el sillao, salteado, con pedacitos de huevo revuelto y cebolla china, es chaufa: "Arroz chaufa (solo el arroz)"; la carne del chaufa puede ser pollo, res o chancho (cerdo): si no se distingue, usa "opciones"; si se ven varias carnes mezcladas (chaufa especial), registra cada carne aparte con sus gramos, o "Arroz chaufa especial" si no se pueden separar. Si se ve la presa o la carne junto al arroz (arroz con pollo, con pato, a la jardinera, con chancho, chaufa), registra el arroz y la carne APARTE, cada uno con su clave y sus gramos. Si solo se ve el arroz, sin carne, usa solo la clave del arroz.
 - Ensalada rusa vs. ensalada de betarraga: si las verduras picadas (papa, betarraga, zanahoria, vainita) se ven cubiertas o mezcladas con MAYONESA (blanca o rosada y cremosa), es "Ensalada rusa". Si la betarraga se ve sola o con cebolla, suelta y brillante de limón, sin crema, es "Ensalada de betarraga".
 - Pollada, pollo frito, broaster y chicharrón de pollo: su clave es SOLO el pollo. Las papas (fritas, doradas o sancochadas), la yuca, el mote, la ensalada y las cremas van aparte, cada una con su propia clave y sus gramos. Una pollada suele ser 1/4 de pollo (≈ 220 g de carne) o 1/8 (≈ 110 g); casi nunca más.
-- PECAFIT (restaurante aliado, sus platos están en la lista con "(PECAFIT)" en el nombre): si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, usa el plato de PECAFIT que corresponda como UN solo alimento, sin separar sus partes; en "cantidad" pon cuántos platos o unidades ves (sus valores son por plato servido). Si NO se ve la marca, no asumas que es de PECAFIT aunque se parezca: registra el plato por partes, como siempre.
+- Sándwiches por PAN (pan con pollo, con jamonada, con chicharrón, butifarra, hot dog, hamburguesa de carretilla, sándwich de pollo, triples y mixto): cada uno está en "Pan blanco" y en "Pan integral". Si el pan se ve claramente integral (marrón, con granos o salvado), usa la versión "Pan integral"; si se ve blanco (pan francés, de molde blanco, de hot dog), "Pan blanco". Si no se distingue, usa "opciones" con las dos (pan blanco primero) y confianza "media".
+- Pollada y pollo a la brasa por CORTE: en Perú se piden por cuarto u octavo de pollo, pierna o pecho. Una pollada o un pollo a la brasa servido NUNCA son presas sueltas ("Pollo pierna", "Pollo pechuga", "Pollo encuentro"): usa "Pollada pierna" / "Pollada pecho" o "Pollo a la brasa pierna (solo la presa)" / "Pollo a la brasa pecho (solo la presa)". La pierna se reconoce por el muslo y el hueso de la pierna; el pecho, por la pechuga ancha y a veces el ala. Si no ves con claridad cuál es, usa "opciones" con las dos (pierna primero y pecho después) y confianza "media". En "gramos" pon la carne sin hueso: cuarto pierna ≈ 210 g (pollada) o 230 g (brasa); cuarto pecho ≈ 240 g (pollada) o 270 g (brasa); un octavo, la mitad. Pollada = pollo frito, apanado o dorado en aceite (piel crocante); pollo a la brasa = piel tostada oscura, sin apanado.
+- PECAFIT (restaurante con receta propia y macros validados, sus platos están en la lista con "(PECAFIT)" en el nombre): si en la foto se ve el envase, la bolsa, el táper, el sticker o el logo de PECAFIT, usa el plato de PECAFIT que corresponda como UN solo alimento, sin separar sus partes; en "cantidad" pon cuántos platos o unidades ves (sus valores son por plato servido). Si NO se ve la marca, no asumas que es de PECAFIT aunque se parezca: registra el plato por partes, como siempre.
 
 Si te paso "Correcciones que este alumno ya hizo", son fotos anteriores donde la IA se equivocó y el alumno eligió el alimento correcto (ej. la IA dijo pollo y era pavita). Si algo de esta foto se parece a lo que la IA dijo antes, lo más probable es que sea lo que el alumno corrigió: úsalo como "key", o en "opciones" en primer lugar si no estás seguro.
 
@@ -345,11 +346,13 @@ Marca "aceite": true si el alimento se ve frito, saltado, apanado o brillante de
 
 Si en la foto se ve con claridad un plato o alimento que NO está en la lista (ni nada equivalente), escribe su nombre común en español peruano en "no_encontrados" (ej. "Pollo a la olla"), máximo 3, nombres cortos sin marcas ni cantidades. Si todo lo visible está en la lista, deja "no_encontrados" vacío.
 
+TABLA NUTRICIONAL o ENVASE: si la foto muestra la TABLA NUTRICIONAL (información nutricional, con calorías y porción) de un producto empacado, no busques platos: responde "etiqueta": true con "items" vacío. Si la foto muestra un producto empacado (paquete, bolsa, botella, lata) y no está en la lista, pero NO se ve su tabla nutricional, responde "envase": true y pon el nombre del producto en "no_encontrados". En cualquier otro caso, "etiqueta" y "envase" van en false.
+
 Lista de alimentos válidos:
 ${listaPlatos}
 
 Responde ÚNICAMENTE con JSON válido, sin texto adicional, en este formato exacto:
-{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": []}
+{"items": [{"key": "clave_exacta_de_la_lista", "confianza": "alta|media|baja", "cantidad": 1, "gramos": 180, "aceite": false}, {"opciones": ["clave_variante_1", "clave_variante_2"], "confianza": "media", "cantidad": 1, "gramos": 250, "aceite": false}], "no_encontrados": [], "etiqueta": false, "envase": false}
 Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
 
   const modelo = MODELO_FOTOS;
@@ -410,6 +413,8 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
   let items: { key: string; confianza: string; cantidad?: number; gramos?: number | null; aceite?: boolean; opciones?: string[] }[] = [];
   let noEncontrados: string[] = [];
   const parsed = extraerJson(textoRespuesta);
+  const etiqueta = parsed?.etiqueta === true;
+  const envase = parsed?.envase === true && !etiqueta;
   // Si la respuesta no trae el JSON (o viene cortada), se trata como una
   // falla de la IA: quien llamó devuelve la foto y el alumno reintenta.
   if (!parsed) return null;
@@ -455,6 +460,32 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     })
     .filter((it) => it !== null && (it.key !== "" || Array.isArray((it as any).opciones))) as any[];
 
+  // Pollada y pollo a la brasa (pedido de Jonah, 12 de octubre): la IA ve
+  // las presas sueltas del plato (pechuga, ala, pierna, encuentro) aunque
+  // se le pida lo contrario. Si sugiere presas con piel, se juntan en UNA
+  // pregunta: pollada o brasa, pecho o pierna (en cuarto, que ajusta el
+  // alumno), y queda la presa suelta por si era pollo de casa.
+  const PRESA = /^Pollo (pierna|pechuga|encuentro|ala|entrepierna)\b/;
+  const CON_PIEL = /^Pollo (pierna|pechuga|encuentro|ala) \(con piel\)/;
+  const claves = (it: any): string[] => (it.key ? [it.key] : it.opciones || []);
+  const esPresa = (it: any) => claves(it).length > 0 && claves(it).every((k) => PRESA.test(k)) && claves(it).some((k) => CON_PIEL.test(k));
+  const presas = items.filter(esPresa);
+  const cortes = ["Pollada pecho (-)", "Pollada pierna (-)", "Pollo a la brasa pecho (solo la presa) (-)", "Pollo a la brasa pierna (solo la presa) (-)"];
+  if (presas.length && cortes.every((k) => clavesValidas.has(k))) {
+    const todas = presas.flatMap(claves);
+    const pecho = todas.some((k) => /^Pollo (pechuga|ala)/.test(k));
+    const [c1, c2] = pecho ? ["pecho", "pierna"] : ["pierna", "pecho"];
+    const opciones = [
+      `Pollada ${c1} (-)`, `Pollo a la brasa ${c1} (solo la presa) (-)`,
+      `Pollada ${c2} (-)`, `Pollo a la brasa ${c2} (solo la presa) (-)`,
+      todas.find((k) => CON_PIEL.test(k)) as string,
+    ];
+    items = [
+      ...items.filter((it) => !esPresa(it)),
+      { key: "", opciones, confianza: "media", cantidad: 1, gramos: null, aceite: presas.some((it: any) => it.aceite) },
+    ];
+  }
+
   // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
   // cuando la IA dijo cada uno de estos alimentos (solo los de esta foto).
   const alternativas: Record<string, string[]> = {};
@@ -465,7 +496,7 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
     }
   }
 
-  return { items, noEncontrados, alternativas };
+  return { items, noEncontrados, alternativas, etiqueta, envase };
 }
 
 // Foto de prueba desde la portada, sin cuenta (ver DEMO_* arriba). Se
@@ -617,13 +648,71 @@ async function nombreUnico(supabase: any, codigo: string, nombre: string, marca:
   return data && data.length ? `${nombre.slice(0, 72)} · ${codigo.slice(-4)}` : nombre;
 }
 
-async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
+// Productos guardados desde la foto de comida, sin código de barras.
+const CODIGO_INTERNO = /^99[0-9]{12}$/;
+
+async function productoSinCodigo(supabase: any, nombre: string, marca: string | null) {
+  const literal = (t: string) => t.replace(/[\\%_]/g, "\\$&");
+  let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").like("codigo", "99%")
+    .ilike("nombre", literal(nombre)).limit(5);
+  q = marca ? q.ilike("marca", literal(marca)) : q.is("marca", null);
+  const { data } = await q;
+  return (data || []).find((r: any) => CODIGO_INTERNO.test(r.codigo)) || null;
+}
+
+// "📦 ¿Tiene código de barras?": le pone el código real a un producto que
+// se guardó desde la foto de comida. Si ese código ya era de otro
+// producto, se usa ese (ya estaba registrado).
+async function unirCodigo(supabase: any, codigo: unknown, desde: unknown) {
   const cod = String(codigo || "").replace(/\D/g, "");
-  if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
+  const interno = String(desde || "");
+  if (!CODIGO_VALIDO.test(cod) || CODIGO_INTERNO.test(cod)) return { error: "Ese código no parece válido." };
+  if (!CODIGO_INTERNO.test(interno)) return { error: "Este producto ya tiene su código." };
+  const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
+  if (existe) return { producto: existe, yaExistia: true };
+  const { data, error } = await supabase.from("productos")
+    .update({ codigo: cod, actualizado_en: new Date().toISOString() })
+    .eq("codigo", interno).eq("fuente", "etiqueta").select("*").maybeSingle();
+  if (error || !data) {
+    console.error("No se pudo unir el código:", error?.message);
+    return { error: "No se pudo unir el código. Intenta de nuevo." };
+  }
+  return { producto: data };
+}
+
+async function guardarProducto(supabase: any, codigo: unknown, producto: unknown, username: string) {
+  let cod = String(codigo || "").replace(/\D/g, "");
   const p = productoLimpio(producto);
   if (!p || !p.nombre) return { error: "Revisa el nombre y los valores del producto." };
+  // Sin código de barras (la tabla se leyó desde la foto de comida): si ya
+  // hay uno leído de etiqueta con el mismo nombre y marca, se usa ese; si
+  // no, se le pone un código interno de 14 dígitos que empieza en "99"
+  // (los lectores de la app solo dan códigos de 8, 12 o 13 dígitos, así
+  // que nunca choca con uno real).
+  if (!cod) {
+    const literal = (t: string) => t.replace(/[\\%_]/g, "\\$&");
+    let q = supabase.from("productos").select("*").eq("fuente", "etiqueta").ilike("nombre", literal(p.nombre)).limit(1);
+    q = p.marca ? q.ilike("marca", literal(p.marca)) : q.is("marca", null);
+    const { data: igual } = await q;
+    if (igual && igual.length) return { producto: igual[0] }; // ya estaba (con código real o interno)
+    cod = "99" + String(Date.now()).slice(-10) + String(Math.floor(Math.random() * 100)).padStart(2, "0");
+  }
+  if (!CODIGO_VALIDO.test(cod)) return { error: "Ese código no parece válido." };
   const { data: existe } = await supabase.from("productos").select("*").eq("codigo", cod).maybeSingle();
   if (existe) return { producto: existe }; // otro alumno lo guardó antes: se usa ese
+  // Ya se había guardado desde la foto de comida (código interno 99…) con
+  // el mismo nombre y marca: se le pone el código real a ese mismo
+  // producto, con lo recién leído, en vez de crear uno repetido.
+  if (!CODIGO_INTERNO.test(cod)) {
+    const sinCodigo = await productoSinCodigo(supabase, p.nombre, p.marca);
+    if (sinCodigo) {
+      const { data: unido, error: errUnir } = await supabase.from("productos")
+        .update({ codigo: cod, ...p, nombre: sinCodigo.nombre, actualizado_en: new Date().toISOString() })
+        .eq("codigo", sinCodigo.codigo).select("*").single();
+      if (!errUnir && unido) return { producto: unido };
+      console.error("No se pudo unir el código:", errUnir?.message);
+    }
+  }
   const fila = { codigo: cod, ...p, nombre: await nombreUnico(supabase, cod, p.nombre, p.marca), fuente: "etiqueta", creado_por: username, veces_usado: 1 };
   const { data, error } = await supabase.from("productos").insert(fila).select("*").single();
   if (error) {
@@ -631,6 +720,28 @@ async function guardarProducto(supabase: any, codigo: unknown, producto: unknown
     return { error: "No se pudo guardar el producto. Intenta de nuevo." };
   }
   return { producto: data };
+}
+
+// Lee la tabla nutricional con su propio cupo diario (no gasta fotos de
+// comida). Es Premium. La usan "Código" → "Tomar foto a la tabla
+// nutricional" y la foto de comida cuando la foto resulta ser una tabla.
+async function leerEtiquetaConCupo(supabase: any, username: string, { premium, sinLimite, hoyLima, imagenBase64, mimeType }: {
+  premium: boolean; sinLimite: boolean; hoyLima: string; imagenBase64: string; mimeType: string;
+}): Promise<{ producto?: any; error?: string; limite?: number; status?: number }> {
+  if (!premium && !sinLimite) return { error: "premium" };
+  const periodoEtiqueta = `etiqueta-${hoyLima}`;
+  const { data: usadasEtiqueta, error: errEtiqueta } = await supabase.rpc("reservar_foto_reconocimiento", {
+    p_username: username, p_periodo: periodoEtiqueta, p_limite: sinLimite ? LIMITE_SIN_TOPE : LIMITE_ETIQUETAS_DIARIO,
+  });
+  if (errEtiqueta) return { error: "No se pudo procesar la foto. Intenta de nuevo.", status: 500 };
+  if (usadasEtiqueta === null || usadasEtiqueta === undefined) return { error: "limite_alcanzado", limite: LIMITE_ETIQUETAS_DIARIO };
+  const leida = await leerEtiqueta(imagenBase64, TIPOS_IMAGEN.includes(mimeType) ? mimeType : "image/jpeg", (usage) => anotarUsoIA(supabase, { tipo: "etiqueta", username, modelo: MODELO_FOTOS, usage }));
+  if (!leida.ok) {
+    // Si la IA falló, la lectura se devuelve; si la etiqueta no se leía, cuenta.
+    if (leida.fallo) await supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodoEtiqueta });
+    return { error: leida.error, status: leida.fallo ? 502 : 200 };
+  }
+  return { producto: leida.producto };
 }
 
 async function leerEtiqueta(imagenBase64: string, tipoImagen: string, anotar: (usage: any) => Promise<void>): Promise<{ ok: true; producto: any } | { ok: false; error: string; fallo?: boolean }> {

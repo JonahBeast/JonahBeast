@@ -22,13 +22,14 @@ function addDaysISO(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Bono por suscribirse a tiempo (mismo criterio que la app y Google Play):
-// el PRIMER plan pagado de alguien en prueba gratis, enviado antes de que
-// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+// Bono por suscribirse a tiempo (mismo criterio que la app): el PRIMER plan
+// pagado de alguien en prueba gratis, pagado antes de que termine su prueba,
+// recibe 7 días extra. En las 48 horas de después, en la web hay 20 % en el
+// anual en vez de los +7 días (decisión de Jonah del 16 de octubre).
 const BONO_DIAS = 7;
 function ganaBono(alumno: any, primerPlan: boolean, enviadoEn: string | null): boolean {
   if (!primerPlan || !alumno || !(alumno.plan === "trial" || alumno.plan === "prueba") || !alumno.fecha_vencimiento) return false;
-  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime() + 48 * 3600 * 1000;
+  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime();
   const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
   return Number.isFinite(enviado) && enviado <= limite;
 }

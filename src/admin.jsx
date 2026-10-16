@@ -12487,14 +12487,16 @@ function PagosPanel({ onAprobado, onCambio }) {
       const base = al?.fecha_vencimiento && daysLeft(al.fecha_vencimiento) > 0
         ? al.fecha_vencimiento : todayISO();
       // Bono por suscribirse a tiempo: si es su primer plan y lo envió antes
-      // de que terminara su prueba (o hasta 48 h después), +7 días. Cuenta
-      // cuándo lo ENVIÓ el alumno, no cuándo se aprueba.
+      // de que terminara su prueba, +7 días (las 48 h de después son del 20 %
+      // en el anual; solo en las tiendas siguen los +7 días). Cuenta cuándo
+      // lo ENVIÓ el alumno, no cuándo se aprueba.
       let bono = false;
       if (!/add-on/i.test(pago.metodo || '')) {
         const { data: previos } = await supabase.from('pagos').select('id')
           .eq('username', pago.username).eq('estado', 'aprobado').neq('id', pago.id)
           .or('metodo.is.null,metodo.not.ilike.*add-on*').limit(1);
-        bono = ganaBonoSuscripcion({ plan: al?.plan, fechaVencimiento: al?.fecha_vencimiento }, (previos || []).length === 0, pago.creado_en);
+        bono = ganaBonoSuscripcion({ plan: al?.plan, fechaVencimiento: al?.fecha_vencimiento }, (previos || []).length === 0, pago.creado_en,
+          /google play|app store/i.test(pago.metodo || ''));
       }
       const nuevo = addDaysISO(addMonthsISO(base, pago.plan_meses), bono ? BONO_DIAS : 0);
       const cambios = { fecha_vencimiento: nuevo, enabled: true, plan: 'pago' };

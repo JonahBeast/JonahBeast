@@ -109,7 +109,9 @@ function sumarDiasISO(iso, dias) {
 
 // Bono por suscribirse a tiempo (mismo criterio que la app y Mercado Pago):
 // el PRIMER plan pagado de alguien en prueba gratis, comprado antes de que
-// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+// termine su prueba o hasta 48 horas después, recibe 7 días extra (en la
+// web esas 48 horas son del 20 % en el anual; aquí no hay cupones, así que
+// siguen los +7 días: decisión de Jonah del 16 de octubre).
 const BONO_DIAS = 7;
 function ganaBono(alumno, primerPlan, enviadoEn) {
   if (!primerPlan || !alumno || !(alumno.plan === 'trial' || alumno.plan === 'prueba') || !alumno.fecha_vencimiento) return false;

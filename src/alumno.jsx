@@ -69,7 +69,6 @@ import {
   todayISO,
   uid,
   unitsFor,
-  ventanaBono,
   vibrar,
   esFritoOSaltado,
   sePuedeFreir,
@@ -3683,7 +3682,7 @@ function TrialBanner({ user, onVerPlanes, mealPlan }) {
   if (finalPrueba) {
     return (
       <>
-        {ventanaBono(user) && <div className="mb-4"><RelojBono user={user} onVerPlanes={onVerPlanes} /></div>}
+        <RelojBono user={user} onVerPlanes={onVerPlanes} className="mb-4" />
         <CuentaRegresivaPrueba user={user} dia={dia} stats={stats} onVerPlanes={onVerPlanes} />
       </>
     );

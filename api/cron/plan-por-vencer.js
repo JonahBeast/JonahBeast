@@ -20,7 +20,7 @@ const URL_PLANES = '/?ir=planes';
 const PLANES = [
   { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
   { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
-  { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
+  { meses: 12, configKey: 'precio_12', precioDefault: 149.90 },
 ];
 
 async function precioMinimoPorDia(supabase) {
@@ -31,6 +31,19 @@ async function precioMinimoPorDia(supabase) {
   } catch {}
   const minimo = Math.min(...PLANES.map(p => (precios[p.configKey] > 0 ? precios[p.configKey] : p.precioDefault) / (p.meses * 30)));
   return `S/${minimo.toFixed(2)}`;
+}
+
+// % del anual en las 48 h después de terminar la prueba (cupón
+// ANUAL-PRUEBA, si Jonah lo tiene encendido en el panel). Va en el aviso
+// del día siguiente, que es esa "última oportunidad" (desde el 16 de
+// octubre ya no se ofrecen +7 días después de la prueba en la web). 0 si
+// está apagado.
+async function descuentoAnualFinPrueba(supabase) {
+  try {
+    const { data } = await supabase.from('cupones').select('valor, activo, vence').eq('codigo', 'ANUAL-PRUEBA').maybeSingle();
+    if (!data?.activo || (data.vence && data.vence < horaYFechaPeru().hoyISO)) return 0;
+    return Number(data.valor) || 0;
+  } catch { return 0; }
 }
 
 const primerNombre = (n) => (n || '').trim().split(/\s+/)[0] || '';
@@ -57,6 +70,7 @@ export default async function handler(req, res) {
     }
 
     const precioDia = await precioMinimoPorDia(supabase);
+    const dctoAnual = await descuentoAnualFinPrueba(supabase);
     const envios = [];
 
     for (const a of alumnos) {
@@ -71,7 +85,9 @@ export default async function handler(req, res) {
           ? `Hoy termina tu Premium de prueba${nombre ? ', ' + nombre : ''}. Mañana sigues gratis. Suscríbete hoy y te regalamos 7 días extra 🎁 Desde ${precioDia} al día.`
           : `Hoy vence tu plan${nombre ? ', ' + nombre : ''}. Renueva desde ${precioDia} al día y sigue sin interrupciones 🦍`;
       } else if (a.fecha_vencimiento === ayer && esPrueba(a)) {
-        body = `Ya estás en la versión gratis${nombre ? ', ' + nombre : ''}. Última oportunidad: si te suscribes a Premium hoy, igual te regalamos 7 días extra 🎁`;
+        body = dctoAnual
+          ? `Ya estás en la versión gratis${nombre ? ', ' + nombre : ''}. Última oportunidad: hasta mañana en la noche, el plan anual con ${dctoAnual}% de descuento 🎁`
+          : `Ya estás en la versión gratis${nombre ? ', ' + nombre : ''}. Cuando quieras volver a Premium, aquí te espero 🦍`;
       }
       if (body) envios.push({ username: a.username, body });
     }

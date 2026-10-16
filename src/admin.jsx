@@ -81,8 +81,9 @@ function formatActivity(lastActivity) {
    cupón puede ser para cualquiera o solo para un alumno, con tope de usos
    y fecha de vencimiento. Tablas cupones y cupones_usos (solo admin). */
 const PRESETS_CUPON = { descuento: [10, 15, 20, 30], dias: [7, 15, 30] };
+const PLAN_CUPON = { 1: 'el plan mensual', 3: 'el plan trimestral', 12: 'el plan anual' };
 function textoCupon(c) {
-  return c.tipo === 'dias' ? `${c.valor} días de Premium gratis` : `${c.valor}% de descuento en tu plan`;
+  return c.tipo === 'dias' ? `${c.valor} días de Premium gratis` : `${c.valor}% de descuento en ${PLAN_CUPON[c.solo_meses] || 'tu plan'}`;
 }
 function fechaCupon(iso) {
   if (!iso) return '';
@@ -95,7 +96,7 @@ function mensajeCupon(c, nombre) {
   const vence = c.vence ? ` Vale hasta el ${fechaCupon(c.vence)}.` : '';
   const queHacer = c.tipo === 'dias'
     ? 'toca "Canjear" y tus días se suman al toque.'
-    : 'elige tu plan: el descuento ya sale en el precio.';
+    : c.solo_meses ? `elige ${PLAN_CUPON[c.solo_meses]}: el descuento ya sale en el precio.` : 'elige tu plan: el descuento ya sale en el precio.';
   return `${hola} Soy Jonah 🦍 Te dejo un cupón${c.para_username ? ' solo para ti' : ''}: *${c.codigo}*, con ${textoCupon(c)}.${vence} Entra aquí y tu cupón ya queda escrito: https://jonahbeast.com/?ir=planes&cupon=${c.codigo} Ahí ${queHacer} (Si no se abre, en Planes toca "🎟️ ¿Tienes un cupón?" y escríbelo.) El cambio llega poco a poco, comida a comida, y aquí seguimos juntos 💪 Cualquier duda me escribes aquí.`;
 }
 function linkWhatsApp(telefono, texto) {
@@ -110,7 +111,7 @@ function CuponesPanel({ users }) {
   const [open, setOpen] = useState(false);
   const [creando, setCreando] = useState(false);
   const vencePorDefecto = addDaysISO(todayISO(), 5);
-  const vacio = { tipo: 'descuento', valor: 20, para: '', codigo: '', usos: '1', vence: vencePorDefecto, nota: '' };
+  const vacio = { tipo: 'descuento', valor: 20, para: '', codigo: '', usos: '1', vence: vencePorDefecto, nota: '', soloMeses: '12' };
   const [nuevo, setNuevo] = useState(vacio);
   const [guardando, setGuardando] = useState(false);
   const [err, setErr] = useState('');
@@ -161,6 +162,7 @@ function CuponesPanel({ users }) {
       codigo, tipo: nuevo.tipo, valor,
       usos_maximos: nuevo.usos === '' ? null : Math.max(1, Number(nuevo.usos) || 1),
       para_username: alumno ? alumno.username : null,
+      solo_meses: nuevo.tipo === 'descuento' && nuevo.soloMeses ? Number(nuevo.soloMeses) : null,
       vence: nuevo.vence || null,
       nota: nuevo.nota.trim() || null,
     };
@@ -216,6 +218,7 @@ function CuponesPanel({ users }) {
           <p className="jb-body text-xs text-zinc-400 mb-3">
             El alumno lo escribe en <b className="text-zinc-200">Planes → "🎟️ ¿Tienes un cupón?"</b>. Úsalo para quien termina su prueba, aliados, premios o regalos. Cada persona lo usa una sola vez.
             El descuento vale para Yape, Plin, transferencia y Mercado Pago pago único (no en el cobro automático ni en Play Store o iPhone).
+            <b className="text-zinc-200"> ANUAL-PRUEBA</b> se aplica solo, en la web, a quien terminó su prueba sin pagar, durante las 48 horas siguientes: si lo apagas, deja de salir.
           </p>
 
           {recien && (
@@ -260,6 +263,17 @@ function CuponesPanel({ users }) {
                   <input type="number" inputMode="numeric" value={nuevo.valor} onChange={e => cambiar({ valor: e.target.value })} className={inputCls + ' w-20 py-1.5'} />
                 </div>
               </div>
+              {nuevo.tipo === 'descuento' && (
+                <div>
+                  <p className="jb-body text-xs text-zinc-400 mb-1.5">¿En qué plan vale el descuento?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[['12', '⭐ Solo el anual'], ['', 'Todos los planes']].map(([v, l]) => (
+                      <button key={l} onClick={() => setNuevo(n => ({ ...n, soloMeses: v }))}
+                        className={`jb-body text-sm py-2 rounded-lg border ${nuevo.soloMeses === v ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="jb-body text-xs text-zinc-400 mb-1.5">¿Para un alumno en especial? (opcional: su usuario)</p>
                 <input list="cupon-alumnos" value={nuevo.para} onChange={e => cambiar({ para: e.target.value, usos: e.target.value.trim() ? '1' : nuevo.usos })}
@@ -319,7 +333,8 @@ function CuponesPanel({ users }) {
                     <div className="flex-1 min-w-0">
                       <p className="jb-body text-sm text-zinc-50 font-mono font-semibold truncate">{c.codigo}</p>
                       <p className="jb-body text-[11px] text-zinc-400 truncate">
-                        {c.tipo === 'dias' ? `🎁 ${c.valor} días` : `💸 ${c.valor}%`}
+                        {c.tipo === 'dias' ? `🎁 ${c.valor} días` : `💸 ${c.valor}%${c.solo_meses ? ` · ${PLAN_CUPON[c.solo_meses]}` : ''}`}
+                        {c.solo_fin_prueba ? ' · automático 48 h al terminar la prueba' : ''}
                         {c.para_username ? ` · solo ${nombreDe(c.para_username)}` : ' · para cualquiera'}
                         {c.vence ? ` · hasta el ${fechaCupon(c.vence)}` : ''}
                       </p>
@@ -12472,14 +12487,16 @@ function PagosPanel({ onAprobado, onCambio }) {
       const base = al?.fecha_vencimiento && daysLeft(al.fecha_vencimiento) > 0
         ? al.fecha_vencimiento : todayISO();
       // Bono por suscribirse a tiempo: si es su primer plan y lo envió antes
-      // de que terminara su prueba (o hasta 48 h después), +7 días. Cuenta
-      // cuándo lo ENVIÓ el alumno, no cuándo se aprueba.
+      // de que terminara su prueba, +7 días (las 48 h de después son del 20 %
+      // en el anual; solo en las tiendas siguen los +7 días). Cuenta cuándo
+      // lo ENVIÓ el alumno, no cuándo se aprueba.
       let bono = false;
       if (!/add-on/i.test(pago.metodo || '')) {
         const { data: previos } = await supabase.from('pagos').select('id')
           .eq('username', pago.username).eq('estado', 'aprobado').neq('id', pago.id)
           .or('metodo.is.null,metodo.not.ilike.*add-on*').limit(1);
-        bono = ganaBonoSuscripcion({ plan: al?.plan, fechaVencimiento: al?.fecha_vencimiento }, (previos || []).length === 0, pago.creado_en);
+        bono = ganaBonoSuscripcion({ plan: al?.plan, fechaVencimiento: al?.fecha_vencimiento }, (previos || []).length === 0, pago.creado_en,
+          /google play|app store/i.test(pago.metodo || ''));
       }
       const nuevo = addDaysISO(addMonthsISO(base, pago.plan_meses), bono ? BONO_DIAS : 0);
       const cambios = { fecha_vencimiento: nuevo, enabled: true, plan: 'pago' };

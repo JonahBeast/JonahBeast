@@ -87,7 +87,9 @@ function sumarMesesISO(iso, meses) {
 
 // Bono por suscribirse a tiempo (mismo criterio que la app, Mercado Pago y
 // Google Play): el PRIMER plan pagado de alguien en prueba gratis, comprado
-// antes de que termine su prueba o hasta 48 horas después, recibe 7 días.
+// antes de que termine su prueba o hasta 48 horas después, recibe 7 días
+// (en la web esas 48 horas son del 20 % en el anual; en iPhone no hay
+// cupones, así que siguen los +7 días: decisión de Jonah del 16 de octubre).
 const BONO_DIAS = 7;
 function ganaBono(alumno, primerPlan, compradoEn) {
   if (!primerPlan || !alumno || !(alumno.plan === 'trial' || alumno.plan === 'prueba') || !alumno.fecha_vencimiento) return false;

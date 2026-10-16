@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Precios de respaldo de los planes: solo se usan si en la tabla config no
 // hay uno guardado (son los mismos que usan la app y crear-pago-unico).
-const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 59.90, 6: 114.90, 12: 179.90 };
+const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 59.90, 6: 114.90, 12: 149.90 };
 const PRECIO_ADDON_MENSUAL = 11.90;
 // Margen para redondeos de centavos al comparar lo pagado con lo esperado.
 const TOLERANCIA = 0.01;
@@ -22,13 +22,14 @@ function addDaysISO(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Bono por suscribirse a tiempo (mismo criterio que la app y Google Play):
-// el PRIMER plan pagado de alguien en prueba gratis, enviado antes de que
-// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+// Bono por suscribirse a tiempo (mismo criterio que la app): el PRIMER plan
+// pagado de alguien en prueba gratis, pagado antes de que termine su prueba,
+// recibe 7 días extra. En las 48 horas de después, en la web hay 20 % en el
+// anual en vez de los +7 días (decisión de Jonah del 16 de octubre).
 const BONO_DIAS = 7;
 function ganaBono(alumno: any, primerPlan: boolean, enviadoEn: string | null): boolean {
   if (!primerPlan || !alumno || !(alumno.plan === "trial" || alumno.plan === "prueba") || !alumno.fecha_vencimiento) return false;
-  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime() + 48 * 3600 * 1000;
+  const limite = new Date(`${alumno.fecha_vencimiento}T23:59:59-05:00`).getTime();
   const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
   return Number.isFinite(enviado) && enviado <= limite;
 }
@@ -252,8 +253,9 @@ Deno.serve(async (req: Request) => {
     let cupon: string | null = null;
     let cuponPct = 0;
     if (cuponRef) {
-      const { data: c } = await supabase.from("cupones").select("codigo, tipo, valor").eq("codigo", cuponRef.toUpperCase()).maybeSingle();
-      if (c?.tipo === "descuento") { cupon = c.codigo; cuponPct = Number(c.valor) || 0; }
+      const { data: c } = await supabase.from("cupones").select("codigo, tipo, valor, solo_meses").eq("codigo", cuponRef.toUpperCase()).maybeSingle();
+      // Un cupón "solo para un plan" no baja el precio de otro plan.
+      if (c?.tipo === "descuento" && (!c.solo_meses || Number(c.solo_meses) === meses)) { cupon = c.codigo; cuponPct = Number(c.valor) || 0; }
     }
 
     let esperado = await precioDelPlan(supabase, username, meses, cuponPct);

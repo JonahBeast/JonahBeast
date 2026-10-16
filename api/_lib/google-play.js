@@ -17,12 +17,16 @@ export const PAQUETE_ANDROID = 'com.jonahbeast.twa';
 // Los planes tal como se crean en Play Console (Monetiza con Play →
 // Suscripciones). Cada uno es una suscripción con renovación automática.
 // El semestral ya no se vende (9 de octubre de 2026); queda aquí solo para
-// reconocer una compra antigua.
+// reconocer una compra antigua. "precio" es el de Play Console, que es
+// propio de la tienda: desde el 16 de octubre de 2026 el anual de la web
+// baja a S/149,90 y el de Google Play sigue en S/179,90 (Google se queda
+// con el 15 %; decisión de Jonah). Si Jonah cambia un precio en Play
+// Console, se cambia también aquí.
 export const PRODUCTOS_GOOGLE = {
-  jb_plan_mensual: { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
-  jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
-  jb_plan_semestral: { meses: 6, configKey: 'precio_6', precioDefault: 114.90 },
-  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
+  jb_plan_mensual: { meses: 1, precio: 24.90 },
+  jb_plan_trimestral: { meses: 3, precio: 59.90 },
+  jb_plan_semestral: { meses: 6, precio: 114.90 },
+  jb_plan_anual: { meses: 12, precio: 179.90 },
 };
 
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE_ANDROID}`;
@@ -105,7 +109,9 @@ function sumarDiasISO(iso, dias) {
 
 // Bono por suscribirse a tiempo (mismo criterio que la app y Mercado Pago):
 // el PRIMER plan pagado de alguien en prueba gratis, comprado antes de que
-// termine su prueba o hasta 48 horas después, recibe 7 días extra.
+// termine su prueba o hasta 48 horas después, recibe 7 días extra (en la
+// web esas 48 horas son del 20 % en el anual; aquí no hay cupones, así que
+// siguen los +7 días: decisión de Jonah del 16 de octubre).
 const BONO_DIAS = 7;
 function ganaBono(alumno, primerPlan, enviadoEn) {
   if (!primerPlan || !alumno || !(alumno.plan === 'trial' || alumno.plan === 'prueba') || !alumno.fecha_vencimiento) return false;
@@ -120,13 +126,9 @@ function sumarMesesISO(iso, meses) {
   return dt.toISOString().slice(0, 10);
 }
 
-async function precioDeLista(supabase, producto) {
-  try {
-    const { data } = await supabase.from('config').select('value').eq('key', producto.configKey).maybeSingle();
-    const v = parseFloat(data?.value);
-    if (v > 0) return v;
-  } catch {}
-  return producto.precioDefault;
+// Lo que cobra Google Play por ese plan (no el precio de la web).
+function precioDeLista(producto) {
+  return producto.precio;
 }
 
 // Revisa una compra con Google y, si hay un cobro nuevo (la compra o una
@@ -184,7 +186,7 @@ export async function procesarCompra(supabase, { purchaseToken, username }) {
   if (!pedido) return { ok: true, activado: false, estado };
 
   const esPrueba = !!sub.testPurchase;
-  const monto = esPrueba ? 0 : await precioDeLista(supabase, producto);
+  const monto = esPrueba ? 0 : precioDeLista(producto);
   const { data: alumno } = await supabase.from('alumnos')
     .select('nombre, fecha_vencimiento, plan').eq('username', dueno).maybeSingle();
   if (!alumno) return { ok: false, error: 'El alumno no existe.' };

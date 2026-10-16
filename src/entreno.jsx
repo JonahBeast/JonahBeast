@@ -1,6 +1,7 @@
 // "💪 HOY ENTRENÉ" (Inicio). El alumno anota su entreno del día: uno o
 // varios tipos (un mix, ej. pesas + cardio) y cuánto tiempo. Se guarda en la
-// tabla entrenos (uno por día; se puede editar o borrar hoy o ayer).
+// tabla entrenos (uno por día; se puede anotar, editar o borrar cualquiera
+// de los últimos 7 días, por si se olvidó: pedido de Jonah, 16 oct).
 //
 // NO suma calorías: su nivel de actividad ("Mi cuerpo") ya incluye sus
 // entrenos, y sumarlas otra vez sería contarlas dos veces. En cambio, cada 2
@@ -30,6 +31,10 @@ function nivelPorDias(porSemana) {
   if (porSemana < 5.5) return 'Moderado';
   return 'Intenso';
 }
+const DIAS_ATRAS = 6; // hoy y los 6 días anteriores (lo mismo dice la base)
+const LETRA_DIA = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+const NOMBRE_DIA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const diaSemana = f => new Date(f + 'T12:00:00').getDay();
 const textoTipos = tipos => tipos.map(t => TIPOS_ENTRENO.find(x => x.id === t)?.label || t).join(' + ');
 
 export function EntrenoHoy({ username, form, setForm }) {
@@ -38,7 +43,7 @@ export function EntrenoHoy({ username, form, setForm }) {
   const [tipos, setTipos] = useState([]);
   const [minutos, setMinutos] = useState(45);
   const [guardando, setGuardando] = useState(false);
-  const [dia, setDia] = useState(null); // fecha que se está anotando (hoy o ayer)
+  const [dia, setDia] = useState(null); // fecha que se está anotando (hoy o uno de los 6 días anteriores)
   const [hoyNo, setHoyNo] = useState(() => { try { return localStorage.getItem(CLAVE_HOY_NO) === todayISO(); } catch { return false; } });
 
   async function cargar() {
@@ -52,7 +57,12 @@ export function EntrenoHoy({ username, form, setForm }) {
   const hoy = todayISO();
   const ayer = addDaysISO(hoy, -1);
   const deHoy = lista.find(e => e.fecha === hoy);
-  const deAyer = lista.find(e => e.fecha === ayer);
+  // Los días que se pueden anotar: los últimos 7, del más viejo a hoy.
+  const recientes = Array.from({ length: DIAS_ATRAS + 1 }, (_, i) => addDaysISO(hoy, i - DIAS_ATRAS));
+  const anotable = f => f >= recientes[0] && f <= hoy;
+  // El último día que se le pasó (sin contar hoy), para el atajo de abajo.
+  const olvidado = recientes.slice(0, -1).reverse().find(f => !lista.some(e => e.fecha === f));
+  const nombreDia = f => (f === hoy ? 'hoy' : f === ayer ? 'ayer' : `el ${NOMBRE_DIA[diaSemana(f)]} ${Number(f.slice(8))}`);
   const semana = Array.from({ length: 7 }, (_, i) => addDaysISO(addDaysISO(hoy, (new Date().getDay() || 7) * -1 + 1), i));
   const dow = new Date().getDay();
   const lunes = addDaysISO(hoy, dow === 0 ? -6 : 1 - dow);
@@ -68,7 +78,7 @@ export function EntrenoHoy({ username, form, setForm }) {
   const mismoNivel = sugerido === actual || (actual === 'Muy intenso' && sugerido === 'Intenso');
   const verSugerencia = primero && primero <= addDaysISO(hoy, -13) && ultimos14.length >= 1 && !revisado && !mismoNivel;
 
-  // Hoja para anotar (hoy o ayer): qué hiciste y cuánto tiempo.
+  // Hoja para anotar (hoy o uno de los 6 días anteriores): qué hiciste y cuánto tiempo.
   function abrir(fecha) {
     const e = lista.find(x => x.fecha === fecha);
     setDia(fecha);
@@ -85,13 +95,13 @@ export function EntrenoHoy({ username, form, setForm }) {
     setGuardando(false);
     if (error) { showToast('No se pudo guardar. Revisa tu internet e intenta de nuevo.', 'error'); return; }
     vibrar(30);
-    showToast('💪 ¡Entreno anotado! Comida a comida y entreno a entreno.');
+    showToast((dia || hoy) === hoy ? '💪 ¡Entreno anotado! Comida a comida y entreno a entreno.' : `💪 ¡Entreno ${('de ' + nombreDia(dia)).replace('de el ', 'del ')} anotado! Comida a comida y entreno a entreno.`);
     setAbierto(false);
     cargar();
   }
   async function borrar() {
     const f = dia || hoy;
-    if (!(await confirmar({ titulo: f === hoy ? '¿BORRAR EL ENTRENO DE HOY?' : '¿BORRAR EL ENTRENO DE AYER?', si: 'Borrar', peligro: true }))) return;
+    if (!(await confirmar({ titulo: `¿BORRAR EL ENTRENO DE ${nombreDia(f).replace(/^el /, '').toUpperCase()}?`, si: 'Borrar', peligro: true }))) return;
     const { error } = await supabase.from('entrenos').delete().eq('username', username).eq('fecha', f);
     if (error) { showToast('No se pudo borrar. Intenta de nuevo.', 'error'); return; }
     setAbierto(false);
@@ -127,15 +137,21 @@ export function EntrenoHoy({ username, form, setForm }) {
             style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}
             onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
-            <p className="jb-display text-xl text-zinc-50 mb-3">💪 {dia === ayer ? '¿QUÉ ENTRENASTE AYER?' : '¿QUÉ ENTRENASTE HOY?'}</p>
-            <div className="grid grid-cols-2 gap-1 p-1 mb-4 bg-zinc-950 border border-zinc-800 rounded-xl" role="group" aria-label="Día">
-              {[[hoy, 'Hoy'], [ayer, 'Ayer']].map(([f, l]) => (
-                <button key={f} type="button" onClick={() => abrir(f)}
-                  className={`jb-body text-sm font-semibold py-2 rounded-lg ${dia === f ? 'bg-orange-500 text-zinc-950' : 'text-zinc-400'}`}>
-                  {l}{lista.some(e => e.fecha === f) ? ' ✓' : ''}
-                </button>
-              ))}
+            <p className="jb-display text-xl text-zinc-50 mb-3">💪 ¿QUÉ ENTRENASTE {nombreDia(dia || hoy).toUpperCase()}?</p>
+            {/* Los últimos 7 días: si se olvidó de anotar, elige el día. */}
+            <div className="grid grid-cols-7 gap-1 p-1 mb-1 bg-zinc-950 border border-zinc-800 rounded-xl" role="group" aria-label="Día">
+              {recientes.map(f => {
+                const hecho = lista.some(e => e.fecha === f);
+                return (
+                  <button key={f} type="button" onClick={() => { vibrar(8); abrir(f); }}
+                    className={`jb-body flex flex-col items-center py-1.5 rounded-lg ${dia === f ? 'bg-orange-500 text-zinc-950' : hecho ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                    <span className="text-[10px] font-semibold">{f === hoy ? 'HOY' : LETRA_DIA[diaSemana(f)]}</span>
+                    <span className="text-sm font-semibold tabular-nums">{hecho ? '✓' : Number(f.slice(8))}</span>
+                  </button>
+                );
+              })}
             </div>
+            <p className="jb-body text-[11px] text-zinc-500 mb-4">¿Se te pasó anotar un día? Elígelo arriba (hasta 7 días atrás).</p>
             <p className="jb-body text-xs text-zinc-500 mb-2">Marca uno o varios (si hiciste un mix, márcalos todos).</p>
             <div className="flex flex-wrap gap-1.5 mb-4">
               {TIPOS_ENTRENO.map(t => {
@@ -192,16 +208,19 @@ export function EntrenoHoy({ username, form, setForm }) {
             {semana.map((f, i) => {
               const hizo = lista.some(e => e.fecha === f);
               const futuro = f > hoy;
+              const Caja = anotable(f) ? 'button' : 'div';
               return (
-                <div key={f} className="flex flex-col items-center gap-1 flex-1">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${hizo ? 'bg-emerald-500 text-zinc-950' : futuro ? 'bg-zinc-900 border border-zinc-800' : 'bg-zinc-800 text-zinc-600'} ${f === hoy ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-zinc-900' : ''}`}>{hizo ? '✓' : ''}</span>
+                // Cada día de la semana que ya pasó se toca para anotarlo o editarlo.
+                <Caja key={f} {...(anotable(f) ? { type: 'button', onClick: () => { vibrar(8); abrir(f); }, 'aria-label': `Anotar entreno de ${nombreDia(f)}` } : {})}
+                  className="flex flex-col items-center gap-1 flex-1 py-1">
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${hizo ? 'bg-emerald-500 text-zinc-950' : futuro ? 'bg-zinc-900 border border-zinc-800' : 'bg-zinc-800 text-zinc-500'} ${f === hoy ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-zinc-900' : ''}`}>{hizo ? '✓' : anotable(f) && f !== hoy ? '+' : ''}</span>
                   <span className={`jb-body text-[10px] ${f === hoy ? 'text-orange-400 font-semibold' : 'text-zinc-500'}`}>{['L', 'M', 'M', 'J', 'V', 'S', 'D'][i]}</span>
-                </div>
+                </Caja>
               );
             })}
           </div>
-          {!deAyer && (
-            <button onClick={() => abrir(ayer)} className="jb-body text-xs text-zinc-400 hover:text-orange-400 underline mt-2 py-1">¿Entrenaste ayer y no lo anotaste? Anótalo aquí</button>
+          {olvidado && (
+            <button onClick={() => abrir(olvidado)} className="jb-body text-xs text-zinc-400 hover:text-orange-400 underline mt-2 py-1">¿Se te pasó anotar algún día? Toca el día arriba o anótalo aquí</button>
           )}
         </div>
       )}

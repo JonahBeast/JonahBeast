@@ -576,7 +576,7 @@ async function yaMandoImagen(telefono: string, tipo: string) {
 async function contexto(alumno: any, nombreWa: string | null, telefono: string) {
   const hoy = fechaLima();
   const { data: config } = await supabase.from("config").select("key, value").in("key", ["precio_1", "precio_3", "precio_12"]);
-  const respaldo: Record<string, number> = { precio_1: 24.90, precio_3: 59.90, precio_12: 179.90 };
+  const respaldo: Record<string, number> = { precio_1: 24.90, precio_3: 59.90, precio_12: 149.90 };
   const precio = (k: string) => {
     const v = parseFloat((config || []).find((c: any) => c.key === k)?.value);
     return (v > 0 ? v : respaldo[k]).toFixed(2);

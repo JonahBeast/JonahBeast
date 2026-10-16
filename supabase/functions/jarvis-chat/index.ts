@@ -33,7 +33,7 @@ const INICIO_EMBUDO = "2026-09-23T00:00:00.000Z";
 const PLANES = [
   { meses: 1, configKey: "precio_1", precioDefault: 24.90 },
   { meses: 3, configKey: "precio_3", precioDefault: 59.90 },
-  { meses: 12, configKey: "precio_12", precioDefault: 179.90 },
+  { meses: 12, configKey: "precio_12", precioDefault: 149.90 },
 ];
 
 // Personalidad e instrucciones fijas: van en el system prompt (no cambian
@@ -57,7 +57,7 @@ Conocimiento fijo del negocio (esto no cambia entre llamadas, es el modelo de Jo
 - Captura inteligente (reconocer la comida con una foto): viene INCLUIDA en todos los planes pagados, con 5 fotos por día. Ya no se vende el add-on de S/11.90. Premium (plan pagado o prueba vigente): hasta 5 por día, sin contador a la vista. Versión gratis: 3 por semana. Leer la tabla nutricional de un producto no usa esas fotos (tope aparte de 5 etiquetas por día). El alumno sigue eligiendo la porción, la IA solo identifica el plato
 - Pagos: manual por Yape/Plin con comprobante, o automático vía Mercado Pago (pago único o suscripción recurrente). Dentro de la app de Android (Play Store) el plan se paga con Google Play: suscripción con renovación automática, el servidor confirma cada compra con Google y una revisión diaria extiende el plan cuando Google cobra la renovación; esos pagos aparecen con método "Google Play" (Google se queda con su comisión)
 - Guardado del alumno: en la barra de arriba, en todas las pestañas (no solo en Comidas), la app muestra ✓ (guardado), un circulito girando (guardando) o una nube tachada naranja (sin guardar). Si el celular no tiene internet o su sesión venció, lo que anota queda guardado en su celular y se sube solo al volver la conexión o al volver a entrar; aparece un aviso "Sin conexión" o "Tu sesión se cerró" con el botón "Volver a entrar". Si un alumno dice que "no se guardan sus comidas", sugiérele abrir la app con internet y revisar ese indicador
-- Bono por suscribirse a tiempo: el primer plan pagado de alguien en prueba gratis, enviado antes de que termine su prueba o hasta 48 horas después, recibe +7 días gratis que se suman solos al aprobarse el pago (con Yape/Plin/transferencia cuenta cuándo envió el comprobante; al aprobar un pago así el panel lo avisa y el pago queda con la nota "Incluye +7 días de regalo"). En los 3 últimos días de la prueba el alumno ve un reloj con la cuenta regresiva. Las renovaciones no lo repiten
+- Bono por suscribirse a tiempo: el primer plan pagado de alguien en prueba gratis, enviado antes de que termine su prueba, recibe +7 días gratis que se suman solos al aprobarse el pago (desde el 16 de octubre, en las 48 horas después de terminar la prueba ya no hay +7 días en la web: hay 20 % en el plan anual con el cupón automático ANUAL-PRUEBA; en Google Play y en iPhone, donde no hay cupones, siguen los +7 días esas 48 horas) (con Yape/Plin/transferencia cuenta cuándo envió el comprobante; al aprobar un pago así el panel lo avisa y el pago queda con la nota "Incluye +7 días de regalo"). En los 3 últimos días de la prueba el alumno ve un reloj con la cuenta regresiva. Las renovaciones no lo repiten
 - Programa "Invita a un amigo" (alumnos): cada alumno tiene su código; su amigo usa la app gratis con 7 días de Premium y 10% de descuento en su primer plan, y el alumno gana 15 días de Premium cuando ese amigo paga su primer plan (una vez por amigo). No hay dinero de por medio para los alumnos
 - Programa de embajadores (influencers): aparte del anterior; cada embajador tiene su código y cobra una comisión en dinero, variable según el plan que compre su referido (se paga a mano)
 - Registro: solo pide correo y contraseña. El nombre y el celular se piden después, en la guía de bienvenida dentro de la app (el celular es prioridad, para que Jonah pueda acompañar al alumno por WhatsApp); el celular también se pide al pagar con Yape/Plin/transferencia si aún no lo tiene
@@ -407,11 +407,12 @@ function sumarMeses(iso: string, meses: number) {
 }
 // Bono por suscribirse a tiempo (misma regla que ganaBonoSuscripcion en
 // src/App.jsx): primer plan de alguien en prueba, enviado antes de que
-// termine su prueba o hasta 48 h después.
+// termine su prueba. Las 48 h de después solo cuentan en Google Play y
+// App Store (en la web, ese rato es del 20 % en el anual).
 const BONO_DIAS = 7;
-function ganaBono(plan: string, vence: string | null, primerPlan: boolean, enviadoEn: string | null) {
+function ganaBono(plan: string, vence: string | null, primerPlan: boolean, enviadoEn: string | null, deTienda = false) {
   if (!primerPlan || !(plan === "trial" || plan === "prueba") || !vence) return false;
-  const limite = new Date(`${vence}T23:59:59-05:00`).getTime() + 48 * 3600000;
+  const limite = new Date(`${vence}T23:59:59-05:00`).getTime() + (deTienda ? 48 * 3600000 : 0);
   const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
   return Number.isFinite(enviado) && enviado <= limite;
 }
@@ -436,7 +437,7 @@ async function planDeAprobacion(supabase: any, filtro: { pagoId?: string; userna
     const { data: previos } = await supabase.from("pagos").select("id")
       .eq("username", pago.username).eq("estado", "aprobado").neq("id", pago.id)
       .or("metodo.is.null,metodo.not.ilike.*add-on*").limit(1);
-    bono = ganaBono(al.plan, al.fecha_vencimiento, (previos || []).length === 0, pago.creado_en);
+    bono = ganaBono(al.plan, al.fecha_vencimiento, (previos || []).length === 0, pago.creado_en, /google play|app store/i.test(pago.metodo || ""));
   }
   const meses = Number(pago.plan_meses) || 1;
   const nuevo = sumarDias(sumarMeses(base, meses), bono ? BONO_DIAS : 0);

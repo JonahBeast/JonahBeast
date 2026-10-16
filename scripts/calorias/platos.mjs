@@ -157,7 +157,7 @@ export const PLATOS = [
     consejo: 'Es pollo, pero frito y empanizado, así que suma más que uno a la plancha. Una porción con ensalada y yuca, sin papas fritas, y lo disfrutas igual.' },
   { slug: 'pollo-al-horno', alimento: 'Pollo al horno pierna', estado: 'Con piel', nombre: 'Pollo al horno', grupo: 'segundos',
     etiqueta: 'Una presa (pierna)', frase: 'Una pierna de pollo al horno con piel',
-    consejo: 'De mis favoritos para el día a día: mucha proteína y poca preparación. La piel es lo que más suma: sin piel, la misma pierna baja cerca de un tercio. En la app eliges pierna o pecho, con o sin piel.' },
+    consejo: 'De mis favoritos para el día a día: mucha proteína y poca preparación. La piel es lo que más suma: sin piel, la misma pierna baja cerca de un quinto. En la app eliges pierna, entrepierna o pecho, con o sin piel.' },
   { slug: 'pollo-al-sillao', alimento: 'Pollo al sillao', nombre: 'Pollo al sillao', grupo: 'segundos',
     consejo: 'El sillao le da sabor sin muchas calorías; lo que suma es el aceite y el arroz. Media porción de arroz y le sumas verduras salteadas.' },
   { slug: 'pollo-a-la-olla', alimento: 'Pollo a la olla con arroz', nombre: 'Pollo a la olla con arroz', grupo: 'segundos',

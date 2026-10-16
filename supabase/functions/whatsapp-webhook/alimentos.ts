@@ -268,6 +268,8 @@ export const ALIMENTOS_APP: string[] = [
   "Pollo al horno",
   "Pollo al horno pierna (con piel)",
   "Pollo al horno pierna (sin piel)",
+  "Pollo al horno entrepierna (con piel)",
+  "Pollo al horno entrepierna (sin piel)",
   "Pollo al horno pecho (con piel)",
   "Pollo al horno pecho (sin piel)",
   "Pollo a la olla (presa con papa y verduras)",

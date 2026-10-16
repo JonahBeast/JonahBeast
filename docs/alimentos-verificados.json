@@ -1987,38 +1987,38 @@
   },
   "Jurel (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 50 «Pescado jurel, fresco»",
+   "verificado_en": "2026-10-16"
   },
   "Caballa (Cocida)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 35 «Pescado caballa, fresco»",
+   "verificado_en": "2026-10-16"
   },
   "Merluza (Cocida)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 57 «Pescado merluza, fresco»",
+   "verificado_en": "2026-10-16"
   },
   "Perico (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 67 «Pescado perico»",
+   "verificado_en": "2026-10-16"
   },
   "Pejerrey (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 63 «Pescado pejerrey»",
+   "verificado_en": "2026-10-16"
   },
   "Tilapia (Cocida)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 77 «Pescado tilapia, cruda*»",
+   "verificado_en": "2026-10-16"
   },
   "Lenguado (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 51 «Pescado lenguado»",
+   "verificado_en": "2026-10-16"
   },
   "Salmón (Cocido)": {
    "estado": "verificado",
@@ -2027,28 +2027,28 @@
   },
   "Pota (Cocida)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 88 «Pota»",
+   "verificado_en": "2026-10-16"
   },
   "Choros (Cocidos)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 11 «Choros»",
+   "verificado_en": "2026-10-16"
   },
   "Conchas de abanico (Cocidas)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 12 «Concha de abanico»",
+   "verificado_en": "2026-10-16"
   },
   "Pulpo (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 90 «Pulpo»",
+   "verificado_en": "2026-10-16"
   },
   "Filete de caballa en lata (escurrido) (-)": {
    "estado": "verificado",
-   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — E 34 «Pescado caballa, en conserva»",
+   "verificado_en": "2026-10-16"
   },
   "Sardina en lata en salsa de tomate (-)": {
    "estado": "verificado",
@@ -2057,18 +2057,18 @@
   },
   "Mondongo (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — F 96 «Res, panza cocida**»",
+   "verificado_en": "2026-10-16"
   },
   "Cuy (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — F 74 «Cuy, carne de»",
+   "verificado_en": "2026-10-16"
   },
   "Leche evaporada entera (-)": {
    "estado": "verificado",
-   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — G 7 «Leche evaporada entera»",
+   "verificado_en": "2026-10-16"
   },
   "Leche evaporada light (-)": {
    "estado": "verificado",
@@ -2077,8 +2077,8 @@
   },
   "Queso mantecoso (-)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — G 15 «Queso mantecoso»",
+   "verificado_en": "2026-10-16"
   },
   "Arroz integral (Cocido)": {
    "estado": "verificado",
@@ -2087,33 +2087,33 @@
   },
   "Mote (Cocido)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 39 «Maíz, mote de (sancochado)»",
+   "verificado_en": "2026-10-16"
   },
   "Harina de trigo (-)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 63 «Trigo, harina fortificada con hierro de»",
+   "verificado_en": "2026-10-16"
   },
   "Maicena (-)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 37 «Maiz, maicena»",
+   "verificado_en": "2026-10-16"
   },
   "Papa amarilla (Cocida)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — U 18 «Papa amarilla sin cáscara»",
+   "verificado_en": "2026-10-16"
   },
   "Plátano maduro (Sancochado)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 75 «Plátano maduro»",
+   "verificado_en": "2026-10-16"
   },
   "Granadilla (Cruda)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 20 «Granadilla»",
+   "verificado_en": "2026-10-16"
   },
   "Maracuyá (Cruda)": {
    "estado": "verificado",
@@ -2122,23 +2122,23 @@
   },
   "Chirimoya (Cruda)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 12 «Chirimoya»",
+   "verificado_en": "2026-10-16"
   },
   "Lúcuma (Cruda)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 35 «Lúcuma»",
+   "verificado_en": "2026-10-16"
   },
   "Aguaymanto (Crudo)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 100 «Aguaymanto»",
+   "verificado_en": "2026-10-16"
   },
   "Guanábana (Cruda)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — C 22 «Guanábana»",
+   "verificado_en": "2026-10-16"
   },
   "Pitahaya (Cruda)": {
    "estado": "verificado",
@@ -2147,53 +2147,53 @@
   },
   "Kiwi (Crudo)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — C 110 «Kiwi, sin cáscara»",
+   "verificado_en": "2026-10-16"
   },
   "Ciruela (Cruda)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — C 13 «Ciruela»",
+   "verificado_en": "2026-10-16"
   },
   "Higo (Crudo)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — C 27 «Higo negro»",
+   "verificado_en": "2026-10-16"
   },
   "Pasas (Secas)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — C 60 «Pasa sin pepa»",
+   "verificado_en": "2026-10-16"
   },
   "Sacha inchi (Tostado)": {
    "estado": "verificado",
-   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — D 38 «Sacha Inchi tostado»",
+   "verificado_en": "2026-10-16"
   },
   "Castañas (Crudas)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — D 13 «Castaña peruana (nuez de Brasil)»",
+   "verificado_en": "2026-10-16"
   },
   "Ajonjolí (Tostado)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), carbohidratos disponibles — D 39 «Semilla de ajonjolí*»",
+   "verificado_en": "2026-10-16"
   },
   "Azúcar rubia (-)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — K 2 «Azúcar rubia»",
+   "verificado_en": "2026-10-16"
   },
   "Chancaca (-)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — K 3 «Chancaca»",
+   "verificado_en": "2026-10-16"
   },
   "Maca en polvo (-)": {
    "estado": "verificado",
-   "fuente": "Etiqueta del producto (valores típicos; confirmar con la etiqueta)",
-   "verificado_en": "2026-10-15"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — U 11 «Maca (tubérculo seco)»",
+   "verificado_en": "2026-10-16"
   },
   "Sillao (-)": {
    "estado": "verificado",

@@ -13,7 +13,7 @@ const PRECIOS_RESPALDO: Record<number, number> = {
   1: 24.90,
   3: 59.90,
   6: 114.90,
-  12: 179.90,
+  12: 149.90,
 };
 
 function responder(body: unknown, status = 200) {

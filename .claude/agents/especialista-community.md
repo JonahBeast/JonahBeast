@@ -32,7 +32,7 @@ Clasifícalo y responde según el tipo:
 ## Lo que respondes sobre la app (datos vigentes)
 
 - **Empezar es gratis para siempre**, con 7 días de Premium incluidos y sin tarjeta: jonahbeast.com.
-- **Premium:** mensual S/24,90; trimestral S/59,90; anual S/179,90 (S/14,99 al mes, el mejor precio). En la app de iPhone los precios son otros (los de Apple). Si los precios cambian, se actualizan aquí y en `docs/pendientes.md`.
+- **Premium:** mensual S/24,90; trimestral S/59,90; anual S/149,90 (S/12,49 al mes, el mejor precio; desde el 16 de octubre, antes S/179,90). Al terminar la prueba, el anual sale solo con 20 % de descuento (cupón ANUAL-PRUEBA, S/119,92). En la app de iPhone los precios son otros (los de Apple). Si los precios cambian, se actualizan aquí y en `docs/pendientes.md`.
 - Las calorías salen de la lista de la app (Tabla Peruana de Alimentos del CENAN como primera fuente), con los platos como se sirven en casa: con o sin arroz. Nunca inventes calorías: si te preguntan por un plato, búscalo en `src/App.jsx` o di que lo pueden ver tomándole foto en la app.
 - No es nutricionista ni reemplaza a uno: es lo que a Jonah le funcionó y la herramienta que usa todos los días.
 

@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Precios de respaldo de los planes: solo se usan si en la tabla config no
 // hay uno guardado (son los mismos que usan la app y crear-pago-unico).
-const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 59.90, 6: 114.90, 12: 179.90 };
+const PRECIOS_RESPALDO: Record<number, number> = { 1: 24.90, 3: 59.90, 6: 114.90, 12: 149.90 };
 const PRECIO_ADDON_MENSUAL = 11.90;
 // Margen para redondeos de centavos al comparar lo pagado con lo esperado.
 const TOLERANCIA = 0.01;
@@ -252,8 +252,9 @@ Deno.serve(async (req: Request) => {
     let cupon: string | null = null;
     let cuponPct = 0;
     if (cuponRef) {
-      const { data: c } = await supabase.from("cupones").select("codigo, tipo, valor").eq("codigo", cuponRef.toUpperCase()).maybeSingle();
-      if (c?.tipo === "descuento") { cupon = c.codigo; cuponPct = Number(c.valor) || 0; }
+      const { data: c } = await supabase.from("cupones").select("codigo, tipo, valor, solo_meses").eq("codigo", cuponRef.toUpperCase()).maybeSingle();
+      // Un cupón "solo para un plan" no baja el precio de otro plan.
+      if (c?.tipo === "descuento" && (!c.solo_meses || Number(c.solo_meses) === meses)) { cupon = c.codigo; cuponPct = Number(c.valor) || 0; }
     }
 
     let esperado = await precioDelPlan(supabase, username, meses, cuponPct);

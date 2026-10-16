@@ -4659,8 +4659,38 @@ function ventanaBono(u, ahora = Date.now()) {
   return ahora <= fin ? { fase: 'prueba', hasta: fin } : { fase: 'gracia', hasta: limite };
 }
 
+/* Descuento al terminar la prueba (cupón ANUAL-PRUEBA, decisión de Jonah
+   del 16 de octubre): en la misma ventana del bono de +7 días, el plan
+   anual sale con descuento. La base decide si vale (validar_cupon revisa
+   la ventana y que siga en prueba); Jonah lo apaga o cambia el % en el
+   panel (🎟️ CUPONES). No aplica en Play Store ni en iPhone (cobra la tienda). */
+const CUPON_FIN_PRUEBA = 'ANUAL-PRUEBA';
+let ofertaFinPruebaCache = null; // { clave, promesa }: una sola consulta por pantalla
+function useOfertaFinPrueba(u) {
+  const clave = ventanaBono(u) && !esAppTienda() ? `${u.username || ''}|${u.fechaVencimiento}` : '';
+  const [oferta, setOferta] = useState(null);
+  useEffect(() => {
+    if (!clave) { setOferta(null); return; }
+    let vivo = true;
+    if (!ofertaFinPruebaCache || ofertaFinPruebaCache.clave !== clave) {
+      ofertaFinPruebaCache = {
+        clave,
+        promesa: supabase.rpc('validar_cupon', { p_codigo: CUPON_FIN_PRUEBA })
+          .then(({ data }) => (data?.estado === 'ok' && data.tipo === 'descuento'
+            ? { codigo: data.codigo, valor: Number(data.valor), soloMeses: Number(data.solo_meses) || null, auto: true }
+            : null))
+          .catch(() => null),
+      };
+    }
+    ofertaFinPruebaCache.promesa.then(o => { if (vivo) setOferta(o); });
+    return () => { vivo = false; };
+  }, [clave]);
+  return oferta;
+}
+
 function RelojBono({ user, onVerPlanes }) {
   const [ahora, setAhora] = useState(Date.now());
+  const oferta = useOfertaFinPrueba(user);
   useEffect(() => {
     const iv = setInterval(() => setAhora(Date.now()), 1000);
     return () => clearInterval(iv);
@@ -4682,6 +4712,11 @@ function RelojBono({ user, onVerPlanes }) {
           ? 'Tu prueba terminó, pero si te suscribes ahora igual te regalamos 7 días extra en tu plan.'
           : 'Si te suscribes antes de que termine tu prueba, sumamos 7 días extra a tu plan. Tus días de prueba no se pierden.'}
       </p>
+      {oferta && (
+        <p className="jb-body text-sm text-emerald-300 font-semibold mt-2">
+          🎟️ Y {NOMBRE_PLAN_CUPON[oferta.soloMeses] || 'tu plan'} con {oferta.valor}% de descuento, solo hasta que termine el reloj.
+        </p>
+      )}
       <div className="flex items-end gap-1.5 mt-3" aria-label={`Quedan ${d} días, ${h} horas y ${m} minutos`}>
         {[[d, 'días'], [h, 'horas'], [m, 'min'], [s, 'seg']].map(([n, t], i) => (
           <div key={t} className="flex items-end gap-1.5">
@@ -4877,11 +4912,12 @@ function comprimirImagen(file, maxLado = 1200, calidad = 0.72) {
 /* ------------------------------------------------------------------ */
 
 // Desde el 9 de octubre de 2026: mensual, trimestral y anual (el semestral
-// ya no se vende). El anual va destacado y se muestra por mes.
+// ya no se vende). El anual va destacado y se muestra por mes. El 16 de
+// octubre el anual bajó de S/179,90 a S/149,90 (decisión de Jonah).
 const PLANES = [
   { meses: 1, nombre: 'Mensual', configKey: 'precio_1', precioDefault: 24.90, badge: null },
   { meses: 3, nombre: 'Trimestral', configKey: 'precio_3', precioDefault: 59.90, badge: null },
-  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 179.90, badge: 'MEJOR PRECIO', destacado: true },
+  { meses: 12, nombre: 'Anual', configKey: 'precio_12', precioDefault: 149.90, badge: 'MEJOR PRECIO', destacado: true },
 ];
 // En la lista de planes el anual va primero (el mensual ya tiene su atajo).
 const PLANES_LISTA = [...PLANES].reverse();
@@ -4954,7 +4990,9 @@ const MENSAJE_CUPON = {
   no_es_para_ti: 'Ese cupón es para otra persona.',
   sin_sesion: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
   sin_cuenta: 'Vuelve a entrar a tu cuenta e inténtalo de nuevo.',
+  fuera_de_plazo: 'Ese descuento era para el final de tu prueba gratis y ya pasó su plazo.',
 };
+const NOMBRE_PLAN_CUPON = { 1: 'el plan mensual', 3: 'el plan trimestral', 12: 'el plan anual' };
 const MESES_CUPON = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
 const fechaCuponLarga = iso => { const [, m, d] = String(iso || '').slice(0, 10).split('-').map(Number); return m ? `${d} de ${MESES_CUPON[m - 1]}` : ''; };
 function leerCuponPendiente() { try { return localStorage.getItem('jb_cupon') || ''; } catch { return ''; } }
@@ -4975,7 +5013,7 @@ function CuponBox({ aplicado, onDescuento, refPct = 0, soloDias = false }) {
     setRevisando(false);
     setRes(r);
     if (r.estado === 'ok' && r.tipo === 'descuento' && !soloDias && Number(r.valor) > refPct) {
-      onDescuento({ codigo: r.codigo, valor: Number(r.valor) });
+      onDescuento({ codigo: r.codigo, valor: Number(r.valor), soloMeses: Number(r.solo_meses) || null });
       vibrar(30);
     }
     if (r.estado !== 'ok') borrarCuponPendiente();
@@ -5008,8 +5046,13 @@ function CuponBox({ aplicado, onDescuento, refPct = 0, soloDias = false }) {
       <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl px-4 py-3 flex items-center gap-3">
         <span className="text-xl">🎟️</span>
         <div className="flex-1 min-w-0">
-          <p className="jb-body text-sm text-emerald-300 font-semibold">Cupón {aplicado.codigo}: {aplicado.valor}% de descuento</p>
-          <p className="jb-body text-[11px] text-zinc-400">Ya aplicado en los precios · vale para el pago único</p>
+          <p className="jb-body text-sm text-emerald-300 font-semibold">
+            {aplicado.auto ? `Por terminar tu prueba: ${aplicado.valor}% de descuento` : `Cupón ${aplicado.codigo}: ${aplicado.valor}% de descuento`}
+            {aplicado.soloMeses ? ` en ${NOMBRE_PLAN_CUPON[aplicado.soloMeses] || 'un plan'}` : ''}
+          </p>
+          <p className="jb-body text-[11px] text-zinc-400">
+            {aplicado.auto ? 'Ya aplicado en el precio · solo hasta que termine la cuenta regresiva' : 'Ya aplicado en los precios · vale para el pago único'}
+          </p>
         </div>
         <button onClick={quitar} className="jb-body text-xs text-zinc-500 hover:text-zinc-300 underline">Quitar</button>
       </div>
@@ -5062,7 +5105,13 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   const [dcto, setDcto] = useState(0);
   const [dctoSoloPrimerPlan, setDctoSoloPrimerPlan] = useState(false);
   const [refNombre, setRefNombre] = useState('');
-  const [cupon, setCupon] = useState(null); // { codigo, valor }: cupón de descuento aplicado (CuponBox)
+  const [cupon, setCupon] = useState(null); // { codigo, valor, soloMeses, auto }: cupón de descuento aplicado (CuponBox o el de fin de prueba)
+  // Al terminar la prueba, el descuento del anual (ANUAL-PRUEBA) se aplica
+  // solo, salvo que el alumno ya haya puesto otro cupón.
+  const ofertaFinPrueba = useOfertaFinPrueba(userRecord);
+  useEffect(() => {
+    if (ofertaFinPrueba && !leerCuponPendiente()) setCupon(c => c || ofertaFinPrueba);
+  }, [ofertaFinPrueba]);
   const [datosPago, setDatosPago] = useState({});
   // "planInicial" (meses): llega con un plan ya marcado, por ejemplo desde
   // el aviso de fin de prueba ("Seguir con 1 mes"), y va directo a pagar.
@@ -5251,11 +5300,15 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
   }
   // El cupón de descuento vale para el pago único (no para el cobro
   // automático de Mercado Pago, que lo repetiría cada mes) y no se suma al
-  // del código de referido: queda el mayor.
-  const cuponAplica = !!cupon && cupon.valor > dcto && !(metodo === 'Mercado Pago' && mpTipo === 'recurrente');
-  const dctoFinal = cuponAplica ? cupon.valor : dcto;
+  // del código de referido: queda el mayor. Un cupón "solo para un plan"
+  // (soloMeses, ej. el anual) baja solo ese plan.
+  const cuponAplicaA = plan => !!cupon && cupon.valor > dcto && !(metodo === 'Mercado Pago' && mpTipo === 'recurrente')
+    && (!cupon.soloMeses || !plan || cupon.soloMeses === plan.meses);
+  const cuponAplica = cuponAplicaA(seleccion);
+  const dctoDe = plan => (cuponAplicaA(plan) ? cupon.valor : dcto);
+  const dctoFinal = dctoDe(seleccion);
   function precioDe(plan) {
-    return Math.round(precioBase(plan) * (1 - dctoFinal / 100) * 100) / 100;
+    return Math.round(precioBase(plan) * (1 - dctoDe(plan) / 100) * 100) / 100;
   }
   // Cuánto ahorra por mes frente a pagar mes a mes (con precios sin descuento).
   function ahorroDe(plan) {
@@ -5694,7 +5747,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                     </span>
                   )}
                   <div className="jb-display text-sm text-zinc-400 mb-1">{plan.nombre.toUpperCase()}</div>
-                  {dctoFinal > 0 && (
+                  {dctoDe(plan) > 0 && (
                     <div className="jb-body text-xs text-zinc-600 line-through">{fmtS(precioBase(plan) / plan.meses)} al mes</div>
                   )}
                   <div className="jb-display text-3xl text-orange-500 mb-0.5">{fmtS(porMes)}<span className="jb-body text-sm text-zinc-400"> al mes</span></div>
@@ -5704,6 +5757,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
                   </div>
                   {ahorro > 0 && (
                     <div className="jb-body text-xs text-emerald-400 mb-1">Ahorras {ahorro}%</div>
+                  )}
+                  {cuponAplicaA(plan) && (
+                    <div className="jb-body text-xs text-emerald-300 font-semibold mb-1">🎟️ −{cupon.valor}% {cupon.auto ? 'por terminar tu prueba' : 'con tu cupón'}</div>
                   )}
                   {plan.destacado && <p className="jb-body text-xs text-zinc-300 mb-3">{FRASE_ANUAL}</p>}
                   {!plan.destacado && <div className="mb-3" />}
@@ -5738,7 +5794,9 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
 
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 mb-5 text-center">
             <div className="jb-body text-xs text-zinc-500">Plan {seleccion.nombre}</div>
+            {dctoFinal > 0 && <div className="jb-body text-xs text-zinc-600 line-through mt-1">{fmtS(precioBase(seleccion))}</div>}
             <div className="jb-display text-3xl text-orange-500 my-1">{fmtS(precioDe(seleccion))}</div>
+            {cuponAplica && <div className="jb-body text-xs text-emerald-400 mb-1">🎟️ {cupon.valor}% de descuento {cupon.auto ? 'por terminar tu prueba' : `con tu cupón ${cupon.codigo}`}</div>}
             <div className="jb-body text-xs text-zinc-500">{seleccion.meses === 12 ? `12 meses de acceso · ${fmtS(precioDe(seleccion) / 12)} al mes` : `${seleccion.meses} mes(es) de acceso`}</div>
           </div>
 

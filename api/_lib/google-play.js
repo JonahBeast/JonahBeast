@@ -22,7 +22,7 @@ export const PRODUCTOS_GOOGLE = {
   jb_plan_mensual: { meses: 1, configKey: 'precio_1', precioDefault: 24.90 },
   jb_plan_trimestral: { meses: 3, configKey: 'precio_3', precioDefault: 59.90 },
   jb_plan_semestral: { meses: 6, configKey: 'precio_6', precioDefault: 114.90 },
-  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 179.90 },
+  jb_plan_anual: { meses: 12, configKey: 'precio_12', precioDefault: 149.90 },
 };
 
 const API = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PAQUETE_ANDROID}`;

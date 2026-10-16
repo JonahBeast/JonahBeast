@@ -33,7 +33,7 @@ const INICIO_EMBUDO = "2026-09-23T00:00:00.000Z";
 const PLANES = [
   { meses: 1, configKey: "precio_1", precioDefault: 24.90 },
   { meses: 3, configKey: "precio_3", precioDefault: 59.90 },
-  { meses: 12, configKey: "precio_12", precioDefault: 179.90 },
+  { meses: 12, configKey: "precio_12", precioDefault: 149.90 },
 ];
 
 // Personalidad e instrucciones fijas: van en el system prompt (no cambian

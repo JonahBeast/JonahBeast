@@ -4240,14 +4240,11 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
               </>
             )}
           </div>
-          {/* Bono de +7 días: en las 48 h después de vencer la prueba, arriba
-              de todo (antes quedaba abajo y había que bajar para verlo). */}
-          {ventanaBono(expiredInfo.userRecord) && (
-            <div className="mb-5">
-              <RelojBono user={expiredInfo.userRecord}
-                onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
-            </div>
-          )}
+          {/* Última oportunidad (20 % en el anual en la web; +7 días en las
+              tiendas): en las 48 h después de vencer la prueba, arriba de
+              todo (antes quedaba abajo y había que bajar para verlo). */}
+          <RelojBono user={expiredInfo.userRecord} className="mb-5"
+            onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
           {expiredInfo.esPrueba !== false && <EncuestaSalida username={expiredInfo.username} />}
           <TrialSummary stats={expiredInfo.stats} nombre={expiredInfo.nombre} planPagado={expiredInfo.esPrueba === false}
             onVerPlanes={() => document.getElementById('planes-para-continuar')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
@@ -4633,18 +4630,22 @@ async function fetchTrialStats(username) {
 }
 
 /* Bono por suscribirse a tiempo: el PRIMER plan pagado de alguien en
-   prueba gratis, enviado antes de que termine su prueba o hasta 48 horas
-   después, recibe 7 días extra (se suman solos al aprobarse el pago). La
-   cuenta regresiva se muestra desde el día 13 de la prueba. Mismo criterio
-   en webhook-mercadopago, api/_lib/google-play.js y la aprobación manual. */
+   prueba gratis, enviado antes de que termine su prueba, recibe 7 días
+   extra (se suman solos al aprobarse el pago). En las 48 horas después
+   ('gracia'), en la web ya no hay +7 días: hay 20 % en el anual (cupón
+   ANUAL-PRUEBA); en Google Play y en iPhone, donde no hay cupones, siguen
+   los +7 días esas 48 horas (decisión de Jonah del 16 de octubre). La
+   cuenta regresiva se muestra en los 3 últimos días de la prueba. Mismo
+   criterio en webhook-mercadopago, jarvis-chat, api/_lib/google-play.js,
+   api/_lib/apple.js y la aprobación manual. */
 const BONO_DIAS = 7;
 const BONO_GRACIA_HORAS = 48;
 function finPruebaMs(fechaVencimiento) {
   return new Date(`${fechaVencimiento}T23:59:59-05:00`).getTime();
 }
-function ganaBonoSuscripcion(u, primerPlan, enviadoEn) {
+function ganaBonoSuscripcion(u, primerPlan, enviadoEn, deTienda = false) {
   if (!primerPlan || !u || !(u.plan === 'trial' || u.plan === 'prueba') || !u.fechaVencimiento) return false;
-  const limite = finPruebaMs(u.fechaVencimiento) + BONO_GRACIA_HORAS * 3600000;
+  const limite = finPruebaMs(u.fechaVencimiento) + (deTienda ? BONO_GRACIA_HORAS * 3600000 : 0);
   const enviado = enviadoEn ? new Date(enviadoEn).getTime() : Date.now();
   return Number.isFinite(enviado) && enviado <= limite;
 }
@@ -4690,7 +4691,7 @@ function useOfertaFinPrueba(u) {
   return oferta;
 }
 
-function RelojBono({ user, onVerPlanes }) {
+function RelojBono({ user, onVerPlanes, className = '' }) {
   const [ahora, setAhora] = useState(Date.now());
   const oferta = useOfertaFinPrueba(user);
   useEffect(() => {
@@ -4703,22 +4704,21 @@ function RelojBono({ user, onVerPlanes }) {
   const d = Math.floor(resta / 86400), h = Math.floor((resta % 86400) / 3600), m = Math.floor((resta % 3600) / 60), s = resta % 60;
   const dos = n => String(n).padStart(2, '0');
   const gracia = v.fase === 'gracia';
+  const tienda = esAppTienda();
+  // En la web, las 48 h de después son del 20 % en el anual (sin +7 días);
+  // si Jonah apagó ese cupón, no hay nada que contar y el reloj no sale.
+  if (gracia && !tienda && !oferta) return null;
+  const titulo = !gracia ? '🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS'
+    : tienda ? '⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS'
+    : `⏳ ÚLTIMA OPORTUNIDAD: ${oferta.valor}% EN ${(NOMBRE_PLAN_CUPON[oferta.soloMeses] || 'tu plan').toUpperCase()}`;
+  const texto = !gracia ? 'Si te suscribes antes de que termine tu prueba, sumamos 7 días extra a tu plan. Tus días de prueba no se pierden.'
+    : tienda ? 'Tu prueba terminó, pero si te suscribes ahora igual te regalamos 7 días extra en tu plan.'
+    : `Tu prueba terminó. Solo por estas 48 horas, ${NOMBRE_PLAN_CUPON[oferta.soloMeses] || 'tu plan'} te sale con ${oferta.valor}% de descuento: ya aplicado en Planes, sin escribir ningún código.`;
   return (
-    <div className="relative rounded-2xl border border-orange-500/60 bg-gradient-to-br from-orange-950/60 to-zinc-900 p-4 overflow-hidden"
+    <div className={`relative rounded-2xl border border-orange-500/60 bg-gradient-to-br from-orange-950/60 to-zinc-900 p-4 overflow-hidden ${className}`}
       style={{ boxShadow: '0 0 34px -12px rgba(232,89,12,.6)' }}>
-      <p className="jb-display text-base text-zinc-50 leading-tight">
-        {gracia ? '⏳ ÚLTIMA OPORTUNIDAD: +7 DÍAS GRATIS' : '🎁 SUSCRÍBETE Y OBTÉN +7 DÍAS GRATIS'}
-      </p>
-      <p className="jb-body text-xs text-zinc-300 mt-1">
-        {gracia
-          ? 'Tu prueba terminó, pero si te suscribes ahora igual te regalamos 7 días extra en tu plan.'
-          : 'Si te suscribes antes de que termine tu prueba, sumamos 7 días extra a tu plan. Tus días de prueba no se pierden.'}
-      </p>
-      {oferta && (
-        <p className="jb-body text-sm text-emerald-300 font-semibold mt-2">
-          🎟️ Y {NOMBRE_PLAN_CUPON[oferta.soloMeses] || 'tu plan'} con {oferta.valor}% de descuento, solo hasta que termine el reloj.
-        </p>
-      )}
+      <p className="jb-display text-base text-zinc-50 leading-tight">{titulo}</p>
+      <p className="jb-body text-xs text-zinc-300 mt-1">{texto}</p>
       <div className="flex items-end gap-1.5 mt-3" aria-label={`Quedan ${d} días, ${h} horas y ${m} minutos`}>
         {[[d, 'días'], [h, 'horas'], [m, 'min'], [s, 'seg']].map(([n, t], i) => (
           <div key={t} className="flex items-end gap-1.5">
@@ -4730,7 +4730,7 @@ function RelojBono({ user, onVerPlanes }) {
           </div>
         ))}
       </div>
-      {!esAppTienda() && <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>}
+      {!tienda && <p className="jb-body text-[11px] text-zinc-500 mt-2">Con Yape, Plin o transferencia cuenta desde que envías tu comprobante.</p>}
       {onVerPlanes && (
         <button onClick={onVerPlanes} className={btnPrimary + ' w-full py-3 mt-3'}>
           Ver planes y suscribirme

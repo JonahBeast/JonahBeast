@@ -7113,6 +7113,8 @@ function esPorPiezas(food) {
    siempre enteros. */
 function esPiezaGrande(food) {
   const d = unidadPorDefecto(food);
+  // Una presa se come entera: nada de "½ presa".
+  if (d.unit === 'presa') return false;
   return d.qty * gramsPerUnit(food, d.unit) >= 100;
 }
 
@@ -7127,7 +7129,7 @@ function conteoFoto(food, cantidadIA, gramosIA) {
 }
 
 function pasoConteo(food, n, dir) {
-  if (/\(PECAFIT\)/.test(food.name)) return Math.min(12, Math.max(1, n + dir));
+  if (/\(PECAFIT\)/.test(food.name) || unidadPorDefecto(food).unit === 'presa') return Math.min(12, Math.max(1, n + dir));
   const paso = esPiezaGrande(food) || (dir < 0 ? n <= 1 : n < 1) ? 0.5 : 1;
   return Math.min(12, Math.max(0.5, n + dir * paso));
 }
@@ -8889,6 +8891,7 @@ const MULTIPLOS_MEDIDA = [0.5, 1, 1.5, 2];
 const esCrudo = f => /crud/i.test(f?.state || '');
 const fraccion = q => ({ 0.5: '½', 1.5: '1½', 2.5: '2½' }[q] || String(q));
 
+const PIEZAS_NATURALES = ['Frutas', 'Tubérculos', 'Verduras'];
 function opcionesCantidad(food, unidad) {
   const d = unidadPorDefecto(food);
   const unit = unidad || d.unit;
@@ -8902,10 +8905,13 @@ function opcionesCantidad(food, unidad) {
     return MULTIPLOS_MEDIDA.map(m => ({ unit, qty: Math.max(5, Math.round((base * m) / 5) * 5) }));
   }
   if (UNIDADES_DISCRETAS.includes(unit)) {
-    // Piezas grandes (una palta, un camote): en gramos, porque su tamaño
-    // cambia mucho y "media palta" no dice cuánto es (decisión de Jonah).
+    // Frutas y tubérculos grandes (una palta, un camote): en gramos, porque
+    // su tamaño cambia mucho y "media palta" no dice cuánto es (decisión de
+    // Jonah). Las presas, sándwiches, empanadas, hamburguesas y tajadas se
+    // cuentan enteras: 1, 2, 3, 4 (Jonah, 16 oct: "1 entrepierna" salía
+    // como 30/60/90/120 g).
     const g = gramsPerUnit(food, unit);
-    if (g >= 100 && !unidad) return [0.25, 0.5, 0.75, 1].map(m => ({ unit: 'gramos', qty: Math.max(5, Math.round((g * m) / 5) * 5) }));
+    if (g >= 100 && !unidad && PIEZAS_NATURALES.includes(food.group)) return [0.25, 0.5, 0.75, 1].map(m => ({ unit: 'gramos', qty: Math.max(5, Math.round((g * m) / 5) * 5) }));
     return [1, 2, 3, 4].map(qty => ({ unit, qty }));
   }
   return MULTIPLOS_MEDIDA.map(qty => ({ unit, qty }));

@@ -45,6 +45,14 @@ const LIMITE_SIN_TOPE = 100000;
 // comparte la misma) y 100 al día en total (unos US$3 como máximo).
 // Solo reconoce el plato: nada del alumno (frecuentes, correcciones,
 // alimentos propios), nada de códigos ni etiquetas.
+// Tope total de fotos de alumnos con cuenta al día (revisión de seguridad
+// del 16 de octubre): cada cuenta ya tiene su tope, pero alguien que cree
+// muchas cuentas gratis sumaría 3 fotos por cada una. Hoy se usan unas 5 al
+// día; 300 deja mucho espacio y pone un techo al gasto de IA (~US$9 al día).
+// Se cuenta con el prefijo "demo:" para que no entre en los números del panel.
+const FOTOS_TOTAL_DIARIO = 300;
+const CONTADOR_TOTAL_FOTOS = "demo:tope-alumnos";
+const MENSAJE_MUCHAS_FOTOS = "Hoy la foto inteligente está muy ocupada. Anota tu comida con «Buscar» y vuelve a intentar la foto en un rato.";
 const DEMO_POR_VISITANTE = 1;
 const DEMO_POR_CONEXION = 3;
 const DEMO_TOTAL_DIARIO = 100;
@@ -241,6 +249,16 @@ async function fotoDeAlumno(supabase: any, username: string, { imagenBase64, mim
       return json({ error: "limite_alcanzado", ...cupo, usadas: limite }, 200);
     }
     const devolverFoto = () => supabase.rpc("devolver_foto_reconocimiento", { p_username: username, p_periodo: periodo });
+    if (!sinLimite) {
+      const { data: totalHoy, error: errTotal } = await supabase.rpc("reservar_foto_reconocimiento", {
+        p_username: CONTADOR_TOTAL_FOTOS, p_periodo: `dia-${hoyLima}`, p_limite: FOTOS_TOTAL_DIARIO,
+      });
+      if (!errTotal && (totalHoy === null || totalHoy === undefined)) {
+        console.error("Tope total de fotos del día alcanzado:", FOTOS_TOTAL_DIARIO);
+        await devolverFoto();
+        return json({ error: MENSAJE_MUCHAS_FOTOS }, 200);
+      }
+    }
 
     // Lo que este alumno registró más en las últimas 2 semanas: ayuda a la
     // IA a desempatar entre alimentos que se ven iguales en foto (ej. pollo

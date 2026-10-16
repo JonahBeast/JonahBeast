@@ -23,7 +23,10 @@ export function setupWebPush() {
 }
 
 export function verificarCronSecret(req) {
-  if (!process.env.CRON_SECRET) return true;
+  // Sin la contraseña configurada no pasa nadie (antes dejaba pasar a
+  // cualquiera; revisión de seguridad del 16 de octubre). En la app real
+  // CRON_SECRET está en Vercel y Vercel la manda sola en cada tarea.
+  if (!process.env.CRON_SECRET) return false;
   const auth = req.headers['authorization'];
   return auth === `Bearer ${process.env.CRON_SECRET}`;
 }

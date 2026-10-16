@@ -102,10 +102,14 @@ Deno.serve(async (req) => {
     const { data: perfil } = await supabase.from("profiles").select("role, username").eq("id", authData.user.id).maybeSingle();
     if (accion === "revisar_propio") {
       if (!perfil?.username) return json({ error: "No autorizado." }, 403);
+      // Pasado su tope del día, la IA no lo revisa al toque: queda para la
+      // tarea automática de cada hora (que revisa pocos por vez).
+      if (perfil.role !== "admin" && !(await cupoIAAlumno("propio", perfil.username))) return json({ revision: null });
       return json(await revisarPropio(String(id || ""), perfil.role === "admin" ? null : perfil.username));
     }
     if (accion === "atender_pedido") {
       if (!perfil?.username) return json({ error: "No autorizado." }, 403);
+      if (perfil.role !== "admin" && !(await cupoIAAlumno("pedido", perfil.username))) return json({ estado: null });
       return json(await atenderMiPedido(String(nombre || ""), perfil.username));
     }
     if (perfil?.role !== "admin") return json({ error: "No autorizado." }, 403);
@@ -124,6 +128,21 @@ Deno.serve(async (req) => {
 });
 
 class ErrorDeDatos extends Error {}
+
+// Tope de revisiones con IA que un alumno puede pedir al día, por tipo
+// ("propio" = sus alimentos creados, "pedido" = sus pedidos a Jonah), para
+// que nadie pueda gastar la IA sin límite (revisión de seguridad del 16 de
+// octubre). Usa el mismo contador de las fotos con el prefijo "demo:" (no
+// entra en los números del panel). Si el contador falla, deja pasar.
+const IA_ALUMNO_DIARIO = 10;
+async function cupoIAAlumno(tipo: string, username: string): Promise<boolean> {
+  const hoyLima = new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+  const { data, error } = await supabase.rpc("reservar_foto_reconocimiento", {
+    p_username: `demo:ia-${tipo}:${username}`, p_periodo: `dia-${hoyLima}`, p_limite: IA_ALUMNO_DIARIO,
+  });
+  if (error) return true;
+  return data !== null && data !== undefined;
+}
 
 // ---------------------------------------------------------------- calcular
 

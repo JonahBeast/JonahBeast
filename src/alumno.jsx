@@ -7875,7 +7875,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                 ) : null;
                 const avisoCorregido = corregido && (
                   <p className="jb-body text-[11px] text-emerald-400 mt-1">
-                    ✏️ Corregido: la IA dijo {f.esOpciones ? f.alternativas.map(nombreAlimento).join(' o ') : f.name}.{' '}
+                    {/* En las preguntas "¿cuál es?" la IA dio varias opciones: listarlas
+                        todas llenaba la tarjeta (visto por Jonah, 16 oct). */}
+                    ✏️ {f.esOpciones ? 'Lo elegiste tú (la IA no estaba segura).' : `Corregido: la IA dijo ${f.name}.`}{' '}
                     <button type="button" onClick={() => setCorrecciones(v => { const n = { ...v }; delete n[id]; return n; })}
                       className="text-zinc-500 hover:text-zinc-300 underline">Deshacer</button>
                   </p>

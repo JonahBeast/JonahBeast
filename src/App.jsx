@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
-import { ALIMENTOS_RETIRADOS, vaEnLaFoto } from './buscador.js';
+import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, slugAlimento } from './buscador.js';
 
 // Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
 // abrir la app para que llegue a Planes aunque tenga que entrar primero.
@@ -2618,6 +2618,42 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
   );
 }
 
+/* Fichas de platos populares bajo el buscador de la portada (16 oct): las
+   kcal de la PORCIÓN CASERA real, con su medida y sus gramos ("Ceviche ·
+   1 plato (300 g) · 255 kcal"), nunca "por 100 g" sin decirlo (como hace la
+   portada de NutriKaloría). Todo sale de la lista de la app. */
+const FICHAS_PORTADA = [
+  'Lomo saltado con arroz (-)', 'Ceviche de pescado (-)', 'Pollo a la brasa con papas y ensalada (-)',
+  'Ají de gallina (-)', 'Arroz con pollo (-)', 'Arroz chaufa (-)',
+];
+function fichaPlato(key) {
+  const food = FOODS.find(f => f.key === key);
+  if (!food) return null;
+  const porcion = unidadPorDefectoBase(food, unitsFor);
+  const gramos = Math.round(entryGrams({ foodKey: key, unit: porcion.unit, qty: porcion.qty }));
+  const kcal = Math.round(entryMacros({ foodKey: key, unit: porcion.unit, qty: porcion.qty }).kcal);
+  const medida = porcion.unit === 'gramos' ? `${gramos} g` : `${textoPorcion(porcion)} (${gramos} g)`;
+  return { food, medida, kcal, sinArroz: arrozDelPlato(food) === 'sin' };
+}
+function FichasPlatos({ onElegir, className = '', fila = false, style }) {
+  const fichas = FICHAS_PORTADA.map(fichaPlato).filter(Boolean);
+  return (
+    <div style={style} className={(fila ? 'flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 snap-x [scrollbar-width:none] ' : 'grid grid-cols-2 gap-2 ') + className}>
+      {fichas.map(f => (
+        <button key={f.food.key} type="button" onClick={() => onElegir(f.food)}
+          className={(fila ? 'shrink-0 w-[150px] snap-start ' : '') + 'text-left bg-zinc-950/85 backdrop-blur border border-zinc-700 hover:border-orange-500 rounded-xl px-3 py-2'}>
+          <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
+          <span className="block jb-body text-[11px] text-zinc-400 leading-tight mt-0.5 truncate">{f.medida}</span>
+          <span className="flex items-center justify-between gap-1 mt-1">
+            <span className="jb-display text-base text-orange-400 tabular-nums leading-none">{f.kcal} <span className="jb-body text-[10px] font-semibold text-orange-300">kcal</span></span>
+            {f.sinArroz && <span className="jb-body text-[10px] text-amber-300/90 whitespace-nowrap" title="Sin arroz: agrégalo aparte">🍚 sin arroz</span>}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Landing({ onChoose }) {
 
 
@@ -2734,7 +2770,7 @@ function Landing({ onChoose }) {
 
         {/* Texto y botones */}
         <div className="relative z-10 min-h-[100svh] lg:min-h-0 flex flex-col justify-end lg:justify-center gap-3 px-5 lg:px-0 max-w-md mx-auto lg:mx-0 w-full"
-          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingTop: 'calc(max(1.25rem, env(safe-area-inset-top)) + 3.5rem)' }}>
           <div className="jbb-a hidden lg:flex items-center gap-3 mb-4" style={anim('jbb-baja', .1)}>
             <img src="/logo-marca.webp" alt="" className="w-12" />
             <div>
@@ -2768,11 +2804,15 @@ function Landing({ onChoose }) {
             style={anim('jbb-sube', 1.05)} aria-label="¿Cuántas calorías tiene tu plato? Búscalo sin registrarte">
             <span className="text-lg leading-none" aria-hidden="true">🔎</span>
             <span className="flex-1 min-w-0">
-              <span className="block jb-body text-sm font-semibold text-zinc-50 leading-tight">¿Cuántas calorías tiene tu plato?</span>
-              <span className="block jb-body text-xs text-zinc-400 leading-tight mt-0.5 truncate">Escribe "lomo saltado", sin registrarte</span>
+              <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight">¿Cuántas calorías tiene tu plato?</span>
+              <span className="block jb-body text-xs text-zinc-400 leading-tight mt-0.5 truncate">Ej: lomo saltado · sin registrarte</span>
             </span>
             <span className="jb-body text-xs font-semibold text-orange-400 shrink-0">Buscar</span>
           </button>
+          <FichasPlatos fila className="jbb-a -mt-1" style={anim('jbb-sube', 1.1)} onElegir={food => {
+            registrarEventoEmbudo('buscador_portada', { detalle: ('ficha:' + food.key).slice(0, 120) });
+            setBuscador({ q: slugAlimento(food), ficha: true });
+          }} />
           <button onClick={registrarClicCTA} className="jbb-a w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mt-1"
             style={{ ...anim('jbb-pop', 1.15), boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
             <span className="inline-block" style={{ animation: 'jbb-late 1.6s ease-in-out 2s infinite' }}>EMPEZAR AHORA</span>
@@ -2802,7 +2842,7 @@ function Landing({ onChoose }) {
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
       {buscador && (
         <React.Suspense fallback={<div className="fixed inset-0 z-50 bg-zinc-950 flex items-center justify-center"><Loader2 className="animate-spin text-orange-500" size={28} /></div>}>
-          <BuscadorPortada q={buscador.q} onCerrar={cerrarBuscador}
+          <BuscadorPortada q={buscador.q} ficha={!!buscador.ficha} onCerrar={cerrarBuscador}
             onRegistrar={() => { setBuscador(null); registrarClicCTA('buscador'); }}
             onFoto={() => { setBuscador(null); abrirDemo(); }} />
         </React.Suspense>
@@ -6196,6 +6236,8 @@ function textoPorcion({ unit, qty }) {
     const entero = Math.floor(qty), fr = ['', '¼', '½', '¾'][Math.round((qty - entero) * 4)];
     if (fr !== undefined) num = entero ? `${entero}${fr}` : fr;
   }
+  // "1/4 con papas" ya dice cuánto: 1 de esa medida no es "1 1/4 con papas".
+  if (Number(qty) === 1 && /^\d/.test(unit)) return unit;
   if (qty <= 1 || /[\s/]/.test(unit)) return `${num} ${unit}`;
   const plural = unit === 'porción' ? 'porciones' : unit === 'scoop' ? 'scoops' : /[aeiou]$/.test(unit) ? unit + 's' : unit + 'es';
   return `${num} ${plural}`;
@@ -7052,6 +7094,7 @@ export default function App() {
 
 export {
   ALIMENTOS_RETIRADOS,
+  FichasPlatos,
   registrarEventoEmbudo,
   EncuestaSalida,
   yaRespondioSalida,

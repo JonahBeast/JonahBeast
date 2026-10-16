@@ -221,7 +221,8 @@ const EMOJI_POR_NOMBRE = [
 ];
 function emojiAlimento(food) {
   if (!food) return '🍴';
-  const nombre = String(food.name || '').toLowerCase();
+  // "Lomo saltado con arroz" lleva el ícono del guiso, no el del arroz.
+  const nombre = String(food.name || '').toLowerCase().replace(/ (con|y) arroz$/, '');
   const regla = EMOJI_POR_NOMBRE.find(([re]) => re.test(nombre));
   return regla ? regla[1] : (GROUP_EMOJI[food.group] || '🍴');
 }

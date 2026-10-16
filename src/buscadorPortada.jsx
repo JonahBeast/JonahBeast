@@ -14,11 +14,10 @@
    y 'compartir_plato' con detalle "portada:<clave>". */
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
-import { FOODS, unitsFor, entryMacros, registrarEventoEmbudo } from './App.jsx';
+import { FOODS, unitsFor, entryMacros, registrarEventoEmbudo, FichasPlatos } from './App.jsx';
 import { buscarAlimentos, unidadPorDefecto, nombreAlimento, slugAlimento, arrozDelPlato, fuenteCorta, normalizar, raizPalabra, SINONIMOS } from './buscador.js';
 import { BotonCompartirPlato, textoPorcionConGramos } from './compartirPlato.jsx';
 
-const SUGERIDOS = ['Lomo saltado', 'Pollo a la brasa', 'Ají de gallina', 'Ceviche', 'Arroz chaufa', 'Causa limeña', 'Pan con pollo', 'Chicha morada'];
 const MAX_RESULTADOS = 4;
 
 // Lo que se puede buscar: la lista de la app sin productos escaneados ni la
@@ -58,7 +57,7 @@ function tieneTodo(f, q) {
   return normalizar(q).split(' ').filter(Boolean).map(raizPalabra).every(w => objetivo.includes(w));
 }
 
-export default function BuscadorPortada({ q: qLink, onCerrar, onRegistrar, onFoto }) {
+export default function BuscadorPortada({ q: qLink, ficha = false, onCerrar, onRegistrar, onFoto }) {
   const [link] = useState(() => platoDelLink(qLink));
   const [texto, setTexto] = useState(link?.texto || '');
   const [fijado, setFijado] = useState(link?.food?.key || null);
@@ -70,8 +69,9 @@ export default function BuscadorPortada({ q: qLink, onCerrar, onRegistrar, onFot
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    if (link?.slug) anotarUnaVez('abrio_link:' + link.slug);
-    else setTimeout(() => inputRef.current?.focus(), 80);
+    // Llegó con un link compartido (?q=); las fichas de la portada se miden aparte.
+    if (link?.slug && !ficha) anotarUnaVez('abrio_link:' + link.slug);
+    else if (!link?.slug) setTimeout(() => inputRef.current?.focus(), 80);
     // La fuente de cada alimento (se baja aparte, solo al abrir el buscador).
     import('../docs/alimentos-verificados.json').then(m => setFuentes(m.default?.alimentos || {}), () => {});
     return () => { document.body.style.overflow = prev; };
@@ -145,13 +145,11 @@ export default function BuscadorPortada({ q: qLink, onCerrar, onRegistrar, onFot
       <div className="max-w-md mx-auto px-4 pt-4" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
         {!q && (
           <>
-            <p className="jb-body text-sm text-zinc-400 mb-2">Prueba con uno de estos:</p>
-            <div className="flex flex-wrap gap-2">
-              {SUGERIDOS.map(s => (
-                <button key={s} type="button" onClick={() => { setTexto(s); setFijado(null); }}
-                  className="jb-body text-sm text-zinc-200 border border-zinc-700 hover:border-orange-500 rounded-full px-3 py-2">{s}</button>
-              ))}
-            </div>
+            <p className="jb-body text-sm text-zinc-400 mb-2">Los más buscados (un plato como se sirve en casa):</p>
+            <FichasPlatos onElegir={food => {
+              anotarUnaVez('ficha:' + food.key);
+              setTexto(textoParaBuscar(food)); setFijado(food.key); setVerMas(false);
+            }} />
             <p className="jb-body text-xs text-zinc-500 mt-4 leading-relaxed">Los mismos números de la app: Tabla Peruana de Alimentos (CENAN) primero, con tu plato como se sirve en casa, con o sin arroz.</p>
           </>
         )}

@@ -38,8 +38,8 @@
   },
   "Quinua (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 53 «Quinua cocida»",
+   "verificado_en": "2026-10-16"
   },
   "Avena en hojuelas (Cruda)": {
    "estado": "verificado",
@@ -48,8 +48,8 @@
   },
   "Avena (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 6 «Avena, hojuela cocida»",
+   "verificado_en": "2026-10-16"
   },
   "Kiwicha (Cruda)": {
    "estado": "verificado",
@@ -88,43 +88,43 @@
   },
   "Lenteja (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 54: 214 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Lenteja (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 53: 65 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Frejol canario (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 15: 236 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Frejol canario (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 16: 43 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Garbanzo (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 44: 293 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Garbanzo (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 43: 127 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Pallar (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 56: 253 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Pallar (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 58: 94 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Haba seca (Cruda)": {
    "estado": "verificado",
@@ -133,8 +133,8 @@
   },
   "Haba (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 50: 83 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Papa (Cruda)": {
    "estado": "verificado",
@@ -158,13 +158,13 @@
   },
   "Yuca (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — U 36 «Yuca blanca fresca sin cáscara»",
+   "verificado_en": "2026-10-16"
   },
   "Yuca (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — U 37 «Yuca blanca sancochada»",
+   "verificado_en": "2026-10-16"
   },
   "Olluco (Crudo)": {
    "estado": "verificado",
@@ -193,13 +193,13 @@
   },
   "Carne de res (bistec) (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — F 35 «Res, carne pulpa de»",
+   "verificado_en": "2026-10-16"
   },
   "Carne de res (bistec) (Cocida)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — F 35 «Res, carne pulpa de»",
+   "verificado_en": "2026-10-16"
   },
   "Churrasco (Cruda (sin hueso))": {
    "estado": "verificado",
@@ -243,23 +243,23 @@
   },
   "Bonito (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — E 27 «Pescado bonito»",
+   "verificado_en": "2026-10-16"
   },
   "Bonito (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — E 31 «Pescado bonito, pulpa asada»",
+   "verificado_en": "2026-10-16"
   },
   "Atún (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — E 22 «Pescado atún, fresco»",
+   "verificado_en": "2026-10-16"
   },
   "Atún (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017), crudo ajustado a cocido (×1,28 por el agua que pierde) — E 22 «Pescado atún, fresco»",
+   "verificado_en": "2026-10-16"
   },
   "Huevo de gallina (Crudo)": {
    "estado": "verificado",
@@ -313,8 +313,8 @@
   },
   "Plátano de seda (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 71: 74 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Manzana (Cruda)": {
    "estado": "verificado",
@@ -323,13 +323,13 @@
   },
   "Palta (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 55: 130 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Papaya (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 59: 25 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Mango (Crudo)": {
    "estado": "verificado",
@@ -338,8 +338,8 @@
   },
   "Mandarina (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 40: 29 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Ensalada de frutas (Estimado - varía según receta)": {
    "estado": "verificado",
@@ -348,8 +348,8 @@
   },
   "Naranja (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 48: 31 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Durazno (Crudo)": {
    "estado": "verificado",
@@ -358,8 +358,8 @@
   },
   "Piña (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 69: 33 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Uva (Cruda)": {
    "estado": "verificado",
@@ -373,18 +373,18 @@
   },
   "Tomate (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 79: 15 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Lechuga (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 54: 12 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Zanahoria (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 85: 19 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Zanahoria (Cocida)": {
    "estado": "verificado",
@@ -423,8 +423,8 @@
   },
   "Vainita (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 84: 25 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Vainita (Cocida)": {
    "estado": "verificado",
@@ -468,8 +468,8 @@
   },
   "Pan integral (-)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 129 «Pan integral»",
+   "verificado_en": "2026-10-16"
   },
   "Pan árabe (-)": {
    "estado": "verificado",
@@ -483,13 +483,13 @@
   },
   "Jamonada (-)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — F 51 «Jamonada»",
+   "verificado_en": "2026-10-16"
   },
   "Salchicha (hot dog) (-)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — F 58 «Hot Dog»",
+   "verificado_en": "2026-10-16"
   },
   "Tostadas (-)": {
    "estado": "verificado",
@@ -558,8 +558,8 @@
   },
   "Cancha serrana (Tostada)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (A 32: 342 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Granola (-)": {
    "estado": "verificado",
@@ -583,13 +583,13 @@
   },
   "Cachanga (Frita)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — A 106 «Pan cachanga»",
+   "verificado_en": "2026-10-16"
   },
   "Chía (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (D 24: 360 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Pollo pierna (con piel) (Cocida)": {
    "estado": "verificado",
@@ -678,13 +678,13 @@
   },
   "Frejol negro (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 69: 104 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Frejol panamito (Cocido)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (T 71: 106 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Frejol castilla (Cocido)": {
    "estado": "verificado",
@@ -718,8 +718,8 @@
   },
   "Caigua (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 22: 15 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Zapallito italiano (Cocido)": {
    "estado": "verificado",
@@ -733,8 +733,8 @@
   },
   "Col / repollo (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 32: 15 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Betarraga (Cocida)": {
    "estado": "verificado",
@@ -743,8 +743,8 @@
   },
   "Poro (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 71: 34 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Nabo (Cocido)": {
    "estado": "verificado",
@@ -1568,8 +1568,8 @@
   },
   "Mermelada (-)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS, 2017) — K 7 «Mermelada frutilla»",
+   "verificado_en": "2026-10-16"
   },
   "Galleta de soda (-)": {
    "estado": "verificado",
@@ -1628,13 +1628,13 @@
   },
   "Sandía (Cruda)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 83: 23 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Melón (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (C 45: 21 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Pera (Cruda)": {
    "estado": "verificado",
@@ -1663,8 +1663,8 @@
   },
   "Apio (Crudo)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "USDA FoodData Central. La tabla peruana de 2017 (B 17: 8 kcal) calcula la energía con otro método (casi no cuenta la fibra); se dejó USDA para no contar de menos",
+   "verificado_en": "2026-10-16"
   },
   "Pollo pierna (sin piel) (Cocida)": {
    "estado": "verificado",

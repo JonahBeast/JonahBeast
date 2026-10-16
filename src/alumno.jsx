@@ -1,6 +1,6 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
@@ -550,6 +550,13 @@ function interpretarVarios(textoCompleto) {
           }
         }
       }
+      // Lo crudo no gana en silencio: "arroz blanco", "quinua" o "papa" por
+      // voz o con Beast son lo cocido (antes salía "Arroz blanco (Crudo)",
+      // 365 kcal por 100 g en vez de 130, porque en la lista va primero).
+      // Igual que en la foto y en "Escribir". Si dice "crudo", manda lo
+      // crudo. Las verduras quedan como estaban (en ensalada van crudas).
+      if (score > 0 && /crud/.test(estadoLower) && !/crud/.test(restoLower) && f.group !== 'Verduras'
+        && FOODS.some(o => o.name === f.name && o.key !== f.key && !/crud/i.test(o.state || ''))) score -= 5;
       if (score > 0 && pideSinAzucar) {
         const textoFood = `${nombreLower} ${estadoLower}`;
         if (/con az[uú]car/.test(textoFood)) score = 1;
@@ -7159,7 +7166,9 @@ function anotarCorreccionFoto(username, de, a, extra = {}) {
       .insert({ username, sugeridos: [{ key: de, corregido_a: a, ...extra }], descartados: [de] }).then(() => {});
   } catch {}
 }
-function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta, onPersonales }) {
+// mealPlanHoy: el día de hoy, para "¿Cómo encaja en tu día?" antes de agregar
+// (null en días pasados).
+function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onAgregar, onQuitar, onEscribir, onVerPlanes, onCambiarComida, onEtiqueta, onPersonales, mealPlanHoy = null }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState('elegir'); // elegir | analizando | resultados | vacio | etiqueta | limite | error | compartir
   // La foto era una tabla nutricional y no se pudo leer (Premium, tope del
@@ -8001,6 +8010,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               if (aceiteFood) macros.push(macrosDeFoto(aceiteFood, { unit: 'cucharada', qty: cucharadas }));
               const t = macros.reduce((a, x) => ({ kcal: a.kcal + x.kcal, protein: a.protein + x.protein, carbs: a.carbs + x.carbs, fat: a.fat + x.fat }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
               return (
+                <>
                 <div className="jbe-entrar bg-gradient-to-r from-orange-500/15 to-transparent border border-orange-500/40 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3"
                   style={{ animationDelay: `${items.length * 90}ms` }}>
                   <div>
@@ -8011,6 +8021,10 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                   <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">≈{Math.round(t.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
                 </div>
+                {mealPlanHoy && (
+                  <ComoEncajaDia className="jbe-entrar mb-4" antes={totalesDelPlan(mealPlanHoy).t} comida={t} meal={comida} mealPlan={mealPlanHoy} />
+                )}
+                </>
               );
             })()}
             {/* A qué comida va: se puede cambiar aquí mismo antes de agregar
@@ -8151,6 +8165,8 @@ const ESTILOS_COMIDAS = `
 @keyframes jbm-pulso { 0% { filter: drop-shadow(0 0 0 rgba(255,112,32,0)); } 35% { filter: drop-shadow(0 0 12px rgba(255,112,32,.9)); } 100% { filter: drop-shadow(0 0 3px rgba(255,112,32,.35)); } }
 @keyframes jbm-subir { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes jbm-aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jbm-encaje { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.jbm-encaje { animation: jbm-encaje .45s cubic-bezier(.2,.8,.3,1) both; }
 @keyframes jbm-latido { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,89,12,.55), 0 8px 24px rgba(232,89,12,.35); } 50% { box-shadow: 0 0 0 8px rgba(232,89,12,0), 0 8px 24px rgba(232,89,12,.35); } }
 .jbm-pulso { animation: jbm-pulso .9s ease-out both; }
 .jbm-hoja { animation: jbm-subir .28s cubic-bezier(.2,.8,.3,1) both; }
@@ -8162,7 +8178,7 @@ const ESTILOS_COMIDAS = `
 .jbm-onda { animation: jbm-onda .8s ease-out both; }
 .jbm-completa { animation: jbm-brillo 1.1s ease-out both; }
 .jbm-completa .jbm-check { animation: jbm-pop .45s cubic-bezier(.2,1.6,.4,1) both; }
-@media (prefers-reduced-motion: reduce) { .jbm-pulso, .jbm-hoja, .jbm-fondo, .jbm-fab, .jbm-onda, .jbm-completa, .jbm-check { animation: none !important; } .jbm-onda { display: none; } }
+@media (prefers-reduced-motion: reduce) { .jbm-pulso, .jbm-hoja, .jbm-fondo, .jbm-fab, .jbm-onda, .jbm-completa, .jbm-check, .jbm-encaje { animation: none !important; } .jbm-onda { display: none; } }
 `;
 
 // Medidor fijo arriba de Comidas: anillo con lo que queda del día y
@@ -8241,6 +8257,132 @@ function MedidorComidas({ totals, targetKcal, objP, objC, objF, fijo = true }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* ¿CÓMO ENCAJA EN TU DÍA? (pedido por Jonah el 16 de octubre, tras ver */
+/* algo parecido en Fitia). Con lo que ya comió hoy, esta comida y sus  */
+/* metas, dice en una barra de 3 colores si la comida encaja y cuánto   */
+/* le queda para lo que resta del día. Sale igual en todas las formas  */
+/* de anotar: antes de guardar en la foto, el código y Beast; y al      */
+/* terminar de anotar en Comidas (escribir, favoritos, voz, foto,       */
+/* código), con "🦍 ¿Qué como después?".                                */
+/*                                                                    */
+/* Reglas del veredicto (las mismas metas que el anillo de Comidas):   */
+/*  🔴 "Te pasas hoy": con esta comida el día pasa el 115 % de su meta  */
+/*     de calorías (META_MAX, la misma línea del anillo ámbar).         */
+/*  🟡 "Aceptable": no pasa el 115 %, pero                              */
+/*     a) le queda poco para las comidas principales que faltan hoy:   */
+/*        lo que queda es menos de la mitad de lo que esas comidas      */
+/*        suelen llevar (desayuno 25 %, almuerzo 35 %, cena 20 % de la  */
+/*        meta, el mismo reparto de "¿Qué como?"); o                    */
+/*     b) la proteína va quedando atrás: ya lleva 40 % o más de sus     */
+/*        calorías y su proteína va 25 puntos o más por debajo (ej. 60 %*/
+/*        de las calorías y solo 30 % de la proteína).                  */
+/*  🟢 "Encaja bien": todo lo demás.                                    */
+/* Nunca culpa: una comida no borra su avance.                         */
+/* ------------------------------------------------------------------ */
+const PARTE_COMIDA = { 'Desayuno': 0.25, 'Media mañana': 0.10, 'Almuerzo': 0.35, 'Media tarde': 0.10, 'Cena': 0.20 };
+const COMIDAS_PRINCIPALES = ['Desayuno', 'Almuerzo', 'Cena'];
+const sumarMacros = (a, b) => ({ kcal: a.kcal + b.kcal, protein: a.protein + b.protein, carbs: a.carbs + b.carbs, fat: a.fat + b.fat });
+const MACROS_CERO = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+function macrosDeEntradas(entradas) {
+  return (entradas || []).reduce((t, en) => sumarMacros(t, entryMacros(en)), MACROS_CERO);
+}
+// "su almuerzo y cena", "su cena"
+function listaComidas(nombres) {
+  const l = nombres.map(n => n.toLowerCase());
+  return l.length <= 1 ? l.join('') : `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}`;
+}
+
+// Calcula el veredicto. antes: totales del día sin esta comida; comida:
+// lo que suma esta comida; meal: a qué comida va; mealPlan: el día (para
+// saber qué comidas siguen vacías).
+function encajeEnElDia({ antes, comida, meal, mealPlan }) {
+  const metaKcal = Number(mealPlan?.targetKcal) || 0;
+  if (!(metaKcal > 0) || !(comida?.kcal > 0)) return null;
+  const metaP = (metaKcal * (mealPlan.macros?.p || 0)) / 4;
+  const despues = sumarMacros(antes, comida);
+  const quedan = Math.round(metaKcal - despues.kcal);
+  // Comidas que faltan hoy: las que vienen después de esta y de la hora de
+  // ahora, y siguen vacías.
+  const idx = Math.max(MEAL_NAMES.indexOf(meal), MEAL_NAMES.indexOf(comidaDeAhora()) - 1);
+  const vacia = m => !(mealPlan.meals?.[m] || []).some(e => e.foodKey);
+  const faltan = MEAL_NAMES.filter((m, i) => i > idx && m !== meal && vacia(m));
+  const principales = faltan.filter(m => COMIDAS_PRINCIPALES.includes(m));
+  const necesitan = principales.reduce((s, m) => s + PARTE_COMIDA[m] * metaKcal, 0);
+  const pctKcal = despues.kcal / metaKcal;
+  const pctP = metaP > 0 ? despues.protein / metaP : 1;
+  const proteinaBaja = metaP > 0 && pctKcal >= 0.4 && pctP < pctKcal - 0.25;
+  const pocoMargen = principales.length > 0 && quedan < necesitan * 0.5;
+  const nivel = pctKcal > META_MAX ? 'rojo' : pocoMargen || proteinaBaja ? 'amarillo' : 'verde';
+  const siguiente = principales[0] || faltan[0] || null;
+  const llevas = `Con esto llevas ${Math.round(despues.kcal)} de ${Math.round(metaKcal)} kcal`;
+  const para = principales.length ? ` para tu ${listaComidas(principales)}` : faltan.length ? ' para lo que queda del día' : '';
+  const consejoP = proteinaBaja && siguiente
+    ? ` Tu proteína va algo baja (${Math.round(despues.protein)} de ${Math.round(metaP)} g): súmala en tu ${siguiente.toLowerCase()} con pollo, huevo, pescado o menestras.`
+    : proteinaBaja ? ` Tu proteína quedó algo baja hoy (${Math.round(despues.protein)} de ${Math.round(metaP)} g): mañana súmala con pollo, huevo, pescado o menestras.` : '';
+  let frase;
+  if (nivel === 'rojo') {
+    frase = `${llevas}: unas ${-quedan} kcal más que tu meta. Tranqui, una comida no borra tu avance.`
+      + (faltan.length ? ` Si aún vas a comer, que sea algo ligero, y mañana sigues normal, sin compensar.` : ' Mañana sigues normal, sin compensar.');
+  } else if (quedan <= 0) {
+    frase = `${llevas}: llegaste a tu meta de hoy 💪` + (principales.length ? ` Si te da hambre en tu ${listaComidas(principales)}, que sea algo ligero.` : ' Así se hace, comida a comida.') + consejoP;
+  } else if (!faltan.length) {
+    frase = (pctKcal < META_MIN
+      ? `${llevas}. Aún te quedan ${quedan} kcal: si te da hambre, algo con proteína (un huevo, yogur griego o un poco de pollo) está bien.`
+      : `${llevas}: cierras el día dentro de tu meta. Así se hace, comida a comida 💪`) + consejoP;
+  } else if (pocoMargen) {
+    frase = `${llevas}. Te quedan ${quedan} kcal${para}: algo ligero y llegas bien. Una comida no borra tu avance.` + consejoP;
+  } else {
+    frase = `${llevas}. Te quedan ${quedan} kcal${para}.` + consejoP;
+  }
+  return { nivel, frase, quedan, siguiente, despues, metaKcal };
+}
+
+const NIVELES_ENCAJE = [
+  { id: 'verde', texto: 'Encaja bien', emoji: '🟢', barra: 'bg-emerald-500', letra: 'text-emerald-400' },
+  { id: 'amarillo', texto: 'Aceptable', emoji: '🟡', barra: 'bg-amber-400', letra: 'text-amber-300' },
+  { id: 'rojo', texto: 'Te pasas hoy', emoji: '🔴', barra: 'bg-red-500', letra: 'text-red-400' },
+];
+
+// La tarjeta. onQueComo (opcional): botón "🦍 ¿Qué como después?" que abre
+// a Beast con sus sugerencias para la siguiente comida (solo cuando la
+// comida ya está guardada, para que Beast cuente lo que queda de verdad).
+// enLista: como tarjeta en la lista de Comidas (fondo y bordes de las
+// demás comidas); si no, como bloque dentro de una ventana o del chat.
+function ComoEncajaDia({ antes, comida, meal, mealPlan, onQueComo = null, onCerrar = null, enLista = false, className = '' }) {
+  const r = encajeEnElDia({ antes, comida, meal, mealPlan });
+  if (!r) return null;
+  const nivel = NIVELES_ENCAJE.find(n => n.id === r.nivel);
+  return (
+    <div className={`${enLista ? 'bg-zinc-900 border-orange-500/30 rounded-2xl p-4' : 'bg-zinc-950 border-zinc-800 rounded-xl px-3 py-3'} border ${className}`} role="status" aria-live="polite">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="jb-display text-sm text-zinc-200 tracking-wide">¿CÓMO ENCAJA EN TU DÍA?</p>
+        {onCerrar && (
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="text-zinc-600 hover:text-zinc-400 p-2 -m-2 shrink-0"><X size={16} /></button>
+        )}
+      </div>
+      <div className="flex gap-1" aria-hidden="true">
+        {NIVELES_ENCAJE.map(n => (
+          <div key={n.id} className={`h-2 flex-1 rounded-full ${n.id === r.nivel ? n.barra : 'bg-zinc-800'}`} />
+        ))}
+      </div>
+      <div className="flex mt-1">
+        {NIVELES_ENCAJE.map(n => (
+          <span key={n.id} className={`flex-1 text-center jb-body text-[10px] ${n.id === r.nivel ? n.letra + ' font-semibold' : 'text-zinc-600'}`}>{n.texto}</span>
+        ))}
+      </div>
+      <p className={`jb-display text-lg mt-2 leading-none ${nivel.letra}`}>{nivel.emoji} {nivel.texto.toUpperCase()}</p>
+      <p className="jb-body text-xs text-zinc-300 mt-1.5 leading-relaxed">{r.frase}</p>
+      {onQueComo && r.siguiente && (
+        <button type="button" onClick={() => { vibrar(10); onQueComo(r.siguiente); }}
+          className="mt-2.5 jb-body text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-zinc-950 rounded-full px-3.5 py-2">
+          🦍 ¿Qué como después?
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* CÓDIGO DE BARRAS                                                     */
 /* Cámara → código → producto (tabla productos u Open Food Facts, en la */
 /* función reconocer-comida). Si no está, el alumno le toma foto a la   */
@@ -8291,7 +8433,7 @@ async function llamarProductos(body) {
 // "leida": tabla nutricional que ya leyó la foto de comida (sin código de
 // barras). Se abre directo en "confirmar", igual que tras "Tomar foto a la
 // tabla nutricional".
-function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
+function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir, mealPlanHoy = null }) {
   const { premium } = usePremium();
   const [estado, setEstado] = useState(leida ? 'confirmar' : 'camara'); // camara | sin_camara | buscando | producto | no_encontrado | leyendo | confirmar | limite | error
   const [codigo, setCodigo] = useState('');
@@ -8662,6 +8804,9 @@ function EscanearCodigoModal({ meal, leida, onCerrar, onAgregar, onEscribir }) {
               </p>
               <p className="jb-display text-3xl text-orange-500 tabular-nums leading-none">{Math.round(macros.kcal)}<span className="text-sm text-orange-400 ml-1">kcal</span></p>
             </div>
+            {mealPlanHoy && (
+              <ComoEncajaDia className="mb-4" antes={totalesDelPlan(mealPlanHoy).t} comida={macros} meal={meal} mealPlan={mealPlanHoy} />
+            )}
             <button onClick={agregar} disabled={!gramos} className={btnPrimary + ' w-full py-3'}>Agregar a {meal.toLowerCase()}</button>
             {sinCodigoReal && (
               <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-center">
@@ -9949,6 +10094,9 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
   // escribir), la pantalla va a lo que se agregó y lo marca en verde: antes,
   // con la foto, quedaba más abajo (en Cena o Agua) y no se veía.
   const flujo = useRef(null); // { meal, antes: Set de ids que ya estaban }
+  // "¿Cómo encaja en tu día?" de lo último que anotó (por cualquier camino):
+  // { meal, ids }. Se cierra con la X o al empezar a anotar otra cosa.
+  const [encajeReciente, setEncajeReciente] = useState(null);
   const [escribirPara, setEscribirPara] = useState(null); // comida abierta en el registro escrito
   const [favoritoInicial, setFavoritoInicial] = useState(null); // favorito elegido en la hoja: abre "¿Cuánto comiste?"
   const [textoInicial, setTextoInicial] = useState({}); // id de fila -> texto ya escrito (de "Buscarlo de otra forma")
@@ -9966,6 +10114,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     const m = hojaMeal || fotoPara || codigoPara || escribirPara;
     if (m) {
       if (!flujo.current || flujo.current.meal !== m) flujo.current = { meal: m, antes: new Set((mealPlan.meals[m] || []).map(e => e.id)) };
+      setEncajeReciente(null);
       return;
     }
     if (!flujo.current) return;
@@ -9974,6 +10123,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     const agregadas = (mealPlan.meals[meal] || []).filter(e => !antes.has(e.id));
     const nuevos = agregadas.filter(e => e.foodKey).map(e => e.id);
     if (!nuevos.length) return;
+    if (esHoy) setEncajeReciente({ meal, ids: nuevos });
     setRecien(nuevos);
     setTimeout(() => setRecien([]), 3000);
     // Si quedó una fila por buscar (voz: "No es ninguna"), la vista va a esa.
@@ -10291,6 +10441,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onCerrar={() => { setCodigoPara(null); setEtiquetaLeida(null); }}
           onEscribir={() => { const m = codigoPara; setCodigoPara(null); setEtiquetaLeida(null); setEscribirPara(m); }}
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [codigoPara]: [...v.meals[codigoPara], entry] } }))}
+          mealPlanHoy={esHoy ? mealPlan : null}
         />
       )}
       {fotoPara && (
@@ -10306,6 +10457,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
           onAgregar={(entry) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: [...v.meals[fotoPara], entry] } }))}
           onQuitar={(ids) => setMealPlan(v => ({ ...v, meals: { ...v.meals, [fotoPara]: v.meals[fotoPara].filter(e => !ids.includes(e.id)) } }))}
           onPersonales={cargarPersonales}
+          mealPlanHoy={esHoy ? mealPlan : null}
         />
       )}
       {!ayudaCerrada && (
@@ -10323,6 +10475,7 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
 
       {MEAL_NAMES.map((meal, idx) => {
         const entradas = mealPlan.meals[meal];
+        const bloque = (() => {
         const vacia = entradas.length === 0;
         const esAhora = meal === mealAhora;
         const pasada = idx < idxAhora;
@@ -10500,6 +10653,22 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
             </div>
           )}
         </div>
+        );
+        })();
+        // "¿Cómo encaja en tu día?" de lo que acaba de anotar, justo debajo
+        // de esa comida (abierta o ya cerrada en una línea).
+        const ids = encajeReciente?.meal === meal ? new Set(encajeReciente.ids) : null;
+        const comidaNueva = ids ? macrosDeEntradas(entradas.filter(en => ids.has(en.id))) : null;
+        return (
+          <Fragment key={meal}>
+            {bloque}
+            {comidaNueva && comidaNueva.kcal > 0 && (
+              <ComoEncajaDia enLista className="jbm-encaje" meal={meal} mealPlan={mealPlan} comida={comidaNueva}
+                antes={{ kcal: totals.kcal - comidaNueva.kcal, protein: totals.protein - comidaNueva.protein, carbs: totals.carbs - comidaNueva.carbs, fat: totals.fat - comidaNueva.fat }}
+                onCerrar={() => setEncajeReciente(null)}
+                onQueComo={siguiente => { setEncajeReciente(null); abrirBeastDesde({ queComo: siguiente }); }} />
+            )}
+          </Fragment>
         );
       })}
 
@@ -11274,12 +11443,18 @@ function useConfirmarTarjeta(registrar, fn) {
   useEffect(() => registrar?.(() => ref.current()), []);
 }
 
-function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar, registrarConfirmar }) {
+function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, onRegistrar, registrarConfirmar, onQueComo }) {
   const [items, setItems] = useState(() => interpretarVarios(accion.texto)
     .map(it => ({ ...it, activo: !it.sinCoincidencia, buscar: !!it.sinCoincidencia })));
   const [comida, setComida] = useState(accion.comida || comidaDeAhora());
   const [hecho, setHecho] = useState(false);
+  // Totales del día justo antes de anotarla: así "¿Cómo encaja en tu día?"
+  // no la cuenta dos veces cuando ya quedó guardada.
+  const [antesDeGuardar, setAntesDeGuardar] = useState(null);
   const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food);
+  const macrosActivos = macrosDeEntradas(entradasDeItems(activos));
+  const antesDia = antesDeGuardar || totalesDelPlan(mealPlan).t;
+  function guardar() { setAntesDeGuardar(totalesDelPlan(mealPlan).t); setHecho(true); onGuardar(activos, comida, Math.round(total)); }
   const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
   const pendiente = items.some(it => it.necesitaAclarar);
   const propuesta = accion.tipo === 'proponer_comida';
@@ -11287,7 +11462,7 @@ function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar,
     if (hecho) return 'hecho';
     if (pendiente) return 'dudas';
     if (!activos.length) return 'vacia';
-    setHecho(true); onGuardar(activos, comida, Math.round(total));
+    guardar();
     return 'ok';
   });
 
@@ -11354,10 +11529,13 @@ function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar,
             </select>
             <span className="jb-display text-lg text-orange-400 tabular-nums">{Math.round(total)} kcal</span>
           </div>
+          {!pendiente && activos.length > 0 && mealPlan && (
+            <ComoEncajaDia antes={antesDia} comida={macrosActivos} meal={comida} mealPlan={mealPlan} />
+          )}
           {pendiente
             ? <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba</p>
             : activos.length > 0 && (
-              <button onClick={() => { setHecho(true); onGuardar(activos, comida, Math.round(total)); }} className={btnPrimary + ' py-2 text-sm'}>
+              <button onClick={guardar} className={btnPrimary + ' py-2 text-sm'}>
                 ✅ {propuesta ? 'Anotar esta' : `Agregar al ${comida.toLowerCase()}`}
               </button>
             )}
@@ -11365,6 +11543,9 @@ function BeastTarjetaComida({ accion, premium, username, onGuardar, onRegistrar,
         </>
       )}
       {hecho && <p className="jb-body text-[11px] text-emerald-400">✓ Anotado en {comida}</p>}
+      {hecho && mealPlan && antesDeGuardar && (
+        <ComoEncajaDia antes={antesDeGuardar} comida={macrosActivos} meal={comida} mealPlan={mealPlan} onQueComo={onQueComo} />
+      )}
     </div>
   );
 }
@@ -11494,9 +11675,12 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
         }).catch(() => {});
       }
     }
+    // "🦍 ¿Qué como después?" de "¿Cómo encaja en tu día?": sus sugerencias
+    // para la siguiente comida, con lo que le queda hoy (al final, a la vista).
+    if (inicio?.queComo) queComo(inicio.queComo);
     // El aviso que tocó va al final, justo encima de donde se escribe.
     // El día de su primera comida no se le pregunta la mini meta (una cosa a la vez).
-    (logro?.primera ? Promise.resolve() : metaDeLaSemana()).finally(() => {
+    (logro?.primera || inicio?.queComo ? Promise.resolve() : metaDeLaSemana()).finally(() => {
       if (!inicio?.aviso) return;
       avisoRef.current = inicio.aviso;
       local(inicio.aviso, { avisoDe: { comida: inicio.comida || null, foto: !!inicio.foto } });
@@ -11858,7 +12042,8 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     // a abrir el chat), para que nada se anote dos veces.
     if (a.tipo === 'anotar_comida' || a.tipo === 'proponer_comida') {
       if (!m.nuevo) return <p className="jb-body text-[11px] text-zinc-500 mt-1.5">🍽️ {a.texto}</p>;
-      return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar}
+      return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar} mealPlan={mealPlan}
+        onQueComo={queComo}
         registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }}
         onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
     }

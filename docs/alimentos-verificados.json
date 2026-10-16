@@ -2219,6 +2219,26 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central (pendiente comparar con la tabla peruana)",
    "verificado_en": "2026-10-15"
+  },
+  "Pollo al horno pierna (Con piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al horno pierna (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al horno pecho (Con piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al horno pecho (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
   }
  }
 }

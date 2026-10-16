@@ -633,6 +633,12 @@ const UNITS_BY_NAME = {
   'Pollo al horno': [['presa', 200], ['plato', 400]],
   // Carne sin hueso de una presa de casa: la pierna (o entrepierna) pesa
   // menos que el pecho.
+  // Entradas: una porción de entrada es más chica que un plato de fondo
+  // (antes salían como "1 plato" de 400 g por no tener medida propia).
+  'Causa limeña': [['porción', 250], ['plato', 400]],
+  'Papa a la huancaína': [['porción', 250], ['plato', 400]],
+  'Ocopa arequipeña': [['porción', 250], ['plato', 400]],
+  'Rocoto relleno': [['unidad', 220], ['plato', 400]],
   'Pollo al horno pierna': [['presa', 150]],
   'Pollo al horno pecho': [['presa', 200]],
   'Panqueques de avena': [['unidad', 50], ['plato', 150]],

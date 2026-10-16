@@ -1,6 +1,6 @@
 // Parte de la app que se descarga solo cuando hace falta (admin).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, Trash2, LogOut, Eye, X, ChevronRight, UserPlus, AlertTriangle, Loader2, MessageCircle } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
@@ -9817,6 +9817,20 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
   const [busqueda, setBusqueda] = useState('');
   const [filtroAlumnos, setFiltroAlumnos] = useState('todos');
   const [tabActiva, setTabActiva] = useState('hoy');
+  // Pagos por revisar: si estás en otra pestaña, un aviso arriba te lleva a
+  // HOY, donde los pagos salen primero.
+  const [pagosPendientes, setPagosPendientes] = useState(0);
+  const contarPagosPendientes = useCallback(async () => {
+    try {
+      const { count } = await supabase.from('pagos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente');
+      setPagosPendientes(count || 0);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    contarPagosPendientes();
+    const t = setInterval(contarPagosPendientes, 60000);
+    return () => clearInterval(t);
+  }, [contarPagosPendientes]);
   // Si la sesión de admin se cierra con el panel abierto (por ejemplo, otro
   // inicio o cierre de sesión en otra pestaña), la base responde vacío y el
   // panel mostraba "0" o "No se pudo revisar" sin decir por qué. Ahora avisa
@@ -9941,6 +9955,17 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
         </div>
 
 
+        {pagosPendientes > 0 && tabActiva !== 'hoy' && (
+          <button type="button" onClick={() => { setTabActiva('hoy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="w-full bg-orange-500/15 border border-orange-500/60 rounded-2xl px-5 py-3.5 flex items-center justify-between gap-3 text-left -mb-4">
+            <span className="jb-body text-sm text-zinc-100">
+              💳 <b>{pagosPendientes === 1 ? '1 pago por revisar' : `${pagosPendientes} pagos por revisar`}</b>
+              <span className="text-zinc-400"> · {pagosPendientes === 1 ? 'el alumno espera' : 'esperan'} su acceso</span>
+            </span>
+            <span className="jb-display text-xs text-orange-400 shrink-0 flex items-center gap-1">REVISAR <ChevronRight size={14} /></span>
+          </button>
+        )}
+
         {(() => {
           const TABS = [
             { id: 'hoy', label: 'HOY', emoji: '📋' },
@@ -9975,8 +10000,11 @@ function AdminDashboard({ users: todosLosUsuarios, onAddUser, onToggleUser, onDe
                 que puede esperar. Los números van en NEGOCIO y lo de la IA
                 (saldo, costo, precisión) en IA. Muchas tarjetas solo salen
                 cuando tienen algo pendiente. */}
+            {/* Pagos primero: un alumno que pagó está esperando su acceso
+                (pedido por Jonah, 16 oct: tenía que bajar por todos los
+                alumnos para llegar a aprobar). */}
+            <PagosPanel onCambio={contarPagosPendientes} />
             <MensajesDelDiaPanel />
-            <PagosPanel />
             <PedidosAlimentosPanel />
             <ComunidadHoyPanel users={users} />
             <ListosParaPagarPanel />
@@ -12402,7 +12430,7 @@ function CumpleanosPanel({ users }) {
   );
 }
 
-function PagosPanel({ onAprobado }) {
+function PagosPanel({ onAprobado, onCambio }) {
   const [pagos, setPagos] = useState([]);
   const [urls, setUrls] = useState({});
   const [loading, setLoading] = useState(true);
@@ -12410,6 +12438,7 @@ function PagosPanel({ onAprobado }) {
   const [procesando, setProcesando] = useState(null);
   const [verGrande, setVerGrande] = useState(null);
   const [filtro, setFiltro] = useState('pendiente');
+  const yaAbrio = useRef(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -12420,6 +12449,10 @@ function PagosPanel({ onAprobado }) {
         .order('creado_en', { ascending: false }).limit(100);
       const lista = data || [];
       setPagos(lista);
+      // Al entrar, abierta solo si hay algo que aprobar; si no, queda como
+      // una línea arriba que no estorba.
+      if (!yaAbrio.current) { yaAbrio.current = true; setOpen(lista.some(p => p.estado === 'pendiente')); }
+      if (onCambio) onCambio();
       const rutas = lista.filter(p => p.comprobante_ruta).map(p => p.comprobante_ruta);
       if (rutas.length) {
         const { data: signed } = await supabase.storage.from('comprobantes').createSignedUrls(rutas, 3600);

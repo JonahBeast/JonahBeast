@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     const nombre = String(pago.nombre || pago.username).trim().split(/\s+/)[0];
     const r = await enviarPushA(supabase, destino, {
       title: '💳 Pago por revisar',
-      body: `${nombre} acaba de pagar S/${Number(pago.monto || 0).toFixed(2)} por ${pago.metodo || 'Yape/Plin'}. Apruébalo en HOY → Pagos: está esperando para seguir.`,
+      body: `${nombre} acaba de pagar S/${Number(pago.monto || 0).toFixed(2)} por ${pago.metodo || 'Yape/Plin'}. Apruébalo en el panel: sale primero en HOY. Está esperando para seguir.`,
       url: '/',
     });
 

@@ -3175,6 +3175,7 @@ const FILAS_PRIMERA = [
     ['fin_prueba', '1mes', 'Tocaron "Seguir con 1 mes"'],
     ['fin_prueba', 'planes', 'Tocaron "Ver todos los planes"'],
     ['fin_prueba', 'ahora_no', 'Tocaron "Ahora no"'],
+    ['fin_prueba', 'motivo', 'Dijeron qué les faltó (tras "Ahora no")'],
   ] },
 ];
 

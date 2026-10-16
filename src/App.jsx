@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Eye, X, ChevronRight, Flame, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
+import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 
@@ -1942,7 +1942,9 @@ function Field({ label, helpHref, children }) {
   );
 }
 
-const inputCls = "bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 jb-body";
+// El ejemplo de la casilla va más apagado y en cursiva, para que no
+// parezca ya escrito (antes "tucorreo@gmail.com" se veía como lleno).
+const inputCls = "bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-zinc-100 placeholder:text-zinc-600 placeholder:italic focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 jb-body";
 
 /* Aviso en vivo debajo de una contraseña nueva: cuántas letras o números
    faltan para llegar a 6, y "✓ Lista" cuando ya alcanza. Así nadie se
@@ -1982,9 +1984,10 @@ function Logo({ size = 'md', compacto = false }) {
   const big = size === 'lg';
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-orange-500 rounded-md p-1.5">
-        <Flame className="jb-flame-live text-zinc-950" size={big ? 26 : 18} strokeWidth={2.5} fill="currentColor" />
-      </div>
+      {/* El gorila de fuego original (public/logo-marca.webp), entero y
+          solo escalado: no se recorta ni se recolorea (regla de la marca). */}
+      <img src="/logo-marca.webp" alt="" width="400" height="480" decoding="async"
+        className={`${big ? 'h-14' : compacto ? 'h-8' : 'h-10'} w-auto object-contain shrink-0`} />
       {/* compacto (barra de arriba de la app): en celulares angostos la letra se
           achica sola para que "FUEL" no quede tapado por los botones. */}
       <span className={`jb-display text-zinc-50 tracking-wide ${big ? 'text-2xl' : compacto ? 'text-[clamp(12px,3.9vw,16px)] sm:text-lg whitespace-nowrap' : 'text-base sm:text-lg whitespace-nowrap'}`}>JONAH BEAST <span className="text-orange-500">FUEL</span></span>
@@ -3221,6 +3224,11 @@ function mensajePlanWhatsApp(r, plan, extra = '') {
   return `Hola Jonah, este es mi plan de Jonah Beast Fuel: objetivo ${objetivo}, ${plan.kcal.toLocaleString('es-PE')} kcal y ${plan.proteina} g de proteína al día (peso actual ${r.peso} kg${meta}).${extra ? ' ' + extra : ' ¿Me ayudas a empezar?'}`;
 }
 
+// "tu edad", "tu estatura", "tu peso actual"…
+function pistaRegla(label) {
+  return 'tu ' + String(label || '').toLowerCase();
+}
+
 // El número se elige deslizando la regla (o se toca y se escribe).
 function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, placeholder, inicial, ayuda }) {
   return (
@@ -3233,6 +3241,11 @@ function NumeroGrande({ label, valor, onCambio, paso = 1, min, max, unidad, plac
         onChange={e => onCambio(e.target.value)}
         className="w-full min-w-0 bg-transparent text-center jb-display text-4xl text-zinc-50 outline-none tabular-nums placeholder:text-zinc-700 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
       <p className="jb-body text-[11px] text-zinc-500 text-center">{unidad}</p>
+      {/* Mientras no lo elige, el número de ejemplo sale apagado: se le dice
+          qué hacer (antes "SIGUIENTE" no reaccionaba y no se sabía por qué). */}
+      {(valor === '' || valor === null || valor === undefined) && (
+        <p className="jb-body text-xs text-orange-400 text-center mt-1">👆 Desliza la regla para elegir {pistaRegla(label)}</p>
+      )}
       <ReglaDeslizable valor={valor} onCambio={v => onCambio(String(v))} paso={paso} min={min} max={max}
         inicial={inicial ?? (placeholder || (min + max) / 2)} etiqueta={label.toLowerCase()} />
     </div>
@@ -3296,6 +3309,14 @@ function Recorrido({ onBack, onListo }) {
     cuerpo: r.estatura !== '' && !(est >= 120 && est <= 230) ? 'La estatura va en centímetros (ej. 165).'
       : r.peso !== '' && !(peso >= 30 && peso <= 300) ? 'Revisa tu peso en kilos (ej. 72).' : '',
     meta: r.pesoObjetivo !== '' && !valido ? (r.objetivo === 'Perder grasa' ? 'Tu peso meta debe ser menor a tu peso actual.' : 'Tu peso meta debe ser mayor a tu peso actual.') : '',
+  }[actual] || '';
+
+  // Con el botón apagado, dice qué falta en vez de quedarse mudo.
+  const falta = valido ? '' : {
+    objetivo: 'ELIGE TU OBJETIVO',
+    persona: !r.sexo ? 'ELIGE HOMBRE O MUJER' : r.edad === '' ? 'DESLIZA PARA ELEGIR TU EDAD' : '',
+    cuerpo: r.estatura === '' ? 'DESLIZA PARA ELEGIR TU ESTATURA' : r.peso === '' ? 'DESLIZA PARA ELEGIR TU PESO' : '',
+    actividad: 'ELIGE QUÉ TAN ACTIVO ERES',
   }[actual] || '';
 
   function siguiente() {
@@ -3435,7 +3456,7 @@ function Recorrido({ onBack, onListo }) {
           ) : (
             <button onClick={siguiente} disabled={!valido}
               className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 rounded-full py-4 jb-display text-lg text-zinc-950 tracking-wide">
-              {actual === 'actividad' && !conMeta ? 'VER MI PLAN' : actual === 'meta' ? 'VER MI PLAN' : 'SIGUIENTE'}
+              {falta || (actual === 'actividad' && !conMeta ? 'VER MI PLAN' : actual === 'meta' ? 'VER MI PLAN' : 'SIGUIENTE')}
             </button>
           )}
         </div>
@@ -3802,7 +3823,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
               <BotonGoogle onClick={() => entrarConGoogle(setErr)} />
               <SeparadorO />
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" name="email" autoComplete="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={f.email} onChange={e => { setF(v => ({ ...v, email: e.target.value })); if (campoErr === 'correo' || campoErr === 'existe') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'correo' || campoErr === 'existe')} placeholder="Escribe tu correo" />
                 <ErrorCampo texto={campoErr === 'correo' ? err : ''} />
                 {campoErr === 'existe' && (
                   <span className="jb-body text-xs text-zinc-200 bg-zinc-950 border border-orange-500/50 rounded-lg p-2.5 mt-1 flex flex-col gap-2">
@@ -4065,7 +4086,13 @@ const MOTIVOS_SALIDA = [
   { key: 'otro', label: '✍️ Otro' },
 ];
 
-function EncuestaSalida({ username }) {
+// También sale en la ventana de fin de prueba, al tocar "Ahora no · sigo
+// con la versión gratis" (titulo, onListo y onSaltar; ver FinPruebaModal).
+function yaRespondioSalida(username) {
+  try { return !!localStorage.getItem('jb-motivo-salida:' + username); } catch { return false; }
+}
+
+function EncuestaSalida({ username, titulo = '¿QUÉ TE FALTÓ PARA QUEDARTE?', onListo, onSaltar }) {
   const clave = 'jb-motivo-salida:' + username;
   const [enviado, setEnviado] = useState(() => { try { return !!localStorage.getItem(clave); } catch { return false; } });
   const [otro, setOtro] = useState(false);
@@ -4077,6 +4104,7 @@ function EncuestaSalida({ username }) {
     try { localStorage.setItem(clave, motivo); } catch {}
     setEnviando(false);
     setEnviado(true);
+    onListo?.(motivo);
   }
   if (enviado) {
     return (
@@ -4087,7 +4115,7 @@ function EncuestaSalida({ username }) {
   }
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-4">
-      <p className="jb-display text-sm text-zinc-50">¿QUÉ TE FALTÓ PARA QUEDARTE?</p>
+      <p className="jb-display text-sm text-zinc-50">{titulo}</p>
       <p className="jb-body text-xs text-zinc-400 mb-3">Un toque y nos ayudas a mejorar. Lo lee Jonah.</p>
       <div className="flex flex-wrap gap-2">
         {MOTIVOS_SALIDA.map(m => (
@@ -4105,6 +4133,9 @@ function EncuestaSalida({ username }) {
           <button type="button" disabled={enviando || !detalle.trim()} onClick={() => enviar('otro', detalle)}
             className={btnPrimary + ' px-4 text-sm'}>Enviar</button>
         </div>
+      )}
+      {onSaltar && (
+        <button type="button" onClick={onSaltar} className="block w-full jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-3 py-1">Saltar</button>
       )}
     </div>
   );
@@ -4322,7 +4353,7 @@ function StudentAuth({ onBack, onLogin, busy, expiredInfo, onClearExpired, onMem
                 </>
               )}
               <Field label="Correo electrónico">
-                <input type="email" inputMode="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="tucorreo@gmail.com" />
+                <input type="email" inputMode="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="Escribe tu correo" />
               </Field>
               {modo === 'login' && (
                 <Field label="Contraseña">
@@ -5889,7 +5920,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               )}
               <Field label="Tu correo electrónico">
                 <input type="email" value={correo} onChange={e => setCorreo(e.target.value)}
-                  className={inputCls} placeholder="tucorreo@ejemplo.com" />
+                  className={inputCls} placeholder="Escribe tu correo" />
               </Field>
               {!userRecord?.fecha_nacimiento && (
                 <Field label="Tu fecha de nacimiento (para tu sorpresa de cumpleaños 🎂)">
@@ -6915,6 +6946,8 @@ export default function App() {
 
 export {
   ALIMENTOS_RETIRADOS,
+  EncuestaSalida,
+  yaRespondioSalida,
   avisarMeta,
   registrarPasoPago,
   leerPlatoDemo,

@@ -9,6 +9,8 @@ import {
   ALIMENTOS_RETIRADOS,
   avisarMeta,
   registrarPasoPago,
+  EncuestaSalida,
+  yaRespondioSalida,
   leerPlatoDemo,
   borrarPlatoDemo,
   ACTIVITY_DESC,
@@ -2236,7 +2238,7 @@ function GoalSelector({ form, setForm, tdee, peso, datosListos = true, onComplet
                   })}
                 </div>
 
-                <CampoNumero label={`O elige otro valor (${goal === 'Perder grasa' ? '−' : '+'}%)`} valor={Math.abs(pct) || ''} paso={1} min={0} max={40}
+                <CampoNumero sinPista label={`O elige otro valor (${goal === 'Perder grasa' ? '−' : '+'}%)`} valor={Math.abs(pct) || ''} paso={1} min={0} max={40}
                   inicial={Math.abs(GOALS[goal].pct)} unidad={goal === 'Perder grasa' ? '% menos que tu mantenimiento' : '% más que tu mantenimiento'}
                   onCambio={n => { const v = Math.min(Math.abs(Number(n) || 0), 40); setForm(f => ({ ...f, ajustePct: goal === 'Perder grasa' ? -v : v })); }} />
                 {/* Cuánto cambia por semana y cuándo llegaría a su meta de peso. */}
@@ -2328,7 +2330,7 @@ function CuerpoTab({ form, setForm, results, vistaInicial, onIrComidas, mealPlan
 // Campo numérico con − / + grandes; también se puede tocar el número y
 // escribirlo. Si está vacío, el primer + / − parte de un valor típico.
 // El número se elige deslizando la regla (o se toca y se escribe).
-function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, inicial, unidad, placeholder, ayuda }) {
+function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, inicial, unidad, placeholder, ayuda, sinPista = false }) {
   const n = Number(valor);
   const vacio = valor === '' || valor === null || valor === undefined || !Number.isFinite(n) || n === 0;
   const decimales = paso < 1 ? 1 : 0;
@@ -2345,6 +2347,7 @@ function CampoNumero({ label, valor, onCambio, paso = 1, min = 0, max = 999, ini
         aria-label={label}
         className="w-full min-w-0 bg-transparent text-center jb-display text-3xl text-zinc-50 placeholder:text-zinc-700 focus:outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
       <p className="jb-body text-[11px] text-zinc-500 text-center -mt-0.5">{unidad}</p>
+      {vacio && !sinPista && <p className="jb-body text-xs text-orange-400 text-center mt-1">👆 Desliza la regla para elegir</p>}
       <ReglaDeslizable valor={vacio ? '' : n} onCambio={onCambio} paso={paso} min={min} max={max} inicial={inicial ?? placeholder} etiqueta={label.toLowerCase()} />
     </div>
   );
@@ -2930,6 +2933,10 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
 
       const ios = await estadoAvisosIOS(username);
       if (ios) { setEstado(ios); return; }
+      // Dentro de Instagram, Facebook o TikTok el navegador dice "bloqueado",
+      // pero no lo bloqueó el alumno: ahí nunca llegan avisos. Se le lleva a
+      // Chrome o Safari en vez de darle pasos para desbloquear.
+      if (equipoDelAlumno().navegadorInterno) { setEstado('navegadorInterno'); return; }
 
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         // En iPhone, esto es normal si todavía no instaló la app —
@@ -3026,11 +3033,12 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="jb-display text-sm text-orange-500 mb-0.5">
-            {estado === 'bloqueado' ? 'TUS AVISOS ESTÁN BLOQUEADOS' : 'ACTIVA LOS AVISOS DE JONAH'}
+            {estado === 'navegadorInterno' ? `AQUÍ DENTRO DE ${dondeEstas().toUpperCase()} NO TE LLEGAN MIS AVISOS`
+              : estado === 'bloqueado' ? 'TUS AVISOS ESTÁN BLOQUEADOS' : 'ACTIVA LOS AVISOS DE JONAH'}
           </p>
           <p className="jb-body text-xs text-zinc-400">
             {estado === 'navegadorInterno'
-              ? 'Abriste la app desde Instagram, TikTok o Facebook, y ahí no llegan avisos. Ábrela en tu navegador:'
+              ? `Ábrela en ${enlaceAbrirNavegador().navegador} y te acompaño durante el día:`
               : estado === 'iosNoInstalado'
               ? 'En iPhone los avisos solo llegan si la app está en tu pantalla de inicio. Toma 1 minuto:'
               : estado === 'bloqueado'
@@ -3039,11 +3047,7 @@ function RecordatorioBanner({ username, onEligible, soloSiFalta = false }) {
           </p>
           {beneficios}
           {estado === 'navegadorInterno' ? (
-            <div className="mt-3 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
-              <p className="jb-body text-[11px] text-zinc-300">
-                Toca los <b>tres puntos</b> (arriba a la derecha) → <b>"Abrir en Chrome"</b> (en iPhone, <b>"Abrir en Safari"</b>). O escribe <b>jonahbeast.com</b> en tu navegador. Ahí toca "Activar avisos".
-              </p>
-            </div>
+            <AbrirEnNavegadorBoton username={username} />
           ) : estado === 'iosNoInstalado' ? (
             <button onClick={() => setVerGuiaIphone(true)} className={btnPrimary + ' mt-3 py-2 px-4 text-sm'}>
               📲 Ver cómo, paso a paso
@@ -3206,6 +3210,13 @@ function finPruebaPendiente(user) {
 
 function FinPruebaModal({ user, onPlan, onCerrar }) {
   const [stats, setStats] = useState(null);
+  // "Ahora no": antes de cerrar, la misma pregunta de un toque de la
+  // pantalla de prueba vencida (una sola vez; se puede saltar).
+  const [preguntar, setPreguntar] = useState(false);
+  const ahoraNo = () => {
+    registrarPasoPago('fin_prueba', user.username, 'ahora_no');
+    if (yaRespondioSalida(user.username)) onCerrar(); else setPreguntar(true);
+  };
   const [precio1, setPrecio1] = useState(null);
   useEffect(() => {
     fetchTrialStats(user.username).then(setStats);
@@ -3232,10 +3243,20 @@ function FinPruebaModal({ user, onPlan, onCerrar }) {
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
       <style>{ESTILOS_COMIDAS}</style>
-      <div className="jbm-fondo absolute inset-0 bg-black/80" onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }} />
+      <div className="jbm-fondo absolute inset-0 bg-black/80" onClick={() => { if (!preguntar) registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }} />
       <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 max-h-[92vh] overflow-y-auto"
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.22)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        {preguntar ? (
+          <div className="pb-1">
+            <p className="jb-body text-sm text-zinc-300 leading-snug mb-3">
+              Dale, sigues con la versión gratis y aquí estoy igual 💪 Antes de seguir, ¿me cuentas algo?
+            </p>
+            <EncuestaSalida username={user.username} titulo="¿QUÉ TE FALTÓ PARA SEGUIR CON PREMIUM?"
+              onListo={() => { registrarPasoPago('fin_prueba', user.username, 'motivo'); setTimeout(onCerrar, 1400); }}
+              onSaltar={onCerrar} />
+          </div>
+        ) : (<>
         <div className="flex items-center gap-3 mb-3">
           <img src="/jonah-avatar.png" alt="Jonah" className="w-14 h-14 rounded-full object-cover border-2 border-orange-500 shrink-0"
             onError={e => { e.target.style.display = 'none'; }} />
@@ -3278,8 +3299,9 @@ function FinPruebaModal({ user, onPlan, onCerrar }) {
             <button onClick={() => elegir('planes', null)} className="w-full jb-body text-sm text-orange-400 py-2.5 mt-1">Ver todos los planes (ahorras con más meses)</button>
           </>
         )}
-        <button onClick={() => { registrarPasoPago('fin_prueba', user.username, 'ahora_no'); onCerrar(); }}
+        <button onClick={ahoraNo}
           className="w-full jb-body text-xs text-zinc-500 py-2">Ahora no · sigo con la versión gratis</button>
+        </>)}
       </div>
     </div>
   );
@@ -3372,7 +3394,11 @@ const RETO_DIAS = 7;
 
 const RETO_MISIONES = [
   { titulo: 'Tu primera comida', texto: 'Tómale foto a tu plato o escríbelo. La app calcula todo.' },
-  { titulo: 'Vuelve mañana', texto: 'Registra otro día. Tip: intenta completar 3 comidas.' },
+  // "titulo"/"texto" se ven el día anterior (como "Mañana"); "hoyTitulo" y
+  // "hoyTexto", el mismo día de la misión. Antes, quien ya volvió el día 2
+  // leía "Misión de hoy: VUELVE MAÑANA".
+  { titulo: 'Vuelve y suma el día 2', texto: 'Registra otro día. Tip: intenta completar 3 comidas.',
+    hoyTitulo: '¡Volviste! 💪', hoyTexto: 'Anota tu primera comida de hoy y sumas el día 2. Tip: intenta completar 3 comidas.' },
   { titulo: 'Primer resumen', texto: 'Con 3 días registrados desbloqueas tu primer resumen.', premio: true },
   { titulo: 'Cuida tu proteína', texto: 'Mira la barra de proteína y trata de llenarla hoy.' },
   { titulo: 'Tu racha', texto: 'Registra un día más y la app ya reconoce tus patrones.' },
@@ -3460,7 +3486,10 @@ function RetoPrueba({ user, mealPlan }) {
     let visto = 0;
     try { visto = Number(localStorage.getItem(clave)) || 0; } catch {}
     if (cumplidos > visto) {
-      if (visto > 0 || cumplidos === 1) { setRecienCumplido(true); vibrar([20, 40, 20]); }
+      // Solo se celebra el día que se cumple (hoy anotó). Antes, si abría
+      // la app en otro celular o navegador el día 2, le salía "¡Día 1
+      // cumplido! Vuelve mañana" aunque ya hubiera vuelto.
+      if (hoyCuenta && (visto > 0 || cumplidos === 1)) { setRecienCumplido(true); vibrar([20, 40, 20]); }
       try { localStorage.setItem(clave, String(cumplidos)); } catch {}
     }
   }, [cumplidos, pasados === null, username]);
@@ -3515,8 +3544,8 @@ function RetoPrueba({ user, mealPlan }) {
           <p className="jb-body text-[11px] text-zinc-500 uppercase tracking-wider mb-0.5">
             {hoyCuenta ? 'Mañana' : 'Misión de hoy'}
           </p>
-          <p className="jb-display text-sm text-zinc-100">{mision.premio ? '🎁 ' : ''}{mision.titulo.toUpperCase()}</p>
-          <p className="jb-body text-xs text-zinc-400 mt-0.5">{mision.texto}</p>
+          <p className="jb-display text-sm text-zinc-100">{mision.premio ? '🎁 ' : ''}{((!hoyCuenta && mision.hoyTitulo) || mision.titulo).toUpperCase()}</p>
+          <p className="jb-body text-xs text-zinc-400 mt-0.5">{(!hoyCuenta && mision.hoyTexto) || mision.texto}</p>
         </div>
       )}
 
@@ -4276,7 +4305,7 @@ function PhotosTab({ username, pesoActual, nombre, objetivo = '' }) {
                 Fecha de esas fotos {!fechaAntes && <span className="text-orange-400">· desliza día, mes y año</span>}
                 <div className="mt-1"><RuedaFecha valor={fechaAntes} onCambio={setFechaAntes} min="2015-01-01" max={addDaysISO(hoy, -1)} inicial={addDaysISO(hoy, -30)} /></div>
               </div>
-              <CampoNumero label="Tu peso de ese día (opcional)" valor={pesoAntes} paso={0.1} min={30} max={250}
+              <CampoNumero sinPista label="Tu peso de ese día (opcional)" valor={pesoAntes} paso={0.1} min={30} max={250}
                 inicial={Math.round((Number(pesoActual) || 70) * 10) / 10} unidad="kilos" placeholder="kg"
                 onCambio={n => setPesoAntes(n === '' ? '' : String(n))} />
             </div>
@@ -5864,12 +5893,14 @@ function FotoDia1Card({ tieneFotos, fechaInicio, onIr }) {
   );
 }
 
-function PrimerosPasos({ form, mealPlan, tieneFotos, onIr, onVerGuia }) {
+function PrimerosPasos({ form, mealPlan, tieneFotos, yaRegistro, onIr, onVerGuia }) {
   const [oculto, setOculto] = useState(false);
 
   const midio = tieneDatosBasicos(form);
   const eligioObjetivo = !!form.objetivo;
-  const registroComida = Object.values(mealPlan.meals || {}).some(e => e.some(x => x.foodKey));
+  // Cuenta también si la anotó otro día: el día 2 ya no le pide "Registra
+  // tu primera comida" a quien ya volvió.
+  const registroComida = !!yaRegistro || !!form.primeraComidaEn || Object.values(mealPlan.meals || {}).some(e => e.some(x => x.foodKey));
 
   // Primero la comida: es lo más fácil y donde se ve la magia de la app.
   // Los datos y el objetivo vienen después, para ajustar la meta.
@@ -7797,6 +7828,12 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
               </MarcoEscaner>
             )}
             <p className="jb-body text-xs text-zinc-500 mb-3">Si algo no es, toca <span className="text-orange-400">"✏️ No es esto"</span>: la IA aprende de tu corrección. Ajusta la porción si comiste más o menos; las cantidades son un cálculo aproximado mirando tu plato.</p>
+            {/* La IA solo deja marcado lo que vio con seguridad: el resto
+                llega sin ✓. Se dice qué hacer (antes el botón "Agregar"
+                salía apagado sin explicación). */}
+            {items.length > 0 && (
+              <p className="jb-display text-sm text-orange-400 mb-2">👇 MARCA ✓ LO QUE COMISTE</p>
+            )}
             <div className="flex flex-col gap-2 mb-4">
               {items.map((f, i) => {
                 const retraso = { animationDelay: `${i * 90}ms` };
@@ -8093,7 +8130,9 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
             )}
             <button onClick={confirmar} disabled={!elegidosConPorcion().length}
               className={btnPrimary + ' w-full py-3'}>
-              Agregar {elegidosConPorcion().length || ''} a {comida ? comida.toLowerCase() : 'esta comida'}
+              {elegidosConPorcion().length
+                ? `Agregar ${elegidosConPorcion().length} a ${comida ? comida.toLowerCase() : 'esta comida'}`
+                : items.length ? 'Marca lo que comiste ☝️' : `Agregar a ${comida ? comida.toLowerCase() : 'esta comida'}`}
             </button>
             <p className="jb-body text-[11px] text-zinc-600 text-center mt-3">
               Después también puedes cambiar la cantidad exacta de cada uno.
@@ -9360,6 +9399,38 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
    avisos ni puede instalar la app. Se le pide, con cariño y una sola vez
    al día, abrirla en Chrome o Safari. Su cuenta ya está guardada: solo
    entra con su correo. */
+// Android: abre Chrome directo. iPhone (iOS 17+): abre Safari directo.
+function enlaceAbrirNavegador() {
+  const esIphone = equipoDelAlumno().dispositivo === 'iphone';
+  return {
+    navegador: esIphone ? 'Safari' : 'Chrome',
+    enlace: esIphone
+      ? 'x-safari-https://jonahbeast.com/?desde=app'
+      : 'intent://jonahbeast.com/?desde=app#Intent;scheme=https;package=com.android.chrome;end',
+  };
+}
+// "Instagram", "Facebook", "TikTok" o "esta app".
+function dondeEstas() {
+  const { app } = equipoDelAlumno();
+  return app && app !== 'otra app' ? app : 'esta app';
+}
+
+/* El mismo "Abrir en Chrome" de la ventana de abajo, para las tarjetas de
+   avisos dentro de Instagram, Facebook o TikTok (mismo enlace y mismo
+   evento del embudo: abrir_navegador · toco). */
+function AbrirEnNavegadorBoton({ username }) {
+  const { navegador, enlace } = enlaceAbrirNavegador();
+  const esIphone = navegador === 'Safari';
+  return (
+    <div className="mt-3">
+      <a href={enlace} onClick={() => registrarPasoPago('abrir_navegador', username, 'toco')} className={btnPrimary + ' w-full py-2.5 text-sm'}>🌐 Abrir en {navegador}</a>
+      <p className="jb-body text-[11px] text-zinc-500 mt-2">
+        Tu cuenta y tu plan ya están guardados. Si no se abre: toca los <b className="text-zinc-300">tres puntos</b> (arriba a la derecha) → <b className="text-zinc-300">"Abrir en {esIphone ? 'Safari' : 'el navegador'}"</b>.
+      </p>
+    </div>
+  );
+}
+
 function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
   const { dispositivo, app } = equipoDelAlumno();
   useEffect(() => { registrarPasoPago('abrir_navegador', username, 'vio'); }, [username]);
@@ -9377,11 +9448,7 @@ function AbrirEnNavegadorModal({ username, trasPrimeraComida, onCerrar }) {
     try { await navigator.clipboard.writeText(correo); setCorreoCopiado(true); } catch {}
   }
   const esIphone = dispositivo === 'iphone';
-  const navegador = esIphone ? 'Safari' : 'Chrome';
-  // Android: abre Chrome directo. iPhone (iOS 17+): abre Safari directo.
-  const enlace = esIphone
-    ? 'x-safari-https://jonahbeast.com/?desde=app'
-    : 'intent://jonahbeast.com/?desde=app#Intent;scheme=https;package=com.android.chrome;end';
+  const { navegador, enlace } = enlaceAbrirNavegador();
   async function copiar() {
     try { await navigator.clipboard.writeText('https://jonahbeast.com'); setCopiado(true); } catch {}
   }
@@ -11058,6 +11125,14 @@ const LOGROS_BEAST = [
     texto: (n, h = {}) => {
       const yo = h.presentarse ? ` Soy ${h.compa || 'Beast'}, tu compañero 🦍` : '';
       const quedan = Math.round((h.metaKcal || 0) - (h.kcal || 0));
+      // La anotó ayer y abre a Beast hoy: ya volvió, no es "tu primera
+      // comida ya está anotada" con las calorías de hoy en cero.
+      if (h.ayer) {
+        return `¡Volviste, ${n}! 💪 Ayer anotaste tu primera comida y hoy vamos por el día 2.${yo} `
+          + (h.kcal > 0 ? (quedan > 80 ? `Ya llevas ${Math.round(h.kcal)} kcal: te quedan unas ${quedan} para lo que queda del día 🔥` : 'Hoy ya llegaste a tu meta: así se hace, comida a comida 💪')
+            : h.siguiente && h.metaKcal ? `¿Qué vas a comer en tu ${h.siguiente.toLowerCase()}? Cuéntame y lo anotamos 🍽️`
+            : 'Cuéntame qué comes hoy y lo anotamos juntos 🍽️');
+      }
       if (!h.metaKcal) return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada.${yo} Vamos juntos, comida a comida 💪`;
       return `¡Así se arranca, ${n}! 🔥 Tu primera comida ya está anotada: llevas ${Math.round(h.kcal || 0)} de tus ${Math.round(h.metaKcal)} kcal de hoy.${yo} `
         + (quedan > 80 && h.siguiente ? `Para tu ${h.siguiente.toLowerCase()} te quedan unas ${quedan} kcal: ¿te digo qué puedes comer? 🍽️`
@@ -11509,6 +11584,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       const siguiente = logro.primera ? siguienteComida(mp) : null;
       local(logro.texto(String(nombre || '').split(' ')[0] || (companero.suelto ? 'causa' : formRef.current.sexo === 'F' ? 'campeona' : 'campeón'), {
         kcal: totalesDePlan(mp).kcal, metaKcal: Number(mp.targetKcal) || 0, siguiente,
+        ayer: !!formRef.current.primeraComidaEn && formRef.current.primeraComidaEn < todayISO(),
         presentarse: !teniaHistoria, compa: nombreCompa, suelto: companero.suelto,
       }), { logro, celebracion: true, siguiente });
       onLogroVisto?.(logro.id);
@@ -12207,6 +12283,7 @@ function NotificacionesModal({ username, onClose }) {
     (async () => {
       const ios = await estadoAvisosIOS(username);
       if (ios) { setEstado(ios === 'activo' ? 'yaActivo' : ios); return; }
+      if (equipoDelAlumno().navegadorInterno) { setEstado('navegadorInterno'); return; }
       const ua = window.navigator.userAgent || '';
       const esIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
       const instalada = estaInstalada();
@@ -12261,6 +12338,12 @@ function NotificacionesModal({ username, onClose }) {
               <p className="jb-body text-xs text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 mb-4">
                 Tu navegador actual no soporta notificaciones.
               </p>
+            )}
+            {estado === 'navegadorInterno' && (
+              <div className="mb-4">
+                <p className="jb-body text-sm text-zinc-200">Aquí dentro de {dondeEstas()} no te llegan mis avisos. Ábrela en {enlaceAbrirNavegador().navegador}:</p>
+                <AbrirEnNavegadorBoton username={username} />
+              </div>
             )}
             {estado === 'iosNoInstalado' && (
               <div className="jb-body text-xs text-orange-400 bg-orange-950/20 border border-orange-800/40 rounded-lg p-2.5 mb-4">
@@ -13370,7 +13453,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
             </>
           );
           const primeros = (
-            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos}
+            <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos} yaRegistro={nuncaRegistro === false}
               onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
           );
           const invitacionComunidad = (
@@ -13507,7 +13590,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       <MensajeJonahCard username={username} esperar={verGuia || verPrimeraComida || ofrecerNotif || ajustarMeta || abrirEnNavegador || verFinPrueba || beastAbierto || queMasPorMostrar || verQueMas} />
       {!beastAbierto && (
         <BeastBurbuja arriba={tab === 'meal'} punto={!beastVisto || !!logroBeast} onAbrir={() => abrirBeast()} onCerrarGlobo={cerrarGloboBeast}
-          textoGlobo={logroBeast?.primera ? <>¡Primera comida anotada! 🔥 <b className="text-orange-400">Toca y te cuento cómo vas</b></>
+          textoGlobo={logroBeast?.primera ? <>{form.primeraComidaEn < todayISO() ? '¡Volviste! 💪' : '¡Primera comida anotada! 🔥'} <b className="text-orange-400">Toca y te cuento cómo vas</b></>
             : beastVisto && logroBeast ? <>{form.companero?.estilo === 'suelto' ? '¡Oe! ' : ''}Tengo algo para ti 🎉 <b className="text-orange-400">Toca y te cuento</b></> : null}
           globo={(!beastVisto || logroBeast) && !globoBeastCerrado && (tab === 'dash' || (logroBeast?.primera && tab === 'meal')) && nuncaRegistro === false && !verGuia && !verPrimeraComida
             && !(primeraEnCurso && alimentosHoy === 0) && !ofrecerNotif && !ajustarMeta && !abrirEnNavegador && !verFinPrueba && !queMasPorMostrar && !verQueMas} />

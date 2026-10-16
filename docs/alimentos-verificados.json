@@ -2249,6 +2249,46 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central: chicken thigh, meat only, roasted (209 kcal). Carne sin hueso; presa mediana: pierna ≈ 90 g, entrepierna ≈ 120 g. Pedido de Jonah (16 oct 2026): pierna, entrepierna y pecho, con o sin piel",
    "verificado_en": "2026-10-16"
+  },
+  "Pollo a la brasa pierna (solo la presa) (Con piel)": {
+   "estado": "verificado",
+   "fuente": "Mismos valores que la versión de siempre (receta promedio con piel, USDA FoodData Central; carne sin hueso). Pedido de Jonah (16 oct 2026): con o sin piel, y octavo pierna como pierna o entrepierna",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo a la brasa pecho (solo la presa) (Con piel)": {
+   "estado": "verificado",
+   "fuente": "Mismos valores que la versión de siempre (receta promedio con piel, USDA FoodData Central; carne sin hueso). Pedido de Jonah (16 oct 2026): con o sin piel, y octavo pierna como pierna o entrepierna",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollada pierna (Con piel)": {
+   "estado": "verificado",
+   "fuente": "Mismos valores que la versión de siempre (receta promedio con piel, USDA FoodData Central; carne sin hueso). Pedido de Jonah (16 oct 2026): con o sin piel, y octavo pierna como pierna o entrepierna",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollada pecho (Con piel)": {
+   "estado": "verificado",
+   "fuente": "Mismos valores que la versión de siempre (receta promedio con piel, USDA FoodData Central; carne sin hueso). Pedido de Jonah (16 oct 2026): con o sin piel, y octavo pierna como pierna o entrepierna",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo a la brasa pierna (solo la presa) (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken leg, meat only, roasted (191 kcal) + aderezo de la brasa. Carne sin hueso. Pedido de Jonah (16 oct 2026)",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo a la brasa pecho (solo la presa) (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken breast, meat only, roasted (165 kcal) + aderezo de la brasa. Carne sin hueso. Pedido de Jonah (16 oct 2026)",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollada pierna (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken leg, meat only, fried (208 kcal); el apanado se va con la piel. Carne sin hueso. Pedido de Jonah (16 oct 2026)",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollada pecho (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken breast, meat only, fried (187 kcal); el apanado se va con la piel. Carne sin hueso. Pedido de Jonah (16 oct 2026)",
+   "verificado_en": "2026-10-16"
   }
  }
 }

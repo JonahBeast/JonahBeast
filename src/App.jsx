@@ -259,6 +259,18 @@ const RAW_FOODS = [
   ["Platos preparados","Pollada pecho","-",240,25.0,10.0,11.0,0.8],
   ["Platos preparados","Pollo a la brasa pierna (solo la presa)","-",230,23.0,0.5,15.0,0.0],
   ["Platos preparados","Pollo a la brasa pecho (solo la presa)","-",200,28.0,0.5,9.5,0.0],
+  // Con piel o sin piel (Jonah, 16 oct). Con piel: los mismos números de
+  // siempre. Sin piel: USDA carne sin piel (asada para la brasa, frita para la
+  // pollada: el apanado se va con la piel). El octavo pierna se elige pierna o
+  // entrepierna, con su peso (ver UNITS_BY_NAME).
+  ["Platos preparados","Pollo a la brasa pierna (solo la presa)","Con piel",230,23.0,0.5,15.0,0.0],
+  ["Platos preparados","Pollo a la brasa pierna (solo la presa)","Sin piel",191,27.2,0.5,8.4,0.0],
+  ["Platos preparados","Pollo a la brasa pecho (solo la presa)","Con piel",200,28.0,0.5,9.5,0.0],
+  ["Platos preparados","Pollo a la brasa pecho (solo la presa)","Sin piel",165,31.0,0.5,3.6,0.0],
+  ["Platos preparados","Pollada pierna","Con piel",260,20.0,10.0,15.5,0.8],
+  ["Platos preparados","Pollada pierna","Sin piel",208,28.4,0.7,9.3,0.0],
+  ["Platos preparados","Pollada pecho","Con piel",240,25.0,10.0,11.0,0.8],
+  ["Platos preparados","Pollada pecho","Sin piel",187,33.4,0.5,4.7,0.0],
   ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
@@ -510,6 +522,9 @@ const FOODS = RAW_FOODS.map(([group, name, state, kcal, protein, carbs, fat, fib
 const ALIMENTOS_RETIRADOS = new Set([
   'Pollada (pollo frito) (-)', // → Pollada pierna / Pollada pecho
   'Pollo a la brasa (solo la presa) (-)', // → Pollo a la brasa pierna / pecho
+  // → con piel / sin piel (16 oct)
+  'Pollada pierna (-)', 'Pollada pecho (-)',
+  'Pollo a la brasa pierna (solo la presa) (-)', 'Pollo a la brasa pecho (solo la presa) (-)',
   'Pollo al horno (-)', // → Pollo al horno pierna / pecho, con o sin piel (16 oct)
   // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
   'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
@@ -669,6 +684,18 @@ const UNITS_BY_NAME = {
   'Pollada pecho': [['cuarto de pollo', 240], ['octavo de pollo', 120]],
   'Pollo a la brasa pierna (solo la presa)': [['cuarto de pollo', 230], ['octavo de pollo', 115]],
   'Pollo a la brasa pecho (solo la presa)': [['cuarto de pollo', 270], ['octavo de pollo', 135]],
+  // Por versión (con o sin piel): sin piel pesa menos (la piel es ≈ 15 % de
+  // la pierna y ≈ 10 % del pecho; en la pollada, con su apanado, ≈ 20 %).
+  // El cuarto pierna es la pierna entera; el octavo pierna es la pierna (la
+  // de abajo) o la entrepierna (el muslo), que es más grande.
+  'Pollo a la brasa pierna (solo la presa) (Con piel)': [['cuarto de pollo', 230], ['octavo (pierna)', 95], ['octavo (entrepierna)', 135]],
+  'Pollo a la brasa pierna (solo la presa) (Sin piel)': [['cuarto de pollo', 195], ['octavo (pierna)', 80], ['octavo (entrepierna)', 115]],
+  'Pollo a la brasa pecho (solo la presa) (Con piel)': [['cuarto de pollo', 270], ['octavo de pollo', 135]],
+  'Pollo a la brasa pecho (solo la presa) (Sin piel)': [['cuarto de pollo', 245], ['octavo de pollo', 120]],
+  'Pollada pierna (Con piel)': [['cuarto de pollo', 210], ['octavo (pierna)', 85], ['octavo (entrepierna)', 125]],
+  'Pollada pierna (Sin piel)': [['cuarto de pollo', 170], ['octavo (pierna)', 70], ['octavo (entrepierna)', 100]],
+  'Pollada pecho (Con piel)': [['cuarto de pollo', 240], ['octavo de pollo', 120]],
+  'Pollada pecho (Sin piel)': [['cuarto de pollo', 215], ['octavo de pollo', 105]],
   'Chicharrón de pollo': [['porción', 200]],
   'Filete de pollo frito': [['filete', 150]],
   'Humita': [['unidad', 150]],
@@ -905,7 +932,8 @@ const UNITS_BY_GROUP = {
 
 function unitsFor(food) {
   const list = [['gramos', 1]];
-  const byName = UNITS_BY_NAME[food.name];
+  // Primero la medida de esa versión ("Pollada pierna (Sin piel)"), si tiene.
+  const byName = UNITS_BY_NAME[food.key] || UNITS_BY_NAME[food.name];
   const byGroup = UNITS_BY_GROUP[food.group];
   if (byName) list.push(...byName);
   else if (byGroup) list.push(...byGroup);
@@ -6156,7 +6184,7 @@ const ESTILOS_ESCANER = `
 function pasoDeUnidad(unit) {
   if (unit === 'gramos') return 10;
   if (unit === 'ml') return 50;
-  if (UNIDADES_DISCRETAS.includes(unit) || unit === 'cuarto de pollo' || unit === 'octavo de pollo') return 1;
+  if (UNIDADES_DISCRETAS.includes(unit) || unit === 'cuarto de pollo' || /^octavo /.test(unit)) return 1;
   return 0.5;
 }
 

@@ -49,6 +49,7 @@ import {
   fechaLocalISO,
   esAppTienda,
   esAppIOS,
+  esTWA,
   hayAvisosIOS,
   estadoAvisosIOS,
   activarAvisosIOS,
@@ -2640,7 +2641,10 @@ function equipoDelAlumno() {
     // "; wv)"; en iPhone, sin la palabra "Safari" (y sin estar instalada).
     : (/Android/i.test(ua) && /; wv\)/.test(ua)) || (iphone && !instalada && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)) ? 'otra app'
     : null;
-  return { dispositivo, navegadorInterno: !!app, app, instalada };
+  // App de tienda: la de Play Store o la de iPhone (ahí no valen los
+  // cupones de descuento; el panel lo usa para armar el mensaje del cupón).
+  const appTienda = esTWA() ? 'play' : esAppIOS() ? 'ios' : null;
+  return { dispositivo, navegadorInterno: !!app, app, instalada, appTienda };
 }
 
 // Estado de avisos del equipo -> lo que se guarda en la tabla
@@ -2654,9 +2658,9 @@ const ESTADO_AVISOS_DB = {
 function anotarEstadoAvisos(estado, username) {
   const valor = ESTADO_AVISOS_DB[estado];
   if (!valor || !username) return;
-  const { dispositivo, navegadorInterno, instalada } = equipoDelAlumno();
+  const { dispositivo, navegadorInterno, instalada, appTienda } = equipoDelAlumno();
   // Una vez al día como mucho, salvo que cambie algo.
-  const firma = [username, valor, dispositivo, navegadorInterno, instalada].join('|');
+  const firma = [username, valor, dispositivo, navegadorInterno, instalada, appTienda].join('|');
   try {
     const previa = JSON.parse(localStorage.getItem('jb-estado-avisos') || 'null');
     if (previa?.firma === firma && Date.now() - previa.en < 86400000) return;
@@ -2664,6 +2668,9 @@ function anotarEstadoAvisos(estado, username) {
   } catch {}
   supabase.from('estado_avisos').upsert({
     username, dispositivo, estado: valor, instalada, navegador_interno: navegadorInterno,
+    // Solo se anota cuando está en una app de tienda (nunca se borra): el
+    // mensaje sin link también le sirve si después usa la web.
+    ...(appTienda ? { app_tienda: appTienda } : {}),
     actualizado_en: new Date().toISOString(),
   }, { onConflict: 'username' }).then(() => {}, () => {});
 }

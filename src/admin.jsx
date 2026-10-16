@@ -90,14 +90,32 @@ function fechaCupon(iso) {
   const [, m, d] = String(iso).slice(0, 10).split('-').map(Number);
   return `${d} de ${MESES_LARGOS[m - 1]}`;
 }
-function mensajeCupon(c, nombre) {
+/* Un cupón de descuento no vale dentro de la app de Play Store ni de la de
+   iPhone (cobra la tienda), y el link jonahbeast.com/… abre esa app si la
+   tiene instalada (pasó con Yara, 16 oct). Para quien usa una app de tienda
+   (appTienda 'play' o 'ios'), el mensaje no lleva link: le pide abrir Chrome
+   o Safari y escribir jonahbeast.com. Si el cupón es para cualquiera, lleva
+   el link y una nota para quien usa la app. Los cupones de días sí se
+   canjean dentro de las apps. Fuera de la app (WhatsApp) sí se puede decir;
+   dentro de la app de una tienda, no. */
+const APP_TIENDA = { play: { app: 'la app de Play Store', navegador: 'Chrome' }, ios: { app: 'la app de iPhone', navegador: 'Safari' } };
+function mensajeCupon(c, nombre, appTienda = null) {
   const n = String(nombre || '').trim().split(/\s+/)[0];
   const hola = n ? `¡Hola ${n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()}!` : '¡Hola!';
-  const vence = c.vence ? ` Vale hasta el ${fechaCupon(c.vence)}.` : '';
+  const vence = c.vence ? ` Vale hasta el ${fechaCupon(c.vence)} a las 11:59 pm.` : '';
   const queHacer = c.tipo === 'dias'
     ? 'toca "Canjear" y tus días se suman al toque.'
     : c.solo_meses ? `elige ${PLAN_CUPON[c.solo_meses]}: el descuento ya sale en el precio.` : 'elige tu plan: el descuento ya sale en el precio.';
-  return `${hola} Soy Jonah 🦍 Te dejo un cupón${c.para_username ? ' solo para ti' : ''}: *${c.codigo}*, con ${textoCupon(c)}.${vence} Entra aquí y tu cupón ya queda escrito: https://jonahbeast.com/?ir=planes&cupon=${c.codigo} Ahí ${queHacer} (Si no se abre, en Planes toca "🎟️ ¿Tienes un cupón?" y escríbelo.) El cambio llega poco a poco, comida a comida, y aquí seguimos juntos 💪 Cualquier duda me escribes aquí.`;
+  const cierre = 'El cambio llega poco a poco, comida a comida, y aquí seguimos juntos 💪 Cualquier duda me escribes aquí.';
+  const inicio = `${hola} Soy Jonah 🦍 Te dejo un cupón${c.para_username ? ' solo para ti' : ''}: *${c.codigo}*, con ${textoCupon(c)}.${vence}`;
+  const tienda = c.tipo === 'descuento' && APP_TIENDA[appTienda];
+  if (tienda) {
+    return `${inicio} Ojo con un detalle: el descuento vale en la web, no dentro de ${tienda.app}. Abre *${tienda.navegador}*, escribe *jonahbeast.com* y entra con tu cuenta. En Planes toca "🎟️ ¿Tienes un cupón?" y escribe *${c.codigo}*. Ahí ${queHacer} Tu Premium sale igual en la app, así que sigues usándola como siempre. ${cierre}`;
+  }
+  const notaApps = c.tipo === 'descuento' && !c.para_username
+    ? ' (Si usas la app de Play Store o la de iPhone, ahí el descuento no sale: abre Chrome o Safari, escribe jonahbeast.com y pon el cupón en Planes.)'
+    : '';
+  return `${inicio} Entra aquí y tu cupón ya queda escrito: https://jonahbeast.com/?ir=planes&cupon=${c.codigo} Ahí ${queHacer} (Si no se abre, en Planes toca "🎟️ ¿Tienes un cupón?" y escríbelo.)${notaApps} ${cierre}`;
 }
 function linkWhatsApp(telefono, texto) {
   const num = String(telefono || '').replace(/\D/g, '');
@@ -117,17 +135,27 @@ function CuponesPanel({ users }) {
   const [err, setErr] = useState('');
   const [recien, setRecien] = useState(null); // cupón recién creado: su mensaje listo
   const [expandido, setExpandido] = useState(null);
+  const [appDe, setAppDe] = useState({}); // username -> 'play' | 'ios' (usa una app de tienda)
 
   async function cargar() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    const [c, u, p] = await Promise.all([
+    const [c, u, p, ea, ev] = await Promise.all([
       supabase.from('cupones').select('*').order('creado_en', { ascending: false }),
       supabase.from('cupones_usos').select('*').order('usado_en', { ascending: false }),
       supabase.from('pagos').select('cupon, username, estado, monto, plan_meses, metodo, creado_en').not('cupon', 'is', null),
+      // Quién usa la app de Play Store o la de iPhone: lo anota la app al
+      // abrirse (estado_avisos.app_tienda) y, de antes, quién eligió pagar
+      // con Google Play o App Store.
+      supabase.from('estado_avisos').select('username, app_tienda').not('app_tienda', 'is', null),
+      supabase.from('embudo_landing_eventos').select('username, detalle').eq('evento', 'eligio_metodo').in('detalle', ['Google Play', 'App Store']),
     ]);
     if (c.error) { setCupones([]); setErr('No se pudieron cargar los cupones: ' + c.error.message); return; }
     setCupones(c.data || []); setUsos(u.data || []); setPagosCupon(p.data || []);
+    const apps = {};
+    (ev.data || []).forEach(r => { if (r.username) apps[r.username] = r.detalle === 'App Store' ? 'ios' : 'play'; });
+    (ea.data || []).forEach(r => { apps[r.username] = r.app_tienda; });
+    setAppDe(apps);
   }
   useEffect(() => { cargar(); }, []);
 
@@ -170,7 +198,7 @@ function CuponesPanel({ users }) {
     const { error } = await supabase.from('cupones').insert(fila);
     setGuardando(false);
     if (error) { setErr(/duplicate|unique/i.test(error.message) ? 'Ya existe un cupón con ese código. Cambia una letra o un número.' : 'No se pudo crear: ' + error.message); return; }
-    setRecien({ ...fila, nombre: alumno?.nombre || '', telefono: alumno?.telefono || '' });
+    setRecien({ ...fila, nombre: alumno?.nombre || '', telefono: alumno?.telefono || '', appTienda: alumno ? appDe[alumno.username] || null : null });
     setNuevo({ ...vacio, codigo: '' });
     setCreando(false);
     showToast('🎟️ Cupón creado');
@@ -225,12 +253,15 @@ function CuponesPanel({ users }) {
             <div className="bg-emerald-950/40 border border-emerald-700/50 rounded-xl p-3 mb-3">
               <p className="jb-body text-sm text-emerald-300 font-semibold mb-1">✅ {recien.codigo} listo · {textoCupon(recien)}</p>
               <p className="jb-body text-[11px] text-zinc-400 mb-2">Mensaje listo para mandarlo{recien.nombre ? ` a ${recien.nombre}` : ''}:</p>
-              <p className="jb-body text-xs text-zinc-200 bg-zinc-950 rounded-lg p-2.5 whitespace-pre-wrap">{mensajeCupon(recien, recien.nombre)}</p>
+              {recien.appTienda && recien.tipo === 'descuento' && (
+                <p className="jb-body text-[11px] text-amber-300 mb-2">📱 Usa {APP_TIENDA[recien.appTienda].app}: ahí el descuento no sale, así que el mensaje le pide entrar por {APP_TIENDA[recien.appTienda].navegador} (sin link).</p>
+              )}
+              <p className="jb-body text-xs text-zinc-200 bg-zinc-950 rounded-lg p-2.5 whitespace-pre-wrap">{mensajeCupon(recien, recien.nombre, recien.appTienda)}</p>
               <div className="flex gap-2 mt-2">
-                <a href={linkWhatsApp(recien.telefono, mensajeCupon(recien, recien.nombre))} target="_blank" rel="noreferrer" className={btnPrimary + ' flex-1 py-2 text-xs'}>
+                <a href={linkWhatsApp(recien.telefono, mensajeCupon(recien, recien.nombre, recien.appTienda))} target="_blank" rel="noreferrer" className={btnPrimary + ' flex-1 py-2 text-xs'}>
                   <MessageCircle size={14} /> Mandar por WhatsApp
                 </a>
-                <button onClick={() => copiar(mensajeCupon(recien, recien.nombre))} className={btnGhost + ' py-2 text-xs'}>Copiar</button>
+                <button onClick={() => copiar(mensajeCupon(recien, recien.nombre, recien.appTienda))} className={btnGhost + ' py-2 text-xs'}>Copiar</button>
                 <button onClick={() => setRecien(null)} className={btnGhost + ' py-2 text-xs'}><X size={14} /></button>
               </div>
             </div>
@@ -282,6 +313,9 @@ function CuponesPanel({ users }) {
                   {(users || []).map(u => <option key={u.username} value={u.username}>{u.nombre || ''}</option>)}
                 </datalist>
                 {alumno && <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ {alumno.nombre || alumno.username}{alumno.telefono ? '' : ' (sin celular: copia el mensaje)'}</p>}
+                {alumno && appDe[alumno.username] && nuevo.tipo === 'descuento' && (
+                  <p className="jb-body text-[11px] text-amber-300 mt-1">📱 Usa {APP_TIENDA[appDe[alumno.username]].app}: el descuento solo vale si entra por {APP_TIENDA[appDe[alumno.username]].navegador}. El mensaje ya se lo explica.</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -357,7 +391,7 @@ function CuponesPanel({ users }) {
                         <p key={p.username + p.creado_en} className="jb-body text-xs text-amber-300 mb-1">⏳ {nombreDe(p.username)} envió su pago (S/{Number(p.monto).toFixed(2)}): falta aprobarlo</p>
                       ))}
                       <div className="flex gap-2 mt-2 flex-wrap">
-                        <button onClick={() => copiar(mensajeCupon(c, c.para_username ? nombreDe(c.para_username) : ''))} className={btnGhost + ' py-1.5 text-xs'}>📋 Copiar mensaje</button>
+                        <button onClick={() => copiar(mensajeCupon(c, c.para_username ? nombreDe(c.para_username) : '', c.para_username ? appDe[c.para_username] : null))} className={btnGhost + ' py-1.5 text-xs'}>📋 Copiar mensaje</button>
                         <button onClick={() => cambiarActivo(c)} className={btnGhost + ' py-1.5 text-xs'}>{c.activo ? 'Apagar' : 'Encender'}</button>
                         {c.usos === 0 && pendientes.length === 0 && <button onClick={() => borrar(c)} className={btnDanger + ' py-1.5 text-xs'}><Trash2 size={12} /> Borrar</button>}
                       </div>

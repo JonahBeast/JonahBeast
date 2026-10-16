@@ -72,13 +72,14 @@
 
 ## Especialistas (`.claude/agents/`)
 
-Seis ayudantes de Claude con las reglas y datos del proyecto (pedidos por Jonah el 8 de octubre; el community manager, el 16 de octubre). Úsalos cuando el tema calce y pásale a Jonah su resultado en palabras simples:
+Siete ayudantes de Claude con las reglas y datos del proyecto (pedidos por Jonah el 8 de octubre; el community manager y el de alianzas, el 16 de octubre). Úsalos cuando el tema calce y pásale a Jonah su resultado en palabras simples:
 
 - `especialista-que-paguen`: por qué los registros no pagan y qué probar (revisiones de pagos, embudo).
 - `especialista-anuncios`: planea y arma campañas de Meta y TikTok, decide a quién se le muestran (tráfico: remarketing, parecidos a los que pagan, excluir a quien ya paga), resumen de los lunes y costo por alumno que paga. En Meta crea las campañas **en pausa**; nada se enciende, gasta ni cambia sin el OK explícito de Jonah.
 - `especialista-contenido`: guiones (también el guion de grabación escena por escena que Jonah sigue al grabar), textos para redes, WhatsApp y anuncios con la voz de Jonah.
 - `especialista-diseno`: imágenes de anuncios, carruseles, flyers y portadas con el estilo de la marca y en los tamaños de cada red. No inventa fotos realistas de personas ni usa antes/después en anuncios.
 - `especialista-community`: community manager. Con las capturas o textos que Jonah le pasa, responde comentarios y mensajes de Instagram, Facebook y TikTok con su voz, detecta a quién invitar por privado (links `?fuente=dm_app` / `dm_personal`), arma el banco de respuestas, cuida los mensajes delicados (nunca consejo médico; Línea 113) y propone temas de contenido. No publica ni responde por su cuenta.
+- `especialista-alianzas`: consigue y cuida aliados (gimnasios, entrenadores, nutricionistas, centros de trabajo y, más adelante, influencers chicos): lista y orden de contactos, mensajes y seguimientos con la voz de Jonah, el trato (descuento y comisión), el kit de cada aliado (código de embajador, link `?ref=<CODIGO>&fuente=aliado_<nombre>`, panel `/r/…`, cupón, flyer), preparación de reuniones y medición semanal por aliado. No contacta a nadie ni crea códigos o cupones sin el OK de Jonah.
 - `especialista-video`: videos publicitarios desde cero y edición de los videos que graba Jonah con el "estilo agencia" (textos palabra por palabra, íconos neón, zooms, destellos, cierre del gorila, formato de cada red), con todo el audio: voz de Viernes o del gorila, limpiar la voz de Jonah, música con permiso, efectos y volumen parejo. No crea videos realistas de personas ni publica nada.
 
 Si cambia una regla o un dato que ellos usan (precios, voz, historia de Jonah, eventos del embudo), actualízalo también en su archivo.

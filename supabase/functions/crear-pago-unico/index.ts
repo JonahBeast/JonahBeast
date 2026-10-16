@@ -13,7 +13,7 @@ const PRECIOS_RESPALDO: Record<number, number> = {
   1: 24.90,
   3: 59.90,
   6: 114.90,
-  12: 179.90,
+  12: 149.90,
 };
 
 function responder(body: unknown, status = 200) {
@@ -70,12 +70,15 @@ async function precioDelPlan(supabase: any, username: string, meses: number, cup
   return Math.round(base * (1 - descuento / 100) * 100) / 100;
 }
 
-// % de un cupón de descuento que le sirve a este alumno (cupon_para en la
-// base: activo, sin vencer, con usos y no usado antes por él); 0 si no vale.
-async function porcentajeCupon(supabase: any, codigo: string, username: string): Promise<number> {
+// % de un cupón de descuento que le sirve a este alumno en este plan
+// (cupon_para en la base: activo, sin vencer, con usos, no usado antes por
+// él y, si es "solo para un plan", de ese plan); 0 si no vale.
+async function porcentajeCupon(supabase: any, codigo: string, username: string, meses: number): Promise<number> {
   if (!codigo) return 0;
   const { data } = await supabase.rpc("cupon_para", { p_codigo: codigo, p_username: username });
-  return data?.estado === "ok" && data?.tipo === "descuento" ? Number(data.valor) || 0 : 0;
+  if (data?.estado !== "ok" || data?.tipo !== "descuento") return 0;
+  if (data.solo_meses && Number(data.solo_meses) !== meses) return 0;
+  return Number(data.valor) || 0;
 }
 
 Deno.serve(async (req: Request) => {
@@ -101,7 +104,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const cuponCodigo = typeof cupon === "string" ? cupon.trim().toUpperCase().slice(0, 30) : "";
-    const cuponPct = await porcentajeCupon(supabase, cuponCodigo, username);
+    const cuponPct = await porcentajeCupon(supabase, cuponCodigo, username, mesesNum);
     if (cuponCodigo && !cuponPct) {
       return responder({ error: "Tu cupón ya no es válido (venció o se agotó). Quítalo y vuelve a intentar." }, 400);
     }

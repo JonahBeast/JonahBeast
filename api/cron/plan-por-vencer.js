@@ -33,8 +33,9 @@ async function precioMinimoPorDia(supabase) {
   return `S/${minimo.toFixed(2)}`;
 }
 
-// Descuento del anual al terminar la prueba (cupón ANUAL-PRUEBA, si Jonah
-// lo tiene encendido en el panel). Texto vacío si está apagado.
+// Descuento del anual en las 48 h después de terminar la prueba (cupón
+// ANUAL-PRUEBA, si Jonah lo tiene encendido en el panel). Va en el aviso
+// del día siguiente. Texto vacío si está apagado.
 async function textoDescuentoAnual(supabase) {
   try {
     const { data } = await supabase.from('cupones').select('valor, activo, vence').eq('codigo', 'ANUAL-PRUEBA').maybeSingle();
@@ -79,7 +80,7 @@ export default async function handler(req, res) {
           : 'Tu plan vence en 2 días. Renueva ahora y sigue sin interrupciones: tu historial y fotos se mantienen intactos.';
       } else if (a.fecha_vencimiento === hoyISO) {
         body = esPrueba(a)
-          ? `Hoy termina tu Premium de prueba${nombre ? ', ' + nombre : ''}. Mañana sigues gratis. Suscríbete hoy y te regalamos 7 días extra 🎁${dctoAnual} Desde ${precioDia} al día.`
+          ? `Hoy termina tu Premium de prueba${nombre ? ', ' + nombre : ''}. Mañana sigues gratis. Suscríbete hoy y te regalamos 7 días extra 🎁 Desde ${precioDia} al día.`
           : `Hoy vence tu plan${nombre ? ', ' + nombre : ''}. Renueva desde ${precioDia} al día y sigue sin interrupciones 🦍`;
       } else if (a.fecha_vencimiento === ayer && esPrueba(a)) {
         body = `Ya estás en la versión gratis${nombre ? ', ' + nombre : ''}. Última oportunidad: si te suscribes a Premium hoy, igual te regalamos 7 días extra 🎁${dctoAnual}`;

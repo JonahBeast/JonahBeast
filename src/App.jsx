@@ -4660,14 +4660,16 @@ function ventanaBono(u, ahora = Date.now()) {
 }
 
 /* Descuento al terminar la prueba (cupón ANUAL-PRUEBA, decisión de Jonah
-   del 16 de octubre): en la misma ventana del bono de +7 días, el plan
-   anual sale con descuento. La base decide si vale (validar_cupon revisa
-   la ventana y que siga en prueba); Jonah lo apaga o cambia el % en el
-   panel (🎟️ CUPONES). No aplica en Play Store ni en iPhone (cobra la tienda). */
+   del 16 de octubre): en las 48 horas después de que termina la prueba
+   (la fase 'gracia' del bono de +7 días), el plan anual sale con
+   descuento. La base decide si vale (validar_cupon revisa las 48 horas y
+   que siga en prueba); Jonah lo apaga o cambia el % en el panel
+   (🎟️ CUPONES). Solo en la web: en Play Store y en iPhone cobra la tienda,
+   que ya se queda con su comisión. */
 const CUPON_FIN_PRUEBA = 'ANUAL-PRUEBA';
 let ofertaFinPruebaCache = null; // { clave, promesa }: una sola consulta por pantalla
 function useOfertaFinPrueba(u) {
-  const clave = ventanaBono(u) && !esAppTienda() ? `${u.username || ''}|${u.fechaVencimiento}` : '';
+  const clave = ventanaBono(u)?.fase === 'gracia' && !esAppTienda() ? `${u.username || ''}|${u.fechaVencimiento}` : '';
   const [oferta, setOferta] = useState(null);
   useEffect(() => {
     if (!clave) { setOferta(null); return; }

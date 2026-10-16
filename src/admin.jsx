@@ -218,7 +218,7 @@ function CuponesPanel({ users }) {
           <p className="jb-body text-xs text-zinc-400 mb-3">
             El alumno lo escribe en <b className="text-zinc-200">Planes → "🎟️ ¿Tienes un cupón?"</b>. Úsalo para quien termina su prueba, aliados, premios o regalos. Cada persona lo usa una sola vez.
             El descuento vale para Yape, Plin, transferencia y Mercado Pago pago único (no en el cobro automático ni en Play Store o iPhone).
-            <b className="text-zinc-200"> ANUAL-PRUEBA</b> se aplica solo a quien termina su prueba (desde 3 días antes hasta 48 h después): si lo apagas, deja de salir.
+            <b className="text-zinc-200"> ANUAL-PRUEBA</b> se aplica solo, en la web, a quien terminó su prueba sin pagar, durante las 48 horas siguientes: si lo apagas, deja de salir.
           </p>
 
           {recien && (
@@ -334,7 +334,7 @@ function CuponesPanel({ users }) {
                       <p className="jb-body text-sm text-zinc-50 font-mono font-semibold truncate">{c.codigo}</p>
                       <p className="jb-body text-[11px] text-zinc-400 truncate">
                         {c.tipo === 'dias' ? `🎁 ${c.valor} días` : `💸 ${c.valor}%${c.solo_meses ? ` · ${PLAN_CUPON[c.solo_meses]}` : ''}`}
-                        {c.solo_fin_prueba ? ' · automático al terminar la prueba' : ''}
+                        {c.solo_fin_prueba ? ' · automático 48 h al terminar la prueba' : ''}
                         {c.para_username ? ` · solo ${nombreDe(c.para_username)}` : ' · para cualquiera'}
                         {c.vence ? ` · hasta el ${fechaCupon(c.vence)}` : ''}
                       </p>

@@ -4,12 +4,13 @@
 -- Dos columnas nuevas en cupones (no tocan ningún cupón que ya existe):
 --   - solo_meses: si tiene valor (1, 3 o 12), el descuento vale solo para
 --     ese plan (12 = solo el anual). Vacío = todos los planes, como hasta hoy.
---   - solo_fin_prueba: si es true, el cupón vale solo para quien está en su
---     prueba gratis, desde 3 días antes de que termine hasta 48 horas
---     después (la misma ventana del bono de +7 días). La app lo aplica sola.
+--   - solo_fin_prueba: si es true, el cupón vale solo para quien terminó su
+--     prueba gratis sin pagar, durante las 48 horas siguientes (las mismas
+--     48 horas de "última oportunidad" del bono de +7 días). La app lo
+--     aplica sola. Solo en la web: en Play Store y iPhone cobra la tienda.
 --
--- Y un cupón nuevo, ANUAL-PRUEBA: 20 % en el plan anual al terminar la
--- prueba. Jonah lo puede apagar o cambiar desde el panel (🎟️ CUPONES).
+-- Y un cupón nuevo, ANUAL-PRUEBA: 20 % en el plan anual en las 48 horas
+-- después de terminar la prueba. Jonah lo puede apagar o cambiar desde el panel (🎟️ CUPONES).
 
 alter table public.cupones add column if not exists solo_meses integer check (solo_meses is null or solo_meses in (1, 3, 12));
 alter table public.cupones add column if not exists solo_fin_prueba boolean not null default false;
@@ -43,15 +44,15 @@ begin
   if c.usos_maximos is not null and c.usos >= c.usos_maximos then
     return json_build_object('estado', 'agotado');
   end if;
-  -- Solo al terminar la prueba: misma ventana que el bono de +7 días
-  -- (ventanaBono en src/App.jsx): desde 3 días antes del fin hasta 48 h después.
+  -- Solo al terminar la prueba: las 48 horas después del fin (fase
+  -- 'gracia' de ventanaBono en src/App.jsx).
   if c.solo_fin_prueba then
     select plan, fecha_vencimiento into v_plan, v_vence from alumnos where lower(username) = lower(coalesce(p_username, ''));
     if v_plan is null or v_plan not in ('trial', 'prueba') or v_vence is null then
       return json_build_object('estado', 'fuera_de_plazo');
     end if;
     v_fin := (v_vence::text || ' 23:59:59')::timestamp at time zone 'America/Lima';
-    if now() < v_fin - interval '3 days' + interval '1 second' or now() > v_fin + interval '48 hours' then
+    if now() <= v_fin or now() > v_fin + interval '48 hours' then
       return json_build_object('estado', 'fuera_de_plazo');
     end if;
   end if;
@@ -84,5 +85,5 @@ end;
 $function$;
 
 insert into public.cupones (codigo, tipo, valor, usos_maximos, solo_meses, solo_fin_prueba, nota)
-values ('ANUAL-PRUEBA', 'descuento', 20, null, 12, true, 'Automático: 20 % en el anual al terminar la prueba (la app lo aplica sola)')
+values ('ANUAL-PRUEBA', 'descuento', 20, null, 12, true, 'Automático: 20 % en el anual en las 48 h después de terminar la prueba (la app lo aplica sola, solo en la web)')
 on conflict (codigo) do nothing;

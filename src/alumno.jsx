@@ -6,6 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
 import {
+  avisarMeta,
   registrarPasoPago,
   leerPlatoDemo,
   borrarPlatoDemo,
@@ -12627,6 +12628,25 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
       setOfrecerNotif(true);
     });
   }, [alimentosHoy, username]);
+
+  // Avisos a Meta para que aprenda a buscar gente que usa la app (ver
+  // avisarMeta): su primera comida y el día que vuelve a anotar en otro
+  // día. Se revisa una vez al día por alumno, apenas tiene algo anotado
+  // hoy, sin importar cómo lo anotó (foto, buscar, voz, Beast, código…).
+  useEffect(() => {
+    if (!username || alimentosHoy === 0) return;
+    const hoyISO = todayISO();
+    const marcaDia = 'jb_meta_revisado_' + username;
+    try { if (localStorage.getItem(marcaDia) === hoyISO) return; localStorage.setItem(marcaDia, hoyISO); } catch {}
+    supabase.from('historial').select('fecha').eq('username', username).gt('comidas_count', 0).lt('fecha', hoyISO).limit(2)
+      .then(({ data, error }) => {
+        if (error) return;
+        const diasAntes = (data || []).length;
+        if (diasAntes === 0) avisarMeta('PrimeraComida', 'primera_' + username);
+        else if (diasAntes === 1) avisarMeta('VolvioOtroDia', 'volvio_' + username);
+      })
+      .then(null, () => {});
+  }, [username, alimentosHoy > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Primera comida en 1 toque (ver PrimeraComidaModal): solo para quien
   // nunca registró una comida y ya tiene su meta lista. "Ahora no" la

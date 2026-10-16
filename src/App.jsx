@@ -2445,12 +2445,19 @@ function registrarPasoPago(evento, username, detalle = null) {
    (si eso cambia mucho, ajustarlos). La compra real (Purchase, con el
    monto pagado) la avisa el servidor: api/_lib/meta-compra.js. */
 const VALOR_META = { Lead: 0.5, CompleteRegistration: 1 };
-function avisarMeta(evento) {
+/* Señales propias (no son eventos estándar de Meta): "PrimeraComida"
+   (anotó su primera comida) y "VolvioOtroDia" (anotó comida en un segundo
+   día). Son lo que más se parece a "este sí va a pagar" y pasan varias
+   veces por semana, así Meta puede aprender a buscar gente que usa la app.
+   idUnico evita contarlas dos veces (otro celular, o la copia del servidor). */
+function avisarMeta(evento, idUnico) {
   try {
     if (!window.fbq) return;
+    const extra = idUnico ? { eventID: idUnico } : undefined;
+    if (evento === 'PrimeraComida' || evento === 'VolvioOtroDia') { window.fbq('trackCustom', evento, {}, extra); return; }
     const valor = VALOR_META[evento];
-    if (valor) window.fbq('track', evento, { value: valor, currency: 'PEN' });
-    else window.fbq('track', evento);
+    if (valor) window.fbq('track', evento, { value: valor, currency: 'PEN' }, extra);
+    else window.fbq('track', evento, {}, extra);
   } catch (e) {}
 }
 
@@ -5836,7 +5843,8 @@ try {
 function avisarRegistroTikTok(userId) {
   const eventId = userId ? `reg_${userId}` : undefined;
   try { if (window.ttq) window.ttq.track('CompleteRegistration', {}, eventId ? { event_id: eventId } : undefined); } catch (e) {}
-  if (!userId) return;
+  // Versiones de prueba y celulares de admin: no se avisa (ver index.html).
+  if (!userId || window.__jbMedirAnuncios === false) return;
   try {
     let ttclid = null;
     try {
@@ -6557,6 +6565,7 @@ export default function App() {
 }
 
 export {
+  avisarMeta,
   registrarPasoPago,
   leerPlatoDemo,
   borrarPlatoDemo,

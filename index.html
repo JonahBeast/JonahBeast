@@ -49,9 +49,25 @@
     <meta name="apple-mobile-web-app-title" content="JB Fuel" />
     <meta name="mobile-web-app-capable" content="yes" />
 
+    <!-- Los píxeles de anuncios solo miden el sitio real. Las versiones de
+         prueba de Vercel, la compu local, las visitas con ?preview=1 y los
+         celulares donde entró un admin (marcados con jb-no-contar, las
+         mismas reglas del embudo de la app) no le avisan nada a Meta ni a
+         TikTok, para no ensuciar lo que aprenden sus anuncios. -->
+    <script>
+      window.__jbMedirAnuncios = (function () {
+        try {
+          if (['jonahbeast.com', 'www.jonahbeast.com', 'jonah-beast.vercel.app'].indexOf(location.hostname) < 0) return false;
+          if (new URLSearchParams(location.search).get('preview') === '1') { localStorage.setItem('jb-no-contar', '1'); return false; }
+          if (localStorage.getItem('jb-no-contar') === '1') return false;
+        } catch (e) {}
+        return true;
+      })();
+    </script>
+
     <!-- Píxel de TikTok Ads -->
     <script>
-    !function (w, d, t) {
+    if (window.__jbMedirAnuncios) !function (w, d, t) {
       w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<e.methods.length;n++)ttq.setAndDefer(e,e.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
 
       ttq.load('DAJMS3JC77UES9751Q2G');
@@ -61,6 +77,7 @@
 
     <!-- Píxel de Meta (Facebook / Instagram Ads) -->
     <script>
+    if (window.__jbMedirAnuncios) {
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -71,6 +88,7 @@
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '1084905720987308');
     fbq('track', 'PageView');
+    }
     </script>
   </head>
   <body>

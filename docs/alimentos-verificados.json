@@ -1251,6 +1251,56 @@
    "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
    "verificado_en": "2026-10-02"
   },
+  "Lomo saltado con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Lomo saltado\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Ají de gallina con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Ají de gallina\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Ají de pollo con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Ají de pollo\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Seco de res con frejoles y arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Seco de res con frejoles\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Estofado de pollo con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Estofado de pollo\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Estofado de carne con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Estofado de carne\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Cau cau con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Cau cau\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Olluquito con charqui y arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Olluquito con charqui\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al sillao con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Pollo al sillao\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
+  "Sudado de pescado con arroz (-)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 300 g de \"Sudado de pescado\" de la app (Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central) + 180 g de \"Arroz blanco (Cocido)\" de la app (130 kcal, P 2,7, C 28, G 0,3 por 100 g; Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central). 1 plato = 480 g. Pedido de Jonah, 16 oct 2026",
+   "verificado_en": "2026-10-16"
+  },
   "Estofado de pollo (-)": {
    "estado": "verificado",
    "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",

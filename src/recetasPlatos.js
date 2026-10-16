@@ -10,7 +10,10 @@
    Las claves deben existir (lo revisa "npm run build").
 
    Solo platos que se arman con partes que ya están en la app. Los
-   guisos (ají de gallina, lomo saltado…) se quedan como plato. */
+   guisos (ají de gallina, lomo saltado…) se quedan como plato; su versión
+   "con arroz" se separa en el guiso y el arroz (abajo). */
+import { GUISOS_CON_ARROZ } from './buscador.js';
+
 export const RECETAS_PLATOS = {
   'Pan con pollo (Pan blanco)': [
     ['Pan francés (-)', 1, 'unidad'], ['Pollo pechuga (Cocida)', 90, 'gramos'],
@@ -123,4 +126,11 @@ export const RECETAS_PLATOS = {
 // era en pan blanco: se separa con la misma receta.
 for (const n of ['Pan con pollo', 'Pan con jamonada', 'Pan con chicharrón', 'Hot dog', 'Hamburguesa de carretilla', 'Sándwich de pollo']) {
   RECETAS_PLATOS[`${n} (-)`] = RECETAS_PLATOS[`${n} (Pan blanco)`];
+}
+
+// Guisos con arroz (16 oct): 1 plato = 300 g del guiso + 180 g de arroz
+// blanco cocido (los mismos números con que se calcularon). "🧩 Ajustar
+// ingredientes" los separa para bajarle (o subirle) el arroz.
+for (const [conArroz, guiso] of GUISOS_CON_ARROZ) {
+  RECETAS_PLATOS[`${conArroz} (-)`] = [[`${guiso} (-)`, 300, 'gramos'], ['Arroz blanco (Cocido)', 180, 'gramos']];
 }

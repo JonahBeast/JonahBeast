@@ -2654,6 +2654,96 @@ function FichasPlatos({ onElegir, className = '', fila = false, style }) {
   );
 }
 
+/* "¿Por qué Jonah Beast Fuel?" (16 oct, aprobado por Jonah): comparación
+   con "apps de afuera", en genérico. Sin nombrar a nadie ni hablar mal de
+   nadie, y cada fila tiene que ser verdad y comprobable de los dos lados:
+   si una app de afuera a veces sí lo hace, se dice "a veces" (nunca ✕).
+   MENSAJE DE PAÍS: lo peruano vive solo en estos textos (y en el párrafo de
+   la sección), para cambiarlos si algún día la app sale en otro país; el
+   nombre, el logo y "Comida a comida" no se tocan.
+   Dónde se comprobó cada fila (no inventar filas nuevas sin hacer lo mismo):
+   - CENAN: scripts/calorias/generar.mjs (cuenta los alimentos que citan el
+     CENAN; /contador-de-calorias). "Primera fuente", nunca "oficial".
+   - Arroz: src/buscador.js (PLATOS_SIN_ARROZ, "🍚 Sin arroz: agrégalo aparte").
+   - Medida casera / "⚖️ Lo pesé": src/alumno.jsx (unitsFor, pantalla de cantidad).
+   - Formas de anotar: src/alumno.jsx (foto, voz, BarcodeDetector); en gratis
+     hay 3 fotos por semana y la voz es de Premium.
+   - Beast: "¿Cómo encaja en tu día?" y "🦍 ¿Qué como después?" (manual 8.2.2).
+   - Pago: pantalla de pago (Yape, Plin, Transferencia, Mercado Pago = tarjeta).
+     Solo en la web: en las apps de tienda se paga con Google o Apple, así que
+     esa fila no sale ahí (esAppTienda). */
+const POR_QUE_FILAS = [
+  { ico: '🇵🇪', titulo: 'Números de la comida de aquí',
+    aqui: 'La Tabla Peruana de Alimentos (CENAN) es nuestra primera fuente. Si algo no está ahí, la etiqueta o el USDA.',
+    afuera: 'Por lo general, bases de alimentos de otros países.' },
+  { ico: '🍚', titulo: 'Tu plato como se sirve en casa',
+    aqui: 'Lomo saltado, ají de gallina, pollo a la brasa… y te aviso si el plato viene con o sin arroz.',
+    afuera: 'A veces están, pero muchos son genéricos o los subió otro usuario.' },
+  { ico: '🥄', titulo: 'Sin balanza (o con ella)',
+    aqui: 'Medida casera: 1 plato, 1 unidad, 1 lata. Y si pesas tu comida, "⚖️ Lo pesé" en gramos.',
+    afuera: 'Gramos, tazas u onzas; a veces porciones de otro país.' },
+  { ico: '📸', titulo: 'Anota como te quede fácil',
+    aqui: 'Foto, voz, escribiendo o código de barras. La voz y las fotos de todos los días, con Premium.',
+    afuera: 'Muchas también; a veces solo en inglés o en el plan pagado.' },
+  { ico: '🦍', titulo: 'Un compañero que te guía',
+    aqui: 'Beast te dice cómo encaja cada comida en tu día y qué comer después.',
+    afuera: 'Algunas tienen chat con IA, muchas veces en inglés o con consejos genéricos.' },
+  { ico: '🙋', titulo: 'Una persona real detrás',
+    aqui: 'Yo, Jonah. Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi app, sumándole entrenamiento algunos días y disciplina.',
+    afuera: 'Por lo general, una empresa.' },
+  { ico: '💳', titulo: 'Pagas en soles, como quieras', soloWeb: true,
+    aqui: 'Premium en soles con Yape, Plin, tarjeta o transferencia. Y si no pagas, sigues gratis.',
+    afuera: 'Por lo general, con tarjeta o la tienda del celular.' },
+];
+const POR_QUE_INTRO = 'Hay apps buenas, y no vengo a hablar mal de ninguna. Esta la hice para contar lo que comemos aquí, como lo comemos aquí.';
+
+function PorQueJonahBeast({ onEmpezar }) {
+  const filas = POR_QUE_FILAS.filter(f => !f.soloWeb || !esAppTienda());
+  return (
+    <section id="por-que" className="relative px-4 py-12 lg:py-16 border-t border-zinc-800/80">
+      <div className="max-w-md lg:max-w-4xl mx-auto">
+        <p className="jb-body text-[11px] font-semibold tracking-[0.25em] uppercase text-orange-400 text-center">Te lo cuento claro</p>
+        <h2 className="jb-display text-4xl lg:text-5xl text-zinc-50 text-center leading-none mt-2">
+          ¿POR QUÉ <span className="text-orange-400">JONAH BEAST FUEL</span>?
+        </h2>
+        <p className="jb-body text-sm text-zinc-300 text-center mt-3 max-w-md mx-auto">{POR_QUE_INTRO}</p>
+
+        <div className="grid gap-3 lg:grid-cols-2 mt-6">
+          {filas.map(f => (
+            <div key={f.titulo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <p className="jb-display text-lg text-zinc-50 leading-tight flex items-center gap-2">
+                <span className="text-xl leading-none" aria-hidden="true">{f.ico}</span>{f.titulo.toUpperCase()}
+              </p>
+              <div className="mt-2.5 bg-orange-500/10 border border-orange-500/40 rounded-xl px-3 py-2.5">
+                <p className="jb-body text-[10px] font-semibold tracking-[0.18em] uppercase text-orange-400">✓ Jonah Beast Fuel</p>
+                <p className="jb-body text-sm text-zinc-100 leading-snug mt-0.5">{f.aqui}</p>
+              </div>
+              <div className="mt-2 px-3">
+                <p className="jb-body text-[10px] font-semibold tracking-[0.18em] uppercase text-zinc-500">Apps de afuera</p>
+                <p className="jb-body text-[13px] text-zinc-400 leading-snug mt-0.5">{f.afuera}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="jb-body text-xs text-zinc-500 text-center mt-4 max-w-md mx-auto">
+          Cada cuerpo va a su ritmo: el cambio llega poco a poco, comida a comida. <a href="/contador-de-calorias" className="text-orange-400 hover:text-orange-300 whitespace-nowrap">Cómo contamos las calorías →</a>
+        </p>
+
+        <div className="max-w-md mx-auto mt-6">
+          <button onClick={() => onEmpezar('tabla_comparacion')} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide"
+            style={{ boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
+            EMPEZAR AHORA
+          </button>
+          <p className="jb-body text-zinc-400 text-xs text-center mt-2">
+            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Landing({ onChoose }) {
 
 
@@ -2838,6 +2928,8 @@ function Landing({ onChoose }) {
           </p>
         </div>
       </section>
+
+      <PorQueJonahBeast onEmpezar={registrarClicCTA} />
 
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
       {buscador && (

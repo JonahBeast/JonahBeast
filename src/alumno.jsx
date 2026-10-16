@@ -7087,13 +7087,20 @@ const TAMANOS_FOTO = [
 
 // Pollada y pollo a la brasa: en vez de Poco / Normal / Mucho (que daban
 // 1/8, 1/4 y otra vez 1/4), se elige el pedido tal como se pide en Perú.
+// En la pierna el octavo es la pierna (la de abajo) o la entrepierna (el
+// muslo, más grande), y se elige cuál (Jonah, 16 oct).
 const CORTES_POLLO = [
   { key: 'octavo', label: '1/8 de pollo', unit: 'octavo de pollo', qty: 1 },
+  { key: 'octavo_pierna', label: '1/8 pierna', unit: 'octavo (pierna)', qty: 1 },
+  { key: 'octavo_entrepierna', label: '1/8 entrepierna', unit: 'octavo (entrepierna)', qty: 1 },
   { key: 'cuarto', label: '1/4 de pollo', unit: 'cuarto de pollo', qty: 1 },
   { key: 'medio', label: '1/2 pollo', unit: 'cuarto de pollo', qty: 2 },
 ];
-const esCortePollo = food => unitsFor(food).some(u => u[0] === 'cuarto de pollo') && unitsFor(food).some(u => u[0] === 'octavo de pollo');
-const corteDePorcion = p => p.unit === 'octavo de pollo' ? 'octavo' : (p.qty >= 2 ? 'medio' : 'cuarto');
+const tieneUnidad = (food, unit) => unitsFor(food).some(u => u[0] === unit);
+const octavosDe = food => ['octavo de pollo', 'octavo (pierna)', 'octavo (entrepierna)'].filter(u => tieneUnidad(food, u));
+const cortesDe = food => CORTES_POLLO.filter(c => tieneUnidad(food, c.unit));
+const esCortePollo = food => tieneUnidad(food, 'cuarto de pollo') && octavosDe(food).length > 0;
+const corteDePorcion = p => (CORTES_POLLO.find(c => c.unit === p.unit && c.key.startsWith('octavo')) || {}).key || (p.qty >= 2 ? 'medio' : 'cuarto');
 
 /* Envases y piezas que se cuentan enteros (1 lata de atún, 1 paquete de
    galletas, 1 cajita de chocolatada, 1 filete): en la foto se eligen con
@@ -7152,13 +7159,19 @@ function porcionDeFoto(food, cantidadIA, gramosIA, tamano = 'normal') {
   // Pollada / pollo a la brasa: si el alumno eligió 1/8, 1/4 o 1/2 pollo,
   // es eso; si no, 1/4 u 1/8 según los gramos de la IA, en unidades enteras
   // (nadie come "½ cuarto de pollo").
-  const corte = CORTES_POLLO.find(c => c.key === tamano);
+  const corte = cortesDe(food).find(c => c.key === tamano);
   if (corte && esCortePollo(food)) return { unit: corte.unit, qty: corte.qty };
-  const cuarto = gramsPerUnit(food, 'cuarto de pollo'), octavo = gramsPerUnit(food, 'octavo de pollo');
-  if (unitsFor(food).some(u => u[0] === 'cuarto de pollo') && cuarto > 0 && octavo > 0) {
+  if (esCortePollo(food)) {
+    // Sin elección: el octavo o el cuarto más cercano a los gramos de la IA.
+    const cuarto = gramsPerUnit(food, 'cuarto de pollo');
     const factor = (TAMANOS_FOTO.find(t => t.key === tamano) || {}).factor || 1;
     const g = (Number(gramosIA) > 0 ? Number(gramosIA) : cuarto) * factor;
-    if (g < (cuarto + octavo) / 2) return { unit: 'octavo de pollo', qty: Math.max(1, Math.round(g / octavo)) };
+    const octavos = octavosDe(food).map(u => [u, gramsPerUnit(food, u)]);
+    const mayor = Math.max(...octavos.map(o => o[1]));
+    if (g < (cuarto + mayor) / 2) {
+      const [unit, gr] = octavos.reduce((a, o) => (Math.abs(o[1] - g) < Math.abs(a[1] - g) ? o : a));
+      return { unit, qty: Math.max(1, Math.round(g / gr)) };
+    }
     return { unit: 'cuarto de pollo', qty: Math.max(1, Math.round(g / cuarto)) };
   }
   const d = unidadPorDefecto(food);
@@ -7901,7 +7914,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                   </div>
                 ) : esCortePollo(food) ? (
                   <div className="flex flex-wrap gap-1.5 mt-2" role="group" aria-label="¿Cuánto pollo?">
-                    {CORTES_POLLO.map(c => {
+                    {cortesDe(food).map(c => {
                       const activo = corteDePorcion(porcion) === c.key;
                       return (
                         <button key={c.key} type="button" aria-pressed={activo}
@@ -8897,8 +8910,8 @@ function opcionesCantidad(food, unidad) {
   const unit = unidad || d.unit;
   // Pollada y pollo a la brasa: se pide cuarto u octavo de pollo, nunca
   // "½ cuarto".
-  if (!unidad && unitsFor(food).some(u => u[0] === 'octavo de pollo') && unitsFor(food).some(u => u[0] === 'cuarto de pollo')) {
-    return [{ unit: 'cuarto de pollo', qty: 1 }, { unit: 'octavo de pollo', qty: 1 }];
+  if (!unidad && esCortePollo(food)) {
+    return [{ unit: 'cuarto de pollo', qty: 1 }, ...octavosDe(food).map(unit => ({ unit, qty: 1 }))];
   }
   if (unit === 'gramos') {
     const base = d.unit === 'gramos' ? d.qty : 100;

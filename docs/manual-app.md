@@ -919,8 +919,8 @@ Errores: "Escribe tu celular de WhatsApp (9 dígitos)." · "Sube la captura de t
 
 ### 13.5 Los 7 días de Premium de prueba dentro de la app
 
-- **Días 1 a 5: "Premium de prueba · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve mañana · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
-- **Días 6 y 7, al abrir la app (una vez por día):** sale una pantalla desde abajo con la foto de Jonah: **"[NOMBRE], ¿SEGUIMOS JUNTOS?"** ("Te queda 1 día de Premium" / "Último día de tu Premium"). Muestra lo que logró en la prueba (días registrados, comidas y kilos bajados o % de días en su meta), lo que sigue con Premium y tres opciones: **"SEGUIR CON 1 MES · S/24.90"** (abre los planes con el mensual ya elegido, directo a pagar), **"Ver todos los planes (ahorras con más meses)"** y **"Ahora no · sigo con la versión gratis"**. Si todavía no registró nada, en vez de los logros le invita a anotar su próxima comida con foto. En la app de Play Store sale un solo botón, "SEGUIR CON PREMIUM".
+- **Días 1 a 5: "Premium de prueba · Tu reto".** 7 misiones que cuentan los días en que registras: Tu primera comida · Vuelve y suma el día 2 (el día que vuelve dice "¡VOLVISTE! 💪 · Anota tu primera comida de hoy y sumas el día 2") · Primer resumen 🎁 · Cuida tu proteína · Tu racha · Ya casi · Tu semana completa 🎁. Al terminar: "¡RETO CUMPLIDO! 🏆".
+- **Días 6 y 7, al abrir la app (una vez por día):** sale una pantalla desde abajo con la foto de Jonah: **"[NOMBRE], ¿SEGUIMOS JUNTOS?"** ("Te queda 1 día de Premium" / "Último día de tu Premium"). Muestra lo que logró en la prueba (días registrados, comidas y kilos bajados o % de días en su meta), lo que sigue con Premium y tres opciones: **"SEGUIR CON 1 MES · S/24.90"** (abre los planes con el mensual ya elegido, directo a pagar), **"Ver todos los planes (ahorras con más meses)"** y **"Ahora no · sigo con la versión gratis"** (al tocarlo, una sola vez: "Dale, sigues con la versión gratis y aquí estoy igual 💪" y la pregunta **"¿QUÉ TE FALTÓ PARA SEGUIR CON PREMIUM?"** con las mismas opciones de abajo y **"Saltar"**). Si todavía no registró nada, en vez de los logros le invita a anotar su próxima comida con foto. En la app de Play Store sale un solo botón, "SEGUIR CON PREMIUM".
 - **Días 6 y 7, en Inicio:** cuenta regresiva ("TE QUEDA 1 DÍA DE PREMIUM" / "HOY TERMINA TU PREMIUM", con "Después sigues gratis…") con el botón para ver planes, y encima el reloj del bono de +7 días (13.7).
 - En "Planes" y en el ícono de tarjeta dice "PREMIUM DE PRUEBA · N día(s) restantes".
 - Quienes se registraron antes de este cambio tienen su prueba de 15 días hasta su fecha, con la cuenta regresiva en sus 2 últimos días.
@@ -980,7 +980,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 
 ### 14.1 Activar
 
-- En la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos", sale una sola vez tras la primera comida), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos") o en **⚙️ Mi perfil** → "TUS AVISOS" → **"Activar"**. En Mi perfil también se eligen cuáles avisos te llegan y la hora de los de comidas (ver 6.3).
+- En la ventana "¡COMIDA REGISTRADA! 💪" ("🔔 Sí, activar avisos", sale una sola vez tras la primera comida), en la tarjeta de Inicio **"ACTIVA LOS AVISOS DE JONAH"** ("🔔 Activar avisos"; si abriste la app dentro de Instagram, Facebook o TikTok, la tarjeta dice **"AQUÍ DENTRO DE INSTAGRAM NO TE LLEGAN MIS AVISOS"** con el botón **"🌐 Abrir en Chrome"** o "Abrir en Safari" en iPhone) o en **⚙️ Mi perfil** → "TUS AVISOS" → **"Activar"**. En Mi perfil también se eligen cuáles avisos te llegan y la hora de los de comidas (ver 6.3).
 - La tarjeta de Inicio explica qué avisos llegan (comida olvidada, racha en riesgo, regalo o fin de prueba). Sale **también durante el Premium de prueba**, debajo de la tarjeta del reto, mientras no estén activados. **"Ahora no"** la esconde 3 días; después vuelve a salir.
 - **En la app de iPhone (App Store / TestFlight)** los avisos se activan igual, con los mismos botones: el iPhone pregunta "¿Permitir notificaciones?" y se toca **"Permitir"**. No hay que instalar nada más. Llegan los mismos avisos que en Android, también con la app abierta, y al tocar uno se abre la pantalla de ese aviso. Si se tocó "No permitir", la app dice: "Los bloqueaste antes. En tu iPhone: Ajustes → Jonah Beast Fuel → Notificaciones → Permitir notificaciones. Luego vuelve aquí y toca el botón otra vez." En esa app no salen "Instala la app" ni "Ábrela desde el ícono del gorila".
 - **En iPhone desde Safari**, primero hay que **instalar la app en la pantalla de inicio** (14.3) y abrirla desde el ícono. La tarjeta de Inicio y la ventana "Activar notificaciones" (desde Mi perfil) tienen el botón **"📲 Ver cómo, paso a paso"**: una guía de 4 pasos con dibujos (Compartir → "Agregar a pantalla de inicio" → "Agregar" → abrir desde el ícono y tocar "Activar avisos").
@@ -1090,3 +1090,11 @@ Tocar un aviso de comida abre el chat de Beast con ese aviso y el botón "📝 A
 | ¿Dónde cambio mi peso? | "Mi cuerpo" → "Mis datos" → "Peso". |
 | ¿Dónde veo mi código para invitar? | "Inicio" → "🎁 INVITA A UN AMIGO". |
 | ¿Por qué mi meta de comidas no cambió? | Si la ajustó a mano, toca "Usar mi objetivo" en Comidas (sección 10.3). |
+
+### Detalles del arranque (16 de octubre)
+
+- **Logo:** arriba de la app y en el registro sale el gorila de fuego de la marca junto a "JONAH BEAST FUEL" (antes, una llamita).
+- **Registro paso a paso:** mientras no eliges tu edad, estatura o peso, debajo del número dice **"👆 Desliza la regla para elegir tu edad"** (o tu estatura, tu peso), y el botón de abajo dice lo que falta (**"DESLIZA PARA ELEGIR TU EDAD"**, **"ELIGE HOMBRE O MUJER"**…) en vez de "SIGUIENTE" apagado.
+- **Casillas de correo:** dicen "Escribe tu correo" en gris y cursiva, para que no parezca ya escrito.
+- **Foto de la comida:** arriba de la lista dice **"👇 MARCA ✓ LO QUE COMISTE"**; si no marcaste nada, el botón dice **"Marca lo que comiste ☝️"**.
+- **Día 2:** "Primeros pasos" ya no pide "Registra tu primera comida" a quien la anotó el día anterior, y Beast saluda con **"¡Volviste! 💪"**.

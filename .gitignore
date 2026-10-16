@@ -1,2 +1,11 @@
 node_modules/
 dist/
+
+# Llaves y secretos: nunca se suben a GitHub (van en Vercel, Supabase o el Drive).
+.env
+.env.*
+*.p8
+*.p12
+*.pem
+*.jks
+*.keystore

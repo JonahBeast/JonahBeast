@@ -18,6 +18,12 @@
   5. Respeta siempre las dos formas de medir: **medida casera** (plato, unidad, lata) para quien no pesa y **gramos** ("⚖️ Lo pesé") para quien usa balanza.
 - **Los detalles importan: queremos dar la mejor experiencia.** Antes de dar un cambio por terminado, recórrelo como lo haría el alumno, de principio a fin: qué ve justo después de tocar cada botón, si queda claro que se guardó, si la pantalla lo lleva a lo que acaba de hacer, si algo queda abierto o desordenado, y si todas las formas de hacer lo mismo (foto, código, escribir, voz, atajos…) se comportan igual. Si encuentras un detalle así, arréglalo en el mismo cambio o propónmelo.
 
+- **Exactitud ante todo (regla de Jonah, 16 de octubre, tras juntar pierna y entrepierna de pollo como si fueran lo mismo): de que los números sean exactos depende que los alumnos tengan resultados.** En todo el proyecto (alimentos, porciones, calorías, precios, fechas, métricas, textos):
+  1. **Nunca juntes dos cosas distintas en una sola** para simplificar (pierna ≠ entrepierna ≠ pecho; con piel ≠ sin piel; crudo ≠ cocido; con hueso ≠ sin hueso; pan blanco ≠ integral; con azúcar ≠ sin azúcar). Si cambian las calorías o el peso, van por separado.
+  2. **Cada número sale de una fuente** (Tabla Peruana del CENAN, USDA, la etiqueta) y se anota cuál. Nada "a ojo". Si una cifra es un promedio o una estimación, se dice.
+  3. **Valídalo varias veces antes de entregar:** que las calorías cuadren con proteína, carbos y grasa; que la porción por defecto sume algo real para un plato servido en Perú; que el total del ejemplo de Jonah (o de un alumno) dé lo que debe; y que la foto, el buscador, los favoritos, la voz y Beast den el mismo número.
+  4. **Si no estás seguro, no lo inventes:** pregunta o di qué falta. Y cuando te equivoques, dilo claro y arréglalo en todos los lugares con la misma causa.
+
 ## App de Android (Google Play)
 
 - **Mientras la app esté en prueba cerrada, cada semana con mejoras se sube una versión nueva a Google Play** (subir `appVersionCode` y `appVersionName` en `android/twa-manifest.json`), con notas de novedades que digan qué se mejoró gracias a los verificadores. Aunque la app de Play Store muestra jonahbeast.com y los cambios se ven solos, Google solo cuenta las versiones subidas a la prueba (lo pidió al rechazar el acceso a producción el 11 de octubre). Claude avisa a Jonah cuándo toca, compila el `.aab` y lo firma con la llave del Drive (con su permiso cada vez); Jonah lo sube. Pasos en `android/LEEME.md`.

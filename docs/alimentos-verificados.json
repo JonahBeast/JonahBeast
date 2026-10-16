@@ -2222,12 +2222,12 @@
   },
   "Pollo al horno pierna (Con piel)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "fuente": "USDA FoodData Central: chicken drumstick, meat and skin, roasted (216 kcal). Carne sin hueso; presa mediana: pierna ≈ 90 g, entrepierna ≈ 120 g. Pedido de Jonah (16 oct 2026): pierna, entrepierna y pecho, con o sin piel",
    "verificado_en": "2026-10-16"
   },
   "Pollo al horno pierna (Sin piel)": {
    "estado": "verificado",
-   "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "fuente": "USDA FoodData Central: chicken drumstick, meat only, roasted (172 kcal). Carne sin hueso; presa mediana: pierna ≈ 90 g, entrepierna ≈ 120 g. Pedido de Jonah (16 oct 2026): pierna, entrepierna y pecho, con o sin piel",
    "verificado_en": "2026-10-16"
   },
   "Pollo al horno pecho (Con piel)": {
@@ -2238,6 +2238,16 @@
   "Pollo al horno pecho (Sin piel)": {
    "estado": "verificado",
    "fuente": "USDA FoodData Central, pollo asado (pierna: leg meat and skin / meat only; pecho: breast meat and skin / meat only), los mismos valores que las presas cocidas de la app. Carne sin hueso. Pedido de Jonah (16 oct 2026): pierna o pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al horno entrepierna (Con piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken thigh, meat and skin, roasted (229 kcal). Carne sin hueso; presa mediana: pierna ≈ 90 g, entrepierna ≈ 120 g. Pedido de Jonah (16 oct 2026): pierna, entrepierna y pecho, con o sin piel",
+   "verificado_en": "2026-10-16"
+  },
+  "Pollo al horno entrepierna (Sin piel)": {
+   "estado": "verificado",
+   "fuente": "USDA FoodData Central: chicken thigh, meat only, roasted (209 kcal). Carne sin hueso; presa mediana: pierna ≈ 90 g, entrepierna ≈ 120 g. Pedido de Jonah (16 oct 2026): pierna, entrepierna y pecho, con o sin piel",
    "verificado_en": "2026-10-16"
   }
  }

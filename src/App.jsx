@@ -305,9 +305,13 @@ const RAW_FOODS = [
   ["Platos preparados","Pollo al horno","-",190,26.0,1.0,9.0,0.2],
   // Pollo al horno por presa y con o sin piel (pedido por Jonah, 16 oct: sus
   // 2 entrepiernas salían como 2 presas de 200 g con un solo número para
-  // todo el pollo). Carne sin hueso, USDA asado; la piel es lo que más suma.
-  ["Platos preparados","Pollo al horno pierna","Con piel",232,23.5,0.0,15.0,0.0],
-  ["Platos preparados","Pollo al horno pierna","Sin piel",177,24.2,0.0,8.1,0.0],
+  // todo el pollo). Carne sin hueso, USDA asado (drumstick, thigh, breast).
+  // Pierna (la parte de abajo, hueso delgado) y entrepierna (el muslo) por
+  // separado (Jonah, 16 oct): la entrepierna tiene más grasa y es más grande.
+  ["Platos preparados","Pollo al horno pierna","Con piel",216,27.0,0.0,11.2,0.0],
+  ["Platos preparados","Pollo al horno pierna","Sin piel",172,28.3,0.0,5.7,0.0],
+  ["Platos preparados","Pollo al horno entrepierna","Con piel",229,23.3,0.0,15.3,0.0],
+  ["Platos preparados","Pollo al horno entrepierna","Sin piel",209,26.0,0.0,10.9,0.0],
   ["Platos preparados","Pollo al horno pecho","Con piel",197,29.8,0.0,7.8,0.0],
   ["Platos preparados","Pollo al horno pecho","Sin piel",165,31.0,0.0,3.6,0.0],
   ["Platos preparados","Pollo a la olla (presa con papa y verduras)","-",130,10.7,8.0,5.3,1.4],
@@ -631,15 +635,15 @@ const UNITS_BY_NAME = {
   'Pescado frito': [['porción', 180], ['plato', 180]],
   'Milanesa de pollo': [['filete', 150], ['plato', 150]],
   'Pollo al horno': [['presa', 200], ['plato', 400]],
-  // Carne sin hueso de una presa de casa: la pierna (o entrepierna) pesa
-  // menos que el pecho.
   // Entradas: una porción de entrada es más chica que un plato de fondo
   // (antes salían como "1 plato" de 400 g por no tener medida propia).
   'Causa limeña': [['porción', 250], ['plato', 400]],
   'Papa a la huancaína': [['porción', 250], ['plato', 400]],
   'Ocopa arequipeña': [['porción', 250], ['plato', 400]],
   'Rocoto relleno': [['unidad', 220], ['plato', 400]],
-  'Pollo al horno pierna': [['presa', 150]],
+  // Carne sin hueso de una presa mediana de casa.
+  'Pollo al horno pierna': [['presa', 90]],
+  'Pollo al horno entrepierna': [['presa', 120]],
   'Pollo al horno pecho': [['presa', 200]],
   'Panqueques de avena': [['unidad', 50], ['plato', 150]],
   'Wafle de avena': [['unidad', 75], ['plato', 150]],

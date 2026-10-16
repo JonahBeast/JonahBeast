@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     if (nuevos.length === 1) {
       avisos.push({ title: '💳 Pago por revisar', body: `${nombre(nuevos[0])} envió un pago de ${soles(nuevos[0])}. Sale primero en tu panel → HOY, o pídeselo a Jarvis.` });
     } else if (nuevos.length > 1) {
-      avisos.push({ title: '💳 Pagos por revisar', body: `Entraron ${nuevos.length} pagos: ${nuevos.map(nombre).join(', ')}. Revísalos en Pagos o pídeselo a Jarvis.` });
+      avisos.push({ title: '💳 Pagos por revisar', body: `Entraron ${nuevos.length} pagos: ${nuevos.map(nombre).join(', ')}. Salen primero en tu panel → HOY, o pídeselo a Jarvis.` });
     }
     if (atrasados.length) {
       avisos.push({

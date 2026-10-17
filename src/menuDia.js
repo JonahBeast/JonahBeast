@@ -160,7 +160,7 @@ const ENSALADAS = [
 // su proteína (o, en las menestras, si eligió menestras). Algunos llevan un
 // acompañamiento aparte (el ceviche, con camote).
 const PLATOS = [
-  { key: 'Lomo saltado (-)', proteina: 'res' },
+  { key: 'Lomo saltado (Con papas fritas)', proteina: 'res' }, // el de siempre ("-") se retiró el 17 oct
   { key: 'Seco de res con frejoles (-)', proteina: 'res' },
   { key: 'Tallarines rojos con carne molida (-)', proteina: 'res' },
   { key: 'Olluquito con charqui (-)', proteina: 'res' },

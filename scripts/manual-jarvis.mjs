@@ -44,8 +44,11 @@ if (alimentos.length < 100) {
     if (!nombreDe.has(plato)) errores.push(`plato "${plato}" no existe`);
     for (const [clave, , medida] of partes) {
       if (!nombreDe.has(clave)) { errores.push(`"${clave}" (en ${plato}) no existe`); continue; }
-      if (medida !== 'gramos' && !bloqueUnidades.includes(`'${nombreDe.get(clave)}': [`) ) errores.push(`"${clave}" no tiene medidas caseras`);
-      else if (medida !== 'gramos' && !new RegExp(`'${nombreDe.get(clave).replace(/[()]/g, '\\$&')}': \\[[^\\n]*'${medida.replace(/\//g, '\\/')}'`).test(bloqueUnidades)) errores.push(`"${clave}" no tiene la medida "${medida}"`);
+      // Como unitsFor: primero las medidas de esa versión ("… (Con piel)"),
+      // si tiene; si no, las del nombre.
+      const conMedidas = bloqueUnidades.includes(`'${clave}': [`) ? clave : nombreDe.get(clave);
+      if (medida !== 'gramos' && !bloqueUnidades.includes(`'${conMedidas}': [`) ) errores.push(`"${clave}" no tiene medidas caseras`);
+      else if (medida !== 'gramos' && !new RegExp(`'${conMedidas.replace(/[()]/g, '\\$&')}': \\[[^\\n]*'${medida.replace(/[()/]/g, '\\$&')}'`).test(bloqueUnidades)) errores.push(`"${clave}" no tiene la medida "${medida}"`);
     }
   }
   if (errores.length) {

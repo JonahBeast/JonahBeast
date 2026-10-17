@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
-import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, slugAlimento } from './buscador.js';
+import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, esPlatoSinPapa, slugAlimento } from './buscador.js';
 
 // Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
 // abrir la app para que llegue a Planes aunque tenga que entrar primero.
@@ -273,8 +273,43 @@ const RAW_FOODS = [
   ["Platos preparados","Pollada pierna","Sin piel",208,28.4,0.7,9.3,0.0],
   ["Platos preparados","Pollada pecho","Con piel",240,25.0,10.0,11.0,0.8],
   ["Platos preparados","Pollada pecho","Sin piel",187,33.4,0.5,4.7,0.0],
+  // Pollo a la brasa con papas y ensalada POR CORTE (pedido de Jonah, 17 oct:
+  // "en las pollerías lo sirven parte pierna y parte pecho"). Cada uno es la
+  // presa de ese corte de esta misma lista (con su peso de cuarto u octavo)
+  // + los acompañamientos del plato de siempre (src/recetasPlatos.js): en el
+  // cuarto, 150 g de papas fritas + 40 g de lechuga + 30 g de tomate; en el
+  // octavo, los 175 g que lleva el "1/8 con papas" (300 g − 125 g de presa),
+  // en la misma proporción: 120 g de papas + 30 g de lechuga + 25 g de tomate.
+  // Va uno por tamaño porque la proporción pollo/papas cambia entre el cuarto
+  // y el octavo. El plato sin corte de arriba sigue igual (si no se dice el
+  // corte). Cálculo en docs/alimentos-verificados.json.
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/4 pierna con piel",224.1,13.1,14.4,12.7,1.5],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/4 pierna sin piel",205.3,14.2,15.6,9.4,1.6],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/4 pecho con piel",208,16.6,13.3,9.9,1.3],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/4 pecho sin piel",190,17.6,14,6.8,1.4],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 pierna con piel",222.9,9.8,19.1,12,1.9],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 pierna sin piel",210.3,10.4,20.2,9.7,2.1],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 entrepierna con piel",223.8,11.5,16.7,12.4,1.7],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 entrepierna sin piel",207.9,12.4,17.8,9.6,1.8],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 pecho con piel",210.8,13.7,16.7,10,1.7],
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","1/8 pecho sin piel",197.1,14.2,17.5,7.6,1.8],
   ["Platos preparados","Ceviche de pescado","-",85,14.0,5.0,1.2,0.8],
   ["Platos preparados","Lomo saltado","-",175,11.0,14.0,8.0,1.3],
+  // Lomo saltado con y sin papas fritas, por separado (pedido de Jonah, 17
+  // oct: "a veces el lomo lo preparan aparte y las papas fritas las sirven
+  // aparte"). El de arriba ("-") queda solo para lo ya anotado. Receta de 1
+  // plato: 150 g de carne de res cruda (CENAN F 35) → 117 g cocida (×1,28,
+  // como el bistec cocido de la app), 75 g de cebolla y 75 g de tomate
+  // salteados (−10 % de agua, estimado), 15 g de ají amarillo (CENAN B 3),
+  // 10 g de sillao, 5 g de vinagre y 1 cucharada de aceite (14 g, todo queda
+  // en el plato) = 296 g. Con papas: + 150 g de "Papas fritas (comida
+  // rápida)" de la app (su porción) = 446 g. Detalle en
+  // docs/alimentos-verificados.json. Lo mismo con el saltado de pollo
+  // (150 g de pechuga cruda → 100 g cocida, ×1,5 como "Pollo pechuga").
+  ["Platos preparados","Lomo saltado","Con papas fritas",180,8.9,16.4,8.8,1.8],
+  ["Platos preparados","Lomo saltado","Sin papas fritas",113,11.6,4.0,5.7,0.8],
+  ["Platos preparados","Saltado de pollo","Con papas fritas",189,9.8,17.1,9.1,1.9],
+  ["Platos preparados","Saltado de pollo","Sin papas fritas",123,13.2,4.2,6.0,0.8],
   ["Platos preparados","Arroz chaufa","-",165,8.0,21.0,5.5,1.0],
   ["Platos preparados","Arroz chaufa de carne","-",152,8.1,17.8,4.9,0.5],
   ["Platos preparados","Arroz chaufa de chancho","-",166,8.2,17.8,6.4,0.5],
@@ -335,6 +370,10 @@ const RAW_FOODS = [
   // lista + 180 g de "Arroz blanco (Cocido)" = 480 g ("1 plato"). El guiso
   // solo (sin arroz) sigue igual. Fuente en docs/alimentos-verificados.json.
   ["Platos preparados","Lomo saltado con arroz","-",158,7.9,19.2,5.1,1.0],
+  // Con o sin papas fritas (17 oct): 1 plato del lomo de arriba (446 o 296 g)
+  // + 180 g de arroz blanco cocido. El "-" queda solo para lo ya anotado.
+  ["Platos preparados","Lomo saltado con arroz","Con papas fritas",166,7.1,19.7,6.4,1.4],
+  ["Platos preparados","Lomo saltado con arroz","Sin papas fritas",120,8.2,13.0,3.6,0.6],
   ["Platos preparados","Ají de gallina con arroz","-",152,6.6,18.0,5.7,0.8],
   ["Platos preparados","Ají de pollo con arroz","-",149,7.0,18.0,5.4,0.8],
   ["Platos preparados","Seco de res con frejoles y arroz","-",149,8.5,19.2,4.2,2.0],
@@ -645,7 +684,10 @@ const UNITS_BY_NAME = {
   'Naranja': [['unidad', 150]],
   'Pera': [['unidad', 170]],
   'Tuna': [['unidad', 100]],
-  'Palta': [['unidad', 200], ['mitad', 100]],
+  // "porción para pan" (17 oct): lo que se unta en 1 pan, ≈ ¼ de palta
+  // mediana (estimado; la misma que usan los menús de la app). La usan la voz
+  // y Beast en "pan con palta".
+  'Palta': [['unidad', 200], ['mitad', 100], ['porción para pan', 50]],
   'Pan francés': [['unidad', 35]],
   // Revisión de alimentos (oct 2026): medidas reales de la porción. Se
   // deja 'plato' para que lo ya registrado con esa medida siga sumando bien.
@@ -797,6 +839,17 @@ const UNITS_BY_NAME = {
   'Atún en lata en aceite (sin escurrir)': [['lata pequeña', 100], ['lata grande', 140]],
   'Pollo a la brasa (solo la presa)': [['1/4 de pollo', 250], ['1/8 de pollo', 125], ['porción', 200]],
   'Pollo a la brasa con papas y ensalada': [['1/4 con papas', 470], ['1/8 con papas', 300], ['plato', 470]],
+  // Por corte (17 oct): presa + papas + ensalada, con su propio peso.
+  'Pollo a la brasa con papas y ensalada (1/4 pierna con piel)': [['1/4 con papas', 450]],
+  'Pollo a la brasa con papas y ensalada (1/4 pierna sin piel)': [['1/4 con papas', 415]],
+  'Pollo a la brasa con papas y ensalada (1/4 pecho con piel)': [['1/4 con papas', 490]],
+  'Pollo a la brasa con papas y ensalada (1/4 pecho sin piel)': [['1/4 con papas', 465]],
+  'Pollo a la brasa con papas y ensalada (1/8 pierna con piel)': [['1/8 con papas', 270]],
+  'Pollo a la brasa con papas y ensalada (1/8 pierna sin piel)': [['1/8 con papas', 255]],
+  'Pollo a la brasa con papas y ensalada (1/8 entrepierna con piel)': [['1/8 con papas', 310]],
+  'Pollo a la brasa con papas y ensalada (1/8 entrepierna sin piel)': [['1/8 con papas', 290]],
+  'Pollo a la brasa con papas y ensalada (1/8 pecho con piel)': [['1/8 con papas', 310]],
+  'Pollo a la brasa con papas y ensalada (1/8 pecho sin piel)': [['1/8 con papas', 295]],
   'Pollo pierna (con piel)': [['presa', 130], ['unidad', 130]],
   'Pollo pierna (sin piel)': [['presa', 110], ['unidad', 110]],
   'Pollo encuentro (con piel)': [['presa', 150], ['unidad', 150]],
@@ -812,6 +865,14 @@ const UNITS_BY_NAME = {
   'Pollo a la olla con arroz': [['plato', 580], ['plato chico', 420]],
   // Guisos con arroz (16 oct): 1 plato = 300 g de guiso + 180 g de arroz.
   'Lomo saltado con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
+  // Con o sin papas fritas (17 oct): el plato de la receta (ver RAW_FOODS),
+  // "plato chico" = ¾ y "media porción" = ½.
+  'Lomo saltado con arroz (Con papas fritas)': [['plato', 625], ['plato chico', 470], ['media porción', 315]],
+  'Lomo saltado con arroz (Sin papas fritas)': [['plato', 475], ['plato chico', 355], ['media porción', 240]],
+  'Lomo saltado (Con papas fritas)': [['plato', 445], ['plato chico', 335], ['media porción', 225]],
+  'Lomo saltado (Sin papas fritas)': [['plato', 295], ['plato chico', 220], ['media porción', 150]],
+  'Saltado de pollo (Con papas fritas)': [['plato', 430], ['plato chico', 320], ['media porción', 215]],
+  'Saltado de pollo (Sin papas fritas)': [['plato', 280], ['plato chico', 210], ['media porción', 140]],
   'Ají de gallina con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
   'Ají de pollo con arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
   'Seco de res con frejoles y arroz': [['plato', 480], ['plato chico', 360], ['media porción', 240]],
@@ -2623,7 +2684,7 @@ function DemoFotoPlato({ onCerrar, onRegistrar }) {
    1 plato (300 g) · 255 kcal"), nunca "por 100 g" sin decirlo (como hace la
    portada de NutriKaloría). Todo sale de la lista de la app. */
 const FICHAS_PORTADA = [
-  'Lomo saltado con arroz (-)', 'Ceviche de pescado (-)', 'Pollo a la brasa con papas y ensalada (-)',
+  'Lomo saltado con arroz (Con papas fritas)', 'Ceviche de pescado (-)', 'Pollo a la brasa con papas y ensalada (-)',
   'Ají de gallina (-)', 'Arroz con pollo (-)', 'Arroz chaufa (-)',
 ];
 function fichaPlato(key) {
@@ -2633,7 +2694,7 @@ function fichaPlato(key) {
   const gramos = Math.round(entryGrams({ foodKey: key, unit: porcion.unit, qty: porcion.qty }));
   const kcal = Math.round(entryMacros({ foodKey: key, unit: porcion.unit, qty: porcion.qty }).kcal);
   const medida = porcion.unit === 'gramos' ? `${gramos} g` : `${textoPorcion(porcion)} (${gramos} g)`;
-  return { food, medida, kcal, sinArroz: arrozDelPlato(food) === 'sin' };
+  return { food, medida, kcal, sinArroz: arrozDelPlato(food) === 'sin', sinPapa: esPlatoSinPapa(food) };
 }
 function FichasPlatos({ onElegir, className = '', fila = false, style }) {
   const fichas = FICHAS_PORTADA.map(fichaPlato).filter(Boolean);
@@ -2643,10 +2704,18 @@ function FichasPlatos({ onElegir, className = '', fila = false, style }) {
         <button key={f.food.key} type="button" onClick={() => onElegir(f.food)}
           className={(fila ? 'shrink-0 w-[150px] snap-start ' : '') + 'text-left bg-zinc-950/85 backdrop-blur border border-zinc-700 hover:border-orange-500 rounded-xl px-3 py-2'}>
           <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
+          {/* La versión ("con papas fritas") debajo del nombre, como en el buscador. */}
+          {f.food.state && f.food.state !== '-' && <span className="block jb-body text-[11px] text-zinc-300 leading-tight truncate">{f.food.state.toLowerCase()}</span>}
           <span className="block jb-body text-[11px] text-zinc-400 leading-tight mt-0.5 truncate">{f.medida}</span>
           <span className="flex items-center justify-between gap-1 mt-1">
             <span className="jb-display text-base text-orange-400 tabular-nums leading-none">{f.kcal} <span className="jb-body text-[10px] font-semibold text-orange-300">kcal</span></span>
-            {f.sinArroz && <span className="jb-body text-[10px] text-amber-300/90 whitespace-nowrap" title="Sin arroz: agrégalo aparte">🍚 sin arroz</span>}
+            {/* Ají de gallina: sin arroz y sin papa, uno debajo del otro. */}
+            {(f.sinArroz || f.sinPapa) && (
+              <span className="flex flex-col items-end">
+                {f.sinArroz && <span className="jb-body text-[10px] text-amber-300/90 whitespace-nowrap leading-tight" title="Sin arroz: agrégalo aparte">🍚 sin arroz</span>}
+                {f.sinPapa && <span className="jb-body text-[10px] text-amber-300/90 whitespace-nowrap leading-tight" title="Sin papa: agrégala aparte">🥔 sin papa</span>}
+              </span>
+            )}
           </span>
         </button>
       ))}
@@ -3444,7 +3513,10 @@ function planDelRecorrido(r) {
   } else if (r.objetivo === 'Ganar músculo' && meta > peso) {
     semanas = Math.ceil((meta - peso) / 0.25);
   }
-  return { kcal: Math.round(kcal / 10) * 10, proteina: Math.round(proteina), semanas };
+  // Redondeado a la unidad, igual que la meta que guarda la app (targetKcal =
+  // Math.round en alumno.jsx): antes "¡Tu plan está listo!" decía 1,530 y
+  // la hoja de primera comida, Inicio y Beast 1,531 (visto el 17 oct).
+  return { kcal: Math.round(kcal), proteina: Math.round(proteina), semanas };
 }
 
 // Mensaje que manda al tocar "Recibir mi plan por WhatsApp". El asistente

@@ -3207,6 +3207,7 @@ const FILAS_PRIMERA = [
   // Desde el 17 de octubre: "🔎 Consultar calorías" (gratis para todos).
   // Cuenta a TODOS los alumnos del periodo, no solo a los nuevos.
   { titulo: '🔎 Consultar calorías (todos los alumnos)', todos: true, filas: [
+    ['primera_comida', 'consultar_inicio', 'Lo abrieron con la barra grande de Inicio'],
     ['primera_comida', 'consultar_arriba', 'Lo abrieron con el botón 🔎 de arriba'],
     ['primera_comida', 'consultar_comidas', 'Lo abrieron desde Comidas'],
     ['primera_comida', 'consultar_vio', 'Vieron las calorías de un alimento'],

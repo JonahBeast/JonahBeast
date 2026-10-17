@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import { Fragment, useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode, Search } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
@@ -5818,6 +5818,28 @@ function saludoPorHora(d = new Date()) {
 
 // Inicio: saludo, anillo del día (el mismo de Comidas), botón para
 // registrar la comida que toca y la línea del día con las 5 comidas.
+/* 🔎 Barra "¿Cuántas calorías tiene…?" arriba de todo en Inicio (decisión
+   de Jonah, 17 oct, "opción A", como Fitia: "si quiero comer algo muy
+   calórico, lo consulto antes y luego registro"). Para todos (gratis,
+   prueba y Premium), también el día 1 antes de la primera comida. Es un
+   botón que parece buscador: abre Consultar calorías con el teclado listo
+   (detalle del embudo: consultar_inicio). La lupa del encabezado y la
+   tarjeta de Comidas siguen. */
+function BarraConsultarCalorias({ onAbrir }) {
+  return (
+    <button type="button" onClick={() => { vibrar(8); onAbrir(); }}
+      aria-label="Consultar calorías: ¿cuántas calorías tiene…?"
+      className="w-full mb-4 flex items-center gap-2.5 min-[380px]:gap-3 text-left rounded-2xl border-2 border-orange-500/70 bg-zinc-900 hover:bg-zinc-800/80 active:scale-[0.99] transition px-3.5 min-[380px]:px-4 min-h-[58px] py-2"
+      style={{ boxShadow: '0 0 22px -6px rgba(232,89,12,.45)' }}>
+      <Search size={22} strokeWidth={2.5} className="text-orange-500 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">
+        <span className="block jb-body font-bold text-base text-zinc-50 leading-tight">¿Cuántas calorías tiene…?</span>
+        <span className="block jb-body text-[13px] min-[380px]:text-sm text-zinc-400 leading-tight mt-0.5">Ej: lomo saltado, avena, pan con palta</span>
+      </span>
+    </button>
+  );
+}
+
 function CentroDeMando({ nombre, mealPlan, onRegistrar, metaEstimada = false, onAjustarMeta }) {
   const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -9058,7 +9080,8 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
 /* 🔎 CONSULTAR CALORÍAS (aprobado por Jonah el 17 oct 2026): para quien
    solo quiere saber si algo es muy calórico, sin anotarlo (como quien usa
    Fitia gratis solo para consultar). Gratis para siempre, igual para
-   gratis, prueba y Premium. Se abre desde el botón 🔎 de arriba (todas las
+   gratis, prueba y Premium. Se abre desde la barra grande arriba de todo en
+   Inicio (BarraConsultarCalorias), el botón 🔎 del encabezado (todas las
    pestañas) y desde Comidas.
    - El mismo buscador y las mismas reglas que "Escribir" y la portada
      (src/buscador.js): cocido antes que crudo, con o sin arroz, la versión
@@ -9069,7 +9092,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
      en verde y muestra "¿Cómo encaja en tu día?", como los demás caminos.
    - "¿No es ninguno?": lo mismo que en "Escribir" (onOtraForma).
    Medición (embudo_landing_eventos, evento 'primera_comida', una vez al día
-   por alumno): consultar_arriba / consultar_comidas (lo abrió), consultar_vio
+   por alumno): consultar_arriba / consultar_inicio / consultar_comidas (lo abrió), consultar_vio
    (vio las calorías de un alimento), consultar_anoto (tocó "Anotarlo") y
    consultar_no_esta (tocó "¿No es ninguno?"). Se usa un evento que la base
    ya acepta (la regla de eventos nuevos, 20261027120000, sigue sin aplicar). */
@@ -9090,7 +9113,7 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    registrarPasoPago('primera_comida', username, desde === 'comidas' ? 'consultar_comidas' : 'consultar_arriba');
+    registrarPasoPago('primera_comida', username, `consultar_${desde === 'comidas' || desde === 'inicio' ? desde : 'arriba'}`);
     // La fuente de cada alimento (se baja aparte, solo al abrir).
     import('../docs/alimentos-verificados.json').then(m => setFuentes(m.default?.alimentos || {}), () => {});
     return () => { document.body.style.overflow = prev; };
@@ -9251,7 +9274,7 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
           <div className="flex flex-col gap-3">
             <input autoComplete="off" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
               type="text" inputMode="search" enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-              placeholder="Escribe un plato o alimento. Ej: lomo saltado" aria-label="Escribe un plato o alimento"
+              placeholder="Escribe un plato o alimento" aria-label="Escribe un plato o alimento"
               className="w-full jb-body text-lg rounded-2xl px-4 py-3.5 bg-zinc-950 border-2 border-orange-500/60 text-zinc-50 focus:outline-none focus:border-orange-500" />
 
             {!texto.trim() && (
@@ -13139,7 +13162,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setTab('meal');
     window.scrollTo({ top: 0 });
   }
-  // 🔎 Consultar calorías: null (cerrado), 'arriba' o 'comidas' (de dónde se abrió).
+  // 🔎 Consultar calorías: null (cerrado), 'arriba', 'inicio' o 'comidas' (de dónde se abrió).
   const [consultar, setConsultar] = useState(null);
   // "Anotarlo": queda en la comida de la hora con la cantidad que eligió y
   // Comidas lo muestra como cualquier registro (verde + "¿Cómo encaja…?").
@@ -13833,6 +13856,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           );
           return (
             <>
+              <BarraConsultarCalorias onAbrir={() => setConsultar('inicio')} />
               {verOfertaFacil && <OfertaModoFacil onElegir={elegirModoFacil} />}
               {verEncuesta && <EncuestaFacilidad username={username} form={form} setForm={setForm} />}
               {modoFacil ? (

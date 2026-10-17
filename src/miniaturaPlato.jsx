@@ -3,16 +3,19 @@
    dibujadas en código (un plato visto desde arriba sobre fondo carbón, con
    aro naranja), pasadas a WebP de 160×160 (~5 KB).
 
-   - Solo donde el alumno ELIGE su plato (decisión de Jonah, 17 oct): los
-     resultados del buscador de la app ("escribir"), las tarjetas de la hoja
-     de primera comida y la portada (fichas y resultados del buscador sin
-     registrarse). No en la cantidad, lo anotado, favoritos, frecuentes,
-     Beast, la confirmación ni compartir: ahí anotar queda rápido y limpio.
+   - Solo en la "base de datos", donde la gente BUSCA un plato para saber
+     sus calorías (como Fitia; decisión de Jonah, 17 oct): la portada (fichas
+     de platos y resultados de "¿Cuántas calorías tiene tu plato?") y, cuando
+     llegue, "🔎 Consultar calorías" dentro de la app. NO al registrar
+     ("Escribir", el buscador al anotar, la hoja de primera comida, la
+     cantidad, lo anotado, favoritos, Beast, compartir): ahí anotar queda
+     rápido y limpio. Se importa desde cualquier pantalla:
+       import MiniaturaPlato, { fotoDePlato } from './miniaturaPlato.jsx';
    - El mapa "alimento → archivo" vive en UN solo lugar: src/fotosPlatos.json
-     ({ "Lomo saltado con arroz (-)": "lomo-saltado-con-arroz.webp?v=1a2b3c4d" }).
+     ({ "Lomo saltado con arroz (Con papas fritas)": "lomo-saltado-con-arroz-con-papas-fritas.webp?v=1a2b3c4d" }).
      La clave es la clave exacta del alimento (nombre + versión): cada
      versión lleva su propia imagen (el huevo frito no usa la del cocido,
-     ni el lomo saltado sin arroz la del que trae arroz).
+     ni el lomo sin papas fritas la del que las trae).
    - Los archivos van en public/platos/. Los prepara y anota en el mapa
      `node scripts/preparar-fotos-platos.mjs <carpeta>`.
    - Qué debe llevar (y no llevar) cada plato: docs/fotos-platos.md.

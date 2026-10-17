@@ -15,7 +15,7 @@
 //     (suma los alimentos del panel, sacados de alimentos_extra)
 
 import { readFileSync } from 'node:fs';
-import { unidadPorDefecto as unidadPorDefectoCon } from '../src/buscador.js';
+import { unidadPorDefecto as unidadPorDefectoCon, buscarAlimentos, ALIMENTOS_RETIRADOS } from '../src/buscador.js';
 import { interpretarVarios, porcionDelItem } from '../src/interpretarComida.js';
 import { gramosMedidaRetirada } from '../src/medidasRetiradas.js';
 import { cantidadDudosa } from '../src/cantidades.js';
@@ -177,6 +177,61 @@ export const FRASES = [
   ['lentejas crudas', 212, '60 g crudos, lo que rinde 1 taza cocida; antes 1 taza cruda = 635'],
   ['una taza de lentejas crudas', 635, 'si dice "taza", 1 taza (180 g)'],
   ['2 vasos de chicha morada', 72, 'la medida dicha (vaso) × 2'],
+  // 17 oct: la frase que Jonah le dijo a NutriKaloría. Antes 659 kcal (lomo
+  // sin papas + papa SANCOCHADA + arroz + gaseosa).
+  ['lomo saltado más papas más arroz y un vaso de gaseosa dietética', 996, 'lomo sin papas (333) + papas fritas (468) + arroz (195) + gaseosa dietética (0); antes 659'],
+  ['lomo saltado más papas más arroz y un vaso de gaseosa dietetica', 996, 'igual sin tilde'],
+  // "más", "+", "y", "con" y la coma dan lo mismo.
+  ['lomo saltado más papas', 801, 'lomo sin papas + papas fritas (antes papa sancochada: 464)'],
+  ['lomo saltado + papas', 801, 'igual'],
+  ['lomo saltado y papas', 801, 'igual'],
+  ['lomo saltado, papas', 801, 'igual'],
+  ['lomo saltado con papas y arroz', 996, 'lomo con papas (801) + arroz (195)'],
+  ['lomo saltado y papas sancochadas', 464, 'si dice sancochadas, la papa sancochada (333 + 131)'],
+  ['saltado de pollo más papas', 812, 'saltado sin papas (344) + papas fritas (468); antes 475'],
+  ['pollo a la brasa más papas', 1017, 'el plato 1/4 con papas'],
+  ['hamburguesa + papas', 968, 'hamburguesa (500) + papas fritas (468)'],
+  ['pollada más papas', 1014, 'pollada pierna + papas fritas, como "pollada pierna con papas"'],
+  // Sin tildes: lo mismo que con tildes (antes "gaseosa dietetica" era la
+  // regular, 84 kcal).
+  ['gaseosa dietetica', 0, 'la dietética, no la regular (antes 84)'],
+  ['café con leche sin azucar', 84, 'el café con leche, no el "Café negro sin azúcar"'],
+  ['platano de seda', 107, '1 plátano de seda, sin preguntar'],
+  ['aji de gallina con arroz', 730, 'antes "Gallina (cocida)" + arroz: 622'],
+  ['papa a la huancaina', 600, 'antes 1 papa sancochada: 131'],
+  ['pina', 75, 'piña (antes no la encontraba)'],
+  ['jamon de pavo', 26, 'antes pechuga de pavo: 203'],
+  ['te sin azucar', 2, 'el té sin azúcar (antes no lo encontraba)'],
+  ['azucar', 46, '1 cucharada de azúcar blanca, no "Limonada con azúcar"'],
+  ['2 cucharaditas de azucar', 31, '2 cucharaditas'],
+  // La medida dicha después del alimento.
+  ['+1 gaseosa dietetica un vaso', 0, '1 vaso de gaseosa dietética (antes "un vaso" quedaba como alimento)'],
+  ['arroz dos platos', 390, '2 porciones de arroz (antes arroz + 2 "Tallarín saltado": 1371)'],
+  ['chicha morada dos vasos', 72, '2 vasos'],
+  ['huevo dos unidades', 155, '2 huevos'],
+  ['pollo a la brasa un octavo', 649, 'el octavo (antes el cuarto + "un octavo" suelto)'],
+  ['arroz 200 gramos', 260, '200 g'],
+  // Mismas causas, encontradas al revisar.
+  ['2 panes', 192, '2 panes franceses (antes 2 "Pan con jamonada": 400)'],
+  ['torta tres leches', 285, 'el "tres" es del nombre, no una cantidad'],
+  ['pan con jamón', 122, 'pan + jamón (no es "Pan con jamonada")'],
+];
+
+/* El buscador (escribir, la portada) con y sin tildes y con "sin …":
+   [lo que se escribe, el primer resultado que debe salir]. */
+export const BUSQUEDAS = [
+  ['gaseosa dietetica', 'Gaseosa dietética (-)'],
+  ['cafe con leche sin azucar', 'Café con leche (-)'],
+  ['café con leche sin azúcar', 'Café con leche (-)'],
+  ['jugo de papaya sin azucar', 'Jugo de papaya natural (-)'],
+  ['jugo de naranja sin azucar', 'Jugo de naranja natural (-)'],
+  ['te sin azucar', 'Té / infusión sin azúcar (-)'],
+  ['chicha morada sin azucar', 'Chicha morada (Sin azúcar)'],
+  ['lomo saltado sin papas', 'Lomo saltado (Sin papas fritas)'],
+  ['pollo pierna sin piel', 'Pollo pierna (sin piel) (Cruda)'],
+  ['platano de seda', 'Plátano de seda (Cruda)'],
+  ['jamon ingles', 'Jamón inglés (-)'],
+  ['pan con jamon', 'Pan francés (-)'],
 ];
 
 /* Exactitud de lo anotado (17 oct): medidas retiradas, porciones de los
@@ -238,6 +293,26 @@ if (json) {
     if (!ok || todo) console.log(`${ok ? '✅' : '❌'} ${que} → ${da}${ok ? '' : ` (debe dar ${debe})`}`);
   }
   console.log(malosCasos ? `❌ ${malosCasos} caso(s) de exactitud dan otra cosa.` : `✅ Exactitud de lo anotado: los ${CASOS.length} casos dan lo que deben.`);
-  if (malas || malosCasos) process.exit(1);
+  let malasBusquedas = 0;
+  for (const [texto, debe] of BUSQUEDAS) {
+    const sale = buscarAlimentos(FOODS, texto, 5)[0]?.key || null;
+    const ok = sale === debe;
+    if (!ok) malasBusquedas++;
+    if (!ok || todo) console.log(`${ok ? '✅' : '❌'} buscar "${texto}" → ${sale}${ok ? '' : ` (debe salir ${debe})`}`);
+  }
+  // Con y sin tildes, todo da lo mismo (voz, Beast y el buscador).
+  const sinT = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const firma = r => r.anotados.map(a => `${a.key}|${a.qty}|${a.unit}`).join('+');
+  for (const [frase] of FRASES) {
+    if (sinT(frase) === frase) continue;
+    if (firma(anotar(frase)) !== firma(anotar(sinT(frase)))) { malasBusquedas++; console.log(`❌ "${frase}" da otra cosa sin tildes`); }
+  }
+  for (const f of FOODS) {
+    if (sinT(f.name) === f.name || ALIMENTOS_RETIRADOS.has(f.key)) continue;
+    const a = buscarAlimentos(FOODS, f.name, 5).map(x => x.key).join('|');
+    if (a !== buscarAlimentos(FOODS, sinT(f.name), 5).map(x => x.key).join('|')) { malasBusquedas++; console.log(`❌ buscar "${f.name}" da otra cosa sin tildes`); }
+  }
+  console.log(malasBusquedas ? `❌ ${malasBusquedas} búsqueda(s) dan otra cosa.` : `✅ Buscador y tildes: las ${BUSQUEDAS.length} búsquedas dan lo que deben y con o sin tildes todo da lo mismo.`);
+  if (malas || malosCasos || malasBusquedas) process.exit(1);
 }
 }

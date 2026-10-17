@@ -71,10 +71,16 @@ export function interpretarVarios(textoCompleto, FOODS) {
   // "1/4 de pollo", "medio pollo", "un cuarto de pollo": cómo se pide el
   // pollo en Perú (ver prepararPorciones).
   let marcado = prepararPorciones(numerosEnCifras(textoCompleto)).replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
-  marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
+  // Un número que es parte del nombre ("torta tres leches") no es una
+  // cantidad: antes partía la frase en "torta" + "3 leches" (17 oct).
+  for (const [num, sig] of numerosEnNombres(FOODS)) {
+    marcado = marcado.replace(new RegExp(`\\b${num}(\\s+${sig})`, 'gi'), `xxnum${num}xx$1`);
+  }
+  marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1')
+    .replace(/xxnum(\w+?)xx/g, '$1');
   // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
   // reconocer la última palabra ("redondas.").
-  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const partes = medidaDespues(marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean));
 
   // Genera variantes en singular de una palabra en español, para que
   // "panes" también encuentre "Pan francés" y "huevos" encuentre
@@ -100,7 +106,7 @@ export function interpretarVarios(textoCompleto, FOODS) {
         resto = palabras.slice(1).join(' ');
       }
     }
-    resto = resto.replace(/^(taza|plato|porci[oó]n|vaso|rebanada|unidad(es)?)\s+de\s+/i, '').trim();
+    resto = resto.replace(/^(tazas?|platos?|porci[oó]n(es)?|vasos?|rebanadas?|tajadas?|cucharadas?|cucharaditas?|unidad(es)?)\s+de\s+/i, '').trim();
     // "cuarto de pollo a la brasa", "octavo de pollada": la porción se
     // anota en esa medida (1/4 o 1/8) y no cuenta para buscar el plato.
     let porcion = null;
@@ -122,10 +128,18 @@ export function interpretarVarios(textoCompleto, FOODS) {
     }
 
     // Cómo se dice en casa → cómo está en la app.
-    const restoLower = resto.toLowerCase()
+    // Sin tildes (17 oct): "gaseosa dietetica" escrita o dictada sin tilde
+    // salía "Gaseosa regular" (84 kcal) porque solo coincidía "gaseosa". Se
+    // compara lo dicho y el nombre de la app los dos sin tildes.
+    const restoLower = sinTildes(resto)
       .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
       .replace(/\byogurt\b/g, 'yogur')
-      .replace(/\bqueques?\b/g, 'keke');
+      .replace(/\bqueques?\b/g, 'keke')
+      // "papas fritas aparte": "aparte" no es parte del nombre (con los
+      // alimentos del panel salía "Papa dorada (Frita)", 17 oct).
+      .replace(/\s+(aparte|extra|adicional)\b/g, '')
+      // "té" (2 letras) no se buscaba: "té sin azúcar" no encontraba nada.
+      .replace(/\bte\b(?!\s*\/?\s*infusion)/g, 'te infusion');
     const restoVariantes = variantesSingular(restoLower);
     // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
     // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
@@ -141,20 +155,26 @@ export function interpretarVarios(textoCompleto, FOODS) {
     const candidatas = [];
     for (const f of FOODS) {
       if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
-      let nombreLower = f.name.toLowerCase();
+      let nombreLower = sinTildesDe(f, 'name');
       if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
       else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
-      const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
+      const estadoLower = (f.state && f.state !== '-') ? sinTildesDe(f, 'state') : '';
       let score = 0;
       // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
       // es "papaya".
       for (const rv of restoVariantes) {
         if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
+        // Si el nombre empieza con lo dicho, gana por poco al que solo lo
+        // lleva dentro: "azúcar" es "Azúcar blanca" antes que "Limonada con
+        // azúcar" (17 oct; igual sigue preguntando cuál).
+        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length + (nombreLower.startsWith(`${rv} `) ? 1 : 0));
         else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
       }
       if (score === 0) {
-        const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
+        // Lo que va después de "sin" no cuenta como coincidencia: con "café con
+        // leche sin azúcar" ganaba "Café negro sin azúcar" por la palabra
+        // "azúcar" (17 oct).
+        const palabrasResto = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
         const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
         let coincidencias = 0;
         for (const w of palabrasResto) {
@@ -168,6 +188,10 @@ export function interpretarVarios(textoCompleto, FOODS) {
         // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
         // con un plátano" no es el jugo "Con azúcar".
         for (const w of palabrasEstado) {
+          // La palabra que ya está en el nombre no suma otra vez por el estado:
+          // "2 panes" salía "Pan con jamonada (Pan blanco)" (400 kcal) porque
+          // "pan" estaba en su estado (17 oct).
+          if (variantesSingular(w).some(v => contienePalabras(nombreLower, v))) continue;
           if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
             score += 40;
             break;
@@ -230,7 +254,7 @@ export function interpretarVarios(textoCompleto, FOODS) {
     // "aparte", "extra", "adicional" (17 oct): dicen que es otra porción, no
     // otro alimento ("papas fritas aparte" no debe preguntar "¿cuál es?").
     const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso', 'aparte', 'extra', 'adicional']);
-    const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
+    const palabrasFood = new Set(sinTildes(`${mejor.name} ${mejor.state || ''}`).split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
     const parcial = mejorScore < 100 && restoLower.split(/\s+/)
       .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
       .some(w => !variantesSingular(w).some(v => palabrasFood.has(v) || [...palabrasFood].some(pf => pf.startsWith(v) || v.startsWith(pf) && pf.length > 3)));
@@ -276,6 +300,54 @@ export function interpretarVarios(textoCompleto, FOODS) {
 }
 
 const sinTildes = t => String(t || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+// Los números que van dentro de un nombre de la app, con la palabra que les
+// sigue: [["tres", "leches"]].
+const CACHE_NUMEROS = new WeakMap();
+function numerosEnNombres(FOODS) {
+  let pares = CACHE_NUMEROS.get(FOODS);
+  if (!pares) {
+    const vistos = new Set();
+    for (const f of FOODS) {
+      for (const m of sinTildes(f.name).matchAll(/\b(un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+([a-z]+)/g)) vistos.add(`${m[1]} ${m[2]}`);
+    }
+    pares = [...vistos].map(v => v.split(' '));
+    CACHE_NUMEROS.set(FOODS, pares);
+  }
+  return pares;
+}
+
+// El nombre y el estado de cada alimento sin tildes, calculados una vez.
+const CACHE_SIN_TILDES = new WeakMap();
+function sinTildesDe(food, campo) {
+  let c = CACHE_SIN_TILDES.get(food);
+  if (!c) { c = { name: sinTildes(food.name), state: sinTildes(food.state) }; CACHE_SIN_TILDES.set(food, c); }
+  return c[campo];
+}
+
+/* La medida dicha DESPUÉS del alimento (17 oct): "gaseosa un vaso", "arroz
+   dos platos", "pollo un cuarto". La frase se parte en cada cantidad y "un
+   vaso" quedaba como un alimento que no se encontraba (y "dos platos" daba
+   "Tallarín saltado (plato)"). Si una parte es solo cantidad + medida, va
+   con el alimento de antes, como si se hubiera dicho primero: "un vaso de
+   gaseosa". */
+const SOLO_MEDIDA = /^(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+(vasos?|tazas?|tacitas?|platos?|platitos?|porci[oó]n(?:es)?|unidad(?:es)?|cuartos?|octavos?|latas?|botellas?|rebanadas?|tajadas?|presas?|cucharadas?|cucharaditas?|cucharones?|jarras?|filetes?|kg|kilos?|kilogramos?|gramos?|grs?|g|ml|mililitros?)$/i;
+export function medidaDespues(partes) {
+  const salida = [];
+  for (const parte of partes) {
+    const m = parte.match(SOLO_MEDIDA);
+    const antes = salida[salida.length - 1];
+    if (m && antes && !SOLO_MEDIDA.test(antes)) {
+      // "1 gaseosa" + "un vaso": la cantidad es la de la medida.
+      const alimento = antes.replace(/^(1|un|una|uno)\s+/i, '');
+      if (alimento !== antes || !/^(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s/i.test(antes)) {
+        salida[salida.length - 1] = prepararPorciones(`${m[1]} ${m[2]} de ${alimento}`);
+        continue;
+      }
+    }
+    salida.push(parte);
+  }
+  return salida;
+}
 
 /* "1/4 de pollo" → "un cuarto de pollo a la brasa"; "medio pollo" → "2
    cuartos de pollo a la brasa". En Perú "un cuarto de pollo" a secas es
@@ -309,8 +381,9 @@ function panConRelleno(parte, FOODS, interpretarParte, NUM_PALABRAS) {
   const m = String(parte).trim().match(PAN_CON);
   if (!m) return null;
   const relleno = m[3].trim();
-  const primera = sinTildes(relleno).replace(/^(un|una|unos|unas|su|sus)\s+/, '').split(/\s+/)[0];
-  if (!primera || FOODS.some(f => f.group === 'Platos preparados' && sinTildes(f.name).startsWith(`pan con ${primera}`))) return null;
+  const primera = sinTildes(relleno).replace(/^(un|una|unos|unas|su|sus)\s+/, '').split(/\s+/)[0].replace(/[^a-z0-9]/g, '');
+  // Palabra entera: "pan con jamón" no es "Pan con jamonada" (17 oct).
+  if (!primera || FOODS.some(f => f.group === 'Platos preparados' && new RegExp(`^pan con ${primera}([^a-z]|$)`).test(sinTildes(f.name)))) return null;
   const n = m[1] ? (NUM_PALABRAS[m[1].toLowerCase()] || parseInt(m[1], 10) || 1) : 1;
   const tipo = sinTildes(m[2] || '');
   const clavePan = /integral/.test(tipo) ? 'Pan integral (-)' : /molde/.test(tipo) ? 'Pan de molde blanco (-)' : 'Pan francés (-)';
@@ -410,7 +483,11 @@ function unirPlatosConY(partes, FOODS, variantesSingular) {
 }
 
 const PLATO_BRASA = 'Pollo a la brasa con papas y ensalada (-)';
-const CON_PAPAS_FRITAS = /^(Pollo a la brasa|Pollada|Pollo broaster|Hamburguesa|Salchi|Alitas|Chicharrón de pollo|Hot dog|Pieza de pollo|McNuggets|Chicken fingers|Milanesa de pollo|Filete de pollo frito)/i;
+// 17 oct: también el lomo saltado y el saltado de pollo (la papa que se nombra
+// junto a ellos es la frita: "lomo saltado más papas" anotaba la papa
+// sancochada), el bistec, el churrasco y la chuleta (bistec a lo pobre,
+// churrasco con papas fritas). Con "sancochada", "cocida"… manda lo dicho.
+const CON_PAPAS_FRITAS = /^(Pollo a la brasa|Pollada|Pollo broaster|Hamburguesa|Salchi|Alitas|Chicharrón de pollo|Hot dog|Pieza de pollo|McNuggets|Chicken fingers|Milanesa|Filete de pollo frito|Lomo saltado|Saltado de pollo|Carne de res \(bistec\)|Churrasco|Chuleta)/i;
 
 /* Pollo a la brasa con papas y ensalada POR CORTE (pedido de Jonah, 17 oct:
    "en las pollerías lo sirven parte pierna y parte pecho"). Si dijo el corte

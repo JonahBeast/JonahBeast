@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
+import MiniaturaPlato from './miniaturaPlato.jsx';
 import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, esPlatoSinPapa, slugAlimento } from './buscador.js';
 import { gramosMedidaRetirada } from './medidasRetiradas.js';
 import { cantidadDudosa as cantidadDudosaCon } from './cantidades.js';
@@ -2777,9 +2778,14 @@ function FichasPlatos({ onElegir, className = '', fila = false, style }) {
       {fichas.map(f => (
         <button key={f.food.key} type="button" onClick={() => onElegir(f.food)}
           className={(fila ? 'shrink-0 w-[150px] snap-start ' : '') + 'text-left bg-zinc-950/85 backdrop-blur border border-zinc-700 hover:border-orange-500 rounded-xl px-3 py-2'}>
-          <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
-          {/* La versión ("con papas fritas") debajo del nombre, como en el buscador. */}
-          {f.food.state && f.food.state !== '-' && <span className="block jb-body text-[11px] text-zinc-300 leading-tight truncate">{f.food.state.toLowerCase()}</span>}
+          <span className="flex items-start gap-2">
+            <MiniaturaPlato food={f.food} tam={fila ? 36 : 40} />
+            <span className="block min-w-0 flex-1">
+              <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
+              {/* La versión ("con papas fritas") debajo del nombre, como en el buscador. */}
+              {f.food.state && f.food.state !== '-' && <span className="block jb-body text-[11px] text-zinc-300 leading-tight truncate">{f.food.state.toLowerCase()}</span>}
+            </span>
+          </span>
           <span className="block jb-body text-[11px] text-zinc-400 leading-tight mt-0.5 truncate">{f.medida}</span>
           <span className="flex items-center justify-between gap-1 mt-1">
             <span className="jb-display text-base text-orange-400 tabular-nums leading-none">{f.kcal} <span className="jb-body text-[10px] font-semibold text-orange-300">kcal</span></span>

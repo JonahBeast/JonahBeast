@@ -17,6 +17,7 @@ import { X } from 'lucide-react';
 import { FOODS, unitsFor, entryMacros, registrarEventoEmbudo, FichasPlatos } from './App.jsx';
 import { buscarAlimentos, panConPartes, medidaParaPan, unidadPorDefecto, nombreAlimento, slugAlimento, arrozDelPlato, esPlatoSinPapa, fuenteCorta, normalizar, raizPalabra, SINONIMOS } from './buscador.js';
 import { BotonCompartirPlato, textoPorcionConGramos } from './compartirPlato.jsx';
+import MiniaturaPlato from './miniaturaPlato.jsx';
 
 const MAX_RESULTADOS = 4;
 
@@ -200,9 +201,12 @@ function TarjetaPlato({ food, fuentes, onRegistrar, porcion: dePan = null }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="jb-body text-base font-semibold text-zinc-50 leading-snug">{nombreAlimento(food)}</p>
-          <p className="jb-body text-sm text-zinc-400 mt-0.5">{textoPorcionConGramos(food, porcion)}</p>
+        <div className="flex items-start gap-3 min-w-0">
+          <MiniaturaPlato food={food} tam={48} />
+          <div className="min-w-0">
+            <p className="jb-body text-base font-semibold text-zinc-50 leading-snug">{nombreAlimento(food)}</p>
+            <p className="jb-body text-sm text-zinc-400 mt-0.5">{textoPorcionConGramos(food, porcion)}</p>
+          </div>
         </div>
         <p className="jb-display text-3xl text-orange-400 tabular-nums leading-none shrink-0 text-right">{Math.round(m.kcal)}<span className="block jb-body text-xs text-orange-300 font-semibold mt-1">kcal</span></p>
       </div>

@@ -1,7 +1,7 @@
 // Parte de la app que se descarga solo cuando hace falta (alumno).
 // Se generó separando src/App.jsx: el código es el mismo de antes.
 import { Fragment, useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
-import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode } from 'lucide-react';
+import { Users, Plus, Trash2, LogOut, X, ChevronRight, Settings, ChevronDown, Flame, Salad, AlertTriangle, Loader2, MessageCircle, Target, LayoutDashboard, TrendingUp, Camera, CreditCard, Mic, Phone, Check, CloudOff, ScanBarcode, Search } from 'lucide-react';
 import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
@@ -77,10 +77,11 @@ import {
   vibrar,
   esFritoOSaltado,
   sePuedeFreir,
+  FichasPlatos,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { interpretarVarios as interpretarVariosCon, porcionDelItem, unidadDePorcion } from './interpretarComida.js';
-import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, esPlatoSinPapa, nombreAlimento, vaEnLaFoto } from './buscador.js';
+import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, esPlatoSinPapa, nombreAlimento, vaEnLaFoto, arrozDelPlato, fuenteCorta, panConPartes, medidaParaPan } from './buscador.js';
 import { BotonCompartirPlato } from './compartirPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
@@ -5817,6 +5818,28 @@ function saludoPorHora(d = new Date()) {
 
 // Inicio: saludo, anillo del día (el mismo de Comidas), botón para
 // registrar la comida que toca y la línea del día con las 5 comidas.
+/* 🔎 Barra "¿Cuántas calorías tiene…?" arriba de todo en Inicio (decisión
+   de Jonah, 17 oct, "opción A", como Fitia: "si quiero comer algo muy
+   calórico, lo consulto antes y luego registro"). Para todos (gratis,
+   prueba y Premium), también el día 1 antes de la primera comida. Es un
+   botón que parece buscador: abre Consultar calorías con el teclado listo
+   (detalle del embudo: consultar_inicio). La lupa del encabezado y la
+   tarjeta de Comidas siguen. */
+function BarraConsultarCalorias({ onAbrir }) {
+  return (
+    <button type="button" onClick={() => { vibrar(8); onAbrir(); }}
+      aria-label="Consultar calorías: ¿cuántas calorías tiene…?"
+      className="w-full mb-4 flex items-center gap-2.5 min-[380px]:gap-3 text-left rounded-2xl border-2 border-orange-500/70 bg-zinc-900 hover:bg-zinc-800/80 active:scale-[0.99] transition px-3.5 min-[380px]:px-4 min-h-[58px] py-2"
+      style={{ boxShadow: '0 0 22px -6px rgba(232,89,12,.45)' }}>
+      <Search size={22} strokeWidth={2.5} className="text-orange-500 shrink-0" aria-hidden="true" />
+      <span className="min-w-0">
+        <span className="block jb-body font-bold text-base text-zinc-50 leading-tight">¿Cuántas calorías tiene…?</span>
+        <span className="block jb-body text-[13px] min-[380px]:text-sm text-zinc-400 leading-tight mt-0.5">Ej: lomo saltado, avena, pan con palta</span>
+      </span>
+    </button>
+  );
+}
+
 function CentroDeMando({ nombre, mealPlan, onRegistrar, metaEstimada = false, onAjustarMeta }) {
   const totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   Object.values(mealPlan.meals).forEach(entries => entries.forEach(en => {
@@ -8768,7 +8791,8 @@ function opcionesCantidad(food, unidad) {
 }
 const textoCantidad = ({ unit, qty }) => {
   if (unit === 'gramos' || unit === 'ml' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
-  if (/[\s/]/.test(unit)) return qty === 1 ? `1 ${unit}` : `${fraccion(qty)} × ${unit}`;
+  // "1/4 con papas" ya dice cuánto: sin el "1" delante ("1 1/4 con papas" se leía como uno y cuarto).
+  if (/[\s/]/.test(unit)) return qty === 1 ? (/^\d/.test(unit) ? unit : `1 ${unit}`) : `${fraccion(qty)} × ${unit}`;
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
@@ -9041,6 +9065,246 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   );
                 })}
                 <button onClick={() => onOtraForma(texto.trim())}
+                  className="w-full rounded-xl border border-dashed border-zinc-700 px-3 py-3 jb-body text-sm text-orange-400 text-left">
+                  {resultados.length ? '¿No es ninguno?' : `No encontramos "${texto.trim()}".`} Buscarlo de otra forma, pedírselo a Jonah o crearlo →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* 🔎 CONSULTAR CALORÍAS (aprobado por Jonah el 17 oct 2026): para quien
+   solo quiere saber si algo es muy calórico, sin anotarlo (como quien usa
+   Fitia gratis solo para consultar). Gratis para siempre, igual para
+   gratis, prueba y Premium. Se abre desde la barra grande arriba de todo en
+   Inicio (BarraConsultarCalorias), el botón 🔎 del encabezado (todas las
+   pestañas) y desde Comidas.
+   - El mismo buscador y las mismas reglas que "Escribir" y la portada
+     (src/buscador.js): cocido antes que crudo, con o sin arroz, la versión
+     exacta y su fuente. El mismo número que en todos lados (entryMacros).
+   - La cantidad se cambia con las mismas opciones de "¿Cuánto comiste?"
+     (opcionesCantidad) o con "⚖️ Lo pesé" (gramos), sin anotar nada.
+   - "Anotarlo" lo suma a la comida de la hora (onAnotar): Comidas lo marca
+     en verde y muestra "¿Cómo encaja en tu día?", como los demás caminos.
+   - "¿No es ninguno?": lo mismo que en "Escribir" (onOtraForma).
+   Medición (embudo_landing_eventos, evento 'primera_comida', una vez al día
+   por alumno): consultar_arriba / consultar_inicio / consultar_comidas (lo abrió), consultar_vio
+   (vio las calorías de un alimento), consultar_anoto (tocó "Anotarlo") y
+   consultar_no_esta (tocó "¿No es ninguno?"). Se usa un evento que la base
+   ya acepta (la regla de eventos nuevos, 20261027120000, sigue sin aplicar). */
+// Caja de 48 px a la izquierda del nombre: hoy el emoji, mañana la imagen del plato.
+const CAJA_MINIATURA = 'w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-2xl leading-none shrink-0';
+function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar, onOtraForma, onCerrar }) {
+  const [texto, setTexto] = useState('');
+  const [elegido, setElegido] = useState(null); // food
+  const [porcion, setPorcion] = useState(null); // { unit, qty }
+  const [pesando, setPesando] = useState(false);
+  const [gramos, setGramos] = useState('');
+  const [aceite, setAceite] = useState('normal');
+  const [fuentes, setFuentes] = useState(null);
+  const inputRef = useRef(null);
+  const cajaRef = useRef(null);
+  const versionAlimentos = usarAlimentosExtra(); // los alimentos que Jonah agregó desde el panel
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    registrarPasoPago('primera_comida', username, `consultar_${desde === 'comidas' || desde === 'inicio' ? desde : 'arriba'}`);
+    // La fuente de cada alimento (se baja aparte, solo al abrir).
+    import('../docs/alimentos-verificados.json').then(m => setFuentes(m.default?.alimentos || {}), () => {});
+    return () => { document.body.style.overflow = prev; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const resultados = useMemo(() => {
+    if (!texto.trim()) return [];
+    const quiereCrudo = /crud/i.test(texto);
+    return buscarAlimentos(foodsBuscador(), texto, 30)
+      .map((f, i) => ({ f, i, p: !quiereCrudo && esCrudo(f) ? 1 : 0 }))
+      .sort((a, b) => a.p - b.p || a.i - b.i)
+      .slice(0, 12).map(x => x.f);
+  }, [texto, versionAlimentos]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Pan con palta" no es un plato: salen el pan y lo de dentro, con lo que
+  // lleva 1 pan (como en la portada).
+  const enPartes = useMemo(() => !!texto.trim() && !!panConPartes(foodsBuscador(), texto), [texto, versionAlimentos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const porcionInicial = f => (enPartes && medidaParaPan(f)) || unidadPorDefecto(f);
+
+  function elegir(f) {
+    vibrar(8);
+    setElegido(f); setPorcion(porcionInicial(f)); setPesando(false); setGramos(''); setAceite('normal');
+    registrarPasoPago('primera_comida', username, 'consultar_vio');
+    cajaRef.current?.scrollTo?.({ top: 0 });
+  }
+  function volver() {
+    setElegido(null); setPorcion(null); setPesando(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  const kcalDe = (food, p) => Math.round(entryMacros({ foodKey: food.key, unit: p.unit, qty: p.qty }).kcal);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-label="Consultar calorías">
+      <div className="jbm-fondo absolute inset-0 bg-black/75" onClick={onCerrar} />
+      <div ref={cajaRef} className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl h-[92vh] overflow-y-auto px-5 pt-3"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+        <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-3" />
+        <div className="flex items-center justify-between mb-1 gap-2">
+          <h3 className="jb-display text-xl text-zinc-50 tracking-wide">🔎 CONSULTAR CALORÍAS</h3>
+          <button onClick={onCerrar} className="text-zinc-500 hover:text-zinc-300 p-2.5 -m-1.5 shrink-0" aria-label="Cerrar"><X size={20} /></button>
+        </div>
+        <p className="jb-body text-sm text-zinc-400 mb-3">Mira cuántas calorías tiene, sin anotarlo. Gratis, siempre.</p>
+
+        {elegido && porcion ? (() => {
+          const m = entryMacros({ foodKey: elegido.key, unit: porcion.unit, qty: porcion.qty, aceite: aceite !== 'normal' ? aceite : undefined });
+          const kcal = Math.round(m.kcal);
+          // "⚖️ Lo pesé": en gramos (o en ml, si el alimento solo se mide así).
+          const unidadPeso = unitsFor(elegido).some(u => u[0] === 'gramos') ? 'gramos' : unitsFor(elegido).some(u => u[0] === 'ml') ? 'ml' : null;
+          const por100 = Math.round(entryMacros({ foodKey: elegido.key, unit: unidadPeso || 'gramos', qty: 100 }).kcal);
+          const arroz = arrozDelPlato(elegido);
+          const fuente = fuentes ? fuenteCorta(fuentes[elegido.key]?.fuente) : null;
+          const pct = metaKcal > 0 ? Math.round((kcal / metaKcal) * 100) : null;
+          const porDefecto = porcionInicial(elegido);
+          const opciones = opcionesCantidad(elegido, null);
+          if (!opciones.some(op => op.unit === porDefecto.unit && op.qty === porDefecto.qty)) opciones.unshift(porDefecto);
+          const pesado = Number(String(gramos).replace(',', '.'));
+          const pesadoValido = pesado > 0 && pesado <= MAX_GRAMOS_ENTRADA;
+          const meal = comidaDeAhora();
+          const aceiteOp = preguntaAceite(elegido);
+          return (
+            <div className="flex flex-col gap-3">
+              <button onClick={volver} className="jb-body text-sm text-zinc-400 self-start">← Buscar otro</button>
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4" aria-live="polite">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Hueco de 48 px para la imagen del plato (decisión de Jonah, 17 oct:
+                        las imágenes van solo aquí y en la portada). Cuando MiniaturaPlato
+                        (PR #482) llegue a main, cambiar este <span> por
+                        <MiniaturaPlato food={elegido} tam={48} className={CAJA_MINIATURA}>{emojiAlimento(elegido)}</MiniaturaPlato> */}
+                    <span className={CAJA_MINIATURA} aria-hidden="true">{emojiAlimento(elegido)}</span>
+                    <div className="min-w-0">
+                      <p className="jb-body text-base font-semibold text-zinc-50 leading-snug">{nombreAlimento(elegido)}</p>
+                      <p className="jb-body text-sm text-zinc-400 mt-0.5">{textoCantidad(porcion)}{porcion.unit !== 'gramos' && porcion.unit !== 'ml' ? ` (${Math.round(entryGrams({ foodKey: elegido.key, unit: porcion.unit, qty: porcion.qty }))} g)` : ''}</p>
+                    </div>
+                  </div>
+                  <p className="jb-display text-3xl text-orange-400 tabular-nums leading-none shrink-0 text-right">{kcal}<span className="block jb-body text-xs text-orange-300 font-semibold mt-1">kcal</span></p>
+                </div>
+                <p className="jb-body text-sm text-zinc-300 tabular-nums mt-2">
+                  Proteína <b className="text-zinc-50">{Math.round(m.protein)} g</b> · Carbos <b className="text-zinc-50">{Math.round(m.carbs)} g</b> · Grasa <b className="text-zinc-50">{Math.round(m.fat)} g</b>
+                </p>
+                {arroz === 'sin' && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🍚 Sin arroz: agrégalo aparte</p>}
+                {arroz === 'con' && <p className="jb-body text-[13px] text-zinc-300 mt-1.5">🍚 Con arroz incluido</p>}
+                {esPlatoSinPapa(elegido) && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🥔 Sin papa: agrégala aparte</p>}
+                {pct !== null && kcal > 0 && (
+                  <p className="jb-body text-sm text-zinc-200 mt-2">🎯 Es el <b className="text-zinc-50 tabular-nums">{pct} %</b> de tus {Math.round(metaKcal)} kcal del día.</p>
+                )}
+                <p className="jb-body text-xs text-zinc-500 tabular-nums mt-2">{por100} kcal por 100 {unidadPeso === 'ml' ? 'ml' : 'g'}{fuente ? ` · Fuente: ${fuente}` : ''}</p>
+              </div>
+
+              <p className="jb-body text-sm text-zinc-300">¿Cuánto? Cámbialo y mira cómo cambian las calorías:</p>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Cantidad">
+                {opciones.map(op => {
+                  const activo = !pesando && op.unit === porcion.unit && op.qty === porcion.qty;
+                  return (
+                    <button key={op.unit + op.qty} type="button" aria-pressed={activo}
+                      onClick={() => { vibrar(8); setPesando(false); setGramos(''); setPorcion(op); }}
+                      className={`rounded-2xl border-2 px-3 py-3 text-center transition-colors ${activo ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-800 bg-zinc-950 hover:border-orange-500'}`}>
+                      <span className="jb-display text-lg text-zinc-50 block">{textoCantidad(op)}</span>
+                      <span className="jb-body text-sm text-orange-400 block mt-0.5">≈ {kcalDe(elegido, op)} kcal</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {unidadPeso && (pesando ? (
+                <form className="rounded-2xl border-2 border-orange-500 bg-orange-500/10 p-3" onSubmit={e => { e.preventDefault(); e.currentTarget.querySelector('input')?.blur(); }}>
+                  <p className="jb-body text-sm text-zinc-200 mb-2">⚖️ ¿Cuántos {unidadPeso === 'ml' ? 'ml' : 'gramos'} pesó?</p>
+                  <div className="flex items-center gap-2">
+                    <input autoComplete="off" type="number" inputMode="decimal" min="1" step="any" autoFocus value={gramos}
+                      onChange={e => {
+                        setGramos(e.target.value);
+                        const n = Number(String(e.target.value).replace(',', '.'));
+                        if (n > 0 && n <= MAX_GRAMOS_ENTRADA) setPorcion({ unit: unidadPeso, qty: Math.round(n * 10) / 10 });
+                      }}
+                      placeholder="Ej. 120" aria-label={unidadPeso === 'ml' ? 'Mililitros' : 'Gramos'}
+                      className="flex-1 min-w-0 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
+                    <span className="jb-body text-sm text-zinc-400">{unidadPeso === 'ml' ? 'ml' : 'g'}</span>
+                    <button type="button" onClick={() => { setPesando(false); setGramos(''); setPorcion(porDefecto); }}
+                      className="jb-body text-xs text-zinc-400 hover:text-zinc-200 underline shrink-0 p-2 -m-1">Cancelar</button>
+                  </div>
+                  {pesado > 0 && !pesadoValido && <p className="jb-body text-xs text-amber-400 mt-1.5">Cantidad muy alta, revísala.</p>}
+                </form>
+              ) : (
+                <button type="button" onClick={() => { vibrar(8); setPesando(true); setGramos(''); }}
+                  className="self-start jb-body text-sm text-zinc-300 hover:text-zinc-100 border border-zinc-700 hover:border-orange-500 rounded-full px-3.5 py-2">
+                  ⚖️ Lo pesé
+                </button>
+              ))}
+              {aceiteOp && (
+                <div>
+                  <p className="jb-body text-sm text-zinc-300 mb-1.5">{aceiteOp.titulo}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aceiteOp.opciones.map(o => (
+                      <button key={o.key} type="button" onClick={() => setAceite(o.key)}
+                        className={`jb-body text-sm px-3 py-2 rounded-full border ${aceite === o.key ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300'}`}>
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button type="button" disabled={pesando && !pesadoValido}
+                onClick={() => {
+                  registrarPasoPago('primera_comida', username, 'consultar_anoto');
+                  onAnotar(elegido, porcion, aceite !== 'normal' && aceiteOp?.opciones.some(o => o.key === aceite) ? aceite : null, meal);
+                }}
+                className={btnPrimary + ' w-full py-3.5 text-base disabled:opacity-40'}>
+                ➕ Anotarlo en mi {meal.toLowerCase()}
+              </button>
+              <p className="jb-body text-xs text-zinc-500 text-center -mt-1">Solo si te lo comiste. Si solo querías saber, ciérralo y listo.</p>
+              <div className="flex justify-center">
+                <BotonCompartirPlato food={elegido} porcion={porcion}
+                  onCompartido={r => registrarPasoPago('compartir_plato', username, `consultar:${r}`)} />
+              </div>
+            </div>
+          );
+        })() : (
+          <div className="flex flex-col gap-3">
+            <input autoComplete="off" ref={inputRef} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
+              type="text" inputMode="search" enterKeyHint="search" onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              placeholder="Escribe un plato o alimento" aria-label="Escribe un plato o alimento"
+              className="w-full jb-body text-lg rounded-2xl px-4 py-3.5 bg-zinc-950 border-2 border-orange-500/60 text-zinc-50 focus:outline-none focus:border-orange-500" />
+
+            {!texto.trim() && (
+              <div>
+                <p className="jb-body text-sm text-zinc-400 mb-2">Los más buscados (un plato como se sirve en casa):</p>
+                <FichasPlatos onElegir={elegir} />
+                <p className="jb-body text-xs text-zinc-500 mt-3 leading-relaxed">Los mismos números de toda la app: Tabla Peruana de Alimentos (CENAN) primero, con tu plato como se sirve en casa, con o sin arroz.</p>
+              </div>
+            )}
+
+            {texto.trim() && (
+              <div className="flex flex-col gap-1.5">
+                {enPartes && resultados.length > 0 && <p className="jb-body text-sm text-zinc-400">Se cuenta en partes: el pan y lo que va dentro (lo que lleva 1 pan).</p>}
+                {resultados.map(f => {
+                  const d = porcionInicial(f);
+                  return (
+                    <button key={f.key} onClick={() => elegir(f)}
+                      className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
+                      {/* Hueco de 48 px: aquí va <MiniaturaPlato food={f} tam={48} className={CAJA_MINIATURA}> cuando llegue el PR #482. */}
+                      <span className={CAJA_MINIATURA} aria-hidden="true">{emojiAlimento(f)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}</span>
+                        <NotaSinArroz food={f} />
+                        <span className="jb-body text-sm text-zinc-500 block">{textoCantidad(d)} ≈ {kcalDe(f, d)} kcal</span>
+                      </span>
+                      <ChevronRight size={18} className="text-zinc-600 shrink-0" />
+                    </button>
+                  );
+                })}
+                <button onClick={() => { registrarPasoPago('primera_comida', username, 'consultar_no_esta'); onOtraForma(texto.trim()); }}
                   className="w-full rounded-xl border border-dashed border-zinc-700 px-3 py-3 jb-body text-sm text-orange-400 text-left">
                   {resultados.length ? '¿No es ninguno?' : `No encontramos "${texto.trim()}".`} Buscarlo de otra forma, pedírselo a Jonah o crearlo →
                 </button>
@@ -9939,7 +10203,7 @@ function MealTab(props) {
   );
 }
 
-function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null }) {
+function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicial = null, onVerPlanes = null, esHoy = true, peso = null, onConsultar = null }) {
   const [personales, setPersonales] = useState([]);
   // Aviso de que se revisó un alimento suyo (tarjeta arriba, no un toast:
   // así alcanza a leerlo y, en la versión gratis, ve lo que da Premium).
@@ -9976,13 +10240,41 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     }
     conteosPrevios.current = conteos;
   }, [mealPlan]);
-  const [hojaMeal, setHojaMeal] = useState(hojaInicial?.foto || hojaInicial?.escribir ? null : hojaInicial?.meal || null); // comida elegida en la hoja "Registrar" (null = cerrada)
+  const [hojaMeal, setHojaMeal] = useState(hojaInicial?.foto || hojaInicial?.escribir || hojaInicial?.anotado || hojaInicial?.otraForma ? null : hojaInicial?.meal || null); // comida elegida en la hoja "Registrar" (null = cerrada)
   // Pedido de registrar que llega estando ya en Comidas (ej. desde un aviso).
+  // Cada pedido se atiende una sola vez (en desarrollo React corre el efecto
+  // dos veces y "¿No es ninguno?" dejaba dos filas).
+  const hojaAtendida = useRef(null);
   useEffect(() => {
-    if (!hojaInicial?.meal) return;
+    if (!hojaInicial?.meal || hojaAtendida.current === hojaInicial.id) return;
+    hojaAtendida.current = hojaInicial.id;
     if (hojaInicial.foto) { setHojaMeal(null); setFotoPara(hojaInicial.meal); }
     else if (hojaInicial.escribir) { setHojaMeal(null); setEscribirPara(hojaInicial.meal); }
-    else setHojaMeal(hojaInicial.meal);
+    else if (hojaInicial.anotado) {
+      // "Anotarlo" de 🔎 Consultar calorías (ya quedó en su día): como al
+      // terminar de registrar por cualquier camino, la comida se abre, lo
+      // nuevo se marca en verde, la vista baja hasta ahí y sale
+      // "¿Cómo encaja en tu día?".
+      const { meal, anotado: ids } = hojaInicial;
+      setHojaMeal(null);
+      abiertaPorRegistro.current = meal;
+      esperaCierre.current = 6000;
+      setAbiertas(a => ({ ...a, [meal]: true }));
+      setEncajeReciente({ meal, ids });
+      setRecien(ids);
+      setTimeout(() => setRecien([]), 3000);
+      setTimeout(() => {
+        const el = document.getElementById('entrada-' + ids[ids.length - 1]);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 350);
+    } else if (hojaInicial.otraForma) {
+      // "¿No es ninguno?" de 🔎 Consultar calorías: lo mismo que en
+      // "Escribir" (una fila con lo que escribió, para pedirlo o crearlo).
+      setHojaMeal(null);
+      const id = addEntry(hojaInicial.meal);
+      setTextoInicial(t => ({ ...t, [id]: hojaInicial.otraForma }));
+      setEnfocar(id);
+    } else setHojaMeal(hojaInicial.meal);
   }, [hojaInicial?.id]);
   const [enfocar, setEnfocar] = useState(null); // id de la entrada nueva a la que llevar al alumno
   const [recien, setRecien] = useState([]); // ids recién registrados (se resaltan 3 segundos)
@@ -10245,6 +10537,18 @@ function MealTabDia({ mealPlan, setMealPlan, tdee, targets, username, hojaInicia
     <div className="flex flex-col gap-4 min-w-0 pb-16">
       <style>{ESTILOS_COMIDAS}</style>
       <MedidorComidas totals={totals} targetKcal={mealPlan.targetKcal} objP={objP} objC={objC} objF={objF} />
+      {/* 🔎 Consultar calorías (17 oct): saber cuánto tiene algo sin anotarlo. */}
+      {esHoy && onConsultar && (
+        <button type="button" onClick={() => { vibrar(8); onConsultar(); }}
+          className="w-full flex items-center gap-3 rounded-2xl border border-zinc-800 hover:border-orange-500 bg-zinc-900 px-4 py-3 text-left">
+          <span className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/40 flex items-center justify-center shrink-0 text-lg" aria-hidden="true">🔎</span>
+          <span className="min-w-0 flex-1">
+            <span className="jb-display text-base text-zinc-50 block leading-tight tracking-wide">CONSULTAR CALORÍAS</span>
+            <span className="jb-body text-xs text-zinc-400 block">¿Cuánto tiene algo? Míralo sin anotarlo.</span>
+          </span>
+          <ChevronRight size={18} className="text-zinc-600 shrink-0" />
+        </button>
+      )}
       {avisoPropio && (
         <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 flex flex-col gap-2">
           <p className="jb-body text-sm text-zinc-100">{avisoPropio}</p>
@@ -12858,6 +13162,22 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     setTab('meal');
     window.scrollTo({ top: 0 });
   }
+  // 🔎 Consultar calorías: null (cerrado), 'arriba', 'inicio' o 'comidas' (de dónde se abrió).
+  const [consultar, setConsultar] = useState(null);
+  // "Anotarlo": queda en la comida de la hora con la cantidad que eligió y
+  // Comidas lo muestra como cualquier registro (verde + "¿Cómo encaja…?").
+  function anotarDesdeConsulta(food, porcion, aceite, meal) {
+    const entry = { id: uid(), foodKey: food.key, unit: porcion.unit, qty: porcion.qty };
+    if (aceite) entry.aceite = aceite;
+    setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
+    if (nuncaRegistro) { setNuncaRegistro(false); setPrimeraEnCurso(true); }
+    vibrar(25);
+    showToast(`✅ ${nombreAlimento(food)} registrado en ${meal}`);
+    setConsultar(null);
+    setRegistrarAl({ meal, id: Date.now(), anotado: [entry.id] });
+    setTab('meal');
+    window.scrollTo({ top: 0 });
+  }
 
   // Si la app se abrió desde un aviso ("No olvides registrar tu almuerzo"),
   // va directo al registro de esa comida. También si ya estaba abierta y
@@ -13403,6 +13723,13 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           {/* En el celular no entra junto al logo (tapaba "FUEL"): ahí está en el pie de la pantalla. */}
           <span className="hidden sm:inline-flex"><SoundToggleButton /></span>
+          {/* 🔎 Consultar calorías (17 oct): a mano en todas las pestañas, gratis para todos. */}
+          <button onClick={() => { vibrar(8); setConsultar('arriba'); }}
+            className="flex items-center justify-center gap-1 rounded-full border border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 min-w-[36px] min-h-[36px] px-2 mr-0.5 sm:mr-0"
+            title="Consultar calorías" aria-label="Consultar calorías">
+            <span aria-hidden="true" className="text-sm leading-none">🔎</span>
+            <span className="jb-body text-xs font-semibold hidden min-[430px]:inline">Calorías</span>
+          </button>
           <button onClick={() => setTab('planes')}
             className={`p-1.5 sm:p-2 rounded-lg transition-colors ${tab === 'planes' ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-300'}`}
             title="Mi plan" aria-label="Mi plan">
@@ -13529,6 +13856,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           );
           return (
             <>
+              <BarraConsultarCalorias onAbrir={() => setConsultar('inicio')} />
               {verOfertaFacil && <OfertaModoFacil onElegir={elegirModoFacil} />}
               {verEncuesta && <EncuestaFacilidad username={username} form={form} setForm={setForm} />}
               {modoFacil ? (
@@ -13574,7 +13902,17 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
         {(tab === 'calc' || tab === 'goal') && (
           <CuerpoTab form={form} setForm={setForm} results={results} mealPlan={mealPlan} setMealPlan={setMealPlan} vistaInicial={tab === 'goal' ? 'objetivo' : 'composicion'} onIrComidas={() => { setTab('meal'); window.scrollTo({ top: 0 }); }} />
         )}
-        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} peso={form.peso} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} hojaInicial={registrarAl} onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} />}
+        {tab === 'meal' && <MealTab mealPlan={mealPlan} setMealPlan={setMealPlan} peso={form.peso} tdee={results.tdee} targets={goalTargets(form, results.tdee)} username={username} hojaInicial={registrarAl} onVerPlanes={() => { setRegistrarAl(null); setTab('planes'); window.scrollTo({ top: 0 }); }} onConsultar={() => setConsultar('comidas')} />}
+        {consultar && (
+          <ConsultarCaloriasModal username={username} metaKcal={mealPlan.targetKcal} desde={consultar}
+            onAnotar={anotarDesdeConsulta}
+            onOtraForma={texto => {
+              setConsultar(null);
+              setRegistrarAl({ meal: comidaDeAhora(), id: Date.now(), otraForma: texto });
+              setTab('meal'); window.scrollTo({ top: 0 });
+            }}
+            onCerrar={() => setConsultar(null)} />
+        )}
         {(tab === 'progress' || tab === 'photos') && (
           <ProgressTab username={username} form={form} setForm={setForm} nombre={userRecord?.nombre} vistaInicial={tab === 'photos' ? 'fotos' : 'tendencias'} />
         )}

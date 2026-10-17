@@ -190,11 +190,11 @@ const dudosa = (k, unit, qty) => cantidadDudosa(porClave(k), unit, qty, {
 const defecto = k => { const f = porClave(k); const d = unidadPorDefecto(f); return `${d.qty} ${d.unit} = ${kcalEntrada(k, d.unit, d.qty)} kcal`; };
 export const CASOS = [
   // Medidas retiradas: lo ya anotado con ellas vale lo de antes, no 1 g.
-  ['1 taza de arroz blanco cocido (medida retirada, 160 g)', kcalEntrada('Arroz blanco (Cocido)', 'taza', 1), 208],
+  ['1 taza de arroz blanco cocido (medida retirada, taza real 158 g)', kcalEntrada('Arroz blanco (Cocido)', 'taza', 1), 205],
   ['1 taza de gaseosa (medida retirada, 240 ml)', kcalEntrada('Gaseosa regular (-)', 'taza', 1), 101],
   ['1 media porción de pollo al horno (retirada, 200 g)', kcalEntrada('Pollo al horno (-)', 'media porción', 1), 380],
   ['2 porciones de papa sancochada (retirada, 120 g)', kcalEntrada('Papa (Cocida)', 'porción', 2), 209],
-  ['1 taza de avena en hojuelas (retirada, 160 g)', kcalEntrada('Avena en hojuelas (Cruda)', 'taza', 1), 622],
+  ['1 taza de avena en hojuelas (retirada, taza real 81 g)', kcalEntrada('Avena en hojuelas (Cruda)', 'taza', 1), 315],
   // Porción por defecto de los secos.
   ['avena en hojuelas por defecto', defecto('Avena en hojuelas (Cruda)'), '1 media taza = 156 kcal'],
   ['arroz blanco crudo por defecto', defecto('Arroz blanco (Crudo)'), '55 gramos = 201 kcal'],

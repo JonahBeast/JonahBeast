@@ -17,18 +17,23 @@
    Clave: la del alimento ("Nombre (Estado)"), o el nombre solo si vale
    para todas sus versiones. */
 export const MEDIDAS_RETIRADAS = {
-  // "taza" de los cereales (160 g), hasta el 22 de septiembre.
-  'Arroz blanco (Crudo)': { taza: 160 },
-  'Arroz blanco (Cocido)': { taza: 160 },
-  'Avena en hojuelas (Cruda)': { taza: 160 },
-  'Avena (Cocida)': { taza: 160 },
-  'Kiwicha (Cruda)': { taza: 160 },
-  'Kiwicha (Cocida)': { taza: 160 },
+  // "taza" de los cereales, hasta el 22 de septiembre. La app la medía en
+  // 160 g para todos; Jonah decidió (17 oct) contarla con lo que pesa una
+  // taza real de cada uno (USDA, "1 cup"): arroz crudo 185 g, arroz cocido
+  // 158 g, avena en hojuelas 81 g, avena cocida 234 g, kiwicha cruda 193 g,
+  // kiwicha cocida 246 g, cornflakes 28 g. Cañihua y choclo siguen en 160 g:
+  // no hay una fuente segura de lo que pesa su taza.
+  'Arroz blanco (Crudo)': { taza: 185 },
+  'Arroz blanco (Cocido)': { taza: 158 },
+  'Avena en hojuelas (Cruda)': { taza: 81 },
+  'Avena (Cocida)': { taza: 234 },
+  'Kiwicha (Cruda)': { taza: 193 },
+  'Kiwicha (Cocida)': { taza: 246 },
   'Cañihua (Cruda)': { taza: 160 },
   'Cañihua (Cocida)': { taza: 160 },
   'Choclo (maíz) (Crudo)': { taza: 160 },
   'Choclo (maíz) (Cocido)': { taza: 160 },
-  'Cereal cornflakes sin gluten (-)': { taza: 160 },
+  'Cereal cornflakes sin gluten (-)': { taza: 28 },
   // Gaseosas: "taza" y "jarra" de las bebidas, hasta el 6 de octubre.
   'Gaseosa regular (-)': { taza: 240, jarra: 500 },
   'Gaseosa dietética (-)': { taza: 240, jarra: 500 },

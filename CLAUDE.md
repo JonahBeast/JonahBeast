@@ -67,6 +67,7 @@
 
 - **Todo mensaje a alumnos o clientes** (WhatsApp, avisos, textos de la app, mensajes listos del panel) va en la voz de Jonah: **cercano, humano y motivador, nunca de robot**.
 - Habla como persona ("Soy Jonah", "vamos juntos", "cualquier duda me escribes aquí"), usa su historia cuando sume, **siempre completa y sin exagerar**: hace unos años bajó 37 kg (sin el número de años, para que no envejezca; decisión de Jonah del 15 de octubre), y ahora bajó de 104 a 90 kg en 2 meses y medio con su propia app **sumándole entrenamiento (algunos días, no todos) y disciplina**. Nunca decir que fue solo la app y la idea de que **el cambio llega poco a poco, comida a comida**.
+- **En mensajes personales a un alumno** (bienvenida, agradecimiento, pagos, avisos uno a uno por WhatsApp) **no se cuentan sus kilos ni en cuánto tiempo los bajó**: suena a presumir y nadie sabe si el alumno logrará lo mismo (decisión de Jonah del 17 de octubre, con el mensaje a Jenner). Ahí va algo sutil que motive a hacerlo juntos, sin cifras (ej. "Yo también estoy en este camino y sé que no es fácil. Lo vamos a hacer juntos, a tu ritmo, comida a comida"). La historia con números va solo en contenido, anuncios y la portada.
 - Nada de textos fríos o de trámite. Sin prometer resultados iguales para todos.
 
 ## Datos del proyecto

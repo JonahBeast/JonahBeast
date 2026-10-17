@@ -31,6 +31,9 @@ const StudentDashboard = React.lazy(cargarParte(() => import('./alumno.jsx').the
 const TiendaPublica = React.lazy(cargarParte(() => import('./tienda.jsx').then(m => ({ default: m.TiendaPublica }))));
 const PanelReferidor = React.lazy(cargarParte(() => import('./referidor.jsx').then(m => ({ default: m.PanelReferidor }))));
 const BuscadorPortada = React.lazy(cargarParte(() => import('./buscadorPortada.jsx')));
+// Secciones de la portada debajo de "¿Por qué?" (así se ve la app, gratis vs.
+// Premium, preguntas frecuentes): se bajan aparte, la primera pantalla no espera.
+const SeccionesPortada = React.lazy(cargarParte(() => import('./portadaSecciones.jsx')));
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -3070,6 +3073,9 @@ function Landing({ onChoose }) {
       </section>
 
       <PorQueJonahBeast onEmpezar={registrarClicCTA} />
+      <React.Suspense fallback={<div className="min-h-[60vh]" />}>
+        <SeccionesPortada onEmpezar={registrarClicCTA} />
+      </React.Suspense>
 
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
       {buscador && (
@@ -3533,6 +3539,19 @@ const OBJETIVOS_RECORRIDO = [
   { valor: 'Mantener peso', emoji: '⚖️', texto: 'Mantenerme y comer mejor', sub: 'Ordenar lo que como' },
 ];
 
+/* Páginas por objetivo (jonahbeast.com/bajar-de-peso, /subir-de-peso,
+   /mantener-peso, armadas por scripts/objetivos/generar.mjs): su botón trae
+   ?empezar=bajar|subir|mantener y abre el recorrido con ese objetivo ya
+   elegido (un paso menos). Se recuerda en la pestaña. */
+const OBJETIVO_DEL_LINK = { bajar: 'Perder grasa', subir: 'Ganar músculo', mantener: 'Mantener peso' };
+const EMPEZAR_DEL_LINK = (() => {
+  try { const e = new URLSearchParams(window.location.search).get('empezar'); return OBJETIVO_DEL_LINK[e] ? e : null; } catch { return null; }
+})();
+let empezarContado = false;
+function objetivoDelLink() {
+  try { return OBJETIVO_DEL_LINK[sessionStorage.getItem('jb-empezar')] || ''; } catch { return ''; }
+}
+
 function leerRecorrido() {
   try {
     const r = JSON.parse(localStorage.getItem(CLAVE_RECORRIDO) || 'null');
@@ -3646,7 +3665,7 @@ function Recorrido({ onBack, onListo }) {
   const [r, setR] = useState(() => {
     if (guardado) return guardado;
     const m = leerMedidasCalc();
-    const vacio = { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
+    const vacio = { objetivo: objetivoDelLink(), sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
     return m ? { ...vacio, sexo: m.sexo || '', edad: m.edad ?? '', estatura: m.estatura ?? '', peso: m.peso ?? '', actividad: m.actividad || '' } : vacio;
   });
   // Cada paso queda en el historial del navegador: el botón "atrás" del
@@ -6658,6 +6677,25 @@ export default function App() {
         try { localStorage.setItem('jb-equipo-invitacion', equipo.toUpperCase()); } catch {}
       }
       if (params.get('ref') || equipo) return 'trial';
+      // Botón "Empezar gratis" de una página por objetivo: directo al
+      // recorrido con su objetivo elegido (cuenta como clic en el embudo).
+      // (EMPEZAR_DEL_LINK se lee una sola vez al cargar: el link se limpia
+      // aquí mismo y React puede llamar a esta función dos veces.)
+      if (EMPEZAR_DEL_LINK) {
+        if (!empezarContado) {
+          empezarContado = true;
+          try { sessionStorage.setItem('jb-empezar', EMPEZAR_DEL_LINK); } catch {}
+          registrarEventoEmbudo('clic_cta', { detalle: 'objetivo_' + EMPEZAR_DEL_LINK });
+          avisarMeta('Lead');
+          // Que al recargar o volver no se cuente otra vez.
+          try {
+            const u = new URL(window.location.href);
+            u.searchParams.delete('empezar');
+            window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+          } catch {}
+        }
+        return leerRecorrido() ? 'trial' : 'recorrido';
+      }
       // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
       // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
       // (no a la portada); al entrar, lo lleva a registrar su comida.

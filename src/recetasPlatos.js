@@ -120,7 +120,32 @@ export const RECETAS_PLATOS = {
     ['Pollo a la brasa (solo la presa) (-)', 1, '1/4 de pollo'], ['Papas fritas (comida rápida) (-)', 150, 'gramos'],
     ['Lechuga (Cruda)', 40, 'gramos'], ['Tomate (Crudo)', 30, 'gramos'],
   ],
+  // Lomo y saltado de pollo con papas fritas (17 oct): el saltado sin papas
+  // + la porción de papas fritas, los mismos gramos con que se calcularon.
+  'Lomo saltado (Con papas fritas)': [
+    ['Lomo saltado (Sin papas fritas)', 295, 'gramos'], ['Papas fritas (comida rápida) (-)', 150, 'gramos'],
+  ],
+  'Saltado de pollo (Con papas fritas)': [
+    ['Saltado de pollo (Sin papas fritas)', 280, 'gramos'], ['Papas fritas (comida rápida) (-)', 150, 'gramos'],
+  ],
 };
+
+// Pollo a la brasa con papas y ensalada por corte (17 oct): la presa de ese
+// corte + las papas y la ensalada con que se calculó cada uno.
+for (const [corte, presa] of [['pierna', 'Pollo a la brasa pierna (solo la presa)'], ['pecho', 'Pollo a la brasa pecho (solo la presa)']]) {
+  for (const piel of ['con piel', 'sin piel']) {
+    const clavePresa = `${presa} (${piel === 'con piel' ? 'Con piel' : 'Sin piel'})`;
+    const cuarto = [['Papas fritas (comida rápida) (-)', 150, 'gramos'], ['Lechuga (Cruda)', 40, 'gramos'], ['Tomate (Crudo)', 30, 'gramos']];
+    const octavo = [['Papas fritas (comida rápida) (-)', 120, 'gramos'], ['Lechuga (Cruda)', 30, 'gramos'], ['Tomate (Crudo)', 25, 'gramos']];
+    RECETAS_PLATOS[`Pollo a la brasa con papas y ensalada (1/4 ${corte} ${piel})`] = [[clavePresa, 1, 'cuarto de pollo'], ...cuarto];
+    if (corte === 'pecho') {
+      RECETAS_PLATOS[`Pollo a la brasa con papas y ensalada (1/8 pecho ${piel})`] = [[clavePresa, 1, 'octavo de pollo'], ...octavo];
+    } else {
+      RECETAS_PLATOS[`Pollo a la brasa con papas y ensalada (1/8 pierna ${piel})`] = [[clavePresa, 1, 'octavo (pierna)'], ...octavo];
+      RECETAS_PLATOS[`Pollo a la brasa con papas y ensalada (1/8 entrepierna ${piel})`] = [[clavePresa, 1, 'octavo (entrepierna)'], ...octavo];
+    }
+  }
+}
 
 // Lo que ya se anotó antes de separar los sándwiches por pan (15 oct)
 // era en pan blanco: se separa con la misma receta.
@@ -134,3 +159,7 @@ for (const n of ['Pan con pollo', 'Pan con jamonada', 'Pan con chicharrón', 'Ho
 for (const [conArroz, guiso] of GUISOS_CON_ARROZ) {
   RECETAS_PLATOS[`${conArroz} (-)`] = [[`${guiso} (-)`, 300, 'gramos'], ['Arroz blanco (Cocido)', 180, 'gramos']];
 }
+// Lomo saltado con arroz con o sin papas fritas (17 oct): 1 plato del lomo
+// (445 o 295 g) + 180 g de arroz, como se calcularon.
+RECETAS_PLATOS['Lomo saltado con arroz (Con papas fritas)'] = [['Lomo saltado (Con papas fritas)', 445, 'gramos'], ['Arroz blanco (Cocido)', 180, 'gramos']];
+RECETAS_PLATOS['Lomo saltado con arroz (Sin papas fritas)'] = [['Lomo saltado (Sin papas fritas)', 295, 'gramos'], ['Arroz blanco (Cocido)', 180, 'gramos']];

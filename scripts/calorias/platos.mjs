@@ -27,11 +27,12 @@ export const GRUPOS = [
 
 export const PLATOS = [
   // Segundos y platos de fondo
-  { slug: 'lomo-saltado', alimento: 'Lomo saltado', nombre: 'Lomo saltado', grupo: 'segundos',
+  { slug: 'lomo-saltado', alimento: 'Lomo saltado', estado: 'Con papas fritas', nombre: 'Lomo saltado', grupo: 'segundos',
+    aclara: 'Con sus papas fritas, sin el arroz.',
     consejo: 'Yo me lo como igual, solo le bajo el arroz a la mitad y le pido más cebolla y tomate. No se trata de dejar tu lomo, sino de saber cuánto comes.' },
   { slug: 'aji-de-gallina', alimento: 'Ají de gallina', nombre: 'Ají de gallina', grupo: 'segundos',
     consejo: 'La crema lleva pan, leche y queso, por eso suma rápido. Sírvete una porción normal, acompáñala con la papa en vez de mucho arroz y disfrútala sin culpa.' },
-  { slug: 'pollo-a-la-brasa', etiqueta: 'Un cuarto con papas', frase: 'Un cuarto de pollo a la brasa con papas', alimento: 'Pollo a la brasa con papas y ensalada', nombre: 'Pollo a la brasa con papas', grupo: 'segundos',
+  { slug: 'pollo-a-la-brasa', etiqueta: 'Un cuarto con papas', frase: 'Un cuarto de pollo a la brasa con papas', alimento: 'Pollo a la brasa con papas y ensalada', estado: '-', nombre: 'Pollo a la brasa con papas', grupo: 'segundos',
     consejo: 'Un cuarto con papas es casi una comida y media. Si quieres comerlo seguido, pide octavo, cambia parte de las papas por más ensalada y ojo con las cremas, que también suman.' },
   { slug: 'seco-de-res-con-frejoles', alimento: 'Seco de res con frejoles', nombre: 'Seco de res con frejoles', grupo: 'segundos',
     consejo: 'Buen plato: la carne y los frejoles te dan proteína y te llenan. Si le bajas un poco el arroz, queda un almuerzo muy completo.' },

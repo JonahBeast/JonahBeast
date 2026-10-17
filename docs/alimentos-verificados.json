@@ -2339,6 +2339,86 @@
    "estado": "verificado",
    "fuente": "USDA FoodData Central: chicken breast, meat only, fried (187 kcal); el apanado se va con la piel. Carne sin hueso. Pedido de Jonah (16 oct 2026)",
    "verificado_en": "2026-10-16"
+  },
+  "Lomo saltado (Sin papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de carne de res cruda (CENAN 2017 F 35 «Res, carne pulpa de»: 105 kcal, P 21,3, G 1,6) → 117 g cocida (×1,28, la misma regla del \"Carne de res (bistec) (Cocida)\" de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 296 g, 336 kcal → 113 kcal en 100 g; P 11,6, C 4,0, G 5,7. Las cantidades de la receta y el agua que pierden las verduras son una estimación (receta casera típica para 4: 600 g de carne, 2 cebollas, 3 tomates, 2 ajíes)",
+   "verificado_en": "2026-10-17"
+  },
+  "Lomo saltado (Con papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de carne de res cruda (CENAN 2017 F 35 «Res, carne pulpa de»: 105 kcal, P 21,3, G 1,6) → 117 g cocida (×1,28, la misma regla del \"Carne de res (bistec) (Cocida)\" de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 296 g, 336 kcal + 150 g de \"Papas fritas (comida rápida)\" de la app (su porción; 468 kcal) = 446 g, 804 kcal → 180 kcal en 100 g; P 8,9, C 16,4, G 8,8. Comprobado con la Tabla Peruana (CENAN 2017, SS 155 «Lomo saltado con arroz», 5 muestras de Lima: 147 a 189 kcal, promedio 166): esta receta con papas + 180 g de arroz da 166 kcal en 100 g. El \"Lomo saltado\" de antes (175 kcal) cuadra en calorías con esta receta",
+   "verificado_en": "2026-10-17"
+  },
+  "Lomo saltado con arroz (Con papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 1 plato de \"Lomo saltado (Con papas fritas)\" de la app (446 g; Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de carne de res cruda (CENAN 2017 F 35 «Res, carne pulpa de»: 105 kcal, P 21,3, G 1,6) → 117 g cocida (×1,28, la misma regla del \"Carne de res (bistec) (Cocida)\" de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 296 g, 336 kcal + 150 g de \"Papas fritas (comida rápida)\" de la app (su porción; 468 kcal)) + 180 g de \"Arroz blanco (Cocido)\" de la app (CENAN y USDA) = 626 g, 1038 kcal → 166 kcal en 100 g. Comprobado con la Tabla Peruana (CENAN 2017, SS 155 «Lomo saltado con arroz», 5 muestras de Lima: 147 a 189 kcal, promedio 166): coincide",
+   "verificado_en": "2026-10-17"
+  },
+  "Lomo saltado con arroz (Sin papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo: guiso + arroz. 1 plato de \"Lomo saltado (Sin papas fritas)\" de la app (296 g; Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de carne de res cruda (CENAN 2017 F 35 «Res, carne pulpa de»: 105 kcal, P 21,3, G 1,6) → 117 g cocida (×1,28, la misma regla del \"Carne de res (bistec) (Cocida)\" de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 296 g, 336 kcal) + 180 g de \"Arroz blanco (Cocido)\" de la app (CENAN y USDA) = 476 g, 570 kcal → 120 kcal en 100 g",
+   "verificado_en": "2026-10-17"
+  },
+  "Saltado de pollo (Sin papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de pechuga de pollo cruda (\"Pollo pechuga (Cruda)\" de la app, CENAN y USDA: 110 kcal, P 23, G 1,5) → 100 g cocida (×1,5, la misma relación que \"Pollo pechuga\" cruda/cocida de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 279 g, 343 kcal → 123 kcal en 100 g; P 13,2, C 4,2, G 6,0. Las cantidades de la receta son una estimación (la misma del lomo saltado, con pollo)",
+   "verificado_en": "2026-10-17"
+  },
+  "Saltado de pollo (Con papas fritas)": {
+   "estado": "verificado",
+   "fuente": "Cálculo con una receta de 1 plato (17 oct 2026, pedido de Jonah): 150 g de pechuga de pollo cruda (\"Pollo pechuga (Cruda)\" de la app, CENAN y USDA: 110 kcal, P 23, G 1,5) → 100 g cocida (×1,5, la misma relación que \"Pollo pechuga\" cruda/cocida de la app); 75 g de cebolla roja (\"Cebolla (Cruda)\" de la app, CENAN y USDA) y 75 g de tomate (\"Tomate (Crudo)\" de la app, USDA), salteados: 68 g cada uno (−10 % de agua, estimado); 15 g de ají amarillo fresco (CENAN 2017 B 3: 39 kcal, P 0,9, G 0,7, C 8,8); 10 g de sillao (\"Sillao\" de la app, USDA); 5 g de vinagre (≈1 kcal, no se cuenta); 1 cucharada de aceite vegetal (14 g; todo queda en el plato con el jugo). Peso final ≈ 279 g, 343 kcal + 150 g de \"Papas fritas (comida rápida)\" de la app (su porción; 468 kcal) = 429 g, 811 kcal → 189 kcal en 100 g; P 9,8, C 17,1, G 9,1. Reemplaza al \"Saltado de pollo\" del panel (142 kcal, sin fuente)",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pierna con piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 230 g de \"Pollo a la brasa pierna (solo la presa) (Con piel)\" de la app (su cuarto; USDA FoodData Central, carne sin hueso) + 150 g de \"Papas fritas (comida rápida)\" + 40 g de \"Lechuga (Cruda)\" + 30 g de \"Tomate (Crudo)\" (los del plato de siempre, src/recetasPlatos.js), todos de la app = 450 g, 1008 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pierna con piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 95 g de \"Pollo a la brasa pierna (solo la presa) (Con piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 270 g, 602 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 entrepierna con piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 135 g de \"Pollo a la brasa pierna (solo la presa) (Con piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 310 g, 694 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pierna sin piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 195 g de \"Pollo a la brasa pierna (solo la presa) (Sin piel)\" de la app (su cuarto; USDA FoodData Central, carne sin hueso) + 150 g de \"Papas fritas (comida rápida)\" + 40 g de \"Lechuga (Cruda)\" + 30 g de \"Tomate (Crudo)\" (los del plato de siempre, src/recetasPlatos.js), todos de la app = 415 g, 852 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pierna sin piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 80 g de \"Pollo a la brasa pierna (solo la presa) (Sin piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 255 g, 536 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 entrepierna sin piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 115 g de \"Pollo a la brasa pierna (solo la presa) (Sin piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 290 g, 603 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pecho con piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 270 g de \"Pollo a la brasa pecho (solo la presa) (Con piel)\" de la app (su cuarto; USDA FoodData Central, carne sin hueso) + 150 g de \"Papas fritas (comida rápida)\" + 40 g de \"Lechuga (Cruda)\" + 30 g de \"Tomate (Crudo)\" (los del plato de siempre, src/recetasPlatos.js), todos de la app = 490 g, 1019 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pecho con piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 135 g de \"Pollo a la brasa pecho (solo la presa) (Con piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 310 g, 653 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pecho sin piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 245 g de \"Pollo a la brasa pecho (solo la presa) (Sin piel)\" de la app (su cuarto; USDA FoodData Central, carne sin hueso) + 150 g de \"Papas fritas (comida rápida)\" + 40 g de \"Lechuga (Cruda)\" + 30 g de \"Tomate (Crudo)\" (los del plato de siempre, src/recetasPlatos.js), todos de la app = 465 g, 884 kcal",
+   "verificado_en": "2026-10-17"
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pecho sin piel)": {
+   "estado": "verificado",
+   "fuente": "Cálculo (17 oct 2026, pedido de Jonah): 120 g de \"Pollo a la brasa pecho (solo la presa) (Sin piel)\" de la app (su octavo; USDA FoodData Central, carne sin hueso) + 120 g de \"Papas fritas (comida rápida)\" + 30 g de \"Lechuga (Cruda)\" + 25 g de \"Tomate (Crudo)\" (los 175 g de acompañamientos del \"1/8 con papas\" de siempre, 300 g − 125 g de presa, en la misma proporción; estimado), todos de la app = 295 g, 581 kcal",
+   "verificado_en": "2026-10-17"
   }
  }
 }

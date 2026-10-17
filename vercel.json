@@ -41,6 +41,18 @@
     {
       "source": "/r/:ruta*",
       "destination": "/index.html"
+    },
+    {
+      "source": "/bajar-de-peso",
+      "destination": "/bajar-de-peso/index.html"
+    },
+    {
+      "source": "/subir-de-peso",
+      "destination": "/subir-de-peso/index.html"
+    },
+    {
+      "source": "/mantener-peso",
+      "destination": "/mantener-peso/index.html"
     }
   ],
   "crons": [

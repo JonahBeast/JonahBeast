@@ -95,6 +95,34 @@ export function buscarAlimentos(lista, texto, limite = 40) {
     conPuntaje.push({ f, puntaje });
   }
   conPuntaje.sort((a, b) => a.puntaje - b.puntaje || a.f.name.localeCompare(b.f.name));
+  // "1/4 de pollo con papas", "un cuarto de pollo a la brasa con papas y
+  // ensalada": la cantidad y las palabras de unión no están en el nombre y
+  // la búsqueda caía a una sola palabra ("ensalada"). Se busca otra vez
+  // sin ellas (y "un cuarto de pollo" es el de la pollería, a la brasa).
+  if (conPuntaje.length === 0 && palabras.length > 1) {
+    const RELLENO = /^(\d+([/.,]\d+)?|un|una|uno|medio|media|cuartos?|octavos?|de|del|la|el|los|las|con|y|a|al)$/;
+    let limpio = q.replace(/\b1\s*\/\s*[48]\b/g, ' ');
+    if (/\b(cuartos?|octavos?|1\s*\/\s*[48]|medio)\s+(de\s+)?pollo\b/.test(q) && !/\b(brasa|pollada|broaster|horno|olla|sillao|plancha)\b/.test(q)) limpio += ' brasa';
+    // Y si no, lo que va antes del "con" ("pollo a la brasa pierna con papas").
+    const corte = limpio.lastIndexOf(' con ');
+    const antesDelCon = corte > 0 && /^(papas?|papitas?|ensalada|arroz|frejol)/.test(limpio.slice(corte + 5)) ? limpio.slice(0, corte) : '';
+    for (const texto of [limpio, antesDelCon]) {
+      const utiles = texto.split(' ').filter(w => w && !RELLENO.test(w)).map(raizPalabra);
+      if (!utiles.length || utiles.join(' ') === palabras.join(' ')) continue;
+      const frase = utiles.join(' ');
+      const otra = [];
+      for (const f of lista) {
+        if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
+        const objetivo = normalizar(f.key + ' ' + f.name + ' ' + (f.group || ''));
+        if (!utiles.every(w => objetivo.includes(w))) continue;
+        const nombreNorm = normalizar(f.name);
+        otra.push({ f, puntaje: nombreNorm.startsWith(frase) ? 0 : nombreNorm.includes(frase) ? 1 : 3 });
+      }
+      // Mismo puntaje: el orden de la lista (como la búsqueda de siempre).
+      otra.sort((a, b) => a.puntaje - b.puntaje);
+      if (otra.length) return otra.slice(0, limite).map(x => x.f);
+    }
+  }
   if (conPuntaje.length === 0 && palabras.length > 1) {
     // Nada coincidió con todo: buscar solo por la palabra más larga
     const clave = palabras.slice().sort((a, b) => b.length - a.length)[0];
@@ -135,6 +163,14 @@ export function unidadPorDefecto(food, unitsFor) {
       'Tubérculos': 150,
     };
     return { unit: 'gramos', qty: porGrupo[food.group] || 100 };
+  }
+
+  /* Los alimentos que Jonah agrega desde el panel traen su propia medida
+     (la primera, ej. "1 unidad" de 160 g para un triple): esa manda. Antes
+     ganaba el "plato" de 400 g de su grupo y un sándwich sumaba 920 kcal
+     (revisión de cálculos, 17 oct). */
+  if (food.esExtra && lista[1] && lista[1][0] !== 'gramos' && lista[1][1] >= 10) {
+    return { unit: lista[1][0], qty: 1 };
   }
 
   /* Se prefiere la medida de casa más común, en este orden */

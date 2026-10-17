@@ -14,6 +14,10 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { PLATOS, GRUPOS } from './platos.mjs';
+// Las mismas reglas que usa la app: alimentos retirados, la regla del arroz
+// y de la papa, la porción por defecto de los que no tienen medida casera y
+// la fuente en pocas palabras (la misma que muestra la app).
+import { ALIMENTOS_RETIRADOS, PLATOS_SIN_ARROZ, PLATOS_SIN_PAPA, unidadPorDefecto, fuenteCorta } from '../../src/buscador.js';
 
 const SITIO = 'https://jonahbeast.com';
 const raiz = new URL('../../', import.meta.url);
@@ -46,26 +50,54 @@ const kcalDe = (f, g) => Math.round(f.kcal * g / 100);
 const grDe = (v, g) => Math.round(v * g / 100);
 
 // Medida con nombre amable: "plato" → "Un plato".
-const ARTICULO = { plato: 'Un plato', unidad: 'Una unidad', porción: 'Una porción', palito: 'Un palito', tajada: 'Una tajada', taza: 'Una taza', vaso: 'Un vaso', copa: 'Una copa' };
+const ARTICULO = { plato: 'Un plato', unidad: 'Una unidad', porción: 'Una porción', palito: 'Un palito', tajada: 'Una tajada', taza: 'Una taza', vaso: 'Un vaso', copa: 'Una copa',
+  cucharada: 'Una cucharada', cucharadita: 'Una cucharadita', puñado: 'Un puñado', rebanada: 'Una rebanada', filete: 'Un filete', bola: 'Una bola',
+  presa: 'Una presa', lata: 'Una lata', 'lata pequeña': 'Una lata pequeña', 'lata grande': 'Una lata grande', jarra: 'Una jarra', mitad: 'Media unidad',
+  'media taza': 'Media taza', 'barra pequeña': 'Una barra pequeña', cuadrito: 'Un cuadrito', 'botella personal': 'Una botella personal', 'botella grande': 'Una botella grande' };
 const nombreMedida = m => ARTICULO[m] || (m.charAt(0).toUpperCase() + m.slice(1));
+
+// Como unitsFor de la app: primero las medidas de esa versión ("Lomo saltado
+// (Con papas fritas)"), luego las del nombre y luego las del grupo.
+const medidasApp = (grupoApp, name, estado) => UNITS_BY_NAME[`${name} (${estado})`] || UNITS_BY_NAME[name] || UNITS_BY_GROUP[grupoApp] || [];
+
+// Busca un alimento en RAW_FOODS y arma sus medidas. Frena el build si no
+// está una sola vez o si la app ya no lo ofrece (ALIMENTOS_RETIRADOS).
+function alimentoDe(alimento, estado, donde) {
+  const filas = RAW_FOODS.filter(r => r[1] === alimento && (!estado || r[2] === estado));
+  if (filas.length !== 1) throw new Error(`Calorías (${donde}): "${alimento}" aparece ${filas.length} veces en RAW_FOODS (debe ser 1).`);
+  const [grupoApp, name, est, kcal, protein, carbs, fat, fiber] = filas[0];
+  const key = `${name} (${est})`;
+  if (ALIMENTOS_RETIRADOS.has(key)) throw new Error(`Calorías (${donde}): "${key}" ya no se ofrece en la app (ALIMENTOS_RETIRADOS); usa su versión nueva.`);
+  const f = { name, estado: est, kcal, protein, carbs, fat, fiber, key, group: grupoApp };
+  // Sin medidas repetidas: algunos alimentos guardan "plato" con el mismo
+  // peso que "porción" solo para que lo ya registrado siga sumando bien.
+  let medidas = medidasApp(grupoApp, name, est).filter(([, g], i, todas) => todas.findIndex(([, o]) => o === g) === i);
+  // Sin medida casera: la porción que la app pone por defecto (ej. 150 g de
+  // fruta o de arroz), con el mismo cálculo de la app (unidadPorDefecto).
+  if (!medidas.length) {
+    const d = unidadPorDefecto(f, food => [['gramos', 1], ...medidasApp(food.group, food.name, food.estado)]);
+    if (d.unit !== 'gramos' || !d.qty) throw new Error(`Calorías (${donde}): "${key}" no tiene medidas ni porción por defecto.`);
+    medidas = [['porción', d.qty]];
+  }
+  return { f, medidas };
+}
 
 // Junta los datos de cada plato y avisa (frena el build) si algo no cuadra.
 const platos = PLATOS.map(p => {
-  const filas = RAW_FOODS.filter(r => r[1] === p.alimento && (!p.estado || r[2] === p.estado));
-  if (filas.length !== 1) throw new Error(`Calorías: "${p.alimento}" aparece ${filas.length} veces en RAW_FOODS (debe ser 1).`);
-  const [grupoApp, name, estado, kcal, protein, carbs, fat, fiber] = filas[0];
-  const f = { name, estado, kcal, protein, carbs, fat, fiber };
-  // Sin medidas repetidas: algunos alimentos guardan "plato" con el mismo
-  // peso que "porción" solo para que lo ya registrado siga sumando bien.
-  // Como unitsFor de la app: primero las medidas de esa versión ("Lomo saltado
-  // (Con papas fritas)"), luego las del nombre y luego las del grupo.
-  const medidas = (UNITS_BY_NAME[`${name} (${estado})`] || UNITS_BY_NAME[name] || UNITS_BY_GROUP[grupoApp] || [])
-    .filter(([, g], i, todas) => todas.findIndex(([, o]) => o === g) === i);
-  if (!medidas.length) throw new Error(`Calorías: "${name}" no tiene medidas (UNITS_BY_NAME / UNITS_BY_GROUP).`);
+  const { f, medidas } = alimentoDe(p.alimento, p.estado, p.slug);
   const principal = (p.porcion && medidas.find(([m]) => m === p.porcion)) || medidas[0];
+  if (p.porcion && principal[0] !== p.porcion) throw new Error(`Calorías: "${p.slug}" pide la medida "${p.porcion}", que no existe.`);
   if (!GRUPOS.some(g => g.id === p.grupo)) throw new Error(`Calorías: grupo "${p.grupo}" no existe.`);
-  const fuente = verificados[`${name} (${estado})`]?.fuente || '';
-  return { ...p, f, medidas, principal, etiqueta: p.etiqueta || nombreMedida(principal[0]), fuente };
+  const fuente = verificados[f.key]?.fuente || '';
+  // Otras versiones del mismo plato en una sola página (pierna / pecho, con o
+  // sin piel, pan blanco / integral…), para no hacer páginas casi iguales.
+  const versiones = (p.versiones || []).map(v => {
+    const a = alimentoDe(v.alimento, v.estado, `${p.slug} · versión`);
+    const med = (v.porcion && a.medidas.find(([m]) => m === v.porcion)) || a.medidas[0];
+    if (v.porcion && med[0] !== v.porcion) throw new Error(`Calorías: "${p.slug}" · versión "${v.nombre}" pide la medida "${v.porcion}", que no existe.`);
+    return { nombre: v.nombre, f: a.f, medida: med };
+  });
+  return { ...p, f, medidas, principal, etiqueta: p.etiqueta || nombreMedida(principal[0]), fuente, versiones };
 });
 const slugs = new Set();
 for (const p of platos) {
@@ -120,6 +152,7 @@ td,th{padding:10px 4px;border-bottom:1px solid var(--borde);text-align:left}
 th{color:var(--gris);font-weight:500;font-size:13px}
 td.n,th.n{text-align:right;white-space:nowrap}
 tr:last-child td{border-bottom:0}
+td .sub{display:block;font-size:12px;color:var(--gris)}
 .consejo{display:flex;gap:14px;align-items:flex-start;border-color:var(--aji)}
 .consejo img{width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--aji)}
 .consejo p{margin:4px 0 0;color:var(--crema)}
@@ -187,6 +220,23 @@ function pie() {
 
 // Al tocar el botón: la app sabe que vino de estas páginas (fuente) y de
 // cuál plato (campaña · anuncio en el embudo).
+// Regla del arroz y de la papa, igual que en la app: "🍚 Sin arroz: agrégalo
+// aparte" con lo que suma una porción de arroz (o una papa).
+const arrozBlanco = alimentoDe('Arroz blanco', 'Cocido', 'regla del arroz');
+const papaCocida = alimentoDe('Papa', 'Cocida', 'regla de la papa');
+function reglas(f) {
+  const out = [];
+  if (PLATOS_SIN_ARROZ.has(f.name)) {
+    const g = arrozBlanco.medidas[0][1];
+    out.push(`🍚 Sin arroz: agrégalo aparte (una porción de arroz blanco, ${g} g, suma unas ${kcalDe(arrozBlanco.f, g)} kcal).`);
+  }
+  if (PLATOS_SIN_PAPA.has(f.name)) {
+    const g = papaCocida.medidas[0][1];
+    out.push(`🥔 Sin papa: agrégala aparte (una papa sancochada, ${g} g, suma unas ${kcalDe(papaCocida.f, g)} kcal).`);
+  }
+  return out;
+}
+
 const linkApp = donde => `/?fuente=calorias&utm_campaign=paginas_calorias&utm_content=${encodeURIComponent(donde)}`;
 
 function paginaPlato(p) {
@@ -206,7 +256,11 @@ function paginaPlato(p) {
   const titulo = `Calorías ${del} ${nombreMin} (${kcal} kcal) | Jonah Beast Fuel`;
   const descripcion = `${frase} (${gramos} g) tiene unas ${kcal} kcal: ${prot} g de proteína, ${carb} g de carbohidratos y ${gras} g de grasa. Mira cuánto tiene tu porción y el consejo de Jonah.`;
   const ruta = `/calorias/${p.slug}`;
-  const otros = platos.filter(o => o.grupo === p.grupo && o.slug !== p.slug).slice(0, 4);
+  // Enlaces a parecidos: los que le siguen en su grupo (dando la vuelta), así
+  // cada página recibe enlaces y no solo las primeras de cada grupo.
+  const delGrupo = platos.filter(o => o.grupo === p.grupo);
+  const i = delGrupo.indexOf(p);
+  const otros = delGrupo.length > 1 ? Array.from({ length: Math.min(4, delGrupo.length - 1) }, (_, k) => delGrupo[(i + 1 + k) % delGrupo.length]) : [];
   const masOtros = otros.length < 4 ? platos.filter(o => o.grupo !== p.grupo).slice(0, 4 - otros.length) : [];
   const jsonld = [
     { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
@@ -225,12 +279,12 @@ function paginaPlato(p) {
   return `${cabecera({ titulo, descripcion, ruta, jsonld })}
 <nav class="migas"><a href="/">Inicio</a> › <a href="/calorias">Calorías</a> › ${esc(p.nombre)}</nav>
 <h1 class="display">Calorías ${del} <em>${esc(nombreMin)}</em></h1>
-<p class="bajada">${esc(frase)} tiene unas <b>${kcal} kcal</b>. Aquí ves cuánto tiene según tu porción y cómo disfrutarlo sin dejarlo.</p>
+<p class="bajada">${esc(frase)} tiene unas <b>${kcal} kcal</b>. Aquí ves cuánto tiene según tu porción y el consejo de Jonah para comer${{ el: 'lo', la: 'la', los: 'los', las: 'las' }[el]} sin dejar${{ el: 'lo', la: 'la', los: 'los', las: 'las' }[el]}.</p>
 
 <div class="tarjeta">
   <div class="grande">
     <div><div class="medida">${esc(p.etiqueta)} (${gramos} g)</div>
-    <div class="kcal">${kcal}<small>kcal</small></div>${p.aclara ? `<div class="medida">${esc(p.aclara)}</div>` : ''}</div>
+    <div class="kcal">${kcal}<small>kcal</small></div>${p.aclara ? `<div class="medida">${esc(p.aclara)}</div>` : ''}${reglas(f).map(r => `<div class="medida">${esc(r)}</div>`).join('')}</div>
   </div>
   <div class="macros">
     <div class="macro"><b>${prot} g</b><span>Proteína</span></div>
@@ -248,7 +302,17 @@ function paginaPlato(p) {
   <div><div class="quien">💬 El consejo de Jonah</div><p>${esc(p.consejo)}</p></div>
 </div>
 
-<div class="tarjeta">
+${p.versiones.length ? `<div class="tarjeta">
+  <h2 class="display">${esc(p.versionesTitulo || 'Según cómo lo pidas')}</h2>
+  <table>
+    <thead><tr><th>Versión</th><th class="n">Peso</th><th class="n">Calorías</th><th class="n">Proteína</th></tr></thead>
+    <tbody>
+      <tr><td>${esc(p.versionPrincipal || p.nombre)}<span class="sub">${esc(nombreMedida(principal[0]))}</span></td><td class="n">${gramos} g</td><td class="n"><b>${kcal} kcal</b></td><td class="n">${prot} g</td></tr>
+${p.versiones.map(v => `      <tr><td>${esc(v.nombre)}<span class="sub">${esc(nombreMedida(v.medida[0]))}</span></td><td class="n">${v.medida[1]} g</td><td class="n"><b>${kcalDe(v.f, v.medida[1])} kcal</b></td><td class="n">${grDe(v.f.protein, v.medida[1])} g</td></tr>`).join('\n')}
+    </tbody>
+  </table>
+</div>
+` : ''}<div class="tarjeta">
   <h2 class="display">Según cuánto te sirvas</h2>
   <table>
     <thead><tr><th>Porción</th><th class="n">Peso</th><th class="n">Calorías</th><th class="n">Proteína</th></tr></thead>
@@ -258,7 +322,7 @@ ${medidas.map(([m, g]) => `      <tr><td>${esc(nombreMedida(m))}</td><td class="
     </tbody>
   </table>
 </div>
-<p class="nota">Valores aproximados: cambian según la receta y el tamaño de tu porción. En 100 g: ${num(f.protein)} g de proteína, ${num(f.carbs)} g de carbohidratos, ${num(f.fat)} g de grasa y ${num(f.fiber)} g de fibra.${p.fuente && !p.fuente.startsWith('"') ? ` Fuente: ${esc(p.fuente.replace(/^Corregido: /, ''))}.` : ''}</p>
+<p class="nota">Valores aproximados: cambian según la receta y el tamaño de tu porción. En 100 g: ${num(f.protein)} g de proteína, ${num(f.carbs)} g de carbohidratos, ${num(f.fat)} g de grasa y ${num(f.fiber)} g de fibra.${fuenteCorta(p.fuente) ? ` Fuente: ${esc(fuenteCorta(p.fuente))}.` : ''}</p>
 
 <div class="tarjeta cta">
   <h2 class="display">¿Tu plato es más grande o más chico?</h2>
@@ -266,7 +330,7 @@ ${medidas.map(([m, g]) => `      <tr><td>${esc(nombreMedida(m))}</td><td class="
   <a class="btn" href="${linkApp(p.slug)}">Calcula el tuyo gratis</a>
 </div>
 
-<h2 class="display">Otros platos</h2>
+<h2 class="display">Mira también</h2>
 <div class="lista">
 ${[...otros, ...masOtros].map(o => `  <a href="/calorias/${o.slug}">${esc(o.nombre)}<span>${kcalDe(o.f, o.principal[1])} kcal</span></a>`).join('\n')}
 </div>
@@ -276,13 +340,13 @@ ${pie()}`;
 
 function paginaIndice() {
   const titulo = 'Calorías de la comida peruana: lomo saltado, ceviche, ají de gallina y más | Jonah Beast Fuel';
-  const descripcion = `Cuántas calorías, proteína, carbohidratos y grasa tienen ${platos.length} platos peruanos: lomo saltado, ceviche, ají de gallina, pollo a la brasa, chaufa y más. Con el consejo de Jonah para comerlos sin dejarlos.`;
+  const descripcion = `Cuántas calorías, proteína, carbohidratos y grasa tienen ${platos.length} platos y alimentos de Perú: lomo saltado, ceviche, ají de gallina, pollo a la brasa, chaufa y más. Con el consejo de Jonah para comerlos sin dejarlos.`;
   const jsonld = { '@context': 'https://schema.org', '@type': 'ItemList', name: 'Calorías de la comida peruana',
     itemListElement: platos.map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITIO}/calorias/${p.slug}`, name: p.nombre })) };
   return `${cabecera({ titulo, descripcion, ruta: '/calorias', jsonld })}
 <nav class="migas"><a href="/">Inicio</a> › Calorías</nav>
 <h1 class="display">Calorías de la <em>comida peruana</em></h1>
-<p class="bajada">No tienes que dejar tu lomo saltado ni tu ceviche para bajar de peso: tienes que saber cuánto comes. Aquí están ${platos.length} platos de siempre como se sirven en casa, con sus calorías (la Tabla Peruana del CENAN es nuestra primera fuente), su proteína y un consejo mío para cada uno.</p>
+<p class="bajada">No tienes que dejar tu lomo saltado ni tu ceviche para bajar de peso: tienes que saber cuánto comes. Aquí están ${platos.length} platos y alimentos de siempre como se sirven en casa, con sus calorías (la Tabla Peruana del CENAN es nuestra primera fuente), su proteína y un consejo mío para cada uno.</p>
 <input class="buscar" type="search" placeholder="Busca un plato (ej. chaufa)" aria-label="Buscar un plato" oninput="filtrar(this.value)">
 ${GRUPOS.map(g => {
   const lista = platos.filter(p => p.grupo === g.id);
@@ -440,7 +504,7 @@ ${preguntas.map(([q, a]) => `  <h3 style="font-size:16px;margin:14px 0 4px">${es
   <p>Tómale foto a tu plato y mira cuánto tiene. Gratis para siempre, sin tarjeta.</p>
   <a class="btn" href="${linkApp('contador_abajo')}">Empezar gratis</a>
 </div>
-<p><a href="/calorias">Mira las calorías de ${platos.length} platos peruanos →</a></p>
+<p><a href="/calorias">Mira las calorías de ${platos.length} platos y alimentos de Perú →</a></p>
 ${pie()}`;
 }
 

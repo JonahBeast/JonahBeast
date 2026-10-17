@@ -57,7 +57,9 @@ const platos = PLATOS.map(p => {
   const f = { name, estado, kcal, protein, carbs, fat, fiber };
   // Sin medidas repetidas: algunos alimentos guardan "plato" con el mismo
   // peso que "porción" solo para que lo ya registrado siga sumando bien.
-  const medidas = (UNITS_BY_NAME[name] || UNITS_BY_GROUP[grupoApp] || [])
+  // Como unitsFor de la app: primero las medidas de esa versión ("Lomo saltado
+  // (Con papas fritas)"), luego las del nombre y luego las del grupo.
+  const medidas = (UNITS_BY_NAME[`${name} (${estado})`] || UNITS_BY_NAME[name] || UNITS_BY_GROUP[grupoApp] || [])
     .filter(([, g], i, todas) => todas.findIndex(([, o]) => o === g) === i);
   if (!medidas.length) throw new Error(`Calorías: "${name}" no tiene medidas (UNITS_BY_NAME / UNITS_BY_GROUP).`);
   const principal = (p.porcion && medidas.find(([m]) => m === p.porcion)) || medidas[0];

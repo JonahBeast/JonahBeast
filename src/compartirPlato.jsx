@@ -7,7 +7,7 @@
    Mismo botón en la portada, en el buscador de la app y en lo anotado. */
 import { useState } from 'react';
 import { entryMacros, entryGrams, textoPorcion, showToast, vibrar } from './App.jsx';
-import { nombreAlimento, linkPlato, arrozDelPlato, slugAlimento } from './buscador.js';
+import { nombreAlimento, linkPlato, arrozDelPlato, esPlatoSinPapa, slugAlimento } from './buscador.js';
 
 const CARBON = '#16110D', CREMA = '#F7F2E7', NARANJA = '#E8590C', NARANJA_CLARO = '#FF7020';
 
@@ -26,6 +26,7 @@ export function datosPlato(food, porcion) {
     porcion: textoPorcionConGramos(food, porcion),
     kcal: Math.round(m.kcal), p: Math.round(m.protein), c: Math.round(m.carbs), g: Math.round(m.fat),
     arroz: arrozDelPlato(food),
+    sinPapa: esPlatoSinPapa(food),
     link: linkPlato(food),
   };
 }
@@ -120,6 +121,17 @@ export async function imagenPlato(d) {
     g.strokeStyle = d.arroz === 'sin' ? '#F5A468' : NARANJA; g.lineWidth = 3;
     g.beginPath(); g.roundRect ? g.roundRect(W / 2 - ancho / 2, y - 48, ancho, 72, 36) : g.rect(W / 2 - ancho / 2, y - 48, ancho, 72); g.fill(); g.stroke();
     g.fillStyle = d.arroz === 'sin' ? '#F5A468' : CREMA;
+    g.fillText(texto, W / 2, y + 2);
+  }
+  // "Sin papa" (ají de gallina, 17 oct), con el mismo estilo.
+  if (d.sinPapa) {
+    y += d.arroz ? 90 : 70;
+    const texto = '🥔 SIN PAPA: VA APARTE';
+    g.font = '600 38px "Work Sans", sans-serif';
+    const ancho = g.measureText(texto).width + 70;
+    g.fillStyle = 'rgba(245,164,104,0.14)'; g.strokeStyle = '#F5A468'; g.lineWidth = 3;
+    g.beginPath(); g.roundRect ? g.roundRect(W / 2 - ancho / 2, y - 48, ancho, 72, 36) : g.rect(W / 2 - ancho / 2, y - 48, ancho, 72); g.fill(); g.stroke();
+    g.fillStyle = '#F5A468';
     g.fillText(texto, W / 2, y + 2);
   }
 

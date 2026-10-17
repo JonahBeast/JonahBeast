@@ -1013,8 +1013,8 @@
   },
   "Pollo a la brasa con papas y ensalada (-)": {
    "estado": "verificado",
-   "fuente": "Tablas Peruanas de Composición de Alimentos (CENAN/INS) y USDA FoodData Central",
-   "verificado_en": "2026-10-02"
+   "fuente": "Cálculo con su receta (17 oct 2026, decisión de Jonah; la misma de src/recetasPlatos.js): 250 g de \"Pollo a la brasa (solo la presa)\" de la app (su 1/4 de pollo; 215 kcal, P 25, C 0,5, G 12,5 en 100 g; CENAN y USDA) + 150 g de \"Papas fritas (comida rápida)\" (312 kcal, P 3,4, C 41, G 15; USDA) + 40 g de \"Lechuga (Cruda)\" + 30 g de \"Tomate (Crudo)\" (USDA), todos de la app = 470 g (el \"1/4 con papas\"), 1017 kcal; P 68,4, C 65,1, G 53,9, fibra 6,6 → en 100 g: 216,4 kcal, P 14,6, C 13,8, G 11,5, fibra 1,4 (4·P + 4·C + 9·G = 217). El \"1/8 con papas\" (300 g) da 649 kcal (la receta del octavo, con 125 g de presa, 120 g de papas, 30 g de lechuga y 25 g de tomate, suma 652). Antes: 232 kcal en 100 g (1090 el cuarto), más que su propia receta y que los platos por corte (1008–1019)",
+   "verificado_en": "2026-10-17"
   },
   "Pollada (pollo frito) (-)": {
    "estado": "verificado",

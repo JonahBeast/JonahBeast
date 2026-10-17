@@ -247,7 +247,8 @@ export function interpretarVarios(textoCompleto, FOODS) {
 
   // Platos que ya traen sus acompañamientos (revisión de cálculos, 17 oct):
   // "1 cuarto de pollo a la brasa, papas fritas, ensalada de lechuga" sumaba
-  // el plato completo MÁS papas y lechuga (1573 kcal en vez de 1090).
+  // el plato completo MÁS papas y lechuga (1573 kcal en vez de 1090; desde
+  // el 17 oct el plato va por su receta: 1017).
   const items = [];
   for (const parte of unirPlatosConY(partes, FOODS, variantesSingular)) {
     // "Pan con palta", "2 panes con huevo": no son platos, son el pan y lo
@@ -535,6 +536,21 @@ export function unidadDePorcion(food, porcion, unitsFor, texto = '') {
   return posibles[0];
 }
 
+// "taza", "tazas", "vaso", "cucharadas"… dicho en el texto, entre las
+// medidas de una palabra que tiene el alimento (no "plato", "unidad" ni
+// "porción", que
+// ya son la porción por defecto de lo que se dice sin medida).
+function medidaDicha(food, texto, unitsFor) {
+  const t = String(texto || '').toLowerCase();
+  if (!t) return null;
+  for (const [u] of unitsFor(food)) {
+    if (u === 'gramos' || u === 'plato' || u === 'unidad' || u === 'porción' || /[\s/()]/.test(u)) continue;
+    const plural = /[aeiou]$/.test(u) ? `${u}s` : `${u}es`;
+    if (new RegExp(`(^|[^a-záéíóúñ])(${u}|${plural})([^a-záéíóúñ]|$)`).test(t)) return u;
+  }
+  return null;
+}
+
 // Cuánto se anota de cada alimento entendido: los gramos que dijo, o la
 // medida casera por defecto por la cantidad.
 export function porcionDelItem(it, unidadPorDefecto, unitsFor) {
@@ -546,6 +562,11 @@ export function porcionDelItem(it, unidadPorDefecto, unitsFor) {
   }
   const enPorcion = unitsFor && unidadDePorcion(it.food, it.porcion, unitsFor, it.textoOriginal);
   if (enPorcion) return { unit: enPorcion, qty: it.cantidad || 1 };
+  // La medida casera dicha, si el alimento la tiene ("2 tazas de lentejas
+  // crudas" → 2 tazas, no la porción por defecto × 2). 17 oct: antes solo
+  // coincidía cuando la medida dicha era la de por defecto.
+  const dicha = unitsFor && medidaDicha(it.food, it.textoOriginal, unitsFor);
+  if (dicha) return { unit: dicha, qty: it.cantidad || 1 };
   const d = unidadPorDefecto(it.food);
   return { unit: d.unit, qty: d.qty * (it.cantidad || 1) };
 }

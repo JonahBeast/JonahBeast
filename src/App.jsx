@@ -6247,7 +6247,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <h2 className="jb-display text-2xl text-zinc-50 mb-1">ELIGE TU PLAN</h2>
             <p className="jb-body text-sm text-zinc-400">Mientras más tiempo, mejor precio por mes.</p>
             <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3">
-              {[['🟣', 'Yape'], ['🔵', 'Plin'], ['💳', 'Tarjeta'], ['🏦', 'Transferencia']].map(([e, m]) => (
+              {[['🟣', 'Yape'], ['🔵', 'Plin'], ['💳', 'Tarjeta de crédito o débito'], ['🏦', 'Transferencia']].map(([e, m]) => (
                 <span key={m} className="jb-body text-[11px] text-zinc-300 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1">{e} {m}</span>
               ))}
             </div>
@@ -6260,7 +6260,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             className="w-full bg-orange-500 hover:bg-orange-400 rounded-2xl p-4 text-left flex items-center justify-between gap-3 shadow-lg shadow-orange-500/20">
             <span>
               <span className="jb-display text-lg text-zinc-950 block leading-tight">EMPEZAR CON 1 MES</span>
-              <span className="jb-body text-xs text-zinc-900">{fmtS(precioDe(PLANES[0]))} · menos de S/1 al día · pagas con Yape o Plin</span>
+              <span className="jb-body text-xs text-zinc-900">{fmtS(precioDe(PLANES[0]))} · menos de S/1 al día · pagas con tarjeta, Yape o Plin</span>
             </span>
             <ChevronRight size={22} className="text-zinc-950 shrink-0" />
           </button>

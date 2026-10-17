@@ -2987,7 +2987,7 @@ function FinPruebaModal({ user, onPlan, onCerrar }) {
           <>
             <button onClick={() => elegir('1mes', 1)} className={btnPrimary + ' w-full py-3.5 rounded-2xl flex-col gap-0'}>
               <span className="jb-display text-base tracking-wide">SEGUIR CON 1 MES{precio1 ? ` · ${fmtS(precio1)}` : ''}</span>
-              <span className="jb-body text-[11px] font-normal">Menos de S/1 al día · pagas con Yape o Plin</span>
+              <span className="jb-body text-[11px] font-normal">Menos de S/1 al día · pagas con tarjeta, Yape o Plin</span>
             </button>
             <button onClick={() => elegir('planes', null)} className="w-full jb-body text-sm text-orange-400 py-2.5 mt-1">Ver todos los planes (ahorras con más meses)</button>
           </>

@@ -1,0 +1,1561 @@
+{
+ "descripcion": "Foto de las medidas caseras de la app (gramos de cada una). La revisa scripts/verificar-medidas.mjs en cada build: si una medida desaparece sin pasar a src/medidasRetiradas.js, o cambia de gramos, el build falla. Se actualiza con: node scripts/verificar-medidas.mjs --actualizar",
+ "medidas": {
+  "Arroz verde (Cocido)": {
+   "porción": 150,
+   "plato": 250
+  },
+  "Arroz amarillo (a la jardinera) (Cocido)": {
+   "porción": 150,
+   "plato": 250
+  },
+  "Arroz aderezado (con ají panca) (Cocido)": {
+   "porción": 150,
+   "plato": 250
+  },
+  "Arroz chaufa (solo el arroz) (Cocido)": {
+   "porción": 150,
+   "plato": 250
+  },
+  "Quinua (Cruda)": {
+   "taza": 185
+  },
+  "Quinua (Cocida)": {
+   "taza": 185
+  },
+  "Avena en hojuelas (Cruda)": {
+   "media taza": 40
+  },
+  "Lenteja (Cruda)": {
+   "taza": 180
+  },
+  "Lenteja (Cocida)": {
+   "taza": 180
+  },
+  "Frejol canario (Crudo)": {
+   "taza": 180
+  },
+  "Frejol canario (Cocido)": {
+   "taza": 180
+  },
+  "Garbanzo (Crudo)": {
+   "taza": 180
+  },
+  "Garbanzo (Cocido)": {
+   "taza": 180
+  },
+  "Pallar (Crudo)": {
+   "taza": 180
+  },
+  "Pallar (Cocido)": {
+   "taza": 180
+  },
+  "Haba seca (Cruda)": {
+   "taza": 180
+  },
+  "Haba (Cocida)": {
+   "taza": 180
+  },
+  "Papa (Cruda)": {
+   "unidad": 150
+  },
+  "Papa (Cocida)": {
+   "unidad": 150
+  },
+  "Plátano bellaco (Sancochado)": {
+   "unidad": 250,
+   "mitad": 125,
+   "rodaja": 25
+  },
+  "Pollo pechuga (Cruda)": {
+   "filete": 120
+  },
+  "Pollo pechuga (Cocida)": {
+   "filete": 120
+  },
+  "Bonito (Crudo)": {
+   "filete": 120
+  },
+  "Bonito (Cocido)": {
+   "filete": 120
+  },
+  "Huevo de gallina (Crudo)": {
+   "unidad": 50
+  },
+  "Huevo de gallina (Cocido)": {
+   "unidad": 50
+  },
+  "Huevo de gallina (Frito)": {
+   "unidad": 50
+  },
+  "Huevo de codorniz (Crudo)": {
+   "unidad": 9
+  },
+  "Huevo de codorniz (Cocido)": {
+   "unidad": 9
+  },
+  "Leche entera (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Leche descremada (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Leche sin lactosa (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Yogur natural (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Queso fresco (-)": {
+   "tajada": 30
+  },
+  "Plátano de seda (Cruda)": {
+   "unidad": 120
+  },
+  "Manzana (Cruda)": {
+   "unidad": 180
+  },
+  "Palta (Cruda)": {
+   "unidad": 200,
+   "mitad": 100,
+   "porción para pan": 50
+  },
+  "Naranja (Cruda)": {
+   "unidad": 150
+  },
+  "Fresa (Cruda)": {
+   "unidad": 15
+  },
+  "Aceite vegetal (-)": {
+   "cucharada": 14,
+   "cucharadita": 5
+  },
+  "Mantequilla (-)": {
+   "cucharada": 14,
+   "cucharadita": 5
+  },
+  "Maní (Crudo)": {
+   "puñado": 30,
+   "cucharada": 9
+  },
+  "Pan francés (-)": {
+   "unidad": 35
+  },
+  "Rapiditas Clásicas (Bimbo) (-)": {
+   "unidad": 26
+  },
+  "Rapiditas Integrales (Bimbo) (-)": {
+   "unidad": 26
+  },
+  "Rapiditas XL (Bimbo) (-)": {
+   "unidad": 52
+  },
+  "Pan integral (-)": {
+   "rebanada": 30
+  },
+  "Pan de molde blanco (-)": {
+   "rebanada": 30
+  },
+  "Pan árabe (-)": {
+   "unidad": 60
+  },
+  "Pan árabe integral (-)": {
+   "unidad": 60
+  },
+  "Jamonada (-)": {
+   "rebanada": 15
+  },
+  "Salchicha (hot dog) (-)": {
+   "unidad": 45
+  },
+  "Tostadas (-)": {
+   "unidad": 10
+  },
+  "Pan con jamonada (-)": {
+   "unidad": 65
+  },
+  "Pan con jamonada (Pan blanco)": {
+   "unidad": 65
+  },
+  "Pan con jamonada (Pan integral)": {
+   "unidad": 65
+  },
+  "Pan con pollo (-)": {
+   "unidad": 200
+  },
+  "Pan con pollo (Pan blanco)": {
+   "unidad": 200
+  },
+  "Pan con pollo (Pan integral)": {
+   "unidad": 200
+  },
+  "Pan con chicharrón (-)": {
+   "unidad": 220
+  },
+  "Pan con chicharrón (Pan blanco)": {
+   "unidad": 220
+  },
+  "Pan con chicharrón (Pan integral)": {
+   "unidad": 220
+  },
+  "Butifarra (-)": {
+   "unidad": 180
+  },
+  "Butifarra (Pan blanco)": {
+   "unidad": 180
+  },
+  "Butifarra (Pan integral)": {
+   "unidad": 180
+  },
+  "Hot dog (-)": {
+   "unidad": 110
+  },
+  "Hot dog (Pan blanco)": {
+   "unidad": 110
+  },
+  "Hot dog (Pan integral)": {
+   "unidad": 110
+  },
+  "Hamburguesa de carretilla (-)": {
+   "unidad": 200
+  },
+  "Hamburguesa de carretilla (Pan blanco)": {
+   "unidad": 200
+  },
+  "Hamburguesa de carretilla (Pan integral)": {
+   "unidad": 200
+  },
+  "Pizza americana (-)": {
+   "tajada": 110
+  },
+  "Pollo broaster (-)": {
+   "presa": 150
+  },
+  "Salchipollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Sopa wantán (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Humita (-)": {
+   "unidad": 150
+  },
+  "Picarones con miel (-)": {
+   "porción": 150
+  },
+  "Cancha serrana (Tostada)": {
+   "puñado": 30
+  },
+  "Granola (-)": {
+   "taza": 110,
+   "cucharada": 10
+  },
+  "Mantequilla de maní (-)": {
+   "cucharada": 16
+  },
+  "Refresco de cebada (Con azúcar)": {
+   "vaso": 250
+  },
+  "Cerveza (-)": {
+   "vaso": 300,
+   "lata": 355,
+   "botella grande": 620
+  },
+  "Chía (Cruda)": {
+   "cucharada": 12,
+   "cucharadita": 4
+  },
+  "Pollo pierna (con piel) (Cocida)": {
+   "presa": 130,
+   "unidad": 130
+  },
+  "Pollo pierna (sin piel) (Cruda)": {
+   "presa": 110,
+   "unidad": 110
+  },
+  "Pollo encuentro (con piel) (Cocido)": {
+   "presa": 150,
+   "unidad": 150
+  },
+  "Pollo encuentro (sin piel) (Cocido)": {
+   "presa": 125,
+   "unidad": 125
+  },
+  "Pollo entrepierna (Cocida)": {
+   "presa": 160,
+   "unidad": 160
+  },
+  "Pollo ala (con piel) (Cocida)": {
+   "unidad": 45,
+   "par": 90
+  },
+  "Pollo pechuga (con piel) (Cocida)": {
+   "presa": 200,
+   "media pechuga": 150
+  },
+  "Gallina (Cocida)": {
+   "presa": 180
+  },
+  "Arveja verde (Cocida)": {
+   "taza": 160,
+   "porción": 150
+  },
+  "Arveja partida (seca) (Cocida)": {
+   "taza": 180
+  },
+  "Frejol negro (Cocido)": {
+   "taza": 180
+  },
+  "Frejol panamito (Cocido)": {
+   "taza": 180
+  },
+  "Frejol castilla (Cocido)": {
+   "taza": 180
+  },
+  "Frejol bayo (Cocido)": {
+   "taza": 180
+  },
+  "Lenteja bebé (Cocida)": {
+   "taza": 180
+  },
+  "Tarwi (chocho) (Cocido)": {
+   "taza": 180,
+   "porción": 150
+  },
+  "Soya (Cocida)": {
+   "taza": 180
+  },
+  "Locro de zapallo (-)": {
+   "plato": 400,
+   "porción": 300
+  },
+  "Arroz con pato (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Carapulcra (-)": {
+   "plato": 350,
+   "porción": 250
+  },
+  "Olluquito con charqui (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Adobo de cerdo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Ají de pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Pollo al sillao (-)": {
+   "plato": 300,
+   "porción": 200
+  },
+  "Papa dorada al sillao (Estimado - varía según receta)": {
+   "porción": 150
+  },
+  "Frejolada (frejol con arroz) (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Menestra de lentejas con arroz (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Chanfainita (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Papa rellena (-)": {
+   "unidad": 200
+  },
+  "Empanada de carne (Horneada)": {
+   "unidad": 130
+  },
+  "Empanada de pollo (Horneada)": {
+   "unidad": 130
+  },
+  "Empanada mixta (carne y pollo) (Horneada)": {
+   "unidad": 130
+  },
+  "Tamal (-)": {
+   "unidad": 180
+  },
+  "Juane (-)": {
+   "unidad": 300
+  },
+  "Galleta Morocha (bañada en chocolate) (-)": {
+   "unidad": 20
+  },
+  "Galleta de soda (salada) (-)": {
+   "unidad": 7
+  },
+  "Galleta de vainilla (dulce, tipo Casino/Margarita) (-)": {
+   "unidad": 8
+  },
+  "Galleta Casino (vainilla rellena) (-)": {
+   "paquete": 28
+  },
+  "Galleta Margarita (vainilla rellena) (-)": {
+   "paquete": 30
+  },
+  "Galleta Chomp (chispas de chocolate) (-)": {
+   "unidad": 10
+  },
+  "Galleta Cua Cua (wafer con chocolate) (-)": {
+   "unidad": 20
+  },
+  "Galleta Club Social (cracker) (-)": {
+   "unidad": 6
+  },
+  "Pachamanca (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Sopa de pollo con fideos (-)": {
+   "plato": 400
+  },
+  "Chupe de camarones (-)": {
+   "plato": 400
+  },
+  "Parihuela (-)": {
+   "plato": 400
+  },
+  "Café negro (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Café con leche (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Té / infusión (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de papaya (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de piña (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de naranja (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de maracuyá (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo surtido (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Limonada (Sin azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Emoliente (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Avena / quinua de bebida (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Chicha morada (Sin azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Atún en lata en agua (escurrido) (-)": {
+   "lata pequeña": 100,
+   "lata grande": 140
+  },
+  "Atún en lata en aceite (escurrido) (-)": {
+   "lata pequeña": 100,
+   "lata grande": 140
+  },
+  "Atún en lata en aceite (sin escurrir) (-)": {
+   "lata pequeña": 100,
+   "lata grande": 140
+  },
+  "Clara de huevo (Cocida)": {
+   "unidad": 33
+  },
+  "Yema de huevo (Cocida)": {
+   "unidad": 17
+  },
+  "Ají de gallina (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz con pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Pollo a la brasa (solo la presa) (-)": {
+   "1/4 de pollo": 250,
+   "1/8 de pollo": 125,
+   "porción": 200
+  },
+  "Pollo a la brasa con papas y ensalada (-)": {
+   "1/4 con papas": 470,
+   "1/8 con papas": 300,
+   "plato": 470
+  },
+  "Pollada (pollo frito) (-)": {
+   "cuarto de pollo": 220,
+   "octavo de pollo": 110
+  },
+  "Pollada pierna (-)": {
+   "cuarto de pollo": 210,
+   "octavo de pollo": 105
+  },
+  "Pollada pecho (-)": {
+   "cuarto de pollo": 240,
+   "octavo de pollo": 120
+  },
+  "Pollo a la brasa pierna (solo la presa) (-)": {
+   "cuarto de pollo": 230,
+   "octavo de pollo": 115
+  },
+  "Pollo a la brasa pecho (solo la presa) (-)": {
+   "cuarto de pollo": 270,
+   "octavo de pollo": 135
+  },
+  "Pollo a la brasa pierna (solo la presa) (Con piel)": {
+   "cuarto de pollo": 230,
+   "octavo (pierna)": 95,
+   "octavo (entrepierna)": 135
+  },
+  "Pollo a la brasa pierna (solo la presa) (Sin piel)": {
+   "cuarto de pollo": 195,
+   "octavo (pierna)": 80,
+   "octavo (entrepierna)": 115
+  },
+  "Pollo a la brasa pecho (solo la presa) (Con piel)": {
+   "cuarto de pollo": 270,
+   "octavo de pollo": 135
+  },
+  "Pollo a la brasa pecho (solo la presa) (Sin piel)": {
+   "cuarto de pollo": 245,
+   "octavo de pollo": 120
+  },
+  "Pollada pierna (Con piel)": {
+   "cuarto de pollo": 210,
+   "octavo (pierna)": 85,
+   "octavo (entrepierna)": 125
+  },
+  "Pollada pierna (Sin piel)": {
+   "cuarto de pollo": 170,
+   "octavo (pierna)": 70,
+   "octavo (entrepierna)": 100
+  },
+  "Pollada pecho (Con piel)": {
+   "cuarto de pollo": 240,
+   "octavo de pollo": 120
+  },
+  "Pollada pecho (Sin piel)": {
+   "cuarto de pollo": 215,
+   "octavo de pollo": 105
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pierna con piel)": {
+   "1/4 con papas": 450
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pierna sin piel)": {
+   "1/4 con papas": 415
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pecho con piel)": {
+   "1/4 con papas": 490
+  },
+  "Pollo a la brasa con papas y ensalada (1/4 pecho sin piel)": {
+   "1/4 con papas": 465
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pierna con piel)": {
+   "1/8 con papas": 270
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pierna sin piel)": {
+   "1/8 con papas": 255
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 entrepierna con piel)": {
+   "1/8 con papas": 310
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 entrepierna sin piel)": {
+   "1/8 con papas": 290
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pecho con piel)": {
+   "1/8 con papas": 310
+  },
+  "Pollo a la brasa con papas y ensalada (1/8 pecho sin piel)": {
+   "1/8 con papas": 295
+  },
+  "Ceviche de pescado (-)": {
+   "porción": 250,
+   "plato": 300
+  },
+  "Lomo saltado (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Lomo saltado (Con papas fritas)": {
+   "plato": 445,
+   "plato chico": 335,
+   "media porción": 225
+  },
+  "Lomo saltado (Sin papas fritas)": {
+   "plato": 295,
+   "plato chico": 220,
+   "media porción": 150
+  },
+  "Saltado de pollo (Con papas fritas)": {
+   "plato": 430,
+   "plato chico": 320,
+   "media porción": 215
+  },
+  "Saltado de pollo (Sin papas fritas)": {
+   "plato": 280,
+   "plato chico": 210,
+   "media porción": 140
+  },
+  "Arroz chaufa (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz chaufa de carne (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz chaufa de chancho (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz chaufa especial (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz a la jardinera (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Arroz con chancho (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Ensalada rusa (-)": {
+   "porción": 200,
+   "taza": 150
+  },
+  "Tallarines rojos con pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Tallarines rojos con carne molida (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Tallarines verdes (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Causa limeña (-)": {
+   "porción": 250,
+   "plato": 400
+  },
+  "Papa a la huancaína (-)": {
+   "porción": 250,
+   "plato": 400
+  },
+  "Ocopa arequipeña (-)": {
+   "porción": 250,
+   "plato": 400
+  },
+  "Seco de res con frejoles (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Cau cau (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Tacu tacu (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Rocoto relleno (-)": {
+   "unidad": 220,
+   "plato": 400
+  },
+  "Anticucho de corazón (-)": {
+   "palito": 80,
+   "porción (2 palitos)": 160
+  },
+  "Chicharrón de pollo (-)": {
+   "porción": 200
+  },
+  "Chicharrón de chancho (-)": {
+   "porción": 180,
+   "plato": 180
+  },
+  "Arroz con mariscos (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Hamburguesa clásica (Bembos) (-)": {
+   "unidad": 220
+  },
+  "Alitas broaster (Bembos) (-)": {
+   "unidad": 60
+  },
+  "Alitas crocantes (carrito) (Estimado - varía según receta)": {
+   "unidad": 60,
+   "porción (6 unidades)": 360
+  },
+  "Alitas BBQ (carrito) (Estimado - varía según receta)": {
+   "unidad": 60,
+   "porción (6 unidades)": 360
+  },
+  "Alitas acevichadas (carrito) (Estimado - varía según receta)": {
+   "unidad": 60,
+   "porción (6 unidades)": 360
+  },
+  "Alitas búfalo (carrito) (Estimado - varía según receta)": {
+   "unidad": 60,
+   "porción (6 unidades)": 360
+  },
+  "Papas fritas (comida rápida) (-)": {
+   "porción": 150
+  },
+  "Hamburguesa clásica (McDonald's) (-)": {
+   "unidad": 100
+  },
+  "McNuggets (-)": {
+   "unidad": 16,
+   "porción (6 unidades)": 96
+  },
+  "Pieza de pollo Original (KFC) (-)": {
+   "presa": 97
+  },
+  "Pieza de pollo Crujiente (KFC) (-)": {
+   "presa": 113
+  },
+  "Alitas picantes (KFC) (-)": {
+   "unidad": 28,
+   "porción (2 unidades)": 56
+  },
+  "Twister (KFC) (-)": {
+   "unidad": 235
+  },
+  "Milanesa de pollo (-)": {
+   "filete": 150,
+   "plato": 150
+  },
+  "Torreja de espinaca y tomate (-)": {
+   "unidad": 90
+  },
+  "Filete de pollo frito (Estimado - varía según receta)": {
+   "filete": 150
+  },
+  "Pescado frito (-)": {
+   "porción": 180,
+   "plato": 180
+  },
+  "Sudado de pescado (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Escabeche de pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Salchipapa (-)": {
+   "porción": 300
+  },
+  "Pollo al horno (-)": {
+   "presa": 200,
+   "plato": 400
+  },
+  "Pollo al horno pierna (Con piel)": {
+   "presa": 90
+  },
+  "Pollo al horno pierna (Sin piel)": {
+   "presa": 90
+  },
+  "Pollo al horno entrepierna (Con piel)": {
+   "presa": 120
+  },
+  "Pollo al horno entrepierna (Sin piel)": {
+   "presa": 120
+  },
+  "Pollo al horno pecho (Con piel)": {
+   "presa": 200
+  },
+  "Pollo al horno pecho (Sin piel)": {
+   "presa": 200
+  },
+  "Pollo a la olla (presa con papa y verduras) (-)": {
+   "plato": 380,
+   "presa con papa": 280
+  },
+  "Pollo a la olla con arroz (-)": {
+   "plato": 580,
+   "plato chico": 420
+  },
+  "Lomo saltado con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Lomo saltado con arroz (Con papas fritas)": {
+   "plato": 625,
+   "plato chico": 470,
+   "media porción": 315
+  },
+  "Lomo saltado con arroz (Sin papas fritas)": {
+   "plato": 475,
+   "plato chico": 355,
+   "media porción": 240
+  },
+  "Ají de gallina con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Ají de pollo con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Seco de res con frejoles y arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Estofado de pollo con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Estofado de carne con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Cau cau con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Olluquito con charqui y arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Pollo al sillao con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Sudado de pescado con arroz (-)": {
+   "plato": 480,
+   "plato chico": 360,
+   "media porción": 240
+  },
+  "Estofado de pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Estofado de carne (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Aguadito de pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Caldo de gallina (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Sopa a la minuta (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Menestrón (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Ensalada de pollo (-)": {
+   "plato": 400,
+   "media porción": 200,
+   "porción grande": 500
+  },
+  "Sándwich de pollo (-)": {
+   "unidad": 150
+  },
+  "Sándwich de pollo (Pan blanco)": {
+   "unidad": 150
+  },
+  "Sándwich de pollo (Pan integral)": {
+   "unidad": 150
+  },
+  "Panqueques de avena (Estimado - varía según receta)": {
+   "unidad": 50,
+   "plato": 150
+  },
+  "Wafle de avena (Estimado - varía según receta)": {
+   "unidad": 75,
+   "plato": 150
+  },
+  "Fideos / pasta (Crudos)": {
+   "taza": 140,
+   "plato": 220
+  },
+  "Fideos / pasta (Cocidos)": {
+   "taza": 140,
+   "plato": 220
+  },
+  "Fideos integrales (Cocidos)": {
+   "taza": 140,
+   "plato": 220
+  },
+  "Tallarín saltado (plato) (-)": {
+   "plato": 350,
+   "porción": 250
+  },
+  "Jugo de papaya natural (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de piña natural (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de maracuyá natural (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de fresa natural (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo surtido (papaya+piña+naranja) (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Limonada con azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Picarón (-)": {
+   "unidad": 60,
+   "porción (3 unidades)": 180
+  },
+  "Mazamorra morada (-)": {
+   "porción": 200,
+   "taza": 240,
+   "vaso": 200
+  },
+  "Arroz con leche (-)": {
+   "porción": 180,
+   "taza": 240
+  },
+  "Combinado (mazamorra + arroz con leche) (-)": {
+   "porción": 250,
+   "vaso": 200
+  },
+  "Suspiro a la limeña (-)": {
+   "porción": 120,
+   "copa": 100
+  },
+  "Turrón de Doña Pepa (-)": {
+   "porción": 90,
+   "tajada": 70
+  },
+  "Alfajor (-)": {
+   "unidad": 40
+  },
+  "Torta de chocolate (-)": {
+   "tajada": 100,
+   "porción": 120
+  },
+  "Helado de vainilla (-)": {
+   "bola": 60,
+   "porción": 120,
+   "taza": 130
+  },
+  "Gelatina preparada (-)": {
+   "porción": 150,
+   "taza": 240
+  },
+  "Flan / crema volteada (-)": {
+   "porción": 130
+  },
+  "Churro relleno (-)": {
+   "unidad": 70
+  },
+  "Queque simple (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Keke de plátano (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Keke de naranja (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Keke de vainilla (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Keke de zanahoria (-)": {
+   "tajada": 80,
+   "porción": 100
+  },
+  "Keke marmoleado (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Keke de arándanos (-)": {
+   "tajada": 70,
+   "porción": 90
+  },
+  "Panetón (-)": {
+   "tajada": 80,
+   "tajada gruesa": 120,
+   "mini panetón": 90,
+   "porción": 100
+  },
+  "Torta tres leches (-)": {
+   "tajada": 100,
+   "porción": 130
+  },
+  "Cocada (-)": {
+   "unidad": 30
+  },
+  "Manjar blanco (-)": {
+   "cucharada": 20,
+   "porción": 30
+  },
+  "Leche asada (-)": {
+   "porción": 120
+  },
+  "Chocolate con leche (-)": {
+   "barra pequeña": 40,
+   "cuadrito": 8
+  },
+  "Galleta dulce rellena (-)": {
+   "unidad": 12,
+   "paquete": 43
+  },
+  "Café negro sin azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Café con leche (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Café con leche descremada (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Capuchino (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Capuchino (Con azúcar)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Té / infusión sin azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Agua (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Jugo de naranja natural (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Gaseosa regular (-)": {
+   "vaso": 200,
+   "lata": 355,
+   "botella personal": 500,
+   "ml": 1
+  },
+  "Gaseosa dietética (-)": {
+   "vaso": 200,
+   "lata": 355,
+   "botella personal": 500,
+   "ml": 1
+  },
+  "Chicha morada con azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Emoliente sin azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Leche de almendras sin azúcar (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Leche de coco (-)": {
+   "cucharada": 15
+  },
+  "Yogur bebible (-)": {
+   "vaso": 200,
+   "taza": 240,
+   "jarra": 500,
+   "ml": 1
+  },
+  "Azúcar blanca (-)": {
+   "cucharada": 12,
+   "cucharadita": 4
+  },
+  "Miel de abeja (-)": {
+   "cucharada": 21,
+   "cucharadita": 7
+  },
+  "Mermelada (-)": {
+   "cucharada": 20
+  },
+  "Galleta de soda (-)": {
+   "unidad": 6,
+   "paquete": 34
+  },
+  "Avena instantánea en polvo (-)": {
+   "cucharada": 9,
+   "taza": 80
+  },
+  "Proteína en polvo (whey) (-)": {
+   "scoop": 30,
+   "cucharada": 15
+  },
+  "Crema de arroz (Estimado - varía según marca)": {
+   "scoop": 30,
+   "cucharada": 15
+  },
+  "Proteína en polvo (isolate) (-)": {
+   "scoop": 30,
+   "cucharada": 15
+  },
+  "Aceite de oliva (-)": {
+   "cucharada": 14,
+   "cucharadita": 5
+  },
+  "Mayonesa (-)": {
+   "cucharada": 15,
+   "cucharadita": 5
+  },
+  "Almendras (Crudas)": {
+   "puñado": 30,
+   "unidad": 1.2
+  },
+  "Nueces (Crudas)": {
+   "puñado": 30,
+   "unidad": 5
+  },
+  "Pecanas (Crudas)": {
+   "puñado": 30,
+   "unidad": 3
+  },
+  "Pera (Cruda)": {
+   "unidad": 170
+  },
+  "Tuna (Cruda (pelada))": {
+   "unidad": 100
+  },
+  "Pollo pierna (sin piel) (Cocida)": {
+   "presa": 110,
+   "unidad": 110
+  },
+  "Jamón de pavo (-)": {
+   "tajada": 25
+  },
+  "Jamón inglés (-)": {
+   "tajada": 20
+  },
+  "Chorizo parrillero (-)": {
+   "unidad": 65
+  },
+  "Trucha (Cocida)": {
+   "filete": 120
+  },
+  "Queso parmesano (-)": {
+   "cucharada": 5
+  },
+  "Yogur griego natural (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Yogur saborizado (Con azúcar)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Chocolatada navideña (-)": {
+   "taza": 240,
+   "vaso": 200
+  },
+  "Pavo al horno (con piel) (-)": {
+   "porción": 150,
+   "tajada": 60
+  },
+  "Lechón al horno (-)": {
+   "porción": 150
+  },
+  "Puré de manzana (-)": {
+   "porción": 100,
+   "cucharada": 20
+  },
+  "Arroz árabe (-)": {
+   "porción": 200,
+   "taza": 150
+  },
+  "Ensalada de manzana navideña (-)": {
+   "porción": 150,
+   "taza": 130
+  },
+  "Ensalada de pollo navideña (-)": {
+   "porción": 150,
+   "taza": 130
+  },
+  "Puré de camote (-)": {
+   "porción": 150,
+   "cucharada": 30
+  },
+  "Pierna de cerdo al horno (-)": {
+   "porción": 150,
+   "tajada": 60
+  },
+  "Panetón con chispas de chocolate (-)": {
+   "tajada": 80,
+   "tajada gruesa": 120,
+   "mini panetón": 90,
+   "porción": 100
+  },
+  "Vino espumante (champán) (-)": {
+   "copa": 150
+  },
+  "Sandwich de pollo (PECAFIT) (-)": {
+   "unidad": 220
+  },
+  "Sandwich de atún (PECAFIT) (-)": {
+   "unidad": 230
+  },
+  "Omelette (PECAFIT) (-)": {
+   "plato": 220
+  },
+  "Bowl de avena (PECAFIT) (-)": {
+   "bowl": 350
+  },
+  "Waffles de avena y plátano (PECAFIT) (-)": {
+   "porción": 300
+  },
+  "Waffle de beterraga y mango (PECAFIT) (-)": {
+   "porción": 320
+  },
+  "Filete de pollo (PECAFIT) (-)": {
+   "plato": 480
+  },
+  "Quinua chaufa (PECAFIT) (-)": {
+   "plato": 500
+  },
+  "Bowl andino (PECAFIT) (-)": {
+   "bowl": 480
+  },
+  "Bowl Super Power (PECAFIT) (-)": {
+   "bowl": 500
+  },
+  "Trucha (PECAFIT) (-)": {
+   "plato": 400
+  },
+  "Peca Power Meat (PECAFIT) (-)": {
+   "plato": 600
+  },
+  "Wrap proteico (PECAFIT) (-)": {
+   "unidad": 280
+  },
+  "Wrap filete de pollo (PECAFIT) (-)": {
+   "unidad": 260
+  },
+  "Wrap crocante (PECAFIT) (-)": {
+   "unidad": 240
+  },
+  "Cake de plátano (PECAFIT) (-)": {
+   "tajada": 100
+  },
+  "Torta de cacao (PECAFIT) (-)": {
+   "tajada": 100
+  },
+  "Cheesecake (PECAFIT) (-)": {
+   "tajada": 112.5
+  },
+  "Parfait (PECAFIT) (-)": {
+   "porción": 350
+  },
+  "Jurel (Cocido)": {
+   "filete": 120
+  },
+  "Caballa (Cocida)": {
+   "filete": 120
+  },
+  "Merluza (Cocida)": {
+   "filete": 120
+  },
+  "Perico (Cocido)": {
+   "filete": 120
+  },
+  "Pejerrey (Cocido)": {
+   "porción": 120
+  },
+  "Tilapia (Cocida)": {
+   "filete": 120
+  },
+  "Lenguado (Cocido)": {
+   "filete": 120
+  },
+  "Salmón (Cocido)": {
+   "filete": 120
+  },
+  "Pota (Cocida)": {
+   "porción": 120
+  },
+  "Choros (Cocidos)": {
+   "porción": 100,
+   "unidad": 15
+  },
+  "Conchas de abanico (Cocidas)": {
+   "porción": 100,
+   "unidad": 10
+  },
+  "Pulpo (Cocido)": {
+   "porción": 100
+  },
+  "Filete de caballa en lata (escurrido) (-)": {
+   "lata": 120
+  },
+  "Sardina en lata en salsa de tomate (-)": {
+   "lata": 125
+  },
+  "Mondongo (Cocido)": {
+   "porción": 100
+  },
+  "Cuy (Cocido)": {
+   "porción": 150
+  },
+  "Leche evaporada entera (-)": {
+   "cucharada": 15,
+   "lata": 400
+  },
+  "Leche evaporada light (-)": {
+   "cucharada": 15,
+   "lata": 400
+  },
+  "Queso mantecoso (-)": {
+   "tajada": 30
+  },
+  "Arroz integral (Cocido)": {
+   "porción": 150,
+   "plato": 250
+  },
+  "Mote (Cocido)": {
+   "porción": 150,
+   "taza": 160
+  },
+  "Harina de trigo (-)": {
+   "cucharada": 8,
+   "taza": 120
+  },
+  "Maicena (-)": {
+   "cucharada": 8
+  },
+  "Papa amarilla (Cocida)": {
+   "unidad": 100
+  },
+  "Plátano maduro (Sancochado)": {
+   "unidad": 250,
+   "mitad": 125,
+   "rodaja": 25
+  },
+  "Granadilla (Cruda)": {
+   "unidad": 50
+  },
+  "Maracuyá (Cruda)": {
+   "unidad": 40
+  },
+  "Chirimoya (Cruda)": {
+   "porción": 150,
+   "unidad": 300
+  },
+  "Lúcuma (Cruda)": {
+   "unidad": 150
+  },
+  "Aguaymanto (Crudo)": {
+   "puñado": 30,
+   "unidad": 5
+  },
+  "Guanábana (Cruda)": {
+   "porción": 150
+  },
+  "Pitahaya (Cruda)": {
+   "porción": 150
+  },
+  "Kiwi (Crudo)": {
+   "unidad": 75
+  },
+  "Ciruela (Cruda)": {
+   "unidad": 65
+  },
+  "Higo (Crudo)": {
+   "unidad": 50
+  },
+  "Pasas (Secas)": {
+   "puñado": 30,
+   "cucharada": 10
+  },
+  "Sacha inchi (Tostado)": {
+   "puñado": 30
+  },
+  "Castañas (Crudas)": {
+   "puñado": 30,
+   "unidad": 5
+  },
+  "Ajonjolí (Tostado)": {
+   "cucharada": 9
+  },
+  "Azúcar rubia (-)": {
+   "cucharada": 12,
+   "cucharadita": 4
+  },
+  "Chancaca (-)": {
+   "cucharada": 15
+  },
+  "Maca en polvo (-)": {
+   "cucharada": 10
+  },
+  "Sillao (-)": {
+   "cucharada": 16
+  },
+  "Ketchup (-)": {
+   "cucharada": 15
+  },
+  "Mostaza (-)": {
+   "cucharadita": 5,
+   "cucharada": 15
+  },
+  "Berenjena (Cocida)": {
+   "porción": 100
+  },
+  "Acelga (Cocida)": {
+   "porción": 100
+  }
+ }
+}

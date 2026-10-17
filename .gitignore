@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 dist/
 
 # Llaves y secretos: nunca se suben a GitHub (van en Vercel, Supabase o el Drive).

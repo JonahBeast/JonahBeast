@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "eslint . --quiet && node scripts/manual-jarvis.mjs --revisar && node scripts/verificar-alimentos.mjs && node scripts/probar-frases.mjs && vite build && node scripts/calorias/generar.mjs",
+    "build": "eslint . --quiet && node scripts/manual-jarvis.mjs --revisar && node scripts/verificar-alimentos.mjs && node scripts/verificar-medidas.mjs && node scripts/probar-frases.mjs && vite build && node scripts/calorias/generar.mjs && node scripts/objetivos/generar.mjs",
     "revisar": "eslint .",
     "verificar-alimentos": "node scripts/verificar-alimentos.mjs",
+    "verificar-medidas": "node scripts/verificar-medidas.mjs --todo",
     "probar-frases": "node scripts/probar-frases.mjs --todo",
     "manual-jarvis": "node scripts/manual-jarvis.mjs",
     "preview": "vite preview"

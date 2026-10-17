@@ -4,6 +4,8 @@ import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import MiniaturaPlato from './miniaturaPlato.jsx';
 import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, esPlatoSinPapa, slugAlimento } from './buscador.js';
+import { gramosMedidaRetirada } from './medidasRetiradas.js';
+import { cantidadDudosa as cantidadDudosaCon } from './cantidades.js';
 
 // Link con cupón (?cupon=CODIGO, ej. el mensaje de Jonah): se guarda al
 // abrir la app para que llegue a Planes aunque tenga que entrar primero.
@@ -30,6 +32,9 @@ const StudentDashboard = React.lazy(cargarParte(() => import('./alumno.jsx').the
 const TiendaPublica = React.lazy(cargarParte(() => import('./tienda.jsx').then(m => ({ default: m.TiendaPublica }))));
 const PanelReferidor = React.lazy(cargarParte(() => import('./referidor.jsx').then(m => ({ default: m.PanelReferidor }))));
 const BuscadorPortada = React.lazy(cargarParte(() => import('./buscadorPortada.jsx')));
+// Secciones de la portada debajo de "¿Por qué?" (así se ve la app, gratis vs.
+// Premium, preguntas frecuentes): se bajan aparte, la primera pantalla no espera.
+const SeccionesPortada = React.lazy(cargarParte(() => import('./portadaSecciones.jsx')));
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -253,7 +258,10 @@ const RAW_FOODS = [
   ["Platos preparados","Ají de gallina","-",165,9.0,12.0,9.0,1.0],
   ["Platos preparados","Arroz con pollo","-",150,8.0,19.0,4.5,1.2],
   ["Platos preparados","Pollo a la brasa (solo la presa)","-",215,25.0,0.5,12.5,0.0],
-  ["Platos preparados","Pollo a la brasa con papas y ensalada","-",232,14.5,17.0,12.0,1.6],
+  // Por su receta (decisión de Jonah, 17 oct): 1/4 con papas = 470 g = 1017
+  // kcal (antes 232 en 100 g, 1090 el cuarto). Cálculo en
+  // docs/alimentos-verificados.json; src/recetasPlatos.js tiene la receta.
+  ["Platos preparados","Pollo a la brasa con papas y ensalada","-",216.4,14.6,13.8,11.5,1.4],
   ["Platos preparados","Pollada (pollo frito)","-",250,22.0,10.0,14.0,0.8],
   // Pollada y pollo a la brasa por corte (pedido de Jonah, 12 de octubre):
   // en Perú se pide cuarto u octavo, pierna o pecho. Sin arroz ni papas
@@ -598,8 +606,14 @@ function cargarAlimentosExtra(forzar = false) {
           group: a.grupo, name: a.nombre, state, key, esExtra: true, menuUso: a.menu_uso || null, sinArroz: !!a.sin_arroz,
           kcal: Number(a.kcal), protein: Number(a.proteina), carbs: Number(a.carbos), fat: Number(a.grasa), fiber: Number(a.fibra) || 0,
         });
-        if (a.unidad && Number(a.gramos_unidad) > 0 && !UNITS_BY_NAME[a.nombre]) {
-          UNITS_BY_NAME[a.nombre] = [[a.unidad, Number(a.gramos_unidad)], ...(UNITS_BY_GROUP[a.grupo] || []).filter(u => u[0] !== a.unidad)];
+        if (a.unidad && Number(a.gramos_unidad) > 0) {
+          const suyas = [[a.unidad, Number(a.gramos_unidad)], ...(UNITS_BY_GROUP[a.grupo] || []).filter(u => u[0] !== a.unidad)];
+          // Su medida va con su clave ("Papa (Frita)"): antes iba solo por
+          // nombre y, si "Papa" ya tenía medidas en la app, la papa frita del
+          // panel se quedaba sin su "porción" (lo anotado contaba 1 g).
+          if (!UNITS_BY_NAME[key]) UNITS_BY_NAME[key] = suyas;
+          // Por nombre se deja como antes (la yuca y el camote de la app la usan).
+          if (!UNITS_BY_NAME[a.nombre]) UNITS_BY_NAME[a.nombre] = suyas;
         }
         cambio = true;
       }
@@ -779,6 +793,9 @@ const UNITS_BY_NAME = {
   'Crema de arroz': [['scoop', 30], ['cucharada', 15]],
   'Proteína en polvo (isolate)': [['scoop', 30], ['cucharada', 15]],
   'Avena instantánea en polvo': [['cucharada', 9], ['taza', 80]],
+  // ½ taza = 40 g (USDA: 1 taza de avena en hojuelas = 81 g; es la porción
+  // de la etiqueta de Quaker). Su porción por defecto (17 oct; antes 150 g).
+  'Avena en hojuelas': [['media taza', 40]],
   'Queso fresco': [['tajada', 30]],
   'Jamón inglés': [['tajada', 20]],
   'Chorizo parrillero': [['unidad', 65]],
@@ -1020,9 +1037,66 @@ function unitsFor(food) {
 
 
 
+/* Gramos de una medida. Si el alimento ya no tiene esa medida (se la
+   quitaron después de que el alumno la anotó), usa los gramos que tenía
+   (src/medidasRetiradas.js). Antes caía a 1 g en silencio y lo anotado
+   valía casi 0 kcal (ej. "1 taza de arroz" = 1 kcal). Si tampoco está
+   ahí, la misma medida de su grupo y, si no, su porción de siempre, con
+   un aviso en la consola (nunca 1 g sin decirlo). */
+const medidasDesconocidasAvisadas = new Set();
 function gramsPerUnit(food, unit) {
   const found = unitsFor(food).find(u => u[0] === unit);
-  return found ? found[1] : 1;
+  if (found) return found[1];
+  if (!food) return 1;
+  const retirada = gramosMedidaRetirada(food, unit);
+  if (retirada) return retirada;
+  const delGrupo = (UNITS_BY_GROUP[food.group] || []).find(u => u[0] === unit);
+  if (delGrupo) return delGrupo[1];
+  const aviso = `${food.key}|${unit}`;
+  if (!medidasDesconocidasAvisadas.has(aviso)) {
+    medidasDesconocidasAvisadas.add(aviso);
+    console.warn(`Medida desconocida: "${unit}" de ${food.key}. Se usa su porción de siempre; agrégala a src/medidasRetiradas.js.`);
+  }
+  const d = unidadPorDefectoBase(food, unitsFor);
+  if (d.unit === 'gramos') return d.qty;
+  const base = unitsFor(food).find(u => u[0] === d.unit);
+  return base ? base[1] * d.qty : 100;
+}
+// ¿El alimento tiene hoy esa medida (para anotar algo nuevo con ella)?
+function tieneMedida(food, unit) {
+  return unit === 'gramos' || unitsFor(food).some(u => u[0] === unit);
+}
+
+/* Para volver a anotar algo de otro día ("Repetir ayer", "Lo que comes
+   siempre", ⚡ "Tu de siempre", "Mis comidas"): si su medida ya no existe,
+   pasa a una medida de hoy que dé los mismos gramos (si cuadra en ¼) o a
+   gramos. Así nunca se vuelve a anotar con una medida retirada. */
+function medidaVigente(food, unit, qty) {
+  const u = unit ?? 'gramos';
+  const n = Number(qty) || 0;
+  if (!food || tieneMedida(food, u)) return { unit: u, qty: n };
+  const gramos = Math.round(n * gramsPerUnit(food, u));
+  for (const [nueva, g] of unitsFor(food)) {
+    if (nueva === 'gramos' || !(g >= 10)) continue;
+    const q = Math.round((gramos / g) * 4) / 4;
+    if (q >= 0.25 && Math.abs(q * g - gramos) <= gramos * 0.05) return { unit: nueva, qty: q };
+  }
+  return { unit: 'gramos', qty: gramos };
+}
+function entradaVigente(en) {
+  if (!en || !en.foodKey || en.unit === undefined || en.unit === null) return en;
+  const food = buscarFood(en.foodKey);
+  const m = medidaVigente(food, en.unit, en.qty);
+  return m.unit === en.unit ? en : { ...en, unit: m.unit, qty: m.qty, grams: undefined };
+}
+
+// "¿Seguro?" (src/cantidades.js) con las medidas y calorías de la app. Las
+// kcal van sin el tope de 5 kg, para que el número asuste lo que debe.
+function cantidadDudosa(food, unit, qty) {
+  return cantidadDudosaCon(food, unit, qty, {
+    gramsPerUnit,
+    kcalDe: (u, q) => (Number(q) || 0) * (u === 'gramos' || u === 'ml' ? 1 : gramsPerUnit(food, u)) * (Number(food?.kcal) || 0) / 100,
+  });
 }
 
 /* Convierte una cantidad en gramos a la unidad casera más natural del
@@ -3005,6 +3079,9 @@ function Landing({ onChoose }) {
       </section>
 
       <PorQueJonahBeast onEmpezar={registrarClicCTA} />
+      <React.Suspense fallback={<div className="min-h-[60vh]" />}>
+        <SeccionesPortada onEmpezar={registrarClicCTA} />
+      </React.Suspense>
 
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
       {buscador && (
@@ -3468,6 +3545,19 @@ const OBJETIVOS_RECORRIDO = [
   { valor: 'Mantener peso', emoji: '⚖️', texto: 'Mantenerme y comer mejor', sub: 'Ordenar lo que como' },
 ];
 
+/* Páginas por objetivo (jonahbeast.com/bajar-de-peso, /subir-de-peso,
+   /mantener-peso, armadas por scripts/objetivos/generar.mjs): su botón trae
+   ?empezar=bajar|subir|mantener y abre el recorrido con ese objetivo ya
+   elegido (un paso menos). Se recuerda en la pestaña. */
+const OBJETIVO_DEL_LINK = { bajar: 'Perder grasa', subir: 'Ganar músculo', mantener: 'Mantener peso' };
+const EMPEZAR_DEL_LINK = (() => {
+  try { const e = new URLSearchParams(window.location.search).get('empezar'); return OBJETIVO_DEL_LINK[e] ? e : null; } catch { return null; }
+})();
+let empezarContado = false;
+function objetivoDelLink() {
+  try { return OBJETIVO_DEL_LINK[sessionStorage.getItem('jb-empezar')] || ''; } catch { return ''; }
+}
+
 function leerRecorrido() {
   try {
     const r = JSON.parse(localStorage.getItem(CLAVE_RECORRIDO) || 'null');
@@ -3581,7 +3671,7 @@ function Recorrido({ onBack, onListo }) {
   const [r, setR] = useState(() => {
     if (guardado) return guardado;
     const m = leerMedidasCalc();
-    const vacio = { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
+    const vacio = { objetivo: objetivoDelLink(), sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
     return m ? { ...vacio, sexo: m.sexo || '', edad: m.edad ?? '', estatura: m.estatura ?? '', peso: m.peso ?? '', actividad: m.actividad || '' } : vacio;
   });
   // Cada paso queda en el historial del navegador: el botón "atrás" del
@@ -6037,7 +6127,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
             <p className="jb-body text-xs text-amber-300/80 mt-0.5">
               Recibimos tu comprobante por {fmtS(pendiente.monto)} ({pendiente.plan_meses} mes(es)).
-              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 10pm). Te llega una notificación cuando esté listo.
+              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 11pm). Te llega una notificación cuando esté listo.
             </p>
           </div>
         </div>
@@ -6293,7 +6383,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               {enviando ? <Loader2 className="animate-spin" size={18} /> : 'YA PAGUÉ · ENVIAR'}
             </button>
             <p className="jb-body text-[11px] text-zinc-500 text-center">
-              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 10pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
+              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 11pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
             </p>
           </div>
           </>
@@ -6593,6 +6683,25 @@ export default function App() {
         try { localStorage.setItem('jb-equipo-invitacion', equipo.toUpperCase()); } catch {}
       }
       if (params.get('ref') || equipo) return 'trial';
+      // Botón "Empezar gratis" de una página por objetivo: directo al
+      // recorrido con su objetivo elegido (cuenta como clic en el embudo).
+      // (EMPEZAR_DEL_LINK se lee una sola vez al cargar: el link se limpia
+      // aquí mismo y React puede llamar a esta función dos veces.)
+      if (EMPEZAR_DEL_LINK) {
+        if (!empezarContado) {
+          empezarContado = true;
+          try { sessionStorage.setItem('jb-empezar', EMPEZAR_DEL_LINK); } catch {}
+          registrarEventoEmbudo('clic_cta', { detalle: 'objetivo_' + EMPEZAR_DEL_LINK });
+          avisarMeta('Lead');
+          // Que al recargar o volver no se cuente otra vez.
+          try {
+            const u = new URL(window.location.href);
+            u.searchParams.delete('empezar');
+            window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+          } catch {}
+        }
+        return leerRecorrido() ? 'trial' : 'recorrido';
+      }
       // Link de Jonah por WhatsApp o de un aviso ("?registrar=ahora"): quien
       // ya tiene cuenta pero no tiene la sesión abierta va directo a entrar
       // (no a la portada); al entrar, lo lleva a registrar su comida.
@@ -7330,6 +7439,9 @@ export {
   PROTEINAS_SUGERENCIA,
   generateQuickOptions,
   gramsPerUnit,
+  medidaVigente,
+  entradaVigente,
+  cantidadDudosa,
   inputCls,
   membershipActive,
   setFoodsPersonales,

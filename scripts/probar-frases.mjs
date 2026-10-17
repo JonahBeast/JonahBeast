@@ -5,7 +5,8 @@
 // Cada frase lleva las kcal que debe dar; si alguna da otra cosa, falla.
 // Nació de la revisión de cálculos del 17 de octubre: "1 cuarto de pollo a
 // la brasa, papas fritas, ensalada de lechuga" sumaba el plato completo (que
-// ya trae papas y ensalada) MÁS papas y lechuga: 1573 kcal en vez de 1090.
+// ya trae papas y ensalada) MÁS papas y lechuga: 1573 kcal en vez de 1090
+// (desde el 17 oct el plato va por su receta: 1017).
 //
 // Corre solo en npm run build. Uso a mano:
 //   node scripts/probar-frases.mjs --todo   (cada frase con lo que anota)
@@ -14,8 +15,10 @@
 //     (suma los alimentos del panel, sacados de alimentos_extra)
 
 import { readFileSync } from 'node:fs';
-import { unidadPorDefecto as unidadPorDefectoCon } from '../src/buscador.js';
+import { unidadPorDefecto as unidadPorDefectoCon, buscarAlimentos, ALIMENTOS_RETIRADOS } from '../src/buscador.js';
 import { interpretarVarios, porcionDelItem } from '../src/interpretarComida.js';
+import { gramosMedidaRetirada } from '../src/medidasRetiradas.js';
+import { cantidadDudosa } from '../src/cantidades.js';
 
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 function literal(nombre) {
@@ -59,7 +62,8 @@ function unitsFor(food) {
   return list;
 }
 const unidadPorDefecto = f => unidadPorDefectoCon(f, unitsFor);
-const gramos = (food, unit, qty) => unit === 'gramos' ? qty : qty * ((unitsFor(food).find(u => u[0] === unit) || [0, 1])[1]);
+// Como gramsPerUnit de src/App.jsx: la medida de hoy o la retirada (nunca 1 g).
+const gramos = (food, unit, qty) => unit === 'gramos' ? qty : qty * ((unitsFor(food).find(u => u[0] === unit) || [0, gramosMedidaRetirada(food, unit) || NaN])[1]);
 
 // Lo mismo que anota la app (agregarVarios / entradasDeItems): lo que tiene
 // dudas va con la primera opción.
@@ -79,17 +83,17 @@ export function anotar(frase) {
 // [frase, kcal que debe dar, por qué]
 export const FRASES = [
   // El caso del prompt de Beast y sus variantes (doble conteo).
-  ['1 cuarto de pollo a la brasa, papas fritas, ensalada de lechuga', 1090, 'plato 1/4 con papas (470 g × 232); papas y ensalada ya van'],
-  ['1 cuarto de pollo a la brasa con papas y ensalada', 1090, 'plato 1/4 con papas'],
-  ['un cuarto de pollo a la brasa con papas y ensalada', 1090, 'plato 1/4 con papas'],
-  ['1/4 de pollo con papas', 1090, 'plato 1/4 con papas'],
-  ['un cuarto de pollo con papas fritas', 1090, 'plato 1/4 con papas'],
-  ['pollo a la brasa con papas y ensalada', 1090, 'plato 1/4 con papas (la porción de siempre)'],
-  ['octavo de pollo a la brasa con papas', 696, 'plato 1/8 con papas (300 g × 232)'],
-  ['1/8 de pollo a la brasa con papas y ensalada', 696, 'plato 1/8 con papas'],
-  ['medio pollo a la brasa con papas', 2181, '2 × plato 1/4 con papas (2 × 470 g × 232)'],
-  ['octavo de pollo a la brasa', 696, 'pregunta si fue con papas (primero) o solo la presa; en 1/8'],
-  ['un cuarto de pollo a la brasa', 1090, 'pregunta si fue con papas (primero) o solo la presa; en 1/4'],
+  ['1 cuarto de pollo a la brasa, papas fritas, ensalada de lechuga', 1017, 'plato 1/4 con papas (470 g × 216,4, su receta; antes 1090); papas y ensalada ya van'],
+  ['1 cuarto de pollo a la brasa con papas y ensalada', 1017, 'plato 1/4 con papas'],
+  ['un cuarto de pollo a la brasa con papas y ensalada', 1017, 'plato 1/4 con papas'],
+  ['1/4 de pollo con papas', 1017, 'plato 1/4 con papas'],
+  ['un cuarto de pollo con papas fritas', 1017, 'plato 1/4 con papas'],
+  ['pollo a la brasa con papas y ensalada', 1017, 'plato 1/4 con papas (la porción de siempre)'],
+  ['octavo de pollo a la brasa con papas', 649, 'plato 1/8 con papas (300 g × 216,4; antes 696)'],
+  ['1/8 de pollo a la brasa con papas y ensalada', 649, 'plato 1/8 con papas'],
+  ['medio pollo a la brasa con papas', 2034, '2 × plato 1/4 con papas (2 × 470 g × 216,4; antes 2181)'],
+  ['octavo de pollo a la brasa', 649, 'pregunta si fue con papas (primero) o solo la presa; en 1/8'],
+  ['un cuarto de pollo a la brasa', 1017, 'pregunta si fue con papas (primero) o solo la presa; en 1/4'],
   ['pollo a la brasa pierna con papas', 1008, 'plato por corte 1/4 pierna con piel (450 g × 224,1); antes 997 = presa + papas, sin la ensalada (17 oct)'],
   ['pollo a la brasa pecho sin piel', 404, 'cuarto pecho sin piel, 245 g × 165'],
   ['pollada pierna con papas', 1014, 'pollada pierna (presa sola) + papas aparte: la pollada de la app es solo el pollo'],
@@ -119,9 +123,9 @@ export const FRASES = [
   ['seco de res con frejoles y arroz', 715, 'plato con frejoles y arroz (480 g × 149)'],
   ['tacu tacu con arroz', 800, 'el tacu tacu ya es arroz con frejoles'],
   ['pollo broaster con papas', 903, 'broaster + papas aparte (el broaster es solo el pollo)'],
-  ['150 g de pollo a la brasa con papas', 348, 'gramos dichos: 150 g del plato × 232'],
-  ['pollo a la brasa con papas, ensalada y 1 vaso de chicha morada', 1126, 'el plato + la chicha'],
-  ['2 octavos de pollo a la brasa con papas', 1392, '2 × plato 1/8 con papas'],
+  ['150 g de pollo a la brasa con papas', 325, 'gramos dichos: 150 g del plato × 216,4 (antes 348)'],
+  ['pollo a la brasa con papas, ensalada y 1 vaso de chicha morada', 1053, 'el plato + la chicha (antes 1126)'],
+  ['2 octavos de pollo a la brasa con papas', 1298, '2 × plato 1/8 con papas (antes 1392)'],
   ['un octavo de pollo a la brasa entrepierna', 311, 'presa sola, octavo (entrepierna) con piel: 135 g × 230'],
   ['pollada con papas y ensalada', 1029, 'la pollada de la app es solo el pollo: papas y ensalada van aparte (pregunta cuáles)'],
   ['pescado frito con arroz', 555, 'pescado (plato 180 g × 200 = 360) + arroz 150 g (195): antes el arroz se perdía'],
@@ -168,6 +172,128 @@ export const FRASES = [
   ['pan con camote', 150, 'pan + 60 g de camote (como el pan con chicharrón)'],
   ['pan con pollo', 460, 'sándwich de la lista: no cambia'],
   ['pan con chicharrón', 616, 'sándwich de la lista: no cambia'],
+  // 17 oct: porciones de los secos y la medida dicha.
+  ['avena en hojuelas', 156, '½ taza (40 g × 389); antes 150 g = 584'],
+  ['lentejas crudas', 212, '60 g crudos, lo que rinde 1 taza cocida; antes 1 taza cruda = 635'],
+  ['una taza de lentejas crudas', 635, 'si dice "taza", 1 taza (180 g)'],
+  ['2 vasos de chicha morada', 72, 'la medida dicha (vaso) × 2'],
+  // 17 oct: la frase que Jonah le dijo a NutriKaloría. Antes 659 kcal (lomo
+  // sin papas + papa SANCOCHADA + arroz + gaseosa).
+  ['lomo saltado más papas más arroz y un vaso de gaseosa dietética', 996, 'lomo sin papas (333) + papas fritas (468) + arroz (195) + gaseosa dietética (0); antes 659'],
+  ['lomo saltado más papas más arroz y un vaso de gaseosa dietetica', 996, 'igual sin tilde'],
+  // "más", "+", "y", "con" y la coma dan lo mismo.
+  ['lomo saltado más papas', 801, 'lomo sin papas + papas fritas (antes papa sancochada: 464)'],
+  ['lomo saltado + papas', 801, 'igual'],
+  ['lomo saltado y papas', 801, 'igual'],
+  ['lomo saltado, papas', 801, 'igual'],
+  ['lomo saltado con papas y arroz', 996, 'lomo con papas (801) + arroz (195)'],
+  ['lomo saltado y papas sancochadas', 464, 'si dice sancochadas, la papa sancochada (333 + 131)'],
+  ['saltado de pollo más papas', 812, 'saltado sin papas (344) + papas fritas (468); antes 475'],
+  ['pollo a la brasa más papas', 1017, 'el plato 1/4 con papas'],
+  ['hamburguesa + papas', 968, 'hamburguesa (500) + papas fritas (468)'],
+  ['pollada más papas', 1014, 'pollada pierna + papas fritas, como "pollada pierna con papas"'],
+  // Sin tildes: lo mismo que con tildes (antes "gaseosa dietetica" era la
+  // regular, 84 kcal).
+  ['gaseosa dietetica', 0, 'la dietética, no la regular (antes 84)'],
+  ['café con leche sin azucar', 84, 'el café con leche, no el "Café negro sin azúcar"'],
+  ['platano de seda', 107, '1 plátano de seda, sin preguntar'],
+  ['aji de gallina con arroz', 730, 'antes "Gallina (cocida)" + arroz: 622'],
+  ['papa a la huancaina', 600, 'antes 1 papa sancochada: 131'],
+  ['pina', 75, 'piña (antes no la encontraba)'],
+  ['jamon de pavo', 26, 'antes pechuga de pavo: 203'],
+  ['te sin azucar', 2, 'el té sin azúcar (antes no lo encontraba)'],
+  ['azucar', 46, '1 cucharada de azúcar blanca, no "Limonada con azúcar"'],
+  ['2 cucharaditas de azucar', 31, '2 cucharaditas'],
+  // La medida dicha después del alimento.
+  ['+1 gaseosa dietetica un vaso', 0, '1 vaso de gaseosa dietética (antes "un vaso" quedaba como alimento)'],
+  ['arroz dos platos', 390, '2 porciones de arroz (antes arroz + 2 "Tallarín saltado": 1371)'],
+  ['chicha morada dos vasos', 72, '2 vasos'],
+  ['huevo dos unidades', 155, '2 huevos'],
+  ['pollo a la brasa un octavo', 649, 'el octavo (antes el cuarto + "un octavo" suelto)'],
+  ['arroz 200 gramos', 260, '200 g'],
+  // Mismas causas, encontradas al revisar.
+  ['2 panes', 192, '2 panes franceses (antes 2 "Pan con jamonada": 400)'],
+  ['torta tres leches', 285, 'el "tres" es del nombre, no una cantidad'],
+  ['pan con jamón', 122, 'pan + jamón (no es "Pan con jamonada")'],
+  // 17 oct (coordinador): con "papas FRITAS y ensalada" ganaba "Saltado de
+  // pollo (Con papas fritas)" (813) por "pollo" + su estado.
+  ['un cuarto de pollo a la brasa con papas fritas y ensalada', 1017, 'el plato 1/4 con papas (antes Saltado de pollo: 813)'],
+  ['pollo a la brasa con papas fritas y ensalada', 1017, 'igual (antes 813)'],
+  ['octavo de pollo a la brasa con papas fritas y ensalada', 649, 'el plato 1/8 (antes 813)'],
+  ['1/4 de pollo con papas fritas', 1017, 'el plato 1/4'],
+  ['1/8 de pollo a la brasa con papas fritas', 649, 'el plato 1/8'],
+  ['un cuarto de pollo a la brasa pecho con papas fritas y ensalada', 1019, 'plato 1/4 pecho con piel'],
+  ['pollada con papas fritas', 1014, 'pollada pierna + papas fritas'],
+  ['pollo broaster con papas fritas', 903, 'broaster + papas fritas'],
+  ['saltado de pollo con papas fritas', 813, 'este sí es el saltado'],
+  // Gaseosas por marca (etiquetas: Inca Kola y Coca-Cola 42 kcal en 100 ml).
+  ['un vaso de Inca Kola', 84, 'Gaseosa regular (antes no la encontraba)'],
+  ['2 vasos de inca kola', 168, '2 vasos'],
+  ['inca kola zero', 0, 'Gaseosa dietética'],
+  ['una coca cola sin azúcar', 0, 'Gaseosa dietética'],
+  ['pepsi un vaso', 84, 'Gaseosa regular'],
+  // El azúcar dicho no se cuenta dos veces.
+  ['un café con leche con dos cucharaditas de azúcar', 115, 'café con leche SIN azúcar (84) + 2 cucharaditas (31); antes 276'],
+  ['café con 2 cucharaditas de azúcar', 35, 'café negro sin azúcar + 2 cucharaditas'],
+  ['té con una cucharadita de azúcar', 17, 'té sin azúcar + 1 cucharadita'],
+  ['jugo de papaya con 1 cucharada de azucar', 126, 'jugo natural + 1 cucharada'],
+  ['emoliente con una cucharadita de azucar', 31, 'emoliente sin azúcar + 1 cucharadita'],
+  ['chicha morada con 2 cucharaditas de azúcar', 67, 'chicha sin azúcar + 2 cucharaditas; antes 270'],
+];
+
+/* El buscador (escribir, la portada) con y sin tildes y con "sin …":
+   [lo que se escribe, el primer resultado que debe salir]. */
+export const BUSQUEDAS = [
+  ['gaseosa dietetica', 'Gaseosa dietética (-)'],
+  ['cafe con leche sin azucar', 'Café con leche (-)'],
+  ['café con leche sin azúcar', 'Café con leche (-)'],
+  ['jugo de papaya sin azucar', 'Jugo de papaya natural (-)'],
+  ['jugo de naranja sin azucar', 'Jugo de naranja natural (-)'],
+  ['te sin azucar', 'Té / infusión sin azúcar (-)'],
+  ['chicha morada sin azucar', 'Chicha morada (Sin azúcar)'],
+  ['lomo saltado sin papas', 'Lomo saltado (Sin papas fritas)'],
+  ['pollo pierna sin piel', 'Pollo pierna (sin piel) (Cruda)'],
+  ['platano de seda', 'Plátano de seda (Cruda)'],
+  ['jamon ingles', 'Jamón inglés (-)'],
+  ['pan con jamon', 'Pan francés (-)'],
+  ['inca kola', 'Gaseosa regular (-)'],
+  ['inca kola sin azucar', 'Gaseosa dietética (-)'],
+  ['coca cola zero', 'Gaseosa dietética (-)'],
+];
+
+/* Exactitud de lo anotado (17 oct): medidas retiradas, porciones de los
+   secos y "¿Seguro?" para cantidades absurdas. [qué, valor, debe dar]. */
+const porClave = k => FOODS.find(f => f.key === k);
+const kcalEntrada = (k, unit, qty) => { const f = porClave(k); return Math.round(f.kcal * gramos(f, unit, qty) / 100); };
+const dudosa = (k, unit, qty) => cantidadDudosa(porClave(k), unit, qty, {
+  gramsPerUnit: (f, u) => gramos(f, u, 1),
+  kcalDe: (u, q) => porClave(k).kcal * gramos(porClave(k), u, q) / 100,
+});
+const defecto = k => { const f = porClave(k); const d = unidadPorDefecto(f); return `${d.qty} ${d.unit} = ${kcalEntrada(k, d.unit, d.qty)} kcal`; };
+export const CASOS = [
+  // Medidas retiradas: lo ya anotado con ellas vale lo de antes, no 1 g.
+  ['1 taza de arroz blanco cocido (medida retirada, taza real 158 g)', kcalEntrada('Arroz blanco (Cocido)', 'taza', 1), 205],
+  ['1 taza de gaseosa (medida retirada, 240 ml)', kcalEntrada('Gaseosa regular (-)', 'taza', 1), 101],
+  ['1 media porción de pollo al horno (retirada, 200 g)', kcalEntrada('Pollo al horno (-)', 'media porción', 1), 380],
+  ['2 porciones de papa sancochada (retirada, 120 g)', kcalEntrada('Papa (Cocida)', 'porción', 2), 209],
+  ['1 taza de avena en hojuelas (retirada, taza real 81 g)', kcalEntrada('Avena en hojuelas (Cruda)', 'taza', 1), 315],
+  // Porción por defecto de los secos.
+  ['avena en hojuelas por defecto', defecto('Avena en hojuelas (Cruda)'), '1 media taza = 156 kcal'],
+  ['arroz blanco crudo por defecto', defecto('Arroz blanco (Crudo)'), '55 gramos = 201 kcal'],
+  ['lenteja cruda por defecto', defecto('Lenteja (Cruda)'), '60 gramos = 212 kcal'],
+  ['fideos crudos por defecto', defecto('Fideos / pasta (Crudos)'), '95 gramos = 352 kcal'],
+  ['cornflakes por defecto', defecto('Cereal cornflakes sin gluten (-)'), '30 gramos = 113 kcal'],
+  ['avena instantánea por defecto', defecto('Avena instantánea en polvo (-)'), '4 cucharada = 136 kcal'],
+  // "¿Seguro?"
+  ['200 platos de tallarines verdes', JSON.stringify(dudosa('Tallarines verdes (-)', 'plato', 200)?.alternativa ?? null), JSON.stringify({ unit: 'gramos', qty: 200, kcal: 370 })],
+  ['1 plato de tallarines verdes', dudosa('Tallarines verdes (-)', 'plato', 1), null],
+  ['200 g de tallarines verdes', dudosa('Tallarines verdes (-)', 'gramos', 200), null],
+  ['2 cuartos de pollo a la brasa con papas (2034 kcal)', dudosa('Pollo a la brasa con papas y ensalada (-)', '1/4 con papas', 2), null],
+  ['4 cuartos de pollo a la brasa con papas (4068 kcal)', dudosa('Pollo a la brasa con papas y ensalada (-)', '1/4 con papas', 4)?.motivo, 'kcal'],
+  ['12 fresas', dudosa('Fresa (Cruda)', 'unidad', 12), null],
+  ['3 huevos', dudosa('Huevo de gallina (Cocido)', 'unidad', 3), null],
+  ['11 panes con pollo', dudosa('Pan con pollo (Pan blanco)', 'unidad', 11)?.motivo, 'piezas'],
+  ['3000 g de aceite', dudosa('Aceite vegetal (-)', 'gramos', 3000)?.motivo, 'kcal'],
 ];
 
 if (import.meta.url === `file://${process.argv[1]}`) main();
@@ -187,6 +313,33 @@ if (json) {
     for (const a of r.anotados) console.log(`     · ${a.nada ? `"${a.texto}" no está en la app` : `${a.key} · ${a.qty} ${a.unit} = ${a.kcal} kcal${a.duda ? ' (pregunta cuál)' : ''}`}`);
   }
   console.log(`\n${malas ? `❌ ${malas} frase(s) dan otro número.` : `✅ Frases de voz y Beast: las ${resultados.length} dan lo que deben.`}`);
-  if (malas) process.exit(1);
+  let malosCasos = 0;
+  for (const [que, da, debe] of CASOS) {
+    const ok = da === debe;
+    if (!ok) malosCasos++;
+    if (!ok || todo) console.log(`${ok ? '✅' : '❌'} ${que} → ${da}${ok ? '' : ` (debe dar ${debe})`}`);
+  }
+  console.log(malosCasos ? `❌ ${malosCasos} caso(s) de exactitud dan otra cosa.` : `✅ Exactitud de lo anotado: los ${CASOS.length} casos dan lo que deben.`);
+  let malasBusquedas = 0;
+  for (const [texto, debe] of BUSQUEDAS) {
+    const sale = buscarAlimentos(FOODS, texto, 5)[0]?.key || null;
+    const ok = sale === debe;
+    if (!ok) malasBusquedas++;
+    if (!ok || todo) console.log(`${ok ? '✅' : '❌'} buscar "${texto}" → ${sale}${ok ? '' : ` (debe salir ${debe})`}`);
+  }
+  // Con y sin tildes, todo da lo mismo (voz, Beast y el buscador).
+  const sinT = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const firma = r => r.anotados.map(a => `${a.key}|${a.qty}|${a.unit}`).join('+');
+  for (const [frase] of FRASES) {
+    if (sinT(frase) === frase) continue;
+    if (firma(anotar(frase)) !== firma(anotar(sinT(frase)))) { malasBusquedas++; console.log(`❌ "${frase}" da otra cosa sin tildes`); }
+  }
+  for (const f of FOODS) {
+    if (sinT(f.name) === f.name || ALIMENTOS_RETIRADOS.has(f.key)) continue;
+    const a = buscarAlimentos(FOODS, f.name, 5).map(x => x.key).join('|');
+    if (a !== buscarAlimentos(FOODS, sinT(f.name), 5).map(x => x.key).join('|')) { malasBusquedas++; console.log(`❌ buscar "${f.name}" da otra cosa sin tildes`); }
+  }
+  console.log(malasBusquedas ? `❌ ${malasBusquedas} búsqueda(s) dan otra cosa.` : `✅ Buscador y tildes: las ${BUSQUEDAS.length} búsquedas dan lo que deben y con o sin tildes todo da lo mismo.`);
+  if (malas || malosCasos || malasBusquedas) process.exit(1);
 }
 }

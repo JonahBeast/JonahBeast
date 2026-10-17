@@ -216,7 +216,7 @@ export const ALIMENTOS_APP = [
   {"etiqueta":"Ají de gallina","kcal":165},
   {"etiqueta":"Arroz con pollo","kcal":150},
   {"etiqueta":"Pollo a la brasa (solo la presa)","kcal":215},
-  {"etiqueta":"Pollo a la brasa con papas y ensalada","kcal":232},
+  {"etiqueta":"Pollo a la brasa con papas y ensalada","kcal":216.4},
   {"etiqueta":"Pollada (pollo frito)","kcal":250},
   {"etiqueta":"Pollada pierna","kcal":260},
   {"etiqueta":"Pollada pecho","kcal":240},

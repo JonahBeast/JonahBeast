@@ -79,6 +79,7 @@ import { traerTodas } from './traerTodas.js';
 import { interpretarVarios as interpretarVariosCon, porcionDelItem, unidadDePorcion } from './interpretarComida.js';
 import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, nombreAlimento, vaEnLaFoto } from './buscador.js';
 import { BotonCompartirPlato } from './compartirPlato.jsx';
+import MiniaturaPlato from './miniaturaPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
 import { EntrenoHoy } from './entreno.jsx';
@@ -6269,9 +6270,9 @@ function BuscadorAlimento({ valor, alimentos, onElegir, onNoEncuentra, autoFocus
                 <button key={f.key} type="button" onMouseDown={e => e.preventDefault()}
                   onClick={() => { onElegir(f.key); setTexto(f.key); setAbierto(false); }}
                   className="w-full flex items-center gap-2.5 text-left px-3 py-2 hover:bg-zinc-800 transition-colors border-b border-zinc-800 last:border-0">
-                  <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
+                  <MiniaturaPlato food={f} tam={40} className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-sm shrink-0">
                     {emojiAlimento(f)}
-                  </span>
+                  </MiniaturaPlato>
                   {/* El nombre completo, en varias líneas si hace falta: con nombres
                       parecidos ("Chocolate con leche" en barra o batido en taza)
                       cortarlo con "…" hacía fácil elegir el equivocado. */}
@@ -8972,7 +8973,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                   return (
                     <button key={f.key} onClick={() => elegir(f)}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
+                      <MiniaturaPlato food={f} tam={48} className="text-xl shrink-0">{emojiAlimento(f)}</MiniaturaPlato>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}{clavesFrecuentes.has(f.key) ? ' ⭐' : ''}</span>
                         <NotaSinArroz food={f} />
@@ -12444,7 +12445,7 @@ function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onO
           {platos.map(p => (
             <button key={p.key} onClick={() => onElegir(meal, p)}
               className="bg-zinc-950 border border-zinc-800 hover:border-orange-500 active:scale-[0.98] rounded-xl p-3 text-left transition-all">
-              <span className="text-2xl leading-none">{p.emoji}</span>
+              <MiniaturaPlato food={p.food} tam={48} className="text-2xl leading-none">{p.emoji}</MiniaturaPlato>
               <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1.5">{p.food.name}</span>
               <span className="block jb-body text-[11px] text-zinc-500 mt-0.5">{p.porcion.qty === 1 && /^\d/.test(p.porcion.unit) ? p.porcion.unit : textoPorcion(p.porcion)} · {p.kcal} kcal</span>
             </button>

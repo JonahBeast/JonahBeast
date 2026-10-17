@@ -3401,6 +3401,22 @@ function leerRecorrido() {
   } catch { return null; }
 }
 
+// El nombre que escribió en "Cuéntanos de ti" (o '' si no pasó por ahí).
+function nombreDelRecorrido() {
+  return String(leerRecorrido()?.nombre || '').trim().slice(0, 40);
+}
+const primerNombre = n => String(n || '').trim().split(/\s+/)[0] || '';
+/* Quien entra con Google o Apple después del recorrido: si su cuenta quedó
+   sin nombre (Apple con el correo oculto casi nunca lo da), se usa el que
+   escribió en el recorrido. Nunca pisa un nombre que ya tenga. */
+async function guardarNombreDelRecorrido(username) {
+  const nombre = nombreDelRecorrido();
+  if (!nombre || !username) return;
+  try {
+    await supabase.from('alumnos').update({ nombre }).eq('username', username).or('nombre.is.null,nombre.eq.');
+  } catch {}
+}
+
 // Si la cuenta todavía no tiene sus datos, se completan con el recorrido
 // y, si se midió en la calculadora, con sus medidas de cinta (así ve su %
 // de grasa en la app sin volver a medirse).
@@ -3503,7 +3519,7 @@ function Recorrido({ onBack, onListo }) {
   const [r, setR] = useState(() => {
     if (guardado) return guardado;
     const m = leerMedidasCalc();
-    const vacio = { objetivo: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
+    const vacio = { objetivo: '', nombre: '', sexo: '', edad: '', estatura: '', peso: '', actividad: '', pesoObjetivo: '' };
     return m ? { ...vacio, sexo: m.sexo || '', edad: m.edad ?? '', estatura: m.estatura ?? '', peso: m.peso ?? '', actividad: m.actividad || '' } : vacio;
   });
   // Cada paso queda en el historial del navegador: el botón "atrás" del
@@ -3530,7 +3546,7 @@ function Recorrido({ onBack, onListo }) {
   const edad = Number(r.edad), est = Number(r.estatura), peso = Number(r.peso), meta = Number(r.pesoObjetivo);
   const valido = {
     objetivo: !!r.objetivo,
-    persona: !!r.sexo && edad >= 14 && edad <= 90,
+    persona: !!(r.nombre || '').trim() && !!r.sexo && edad >= 14 && edad <= 90,
     cuerpo: est >= 120 && est <= 230 && peso >= 30 && peso <= 300,
     actividad: !!r.actividad,
     meta: r.objetivo === 'Perder grasa' ? meta >= 30 && meta < peso : meta > peso && meta <= 300,
@@ -3546,7 +3562,7 @@ function Recorrido({ onBack, onListo }) {
   // Con el botón apagado, dice qué falta en vez de quedarse mudo.
   const falta = valido ? '' : {
     objetivo: 'ELIGE TU OBJETIVO',
-    persona: !r.sexo ? 'ELIGE HOMBRE O MUJER' : r.edad === '' ? 'DESLIZA PARA ELEGIR TU EDAD' : '',
+    persona: !(r.nombre || '').trim() ? 'ESCRIBE TU NOMBRE' : !r.sexo ? 'ELIGE HOMBRE O MUJER' : r.edad === '' ? 'DESLIZA PARA ELEGIR TU EDAD' : '',
     cuerpo: r.estatura === '' ? 'DESLIZA PARA ELEGIR TU ESTATURA' : r.peso === '' ? 'DESLIZA PARA ELEGIR TU PESO' : '',
     actividad: 'ELIGE QUÉ TAN ACTIVO ERES',
   }[actual] || '';
@@ -3610,6 +3626,16 @@ function Recorrido({ onBack, onListo }) {
             <>
               <h1 className="jb-display text-3xl text-zinc-50 leading-tight">CUÉNTANOS DE TI</h1>
               <p className="jb-body text-sm text-zinc-400 mb-2">Tu cuerpo gasta distinto según tu sexo y tu edad.</p>
+              {/* El nombre va aquí (17 oct): antes lo pedía la guía de 4 hojas
+                  después de crear la cuenta. Así se escribe una sola vez y el
+                  plan sale con su nombre. Pasa a la cuenta al registrarse
+                  (signUp con correo) o al entrar con Google/Apple si no trae. */}
+              <label className="flex flex-col gap-1.5">
+                <span className="jb-body text-sm text-zinc-300">¿Cómo te llamas?</span>
+                <input type="text" name="given-name" autoComplete="given-name" autoCapitalize="words" maxLength={40}
+                  value={r.nombre || ''} onChange={e => fijar('nombre', e.target.value)}
+                  className={inputCls + ' text-lg py-3 rounded-2xl'} placeholder="Tu nombre" />
+              </label>
               <div className="grid grid-cols-2 gap-3">
                 {[['M', '🙋‍♂️ Hombre'], ['F', '🙋‍♀️ Mujer']].map(([v, t]) => opcion(r.sexo === v, () => fijar('sexo', v), <span className="jb-display text-lg block text-center">{t}</span>, v))}
               </div>
@@ -3642,7 +3668,7 @@ function Recorrido({ onBack, onListo }) {
           {actual === 'plan' && plan && (
             <>
               <p className="jb-body text-xs text-orange-300 uppercase tracking-wider">Tu plan está listo</p>
-              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">ESTO ES LO QUE TE TOCA</h1>
+              <h1 className="jb-display text-3xl text-zinc-50 leading-tight">{(r.nombre || '').trim() ? `${primerNombre(r.nombre).toUpperCase()}, ESTO ES LO QUE TE TOCA` : 'ESTO ES LO QUE TE TOCA'}</h1>
               <div className="relative bg-zinc-900 border border-orange-500/50 rounded-3xl p-5 overflow-hidden" style={{ boxShadow: '0 0 40px -12px rgba(232,89,12,.5)' }}>
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <div>
@@ -3872,6 +3898,11 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
   })();
   const [f, setF] = useState({ email: '', password: '', telefono: '', referido: refDesdeURL });
   const [verPass, setVerPass] = useState(false);
+  // App de iPhone: el WhatsApp es opcional (regla 5.1.1 de Apple: no se
+  // puede obligar a dar datos que la app no necesita para funcionar).
+  // "Ahora no" esconde la casilla; en la web y en Android sigue obligatorio.
+  const telOpcional = esAppIOS();
+  const [sinTelefono, setSinTelefono] = useState(false);
   const [err, setErr] = useState('');
   // Qué casilla falló ('correo' | 'contrasena' | 'telefono' | 'existe'),
   // para mostrar el error justo debajo de ella.
@@ -3935,7 +3966,8 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     // El WhatsApp es obligatorio: si no vuelve a abrir la app (pasa mucho
     // con quien llega desde un anuncio), es la única forma de escribirle.
     const tel = datos.telefono.replace(/\D/g, '').replace(/^51(?=9\d{8}$)/, '');
-    if (tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
+    const saltaTel = telOpcional && (sinTelefono || !tel);
+    if (!saltaTel && tel.length < 9) return tropiezo(tel ? 'telefono_invalido' : 'telefono_vacio', 'Escribe tu celular de WhatsApp (9 dígitos) para que pueda acompañarte.', 'telefono');
     if (f.referido.trim() && refEstado && !refEstado.ok && !refConfirmado) {
       setRefConfirmado(true);
       return tropiezo('referido_invalido', 'Ese código de referido no existe o ya no está activo. Revísalo, o toca de nuevo el botón para continuar sin él.');
@@ -3952,7 +3984,7 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
 
     const { data, error } = await supabase.auth.signUp({
       email, password: datos.password,
-      options: { data: { username: user, nombre: '', codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
+      options: { data: { username: user, nombre: nombreDelRecorrido(), codigo_referido: (refEstado && refEstado.ok) ? f.referido.trim().toUpperCase() : '' } },
     });
 
     if (error) {
@@ -3979,7 +4011,12 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
     // usuario para poder seguir a esta persona hasta la prueba y el pago.
     registrarRegistroEmbudo(user);
 
-    if (data.session) {
+    if (saltaTel) {
+      // No se le vuelve a pedir en la hoja de después (guía): ya dijo que no.
+      try { localStorage.setItem('jb_tel_no_' + user, '1'); } catch {}
+      registrarPasoPago('primera_comida', user, 'whatsapp_ahora_no');
+    }
+    if (data.session && !saltaTel) {
       for (let intento = 0; intento < 4; intento++) {
         try {
           const { data: fila } = await supabase.from('alumnos').update({ telefono: tel }).eq('username', user).select('username').maybeSingle();
@@ -4082,12 +4119,23 @@ function TrialSignup({ onBack, onCreated, onEntrar }) {
                 </div>
                 {campoErr === 'contrasena' ? <ErrorCampo texto={err} /> : <AyudaContrasena valor={f.password} />}
               </Field>
-              <Field label="Tu WhatsApp">
+              {telOpcional && sinTelefono ? (
+                <p className="jb-body text-xs text-zinc-500">
+                  Sin WhatsApp por ahora.{' '}
+                  <button type="button" onClick={() => setSinTelefono(false)} className="text-orange-400 underline underline-offset-2">Agregarlo</button>
+                </p>
+              ) : (
+              <Field label={telOpcional ? 'Tu WhatsApp (opcional)' : 'Tu WhatsApp'}>
                 <input type="tel" inputMode="tel" name="telefono" autoComplete="tel" value={f.telefono} onChange={e => { setF(v => ({ ...v, telefono: e.target.value })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }} className={inputCls + conError(campoErr === 'telefono')} placeholder="9XX XXX XXX" />
                 {campoErr === 'telefono'
                   ? <ErrorCampo texto={err} />
                   : <span className="jb-body text-[11px] text-zinc-500 block mt-1">Para acompañarte y avisarte si se te pasa una comida. Nada de spam.</span>}
+                {telOpcional && (
+                  <button type="button" onClick={() => { setSinTelefono(true); setF(v => ({ ...v, telefono: '' })); if (campoErr === 'telefono') { setCampoErr(''); setErr(''); } }}
+                    className="jb-body text-xs text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-1.5 self-start">Ahora no</button>
+                )}
               </Field>
+              )}
               {verReferido ? (
                 <Field label="Código de referido (opcional)">
                   <input autoComplete="off" value={f.referido} onChange={e => setF(v => ({ ...v, referido: e.target.value }))}
@@ -6762,6 +6810,8 @@ export default function App() {
     // todavía no la tenía (sin sesión no se puede leer) y la app no sabía
     // ni su nombre hasta recargar.
     const diasLive = await canjearCodigoLive();
+    // Antes de cargar la ficha: así la app ya sabe su nombre y no se lo pide.
+    await guardarNombreDelRecorrido(username);
     await init();
     let data = null;
     try {

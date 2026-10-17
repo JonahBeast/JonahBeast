@@ -5520,7 +5520,16 @@ function AyudaTab({ texto, id }) {
   );
 }
 
-function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
+/* Guía de bienvenida. Desde el 17 oct (pedido de Jonah: "quita las
+   pantallas") al entrar por primera vez solo salen los datos que faltan:
+   el nombre (si no lo dio en el recorrido ni vino de Google/Apple) y el
+   WhatsApp (si no lo dio al registrarse, ej. con Google o Apple). Si no
+   falta nada, no sale ninguna hoja y pasa directo a "¡Tu plan está listo!".
+   Las 3 hojas de solo lectura (bienvenida, rutina y el gracias de Jonah)
+   solo salen si el alumno toca "Ver guía" (completa). En la app de iPhone
+   el WhatsApp tiene "Ahora no" (regla 5.1.1 de Apple). */
+const telefonoSaltado = username => { try { return localStorage.getItem('jb_tel_no_' + username) === '1'; } catch { return false; } };
+function BienvenidaModal({ nombre, username, telefonoActual, onClose, completa = false }) {
   const [paso, setPaso] = useState(0);
   const [telefono, setTelefono] = useState('');
   const [nombreInput, setNombreInput] = useState('');
@@ -5583,13 +5592,14 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     setActivandoPush(false);
   }
 
+  const [telSaltadoAntes] = useState(() => telefonoSaltado(username));
   const pasos = [
     ...(nombre ? [] : [{
       emoji: '😄', titulo: '¿CÓMO TE LLAMAS?',
       texto: 'Así puedo saludarte como se debe y acompañarte de forma más personal.',
       esNombre: true,
     }]),
-    ...(telefonoActual ? [] : [{
+    ...(telefonoActual || telSaltadoAntes ? [] : [{
       emoji: '📱', titulo: '¿QUIERES QUE TE ACOMPAÑE DE CERCA?',
       texto: 'Déjame tu WhatsApp y te aviso antes de que pierdas tu racha, te doy ánimo cuando lo necesites y te aviso a tiempo si tu Premium está por vencer. Nada de spam, solo lo importante.',
       esTelefono: true,
@@ -5597,9 +5607,9 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     // Los avisos ya NO se piden aquí: se piden una sola vez, justo después
     // de registrar su primera comida (NotifTrasComidaModal), cuando ya vio
     // para qué sirve la app.
-    // Antes eran 7 pantallas de explicación; ahora son 2, para que el
-    // alumno llegue rápido a usar la app.
-    {
+    // Antes eran 7 pantallas de explicación; luego 3; desde el 17 oct solo
+    // con "Ver guía".
+    ...(!completa ? [] : [{
       emoji: '👋', titulo: `¡BIENVENIDO${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}!`,
       texto: 'Te ayudo a saber cuánto y qué comer para llegar a tu objetivo, con comida peruana y sin pesar nada. Así funciona:',
       extra: [
@@ -5618,15 +5628,19 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
         ['Cada 2 semanas', 'Mídete y toma tus fotos'],
       ],
     },
-    // Cierre: el agradecimiento de Jonah. Lo ven todos (activen o no las
-    // notificaciones), también quien toca "Saltar y empezar".
+    // Cierre: el agradecimiento de Jonah (también quien toca "Saltar y
+    // empezar"). Su frase "Tu único trabajo hoy…" ahora va arriba de
+    // "¡Tu plan está listo!" (PrimeraComidaModal).
     {
       emoji: '🦍', titulo: `GRACIAS POR CONFIAR EN MÍ${nombreMostrar ? ', ' + nombreMostrar.split(' ')[0].toUpperCase() : ''}`,
       texto: 'Hace unos años yo estaba donde tú estás hoy: bajé 37 kg sin prohibirme nada. Y ahora, con esta misma app, entrenando y con disciplina, bajé de 104 a 90 kg en 2 meses y medio. Desde hoy no estás solo: la app te guía todos los días y yo estoy al otro lado. Tu único trabajo hoy: registrar tu primera comida. Vamos con todo 💪',
       esGracias: true,
-    },
+    }]),
   ];
-  const p = pasos[paso];
+  // No falta nada: no se muestra ninguna hoja.
+  const sinPasos = pasos.length === 0;
+  useEffect(() => { if (sinPasos) onClose(); }, [sinPasos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const p = pasos[Math.min(paso, pasos.length - 1)] || {};
   const ultimo = paso === pasos.length - 1;
 
   async function guardarTelefono() {
@@ -5652,6 +5666,15 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     return true;
   }
 
+  // Solo en la app de iPhone: seguir sin dar el WhatsApp. No se le vuelve
+  // a pedir (queda anotado en este celular); lo puede agregar en "Mi perfil".
+  function telefonoAhoraNo() {
+    try { localStorage.setItem('jb_tel_no_' + username, '1'); } catch {}
+    registrarPasoPago('primera_comida', username, 'whatsapp_ahora_no');
+    setErrTelefono('');
+    if (ultimo) onClose(); else setPaso(paso + 1);
+  }
+
   async function avanzar() {
     if (p.esNombre) { const ok = await guardarNombre(); if (!ok) return; }
     if (p.esTelefono) { const ok = await guardarTelefono(); if (!ok) return; }
@@ -5663,6 +5686,7 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
     if (ultimo) onClose(); else setPaso(paso + 1);
   }
 
+  if (sinPasos) return null;
   return (
     <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center sm:p-4 z-50">
       <div className="max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 bg-zinc-900 border border-orange-500/40 rounded-t-3xl sm:rounded-2xl max-w-md w-full p-6">
@@ -5742,6 +5766,13 @@ function BienvenidaModal({ nombre, username, telefonoActual, onClose }) {
             )}
           </button>
         </div>
+
+        {p.esTelefono && esAppIOS() && (
+          <button onClick={telefonoAhoraNo} disabled={guardandoTel}
+            className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-3 w-full text-center">
+            Ahora no
+          </button>
+        )}
 
         {!ultimo && !p.esNombre && !p.esNotificacion && !p.esTelefono && (
           <button onClick={() => setPaso(pasos.length - 1)} className="jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2 mt-3 w-full text-center">
@@ -12510,28 +12541,58 @@ function MiCelularModal({ username, telefonoActual, onClose }) {
 // plan pero nunca vieron la app funcionar. Apenas su meta está lista (datos
 // + objetivo) y aún no registraron ninguna comida, se les muestra su meta y
 // platos comunes de la hora: un toque y la comida queda registrada.
+/* Revisados el 17 oct (pedido de Jonah, exactitud): cada tarjeta sale de la
+   lista de la app con su medida casera y sus gramos, como las fichas de la
+   portada. Los guisos que en Perú se comen con arroz van en su versión "con
+   arroz" (antes "Lomo saltado · 1 plato · 700 kcal" era sin arroz y no lo
+   decía). Fuera los que no tienen medida casera (avena cocida y mandarina
+   salían en gramos sueltos): en su lugar, la avena de beber y el café con
+   leche, que sí se toman por vaso y dicen si llevan azúcar. */
 const PLATOS_PRIMERA_COMIDA = {
   'Desayuno': [
     ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
-    ['Avena (Cocida)', '🥣'], ['Pan francés (-)', '🥖'], ['Yogur natural (-)', '🥛'],
+    ['Pan francés (-)', '🥖'], ['Café con leche (Con azúcar)', '☕'], ['Avena / quinua de bebida (Con azúcar)', '🥣'],
   ],
   'Media mañana': [
-    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
-    ['Yogur natural (-)', '🥛'], ['Pan con pollo (Pan blanco)', '🥪'], ['Huevo de gallina (Cocido)', '🥚'],
+    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Yogur natural (-)', '🥛'],
+    ['Huevo de gallina (Cocido)', '🥚'], ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'],
   ],
   'Almuerzo': [
-    ['Lomo saltado (-)', '🥩'], ['Arroz con pollo (-)', '🍗'], ['Ají de gallina (-)', '🍛'],
+    ['Lomo saltado con arroz (-)', '🥩'], ['Arroz con pollo (-)', '🍗'], ['Ají de gallina con arroz (-)', '🍛'],
     ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Ceviche de pescado (-)', '🐟'], ['Tallarines rojos con pollo (-)', '🍝'],
   ],
   'Media tarde': [
-    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Mandarina (Cruda)', '🍊'],
-    ['Yogur natural (-)', '🥛'], ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'],
+    ['Plátano de seda (Cruda)', '🍌'], ['Manzana (Cruda)', '🍎'], ['Yogur natural (-)', '🥛'],
+    ['Café con leche (Con azúcar)', '☕'], ['Pan con pollo (Pan blanco)', '🥪'], ['Pan con jamonada (Pan blanco)', '🥪'],
   ],
   'Cena': [
-    ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Lomo saltado (-)', '🥩'], ['Tallarines verdes (-)', '🍝'],
-    ['Caldo de gallina (-)', '🍲'], ['Estofado de pollo (-)', '🍛'], ['Pan con pollo (Pan blanco)', '🥪'],
+    ['Pollo a la brasa con papas y ensalada (-)', '🍗'], ['Lomo saltado con arroz (-)', '🥩'], ['Tallarines verdes (-)', '🍝'],
+    ['Caldo de gallina (-)', '🍲'], ['Estofado de pollo con arroz (-)', '🍛'], ['Pan con pollo (Pan blanco)', '🥪'],
   ],
 };
+
+/* "¿Cuánto comiste?" de "¡Tu plan está listo!": ½ · 1 · 1½ · ⚖️ Lo pesé,
+   con 1 ya marcado. Cambia la medida de todas las tarjetas a la vez, así la
+   tarjeta se sigue anotando con 1 solo toque. */
+const CUANTO_PRIMERA = [0.5, 1, 1.5];
+function porcionPrimera(food, base, m) {
+  if (m === 1) return base;
+  // Medio "1/4 con papas" es el octavo de la app (su propio peso), no la mitad.
+  if (m === 0.5 && /^1\/4/.test(base.unit)) {
+    const octavo = unitsFor(food).find(u => /^1\/8/.test(u[0]));
+    if (octavo) return { unit: octavo[0], qty: 1 };
+  }
+  return { unit: base.unit, qty: base.qty * m };
+}
+// "1 plato (480 g)", "½ plato (240 g)", "1/4 con papas (470 g)", "2 unidades (100 g)".
+function medidaPrimera(food, porcion) {
+  const gramos = Math.round(entryGrams({ foodKey: food.key, unit: porcion.unit, qty: porcion.qty }));
+  if (porcion.unit === 'gramos') return `${gramos} g`;
+  const texto = /^\d/.test(porcion.unit)
+    ? (porcion.qty === 1 ? porcion.unit : `${fraccion(porcion.qty)} × ${porcion.unit}`)
+    : UNIDADES_DISCRETAS.includes(porcion.unit) ? textoPorcion(porcion) : textoCantidad(porcion);
+  return `${texto} (${gramos} g)`;
+}
 
 // "🌙 Lo anoto en la noche" (antes "Ahora no": de 18 que veían esta
 // pantalla, 8 lo tocaban y casi nadie volvía a anotar): queda el
@@ -12594,6 +12655,10 @@ function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onO
   const meal = comidaDeAhora();
   const [paso, setPaso] = useState('elegir'); // elegir | noche
   const [activando, setActivando] = useState(false);
+  // ½ · 1 · 1½ (multiplica la medida casera) o 'pesar' (⚖️ Lo pesé: gramos).
+  const [cuanto, setCuanto] = useState(1);
+  const [pesando, setPesando] = useState(null); // key del plato al que le escribe los gramos
+  const [gramos, setGramos] = useState('');
   async function lo_anoto_en_la_noche() {
     let estado = 'nosoportado';
     try { estado = equipoDelAlumno().navegadorInterno ? 'nosoportado' : await estadoPushEquipo(); } catch {}
@@ -12626,13 +12691,28 @@ function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onO
       </div>
     );
   }
+  const pesar = cuanto === 'pesar';
   const platos = (PLATOS_PRIMERA_COMIDA[meal] || []).map(([key, emoji]) => {
     const food = buscarFood(key);
     if (!food) return null;
-    const porcion = unidadPorDefecto(food);
+    const base = unidadPorDefecto(food);
+    const porcion = pesar ? base : porcionPrimera(food, base, cuanto);
     const kcal = Math.round(entryMacros({ foodKey: key, ...porcion }).kcal);
-    return { key, emoji, food, porcion, kcal };
+    return { key, emoji, food, porcion, kcal, medida: medidaPrimera(food, porcion) };
   }).filter(Boolean);
+  const platoPesado = pesar && platos.find(p => p.key === pesando);
+  const gNum = Number(String(gramos).replace(',', '.'));
+  const gValidos = gNum > 0 && gNum <= MAX_GRAMOS_ENTRADA;
+  const kcalPesado = platoPesado && gValidos ? Math.round(entryMacros({ foodKey: platoPesado.key, unit: 'gramos', qty: gNum }).kcal) : null;
+  function elegirPlato(p) {
+    if (pesar) { setPesando(p.key); setGramos(''); return; }
+    onElegir(meal, p, cuanto === 1 ? null : 'cantidad');
+  }
+  function anotarPesado(e) {
+    e.preventDefault();
+    if (!platoPesado || !gValidos) return;
+    onElegir(meal, { ...platoPesado, porcion: { unit: 'gramos', qty: Math.round(gNum) } }, 'pesado');
+  }
   const titulo = meal === 'Desayuno' ? '¿Qué desayunaste hoy?' : meal === 'Almuerzo' ? '¿Qué almorzaste hoy?' : meal === 'Cena' ? '¿Qué cenaste hoy?' : `¿Qué comiste en tu ${meal.toLowerCase()}?`;
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end">
@@ -12641,6 +12721,13 @@ function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onO
       <div className="jbm-hoja relative bg-zinc-900 border-t border-orange-500/50 rounded-t-3xl px-5 pt-3 max-h-[92vh] overflow-y-auto"
         style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))', boxShadow: '0 -12px 40px rgba(232,89,12,.18)' }}>
         <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto mb-4" />
+        {/* La frase de Jonah que cerraba la guía de bienvenida (17 oct). */}
+        {!deNoche && (
+          <div className="flex items-center gap-2.5 bg-zinc-950 border border-orange-500/30 rounded-xl px-3 py-2 mb-3">
+            <img src="/jonah-avatar.png" alt="" className="w-8 h-8 rounded-full border border-orange-500/60 shrink-0 object-cover" />
+            <p className="jb-body text-sm text-zinc-200 leading-snug">Soy Jonah. <b className="text-zinc-50">Tu único trabajo hoy: registrar tu primera comida.</b> Vamos con todo 💪</p>
+          </div>
+        )}
         <div className="text-center mb-4">
           <h3 className="jb-display text-2xl text-zinc-50 leading-none">{deNoche ? '¡HORA DE ANOTAR TU DÍA! 🌙' : '¡TU PLAN ESTÁ LISTO!'}</h3>
           {deNoche && <p className="jb-body text-sm text-zinc-400 mt-1.5">Como quedamos: anota lo que comiste hoy. Empieza por una comida.</p>}
@@ -12656,17 +12743,48 @@ function PrimeraComidaModal({ kcalMeta, deNoche, username, onElegir, onFoto, onO
           <span className="flex items-center gap-2"><Camera size={18} /> Tómale foto a lo que vas a comer</span>
           <span className="jb-body text-[11px] font-normal opacity-80 mt-0.5">La IA reconoce tu plato y te dice sus calorías</span>
         </button>
-        <p className="jb-body text-xs text-zinc-400 mt-3 mb-2">O toca uno de estos y queda registrado. La cantidad la ajustas después.</p>
+        <p className="jb-body text-xs text-zinc-400 mt-3 mb-2">{pesar ? 'Toca el tuyo y escribe los gramos de tu balanza.' : 'O toca uno de estos y queda anotado.'}</p>
+        {/* ¿Cuánto? Igual que en el buscador: 1 ya marcado; no hace falta tocarlo. */}
+        <div className="flex items-center gap-1.5 mb-2.5" role="group" aria-label="¿Cuánto comiste?">
+          <span className="jb-body text-xs text-zinc-500 mr-0.5">¿Cuánto?</span>
+          {CUANTO_PRIMERA.map(m => (
+            <button key={m} type="button" aria-pressed={cuanto === m} onClick={() => { vibrar(8); setCuanto(m); setPesando(null); }}
+              className={`jb-body text-sm min-w-[2.75rem] px-3 py-1.5 rounded-full border transition-colors ${cuanto === m ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+              {fraccion(m)}
+            </button>
+          ))}
+          <button type="button" aria-pressed={pesar} onClick={() => { vibrar(8); setCuanto('pesar'); }}
+            className={`jb-body text-sm px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${pesar ? 'bg-orange-500 border-orange-500 text-zinc-950 font-semibold' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'}`}>
+            ⚖️ Lo pesé
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {platos.map(p => (
-            <button key={p.key} onClick={() => onElegir(meal, p)}
-              className="bg-zinc-950 border border-zinc-800 hover:border-orange-500 active:scale-[0.98] rounded-xl p-3 text-left transition-all">
+            <button key={p.key} onClick={() => elegirPlato(p)} aria-pressed={pesar ? pesando === p.key : undefined}
+              className={`bg-zinc-950 border ${pesar && pesando === p.key ? 'border-orange-500' : 'border-zinc-800'} hover:border-orange-500 active:scale-[0.98] rounded-xl p-3 text-left transition-all`}>
               <span className="text-2xl leading-none">{p.emoji}</span>
-              <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1.5">{p.food.name}</span>
-              <span className="block jb-body text-[11px] text-zinc-500 mt-0.5">{p.porcion.qty === 1 && /^\d/.test(p.porcion.unit) ? p.porcion.unit : textoPorcion(p.porcion)} · {p.kcal} kcal</span>
+              <span className="block jb-body text-sm text-zinc-100 font-semibold leading-tight mt-1.5">{nombreAlimento(p.food)}</span>
+              <NotaSinArroz food={p.food} />
+              {pesar
+                ? <span className="block jb-body text-[11px] text-zinc-500 mt-0.5">⚖️ Escribe los gramos</span>
+                : <span className="block jb-body text-[11px] text-zinc-500 mt-0.5">{p.medida} · <span className="text-orange-400 font-semibold whitespace-nowrap">{p.kcal} kcal</span></span>}
             </button>
           ))}
         </div>
+        {platoPesado && (
+          <form onSubmit={anotarPesado} className="rounded-2xl border border-orange-500/50 bg-zinc-950 p-3 mb-3">
+            <p className="jb-body text-sm text-zinc-200 mb-2">⚖️ ¿Cuántos gramos de <b>{nombreAlimento(platoPesado.food).toLowerCase()}</b>?</p>
+            <div className="flex items-center gap-2">
+              <input autoComplete="off" type="number" inputMode="decimal" min="1" step="any" autoFocus value={gramos} onChange={e => setGramos(e.target.value)}
+                placeholder="Ej. 350" aria-label="Gramos"
+                className="flex-1 min-w-0 jb-body text-lg rounded-xl px-3 py-2 bg-zinc-900 border border-zinc-700 focus:border-orange-500 text-zinc-50 outline-none tabular-nums" />
+              <span className="jb-body text-sm text-zinc-400">g</span>
+              <button type="submit" disabled={!gValidos} className={btnPrimary + ' px-4 py-2.5 text-sm shrink-0 disabled:opacity-40'}>Anotar</button>
+            </div>
+            {kcalPesado !== null && <p className="jb-body text-xs text-orange-400 mt-1.5">≈ {kcalPesado} kcal</p>}
+            {gNum > MAX_GRAMOS_ENTRADA && <p className="jb-body text-xs text-amber-400 mt-1.5">Cantidad muy alta, revísala.</p>}
+          </form>
+        )}
         <button onClick={() => onOtro(meal)} className={btnGhost + ' w-full py-3 mb-2'}>
           Buscar otro plato
         </button>
@@ -13027,6 +13145,8 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     && !!userRecord?.fechaInicio && userRecord.fechaInicio < todayISO();
 
   const [verGuia, setVerGuia] = useState(false);
+  const [guiaCompleta, setGuiaCompleta] = useState(false); // abierta con "Ver guía"
+
   // Abrir en Chrome/Safari si está en el navegador de TikTok, Instagram o
   // Facebook: una vez al día como mucho.
   const [abrirEnNavegador, setAbrirEnNavegador] = useState(() => {
@@ -13223,13 +13343,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
   // la prueba de la portada): el aviso de abrir la app en Chrome/Safari
   // espera a que la guarde, para no taparle la cámara ni el buscador.
   const [primeraEnCurso, setPrimeraEnCurso] = useState(false);
-  function registrarPrimeraComida(meal, p) {
+  function registrarPrimeraComida(meal, p, ajuste = null) {
     registrarPasoPago('primera_comida', username, 'plato');
+    // Medición (17 oct): cuántos cambian la cantidad (½ · 1½) o la pesan.
+    if (ajuste) registrarPasoPago('primera_comida', username, ajuste === 'pesado' ? 'plato_pesado' : 'plato_cantidad');
     setPrimeraEnCurso(true);
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), { id: uid(), foodKey: p.key, unit: p.porcion.unit, qty: p.porcion.qty }] } }));
     setNuncaRegistro(false);
     vibrar(30);
-    showToast(`✅ ${p.food.name} registrado en ${meal}`);
+    showToast(`✅ ${nombreAlimento(p.food)} · ${medidaPrimera(p.food, p.porcion)} registrado en ${meal}`);
     setRegistrarAl(null); setTab('meal'); window.scrollTo({ top: 0 });
   }
   function descartarPrimeraComida() {
@@ -13327,6 +13449,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
   function cerrarGuia() {
     setVerGuia(false);
+    setGuiaCompleta(false);
     try { localStorage.setItem('jb_guia_' + username, '1'); } catch {}
   }
   const results = useMemo(() => calcAll({
@@ -13477,7 +13600,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
 
       <div className="max-w-4xl mx-auto px-6 pt-6">
         <AvisoGuardado estado={estadoGuardado} onVolverAEntrar={onLogout} />
-        {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} onClose={cerrarGuia} />}
+        {verGuia && <BienvenidaModal nombre={userRecord?.nombre} username={username} telefonoActual={userRecord?.telefono} completa={guiaCompleta} onClose={cerrarGuia} />}
         {/* Primero su primera comida (está motivado y ya está adentro); recién
             después se le pide abrir la app en Chrome/Safari, donde tiene que
             volver a entrar con su correo. Si eligió foto o buscar, espera a
@@ -13535,7 +13658,7 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
           );
           const primeros = (
             <PrimerosPasos form={form} mealPlan={mealPlan} tieneFotos={tieneFotos} yaRegistro={nuncaRegistro === false}
-              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => setVerGuia(true)} />
+              onIr={t => (t === 'foto' ? irARegistrar(comidaDeAhora(), { foto: true }) : t === 'registrar' ? irARegistrar(comidaDeAhora()) : setTab(t))} onVerGuia={() => { setGuiaCompleta(true); setVerGuia(true); }} />
           );
           const invitacionComunidad = (
             <>
@@ -13570,6 +13693,17 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                 {recordatorioElegible === false && <InstalarBanner />}
               </>
             );
+          /* Día 1 sin ninguna comida (17 oct, pedido de Jonah: "quita las
+             pantallas"; el 60 % de los nuevos no anotaba nada el día 1):
+             Inicio muestra solo el saludo, sus kcal y macros, las comidas del
+             día, el agua y una sola tarjeta de avisos. Un solo botón para
+             anotar (el de "Registrar" del anillo). Lo demás (el reto de 7
+             días, Primeros pasos, la foto del día 1, la racha, ¿Cómo vas
+             hoy?, IMC, objetivo de peso, la semana…) aparece apenas anota su
+             primera comida. Mientras la app averigua si ya anotó alguna vez
+             (nuncaRegistro === null) tampoco se muestra, para que a nadie le
+             aparezca y desaparezca. */
+          const soloLoEsencial = alimentosHoy === 0 && nuncaRegistro !== false;
           const fotoDia1 = <FotoDia1Card tieneFotos={tieneFotos} fechaInicio={userRecord?.fechaInicio} onIr={() => { setTab('photos'); window.scrollTo({ top: 0 }); }} />;
           const resto = (
             <>
@@ -13595,15 +13729,14 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                     onPeso={() => setPesoFacil(true)} />
                   <AbreDesdeIconoAviso username={username} />
                   {centro}
-                  {avisos}
+                  {!soloLoEsencial && avisos}
                   {avisoNotif}
-                  {invitacionComunidad}
-                  {fotoDia1}
-                  <button onClick={() => setVerMasFacil(v => !v)}
+                  {!soloLoEsencial && <>{invitacionComunidad}{fotoDia1}</>}
+                  {!soloLoEsencial && <button onClick={() => setVerMasFacil(v => !v)}
                     className={btnGhost + ' w-full py-3 mb-6 text-base'}>
                     {verMasFacil ? 'Ocultar ▴' : 'Ver más de mi día ▾'}
-                  </button>
-                  {verMasFacil && <>{primeros}{resto}</>}
+                  </button>}
+                  {!soloLoEsencial && verMasFacil && <>{primeros}{resto}</>}
                 </>
               ) : (
                 <>
@@ -13617,11 +13750,15 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
                   )}
                   <AbreDesdeIconoAviso username={username} />
                   {centro}
-                  {avisos}
-                  {avisoNotif}
-                  {primeros}
-                  {invitacionComunidad}
-                  {fotoDia1}{resto}
+                  {soloLoEsencial ? avisoNotif : (
+                    <>
+                      {avisos}
+                      {avisoNotif}
+                      {primeros}
+                      {invitacionComunidad}
+                      {fotoDia1}{resto}
+                    </>
+                  )}
                 </>
               )}
             </>

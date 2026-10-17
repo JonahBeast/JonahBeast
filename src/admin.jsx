@@ -3174,6 +3174,9 @@ const FILAS_PRIMERA = [
     ['primera_comida', 'vio', 'Vieron "¡Tu plan está listo!"'],
     ['primera_comida', 'foto', 'Tocaron "Tómale foto"'],
     ['primera_comida', 'plato', 'Eligieron un plato con 1 toque'],
+    // Desde el 17 de octubre: "¿Cuánto?" (½ · 1 · 1½ · ⚖️ Lo pesé) en esa hoja.
+    ['primera_comida', 'plato_cantidad', '…y cambiaron la cantidad (½ o 1½)'],
+    ['primera_comida', 'plato_pesado', '…y escribieron los gramos (⚖️ Lo pesé)'],
     ['primera_comida', 'buscar', 'Tocaron "Buscar otro plato"'],
     ['primera_comida', 'ahora_no', 'Tocaron "Ahora no" (o tocaron afuera)'],
     ['primera_comida', 'noche', 'Tocaron "Lo anoto en la noche"'],
@@ -3181,6 +3184,8 @@ const FILAS_PRIMERA = [
     ['primera_comida', 'noche_vio', 'En la noche vieron "¡Hora de anotar tu día!"'],
     ['primera_comida', 'noche_ahora_no', 'En la noche tocaron "Ahora no"'],
     ['primera_comida', 'demo', 'Llegaron con el plato de la prueba'],
+    // Desde el 17 de octubre, solo en la app de iPhone (el WhatsApp es opcional ahí).
+    ['primera_comida', 'whatsapp_ahora_no', 'iPhone: no dieron su WhatsApp ("Ahora no")'],
   ] },
   // Desde el 14 de octubre: "¿Qué más comiste hoy?" tras la 1.ª comida.
   { titulo: '¿Qué más comiste hoy?', filas: [

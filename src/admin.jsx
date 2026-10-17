@@ -6,7 +6,7 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { reaccionesPara } from './reacciones.js';
 import MANUAL_APP from '../docs/manual-app.md?raw';
 import { opcionesUsoMenu } from './menuDia.js';
-import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay, tieneCelular } from './listaCarino.js';
+import { cargarDatosCarino, armarListaCarino, enlaceWhatsApp, CLAVE_ESCRITOS, ETAPAS, NIVELES, anotarEscrito, leerEscritos, LINK_PRIMERA_COMIDA, esVerificadorPlay, tieneCelular, semaforoContacto, enviosDe, registrarEnvio } from './listaCarino.js';
 import { costoUsdIA, saldoEstimado, puntoDePartidaSaldo, SALDO_IA_MINIMO_USD, leerRecargaAuto, RECARGA_AUTO_POR_DEFECTO } from './saldoIA.js';
 import {
   ANGULOS,
@@ -8134,12 +8134,18 @@ async function datosNegocioJarvis(users) {
       const { data: conComida } = await traerTodas(() => supabase.from('historial').select('username').in('username', nombresActivos).gt('comidas_count', 0));
       const comieron = new Set((conComida || []).map(r => r.username));
       const sinComida = nombresActivos.filter(n => !comieron.has(n));
-      const { data: dat } = sinComida.length
-        ? await supabase.from('datos_alumnos').select('username, form, updated_at').in('username', sinComida)
-        : { data: [] };
+      const [{ data: dat }, { data: cfgEsc }] = await Promise.all([
+        sinComida.length
+          ? supabase.from('datos_alumnos').select('username, form, updated_at').in('username', sinComida)
+          : Promise.resolve({ data: [] }),
+        supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
+      ]);
+      // Semáforo: no se cuenta a quien ya no se le debe escribir.
+      const esc = leerEscritos(cfgEsc?.value);
       aMedias = (dat || []).filter(d => {
         const h = (Date.now() - new Date(d.updated_at).getTime()) / 3600000;
-        return tieneDatosBasicos(d.form || {}) && h >= 3 && h <= 72;
+        return tieneDatosBasicos(d.form || {}) && h >= 3 && h <= 72
+          && semaforoContacto({ diasConComida: 0, envios: enviosDe(esc, d.username), hoyISO: hoy, etapa: 'primera' }).permitido;
       }).length;
     } else aMedias = 0;
   } catch {}
@@ -10969,6 +10975,72 @@ function TeamBeastLanzamiento() {
   );
 }
 
+/* Semáforo de interés (src/listaCarino.js → semaforoContacto): lo usan todas
+   las listas de "a quién escribirle" para no escribirle de más a quien no
+   usa la app. Carga el registro común de envíos y los días con comida de
+   esas personas, y anota cada "Escribir" en el mismo registro. */
+const TEXTO_SEMAFORO = '⚪ nunca anotó (máx. 3 mensajes) · 🟡 anotó 1 o 2 días (1 cada 4 días) · 🟢 anotó 3 o más. A nadie 2 días seguidos.';
+function useSemaforoContacto(usernames) {
+  const [escritos, setEscritos] = useState(null);
+  const [dias, setDias] = useState(null); // username -> { n, ultima }
+  const clave = [...new Set((usernames || []).filter(Boolean))].sort().join(',');
+  useEffect(() => {
+    let cancelado = false;
+    (async () => {
+      const nombres = clave ? clave.split(',') : [];
+      const [{ data: cfg }, { data: hist }] = await Promise.all([
+        supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle(),
+        nombres.length
+          ? traerTodas(() => supabase.from('historial').select('username, fecha').in('username', nombres).gt('comidas_count', 0))
+          : Promise.resolve({ data: [] }),
+      ]);
+      if (cancelado) return;
+      const m = {};
+      (hist || []).forEach(r => {
+        const x = (m[r.username] = m[r.username] || { fechas: new Set(), ultima: null });
+        x.fechas.add(r.fecha);
+        if (!x.ultima || r.fecha > x.ultima) x.ultima = r.fecha;
+      });
+      setDias(Object.fromEntries(Object.entries(m).map(([u, x]) => [u, { n: x.fechas.size, ultima: x.ultima }])));
+      setEscritos(leerEscritos(cfg?.value));
+    })().catch(() => { if (!cancelado) { setDias({}); setEscritos({}); } });
+    return () => { cancelado = true; };
+  }, [clave]);
+  const listo = escritos !== null && dias !== null;
+  const hoy = todayISO();
+  function semaforo(username, etapa) {
+    if (!listo) return null;
+    const d = dias[username] || { n: 0, ultima: null };
+    const s = semaforoContacto({ diasConComida: d.n, ultimaComida: d.ultima, envios: enviosDe(escritos, username), hoyISO: hoy, etapa });
+    return { ...s, hoy: enviosDe(escritos, username).some(([f]) => f === hoy) };
+  }
+  async function registrar(username, etapa) {
+    setEscritos(e => anotarEscrito(e || {}, username, etapa, hoy));
+    try { setEscritos(await registrarEnvio(supabase, username, etapa, hoy)); } catch {}
+  }
+  return { listo, semaforo, registrar };
+}
+
+/* Botón "Escribir" de las listas con semáforo: si hoy no toca escribirle,
+   en vez del botón dice por qué (y su color). */
+function BotonEscribirSemaforo({ s, href, onEscribir, texto = 'Escribir' }) {
+  if (s && !s.permitido && !s.hoy) {
+    return (
+      <span className="jb-body text-[11px] text-zinc-500 text-right max-w-[11rem]">
+        {s.etiqueta} · 🤫 No escribir: {s.motivoOculto}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-2">
+      {s && <span className="jb-body text-[11px] text-zinc-400">{s.hoy ? '✅' : s.etiqueta}</span>}
+      <a href={href} target="_blank" rel="noopener noreferrer" onClick={onEscribir} className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+        <MessageCircle size={13} /> {texto}
+      </a>
+    </span>
+  );
+}
+
 function MensajesDelDiaPanel() {
   const [lista, setLista] = useState(null);
   const [escritos, setEscritos] = useState({});
@@ -11005,10 +11077,9 @@ function MensajesDelDiaPanel() {
   }, []);
 
   async function anotar(x) {
-    const nuevos = anotarEscrito(escritos, x.username, x.etapa, hoy);
-    setEscritos(nuevos);
+    setEscritos(anotarEscrito(escritos, x.username, x.etapa, hoy));
     setLista(l => l.map(y => y.username === x.username ? { ...y, hecho: true } : y));
-    try { await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) }); } catch {}
+    try { setEscritos(await registrarEnvio(supabase, x.username, x.etapa, hoy)); } catch {}
   }
 
   if (!lista) return null;
@@ -11024,6 +11095,7 @@ function MensajesDelDiaPanel() {
               ? 'De lo más urgente a lo motivador. Toca "Escribirle", revisa y envía. Un mensaje tuyo vale más que cualquier aviso automático.'
               : 'Hoy no hay a quién escribirle en especial. ¡Buen día! 🙌'}
           </p>
+          <p className="jb-body text-[11px] text-zinc-500 mt-1">{TEXTO_SEMAFORO}</p>
         </div>
         {lista.length > 0 && (
           <div className="text-right shrink-0">
@@ -11059,7 +11131,7 @@ function MensajesDelDiaPanel() {
                           <div className="flex items-center gap-3">
                             <div className="flex-1 min-w-0">
                               <p className="jb-body text-sm text-zinc-100 truncate">{x.nombre}{String(x.nombre || '').trim().length < 3 && <span className="text-zinc-500"> · @{x.username}</span>}</p>
-                              <p className="jb-body text-[11px] text-orange-300">{x.motivo}{!x.telefono ? ' · sin WhatsApp' : ''}</p>
+                              <p className="jb-body text-[11px] text-orange-300">{x.motivo}{!x.telefono ? ' · sin WhatsApp' : ''}{x.semaforo && <span className="text-zinc-400"> · {x.semaforo}</span>}</p>
                             </div>
                             {x.hecho ? (
                               <span className="jb-body text-xs text-emerald-400 shrink-0">✅ Escrito</span>
@@ -11155,11 +11227,13 @@ function ListosParaPagarPanel() {
         const h = porUsuario[a.username] || [];
         const conComida = h.filter(f => Number(f.comidas_count) > 0).map(f => f.fecha);
         const dias14 = new Set(conComida.filter(f => f >= desde14)).size;
+        const diasCon = new Set(conComida).size;
         const ultima = conComida.sort().pop() || null;
         const diasSinRegistrar = ultima ? Math.round((Date.parse(hoy) - Date.parse(ultima)) / 864e5) : 99;
         const pesos = h.filter(f => Number(f.peso) > 0).length;
         const diasRestantes = a.fecha_vencimiento ? Math.round((Date.parse(a.fecha_vencimiento) - Date.parse(hoy)) / 864e5) : -1;
-        return { ...a, dias14, diasSinRegistrar, pesos, diasRestantes };
+        const sem = semaforoContacto({ diasConComida: diasCon, ultimaComida: ultima, envios: enviosDe(esc, a.username), hoyISO: hoy, etapa: 'convertir' });
+        return { ...a, dias14, diasSinRegistrar, pesos, diasRestantes, sem };
       }).filter(x => x.dias14 >= MIN_DIAS_LISTOS && (x.diasRestantes >= 0 || x.diasSinRegistrar <= 7))
         .map(x => {
           const e = esc[x.username];
@@ -11169,7 +11243,7 @@ function ListosParaPagarPanel() {
           const reciente = !hecho && f && etapa === 'convertir' && (Date.parse(hoy) - Date.parse(f)) / 864e5 < 7;
           return { ...x, puntaje: puntajeListo(x), hecho, reciente };
         })
-        .filter(x => !x.reciente)
+        .filter(x => !x.reciente && (x.hecho || x.sem.permitido))
         .sort((a, b) => b.puntaje - a.puntaje)
         .slice(0, MAX_LISTOS);
       setEscritos(esc);
@@ -11179,10 +11253,9 @@ function ListosParaPagarPanel() {
   }, []);
 
   async function anotar(x) {
-    const nuevos = anotarEscrito(escritos, x.username, 'convertir', hoy);
-    setEscritos(nuevos);
+    setEscritos(anotarEscrito(escritos, x.username, 'convertir', hoy));
     setLista(l => l.map(y => y.username === x.username ? { ...y, hecho: true } : y));
-    try { await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) }); } catch {}
+    try { setEscritos(await registrarEnvio(supabase, x.username, 'convertir', hoy)); } catch {}
   }
 
   if (!lista || !lista.length) return null;
@@ -11682,6 +11755,7 @@ function SinAvisosPanel({ users }) {
   const [open, setOpen] = useState(false);
   const [estados, setEstados] = useState(null);
   const vigentes = useMemo(() => (users || []).filter(u => u.enabled && membershipActive(u) && !esCuentaPropia(u.username)), [users]);
+  const sem = useSemaforoContacto(vigentes.map(u => u.username));
 
   useEffect(() => {
     let cancelado = false;
@@ -11714,6 +11788,7 @@ function SinAvisosPanel({ users }) {
               ? 'No les llegan tus recordatorios. Escríbeles con los pasos para su celular.'
               : 'Todos tus alumnos activos reciben tus avisos 🙌'}
           </p>
+          {sinAvisos.length > 0 && <p className="jb-body text-[11px] text-zinc-600 mt-0.5">{TEXTO_SEMAFORO}</p>}
         </div>
         <ChevronRight size={18} className={`text-zinc-500 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
@@ -11737,10 +11812,9 @@ function SinAvisosPanel({ users }) {
                     {e?.dispositivo && e.dispositivo !== 'otro' ? ` · ${e.dispositivo === 'iphone' ? 'iPhone' : e.dispositivo === 'android' ? 'Android' : 'computadora'}` : ''}
                   </p>
                 </div>
-                <a href={full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`}
-                  target="_blank" rel="noreferrer" className={btnPrimary + ' text-xs py-1.5 px-3 shrink-0'}>
-                  <MessageCircle size={14} /> Escribirle
-                </a>
+                <BotonEscribirSemaforo s={sem.semaforo(u.username, 'avisos')} texto="Escribirle"
+                  href={full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`}
+                  onEscribir={() => sem.registrar(u.username, 'avisos')} />
               </div>
             );
           })}
@@ -11760,6 +11834,9 @@ function RescatePanel({ users }) {
 
   const vigentes = useMemo(() => (users || []).filter(u => u.enabled && membershipActive(u)), [users]);
   const nombres = vigentes.map(u => u.username).sort().join(',');
+  const sem = useSemaforoContacto(vigentes.map(u => u.username));
+  const pasoRescate = g => (g === 'medias' || g === 'nunca') ? 'primera' : g === 'aldia' ? 'celebrar' : 'retomar';
+  const sePuede = u => { const x = sem.semaforo(u.username, pasoRescate(u.grupo)); return !x || x.permitido || x.hoy; };
 
   useEffect(() => {
     if (!nombres) { setUltimas({}); return; }
@@ -11800,7 +11877,7 @@ function RescatePanel({ users }) {
   }).sort((a, b) => (a.sinRegistrar ?? 999) - (b.sinRegistrar ?? 999) || ordenMedias(a.horasSinVolver) - ordenMedias(b.horasSinVolver));
   // A medias "para escribir hoy": se fueron hace 3 horas o más, y no hace
   // más de 3 días (después ya se enfrían y el mensaje pesa menos).
-  const mediasHoy = alumnos.filter(u => u.grupo === 'medias' && u.horasSinVolver !== null && u.horasSinVolver >= 3 && u.horasSinVolver <= 72);
+  const mediasHoy = alumnos.filter(u => u.grupo === 'medias' && u.horasSinVolver !== null && u.horasSinVolver >= 3 && u.horasSinVolver <= 72 && sePuede(u));
 
   function linkWhatsApp(u) {
     const nombre = (u.nombre || u.username).trim().split(/\s+/)[0];
@@ -11827,7 +11904,7 @@ function RescatePanel({ users }) {
                 : `https://wa.me/?text=${encodeURIComponent(textoFinal)}`;
   }
 
-  const porRescatar = alumnos.filter(u => u.grupo !== 'aldia').length;
+  const porRescatar = alumnos.filter(u => u.grupo !== 'aldia' && sePuede(u)).length;
   const conteoAvisos = {};
   alumnos.forEach(u => { const k = u.estadoAvisos || 'sin_dato'; conteoAvisos[k] = (conteoAvisos[k] || 0) + 1; });
 
@@ -11852,6 +11929,7 @@ function RescatePanel({ users }) {
             <>
               <p className="jb-body text-xs text-zinc-500 mb-3">
                 Alumnos con plan o prueba vigente según cuándo registraron comidas por última vez.
+                <span className="block text-zinc-600 mt-0.5">{TEXTO_SEMAFORO}</span>
               </p>
               <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 mb-3 jb-body text-[11px] text-zinc-400 leading-relaxed">
                 <span className="text-zinc-200 font-semibold">🔔 Avisos:</span>{' '}
@@ -11897,9 +11975,10 @@ function RescatePanel({ users }) {
                                 </div>
                               )}
                             </div>
-                            {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" className={btnPrimary + ' py-1.5 px-3 text-xs'}>
-                              <MessageCircle size={13} /> Escribir
-                            </a> : <SinCelular />}
+                            {tieneCelular(u.telefono)
+                              ? <BotonEscribirSemaforo s={sem.semaforo(u.username, pasoRescate(u.grupo))} href={linkWhatsApp(u)}
+                                  onEscribir={() => sem.registrar(u.username, pasoRescate(u.grupo))} />
+                              : <SinCelular />}
                           </div>
                         ))}
                       </div>
@@ -11964,6 +12043,7 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
   const vencidos = useMemo(() => conVencimiento.filter(u => u.dl < 0 && u.dl >= -7).sort((a, b) => b.dl - a.dl), [conVencimiento]);
 
   const nombresPrueba = [...porVencer, ...vencidos].filter(u => u.esPrueba).map(u => u.username).sort().join(',');
+  const sem = useSemaforoContacto(nombresPrueba ? nombresPrueba.split(',') : []);
 
   useEffect(() => {
     if (!nombresPrueba) { setActividad({}); return; }
@@ -12057,11 +12137,15 @@ function VencimientosPanel({ users, onRenew, onAdjustDays }) {
           {detalle}
           <LineaMotivo m={motivoDe[u.username]} />
         </div>
-        <div className="flex items-center gap-2">
-          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
-            className={btnPrimary + ' py-1.5 px-3 text-xs'}>
-            <MessageCircle size={13} /> Escribir
-          </a> : <SinCelular />}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {!tieneCelular(u.telefono) ? <SinCelular />
+            : u.esPrueba
+              ? <BotonEscribirSemaforo s={sem.semaforo(u.username, u.dl < 0 ? 'volver' : 'prueba')} href={linkWhatsApp(u, texto)}
+                  onEscribir={() => sem.registrar(u.username, u.dl < 0 ? 'volver' : 'prueba')} />
+              : <a href={linkWhatsApp(u, texto)} target="_blank" rel="noopener noreferrer"
+                  className={btnPrimary + ' py-1.5 px-3 text-xs'}>
+                  <MessageCircle size={13} /> Escribir
+                </a>}
           {u.esPrueba && u.dl < 0 && onAdjustDays && (
             <button onClick={() => {
               if (!window.confirm(`¿Activar 7 días de prueba a ${u.nombre || u.username}, contados desde hoy?`)) return;
@@ -12255,6 +12339,7 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
     .map(u => ({ ...u, dl: daysLeft(u.fechaVencimiento), esPrueba: u.plan === 'trial' || u.plan === 'prueba' }))
     .filter(u => u.dl !== null && u.dl < -7), [users]);
   const nombres = salieron.map(u => u.username).sort().join(',');
+  const sem = useSemaforoContacto(salieron.map(u => u.username));
 
   useEffect(() => {
     if (!nombres) { setActividad({}); return; }
@@ -12283,10 +12368,16 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
     const invitadoEl = invitados[u.username] || null;
     const invitadoHace = invitadoEl ? Math.floor((hoyMs - new Date(invitadoEl).getTime()) / 86400000) : null;
     const yaInvitado = invitadoHace !== null && invitadoHace < DIAS_ENTRE_INVITACIONES;
-    return { ...u, diasActivos, grupo, invitadoHace, yaInvitado };
+    // Semáforo: quien nunca empezó recibe un solo mensaje de cierre; quien
+    // usó poco, como mucho 2 sin respuesta.
+    const paso = grupo === 'nunca' ? 'cierre' : 'volver';
+    const s = sem.semaforo(u.username, paso);
+    const noEscribir = (s && !s.permitido && !s.hoy) || (grupo === 'nunca' && !!invitadoEl && !s?.hoy);
+    return { ...u, diasActivos, grupo, invitadoHace, yaInvitado, paso, s, noEscribir };
   }).sort((a, b) => b.diasActivos - a.diasActivos || b.dl - a.dl);
-  const pendientes = alumnos.filter(u => !u.yaInvitado);
-  const yaInvitados = alumnos.filter(u => u.yaInvitado);
+  const silenciados = alumnos.filter(u => u.noEscribir);
+  const pendientes = alumnos.filter(u => !u.yaInvitado && !u.noEscribir);
+  const yaInvitados = alumnos.filter(u => u.yaInvitado && !u.noEscribir);
 
   function marcarInvitado(username) {
     const nuevo = { ...leerInvitados(), [username]: new Date().toISOString() };
@@ -12345,10 +12436,10 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {tieneCelular(u.telefono) ? <a href={linkWhatsApp(u)} target="_blank" rel="noopener noreferrer" onClick={() => marcarInvitado(u.username)}
-            className={btnPrimary + ' py-1.5 px-3 text-xs'}>
-            <MessageCircle size={13} /> {u.yaInvitado ? 'Escribir otra vez' : 'Escribir'}
-          </a> : <SinCelular />}
+          {tieneCelular(u.telefono)
+            ? <BotonEscribirSemaforo s={u.s} href={linkWhatsApp(u)} texto={u.yaInvitado ? 'Escribir otra vez' : 'Escribir'}
+                onEscribir={() => { marcarInvitado(u.username); sem.registrar(u.username, u.paso); }} />
+            : <SinCelular />}
           {u.esPrueba && (
             <button type="button" onClick={() => darSieteDias(u)} className={btnGhost + ' py-1.5 px-3 text-xs'}>+7 días</button>
           )}
@@ -12383,6 +12474,10 @@ function VolverInvitarPanel({ users, onAdjustDays }) {
               <p className="jb-body text-xs text-zinc-500 mb-3">
                 Personas cuya prueba o plan terminó hace más de 7 días y no volvieron (los de esta semana están en "Por vencer" → "Ya vencieron"). Empieza por los verdes: ya usaron la app y son los más fáciles de recuperar.
                 {' '}<span className="text-zinc-400">"+7 días" les vuelve a abrir la app una semana desde hoy.</span>
+                <span className="block text-zinc-600 mt-0.5">{TEXTO_SEMAFORO}</span>
+                {silenciados.length > 0 && (
+                  <span className="block text-zinc-500 mt-0.5">🤫 {silenciados.length} ya no salen: nunca empezaron y ya recibieron su último mensaje, o no respondieron a 2.</span>
+                )}
               </p>
               {pendientes.length === 0 ? (
                 <p className="jb-body text-xs text-zinc-400 mb-2">✓ Ya invitaste a todos. En {DIAS_ENTRE_INVITACIONES} días vuelven a aparecer aquí si no regresaron.</p>

@@ -6,7 +6,7 @@ import { traerTodas } from './traerTodas.js';
    🔴 URGENTE
      1. 🎉 Bienvenida      — se registró en las últimas 24 horas.
      2. ⏳ Prueba por terminar — termina hoy o mañana.
-     3. 🌱 Primera comida  — lleva más de un día sin anotar ninguna (hasta 7).
+     3. 🌱 Primera comida  — lleva más de un día sin anotar ninguna (hasta 3).
                              De 11am a 4pm el mensaje lo invita a tomarle
                              la foto a su almuerzo.
    🟠 IMPORTANTE
@@ -41,7 +41,22 @@ import { traerTodas } from './traerTodas.js';
        cualquier hora del día (api/cron/lista-carino-aviso.js).
 
    Al tocar "Escribirle" se anota (config → lista_carino_escritos): ese día
-   queda ✅ y ese mismo paso no se repite en 7 días. */
+   queda ✅ y ese mismo paso no se repite en 7 días.
+
+   SEMÁFORO DE INTERÉS (pedido de Jonah, 17 de octubre: escribirle todos los
+   días a quien nunca usó la app se siente invasivo). Vale en todas las
+   listas de "a quién escribirle" del panel (Mensajes del día, Rescate, Por
+   vencer, Volver a invitar, Sin avisos, Prueba que más usa la app, la
+   alerta "a medias", el informe de las 8 am y el aviso al celular), con
+   semaforoContacto():
+     ⚪ Frío (nunca anotó una comida): máximo 3 mensajes en total
+        (bienvenida, un recordatorio de primera comida del día 1 al 3 y un
+        cierre sin presión al terminar su prueba). Después ya no sale.
+     🟡 Tibio (anotó 1 o 2 días): 1 mensaje cada 4 días; si le escribió 2
+        veces y no volvió a anotar, no sale hasta que anote.
+     🟢 Caliente (3 días o más): como siempre.
+   Para todos: nunca 2 días seguidos (salvo para celebrar). Cada envío queda
+   en el mismo registro (h: últimos 10 envíos, 120 días). */
 
 // Link para quien aún no registra su primera comida: abre la app directo en
 // la cámara para registrar la comida de esa hora (si no tiene la sesión
@@ -116,6 +131,49 @@ function escritoDe(escritos, username) {
   const v = escritos?.[username];
   if (!v) return null;
   return typeof v === 'string' ? { f: v, e: null } : v;
+}
+
+/* Todos los envíos que se recuerdan de una persona: [[fecha, paso], ...].
+   Los registros de antes del semáforo solo guardaban el último (cuenta
+   como 1). */
+export function enviosDe(escritos, username) {
+  const v = escritoDe(escritos, username);
+  if (!v) return [];
+  if (Array.isArray(v.h) && v.h.length) return v.h;
+  return v.f ? [[v.f, v.e || null]] : [];
+}
+
+export const MAX_MENSAJES_FRIO = 3;
+const DIAS_ENTRE_TIBIO = 4;
+const MAX_SIN_RESPUESTA_TIBIO = 2;
+// Mensajes de "cierre" para quien nunca empezó: con uno basta.
+const PASOS_CIERRE = ['prueba', 'volver', 'cierre'];
+
+/* ¿Se le puede escribir hoy? Devuelve el color, la etiqueta que ve Jonah
+   (ej. "⚪ 2 de 3") y, si no, por qué. Los envíos de hoy no cuentan para
+   decidir (si ya le escribió hoy, sale como ✅). */
+export function semaforoContacto({ diasConComida = 0, ultimaComida = null, envios = [], hoyISO, etapa = null }) {
+  const color = diasConComida > 0 ? (diasConComida <= 2 ? 'tibio' : 'caliente') : 'frio';
+  const previos = envios.filter(([f]) => f && f < hoyISO);
+  const ultimo = previos.map(([f]) => f).sort().pop() || null;
+  const ayer = sumarDias(hoyISO, -1);
+  let permitido = true;
+  let motivoOculto = null;
+  let etiqueta;
+  if (color === 'frio') {
+    etiqueta = `⚪ ${envios.length} de ${MAX_MENSAJES_FRIO}`;
+    if (previos.length >= MAX_MENSAJES_FRIO) { permitido = false; motivoOculto = `Ya recibió sus ${MAX_MENSAJES_FRIO} mensajes y nunca anotó una comida`; }
+    else if (previos.some(([, e]) => PASOS_CIERRE.includes(e))) { permitido = false; motivoOculto = 'Ya recibió su mensaje de cierre'; }
+  } else if (color === 'tibio') {
+    const sinRespuesta = previos.filter(([f]) => !ultimaComida || f > ultimaComida).length;
+    etiqueta = sinRespuesta ? `🟡 ${sinRespuesta} sin respuesta` : '🟡 Tibio';
+    if (sinRespuesta >= MAX_SIN_RESPUESTA_TIBIO) { permitido = false; motivoOculto = `Le escribiste ${sinRespuesta} veces y no volvió a anotar`; }
+    else if (ultimo && diasEntre(ultimo, hoyISO) < DIAS_ENTRE_TIBIO) { permitido = false; motivoOculto = `Le escribiste hace ${diasEntre(ultimo, hoyISO)} días (cada ${DIAS_ENTRE_TIBIO} como mucho)`; }
+  } else {
+    etiqueta = '🟢';
+  }
+  if (permitido && etapa !== 'celebrar' && ultimo === ayer) { permitido = false; motivoOculto = 'Le escribiste ayer'; }
+  return { color, etiqueta, permitido, motivoOculto };
 }
 
 /* Trae lo necesario de la base (sirve con el cliente del panel o con el
@@ -203,7 +261,7 @@ export function mensajeInstalarApp(n, dispositivo, correo, { etapa = 'bienvenida
     : etapa === 'primera'
       ? 'Vi que creaste tu cuenta y quiero ayudarte a arrancar. Ya diste el primer paso, que es el que más cuesta 💪'
       : 'Crear tu cuenta ya fue el primer paso, y es el que más cuesta 💪';
-  const historia = 'Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina. El cambio llega poco a poco, comida a comida.';
+  const historia = 'El cambio llega poco a poco, comida a comida, y aquí estoy para acompañarte.';
   const porQue = 'Como te registraste desde Instagram/Facebook, la app no quedó guardada en tu celular y ahí no te llegan mis avisos. Instálala así (1 minuto):';
   const comunidad = etapa === 'bienvenida' ? `${INVITAR_COMUNIDAD}\n\n` : '';
   return `${hola}\n\n${animo} ${historia}\n\n${porQue}\n${pasosInstalarApp(dispositivo, correo)}\n\n${comunidad}${CIERRE_JUNTOS}`;
@@ -283,17 +341,17 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
             mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Hace ${sin} días que no te veo registrar y quería saber cómo vas. Tu cuenta sigue activa y gratis: registra hoy aunque sea una comida y retomamos juntos 💪 Y si quieres que te acompañe con todo (foto en todas tus comidas, tu menú del día y yo por WhatsApp), te cuento de Premium. El cambio llega poco a poco, comida a comida. Vamos juntos por esos resultados, no estás solo/a, yo te acompaño 🦍` };
         }
         if (vencio < 1 || vencio > 7) return null;
-        return { etapa: 'volver', motivo: `Versión gratis · su prueba terminó hace ${vencio} ${vencio === 1 ? 'día' : 'días'} sin registrar nada`,
-          mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu prueba de Premium terminó y no llegamos a empezar, pero tu cuenta sigue activa y es gratis para siempre. Hoy tómale foto a tu almuerzo (tienes 3 fotos gratis cada semana) y arrancamos de a poquito 📸 ¿Qué te frenó? Cuéntame y lo vemos juntos. Vamos juntos por esos resultados, no estás solo/a, yo te acompaño 🦍` };
+        return { etapa: 'volver', motivo: `Versión gratis · su prueba terminó hace ${vencio} ${vencio === 1 ? 'día' : 'días'} sin registrar nada · mensaje de cierre`,
+          mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu prueba de Premium terminó y no quería dejar de escribirte una última vez. Entiendo que no siempre es el momento, y está bien. Tu cuenta sigue activa y gratis; cuando quieras empezar, aquí estoy 🦍` };
       }
       // 1. Bienvenida (últimas 24 h), salvo que ya le llegó la automática.
       if (horas < 24) {
         if (a.telefono && yaBienvenida.has(nueve(a.telefono))) return null;
         return ultimaComida
           ? { etapa: 'bienvenida', motivo: `Se registró hoy${interno ? ' desde Instagram/Facebook' : ''} y ya anotó su primera comida 🔥`,
-              mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, sumándole entrenamiento y disciplina, comida a comida. ${INVITAR_COMUNIDAD} Cualquier duda me escribes aquí, ¿ya? 🦍` }
+              mensaje: interno ? instalar('bienvenida', true) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Ya vi que registraste tu primera comida, ¡así se empieza! 💪 Hoy ya diste el paso que a muchos les cuesta meses. Vamos juntos, comida a comida. ${INVITAR_COMUNIDAD} Cualquier duda me escribes aquí, ¿ya? 🦍` }
           : { etapa: 'bienvenida', motivo: interno ? 'Se registró hoy desde Instagram/Facebook' : 'Se registró hoy',
-              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, con la app, entrenamiento y disciplina, comida a comida. El cambio llega poco a poco, pero llega. ${INVITAR_COMUNIDAD} Cualquier duda, aquí estoy 🦍` };
+              mensaje: interno ? instalar('bienvenida', false) : `¡Hola${n ? ' ' + n : ''}! 🙌 Soy Jonah, bienvenido/a a Jonah Beast Fuel. Qué bueno tenerte aquí 💪 Tu único reto de hoy: tómale una foto a tu próxima comida en la app (son 10 segundos) y listo. Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} El cambio llega poco a poco, comida a comida, y aquí estoy para acompañarte. ${INVITAR_COMUNIDAD} Cualquier duda, aquí estoy 🦍` };
       }
       // 2. Prueba por terminar (hoy o mañana).
       if (esPrueba && (a.fecha_vencimiento === hoyISO || a.fecha_vencimiento === sumarDias(hoyISO, 1))) {
@@ -304,15 +362,15 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
           : { etapa: 'prueba', motivo: `Su prueba termina ${cuando} y no llegó a usarla`,
               mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Tu Premium de prueba termina ${cuando} y me quedé con ganas de acompañarte 😅 Igual la app sigue gratis para ti, para siempre. Si te animas, hoy registra una comida con una foto y empezamos de a poquito (entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA}). ¿Qué te frenó? Cuéntame y lo vemos juntos 💪🦍` };
       }
-      // 3. Primera comida: más de un día sin anotar nada (hasta 7).
-      if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 7)) {
+      // 3. Primera comida: más de un día sin anotar nada (hasta el día 3).
+      if (!ultimaComida && (diasDesdeInicio === null || diasDesdeInicio <= 3)) {
         const cuando = diasDesdeInicio === 1 ? 'ayer' : `hace ${diasDesdeInicio ?? 'unos'} días`;
         if (esAlmuerzo && !interno) {
           return { etapa: 'primera', motivo: `Se registró ${cuando} y aún no anota ninguna comida · 🍽️ hora del almuerzo`,
-            mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya es hora del almuerzo 🍽️ y es el momento perfecto para estrenar la app: antes de comer, tómale una foto a tu plato y la app te dice qué tiene (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, comida a comida, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
+            mensaje: `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya es hora del almuerzo 🍽️ y es el momento perfecto para estrenar la app: antes de comer, tómale una foto a tu plato y la app te dice qué tiene (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} El cambio llega poco a poco, comida a comida. ¿Te ayudo con algo? 🦍` };
         }
         return { etapa: 'primera', motivo: `Se registró ${cuando}${interno ? ' desde Instagram/Facebook' : ''} y aún no anota ninguna comida`,
-          mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} Yo bajé de 104 a 90 kg en 2 meses y medio empezando así, y sumándole entrenamiento y disciplina. El cambio llega poco a poco, pero llega. ¿Te ayudo con algo? 🦍` };
+          mensaje: interno ? instalar('primera', false) : `Hola${n ? ' ' + n : ''} 👋 Soy Jonah. Vi que creaste tu cuenta y quiero ayudarte a arrancar 💪 Ya diste el primer paso, que es el más difícil. Ahora solo te pido una cosa: tómale una foto a tu próxima comida en la app (son 10 segundos). Entras directo desde aquí 👉 ${LINK_PRIMERA_COMIDA} El cambio llega poco a poco, comida a comida. ¿Te ayudo con algo? 🦍` };
       }
       // 4. Retomar.
       if (ultimaComida) {
@@ -342,7 +400,7 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
       }
       if (pagaron.has(a.username)) {
         return { etapa: 'celebrar', motivo: 'Acaba de pagar su plan',
-          mensaje: `¡${n || 'Hola'}, gracias por confiar en mí! 🙌 Ya tienes tu plan activo y desde hoy vamos juntos. Yo bajé de 104 a 90 kg en 2 meses y medio con esta misma app, entrenamiento y disciplina, comida a comida, y sé que tú también puedes avanzar a tu ritmo. Cualquier duda, escríbeme por aquí. ¡Vamos con todo! 🦍` };
+          mensaje: `¡${n || 'Hola'}, gracias por confiar en mí! 🙌 Ya tienes tu plan activo y desde hoy vamos juntos, a tu ritmo. Habrá días buenos y días difíciles; en los dos, aquí estoy para ayudarte a seguir. Cualquier duda, escríbeme por aquí 🦍` };
       }
       let racha = 0;
       for (let d = ayer; conComida.has(d); d = sumarDias(d, -1)) racha++;
@@ -379,24 +437,39 @@ export function armarListaCarino({ alumnos, hist, pagos, escritos, estados = [],
     })();
     if (!caso) continue;
 
+    const sem = semaforoContacto({ diasConComida: conComida.size, ultimaComida, envios: enviosDe(escritos, a.username), hoyISO, etapa: caso.etapa });
+
     // Si ya le escribió hoy, queda ✅. Si le escribió por el mismo paso en
     // los últimos 7 días, no se repite.
     const escrito = escritoDe(escritos, a.username);
     const hecho = escrito?.f === hoyISO;
     if (!hecho && escrito && diasEntre(escrito.f, hoyISO) < 7 && (escrito.e === caso.etapa || escrito.e === null)) continue;
     if (hecho && !incluirHechos) continue;
-    lista.push({ username: a.username, nombre: a.nombre || a.username, telefono: a.telefono || '', interno, ...caso, hecho });
+    if (!hecho && !sem.permitido) continue;
+    lista.push({ username: a.username, nombre: a.nombre || a.username, telefono: a.telefono || '', interno, ...caso, hecho, semaforo: sem.etiqueta });
   }
   return lista.sort((x, y) => ORDEN[x.etapa] - ORDEN[y.etapa]).slice(0, MAX_LISTA);
 }
 
-/* Anota que Jonah le escribió hoy a esta persona por este paso. */
+/* Anota que Jonah le escribió hoy a esta persona por este paso (y guarda
+   sus últimos 10 envíos para el semáforo). */
 export function anotarEscrito(escritos, username, etapa, hoyISO) {
-  const nuevos = { ...escritos, [username]: { f: hoyISO, e: etapa } };
+  const previos = enviosDe(escritos, username).filter(([f, e]) => !(f === hoyISO && e === etapa));
+  const h = [...previos, [hoyISO, etapa]].slice(-10);
+  const nuevos = { ...escritos, [username]: { f: hoyISO, e: etapa, h } };
   Object.keys(nuevos).forEach(u => {
     const f = typeof nuevos[u] === 'string' ? nuevos[u] : nuevos[u]?.f;
-    if (!f || diasEntre(f, hoyISO) > 30) delete nuevos[u];
+    if (!f || diasEntre(f, hoyISO) > 120) delete nuevos[u];
   });
+  return nuevos;
+}
+
+/* Lo mismo, leyendo el registro recién guardado (así dos listas abiertas
+   no se pisan) y guardándolo. Devuelve el registro nuevo. */
+export async function registrarEnvio(supabase, username, etapa, hoyISO) {
+  const { data } = await supabase.from('config').select('value').eq('key', CLAVE_ESCRITOS).maybeSingle();
+  const nuevos = anotarEscrito(leerEscritos(data?.value), username, etapa, hoyISO);
+  await supabase.from('config').upsert({ key: CLAVE_ESCRITOS, value: JSON.stringify(nuevos) });
   return nuevos;
 }
 

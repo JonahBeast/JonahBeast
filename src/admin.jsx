@@ -3204,6 +3204,15 @@ const FILAS_PRIMERA = [
     ['abrir_navegador', 'aviso_ok', 'Activaron los avisos al llegar'],
     ['abrir_navegador', 'aviso_no', 'Tocaron "Ahora no" al llegar'],
   ] },
+  // Desde el 17 de octubre: "🔎 Consultar calorías" (gratis para todos).
+  // Cuenta a TODOS los alumnos del periodo, no solo a los nuevos.
+  { titulo: '🔎 Consultar calorías (todos los alumnos)', todos: true, filas: [
+    ['primera_comida', 'consultar_arriba', 'Lo abrieron con el botón 🔎 de arriba'],
+    ['primera_comida', 'consultar_comidas', 'Lo abrieron desde Comidas'],
+    ['primera_comida', 'consultar_vio', 'Vieron las calorías de un alimento'],
+    ['primera_comida', 'consultar_anoto', 'Tocaron "Anotarlo"'],
+    ['primera_comida', 'consultar_no_esta', 'No lo encontraron ("¿No es ninguno?")'],
+  ] },
   { titulo: 'Pantalla "¿Seguimos juntos?" (fin de la prueba)', filas: [
     ['fin_prueba', 'vio', 'La vieron'],
     ['fin_prueba', '1mes', 'Tocaron "Seguir con 1 mes"'],
@@ -3783,7 +3792,10 @@ function ActivacionPanel({ users }) {
   const enCohorte = new Set(cohorte.map(u => u.username));
   // Solo los nuevos del periodo (la foto la usan también los alumnos antiguos).
   const primeraPeriodo = (datos.primera || []).filter(e => String(e.creado_en).slice(0, 10) >= desdePrimera && enCohorte.has(e.username));
-  const personas = (evento, detalle, interno) => new Set(primeraPeriodo
+  // Grupos con "todos": cuentan a cualquier alumno del periodo (no solo a los nuevos).
+  const alumnosTodos = new Set(todos.map(u => u.username));
+  const todosPeriodo = (datos.primera || []).filter(e => String(e.creado_en).slice(0, 10) >= desdePrimera && alumnosTodos.has(e.username));
+  const personas = (evento, detalle, interno, deTodos = false) => new Set((deTodos ? todosPeriodo : primeraPeriodo)
     .filter(e => e.evento === evento && e.detalle === detalle && (interno === undefined || datos.interno[e.username] === interno))
     .map(e => e.username)).size;
   const medios = conteoDetalle('eligio_metodo');
@@ -3940,9 +3952,9 @@ function ActivacionPanel({ users }) {
                   {g.filas.map(([ev, det, t]) => (
                     <tr key={ev + det} className="border-t border-zinc-800 text-zinc-200">
                       <td className="py-1 pr-2">{t}</td>
-                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det)}</td>
-                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det, true)}</td>
-                      <td className="text-right py-1 pl-2 tabular-nums">{personas(ev, det, false)}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det, undefined, g.todos)}</td>
+                      <td className="text-right py-1 px-2 tabular-nums">{personas(ev, det, true, g.todos)}</td>
+                      <td className="text-right py-1 pl-2 tabular-nums">{personas(ev, det, false, g.todos)}</td>
                     </tr>
                   ))}
                 </tbody>

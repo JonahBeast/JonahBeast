@@ -183,15 +183,47 @@ export function buscarAlimentos(lista, texto, limite = 40) {
 // casera registrada (ej. Quinua tiene "taza" como medida, pero en un
 // plato peruano se pesa en gramos, no se sirve por tazas).
 export const GRAMOS_DEFAULT_POR_NOMBRE = {
-  'Cereal cornflakes sin gluten': 100,
+  // 1 taza ≈ 30 g (USDA FoodData Central: corn flakes, 1 taza = 28 g).
+  // Antes 100 g (378 kcal, más de 3 tazas). 17 oct.
+  'Cereal cornflakes sin gluten': 30,
   'Chicharrón de chancho': 180,
   // Cereales de plato (arroz, quinua, etc.) se pesan en gramos en la
   // práctica — nadie mide un plato de arroz peruano en tazas.
   'Quinua': 150,
 };
 
+/* Secos y crudos (revisión de cálculos, 17 oct): su porción por defecto
+   era la del grupo (150 g de avena cruda = 584 kcal; 1 taza de lentejas
+   crudas = 635 kcal), varias porciones de lo que se come. Ahora:
+   - Avena en hojuelas: ½ taza (40 g, su medida en UNITS_BY_NAME; la
+     porción de la etiqueta de Quaker y la de los menús de la app).
+   - Cereales y menestras crudos: lo que rinde la porción cocida por
+     defecto de la app (las mismas kcal: gramos cocidos × kcal cocido ÷
+     kcal crudo, con la tabla de la app), redondeado a 5 g. Ej.: 150 g de
+     arroz cocido (195 kcal) salen de ~55 g crudo (201 kcal).
+   - Haba seca (no tiene versión cocida en la app): 60 g, como las demás
+     menestras secas (estimado).
+   - Fideos crudos: 95 g (rinden el plato de 220 g cocido).
+   - Avena instantánea en polvo: 4 cucharadas (36 g; la porción de
+     referencia de la FDA para cereal caliente seco es 40 g). */
+export const PORCION_POR_DEFECTO_CLAVE = {
+  'Arroz blanco (Crudo)': { unit: 'gramos', qty: 55 },
+  'Quinua (Cruda)': { unit: 'gramos', qty: 35 },
+  'Kiwicha (Cruda)': { unit: 'gramos', qty: 40 },
+  'Cañihua (Cruda)': { unit: 'gramos', qty: 50 },
+  'Lenteja (Cruda)': { unit: 'gramos', qty: 60 },
+  'Frejol canario (Crudo)': { unit: 'gramos', qty: 65 },
+  'Garbanzo (Crudo)': { unit: 'gramos', qty: 80 },
+  'Pallar (Crudo)': { unit: 'gramos', qty: 60 },
+  'Haba seca (Cruda)': { unit: 'gramos', qty: 60 },
+  'Fideos / pasta (Crudos)': { unit: 'gramos', qty: 95 },
+  'Avena instantánea en polvo (-)': { unit: 'cucharada', qty: 4 },
+};
+
 export function unidadPorDefecto(food, unitsFor) {
   if (!food) return { unit: 'gramos', qty: 100 };
+  const fija = PORCION_POR_DEFECTO_CLAVE[food.key];
+  if (fija && (fija.unit === 'gramos' || unitsFor(food).some(u => u[0] === fija.unit))) return { ...fija };
   if (GRAMOS_DEFAULT_POR_NOMBRE[food.name]) {
     return { unit: 'gramos', qty: GRAMOS_DEFAULT_POR_NOMBRE[food.name] };
   }

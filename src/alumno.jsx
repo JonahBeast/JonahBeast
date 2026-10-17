@@ -60,6 +60,9 @@ import {
   generateQuickOptions,
   agregarProductoAFoods,
   gramsPerUnit,
+  medidaVigente,
+  entradaVigente,
+  cantidadDudosa,
   inputCls,
   setFoodsPersonales,
   usarAlimentosExtra,
@@ -87,6 +90,7 @@ import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import { horaLimiteAlimento, horaPeruCorta, minutosHasta, tienePlazo } from './plazos.js';
 import { alimentosParecidos } from './parecidos.js';
 import { analizarProgreso, historialDePeso, corregirHistorial, serieDelHistorial } from './progreso.js';
+import { textoMedida, textoDuda } from './cantidades.js';
 
 // La medida casera por defecto (src/buscador.js) con las medidas de la app.
 const unidadPorDefecto = food => unidadPorDefectoCon(food, unitsFor);
@@ -400,6 +404,7 @@ const interpretarVarios = texto => interpretarVariosCon(texto, FOODS, unitsFor);
 // dicha ("un octavo de pollo a la brasa" → 1/8) o la medida casera.
 const porcionDeItem = it => porcionDelItem(it, unidadPorDefecto, unitsFor);
 const medidaDicha = it => {
+  if (it.gramosExplicitos) return '';
   // "Pan con palta" → "1 porción para pan · Palta" (la medida con que se anota).
   if (it.medida && !it.gramosExplicitos) {
     const p = porcionDeItem(it);
@@ -486,16 +491,22 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const botonAgregarRef = useRef(null);
+  // Lo que tiene una cantidad absurda sin responder ("¿Seguro?") no se
+  // agrega nunca solo.
   const listos = lista => lista
     .filter(it => !it.buscar && (it.activo || it.necesitaAclarar))
     .map(it => (it.necesitaAclarar && it.opciones?.length ? { ...it, food: it.opciones[0], necesitaAclarar: false } : it))
-    .filter(it => it.food);
+    .filter(it => it.food && !dudaDeItem(it));
   function agregarPendientes(motivo) {
+    const dudosos = itemsRef.current.filter(it => it.activo && dudaDeItem(it));
     const pendientes = listos(itemsRef.current);
-    if (!pendientes.length) return;
+    if (!pendientes.length) {
+      if (dudosos.length && motivo === 'cerrar') showToast(`No anoté ${dudosos.map(it => it.food.name).join(', ')}: la cantidad parecía un error. Anótalo de nuevo con la cantidad correcta.`);
+      return;
+    }
     itemsRef.current = [];
     onElegirVarios(pendientes);
-    if (motivo === 'cerrar') showToast(`✅ Agregué lo que dictaste: ${pendientes.map(it => it.food.name).join(', ')}. Si algo no es, cámbialo en Comidas.`);
+    if (motivo === 'cerrar') showToast(`✅ Agregué lo que dictaste: ${pendientes.map(it => it.food.name).join(', ')}.${dudosos.length ? ` No anoté ${dudosos.map(it => it.food.name).join(', ')} (la cantidad parecía un error).` : ''} Si algo no es, cámbialo en Comidas.`);
   }
   const grabador = useRef(null);
   const partes = useRef([]);
@@ -779,6 +790,13 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
                   </p>
                 )}
               </div>
+            ) : it.activo && dudaDeItem(it) ? (
+              <div key={i} className="w-full">
+                <AvisoSeguro compacto food={it.food} porcion={dudaDeItem(it).porcion} duda={dudaDeItem(it)}
+                  onAlternativa={alt => setItems(v => v.map((x, idx) => idx === i ? itemConAlternativa(x, alt) : x))}
+                  onSi={() => setItems(v => v.map((x, idx) => idx === i ? { ...x, seguro: true } : x))}
+                  onCorregir={() => setItems(v => v.map((x, idx) => idx === i ? { ...x, activo: false } : x))} />
+              </div>
             ) : (
               <button key={i} onClick={() => alternarItem(i)}
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
@@ -795,6 +813,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
           ))}
           {(() => {
             const dudas = items.filter(it => it.necesitaAclarar).length;
+            const seguros = items.filter(it => it.activo && dudaDeItem(it)).length;
             const n = listos(items).length;
             const b = items.filter(it => it.buscar && !(it.pedido && it.pedido.estado !== 'error')).length;
             if (!n && !b) {
@@ -805,6 +824,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
             return (
               <>
                 {dudas > 0 && <p className="jb-body text-[11px] text-orange-300 text-center">☝️ Si no es lo que dijiste, toca la opción correcta. Si no tocas nada, agrego la primera.</p>}
+                {seguros > 0 && <p className="jb-body text-[11px] text-amber-300 text-center">☝️ Revisa la cantidad de arriba: eso no se agrega hasta que me digas.</p>}
                 <button ref={botonAgregarRef} onClick={agregarSeleccionados}
                   className={btnPrimary + ' mt-1 py-3.5 text-base w-full shadow-[0_0_24px_rgba(232,89,12,.35)]'}>
                   {n && b ? `✅ Agregar ${n} y buscar ${b}` : n ? `✅ Agregar ${n === 1 ? '1 alimento' : `${n} alimentos`}` : `Buscar ${b === 1 ? 'el alimento' : `${b} alimentos`}`}
@@ -1703,8 +1723,9 @@ function RepetirAyerCard({ username, mealPlan, setMealPlan }) {
     setCopiando(true);
     // Nuevos ids para cada entrada, para no chocar con las de ayer
     const nuevos = {};
+    // Con la medida de hoy: si alguna se retiró, pasa a una vigente o a gramos.
     Object.entries(ayer).forEach(([meal, entries]) => {
-      nuevos[meal] = entries.map(en => ({ ...en, id: uid() }));
+      nuevos[meal] = entries.map(en => { const c = { ...entradaVigente(en), id: uid() }; delete c.tarjeta; return c; });
     });
     setMealPlan(v => ({ ...v, meals: nuevos }));
     showToast(`Copiamos tus ${totalItems} alimento(s) de ayer`);
@@ -6511,12 +6532,12 @@ function AtajosComida({ username, meal, mealPlan, setMealPlan, onAgregado }) {
 
   function agregar(items) {
     if (!items || !items.length) return;
-    const nuevos = items.map(it => ({
-      id: uid(),
-      foodKey: it.foodKey ?? it.f,
-      qty: it.qty ?? it.q ?? it.grams ?? 100,
-      unit: it.unit ?? it.u ?? 'gramos',
-    }));
+    // Con la medida de hoy: una medida retirada pasa a una vigente o a gramos.
+    const nuevos = items.map(it => {
+      const foodKey = it.foodKey ?? it.f;
+      const m = medidaVigente(buscarFood(foodKey), it.unit ?? it.u ?? 'gramos', it.qty ?? it.q ?? it.grams ?? 100);
+      return { id: uid(), foodKey, qty: m.qty, unit: m.unit };
+    });
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...v.meals[meal], ...nuevos] } }));
     setAbierto(null);
     vibrar(15);
@@ -7134,6 +7155,7 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
 
   async function analizar(base64, mimeType) {
     setEstado('analizando');
+    confirmadoRef.current = false;
     setNoEncontrados([]); setPedidosFoto({}); setEnvase(false);
     try {
       // Los productos escaneados no se mandan: la foto reconoce platos, y
@@ -7313,10 +7335,15 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
   function corregirAntesDeCompartir() {
     if (recienAgregados.current && onQuitar) onQuitar(recienAgregados.current.ids);
     recienAgregados.current = null;
+    confirmadoRef.current = false;
     setEstado('resultados');
   }
 
+  // Un doble toque en "Agregar" no anota el plato dos veces.
+  const confirmadoRef = useRef(false);
   function confirmar() {
+    if (confirmadoRef.current) return;
+    confirmadoRef.current = true;
     const elegidos = elegidosConPorcion();
     registrarPasoPago('foto_comida', username, elegidos.length ? 'agrego' : 'agrego_nada');
     const ids = agregar(elegidos);
@@ -7607,15 +7634,22 @@ function ReconocerFotoModal({ username, comida, todosLosAlimentos, onCerrar, onA
                     })}
                   </div>
                 ));
+                // "¿Seguro?" (17 oct): si los gramos escritos dan una barbaridad
+                // (o pasan de 3 kg), se avisa antes de cerrar.
+                const gEscritos = pesando === id ? Math.round(Number(String(gramosEscritos).replace(',', '.'))) || 0 : 0;
+                const dudaPeso = food && gEscritos > 0 ? cantidadDudosa(food, 'gramos', gEscritos) : null;
                 const ajuste = food && marcado && (pesando === id ? (
-                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); setPesando(null); }}>
+                  <form className="flex flex-wrap items-center gap-2 mt-2" onSubmit={e => { e.preventDefault(); if (gEscritos <= 3000) setPesando(null); }}>
                     <span className="jb-body text-[11px] text-zinc-500">⚖️ ¿Cuántos gramos?</span>
                     <input autoComplete="off" type="number" inputMode="decimal" min="1" max="3000" autoFocus value={gramosEscritos}
                       onChange={e => escribirPeso(id, e.target.value)}
                       className="w-20 bg-zinc-900 border border-zinc-700 focus:border-orange-500 rounded-lg px-2 py-1 jb-body text-sm text-zinc-100 outline-none tabular-nums" />
                     <span className="jb-body text-xs text-zinc-400">g</span>
-                    <button type="submit" className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950">Listo</button>
+                    <button type="submit" disabled={gEscritos > 3000} className="jb-body text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-zinc-950 disabled:opacity-40">{dudaPeso && gEscritos <= 3000 ? 'Sí, está bien' : 'Listo'}</button>
                     <button type="button" onClick={() => cancelarPeso(id)} className="jb-body text-[11px] text-zinc-500 hover:text-zinc-300 underline">Cancelar</button>
+                    {gEscritos > 3000
+                      ? <p role="alert" className="w-full jb-body text-[11px] text-amber-300">🤔 Son más de 3 kg: revisa el número (en la foto se anota hasta 3.000 g por alimento).</p>
+                      : dudaPeso && <p role="alert" className="w-full jb-body text-[11px] text-amber-300">🤔 {textoDuda(nombreAlimento(food), 'gramos', gEscritos, dudaPeso)} ¿Lo escribiste bien?</p>}
                   </form>
                 ) : pesados[id] > 0 ? (
                   <div className="flex items-center gap-3 mt-2">
@@ -8753,6 +8787,8 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   // Cantidad exacta escrita a mano (para quien pesa su comida o sabe la medida).
   const [exacta, setExacta] = useState('');
   const [unidadExacta, setUnidadExacta] = useState('gramos');
+  // "¿Seguro?": la cantidad escrita que parece un error, esperando respuesta.
+  const [dudaExacta, setDudaExacta] = useState(null);
   const [agregados, setAgregados] = useState([]); // [{ id, nombre, cantidad }]
   const [frecuentes, setFrecuentes] = useState([]); // [{ food, unit, qty }]
   const inputRef = useRef(null);
@@ -8783,8 +8819,10 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
         const lista = Object.entries(conteo).sort((a, b) => b[1].n - a[1].n).map(([key, c]) => {
           const food = buscarFood(key);
           if (!food) return null;
-          const [unit, qty] = Object.entries(c.porciones).sort((a, b) => b[1] - a[1])[0][0].split('|');
-          return { food, unit, qty: Number(qty), n: c.n };
+          const [unitAntes, qtyAntes] = Object.entries(c.porciones).sort((a, b) => b[1] - a[1])[0][0].split('|');
+          // Su cantidad de siempre, con una medida de hoy (si la de antes se retiró).
+          const { unit, qty } = medidaVigente(food, unitAntes, Number(qtyAntes));
+          return { food, unit, qty, n: c.n };
         }).filter(Boolean).slice(0, 5);
         setFrecuentes(lista);
       }, () => {});
@@ -8804,7 +8842,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
   // Abre "¿Cuánto comiste?". Con "siempre" (un favorito), su cantidad de
   // siempre sale primero; debajo, las cantidades de siempre del alimento.
   function elegir(f, siempre = null) {
-    setElegido(f); setDeSiempre(siempre); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta('');
+    setElegido(f); setDeSiempre(siempre); setUnidad(null); setAceite('normal'); setOtraMedida(false); setExacta(''); setDudaExacta(null);
     setUnidadExacta(unitsFor(f).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(f).unit);
   }
   useEffect(() => { if (alimentoInicial?.food) setUnidadExacta(unitsFor(alimentoInicial.food).some(u => u[0] === 'gramos') ? 'gramos' : unidadPorDefecto(alimentoInicial.food).unit); }, []);
@@ -8815,7 +8853,7 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [meal]: [...(v.meals[meal] || []), entry] } }));
     vibrar(25);
     setAgregados(a => [...a, { id: entry.id, nombre: nombreAlimento(food), cantidad: textoCantidad(porcion) }]);
-    setElegido(null); setDeSiempre(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto(''); setExacta('');
+    setElegido(null); setDeSiempre(null); setUnidad(null); setAceite('normal'); setOtraMedida(false); setTexto(''); setExacta(''); setDudaExacta(null);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
   function quitar(id) {
@@ -8881,11 +8919,19 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
             {(() => {
               // "¿Sabes la cantidad exacta?": un número y su medida (gramos por defecto).
               const qty = Number(String(exacta).replace(',', '.'));
-              const gramos = qty * (unidadExacta === 'gramos' ? 1 : (unitsFor(elegido).find(u => u[0] === unidadExacta)?.[1] || 1));
-              const valida = qty > 0 && gramos <= 5000;
+              const gramos = qty * (unidadExacta === 'gramos' ? 1 : gramsPerUnit(elegido, unidadExacta));
+              const valida = qty > 0;
               const porcion = { unit: unidadExacta, qty: Math.round(qty * 100) / 100 };
+              // ¿Cantidad absurda ("200 platos")? Antes de anotar, "¿Seguro?".
+              const duda = valida ? cantidadDudosa(elegido, porcion.unit, porcion.qty) : null;
+              const preguntando = duda && dudaExacta && dudaExacta.unit === porcion.unit && dudaExacta.qty === porcion.qty;
               return (
-                <form className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onSubmit={e => { e.preventDefault(); if (valida) agregar(elegido, porcion, aceite); }}>
+                <form className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3" onSubmit={e => {
+                  e.preventDefault();
+                  if (!valida) return;
+                  if (duda) { setDudaExacta(porcion); return; }
+                  agregar(elegido, porcion, aceite);
+                }}>
                   <p className="jb-body text-sm text-zinc-300 mb-2">✏️ ¿Sabes la cantidad exacta? Escríbela:</p>
                   <div className="flex items-center gap-2">
                     <input autoComplete="off" type="number" inputMode="decimal" min="0" step="any" value={exacta} onChange={e => setExacta(e.target.value)}
@@ -8902,8 +8948,15 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
                       </button>
                     ))}
                   </div>
-                  {valida && <p className="jb-body text-xs text-orange-400 mt-1.5">≈ {kcalDe(elegido, porcion, aceite)} kcal</p>}
-                  {qty > 0 && !valida && <p className="jb-body text-xs text-amber-400 mt-1.5">Cantidad muy alta, revísala.</p>}
+                  {valida && !preguntando && gramos <= MAX_GRAMOS_ENTRADA && <p className="jb-body text-xs text-orange-400 mt-1.5">≈ {kcalDe(elegido, porcion, aceite)} kcal</p>}
+                  {preguntando && (
+                    <div className="mt-2">
+                      <AvisoSeguro food={elegido} porcion={porcion} duda={duda}
+                        onAlternativa={alt => agregar(elegido, alt, aceite)}
+                        onSi={() => agregar(elegido, porcion, aceite)}
+                        onCorregir={() => { setDudaExacta(null); setExacta(''); }} />
+                    </div>
+                  )}
                 </form>
               );
             })()}
@@ -9409,6 +9462,36 @@ function porcionDeEntrada(en) {
   return { unit: sinUnidad ? 'gramos' : en.unit, qty: Number(sinUnidad ? en.grams : en.qty) || 0 };
 }
 
+/* "¿Seguro?" (17 oct, src/cantidades.js): sale antes de anotar una cantidad
+   que casi seguro es un error ("200 platos" en vez de 200 g). Ofrece lo que
+   probablemente quiso decir, "Sí, está bien" (si cabe: hasta 5 kg) y
+   "Corregir". Igual en escribir, voz, Beast y "Editar". */
+function AvisoSeguro({ food, porcion, duda, onSi, onAlternativa, onCorregir, compacto = false }) {
+  const cabe = duda.gramos <= MAX_GRAMOS_ENTRADA;
+  const chico = compacto ? 'text-[11px] px-2.5 py-1' : 'text-sm px-3 py-2';
+  return (
+    <div role="alert" className={`rounded-xl border border-amber-500/60 bg-amber-500/10 ${compacto ? 'p-2.5' : 'p-3'} flex flex-col gap-2`}>
+      <p className={`jb-body ${compacto ? 'text-[11px]' : 'text-sm'} text-amber-200`}>
+        🤔 {textoDuda(nombreAlimento(food), porcion.unit, porcion.qty, duda)}{!cabe && ' Es más de lo que se puede anotar de una vez (5 kg).'}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {duda.alternativa && onAlternativa && (
+          <button type="button" onClick={() => onAlternativa(duda.alternativa)}
+            className={`jb-body font-semibold rounded-full bg-orange-500 text-zinc-950 ${chico}`}>
+            ¿Quisiste decir {textoMedida('gramos', duda.alternativa.qty)}? (≈ {duda.alternativa.kcal} kcal)
+          </button>
+        )}
+        {cabe && onSi && (
+          <button type="button" onClick={onSi} className={`jb-body rounded-full border border-zinc-600 text-zinc-200 ${chico}`}>Sí, está bien</button>
+        )}
+        {onCorregir && (
+          <button type="button" onClick={onCorregir} className={`jb-body rounded-full border border-zinc-700 text-zinc-400 ${chico}`}>Corregir</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BotonPaso({ onClick, children, grande = false, etiqueta }) {
   return (
     <button type="button" onClick={e => { e.stopPropagation(); vibrar(8); onClick(); }} aria-label={etiqueta}
@@ -9664,6 +9747,8 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
   const [verSustitutos, setVerSustitutos] = useState(false);
   // El número grande también se escribe a mano (ej. 37 g), no solo con − / +.
   const [escribiendo, setEscribiendo] = useState(null); // texto mientras escribe
+  // "¿Seguro?" para lo escrito a mano: { unit, qty, duda } esperando respuesta.
+  const [dudaEscrita, setDudaEscrita] = useState(null);
   const food = buscarFood(en.foodKey);
 
   useEffect(() => {
@@ -9681,10 +9766,14 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
   const fijar = (patch) => updateEntry(meal, en.id, { ...patch, grams: undefined });
   function guardarEscrito() {
     const n = Number(String(escribiendo ?? '').replace(',', '.'));
-    if (n > 0 && n * (porcion.unit === 'gramos' ? 1 : (unidades.find(u => u[0] === porcion.unit)?.[1] || 1)) <= 5000) {
-      fijar({ unit: porcion.unit, qty: Math.round(n * 100) / 100 });
-    }
     setEscribiendo(null);
+    if (!(n > 0)) return;
+    const nueva = { unit: porcion.unit, qty: Math.round(n * 100) / 100 };
+    if (nueva.qty === Number(porcion.qty)) return;
+    // Una cantidad absurda ("200 platos") no se guarda sin preguntar.
+    const duda = cantidadDudosa(food, nueva.unit, nueva.qty);
+    if (duda) { setDudaEscrita({ ...nueva, duda }); return; }
+    fijar(nueva);
   }
 
   return (
@@ -9724,6 +9813,14 @@ function HojaEditarAlimento({ meal, en, todosLosAlimentos, username, mealPlan, u
           </div>
           {porcion.unit !== 'gramos' && <BotonPaso grande etiqueta="Más" onClick={() => fijar({ unit: porcion.unit, qty: cambiarCantidad(porcion.qty, porcion.unit, 1) })}>+</BotonPaso>}
         </div>
+        {dudaEscrita && (
+          <div className="mb-3">
+            <AvisoSeguro food={food} porcion={dudaEscrita} duda={dudaEscrita.duda}
+              onAlternativa={alt => { fijar(alt); setDudaEscrita(null); }}
+              onSi={() => { fijar({ unit: dudaEscrita.unit, qty: dudaEscrita.qty }); setDudaEscrita(null); }}
+              onCorregir={() => setDudaEscrita(null)} />
+          </div>
+        )}
         {porcion.unit === 'gramos' && (
           <div className="mb-3">
             <ReglaDeslizable valor={Number(porcion.qty) || ''} paso={5} min={5} max={1500} inicial={100} etiqueta="los gramos"
@@ -11514,6 +11611,17 @@ function entradasDeItems(items, extra = {}) {
 }
 const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
 
+/* "¿Seguro?" con la voz y Beast (17 oct): un alimento entendido con una
+   cantidad absurda ("200 platos de tallarines verdes") no se anota hasta
+   que el alumno responde. it.seguro: ya respondió. */
+function dudaDeItem(it) {
+  if (!it?.food || it.seguro || it.buscar || it.necesitaAclarar) return null;
+  const en = entradasDeItems([it])[0];
+  const duda = cantidadDudosa(it.food, en.unit, en.qty);
+  return duda ? { ...duda, porcion: { unit: en.unit, qty: en.qty } } : null;
+}
+const itemConAlternativa = (it, alt) => ({ ...it, gramos: undefined, gramosExplicitos: alt.qty, seguro: true, activo: true });
+
 // Tarjeta de comida: lo que Beast entendió, buscado en la base de la app.
 // "Sí, agrégalo" (escrito o por voz) confirma la última tarjeta sin tocar
 // el botón: la tarjeta se registra aquí y el chat la llama.
@@ -11531,15 +11639,22 @@ function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, on
   // Totales del día justo antes de anotarla: así "¿Cómo encaja en tu día?"
   // no la cuenta dos veces cuando ya quedó guardada.
   const [antesDeGuardar, setAntesDeGuardar] = useState(null);
-  const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food);
+  const activos = items.filter(it => it.activo && !it.buscar && !it.necesitaAclarar && it.food && !dudaDeItem(it));
   const macrosActivos = macrosDeEntradas(entradasDeItems(activos));
   const antesDia = antesDeGuardar || totalesDelPlan(mealPlan).t;
-  function guardar() { setAntesDeGuardar(totalesDelPlan(mealPlan).t); setHecho(true); onGuardar(activos, comida, Math.round(total)); }
+  // Se guarda una sola vez aunque toque dos veces o diga "sí, agrégalo"
+  // mientras toca el botón (la cena de un alumno quedó doble, 16 oct).
+  const guardadaRef = useRef(false);
+  function guardar() {
+    if (guardadaRef.current) return;
+    guardadaRef.current = true;
+    setAntesDeGuardar(totalesDelPlan(mealPlan).t); setHecho(true); onGuardar(activos, comida, Math.round(total));
+  }
   const total = activos.reduce((s, it) => s + entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0), 0);
-  const pendiente = items.some(it => it.necesitaAclarar);
+  const pendiente = items.some(it => it.necesitaAclarar || (it.activo && dudaDeItem(it)));
   const propuesta = accion.tipo === 'proponer_comida';
   useConfirmarTarjeta(registrarConfirmar, () => {
-    if (hecho) return 'hecho';
+    if (hecho || guardadaRef.current) return 'hecho';
     if (pendiente) return 'dudas';
     if (!activos.length) return 'vacia';
     guardar();
@@ -11589,6 +11704,11 @@ function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, on
             </p>
           )}
         </div>
+      ) : !hecho && it.activo && dudaDeItem(it) ? (
+        <AvisoSeguro key={i} compacto food={it.food} porcion={dudaDeItem(it).porcion} duda={dudaDeItem(it)}
+          onAlternativa={alt => setItems(v => v.map((x, k) => k === i ? itemConAlternativa(x, alt) : x))}
+          onSi={() => setItems(v => v.map((x, k) => k === i ? { ...x, seguro: true } : x))}
+          onCorregir={() => setItems(v => v.map((x, k) => k === i ? { ...x, activo: false } : x))} />
       ) : (
         <button key={i} disabled={hecho} onClick={() => setItems(v => v.map((x, k) => k === i ? { ...x, activo: !x.activo } : x))}
           className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'border-zinc-800 opacity-50'}`}>
@@ -11613,9 +11733,9 @@ function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, on
             <ComoEncajaDia antes={antesDia} comida={macrosActivos} meal={comida} mealPlan={mealPlan} />
           )}
           {pendiente
-            ? <p className="jb-body text-[11px] text-orange-400 text-center">☝️ Elige una opción arriba</p>
+            ? <p className="jb-body text-[11px] text-orange-400 text-center">{items.some(it => it.necesitaAclarar) ? '☝️ Elige una opción arriba' : '☝️ Revisa la cantidad arriba'}</p>
             : activos.length > 0 && (
-              <button onClick={guardar} className={btnPrimary + ' py-2 text-sm'}>
+              <button onClick={guardar} disabled={hecho} className={btnPrimary + ' py-2 text-sm'}>
                 ✅ {propuesta ? 'Anotar esta' : `Agregar al ${comida.toLowerCase()}`}
               </button>
             )}
@@ -11630,10 +11750,20 @@ function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, on
   );
 }
 
+// Las opciones de "¿Qué como?" que ya se anotaron hoy en esa comida.
+function opcionesYaAnotadas(mealPlan, comida) {
+  return new Set((mealPlan?.meals?.[comida] || []).map(e => String(e.tarjeta || ''))
+    .filter(t => t.startsWith('quecomo:')).map(t => t.slice('quecomo:'.length)));
+}
+
 // "¿Qué como?": las mismas sugerencias del botón "¿Qué puedo comer?".
 function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
   const [pagina, setPagina] = useState(0);
   const [hecho, setHecho] = useState(null);
+  const guardadaRef = useRef(false);
+  // Las opciones ya anotadas hoy en esta comida salen con su ✓, aunque se
+  // vuelva a abrir "¿Qué como?" (la cena de un alumno quedó doble el 16 oct).
+  const yaAnotadas = opcionesYaAnotadas(mealPlan, comida);
   const opciones = useMemo(() => {
     const t = totalesDePlan(mealPlan);
     const kcalMeta = Number(mealPlan.targetKcal) || 2000;
@@ -11656,9 +11786,14 @@ function BeastTarjetaQueComo({ comida, mealPlan, onGuardar }) {
             <span className="jb-body text-[11px] text-orange-400 tabular-nums shrink-0">{Math.round(op.kcal)} kcal · P {Math.round(op.protein)} g</span>
           </div>
           <p className="jb-body text-[11px] text-zinc-400 mt-0.5">{op.items.map(x => `${nombreFood(x.food)} ${Math.round(x.grams)} g`).join(' + ')}</p>
-          {hecho === op.id
+          {hecho === op.id || yaAnotadas.has(op.id)
             ? <p className="jb-body text-[11px] text-emerald-400 mt-1">✓ Anotado en {comida}</p>
-            : !hecho && <button onClick={() => { setHecho(op.id); onGuardar(op.items.map(x => ({ food: x.food, gramos: x.grams })), comida, Math.round(op.kcal)); }}
+            : !hecho && <button onClick={() => {
+                if (guardadaRef.current) return;
+                guardadaRef.current = true;
+                setHecho(op.id);
+                onGuardar(op.items.map(x => ({ food: x.food, gramos: x.grams })), comida, Math.round(op.kcal), `quecomo:${op.id}`);
+              }}
                 className="mt-1.5 jb-body text-[11px] font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1">✅ Anotar esta</button>}
         </div>
       ))}
@@ -11862,7 +11997,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       if (r !== 'hecho') {
         setMensajes(v => [...v, { id: `a${Date.now()}`, rol: 'alumno', texto: limpio, tipo: via, local: true }]);
         setTexto('');
-        if (r === 'dudas') local('Primero dime cuál fue en la tarjeta ☝️ y lo agrego.', { sistema: true });
+        if (r === 'dudas') local('Primero dime cuál fue en la tarjeta ☝️ (o revisa la cantidad) y lo agrego.', { sistema: true });
         if (r === 'vacia') local('No hay nada marcado en la tarjeta: marca lo que comiste ☝️', { sistema: true });
         if (r === 'ok') confirmarRef.current = null;
         return;
@@ -11918,13 +12053,24 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
     });
   }
 
-  function guardarComida(items, comida, kcal, msgId) {
+  function guardarComida(items, comida, kcal, msgId, tarjeta = null) {
+    // Cada tarjeta se anota una sola vez (identificador en cada alimento):
+    // si ya está en esa comida (doble toque, "¿Qué como?" abierto otra vez,
+    // un reintento), no se vuelve a sumar.
+    if (tarjeta && (mealPlanRef.current.meals?.[comida] || []).some(e => e.tarjeta === tarjeta)) {
+      local(`Eso ya estaba anotado en tu ${comida.toLowerCase()} ✓`, { sistema: true });
+      return;
+    }
     // Si es su primera comida del día y puede activar avisos, Beast se los
     // ofrece en el chat (y no sale además la ventana de la app).
     let ofrecer = false;
     try { ofrecer = !localStorage.getItem('jb_notif_tras_comida_' + username); } catch {}
-    const nuevas = entradasDeItems(items, { viaBeast: true });
-    setMealPlan(v => ({ ...v, meals: { ...v.meals, [comida]: [...(v.meals[comida] || []), ...nuevas] } }));
+    const nuevas = entradasDeItems(items, { viaBeast: true, ...(tarjeta ? { tarjeta } : {}) });
+    setMealPlan(v => {
+      const ya = (v.meals?.[comida] || []);
+      if (tarjeta && ya.some(e => e.tarjeta === tarjeta)) return v;
+      return { ...v, meals: { ...v.meals, [comida]: [...ya, ...nuevas] } };
+    });
     vibrar(20);
     const ids = new Set(nuevas.map(n => n.id));
     const meta = Number(mealPlanRef.current.targetKcal) || 0;
@@ -12101,7 +12247,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
         }} className="mt-2 jb-body text-xs font-semibold bg-orange-500 text-zinc-950 rounded-full px-3 py-1.5">📲 Compartir en mi estado</button>
       );
     }
-    if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, null)} />;
+    if (m.queComo) return <BeastTarjetaQueComo comida={m.queComo} mealPlan={mealPlan} onGuardar={(items, comida, kcal, tarjeta) => guardarComida(items, comida, kcal, null, tarjeta)} />;
     if (m.ofrecerAvisos) {
       if (m.respondido) return null;
       return (
@@ -12125,7 +12271,7 @@ function BeastChat({ username, nombre, form, setForm, mealPlan, setMealPlan, ver
       return <BeastTarjetaComida accion={a} premium={premium} username={username} onRegistrar={irRegistrar} mealPlan={mealPlan}
         onQueComo={queComo}
         registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }}
-        onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id)} />;
+        onGuardar={(items, comida, kcal) => guardarComida(items, comida, kcal, m.id, `beast:${m.id}`)} />;
     }
     if (a.tipo === 'peso') return m.nuevo ? <BeastTarjetaPeso kg={a.kg} pesoAntes={form.peso} onGuardar={kg => guardarPeso(kg, m.id)}
       registrarConfirmar={fn => { confirmarRef.current = { id: m.id, fn }; }} /> : null;

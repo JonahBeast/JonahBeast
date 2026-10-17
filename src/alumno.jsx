@@ -78,7 +78,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { interpretarVarios as interpretarVariosCon, porcionDelItem, unidadDePorcion } from './interpretarComida.js';
-import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, esPlatoSinPapa, nombreAlimento, vaEnLaFoto, arrozDelPlato, fuenteCorta } from './buscador.js';
+import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, esPlatoSinPapa, nombreAlimento, vaEnLaFoto, arrozDelPlato, fuenteCorta, panConPartes, medidaParaPan } from './buscador.js';
 import { BotonCompartirPlato } from './compartirPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
@@ -8735,7 +8735,8 @@ function opcionesCantidad(food, unidad) {
 }
 const textoCantidad = ({ unit, qty }) => {
   if (unit === 'gramos' || unit === 'ml' || UNIDADES_DISCRETAS.includes(unit)) return textoPorcion({ unit, qty });
-  if (/[\s/]/.test(unit)) return qty === 1 ? `1 ${unit}` : `${fraccion(qty)} × ${unit}`;
+  // "1/4 con papas" ya dice cuánto: sin el "1" delante ("1 1/4 con papas" se leía como uno y cuarto).
+  if (/[\s/]/.test(unit)) return qty === 1 ? (/^\d/.test(unit) ? unit : `1 ${unit}`) : `${fraccion(qty)} × ${unit}`;
   return `${fraccion(qty)} ${qty > 1 ? textoPorcion({ unit, qty: 2 }).replace(/^2 /, '') : unit}`;
 };
 
@@ -9019,6 +9020,8 @@ function RegistroEscritoModal({ meal, username, todosLosAlimentos, mealPlan, set
    (vio las calorías de un alimento), consultar_anoto (tocó "Anotarlo") y
    consultar_no_esta (tocó "¿No es ninguno?"). Se usa un evento que la base
    ya acepta (la regla de eventos nuevos, 20261027120000, sigue sin aplicar). */
+// Caja de 48 px a la izquierda del nombre: hoy el emoji, mañana la imagen del plato.
+const CAJA_MINIATURA = 'w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-2xl leading-none shrink-0';
 function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar, onOtraForma, onCerrar }) {
   const [texto, setTexto] = useState('');
   const [elegido, setElegido] = useState(null); // food
@@ -9048,10 +9051,14 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
       .sort((a, b) => a.p - b.p || a.i - b.i)
       .slice(0, 12).map(x => x.f);
   }, [texto, versionAlimentos]); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Pan con palta" no es un plato: salen el pan y lo de dentro, con lo que
+  // lleva 1 pan (como en la portada).
+  const enPartes = useMemo(() => !!texto.trim() && !!panConPartes(foodsBuscador(), texto), [texto, versionAlimentos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const porcionInicial = f => (enPartes && medidaParaPan(f)) || unidadPorDefecto(f);
 
   function elegir(f) {
     vibrar(8);
-    setElegido(f); setPorcion(unidadPorDefecto(f)); setPesando(false); setGramos(''); setAceite('normal');
+    setElegido(f); setPorcion(porcionInicial(f)); setPesando(false); setGramos(''); setAceite('normal');
     registrarPasoPago('primera_comida', username, 'consultar_vio');
     cajaRef.current?.scrollTo?.({ top: 0 });
   }
@@ -9083,7 +9090,7 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
           const arroz = arrozDelPlato(elegido);
           const fuente = fuentes ? fuenteCorta(fuentes[elegido.key]?.fuente) : null;
           const pct = metaKcal > 0 ? Math.round((kcal / metaKcal) * 100) : null;
-          const porDefecto = unidadPorDefecto(elegido);
+          const porDefecto = porcionInicial(elegido);
           const opciones = opcionesCantidad(elegido, null);
           if (!opciones.some(op => op.unit === porDefecto.unit && op.qty === porDefecto.qty)) opciones.unshift(porDefecto);
           const pesado = Number(String(gramos).replace(',', '.'));
@@ -9096,9 +9103,11 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4" aria-live="polite">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    {/* Aquí va la foto del plato cuando llegue MiniaturaPlato
-                        (PR #482): <MiniaturaPlato food={elegido} tam={48} className="text-2xl leading-none shrink-0">{emoji}</MiniaturaPlato> */}
-                    <span className="text-2xl leading-none shrink-0" aria-hidden="true">{emojiAlimento(elegido)}</span>
+                    {/* Hueco de 48 px para la imagen del plato (decisión de Jonah, 17 oct:
+                        las imágenes van solo aquí y en la portada). Cuando MiniaturaPlato
+                        (PR #482) llegue a main, cambiar este <span> por
+                        <MiniaturaPlato food={elegido} tam={48} className={CAJA_MINIATURA}>{emojiAlimento(elegido)}</MiniaturaPlato> */}
+                    <span className={CAJA_MINIATURA} aria-hidden="true">{emojiAlimento(elegido)}</span>
                     <div className="min-w-0">
                       <p className="jb-body text-base font-semibold text-zinc-50 leading-snug">{nombreAlimento(elegido)}</p>
                       <p className="jb-body text-sm text-zinc-400 mt-0.5">{textoCantidad(porcion)}{porcion.unit !== 'gramos' && porcion.unit !== 'ml' ? ` (${Math.round(entryGrams({ foodKey: elegido.key, unit: porcion.unit, qty: porcion.qty }))} g)` : ''}</p>
@@ -9202,13 +9211,14 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
 
             {texto.trim() && (
               <div className="flex flex-col gap-1.5">
+                {enPartes && resultados.length > 0 && <p className="jb-body text-sm text-zinc-400">Se cuenta en partes: el pan y lo que va dentro (lo que lleva 1 pan).</p>}
                 {resultados.map(f => {
-                  const d = unidadPorDefecto(f);
+                  const d = porcionInicial(f);
                   return (
                     <button key={f.key} onClick={() => elegir(f)}
                       className="w-full flex items-center gap-3 text-left rounded-xl bg-zinc-950 border border-zinc-800 hover:border-orange-500 px-3 py-3">
-                      {/* Cuando llegue MiniaturaPlato (PR #482), va igual que en "Escribir". */}
-                      <span className="text-xl shrink-0">{emojiAlimento(f)}</span>
+                      {/* Hueco de 48 px: aquí va <MiniaturaPlato food={f} tam={48} className={CAJA_MINIATURA}> cuando llegue el PR #482. */}
+                      <span className={CAJA_MINIATURA} aria-hidden="true">{emojiAlimento(f)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="jb-body text-base text-zinc-100 block leading-snug">{nombreAlimento(f)}</span>
                         <NotaSinArroz food={f} />

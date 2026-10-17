@@ -193,7 +193,7 @@ Errores: "El código no es válido o ya venció. Pide uno nuevo." · "Las contra
 - Un **punto naranja sobre "Inicio"** significa que el plan vence en 7 días o menos, o que quedan 2 días de prueba.
 - Un **punto naranja sobre "Comunidad"** significa que Jonah publicó un anuncio nuevo en el muro (ver 12.3), que un compañero le mandó ánimo o que tiene una invitación a un equipo por aceptar (ver 12.2). Dentro, el punto sale sobre "Muro" o "Mis equipos" según de qué se trate.
 
-**Barra de arriba:** logo, botón de sonido 🔊/🔇 (en computadora), ícono de **tarjeta "Mi plan"** (planes y pagos), ícono **⚙️ "Mi perfil y ajustes"** (ver 6.3), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
+**Barra de arriba:** logo, botón de sonido 🔊/🔇 (en computadora), botón naranja **🔎 "Consultar calorías"** (en celulares angostos solo se ve la lupa; ver 8.1.1), ícono de **tarjeta "Mi plan"** (planes y pagos), ícono **⚙️ "Mi perfil y ajustes"** (ver 6.3), **indicador de guardado** y **"Salir"**. Los datos se guardan solos.
 
 **Indicador de guardado** (arriba a la derecha, junto a "Salir", **en todas las pestañas**): **✓** = guardado, **circulito girando** = guardando, **nube tachada naranja** = sin guardar. Si sale la nube, ver la sección 8.8.
 
@@ -385,6 +385,18 @@ Para quien la app se le hace complicada o la letra le queda pequeña.
 - **¿Se guardó?** Mira el indicador de guardado de la barra de arriba (sección 6); se ve en todas las pestañas, no solo aquí.
 
 - **Qué alimentos hay:** platos peruanos, comida rápida, postres, bebidas y también **ingredientes de casa** para quien cocina o pesa su comida (desde el 15 de octubre de 2026 están además pescados como jurel, caballa, merluza, perico, pejerrey, tilapia, lenguado, salmón, pota, choros, conchas de abanico y pulpo; caballa y sardina en lata; mondongo y cuy; leche evaporada entera y light; queso mantecoso; arroz integral y mote; harina de trigo y maicena; papa amarilla y plátano maduro sancochado; frutas como granadilla, maracuyá, chirimoya, lúcuma, aguaymanto, guanábana, pitahaya, kiwi, ciruela, higo y pasas; sacha inchi, castañas y ajonjolí; azúcar rubia, chancaca, maca, sillao, ketchup y mostaza; berenjena y acelga). Cada uno tiene su medida casera (filete, unidad, porción, cucharada, lata…) además de los gramos; la papa ya se puede anotar por **unidad** y el bonito, la trucha y la pechuga de pollo por **filete**. El buscador entiende nombres de casa: "calamar" encuentra la pota, "mejillones" los choros, "callos" o "pancita" el mondongo, "panela" la chancaca y "salsa de soya" el sillao.
+
+### 8.1.1 🔎 Consultar calorías (saber cuánto tiene algo, sin anotarlo)
+
+Para quien solo quiere saber si algo es muy calórico antes de comerlo, sin anotarlo. **Gratis para siempre**: igual en la versión gratis, la prueba y Premium.
+
+- **Dónde está:** el botón naranja **🔎** de la barra de arriba (en todas las pestañas; en pantallas anchas dice "🔎 Calorías") y la tarjeta **"🔎 CONSULTAR CALORÍAS · ¿Cuánto tiene algo? Míralo sin anotarlo."** en Comidas, debajo del medidor (solo en "Hoy").
+- **Qué hace:** se abre la hoja **"🔎 CONSULTAR CALORÍAS"** ("Mira cuántas calorías tiene, sin anotarlo. Gratis, siempre."). Antes de escribir salen **"Los más buscados"** (los mismos platos de la portada). Al escribir, el mismo buscador de "Escribir" y de la portada: cocido antes que crudo, cada versión por separado ("Lomo saltado · con papas fritas" y "· sin papas fritas"), con su medida casera y sus kcal. "Pan con palta" sale en partes (el pan y lo que lleva 1 pan), como en la portada.
+- **Al tocar uno** sale su tarjeta: la **medida casera por defecto con sus gramos** (ej. "1 plato (445 g)") y sus **kcal** en grande; **Proteína, Carbos y Grasa**; los avisos **"🍚 Sin arroz: agrégalo aparte"**, **"🍚 Con arroz incluido"** o **"🥔 Sin papa: agrégala aparte"**; una línea sin juzgar con su meta (**"🎯 Es el 45 % de tus 1800 kcal del día."**); y abajo, en chico, **las kcal por 100 g** y **la fuente** (Tabla Peruana del CENAN, USDA o la etiqueta). Son los mismos números que en toda la app.
+- **"¿Cuánto? Cámbialo y mira cómo cambian las calorías":** las mismas cantidades de "¿Cuánto comiste?" (½, 1, 1½, 2 platos; 1 a 4 presas o unidades; cuarto u octavo de pollo) y **"⚖️ Lo pesé"** para escribir los gramos. Los números de la tarjeta cambian al momento. No se anota nada. Si es frito o saltado, también "¿Cuánto aceite tenía?".
+- **"➕ Anotarlo en mi [comida de la hora]":** solo si se lo comió. Lo anota con la cantidad elegida, sale "✅ [alimento] registrado en [comida]", la pantalla pasa a Comidas, lo marca en verde y debajo sale **"¿CÓMO ENCAJA EN TU DÍA?"** (8.2.2), igual que los demás caminos. Si solo quería saber, cierra la hoja con la **×** y listo.
+- **"¿No es ninguno? Buscarlo de otra forma, pedírselo a Jonah o crearlo →"**: lo mismo que en "Escribir" (8.5): lleva a Comidas con lo que escribió, para pedírselo a Jonah (Premium) o crearlo.
+- También tiene **"📤 Compartir este plato"** (8.3.1).
 
 ### 8.2 Cómo registrar (paso común)
 
@@ -1009,6 +1021,7 @@ Premium = plan pagado vigente o prueba vigente. Gratis = la prueba o el plan ven
 | Función | Gratis | Premium |
 |---|---|---|
 | Registrar comidas escribiendo, alimentos propios, repetir ayer, atajos | ✓ | ✓ |
+| 🔎 Consultar calorías (8.1.1) | ✓ | ✓ |
 | Meta de calorías y macros calculada | ✓ | ✓ |
 | Escribir la meta a mano ("Ajuste fino") | — | ✓ |
 | Foto del plato | 3 por semana | En todas sus comidas |

@@ -106,6 +106,9 @@ export function interpretarVarios(textoCompleto, FOODS) {
         resto = palabras.slice(1).join(' ');
       }
     }
+    // "café con 2 cucharaditas de azúcar" se parte en "café con" + …: el
+    // "con" suelto del final no es parte del alimento (era "Café con leche").
+    resto = resto.replace(/\s+(con|y|de|del|el|la|en)$/i, '');
     resto = resto.replace(/^(tazas?|platos?|porci[oó]n(es)?|vasos?|rebanadas?|tajadas?|cucharadas?|cucharaditas?|unidad(es)?)\s+de\s+/i, '').trim();
     // "cuarto de pollo a la brasa", "octavo de pollada": la porción se
     // anota en esa medida (1/4 o 1/8) y no cuenta para buscar el plato.
@@ -131,7 +134,7 @@ export function interpretarVarios(textoCompleto, FOODS) {
     // Sin tildes (17 oct): "gaseosa dietetica" escrita o dictada sin tilde
     // salía "Gaseosa regular" (84 kcal) porque solo coincidía "gaseosa". Se
     // compara lo dicho y el nombre de la app los dos sin tildes.
-    const restoLower = sinTildes(resto)
+    let restoLower = sinTildes(resto)
       .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
       .replace(/\byogurt\b/g, 'yogur')
       .replace(/\bqueques?\b/g, 'keke')
@@ -140,6 +143,8 @@ export function interpretarVarios(textoCompleto, FOODS) {
       .replace(/\s+(aparte|extra|adicional)\b/g, '')
       // "té" (2 letras) no se buscaba: "té sin azúcar" no encontraba nada.
       .replace(/\bte\b(?!\s*\/?\s*infusion)/g, 'te infusion');
+    const marca = gaseosaDeMarca(restoLower);
+    if (marca) restoLower = marca;
     const restoVariantes = variantesSingular(restoLower);
     // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
     // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
@@ -184,7 +189,15 @@ export function interpretarVarios(textoCompleto, FOODS) {
       }
       // El estado (frito, cocido, crudo...) también cuenta — así "huevo
       // frito" distingue de "huevo cocido", no los deja empatados.
-      if (estadoLower && score > 0) {
+      // El estado no rescata un nombre que no se dijo: con "un cuarto de pollo
+      // a la brasa con papas fritas y ensalada" ganaba "Saltado de pollo (Con
+      // papas fritas)" (813 kcal) solo por "pollo" + el estado "con papas
+      // fritas". Si el estado es un acompañamiento (con o sin papas o arroz),
+      // la coincidencia es por palabras sueltas y la primera palabra del
+      // nombre no se dijo ("saltado"), el estado no suma.
+      const primeraDelNombre = nombreLower.split(/[^a-zñü]+/).find(w => w.length > 3);
+      const nombreNoDicho = score < 30 && primeraDelNombre && /\b(papas?|arroz)\b/.test(estadoLower) && !tokensResto.some(w => variantesSingular(w).includes(primeraDelNombre) || variantesSingular(primeraDelNombre).includes(w));
+      if (estadoLower && score > 0 && !nombreNoDicho) {
         // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
         // con un plátano" no es el jugo "Con azúcar".
         for (const w of palabrasEstado) {
@@ -241,11 +254,8 @@ export function interpretarVarios(textoCompleto, FOODS) {
     // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
     // la app tiene las dos versiones (la natural o "Sin azúcar").
     let preguntarAzucar = false;
-    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
-      const base = mejor.name.toLowerCase();
-      const sinAz = FOODS.find(f => f.key !== mejor.key && (
-        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
-        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
+    if (!pideSinAzucar && !/\bcon\s+az[uú]car\b/i.test(resto) && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
+      const sinAz = versionSinAzucar(mejor, FOODS);
       if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
     }
     // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
@@ -288,7 +298,9 @@ export function interpretarVarios(textoCompleto, FOODS) {
     const cola = corte > 0 ? parte.slice(corte + 5).trim() : '';
     if (it && (it.parcial || it.sinCoincidencia) && cola && categoriaAcompanamiento(cola)) {
       const cabeza = interpretarParte(parte.slice(0, corte).trim());
-      const acomp = interpretarParte(cola);
+      // "papas fritas y ensalada": se busca solo "papas fritas" (con todo salía
+      // el plato de la brasa otra vez); la ensalada del plato no se suma.
+      const acomp = interpretarParte(cola.replace(/\s+(y|con)\s+(su |la )?(ensalada|ensaladita)\b.*$/i, ''));
       if (cabeza && !cabeza.sinCoincidencia && acomp && !acomp.sinCoincidencia) {
         items.push(cabeza, { ...acomp, cantidad: 1, porcion: null });
         continue;
@@ -314,6 +326,24 @@ function numerosEnNombres(FOODS) {
     CACHE_NUMEROS.set(FOODS, pares);
   }
   return pares;
+}
+
+/* Gaseosas por su marca (17 oct): "un vaso de Inca Kola" no se encontraba.
+   Las etiquetas peruanas dan casi lo mismo que la "Gaseosa regular" de la app
+   (42 kcal y 10,6 g de azúcar en 100 ml): Inca Kola 84 kcal en 200 ml (42 en
+   100 ml; Coca-Cola Perú, coca-cola.com/pe), Coca-Cola 42, Pepsi 44 y Sprite
+   40 en 100 ml (etiquetas de botellas de 500 ml revisadas en Lima y Chimbote,
+   Rev Peru Med Exp Salud Publica 2018;35(1)). Sus versiones "zero", "sin
+   azúcar", "light" o "diet" son 0 kcal: la "Gaseosa dietética". Fanta (52 kcal
+   en 100 ml en ese estudio, y menos en otras versiones), Guaraná y Kola Real
+   no se cambian: su etiqueta es distinta o no hay una fuente segura. La
+   "Fanta zero" sí (0 kcal). "Mate de coca" no es Coca-Cola. */
+export function gaseosaDeMarca(texto) {
+  const t = sinTildes(texto);
+  const cero = /\b(zero|cero|sin azucar|light|diet|dietetica)\b/.test(t);
+  if (/\b(inca ?kola|inka ?kola|incakola|coca ?-?cola|cocacola|pepsi|sprite)\b/.test(t) || /^cocas?\b/.test(t)) return cero ? 'gaseosa dietetica' : 'gaseosa regular';
+  if (cero && /\bfanta\b/.test(t)) return 'gaseosa dietetica';
+  return null;
 }
 
 // El nombre y el estado de cada alimento sin tildes, calculados una vez.
@@ -414,7 +444,7 @@ export function categoriaAcompanamiento(texto) {
   let t = sinTildes(texto).replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/\b(extra|adicional|aparte|otra|otro|doble)\b/.test(t)) return null;
   t = t.replace(/^((con|de|su|sus|unas?|unos|las?|los|el|\d+)\s+)+/, '');
-  if (/^(papas?|papitas?)( (fritas?|sancochadas?|cocidas?|hervidas?|doradas?|al hilo|amarillas?|blancas?|nativas?|a la francesa|de la casa|y|con))*$/.test(t)) return 'papas';
+  if (/^(papas?|papitas?)( (fritas?|sancochadas?|cocidas?|hervidas?|doradas?|al hilo|amarillas?|blancas?|nativas?|a la francesa|de la casa|y|con|su|sus|ensalada|ensaladita))*$/.test(t)) return 'papas'; // "papas fritas y ensalada" (17 oct)
   if (/^(ensalada|ensaladita)( (de|con|y|la|casa|fresca|criolla|mixta|verde|cocida|lechuga|tomate|pepino|verduras|col|repollo|zanahoria|cebolla))*$/.test(t)) return 'ensalada';
   if (/^(lechuga|tomate|pepino)( (y|con|de) (lechuga|tomate|pepino))*$/.test(t)) return 'ensalada';
   if (/^(arroz|arrocito)( (blanco|blanquito|graneado|cocido))?$/.test(t)) return 'arroz';
@@ -583,6 +613,17 @@ function ajustarAcompanamientos(items, FOODS) {
       return !(c && incluidos.has(c) && !acompanamientosDelPlato(it.food).size);
     });
   }
+  // 4. (17 oct) "Un café con leche con dos cucharaditas de azúcar": si dijo
+  // cuánta azúcar le puso, la bebida va SIN azúcar y el azúcar aparte (antes
+  // se contaba dos veces: el café "Con azúcar" + las cucharaditas).
+  if (items.some(it => it.food && /^az[uú]car\b/i.test(it.food.name))) {
+    items = items.map(it => {
+      const f = it.necesitaAclarar && it.opciones?.length ? it.opciones[0] : it.food;
+      if (!f || /^az[uú]car\b/i.test(f.name) || !/con az[uú]car/i.test(`${f.name} ${f.state}`)) return it;
+      const sin = versionSinAzucar(f, FOODS);
+      return sin ? { ...it, food: sin, necesitaAclarar: false, opciones: null } : it;
+    });
+  }
   // 3.
   const conFritas = items.some(it => it.food && CON_PAPAS_FRITAS.test(it.food.name));
   const fritas = FOODS.find(f => f.key === 'Papas fritas (comida rápida) (-)');
@@ -600,6 +641,22 @@ function ajustarAcompanamientos(items, FOODS) {
     }
     return it;
   });
+}
+
+/* La versión sin azúcar de una bebida "con azúcar": la del mismo nombre que
+   dice "sin azúcar" o "natural" ("Jugo de papaya natural", "Limonada (Sin
+   azúcar)", "Emoliente sin azúcar") o, si no hay, la del mismo nombre sin
+   estado y con menos carbohidratos ("Café con leche (-)": 3,3 g, solo la
+   lactosa, contra 7,2 g del "Con azúcar"). null si la app no la tiene (ej.
+   "Avena / quinua de bebida"). */
+export function versionSinAzucar(food, FOODS) {
+  if (!food) return null;
+  const base = n => sinTildes(n).replace(/\b(con|sin) azucar\b|\bnatural\b/g, ' ').replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+  const texto = f => sinTildes(`${f.name} ${f.state || ''}`);
+  const mismas = FOODS.filter(f => f.key !== food.key && !ALIMENTOS_RETIRADOS.has(f.key) && base(f.name) === base(food.name) && !/con azucar/.test(texto(f)));
+  return mismas.find(f => /sin azucar|\bnatural\b/.test(texto(f)))
+    || mismas.find(f => f.name === food.name && (!f.state || f.state === '-') && Number(f.carbs) < Number(food.carbs))
+    || null;
 }
 
 /* La medida de la porción dicha ("cuarto", "octavo") en las medidas de

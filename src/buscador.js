@@ -46,6 +46,14 @@ export const SINONIMOS = {
   'camote': 'camote batata', 'batata': 'camote',
   'chancho': 'cerdo', 'res': 'res carne',
   'gaseosa': 'gaseosa refresco', 'refresco': 'gaseosa',
+  // Gaseosas por marca (17 oct): mismas calorías que la "Gaseosa regular" o la
+  // "dietética" según su etiqueta (fuente en gaseosaDeMarca, src/interpretarComida.js).
+  'inca kola': 'gaseosa regular', 'incakola': 'gaseosa regular', 'inka kola': 'gaseosa regular',
+  'coca cola': 'gaseosa regular', 'coca-cola': 'gaseosa regular', 'cocacola': 'gaseosa regular',
+  'coca': 'gaseosa regular', 'pepsi': 'gaseosa regular', 'sprite': 'gaseosa regular',
+  'inca kola zero': 'gaseosa dietetica', 'inca kola sin azucar': 'gaseosa dietetica', 'coca cola zero': 'gaseosa dietetica',
+  'coca cola sin azucar': 'gaseosa dietetica', 'coca cola light': 'gaseosa dietetica', 'coca zero': 'gaseosa dietetica',
+  'pepsi zero': 'gaseosa dietetica', 'pepsi light': 'gaseosa dietetica', 'sprite zero': 'gaseosa dietetica', 'fanta zero': 'gaseosa dietetica',
   'pan de molde': 'pan integral', 'galletas': 'galleta',
   'menestra': 'lenteja frejol garbanzo', 'menestras': 'lenteja frejol garbanzo',
   'avena': 'avena', 'quaker': 'avena',
@@ -118,7 +126,7 @@ export function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
   const negadas = [...q.matchAll(/\bsin ([a-z0-9ñ]+)/g)].map(m => raizPalabra(m[1]));
   const base = q.replace(/\bsin [a-z0-9ñ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!negadas.length || !base || panConPartes(lista, q)) return buscarBase(lista, texto, limite);
+  if (!negadas.length || !base || SINONIMOS[q] || panConPartes(lista, q)) return buscarBase(lista, texto, limite);
   const txt = f => normalizar(`${f.key} ${f.name}`);
   const conLoNegado = f => negadas.some(w => new RegExp(`\\bcon ${w}`).test(txt(f)));
   const loDice = f => negadas.some(w => new RegExp(`\\bsin ${w}`).test(txt(f)) || (/^azucar/.test(w) && f.group === 'Bebidas' && /\bnatural\b/.test(txt(f))));

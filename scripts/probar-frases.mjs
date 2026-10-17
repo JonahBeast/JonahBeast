@@ -215,6 +215,30 @@ export const FRASES = [
   ['2 panes', 192, '2 panes franceses (antes 2 "Pan con jamonada": 400)'],
   ['torta tres leches', 285, 'el "tres" es del nombre, no una cantidad'],
   ['pan con jamón', 122, 'pan + jamón (no es "Pan con jamonada")'],
+  // 17 oct (coordinador): con "papas FRITAS y ensalada" ganaba "Saltado de
+  // pollo (Con papas fritas)" (813) por "pollo" + su estado.
+  ['un cuarto de pollo a la brasa con papas fritas y ensalada', 1017, 'el plato 1/4 con papas (antes Saltado de pollo: 813)'],
+  ['pollo a la brasa con papas fritas y ensalada', 1017, 'igual (antes 813)'],
+  ['octavo de pollo a la brasa con papas fritas y ensalada', 649, 'el plato 1/8 (antes 813)'],
+  ['1/4 de pollo con papas fritas', 1017, 'el plato 1/4'],
+  ['1/8 de pollo a la brasa con papas fritas', 649, 'el plato 1/8'],
+  ['un cuarto de pollo a la brasa pecho con papas fritas y ensalada', 1019, 'plato 1/4 pecho con piel'],
+  ['pollada con papas fritas', 1014, 'pollada pierna + papas fritas'],
+  ['pollo broaster con papas fritas', 903, 'broaster + papas fritas'],
+  ['saltado de pollo con papas fritas', 813, 'este sí es el saltado'],
+  // Gaseosas por marca (etiquetas: Inca Kola y Coca-Cola 42 kcal en 100 ml).
+  ['un vaso de Inca Kola', 84, 'Gaseosa regular (antes no la encontraba)'],
+  ['2 vasos de inca kola', 168, '2 vasos'],
+  ['inca kola zero', 0, 'Gaseosa dietética'],
+  ['una coca cola sin azúcar', 0, 'Gaseosa dietética'],
+  ['pepsi un vaso', 84, 'Gaseosa regular'],
+  // El azúcar dicho no se cuenta dos veces.
+  ['un café con leche con dos cucharaditas de azúcar', 115, 'café con leche SIN azúcar (84) + 2 cucharaditas (31); antes 276'],
+  ['café con 2 cucharaditas de azúcar', 35, 'café negro sin azúcar + 2 cucharaditas'],
+  ['té con una cucharadita de azúcar', 17, 'té sin azúcar + 1 cucharadita'],
+  ['jugo de papaya con 1 cucharada de azucar', 126, 'jugo natural + 1 cucharada'],
+  ['emoliente con una cucharadita de azucar', 31, 'emoliente sin azúcar + 1 cucharadita'],
+  ['chicha morada con 2 cucharaditas de azúcar', 67, 'chicha sin azúcar + 2 cucharaditas; antes 270'],
 ];
 
 /* El buscador (escribir, la portada) con y sin tildes y con "sin …":
@@ -232,6 +256,9 @@ export const BUSQUEDAS = [
   ['platano de seda', 'Plátano de seda (Cruda)'],
   ['jamon ingles', 'Jamón inglés (-)'],
   ['pan con jamon', 'Pan francés (-)'],
+  ['inca kola', 'Gaseosa regular (-)'],
+  ['inca kola sin azucar', 'Gaseosa dietética (-)'],
+  ['coca cola zero', 'Gaseosa dietética (-)'],
 ];
 
 /* Exactitud de lo anotado (17 oct): medidas retiradas, porciones de los

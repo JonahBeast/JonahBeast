@@ -15,7 +15,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import { FOODS, unitsFor, entryMacros, registrarEventoEmbudo, FichasPlatos } from './App.jsx';
-import { buscarAlimentos, unidadPorDefecto, nombreAlimento, slugAlimento, arrozDelPlato, fuenteCorta, normalizar, raizPalabra, SINONIMOS } from './buscador.js';
+import { buscarAlimentos, panConPartes, medidaParaPan, unidadPorDefecto, nombreAlimento, slugAlimento, arrozDelPlato, esPlatoSinPapa, fuenteCorta, normalizar, raizPalabra, SINONIMOS } from './buscador.js';
 import { BotonCompartirPlato, textoPorcionConGramos } from './compartirPlato.jsx';
 
 const MAX_RESULTADOS = 4;
@@ -91,7 +91,9 @@ export default function BuscadorPortada({ q: qLink, ficha = false, onCerrar, onR
     return lista;
   }, [texto, fijado]);
   // Solo parecidos (no tienen todas las palabras ni un sinónimo): van aparte.
-  const soloParecidos = resultados.length > 0 && !fijado && !SINONIMOS[normalizar(texto)] && !resultados.some(f => tieneTodo(f, texto));
+  // "Pan con palta" no es un plato: salen el pan y lo de dentro (17 oct).
+  const enPartes = useMemo(() => !fijado && panConPartes(alimentosPortada(), texto), [texto, fijado]);
+  const soloParecidos = resultados.length > 0 && !fijado && !enPartes && !SINONIMOS[normalizar(texto)] && !resultados.some(f => tieneTodo(f, texto));
   // Al cambiar lo que busca, la lista vuelve arriba.
   useEffect(() => { cajaRef.current?.scrollTo?.({ top: 0 }); }, [texto]);
 
@@ -163,9 +165,11 @@ export default function BuscadorPortada({ q: qLink, ficha = false, onCerrar, onR
           </div>
         )}
         {soloParecidos && <p className="jb-body text-sm text-zinc-400 mt-5 mb-2">Lo más parecido que tengo:</p>}
+        {enPartes && resultados.length > 0 && <p className="jb-body text-sm text-zinc-400 mb-2">Se cuenta en partes: el pan y lo que va dentro (lo que lleva 1 pan).</p>}
 
         <div className="flex flex-col gap-3">
-          {mostrados.map(f => <TarjetaPlato key={f.key} food={f} fuentes={fuentes} onRegistrar={() => registrar(f)} />)}
+          {mostrados.map(f => <TarjetaPlato key={f.key} food={f} fuentes={fuentes} onRegistrar={() => registrar(f)}
+            porcion={enPartes ? medidaParaPan(f) : null} />)}
         </div>
         {!verMas && resultados.length > MAX_RESULTADOS && (
           <button type="button" onClick={() => setVerMas(true)} className="w-full mt-3 jb-body text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-2">
@@ -187,8 +191,9 @@ function BotonRegistro({ onClick }) {
   );
 }
 
-function TarjetaPlato({ food, fuentes, onRegistrar }) {
-  const porcion = unidadPorDefecto(food, unitsFor);
+function TarjetaPlato({ food, fuentes, onRegistrar, porcion: dePan = null }) {
+  // En "pan con palta": lo que lleva 1 pan (si el alimento tiene esa medida).
+  const porcion = dePan && (dePan.unit === 'gramos' || unitsFor(food).some(u => u[0] === dePan.unit)) ? dePan : unidadPorDefecto(food, unitsFor);
   const m = entryMacros({ foodKey: food.key, unit: porcion.unit, qty: porcion.qty });
   const arroz = arrozDelPlato(food);
   const fuente = fuentes ? fuenteCorta(fuentes[food.key]?.fuente) : null;
@@ -206,6 +211,7 @@ function TarjetaPlato({ food, fuentes, onRegistrar }) {
       </p>
       {arroz === 'sin' && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🍚 Sin arroz: agrégalo aparte</p>}
       {arroz === 'con' && <p className="jb-body text-[13px] text-zinc-300 mt-1.5">🍚 Con arroz incluido</p>}
+      {esPlatoSinPapa(food) && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🥔 Sin papa: agrégala aparte</p>}
       {fuente && <p className="jb-body text-[11px] text-zinc-500 mt-1">Fuente: {fuente}</p>}
       <BotonRegistro onClick={onRegistrar} />
       <div className="flex justify-center mt-2">

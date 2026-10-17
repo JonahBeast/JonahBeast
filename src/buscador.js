@@ -18,6 +18,10 @@ export const ALIMENTOS_RETIRADOS = new Set([
   // Sándwiches → versión en pan blanco o en pan integral (pedido por Jonah, 15 oct).
   'Pan con jamonada (-)', 'Pan con pollo (-)', 'Pan con chicharrón (-)', 'Butifarra (-)',
   'Hot dog (-)', 'Hamburguesa de carretilla (-)', 'Sándwich de pollo (-)',
+  // → con papas fritas / sin papas fritas (pedido por Jonah, 17 oct). El
+  // "Saltado de pollo" es el que se agregó desde el panel (alimentos_extra):
+  // se retira aquí, sin tocar la base.
+  'Lomo saltado (-)', 'Lomo saltado con arroz (-)', 'Saltado de pollo (-)',
 ]);
 
 /* Quita tildes y pasa a minúsculas para que "platano" encuentre "Plátano"
@@ -74,9 +78,45 @@ export function raizPalabra(w) {
   if (w.length >= 5 && /[lnrd]es$/.test(w)) return w.slice(0, -2); // frejoles, panes, limones
   return w.length >= 4 && w.endsWith('s') ? w.slice(0, -1) : w;
 }
+/* "Pan con palta" → { pan: Pan francés, relleno: "palta" }; null si no es
+   "pan con …" o si es un sándwich de la lista (pan con pollo, con jamonada,
+   con chicharrón…), que sí es un plato. Lo usan el buscador de la app y el
+   de la portada. */
+export function panConPartes(lista, texto) {
+  const m = normalizar(texto).match(/^(?:\d+ |un |una |dos |tres )?(?:pan|panes|pancito|pancitos)( frances| integral| de molde)? con (.+)$/);
+  if (!m) return null;
+  const primera = m[2].split(' ')[0];
+  if (lista.some(f => f.group === 'Platos preparados' && normalizar(f.name).startsWith(`pan con ${primera}`))) return null;
+  const clavePan = /integral/.test(m[1] || '') ? 'Pan integral (-)' : /molde/.test(m[1] || '') ? 'Pan de molde blanco (-)' : 'Pan francés (-)';
+  const pan = lista.find(f => f.key === clavePan);
+  return pan ? { pan, relleno: m[2] } : null;
+}
+
+/* Lo que lleva 1 pan de cada relleno (17 oct), para "pan con …" en la voz,
+   Beast y la portada: palta 1 "porción para pan" (50 g, ≈ ¼ de palta;
+   estimado), huevo 1 unidad, mantequilla 1 cucharadita (5 g; estimado),
+   aceituna 3 (estimado), camote 60 g (lo del pan con chicharrón de la app).
+   null: su medida casera de siempre (queso, mermelada…). */
+export function medidaParaPan(food) {
+  const n = food?.name || '';
+  return n === 'Palta' ? { unit: 'porción para pan', qty: 1 }
+    : n === 'Huevo de gallina' ? { unit: 'unidad', qty: 1 }
+      : n === 'Mantequilla' ? { unit: 'cucharadita', qty: 1 }
+        : /^aceitunas?\b/i.test(n) ? { unit: 'unidad', qty: 3 }
+          : n === 'Camote' ? { unit: 'gramos', qty: 60 }
+            : null;
+}
+
 export function buscarAlimentos(lista, texto, limite = 40) {
   const q = normalizar(texto);
   if (!q) return lista.filter(f => !ALIMENTOS_RETIRADOS.has(f.key)).slice(0, limite);
+  // "Pan con palta", "2 panes con huevo" no son platos (Jonah, 17 oct): salen
+  // el pan y lo que va dentro, para anotar cada uno (antes solo la palta).
+  const partes = panConPartes(lista, q);
+  if (partes) {
+    const dentro = buscarAlimentos(lista, partes.relleno, limite).filter(f => f.key !== partes.pan.key);
+    return [partes.pan, ...dentro].slice(0, limite);
+  }
   const alternativas = [q.split(' ').filter(Boolean).map(raizPalabra)];
   if (SINONIMOS[q] && normalizar(SINONIMOS[q]) !== q) alternativas.push(normalizar(SINONIMOS[q]).split(' ').filter(Boolean).map(raizPalabra));
   const palabras = alternativas[0];
@@ -92,6 +132,10 @@ export function buscarAlimentos(lista, texto, limite = 40) {
     if (nombreNorm.startsWith(q)) puntaje = 0;
     else if (nombreNorm.includes(q)) puntaje = 1;
     else if (objetivo.includes(q)) puntaje = 2;
+    // Los platos de pollo a la brasa por corte ("1/4 pecho con piel"…, 17 oct)
+    // van después de lo demás si no se buscó un corte: con "pollo a la brasa"
+    // salen primero el plato de siempre y las presas, no 10 versiones.
+    if (/^1\/[48] /.test(f.state || '') && !/\b(pierna|pecho|entrepierna|pechuga)\b/.test(q)) puntaje += 0.5;
     conPuntaje.push({ f, puntaje });
   }
   conPuntaje.sort((a, b) => a.puntaje - b.puntaje || a.f.name.localeCompare(b.f.name));
@@ -201,7 +245,7 @@ export const PLATOS_SIN_ARROZ = new Set([
   'Ají de gallina', 'Ají de pollo', 'Pollo al sillao', 'Estofado de pollo',
   'Escabeche de pollo', 'Estofado de carne', 'Seco de res con frejoles', 'Lomo saltado',
   'Adobo de cerdo', 'Carapulcra', 'Olluquito con charqui', 'Cau cau', 'Chanfainita',
-  'Sudado de pescado',
+  'Sudado de pescado', 'Saltado de pollo',
 ]);
 /* Sus versiones "con arroz" (16 oct 2026): 1 plato = 300 g del guiso +
    180 g de arroz blanco cocido. [con arroz, guiso]. */
@@ -213,12 +257,24 @@ export const GUISOS_CON_ARROZ = [
   ['Pollo al sillao con arroz', 'Pollo al sillao'], ['Sudado de pescado con arroz', 'Sudado de pescado'],
 ];
 /* La foto NO usa los "con arroz": ve el guiso y el arroz por separado, cada
-   uno con sus gramos (mismo número, y así no se cuenta el arroz dos veces). */
-const CLAVES_CON_ARROZ = new Set(GUISOS_CON_ARROZ.map(([n]) => `${n} (-)`));
+   uno con sus gramos (mismo número, y así no se cuenta el arroz dos veces).
+   Por nombre: vale también para sus versiones con o sin papas fritas. */
+const NOMBRES_CON_ARROZ = new Set(GUISOS_CON_ARROZ.map(([n]) => n));
 export function vaEnLaFoto(food) {
-  return !!food && !ALIMENTOS_RETIRADOS.has(food.key) && !CLAVES_CON_ARROZ.has(food.key);
+  return !!food && !ALIMENTOS_RETIRADOS.has(food.key) && !(!food.esExtra && NOMBRES_CON_ARROZ.has(food.name));
 }
 export const esPlatoSinArroz =food => !!food && (!!food.sinArroz || (!food.esExtra && PLATOS_SIN_ARROZ.has(food.name)));
+
+/* Platos que en Perú se sirven con papa sancochada y cuyas calorías NO la
+   incluyen (pedido por Jonah, 17 oct: "el ají de gallina muchas veces viene
+   con la papa sancochada, pero eso sería mejor aparte"): la app dice
+   "🥔 Sin papa: agrégala aparte", como con el arroz. No van los que ya la
+   traen en sus calorías: papa a la huancaína, ocopa, causa, carapulcra (papa
+   seca), cau cau y estofados (papa en trozos), pollo a la olla ("con papa"). */
+export const PLATOS_SIN_PAPA = new Set([
+  'Ají de gallina', 'Ají de pollo', 'Ají de gallina con arroz', 'Ají de pollo con arroz',
+]);
+export const esPlatoSinPapa = food => !!food && !food.esExtra && PLATOS_SIN_PAPA.has(food.name);
 
 // Nombre para mostrar: "Huevo de gallina · cocido" en vez de "Huevo de gallina (Cocido)".
 export function nombreAlimento(food) {

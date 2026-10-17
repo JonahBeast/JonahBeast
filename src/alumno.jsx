@@ -78,7 +78,7 @@ import {
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
 import { interpretarVarios as interpretarVariosCon, porcionDelItem, unidadDePorcion } from './interpretarComida.js';
-import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, nombreAlimento, vaEnLaFoto, arrozDelPlato, fuenteCorta } from './buscador.js';
+import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, esPlatoSinPapa, nombreAlimento, vaEnLaFoto, arrozDelPlato, fuenteCorta } from './buscador.js';
 import { BotonCompartirPlato } from './compartirPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
 import { ComunidadTab, leerVistaComunidad, hayAnuncioNuevo, CompartirPlato, preguntarCompartirPlato, InvitacionComunidad } from './comunidad.jsx';
@@ -400,6 +400,11 @@ const interpretarVarios = texto => interpretarVariosCon(texto, FOODS, unitsFor);
 // dicha ("un octavo de pollo a la brasa" → 1/8) o la medida casera.
 const porcionDeItem = it => porcionDelItem(it, unidadPorDefecto, unitsFor);
 const medidaDicha = it => {
+  // "Pan con palta" → "1 porción para pan · Palta" (la medida con que se anota).
+  if (it.medida && !it.gramosExplicitos) {
+    const p = porcionDeItem(it);
+    if (p.unit === it.medida.unit) return `${textoPorcion(p)} · `;
+  }
   const u = unidadDePorcion(it.food, it.porcion, unitsFor, it.textoOriginal);
   const n = it.cantidad || 1;
   return u ? `${n === 1 ? u : `${n} × ${u}`} · ` : '';
@@ -9106,6 +9111,7 @@ function ConsultarCaloriasModal({ username, metaKcal, desde = 'arriba', onAnotar
                 </p>
                 {arroz === 'sin' && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🍚 Sin arroz: agrégalo aparte</p>}
                 {arroz === 'con' && <p className="jb-body text-[13px] text-zinc-300 mt-1.5">🍚 Con arroz incluido</p>}
+                {esPlatoSinPapa(elegido) && <p className="jb-body text-[13px] text-amber-300/90 mt-1.5">🥔 Sin papa: agrégala aparte</p>}
                 {pct !== null && kcal > 0 && (
                   <p className="jb-body text-sm text-zinc-200 mt-2">🎯 Es el <b className="text-zinc-50 tabular-nums">{pct} %</b> de tus {Math.round(metaKcal)} kcal del día.</p>
                 )}
@@ -9371,9 +9377,19 @@ function HojaRegistrar({ meal, setMeal, onCerrar, onFoto, onCodigo, onEscribir, 
 // por la IA traen la casilla "sin_arroz" de alimentos_extra (food.sinArroz).
 // Los que ya traen el arroz en el nombre ("Arroz con pollo", "Pollo a la
 // olla con arroz") no van.
+// Desde el 17 oct, lo mismo con la papa sancochada del ají de gallina y el
+// ají de pollo ("🥔 Sin papa: agrégala aparte"; PLATOS_SIN_PAPA en
+// src/buscador.js): sale en todos los lugares donde sale el del arroz.
 function NotaSinArroz({ food, className = '' }) {
-  if (!esPlatoSinArroz(food)) return null;
-  return <span className={'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className}>🍚 Sin arroz: agrégalo aparte</span>;
+  const arroz = esPlatoSinArroz(food), papa = esPlatoSinPapa(food);
+  if (!arroz && !papa) return null;
+  const cls = 'block jb-body text-[11px] text-amber-300/90 leading-snug ' + className;
+  return (
+    <>
+      {arroz && <span className={cls}>🍚 Sin arroz: agrégalo aparte</span>}
+      {papa && <span className={cls}>🥔 Sin papa: agrégala aparte</span>}
+    </>
+  );
 }
 
 
@@ -9428,7 +9444,7 @@ function PlanPorWhatsApp({ username, form, kcal, proteina }) {
   const cerrar = () => { setVisible(false); try { localStorage.setItem(clave, '1'); } catch {} };
   const texto = mensajePlanWhatsApp(
     { objetivo: form.objetivo, peso: form.peso, pesoObjetivo: form.pesoObjetivo },
-    { kcal: Math.round(kcal / 10) * 10, proteina: Math.round(proteina || 0), semanas: null },
+    { kcal: Math.round(kcal), proteina: Math.round(proteina || 0), semanas: null }, // mismo número que su meta (sin redondear a la decena)
     'Ya registré mi primera comida en la app. ¿Me ayudas a seguir?');
   return (
     <div className="bg-zinc-900 border border-orange-500/40 rounded-2xl p-4 mb-4">
@@ -13794,6 +13810,16 @@ function StudentDashboard({ username, form, setForm, mealPlan, setMealPlan, onLo
     </PremiumCtx.Provider>
   );
 }
+
+/* Lomo saltado con o sin papas fritas (17 oct): el lomo de antes ("-") se
+   retiró, así que las tarjetas de "¡Tu plan está listo!" que lo traían pasan
+   a la versión con papas fritas (como más se sirve). Va aparte, aquí abajo,
+   para que la lista PLATOS_PRIMERA_COMIDA se pueda cambiar sin tocar esto. */
+const VIGENTE_PRIMERA = {
+  'Lomo saltado (-)': 'Lomo saltado (Con papas fritas)',
+  'Lomo saltado con arroz (-)': 'Lomo saltado con arroz (Con papas fritas)',
+};
+Object.values(PLATOS_PRIMERA_COMIDA).forEach(lista => lista.forEach(p => { if (VIGENTE_PRIMERA[p[0]]) p[0] = VIGENTE_PRIMERA[p[0]]; }));
 
 export {
   StudentDashboard,

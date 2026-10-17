@@ -3,7 +3,7 @@
    voz y las tarjetas de Beast (src/alumno.jsx). Se movió tal cual desde
    src/alumno.jsx (17 oct 2026) para poder probarlo con
    scripts/probar-frases.mjs. No importa nada de App.jsx. */
-import { ALIMENTOS_RETIRADOS } from './buscador.js';
+import { ALIMENTOS_RETIRADOS, medidaParaPan } from './buscador.js';
 
 /* Interpreta una frase con varios alimentos separados por "+", "y" o
    comas — ej. "1 pan + 2 huevos + 1 taza de café" — y devuelve un
@@ -227,7 +227,9 @@ export function interpretarVarios(textoCompleto, FOODS) {
     // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
     // "Avena (cocida)": sobra "pan". Si sobra una palabra, se pregunta (con
     // "No es ninguna") en vez de anotar otra cosa en silencio.
-    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso']);
+    // "aparte", "extra", "adicional" (17 oct): dicen que es otra porción, no
+    // otro alimento ("papas fritas aparte" no debe preguntar "¿cuál es?").
+    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso', 'aparte', 'extra', 'adicional']);
     const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
     const parcial = mejorScore < 100 && restoLower.split(/\s+/)
       .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
@@ -248,6 +250,10 @@ export function interpretarVarios(textoCompleto, FOODS) {
   // el plato completo MÁS papas y lechuga (1573 kcal en vez de 1090).
   const items = [];
   for (const parte of unirPlatosConY(partes, FOODS, variantesSingular)) {
+    // "Pan con palta", "2 panes con huevo": no son platos, son el pan y lo
+    // que va dentro (pedido por Jonah, 17 oct).
+    const enPartes = panConRelleno(parte, FOODS, interpretarParte, NUM_PALABRAS);
+    if (enPartes) { items.push(...enPartes); continue; }
     const it = interpretarParte(parte);
     // "pollada con papas", "pescado frito con arroz": lo que va después del
     // "con" se perdía si el plato no lo nombra. Si es un acompañamiento
@@ -284,6 +290,49 @@ export function prepararPorciones(texto) {
     .replace(/\b(cuartos?|octavos?)\s+de\s+pollo\b(?!\s+(a\s+la\s+brasa|al\s+horno|a\s+la\s+olla|al\s+sillao|broaster|frito|apanado|a\s+la\s+plancha|sancochado|guisado))/gi, '$1 de pollo a la brasa');
 }
 
+/* "Pan con palta", "2 panes con huevo", "pan con mantequilla": no son platos
+   (Jonah, 17 oct: "no los diría como platos porque no son platos"). Antes
+   "pan con palta" anotaba solo una palta entera (320 kcal) y "2 panes con
+   huevo" anotaba 2 panes con jamonada. Se anotan el pan (francés si no dice
+   otro; 1 por pan) y lo que va dentro, en lo que lleva 1 pan:
+     palta: 1 "porción para pan" (50 g, ≈ ¼ de palta; estimado);
+     huevo: 1 huevo (frito si no dice cómo);
+     mantequilla: 1 cucharadita (5 g; estimado);
+     aceituna: 3 aceitunas (estimado);
+     camote: 60 g (lo que lleva el pan con chicharrón de la app);
+     lo demás (queso, mermelada…): su medida casera de siempre.
+   Los sándwiches que sí son platos de la lista (pan con pollo, con jamonada,
+   con chicharrón…) no se tocan. */
+const PAN_CON = /^(?:(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+)?(?:pan|panes|pancito|pancitos)(\s+(?:franc[eé]s|integral(?:es)?|de molde|blanco|blancos))?\s+con\s+(.+)$/i;
+function panConRelleno(parte, FOODS, interpretarParte, NUM_PALABRAS) {
+  const m = String(parte).trim().match(PAN_CON);
+  if (!m) return null;
+  const relleno = m[3].trim();
+  const primera = sinTildes(relleno).replace(/^(un|una|unos|unas|su|sus)\s+/, '').split(/\s+/)[0];
+  if (!primera || FOODS.some(f => f.group === 'Platos preparados' && sinTildes(f.name).startsWith(`pan con ${primera}`))) return null;
+  const n = m[1] ? (NUM_PALABRAS[m[1].toLowerCase()] || parseInt(m[1], 10) || 1) : 1;
+  const tipo = sinTildes(m[2] || '');
+  const clavePan = /integral/.test(tipo) ? 'Pan integral (-)' : /molde/.test(tipo) ? 'Pan de molde blanco (-)' : 'Pan francés (-)';
+  const pan = FOODS.find(f => f.key === clavePan);
+  if (!pan) return null;
+  const itemPan = {
+    textoOriginal: parte.trim(), textoBuscar: m[2] ? `pan${m[2]}` : 'pan', cantidad: n, gramosExplicitos: null, porcion: null,
+    food: pan, necesitaAclarar: false, opciones: null, parcial: false,
+  };
+  let dentro = interpretarParte(relleno);
+  if (!dentro) return [itemPan];
+  dentro = { ...dentro, textoOriginal: relleno, cantidad: n };
+  if (dentro.sinCoincidencia) return [itemPan, dentro];
+  const t = sinTildes(relleno);
+  // "Pan con huevo": frito si no dice cómo (sancochado, revuelto…).
+  if (dentro.food.name === 'Huevo de gallina' && !/\b(sancoch|cocid|herv|crud|frit|duro|pasado)/.test(t)) {
+    const frito = FOODS.find(f => f.key === 'Huevo de gallina (Frito)');
+    if (frito) dentro = { ...dentro, food: frito, necesitaAclarar: false, opciones: null };
+  }
+  const porPan = medidaParaPan(dentro.food);
+  return [itemPan, porPan ? { ...dentro, medida: { unit: porPan.unit, qty: porPan.qty * n } } : dentro];
+}
+
 /* Lo que se dice como acompañamiento de un plato. Devuelve 'papas',
    'ensalada', 'arroz', 'frejoles' o 'salchicha', o null. Si dice "extra",
    "aparte" u "otra", es una porción más y no se toma como la del plato. */
@@ -314,7 +363,9 @@ export function acompanamientosDelPlato(food) {
   const tras = n.split(/\bcon\b|\(/).slice(1).join(' ');
   const trae = new Set();
   if (/\barroz\b/.test(tras) || /^arroz\b/.test(n) || /^tacu tacu\b/.test(n)) trae.add('arroz');
-  if (/\bpapas?\b/.test(tras) || /^(salchipapa|salchipollo|lomo saltado|saltado de pollo)\b/.test(n)) trae.add('papas');
+  // El lomo y el saltado de pollo "Sin papas fritas" (17 oct) no las traen.
+  const sinPapas = /\bsin papas\b/.test(sinTildes(food?.state));
+  if (/\bpapas?\b/.test(tras) || (!sinPapas && /^(salchipapa|salchipollo|lomo saltado|saltado de pollo)\b/.test(n))) trae.add('papas');
   if (/\b(frejol|frejoles)\b/.test(tras) || /^(frejolada|tacu tacu)\b/.test(n)) trae.add('frejoles');
   if (/\bensalada\b/.test(tras)) trae.add('ensalada');
   if (/^salchipapa\b/.test(n)) trae.add('salchicha');
@@ -360,13 +411,66 @@ function unirPlatosConY(partes, FOODS, variantesSingular) {
 const PLATO_BRASA = 'Pollo a la brasa con papas y ensalada (-)';
 const CON_PAPAS_FRITAS = /^(Pollo a la brasa|Pollada|Pollo broaster|Hamburguesa|Salchi|Alitas|Chicharrón de pollo|Hot dog|Pieza de pollo|McNuggets|Chicken fingers|Milanesa de pollo|Filete de pollo frito)/i;
 
+/* Pollo a la brasa con papas y ensalada POR CORTE (pedido de Jonah, 17 oct:
+   "en las pollerías lo sirven parte pierna y parte pecho"). Si dijo el corte
+   (pierna, entrepierna, pecho) y el pollo vino con papas o ensalada, es el
+   plato de ese corte, en cuarto u octavo y con o sin piel (con piel si no lo
+   dijo). Sin corte, sigue el plato de siempre. */
+const NOMBRE_PLATO_BRASA = 'Pollo a la brasa con papas y ensalada';
+function platoBrasaPorCorte(it, FOODS, conAcompanamiento) {
+  if (!it.food || it.gramosExplicitos || !/^Pollo a la brasa\b/.test(it.food.name)) return it;
+  const t = sinTildes(it.textoOriginal || it.textoBuscar);
+  const corte = /\bentrepierna\b/.test(t) ? 'entrepierna' : /\bpierna\b/.test(t) ? 'pierna' : /\b(pecho|pechuga)\b/.test(t) ? 'pecho' : null;
+  if (!corte) return it;
+  const piel = /\bsin piel\b/.test(t) ? 'sin piel' : 'con piel';
+  const esPlato = (conAcompanamiento || /\b(con|y) (sus )?(papas?|papitas?|ensalada)\b/.test(t)) && !/\b(solo|sola) (la )?presa\b/.test(t);
+  if (!esPlato) {
+    // Sin papas ni ensalada es la presa sola: si la búsqueda dio con un plato
+    // por corte (comparten "pecho", "piel"…), vuelve a la presa de ese corte.
+    if (it.food.name !== NOMBRE_PLATO_BRASA || !it.food.state || it.food.state === '-') return it;
+    const presa = FOODS.find(f => f.key === `Pollo a la brasa ${corte === 'pecho' ? 'pecho' : 'pierna'} (solo la presa) (${piel === 'sin piel' ? 'Sin piel' : 'Con piel'})`);
+    return presa ? { ...it, food: presa, necesitaAclarar: false, opciones: null } : it;
+  }
+  // El cuarto pierna ya es pierna + entrepierna; en el octavo van aparte.
+  const estado = it.porcion === 'octavo' ? `1/8 ${corte} ${piel}` : `1/4 ${corte === 'entrepierna' ? 'pierna' : corte} ${piel}`;
+  const plato = FOODS.find(f => f.name === NOMBRE_PLATO_BRASA && f.state === estado && !ALIMENTOS_RETIRADOS.has(f.key));
+  return plato ? { ...it, food: plato, necesitaAclarar: false, opciones: null } : it;
+}
+
+/* Lomo saltado, lomo saltado con arroz y saltado de pollo: con papas fritas o
+   sin papas fritas, por separado (pedido de Jonah, 17 oct: "a veces el lomo
+   lo preparan aparte y las papas fritas las sirven aparte").
+   - "lomo saltado con papas (fritas)" → el que trae las papas;
+   - "lomo saltado sin papas" → sin papas;
+   - "lomo saltado y papas fritas aparte" (las papas dichas como otro
+     alimento) → sin papas, y las papas se anotan aparte (mismo total);
+   - "lomo saltado" a secas → pregunta "¿con papas fritas o sin?" (con papas
+     primero: es como más se sirve). */
+const SALTADOS = new Set(['Lomo saltado', 'Lomo saltado con arroz', 'Saltado de pollo']);
+const esPapaSuelta = it => !!it.food && !SALTADOS.has(it.food.name)
+  && (it.food.key === 'Papas fritas (comida rápida) (-)' || /^papa\b/i.test(it.food.name) || categoriaAcompanamiento(it.textoBuscar || it.textoOriginal) === 'papas');
+function resolverSaltados(items, FOODS) {
+  const papasAparte = items.some(esPapaSuelta);
+  return items.map(it => {
+    if (!it.food || !SALTADOS.has(it.food.name)) return it;
+    const con = FOODS.find(f => f.name === it.food.name && f.state === 'Con papas fritas');
+    const sin = FOODS.find(f => f.name === it.food.name && f.state === 'Sin papas fritas');
+    if (!con || !sin) return it;
+    const t = sinTildes(it.textoOriginal || it.textoBuscar);
+    const elegido = food => ({ ...it, food, necesitaAclarar: false, opciones: null });
+    if (/\bsin (las |sus )?(papas?|papitas?)\b/.test(t)) return elegido(sin);
+    if (/\b(con|y) (sus |las )?(papas?|papitas?)\b|\bpapas? fritas?\b/.test(t)) return elegido(con);
+    if (papasAparte) return elegido(sin);
+    return { ...it, food: con, necesitaAclarar: true, opciones: [con, sin] };
+  });
+}
+
 /* Después de entender cada parte:
    1. "Un cuarto de pollo a la brasa" + papas o ensalada (sin decir pierna,
       pecho ni piel) es el plato "Pollo a la brasa con papas y ensalada".
-      Con el corte dicho se respeta la presa (la app no tiene el plato por
-      corte) y las papas van aparte.
+      Con el corte dicho, el plato de ese corte (platoBrasaPorCorte).
    2. Lo que el plato ya trae (sus papas, su ensalada, su arroz…) no se suma
-      otra vez.
+      otra vez. Antes, el lomo saltado con o sin papas (resolverSaltados).
    3. "Papas" al lado de un pollo a la brasa, pollada, broaster o
       hamburguesa: se pregunta, con las papas fritas primero. "Ensalada" a
       secas: se pregunta, con la de lechuga primero (antes salía "Ensalada
@@ -374,14 +478,17 @@ const CON_PAPAS_FRITAS = /^(Pollo a la brasa|Pollada|Pollo broaster|Hamburguesa|
 function ajustarAcompanamientos(items, FOODS) {
   const cat = it => (it.food && !it.gramosExplicitos ? categoriaAcompanamiento(it.textoBuscar || it.textoOriginal) : null);
   const plato = FOODS.find(f => f.key === PLATO_BRASA);
+  const conAcompanamiento = items.some(it => ['papas', 'ensalada'].includes(cat(it)));
   // 1.
-  if (plato && items.some(it => ['papas', 'ensalada'].includes(cat(it)))) {
+  if (plato && conAcompanamiento) {
     items = items.map(it => {
       if (!it.food || !/^Pollo a la brasa\b/.test(it.food.name) || (it.food.key === PLATO_BRASA && !it.necesitaAclarar)) return it;
       if (it.gramosExplicitos || /\b(pierna|pecho|entrepierna|piel|presa|solo|pechuga|ala)\b/i.test(it.textoBuscar || '')) return it;
       return { ...it, food: plato, necesitaAclarar: false, opciones: null };
     });
   }
+  items = items.map(it => platoBrasaPorCorte(it, FOODS, conAcompanamiento));
+  items = resolverSaltados(items, FOODS);
   // "Pecho sin piel": la versión dicha, sin preguntar otra vez.
   items = items.map(it => {
     const piel = /\b(sin|con) piel\b/i.exec(it.textoBuscar || '');
@@ -432,6 +539,11 @@ export function unidadDePorcion(food, porcion, unitsFor, texto = '') {
 // medida casera por defecto por la cantidad.
 export function porcionDelItem(it, unidadPorDefecto, unitsFor) {
   if (it.gramosExplicitos) return { unit: 'gramos', qty: it.gramosExplicitos };
+  // La medida que ya trae lo entendido ("pan con palta" → 1 porción para pan),
+  // si ese alimento la tiene.
+  if (it.medida && (it.medida.unit === 'gramos' || (unitsFor && unitsFor(it.food).some(u => u[0] === it.medida.unit)))) {
+    return { unit: it.medida.unit, qty: it.medida.qty };
+  }
   const enPorcion = unitsFor && unidadDePorcion(it.food, it.porcion, unitsFor, it.textoOriginal);
   if (enPorcion) return { unit: enPorcion, qty: it.cantidad || 1 };
   const d = unidadPorDefecto(it.food);

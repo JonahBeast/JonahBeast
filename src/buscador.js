@@ -46,6 +46,14 @@ export const SINONIMOS = {
   'camote': 'camote batata', 'batata': 'camote',
   'chancho': 'cerdo', 'res': 'res carne',
   'gaseosa': 'gaseosa refresco', 'refresco': 'gaseosa',
+  // Gaseosas por marca (17 oct): mismas calorías que la "Gaseosa regular" o la
+  // "dietética" según su etiqueta (fuente en gaseosaDeMarca, src/interpretarComida.js).
+  'inca kola': 'gaseosa regular', 'incakola': 'gaseosa regular', 'inka kola': 'gaseosa regular',
+  'coca cola': 'gaseosa regular', 'coca-cola': 'gaseosa regular', 'cocacola': 'gaseosa regular',
+  'coca': 'gaseosa regular', 'pepsi': 'gaseosa regular', 'sprite': 'gaseosa regular',
+  'inca kola zero': 'gaseosa dietetica', 'inca kola sin azucar': 'gaseosa dietetica', 'coca cola zero': 'gaseosa dietetica',
+  'coca cola sin azucar': 'gaseosa dietetica', 'coca cola light': 'gaseosa dietetica', 'coca zero': 'gaseosa dietetica',
+  'pepsi zero': 'gaseosa dietetica', 'pepsi light': 'gaseosa dietetica', 'sprite zero': 'gaseosa dietetica', 'fanta zero': 'gaseosa dietetica',
   'pan de molde': 'pan integral', 'galletas': 'galleta',
   'menestra': 'lenteja frejol garbanzo', 'menestras': 'lenteja frejol garbanzo',
   'avena': 'avena', 'quaker': 'avena',
@@ -86,7 +94,8 @@ export function panConPartes(lista, texto) {
   const m = normalizar(texto).match(/^(?:\d+ |un |una |dos |tres )?(?:pan|panes|pancito|pancitos)( frances| integral| de molde)? con (.+)$/);
   if (!m) return null;
   const primera = m[2].split(' ')[0];
-  if (lista.some(f => f.group === 'Platos preparados' && normalizar(f.name).startsWith(`pan con ${primera}`))) return null;
+  // Palabra entera: "pan con jamón" no es "Pan con jamonada" (17 oct).
+  if (lista.some(f => f.group === 'Platos preparados' && new RegExp(`^pan con ${primera.replace(/[^a-z0-9ñ]/g, '')}([^a-z]|$)`).test(normalizar(f.name)))) return null;
   const clavePan = /integral/.test(m[1] || '') ? 'Pan integral (-)' : /molde/.test(m[1] || '') ? 'Pan de molde blanco (-)' : 'Pan francés (-)';
   const pan = lista.find(f => f.key === clavePan);
   return pan ? { pan, relleno: m[2] } : null;
@@ -107,7 +116,32 @@ export function medidaParaPan(food) {
             : null;
 }
 
+/* "Sin azúcar", "sin piel", "sin papas" (17 oct): lo que va después del
+   "sin" no es una palabra que el alimento deba tener. "Café con leche sin
+   azúcar" no encontraba nada con todas sus palabras y caía a buscar solo
+   "azúcar" (salía primero "Refresco de cebada (Con azúcar)"). Ahora se busca
+   lo demás ("café con leche"), se quita lo que dice "con azúcar" y van
+   primero los que dicen "sin azúcar" (o "natural"). */
 export function buscarAlimentos(lista, texto, limite = 40) {
+  const q = normalizar(texto);
+  const negadas = [...q.matchAll(/\bsin ([a-z0-9ñ]+)/g)].map(m => raizPalabra(m[1]));
+  const base = q.replace(/\bsin [a-z0-9ñ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!negadas.length || !base || SINONIMOS[q] || panConPartes(lista, q)) return buscarBase(lista, texto, limite);
+  const txt = f => normalizar(`${f.key} ${f.name}`);
+  const conLoNegado = f => negadas.some(w => new RegExp(`\\bcon ${w}`).test(txt(f)));
+  const loDice = f => negadas.some(w => new RegExp(`\\bsin ${w}`).test(txt(f)) || (/^azucar/.test(w) && f.group === 'Bebidas' && /\bnatural\b/.test(txt(f))));
+  // Lo que ya dice "sin …" y tiene todas las demás palabras va primero, en el
+  // orden de siempre ("pollo pierna sin piel" → "Pollo pierna (sin piel)").
+  const palabrasBase = base.split(' ').map(raizPalabra);
+  const objetivo = f => normalizar(`${f.key} ${f.name} ${f.group || ''}`);
+  const empieza = f => (normalizar(f.name).startsWith(base) ? 0 : 1);
+  const exactos = buscarBase(lista, texto, 1000).filter(f => loDice(f) && palabrasBase.every(w => objetivo(f).includes(w)))
+    .map((f, i) => ({ f, i })).sort((a, b) => empieza(a.f) - empieza(b.f) || a.i - b.i).map(x => x.f);
+  const encontrados = buscarBase(lista, base, 1000).filter(f => !conLoNegado(f) && !exactos.includes(f));
+  return [...exactos, ...encontrados.filter(loDice), ...encontrados.filter(f => !loDice(f))].slice(0, limite);
+}
+
+function buscarBase(lista, texto, limite = 40) {
   const q = normalizar(texto);
   if (!q) return lista.filter(f => !ALIMENTOS_RETIRADOS.has(f.key)).slice(0, limite);
   // "Pan con palta", "2 panes con huevo" no son platos (Jonah, 17 oct): salen

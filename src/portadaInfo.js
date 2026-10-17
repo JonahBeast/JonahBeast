@@ -38,6 +38,11 @@ export const HISTORIA_JONAH = 'Hace unos años bajé 37 kg, y ahora bajé de 104
 // Preguntas frecuentes. soloWeb: no sale en las apps de Play Store ni de
 // iPhone (ahí se paga con Google o Apple). enlace: botón debajo de la
 // respuesta ({ texto, href }).
+// Botones "Disponible en Google Play / App Store" (más abajo, con sus links)
+// y la respuesta de "¿Cómo pago?": se encienden cambiando false por true
+// cuando la app de Play pase a producción y Apple apruebe la de iPhone.
+export const TIENDAS_PUBLICAS = { play: false, ios: false };
+
 export const PREGUNTAS_FRECUENTES = [
   { id: 'fuente', pregunta: '¿De dónde salen las calorías?',
     respuesta: 'La primera fuente es la Tabla Peruana de Composición de Alimentos del CENAN (Instituto Nacional de Salud). Si un alimento no está ahí, uso la etiqueta del producto o la base del USDA (de Estados Unidos), y en algunos platos, una receta promedio. En el buscador de calorías de jonahbeast.com cada plato te dice de dónde sale su número. Son valores aproximados: cambian un poco según la receta y la porción.',
@@ -54,7 +59,10 @@ export const PREGUNTAS_FRECUENTES = [
   { id: 'quien', pregunta: '¿Quién está detrás?',
     respuesta: `Yo, Jonah. ${HISTORIA_JONAH} No dejé la comida peruana: aprendí a medirla. Hice esta app para que tú también cuentes tu comida sin adivinar. El cambio llega poco a poco, comida a comida.` },
   { id: 'pagar', pregunta: '¿Cómo pago?', soloWeb: true,
-    respuesta: 'En soles, con Yape, Plin, transferencia o Mercado Pago (tarjeta o saldo). Con Yape, Plin o transferencia me mandas la captura desde la app y activo tu plan apenas la veo (de 7 am a 10 pm). Con Mercado Pago se activa solo cuando se aprueba el pago: pagas una vez, o eliges que se cobre solo cada periodo y lo cancelas cuando quieras desde tu cuenta de Mercado Pago.' },
+    respuesta: 'En soles, como te quede más cómodo: con tarjeta de crédito o débito (o tu saldo) por Mercado Pago, con Yape, con Plin o por transferencia. Con Mercado Pago tu plan se activa solo apenas se aprueba el pago: pagas una vez, o eliges que se cobre solo cada periodo y lo cancelas cuando quieras desde tu cuenta de Mercado Pago. Con Yape, Plin o transferencia me mandas la captura desde la app y activo tu plan apenas la veo (de 7 am a 10 pm).'
+      + (TIENDAS_PUBLICAS.play || TIENDAS_PUBLICAS.ios
+        ? ` Y si usas la app de ${[TIENDAS_PUBLICAS.play && 'Google Play', TIENDAS_PUBLICAS.ios && 'App Store'].filter(Boolean).join(' o de ')}, también puedes pagar con tu cuenta de la tienda.`
+        : '') },
   { id: 'fuera', pregunta: '¿Funciona si como fuera de casa?',
     respuesta: 'Sí. En la app están los platos de la pollería (pollo a la brasa por cuarto u octavo, pierna o pecho), del chifa (chaufa, tallarín saltado, sopa wantán), del menú (lomo saltado, ají de gallina, arroz con pollo y muchos más), de la comida al paso (anticucho, salchipapa, hamburguesa de carretilla, picarones) y de algunas cadenas, como KFC y Bembos. Y si no sabes qué pedir, cuéntale a Beast dónde estás y te ayuda a elegir con lo que te queda del día.' },
 ];
@@ -104,7 +112,8 @@ export const TESTIMONIOS_ALUMNOS = [];
    - google-play-es.png: play.google.com/intl/es-419/badges/ (español)
    - app-store-es.svg: developer.apple.com/app-store/marketing/guidelines/
      ("Descárgalo en el App Store", negro, español) */
-export const TIENDAS_PUBLICAS = { play: false, ios: false };
+// (TIENDAS_PUBLICAS se define arriba, antes de las preguntas frecuentes,
+// porque la respuesta de "¿Cómo pago?" cambia cuando se encienden.)
 export const LINK_PLAY = 'https://play.google.com/store/apps/details?id=com.jonahbeast.twa'; // android/twa-manifest.json → packageId
 // El número de la app en la App Store (apps.apple.com/pe/app/id…) todavía
 // no está en el repositorio: se ve en App Store Connect → la app →

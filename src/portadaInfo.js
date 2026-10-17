@@ -59,7 +59,7 @@ export const PREGUNTAS_FRECUENTES = [
   { id: 'quien', pregunta: '¿Quién está detrás?',
     respuesta: `Yo, Jonah. ${HISTORIA_JONAH} No dejé la comida peruana: aprendí a medirla. Hice esta app para que tú también cuentes tu comida sin adivinar. El cambio llega poco a poco, comida a comida.` },
   { id: 'pagar', pregunta: '¿Cómo pago?', soloWeb: true,
-    respuesta: 'En soles, como te quede más cómodo: con tarjeta de crédito o débito (o tu saldo) por Mercado Pago, con Yape, con Plin o por transferencia. Con Mercado Pago tu plan se activa solo apenas se aprueba el pago: pagas una vez, o eliges que se cobre solo cada periodo y lo cancelas cuando quieras desde tu cuenta de Mercado Pago. Con Yape, Plin o transferencia me mandas la captura desde la app y activo tu plan apenas la veo (de 7 am a 10 pm).'
+    respuesta: 'En soles, como te quede más cómodo: con tarjeta de crédito o débito (o tu saldo) por Mercado Pago, con Yape, con Plin o por transferencia. Con Mercado Pago tu plan se activa solo apenas se aprueba el pago: pagas una vez, o eliges que se cobre solo cada periodo y lo cancelas cuando quieras desde tu cuenta de Mercado Pago. Con Yape, Plin o transferencia me mandas la captura desde la app y activo tu plan apenas la veo (de 7 am a 11 pm).'
       + (TIENDAS_PUBLICAS.play || TIENDAS_PUBLICAS.ios
         ? ` Y si usas la app de ${[TIENDAS_PUBLICAS.play && 'Google Play', TIENDAS_PUBLICAS.ios && 'App Store'].filter(Boolean).join(' o de ')}, también puedes pagar con tu cuenta de la tienda.`
         : '') },

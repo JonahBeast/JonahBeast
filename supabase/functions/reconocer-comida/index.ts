@@ -332,6 +332,7 @@ PLATOS COMBINADOS: si la foto muestra un plato peruano conocido que está en la 
 En estos casos, los gramos del plato combinado son los de los fideos más la salsa juntos. Lo que venga al costado (un bistec, una presa, un huevo) va aparte.
 - Arroces de color: el arroz VERDE (con culantro) es "Arroz verde"; el arroz AMARILLO con arvejas, zanahoria y choclo es "Arroz amarillo (a la jardinera)"; el arroz ROJIZO o anaranjado con aderezo de ají panca es "Arroz aderezado (con ají panca)"; el arroz DORADO o marrón claro por el sillao, salteado, con pedacitos de huevo revuelto y cebolla china, es chaufa: "Arroz chaufa (solo el arroz)"; la carne del chaufa puede ser pollo, res o chancho (cerdo): si no se distingue, usa "opciones"; si se ven varias carnes mezcladas (chaufa especial), registra cada carne aparte con sus gramos, o "Arroz chaufa especial" si no se pueden separar. Si se ve la presa o la carne junto al arroz (arroz con pollo, con pato, a la jardinera, con chancho, chaufa), registra el arroz y la carne APARTE, cada uno con su clave y sus gramos. Si solo se ve el arroz, sin carne, usa solo la clave del arroz.
 - Platos que en su nombre ya dicen "con arroz" o "y arroz" (ej. "Pollo a la olla con arroz", "Menestra de lentejas con arroz", "Frejolada (frejol con arroz)") ya incluyen su arroz: si usas uno de ellos, NO agregues además "Arroz blanco". Un guiso servido con arroz al lado (lomo saltado, ají de gallina, seco, estofado, cau cau…) va como el guiso y el arroz APARTE, cada uno con sus gramos.
+- Lo mismo con las papas y la ensalada: "Pollo a la brasa con papas y ensalada" ya trae sus papas fritas y su ensalada, la salchipapa ya trae sus papas y el lomo saltado ya trae sus papas fritas salteadas: si usas uno de ellos, NO agregues además papas fritas, lechuga ni tomate sueltos; pon en "gramos" el plato completo.
 - Ensalada rusa vs. ensalada de betarraga: si las verduras picadas (papa, betarraga, zanahoria, vainita) se ven cubiertas o mezcladas con MAYONESA (blanca o rosada y cremosa), es "Ensalada rusa". Si la betarraga se ve sola o con cebolla, suelta y brillante de limón, sin crema, es "Ensalada de betarraga".
 - Pollada, pollo frito, broaster y chicharrón de pollo: su clave es SOLO el pollo. Las papas (fritas, doradas o sancochadas), la yuca, el mote, la ensalada y las cremas van aparte, cada una con su propia clave y sus gramos. Una pollada suele ser 1/4 de pollo (≈ 220 g de carne) o 1/8 (≈ 110 g); casi nunca más.
 - Sándwiches por PAN (pan con pollo, con jamonada, con chicharrón, butifarra, hot dog, hamburguesa de carretilla, sándwich de pollo, triples y mixto): cada uno está en "Pan blanco" y en "Pan integral". Si el pan se ve claramente integral (marrón, con granos o salvado), usa la versión "Pan integral"; si se ve blanco (pan francés, de molde blanco, de hot dog), "Pan blanco". Si no se distingue, usa "opciones" con las dos (pan blanco primero) y confianza "media".
@@ -525,6 +526,21 @@ Cada item tiene "key" (caso normal) O "opciones" (caso ambiguo), nunca ambos.`;
   const ARROZ_SOLO = /^Arroz blanco \(/;
   const yaTraeArroz = items.some((it) => claves(it).length > 0 && claves(it).every((k) => CON_ARROZ.test(k) && !/^Arroz\b/.test(k)));
   if (yaTraeArroz) items = items.filter((it) => !(claves(it).length > 0 && claves(it).every((k) => ARROZ_SOLO.test(k))));
+
+  // Lo mismo con las papas y la ensalada (revisión de cálculos, 17 oct; igual
+  // que la voz y Beast en src/interpretarComida.js): "Pollo a la brasa con
+  // papas y ensalada", la salchipapa, el lomo saltado (sus papas fritas van
+  // salteadas adentro) o un plato "… con papas" ya las traen. Si la IA ve
+  // además las papas o la lechuga sueltas, es lo mismo contado dos veces.
+  // Solo se quitan papas sueltas (no la papa a la huancaína ni la rellena).
+  const TRAE_PAPAS = /^(Salchipapa|Salchipollo|Lomo saltado|Saltado de pollo)\b|\b(con|y) papas?\b|\(presa con papa/i;
+  const TRAE_ENSALADA = /\b(con|y) ensalada\b/i;
+  const PAPA_SUELTA = /^(Papas fritas \(comida rápida\)|Papa \(|Papa dorada \()/;
+  const ENSALADA_SUELTA = /^(Lechuga|Tomate|Pepino|Ensalada fresca)\b/;
+  const esPlatoQueTrae = (re: RegExp) => items.some((it) => claves(it).length > 0 && claves(it).every((k) => re.test(k) && !PAPA_SUELTA.test(k) && !ENSALADA_SUELTA.test(k)));
+  const soloDe = (it: any, re: RegExp) => claves(it).length > 0 && claves(it).every((k) => re.test(k));
+  if (esPlatoQueTrae(TRAE_PAPAS)) items = items.filter((it) => !soloDe(it, PAPA_SUELTA));
+  if (esPlatoQueTrae(TRAE_ENSALADA)) items = items.filter((it) => !soloDe(it, ENSALADA_SUELTA));
 
   // Opciones rápidas para "✏️ No es esto": lo que otros alumnos eligieron
   // cuando la IA dijo cada uno de estos alimentos (solo los de esta foto).

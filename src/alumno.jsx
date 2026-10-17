@@ -6,7 +6,6 @@ import { supabase, supabaseUrl, supabaseKey } from './supabaseClient';
 import { RECETAS_PLATOS } from './recetasPlatos.js';
 import { armarMenu, armarCompras, OPCIONES_PROTEINA, OPCIONES_ACOMPANAMIENTO, OPCIONES_DESAYUNO, GUSTOS_POR_DEFECTO, ESTILOS_ALIMENTACION } from './menuDia.js';
 import {
-  ALIMENTOS_RETIRADOS,
   avisarMeta,
   registrarPasoPago,
   EncuestaSalida,
@@ -77,6 +76,7 @@ import {
   sePuedeFreir,
 } from './App.jsx';
 import { traerTodas } from './traerTodas.js';
+import { interpretarVarios as interpretarVariosCon, porcionDelItem, unidadDePorcion } from './interpretarComida.js';
 import { buscarAlimentos, unidadPorDefecto as unidadPorDefectoCon, esPlatoSinArroz, nombreAlimento, vaEnLaFoto } from './buscador.js';
 import { BotonCompartirPlato } from './compartirPlato.jsx';
 import { MedallaNueva, leerInvitacionEquipo } from './equipo.jsx';
@@ -392,234 +392,17 @@ function ModoFavoritos({ favoritos, onElegir }) {
   );
 }
 
-/* Interpreta una frase con varios alimentos separados por "+", "y" o
-   comas — ej. "1 pan + 2 huevos + 1 taza de café" — y devuelve un
-   alimento con cantidad estimada por cada parte reconocida. No es IA:
-   es una búsqueda por coincidencia de texto contra tu propia base de
-   230 alimentos, priorizando la coincidencia más larga y específica. */
-// ¿"aguja" contiene "frase" como palabras enteras? ("pan francés" sí tiene
-// "pan"; "arroz con ají panca" no.)
-function contienePalabras(aguja, frase) {
-  const esc = frase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-záéíóúñü])${esc}($|[^a-záéíóúñü])`, 'i').test(aguja);
-}
-
-// "ciento cincuenta" → 150, "noventa y dos" → 92, "veintidós" → 22.
-// Solo números de 11 en adelante: "un", "dos"… (cantidades) se leen aparte.
-const UNIDADES_LETRAS = { uno: 1, un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
-const NUMEROS_LETRAS = {
-  once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
-  veinte: 20, veintiuno: 21, veintiun: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
-  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
-  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+/* La frase con varios alimentos (voz, Beast) se interpreta en
+   src/interpretarComida.js, que prueba scripts/probar-frases.mjs. */
+const interpretarVarios = texto => interpretarVariosCon(texto, FOODS, unitsFor);
+// Cuánto se anota de cada alimento entendido: los gramos dichos, la porción
+// dicha ("un octavo de pollo a la brasa" → 1/8) o la medida casera.
+const porcionDeItem = it => porcionDelItem(it, unidadPorDefecto, unitsFor);
+const medidaDicha = it => {
+  const u = unidadDePorcion(it.food, it.porcion, unitsFor, it.textoOriginal);
+  const n = it.cantidad || 1;
+  return u ? `${n === 1 ? u : `${n} × ${u}`} · ` : '';
 };
-const CENTENAS_LETRAS = { cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500 };
-function numerosEnCifras(texto) {
-  const sinTilde = w => w.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-  const palabras = String(texto || '').split(/(\s+)/);
-  const salida = [];
-  for (let i = 0; i < palabras.length; i++) {
-    const w = sinTilde(palabras[i]);
-    let valor = null, j = i;
-    if (CENTENAS_LETRAS[w]) {
-      valor = CENTENAS_LETRAS[w];
-      // "ciento cincuenta", "doscientos veinte"
-      const sig = sinTilde(palabras[i + 2] || '');
-      if (NUMEROS_LETRAS[sig]) { valor += NUMEROS_LETRAS[sig]; j = i + 2; }
-      else if (UNIDADES_LETRAS[sig] && sig !== 'un' && sig !== 'una') { valor += UNIDADES_LETRAS[sig]; j = i + 2; }
-    } else if (NUMEROS_LETRAS[w]) {
-      valor = NUMEROS_LETRAS[w];
-    }
-    if (valor === null) { salida.push(palabras[i]); continue; }
-    // "noventa y dos": decena + "y" + unidad
-    const base = NUMEROS_LETRAS[sinTilde(palabras[j] || '')] || 0;
-    if (base >= 30 && base % 10 === 0 && sinTilde(palabras[j + 2] || '') === 'y' && UNIDADES_LETRAS[sinTilde(palabras[j + 4] || '')]) {
-      valor += UNIDADES_LETRAS[sinTilde(palabras[j + 4])];
-      j += 4;
-    }
-    salida.push(String(valor));
-    i = j;
-  }
-  return salida.join('');
-}
-
-function interpretarVarios(textoCompleto) {
-  const NUM_PALABRAS = {
-    un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
-    seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
-  };
-  // Se separa por conectores explícitos ("+", "y", "más", comas) Y
-  // además, cada vez que aparece una nueva cantidad (un número o "dos",
-  // "tres"...) se asume que empieza un alimento distinto — así no hace
-  // falta decir "más" entre cada uno para que se registren todos.
-  // Primero los números dichos en letras pasan a cifras ("noventa y dos
-  // gramos" → "92 gramos"): antes la "y" del número partía la frase y
-  // "noventa" quedaba como si fuera un alimento.
-  let marcado = numerosEnCifras(textoCompleto).replace(/\+|,|\by\b|\bm[aá]s\b/gi, ' ||| ');
-  marcado = marcado.replace(/\b(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/gi, '|||$1');
-  // Sin puntos ni signos: el dictado termina frases con "." y eso no dejaba
-  // reconocer la última palabra ("redondas.").
-  const partes = marcado.split('|||').map(s => s.replace(/[.,;:¡!¿?"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
-
-  // Genera variantes en singular de una palabra en español, para que
-  // "panes" también encuentre "Pan francés" y "huevos" encuentre
-  // "Huevo de gallina" — la base de datos guarda todo en singular.
-  function variantesSingular(palabra) {
-    const set = new Set([palabra]);
-    if (palabra.length > 4 && /[^aeiouáéíóú]es$/.test(palabra)) set.add(palabra.slice(0, -2)); // panes -> pan
-    if (palabra.length > 3 && palabra.endsWith('s')) set.add(palabra.slice(0, -1)); // huevos -> huevo
-    return [...set];
-  }
-
-  return partes.map(parte => {
-    let cantidad = 1;
-    let resto = parte;
-    const mDigito = parte.match(/^(\d+)\s+(.*)$/);
-    if (mDigito) {
-      cantidad = parseInt(mDigito[1], 10);
-      resto = mDigito[2];
-    } else {
-      const palabras = parte.split(/\s+/);
-      if (NUM_PALABRAS[palabras[0]?.toLowerCase()]) {
-        cantidad = NUM_PALABRAS[palabras[0].toLowerCase()];
-        resto = palabras.slice(1).join(' ');
-      }
-    }
-    resto = resto.replace(/^(taza|plato|porci[oó]n|vaso|rebanada|unidad(es)?)\s+de\s+/i, '').trim();
-
-    // Si la persona dijo la unidad de peso explícitamente ("150 g de
-    // yogurt", "200 ml de leche"), se respeta ese gramaje tal cual —
-    // no se multiplica por la unidad natural del alimento.
-    let gramosExplicitos = null;
-    const mPeso = resto.match(/^(kg|kilogramos?|kilos?|gramos?|grs?|g|ml|mililitros?)\b\.?\s*(?:de\s+)?(.*)$/i);
-    if (mPeso) {
-      const esKilo = /^k/i.test(mPeso[1]);
-      gramosExplicitos = cantidad * (esKilo ? 1000 : 1);
-      resto = mPeso[2];
-    }
-
-    // Cómo se dice en casa → cómo está en la app.
-    const restoLower = resto.toLowerCase()
-      .replace(/\b(sancochad|hervid)(o|a)s?\b/g, 'cocid')
-      .replace(/\byogurt\b/g, 'yogur')
-      .replace(/\bqueques?\b/g, 'keke');
-    const restoVariantes = variantesSingular(restoLower);
-    // "Sin azúcar" (o "natural"): manda el que no lleva azúcar, nunca el
-    // "Con azúcar" (antes "jugo de papaya sin azúcar" elegía el con azúcar
-    // porque contaba la palabra "azúcar").
-    const pideSinAzucar = /\bsin\s+az[uú]car\b|\bnatural\b/i.test(resto);
-    // Palabras que vienen después de "sin" no cuentan para el estado.
-    const tokensResto = restoLower.split(/\s+/);
-    const palabrasEstado = tokensResto.filter((w, k) => w.length > 3 && tokensResto[k - 1] !== 'sin');
-
-    // Se calculan TODAS las coincidencias razonables (no solo la
-    // mejor), para poder detectar cuando hay varias parecidas y no
-    // está claro cuál es — en vez de adivinar en silencio.
-    const candidatas = [];
-    for (const f of FOODS) {
-      if (ALIMENTOS_RETIRADOS.has(f.key)) continue;
-      let nombreLower = f.name.toLowerCase();
-      if (contienePalabras(nombreLower, 'keke')) nombreLower += ' queque';
-      else if (contienePalabras(nombreLower, 'queque')) nombreLower += ' keke';
-      const estadoLower = (f.state && f.state !== '-') ? f.state.toLowerCase() : '';
-      let score = 0;
-      // Se compara por palabras enteras: "pan" no es "ají panca" ni "papa"
-      // es "papaya".
-      for (const rv of restoVariantes) {
-        if (nombreLower === rv) score = Math.max(score, 100);
-        else if (rv.length > 2 && contienePalabras(nombreLower, rv)) score = Math.max(score, 50 + rv.length);
-        else if (nombreLower.length > 2 && contienePalabras(rv, nombreLower)) score = Math.max(score, 30 + nombreLower.length);
-      }
-      if (score === 0) {
-        const palabrasResto = restoLower.split(/\s+/).filter(w => w.length > 3);
-        const palabrasNombre = new Set(nombreLower.split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
-        let coincidencias = 0;
-        for (const w of palabrasResto) {
-          if (variantesSingular(w).some(v => palabrasNombre.has(v))) coincidencias++;
-        }
-        if (coincidencias > 0) score = coincidencias * 5;
-      }
-      // El estado (frito, cocido, crudo...) también cuenta — así "huevo
-      // frito" distingue de "huevo cocido", no los deja empatados.
-      if (estadoLower && score > 0) {
-        // Palabras cortas ("con", "sin", "de") no cuentan: "jugo de papaya
-        // con un plátano" no es el jugo "Con azúcar".
-        for (const w of palabrasEstado) {
-          if (variantesSingular(w).some(v => estadoLower === v || estadoLower.includes(v))) {
-            score += 40;
-            break;
-          }
-        }
-      }
-      // Lo crudo no gana en silencio: "arroz blanco", "quinua" o "papa" por
-      // voz o con Beast son lo cocido (antes salía "Arroz blanco (Crudo)",
-      // 365 kcal por 100 g en vez de 130, porque en la lista va primero).
-      // Igual que en la foto y en "Escribir". Si dice "crudo", manda lo
-      // crudo. Las verduras quedan como estaban (en ensalada van crudas).
-      if (score > 0 && /crud/.test(estadoLower) && !/crud/.test(restoLower) && f.group !== 'Verduras'
-        && FOODS.some(o => o.name === f.name && o.key !== f.key && !/crud/i.test(o.state || ''))) score -= 5;
-      if (score > 0 && pideSinAzucar) {
-        const textoFood = `${nombreLower} ${estadoLower}`;
-        if (/con az[uú]car/.test(textoFood)) score = 1;
-        else if (score >= 10 && /sin az[uú]car|natural/.test(textoFood)) score += 45;
-      }
-      if (score > 0) candidatas.push({ food: f, score });
-    }
-    candidatas.sort((a, b) => b.score - a.score);
-    // Lo que es solo un ingrediente del mejor no compite con él: con "jugo
-    // de papaya" no se pregunta por "Papaya (cruda)".
-    if (candidatas.length > 1) {
-      const nombreMejor = candidatas[0].food.name.toLowerCase();
-      for (let k = candidatas.length - 1; k > 0; k--) {
-        const n = candidatas[k].food.name.toLowerCase();
-        if (n !== nombreMejor && n.length < nombreMejor.length && contienePalabras(nombreMejor, n)) candidatas.splice(k, 1);
-      }
-    }
-
-    // Nada parecido en la app: no se pierde en silencio, queda para
-    // buscarlo (o pedírselo a Jonah) después.
-    if (candidatas.length === 0) {
-      return resto.trim().length > 1 ? { textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, sinCoincidencia: true } : null;
-    }
-
-    const mejor = candidatas[0].food;
-    const mejorScore = candidatas[0].score;
-
-    // Si hay 2+ opciones distintas con un puntaje parecido al mejor
-    // (dentro del 70%), no se adivina — se le pregunta al alumno cuál
-    // de todas es. Se compara por "key" (nombre + estado), no solo el
-    // nombre — así "Huevo de gallina (Frito)" y "(Cocido)" no se tapan
-    // entre sí por compartir el mismo nombre base.
-    let empatadas = candidatas.filter(c => c.score >= mejorScore * 0.7 && c.food.key !== mejor.key);
-    // "Jugo de papaya" a secas: se pregunta si fue con o sin azúcar cuando
-    // la app tiene las dos versiones (la natural o "Sin azúcar").
-    let preguntarAzucar = false;
-    if (!pideSinAzucar && /con az[uú]car/i.test(`${mejor.name} ${mejor.state}`)) {
-      const base = mejor.name.toLowerCase();
-      const sinAz = FOODS.find(f => f.key !== mejor.key && (
-        (f.name.toLowerCase() === base && /sin az[uú]car/i.test(f.state || '')) ||
-        f.name.toLowerCase() === `${base} natural` || f.name.toLowerCase() === `${base} sin azúcar`));
-      if (sinAz) { empatadas = [{ food: sinAz }, ...empatadas.filter(c => c.food.key !== sinAz.key)]; preguntarAzucar = true; }
-    }
-    // ¿Lo que encontró cubre todo lo que dijo? "pan de avena" no es
-    // "Avena (cocida)": sobra "pan". Si sobra una palabra, se pregunta (con
-    // "No es ninguna") en vez de anotar otra cosa en silencio.
-    const RELLENO_VOZ = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'y', 'a', 'al', 'en', 'un', 'una', 'mi', 'sin', 'para', 'tipo', 'medio', 'media', 'poco', 'taza', 'plato', 'vaso']);
-    const palabrasFood = new Set(`${mejor.name} ${mejor.state || ''}`.toLowerCase().split(/[^a-záéíóúñü]+/).filter(Boolean).flatMap(variantesSingular));
-    const parcial = mejorScore < 100 && restoLower.split(/\s+/)
-      .filter(w => w.length > 2 && !RELLENO_VOZ.has(w) && !(pideSinAzucar && /^(az[uú]car|natural)$/.test(w)))
-      .some(w => !variantesSingular(w).some(v => palabrasFood.has(v) || [...palabrasFood].some(pf => pf.startsWith(v) || v.startsWith(pf) && pf.length > 3)));
-    const necesitaAclarar = (empatadas.length > 0 && (mejorScore < 90 || preguntarAzucar)) || parcial; // coincidencia exacta no se cuestiona (salvo con o sin azúcar)
-    const opciones = necesitaAclarar
-      ? [mejor, ...empatadas.map(c => c.food)].slice(0, 4)
-      : null;
-
-    return {
-      textoOriginal: parte.trim(), textoBuscar: resto.trim(), cantidad, gramosExplicitos,
-      food: mejor, necesitaAclarar, opciones,
-    };
-  }).filter(Boolean);
-}
 
 // Registrar por voz es Premium: en la versión gratis sale el aviso.
 function ModoVoz(props) {
@@ -995,7 +778,7 @@ function ModoVozActivo({ onElegirVarios, onBuscarDespues, autoGrabar = false, us
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'bg-zinc-950 border-zinc-800 opacity-50'}`}>
                 <span className="text-lg shrink-0">{it.activo ? '✅' : '⬜'}</span>
                 <span className="jb-body text-xs text-zinc-200 flex-1">
-                  {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : ''}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
+                  {emojiAlimento(it.food)} {medidaDicha(it) || (it.gramosExplicitos ? `${it.gramosExplicitos}g ` : it.cantidad > 1 ? `${it.cantidad}x ` : '')}{it.food.name}{it.food.state && it.food.state !== '-' ? ` (${it.food.state})` : ''}
                   <NotaSinArroz food={it.food} />
                 </span>
                 {it.pedido && <span className="jb-body text-[10px] text-emerald-400 shrink-0">✓ agregado</span>}
@@ -1064,8 +847,8 @@ function RegistroRapido({ username, mealPlan, setMealPlan, remaining, restriccio
       if (it.gramosExplicitos) {
         return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos' };
       }
-      const d = unidadPorDefecto(it.food);
-      return { id: uid(), foodKey: it.food.key, qty: d.qty * it.cantidad, unit: d.unit };
+      const d = porcionDeItem(it);
+      return { id: uid(), foodKey: it.food.key, qty: d.qty, unit: d.unit };
     });
     setMealPlan(v => ({ ...v, meals: { ...v.meals, [mealDestino]: [...v.meals[mealDestino], ...nuevas] } }));
     vibrar(20);
@@ -11429,8 +11212,8 @@ function entradasDeItems(items, extra = {}) {
   return items.map(it => {
     if (it.gramos) return { id: uid(), foodKey: it.food.key, qty: Math.round(it.gramos), unit: 'gramos', ...extra };
     if (it.gramosExplicitos) return { id: uid(), foodKey: it.food.key, qty: it.gramosExplicitos, unit: 'gramos', ...extra };
-    const d = unidadPorDefecto(it.food);
-    return { id: uid(), foodKey: it.food.key, qty: d.qty * (it.cantidad || 1), unit: d.unit, ...extra };
+    const d = porcionDeItem(it);
+    return { id: uid(), foodKey: it.food.key, qty: d.qty, unit: d.unit, ...extra };
   });
 }
 const nombreFood = f => `${f.name}${f.state && f.state !== '-' ? ` (${f.state})` : ''}`;
@@ -11515,7 +11298,7 @@ function BeastTarjetaComida({ accion, premium, username, mealPlan, onGuardar, on
           className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left border ${it.activo ? 'bg-orange-500/10 border-orange-500/40' : 'border-zinc-800 opacity-50'}`}>
           <span className="shrink-0">{it.activo ? '✅' : '⬜'}</span>
           <span className="jb-body text-xs text-zinc-200 flex-1">
-            {emojiAlimento(it.food)} {it.gramosExplicitos ? `${it.gramosExplicitos} g ` : it.cantidad > 1 ? `${it.cantidad} × ` : ''}{nombreFood(it.food)}
+            {emojiAlimento(it.food)} {medidaDicha(it) || (it.gramosExplicitos ? `${it.gramosExplicitos} g ` : it.cantidad > 1 ? `${it.cantidad} × ` : '')}{nombreFood(it.food)}
             <NotaSinArroz food={it.food} />
           </span>
           <span className="jb-body text-[11px] text-zinc-400 shrink-0 tabular-nums">{Math.round(entradasDeItems([it]).reduce((t, en) => t + entryMacros(en).kcal, 0))} kcal</span>

@@ -3,6 +3,7 @@ import { Eye, X, ChevronRight, AlertTriangle, Loader2, MessageCircle, CreditCard
 import { supabase } from './supabaseClient';
 import { ReglaDeslizable, RuedaFecha } from './regla.jsx';
 import MiniaturaPlato from './miniaturaPlato.jsx';
+import { ESTILOS_PORTADA_SUPER, Brasas, Cuenta, Carrusel, TipeaPlatos, useInclinar, useMarcaFija, useFijaVisible, usePausaFueraDePantalla, quieto } from './portadaFx.jsx';
 import { ALIMENTOS_RETIRADOS, vaEnLaFoto, unidadPorDefecto as unidadPorDefectoBase, arrozDelPlato, esPlatoSinPapa, slugAlimento } from './buscador.js';
 import { gramosMedidaRetirada } from './medidasRetiradas.js';
 import { cantidadDudosa as cantidadDudosaCon } from './cantidades.js';
@@ -35,6 +36,9 @@ const BuscadorPortada = React.lazy(cargarParte(() => import('./buscadorPortada.j
 // Secciones de la portada debajo de "¿Por qué?" (así se ve la app, gratis vs.
 // Premium, preguntas frecuentes): se bajan aparte, la primera pantalla no espera.
 const SeccionesPortada = React.lazy(cargarParte(() => import('./portadaSecciones.jsx')));
+// Menú ☰ de la portada: se descarga recién al abrirlo (o al acercar el dedo o el mouse).
+const cargarMenuPortada = () => import('./portadaMenu.jsx');
+const MenuPortada = React.lazy(cargarParte(cargarMenuPortada));
 
 /* ------------------------------------------------------------------ */
 /* DATA                                                                */
@@ -2773,6 +2777,33 @@ function fichaPlato(key) {
 }
 function FichasPlatos({ onElegir, className = '', fila = false, style }) {
   const fichas = FICHAS_PORTADA.map(fichaPlato).filter(Boolean);
+  // En la portada SÚPER (fila): tarjetas carbón que se inclinan y kcal que
+  // cuentan hasta el número de la app. En el buscador (grilla), igual que antes.
+  if (fila) return (
+    <div style={style} className={'ps-fichas ' + className}>
+      {fichas.map(f => (
+        <button key={f.food.key} type="button" onClick={() => onElegir(f.food)} className="ps-ficha ps-incl">
+          <span className="flex items-start gap-2">
+            <MiniaturaPlato food={f.food} tam={36} />
+            <span className="block min-w-0 flex-1">
+              <span className="block jb-body text-[13px] font-bold text-zinc-50 leading-tight line-clamp-2 min-h-[2.1em]">{f.food.name}</span>
+              {f.food.state && f.food.state !== '-' && <span className="block jb-body text-[11px] text-zinc-300 leading-tight truncate">{f.food.state.toLowerCase()}</span>}
+            </span>
+          </span>
+          <span className="block jb-body text-[11px] text-zinc-400 leading-tight mt-1 truncate">{f.medida}</span>
+          <span className="flex items-end justify-between gap-1 mt-1.5">
+            <span className="whitespace-nowrap"><Cuenta valor={f.kcal} auto retraso={1500} className="ps-k" /> <span className="jb-body text-[10px] font-bold text-orange-300">kcal</span></span>
+            {(f.sinArroz || f.sinPapa) && (
+              <span className="flex flex-col items-end">
+                {f.sinArroz && <span className="jb-body text-[10px] text-orange-300 whitespace-nowrap leading-tight" title="Sin arroz: agrégalo aparte">🍚 sin arroz</span>}
+                {f.sinPapa && <span className="jb-body text-[10px] text-orange-300 whitespace-nowrap leading-tight" title="Sin papa: agrégala aparte">🥔 sin papa</span>}
+              </span>
+            )}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
   return (
     <div style={style} className={(fila ? 'flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 snap-x [scrollbar-width:none] ' : 'grid grid-cols-2 gap-2 ') + className}>
       {fichas.map(f => (
@@ -2841,57 +2872,12 @@ const POR_QUE_FILAS = [
     aqui: 'Yo, Jonah. Hace unos años bajé 37 kg, y ahora bajé de 104 a 90 kg en 2 meses y medio con mi app, sumándole entrenamiento algunos días y disciplina.',
     afuera: 'Por lo general, una empresa.' },
   { ico: '💳', titulo: 'Pagas en soles, como quieras', soloWeb: true,
-    aqui: 'Premium en soles con Yape, Plin, tarjeta o transferencia. Y si no pagas, sigues gratis.',
+    aqui: 'Premium en soles con tarjeta de crédito o débito, Yape, Plin o transferencia. Y si no pagas, sigues gratis.',
     afuera: 'Por lo general, con tarjeta o la tienda del celular.' },
 ];
 const POR_QUE_INTRO = 'Hay apps buenas, y no vengo a hablar mal de ninguna. Esta la hice para contar lo que comemos aquí, como lo comemos aquí.';
 
-function PorQueJonahBeast({ onEmpezar }) {
-  const filas = POR_QUE_FILAS.filter(f => !f.soloWeb || !esAppTienda());
-  return (
-    <section id="por-que" className="relative px-4 py-12 lg:py-16 border-t border-zinc-800/80">
-      <div className="max-w-md lg:max-w-4xl mx-auto">
-        <p className="jb-body text-[11px] font-semibold tracking-[0.25em] uppercase text-orange-400 text-center">Te lo cuento claro</p>
-        <h2 className="jb-display text-4xl lg:text-5xl text-zinc-50 text-center leading-none mt-2">
-          ¿POR QUÉ <span className="text-orange-400">JONAH BEAST FUEL</span>?
-        </h2>
-        <p className="jb-body text-sm text-zinc-300 text-center mt-3 max-w-md mx-auto">{POR_QUE_INTRO}</p>
-
-        <div className="grid gap-3 lg:grid-cols-2 mt-6">
-          {filas.map(f => (
-            <div key={f.titulo} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-              <p className="jb-display text-lg text-zinc-50 leading-tight flex items-center gap-2">
-                <span className="text-xl leading-none" aria-hidden="true">{f.ico}</span>{f.titulo.toUpperCase()}
-              </p>
-              <div className="mt-2.5 bg-orange-500/10 border border-orange-500/40 rounded-xl px-3 py-2.5">
-                <p className="jb-body text-[10px] font-semibold tracking-[0.18em] uppercase text-orange-400">✓ Jonah Beast Fuel</p>
-                <p className="jb-body text-sm text-zinc-100 leading-snug mt-0.5">{f.aqui}</p>
-              </div>
-              <div className="mt-2 px-3">
-                <p className="jb-body text-[10px] font-semibold tracking-[0.18em] uppercase text-zinc-500">Apps de afuera</p>
-                <p className="jb-body text-[13px] text-zinc-400 leading-snug mt-0.5">{f.afuera}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="jb-body text-xs text-zinc-500 text-center mt-4 max-w-md mx-auto">
-          Cada cuerpo va a su ritmo: el cambio llega poco a poco, comida a comida. <a href="/contador-de-calorias" className="text-orange-400 hover:text-orange-300 whitespace-nowrap">Cómo contamos las calorías →</a>
-        </p>
-
-        <div className="max-w-md mx-auto mt-6">
-          <button onClick={() => onEmpezar('tabla_comparacion')} className="w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide"
-            style={{ boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
-            EMPEZAR AHORA
-          </button>
-          <p className="jb-body text-zinc-400 text-xs text-center mt-2">
-            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
+// El componente de la sección vive en src/portadaSecciones.jsx (se descarga aparte).
 
 function Landing({ onChoose }) {
 
@@ -2934,154 +2920,118 @@ function Landing({ onChoose }) {
     onChoose(leerRecorrido() ? 'trial' : 'recorrido');
   }
 
-  // Portada igual a la de la app instalada: primero el logo animado (solo
-  // la primera vez en la visita; se salta tocando) y luego Jonah y Andrea a
-  // pantalla completa, con "EMPEZAR AHORA".
+  // En la web, primero el logo animado (solo la primera vez en la visita;
+  // se salta tocando) y luego la portada SÚPER "Fuego" (17 oct).
   const [splash, setSplash] = useState(splashWebPendiente);
   useEffect(() => {
     if (!splash) return;
     const t = setTimeout(() => { marcarSplashWebVisto(); setSplash(false); }, Math.max(0, SPLASH_WEB_MS - msDeSplash()));
     return () => clearTimeout(t);
   }, [splash]);
-  const [fotoIdx, setFotoIdx] = useState(0);
-  const [ciclo, setCiclo] = useState(0);
-  useEffect(() => {
-    if (splash) return;
-    const t = setTimeout(() => { setFotoIdx(i => (i + 1) % BIENVENIDA_FOTOS.length); setCiclo(c => c + 1); }, BIENVENIDA_FOTOS[fotoIdx].ms);
-    return () => clearTimeout(t);
-  }, [splash, fotoIdx]);
-
-
-  const anim = (nombre, retraso, dur = '.45s') => ({ animation: `${nombre} ${dur} ease-out ${retraso}s forwards` });
+  useInclinar();
+  // Menú ☰ (Funciones, Por objetivo, Recursos, Iniciar sesión y Empezar).
+  const [menu, setMenu] = useState(false);
+  function irASeccion(id) {
+    setMenu(false);
+    setTimeout(() => {
+      try { document.getElementById(id)?.scrollIntoView({ behavior: quieto() ? 'auto' : 'smooth', block: 'start' }); } catch {}
+    }, 60);
+  }
 
   if (splash) return <SplashMarca onSaltar={() => { marcarSplashWebVisto(); setSplash(false); }} />;
 
-  const foto = BIENVENIDA_FOTOS[fotoIdx];
-  const logro = (
-    <div className="jbb-a" key={`logro-${fotoIdx}`} style={anim('jbb-pop', ciclo === 0 ? .35 : .1)}>
-      <span className="jb-display inline-block bg-orange-500 text-zinc-950 rounded-xl px-3 py-1 text-3xl lg:text-4xl">{foto.logro}</span>
-      <p className="jb-body text-sm text-zinc-50 mt-1" style={{ textShadow: '0 2px 10px #000' }}>{foto.nombre}</p>
+  const d = s => ({ '--d': s + 's' });
+  const logoFuego = (ancho, alto, clase) => (
+    <div className={'ps-logo ps-golpe ' + clase} style={d(.05)}>
+      <div className="ps-resplandor" />
+      {/* El logo original, entero y sin tocar: el fuego va solo detrás. */}
+      <img src="/logo-marca.webp" alt="Jonah Beast Fuel" width={ancho} height={alto} fetchpriority="high" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 relative overflow-x-hidden">
-      <style>{ESTILOS_BIENVENIDA}</style>
+    <div className="ps jb-body min-h-screen relative overflow-x-hidden">
+      <style>{ESTILOS_BIENVENIDA + ESTILOS_PORTADA_SUPER + ESTILOS_ARRIBA_SUPER}</style>
 
-      {/* ---------- Primera pantalla: igual que la app instalada ----------
-          En el celular, la foto ocupa toda la pantalla y el texto va abajo.
-          En la computadora, la foto grande a la izquierda y el texto a la
-          derecha. */}
-      <section className="relative min-h-[100svh] lg:grid lg:grid-cols-2 lg:items-center lg:gap-14 lg:max-w-6xl lg:mx-auto lg:px-10 lg:py-10">
-        <div className="absolute inset-0 pointer-events-none hidden lg:block"
-          style={{ background: 'radial-gradient(circle at 70% 40%, rgba(232,89,12,.18), transparent 55%)' }} />
-
-        {/* Fotos (Jonah y Andrea) con zoom lento */}
-        <div className="absolute inset-0 overflow-hidden lg:relative lg:inset-auto lg:h-[84vh] lg:max-h-[820px] lg:rounded-3xl lg:border lg:border-orange-500/40"
-          style={{ boxShadow: '0 20px 60px -20px rgba(232,89,12,.55)' }}>
-          {BIENVENIDA_FOTOS.map((f, i) => (
-            <div key={f.src} className="absolute inset-0 overflow-hidden transition-opacity duration-700" style={{ opacity: i === fotoIdx ? 1 : 0, clipPath: 'inset(0)' }}>
-              <img key={i === fotoIdx ? `on-${ciclo}` : 'off'} src={f.src} alt={i === fotoIdx ? f.nombre : ''} className="w-full h-full object-cover"
-                style={{ objectPosition: '50% 18%', animation: i === fotoIdx ? 'jbb-zoom 4.5s ease-out forwards' : undefined }} />
+      {/* ---------- Primera pantalla: el gorila con fuego detrás ---------- */}
+      <ArribaSuper>
+        <button type="button" onClick={() => setMenu(true)} onPointerEnter={cargarMenuPortada} onTouchStart={cargarMenuPortada}
+          className="ps-menu-boton ps-sube" style={d(.3)} aria-label="Abrir el menú" aria-expanded={menu} aria-haspopup="dialog">
+          <span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" />
+        </button>
+        <button onClick={() => onChoose('studentAuth')} className="ps-entrar ps-sube" style={d(.3)}>
+          <span className="ps-solo-pc">¿Ya tienes cuenta? </span><b>ENTRAR</b>
+        </button>
+        <div className="ps-wrap ps-hero-wrap">
+          <div className="ps-solo-pc ps-col-der">{logoFuego(300, 360, '')}</div>
+          <div className="ps-col-izq">
+            {logoFuego(120, 144, 'ps-solo-cel ps-logo-cel')}
+            <div className="ps-lockup ps-sube" style={d(.25)}>
+              <div className="ps-nom">JONAH BEAST <span className="ps-o">FUEL</span></div>
+              <div className="ps-lema">COMIDA A COMIDA</div>
             </div>
-          ))}
-          <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(180deg, rgba(22,17,13,.85) 0%, rgba(22,17,13,.45) 12%, rgba(22,17,13,0) 24%, rgba(22,17,13,0) 30%, rgba(22,17,13,.9) 58%, #16110D 100%)' }} />
-          <div className="absolute inset-x-0 bottom-0 h-48 hidden lg:block" style={{ background: 'linear-gradient(to top, rgba(22,17,13,.9), transparent)' }} />
-          <div className="absolute left-6 bottom-6 hidden lg:block">{logro}</div>
-          <div className="absolute right-5 top-5 hidden lg:flex gap-1.5" aria-hidden="true">
-            {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
+            <h1 className="ps-d ps-h1">
+              <span className="ps-golpe" style={{ ...d(.5), display: 'block' }}>TU CAMBIO</span>
+              <span className="ps-golpe ps-fuego" style={{ ...d(.68), display: 'block' }}>EMPIEZA AQUÍ</span>
+            </h1>
+            <p className="ps-bajada ps-sube" style={d(.85)}>Tu plan con comida peruana, justo para tu meta.</p>
+            {/* De dónde salen los números (lo lee Google): lleva a la página
+                /contador-de-calorias, que lo explica de corrido. */}
+            <a href="/contador-de-calorias" className="ps-cenan ps-sube" style={d(.92)}>
+              Calorías de la <span className="text-zinc-200">Tabla Peruana de Alimentos (CENAN)</span>, con tus platos como se sirven en casa: con o sin arroz. <span className="text-orange-400 whitespace-nowrap">Cómo funciona →</span>
+            </a>
+            <RealesArriba />
+            <div className="ps-zona">
+              <div className="ps-sube" style={d(1)}>
+                <button onClick={registrarClicCTA} className="ps-cta">EMPEZAR AHORA</button>
+                <p className="ps-nota"><b>Gratis para siempre</b> · 7 días de Premium incluidos · Sin tarjeta</p>
+              </div>
+              {/* Buscador de calorías sin registrarse: se abre a pantalla completa. */}
+              <button type="button" onClick={() => setBuscador({ q: null })} className="ps-buscador ps-sube" style={d(1.1)}
+                aria-label="¿Cuántas calorías tiene tu plato? Búscalo sin registrarte">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF7020" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.6-4.6" /></svg>
+                <span className="min-w-0 flex-1">
+                  <span className="ps-t1">¿Cuántas calorías tiene tu plato?</span>
+                  <span className="ps-t2">Ej: <TipeaPlatos /> · sin registrarte</span>
+                </span>
+                <span className="ps-ir">Buscar</span>
+              </button>
+              <FichasPlatos fila className="ps-sube" style={d(1.2)} onElegir={food => {
+                registrarEventoEmbudo('buscador_portada', { detalle: ('ficha:' + food.key).slice(0, 120) });
+                setBuscador({ q: slugAlimento(food), ficha: true });
+              }} />
+              <div className="ps-sube flex flex-wrap items-center justify-center gap-x-4 gap-y-1" style={d(1.3)}>
+                <button onClick={abrirDemo} className="jb-body text-[13px] whitespace-nowrap text-zinc-200 border border-zinc-700 hover:border-orange-500 rounded-full px-3.5 py-2.5 transition-colors">
+                  📸 Pruébala con tu plato
+                </button>
+                <button onClick={() => onChoose('free')} className="jb-body text-xs text-zinc-400 hover:text-zinc-200 py-2.5">
+                  📏 ¿Solo quieres medirte? Hazlo sin registro →
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      </ArribaSuper>
 
-        {/* Arriba en el celular: logo y puntos del carrusel */}
-        <div className="jbb-a absolute left-5 right-5 flex items-center justify-between lg:hidden" style={{ top: 'max(1.25rem, env(safe-area-inset-top))', ...anim('jbb-baja', .1) }}>
-          <div className="flex items-center gap-2">
-            <img src="/logo-marca.webp" alt="" className="w-8" />
-            <div className="leading-none">
-              <span className="jb-display text-lg text-zinc-50 tracking-wide" style={{ textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>JONAH BEAST <span className="text-orange-400">FUEL</span></span>
-              <div className="jb-body text-[10px] font-semibold tracking-[0.25em] uppercase text-orange-400 mt-0.5" style={{ textShadow: '0 1px 5px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9)' }}>Comida a comida</div>
-            </div>
-          </div>
-          <div className="flex gap-1.5" aria-hidden="true">
-            {BIENVENIDA_FOTOS.map((f, i) => <span key={f.src} className={`w-2 h-2 rounded-full transition-colors ${i === fotoIdx ? 'bg-orange-500' : 'bg-zinc-50/40'}`} />)}
-          </div>
-        </div>
+      {/* Franja "COMIDA A COMIDA" que corre (se pausa cuando no se ve). */}
+      <FranjaComida />
 
-        {/* Texto y botones */}
-        <div className="relative z-10 min-h-[100svh] lg:min-h-0 flex flex-col justify-end lg:justify-center gap-3 px-5 lg:px-0 max-w-md mx-auto lg:mx-0 w-full"
-          style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingTop: 'calc(max(1.25rem, env(safe-area-inset-top)) + 3.5rem)' }}>
-          <div className="jbb-a hidden lg:flex items-center gap-3 mb-4" style={anim('jbb-baja', .1)}>
-            <img src="/logo-marca.webp" alt="" className="w-12" />
-            <div>
-              <div className="jb-display text-2xl text-zinc-50 tracking-wide leading-none">JONAH BEAST <span className="text-orange-400">FUEL</span></div>
-              <div className="jb-body text-[11px] tracking-[0.2em] uppercase text-orange-400 mt-1">Comida a comida</div>
-            </div>
-          </div>
-          <div className="lg:hidden">{logro}</div>
-          <h1 className="jb-display leading-[0.92] text-[15vw] sm:text-7xl lg:text-[5.5rem] mt-2">
-            <span className="jbb-a block text-zinc-50" style={anim('jbb-sube', .55)}>TU CAMBIO</span>
-            <span className="jbb-a block text-orange-400" style={anim('jbb-sube', .7)}>EMPIEZA AQUÍ</span>
-          </h1>
-          <p className="jbb-a jb-body text-base lg:text-lg text-zinc-300" style={anim('jbb-sube', .85)}>Tu plan con comida peruana, justo para tu meta.</p>
-          {/* De dónde salen los números (lo lee Google): lleva a la página
-              /contador-de-calorias, que lo explica de corrido. */}
-          <a href="/contador-de-calorias" className="jbb-a jb-body text-xs text-zinc-400 hover:text-zinc-200 -mt-1 leading-snug" style={{ ...anim('jbb-sube', .92), textShadow: '0 1px 6px rgba(0,0,0,.75)' }}>
-            Calorías de la <span className="text-zinc-200">Tabla Peruana de Alimentos (CENAN)</span>, con tus platos como se sirven en casa: con o sin arroz. <span className="text-orange-400 whitespace-nowrap">Cómo funciona →</span>
-          </a>
-          <div className="jbb-a flex items-center gap-3" style={anim('jbb-sube', 1)}>
-            <div className="flex">
-              {['martin', 'andrea', 'cesar'].map((n, i) => (
-                <img key={n} src={`/testimonios/${n}-despues.jpg`} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-zinc-950"
-                  style={{ objectPosition: '50% 15%', marginLeft: i ? -10 : 0 }} />
-              ))}
-            </div>
-            <p className="jb-body text-xs text-zinc-300 leading-snug">Hombres y mujeres reales<br />ya empezaron su cambio</p>
-          </div>
-          {/* Buscador de calorías sin registrarse: se abre a pantalla completa. */}
-          <button type="button" onClick={() => setBuscador({ q: null })}
-            className="jbb-a w-full flex items-center gap-2.5 bg-zinc-950/80 backdrop-blur border border-zinc-600 hover:border-orange-500 rounded-full pl-4 pr-3 py-2.5 text-left"
-            style={anim('jbb-sube', 1.05)} aria-label="¿Cuántas calorías tiene tu plato? Búscalo sin registrarte">
-            <span className="text-lg leading-none" aria-hidden="true">🔎</span>
-            <span className="flex-1 min-w-0">
-              <span className="block jb-body text-[13px] font-semibold text-zinc-50 leading-tight">¿Cuántas calorías tiene tu plato?</span>
-              <span className="block jb-body text-xs text-zinc-400 leading-tight mt-0.5 truncate">Ej: lomo saltado · sin registrarte</span>
-            </span>
-            <span className="jb-body text-xs font-semibold text-orange-400 shrink-0">Buscar</span>
-          </button>
-          <FichasPlatos fila className="jbb-a -mt-1" style={anim('jbb-sube', 1.1)} onElegir={food => {
-            registrarEventoEmbudo('buscador_portada', { detalle: ('ficha:' + food.key).slice(0, 120) });
-            setBuscador({ q: slugAlimento(food), ficha: true });
-          }} />
-          <button onClick={registrarClicCTA} className="jbb-a w-full bg-orange-500 hover:bg-orange-400 rounded-full py-4 jb-display text-xl text-zinc-950 tracking-wide mt-1"
-            style={{ ...anim('jbb-pop', 1.15), boxShadow: '0 14px 44px -10px rgba(232,89,12,.8)' }}>
-            <span className="inline-block" style={{ animation: 'jbb-late 1.6s ease-in-out 2s infinite' }}>EMPEZAR AHORA</span>
-          </button>
-          <p className="jbb-a jb-body text-zinc-400 text-xs text-center" style={anim('jbb-sube', 1.25)}>
-            <span className="text-orange-400 font-semibold">Gratis para siempre</span> · 7 días de Premium incluidos · Sin tarjeta
-          </p>
-          <div className="jbb-a flex items-center justify-center gap-4" style={anim('jbb-sube', 1.3)}>
-            <button onClick={abrirDemo} className="jb-body text-[13px] whitespace-nowrap text-zinc-200 border border-zinc-700 hover:border-orange-500 rounded-full px-3.5 py-2 transition-colors">
-              📸 Pruébala con tu plato
-            </button>
-            <button onClick={() => onChoose('studentAuth')} className="jb-body text-[13px] whitespace-nowrap text-zinc-400 py-2">
-              ¿Ya tienes cuenta? <span className="text-orange-400 font-semibold">ENTRAR</span>
-            </button>
-          </div>
-          <button onClick={() => onChoose('free')} className="jbb-a jb-body text-xs text-zinc-500 hover:text-zinc-300 mt-1 self-center" style={anim('jbb-sube', 1.4)}>
-            📏 ¿Solo quieres medirte? Hazlo sin registro →
-          </button>
-          {/* Datos del negocio (los mismos de la verificación de Meta). */}
-          <p className="jbb-a jb-body text-[10px] leading-snug text-zinc-600 text-center mt-1" style={anim('jbb-sube', 1.45)}>
-            MARTIN JONATHAN HUAMANI CABANA · RUC 10454924024<br />
-            Ate, Lima, Perú · WhatsApp +51 963 760 819 · <a href="/privacidad.html" className="underline hover:text-zinc-400">Privacidad</a>
-          </p>
-        </div>
-      </section>
-
-      <PorQueJonahBeast onEmpezar={registrarClicCTA} />
       <React.Suspense fallback={<div className="min-h-[60vh]" />}>
         <SeccionesPortada onEmpezar={registrarClicCTA} />
       </React.Suspense>
+
+      <BotonFijo onEmpezar={() => registrarClicCTA('barra_fija')} />
+
+      {menu && (
+        <React.Suspense fallback={null}>
+          <MenuPortada onCerrar={() => setMenu(false)} onIr={irASeccion}
+            onEntrar={() => { setMenu(false); onChoose('studentAuth'); }}
+            onEmpezar={() => { setMenu(false); registrarClicCTA('menu'); }}
+            onBuscar={() => { setMenu(false); setBuscador({ q: null }); }}
+            onFoto={() => { setMenu(false); abrirDemo(); }}
+            onMedir={() => { setMenu(false); onChoose('free'); }} />
+        </React.Suspense>
+      )}
 
       {demoAbierta && <DemoFotoPlato onCerrar={() => setDemoAbierta(false)} onRegistrar={registrarClicCTA} />}
       {buscador && (
@@ -3094,6 +3044,164 @@ function Landing({ onChoose }) {
     </div>
   );
 }
+
+// La primera pantalla: sus brasas y avisar al botón fijo si se ve o no.
+function ArribaSuper({ children }) {
+  const ref = useRef(null);
+  useMarcaFija(ref, 'hero');
+  return (
+    <header ref={ref} className="ps-hero">
+      <Brasas />
+      <div className="ps-flash" aria-hidden="true" />
+      {children}
+    </header>
+  );
+}
+
+/* "Hombres y mujeres reales": carrusel deslizable con el antes y después de
+   Jonah, Andrea y César (con su permiso, confirmado por Jonah el 17 oct),
+   cada uno con la etiqueta que ya tenía la app (TESTIMONIOS y la
+   bienvenida): "−37 KG", "6 MESES", "1 AÑO". Sin cifras nuevas.
+   Fotos livianas (…-chico.webp, 240 px de alto, 3 a 8 KB cada una); las
+   de Andrea y César cargan solo al acercarse. Pasa solo cada ~3,5 s hasta
+   que la persona lo toca. */
+const REALES_ARRIBA = [
+  { t: 'martin', logro: '−37 KG', nombre: 'Jonah · creador de la app' },
+  { t: 'andrea', logro: '6 MESES', nombre: 'Andrea · de cambio visible' },
+  { t: 'cesar', logro: '1 AÑO', nombre: 'César · recomponiendo su cuerpo' },
+];
+function RealesArriba() {
+  const items = REALES_ARRIBA.map((r, i) => (
+    <figure key={r.t} className="ps-real">
+      <div className="ps-real-fotos">
+        {['antes', 'despues'].map(k => (
+          <div key={k} className="ps-real-foto">
+            <img src={`/testimonios/${r.t}-${k}-chico.webp`} alt={`${r.nombre.split(' · ')[0]}, ${k === 'antes' ? 'antes' : 'después'}`}
+              width="64" height="104" loading={i ? 'lazy' : 'eager'} decoding="async" />
+            <span>{k === 'antes' ? 'Antes' : 'Después'}</span>
+          </div>
+        ))}
+      </div>
+      <figcaption className="ps-real-txt">
+        <span className="ps-d ps-real-logro">{r.logro}</span>
+        <span className="ps-real-nombre">{r.nombre}</span>
+      </figcaption>
+    </figure>
+  ));
+  return (
+    <div className="ps-reales ps-sube" style={{ '--d': '.95s' }}>
+      <Carrusel etiqueta="Hombres y mujeres reales" items={items} auto={3500} flechas={false}
+        nombre={i => REALES_ARRIBA[i].nombre.split(' · ')[0]}
+        leyenda={<p className="ps-reales-ley">Hombres y mujeres reales ya empezaron su cambio</p>} />
+    </div>
+  );
+}
+
+function FranjaComida() {
+  const ref = useRef(null);
+  usePausaFueraDePantalla(ref);
+  return (
+    <div className="ps-franja-caja" aria-hidden="true">
+      <div className="ps-franja"><div ref={ref} className="ps-pista">{Array.from({ length: 8 }, (_, i) => <span key={i}>COMIDA A COMIDA</span>)}</div></div>
+    </div>
+  );
+}
+
+// "EMPEZAR AHORA" fijo abajo en el celular, desde que se deja la primera
+// pantalla hasta el cierre (clic_cta · barra_fija).
+function BotonFijo({ onEmpezar }) {
+  const visible = useFijaVisible();
+  return (
+    <div className="ps-fija" data-on={visible ? '' : undefined} aria-hidden={!visible}>
+      <button onClick={onEmpezar} className="ps-cta" tabIndex={visible ? 0 : -1}>EMPEZAR AHORA</button>
+    </div>
+  );
+}
+
+/* Estilos de la primera pantalla SÚPER (maqueta "Fuego" aprobada el 17 oct).
+   Los compartidos (botón, brasas, neón…) están en src/portadaFx.jsx. */
+const ESTILOS_ARRIBA_SUPER = `
+.ps .ps-hero{position:relative;min-height:100svh;overflow:hidden;isolation:isolate;
+  background:radial-gradient(120% 70% at 50% 0%,rgba(143,55,8,.45) 0%,rgba(22,17,13,0) 60%),radial-gradient(90% 50% at 50% 105%,rgba(232,89,12,.28),rgba(22,17,13,0) 70%),var(--carbon)}
+.ps .ps-hero-wrap{position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(34px,env(safe-area-inset-bottom))}
+.ps .ps-col-izq{min-width:0;flex:1;display:flex;flex-direction:column}
+.ps .ps-golpe{opacity:0;transform:scale(1.35) translateY(-6px);animation:ps-golpe .55s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:var(--d,0s)}
+@keyframes ps-golpe{to{opacity:1;transform:none}}
+.ps .ps-sube{opacity:0;transform:translateY(18px);animation:ps-sube .6s cubic-bezier(.2,.9,.3,1) forwards;animation-delay:var(--d,0s)}
+@keyframes ps-sube{to{opacity:1;transform:none}}
+.ps .ps-flash{position:absolute;inset:0;pointer-events:none;z-index:3;background:radial-gradient(circle at 50% 30%,rgba(255,112,32,.45),rgba(22,17,13,0) 60%);opacity:0;animation:ps-flash .9s ease-out .35s}
+@keyframes ps-flash{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+.ps .ps-entrar{position:absolute;z-index:4;right:16px;top:max(14px,env(safe-area-inset-top));font-size:12.5px;font-weight:700;color:var(--cr300);padding:9px 14px;border-radius:999px;border:1px solid var(--c700);background:rgba(22,17,13,.6)}
+.ps .ps-entrar b{color:var(--brillo)}
+.ps .ps-menu-boton{position:absolute;z-index:4;left:16px;top:max(14px,env(safe-area-inset-top));width:44px;height:44px;border-radius:50%;border:1px solid var(--c700);background:rgba(22,17,13,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.ps .ps-menu-boton span{display:block;width:18px;height:2px;border-radius:2px;background:var(--crema)}
+.ps .ps-menu-boton span:nth-child(2){width:12px;background:var(--brillo);margin-left:-6px}
+.ps .ps-logo-cel{width:120px;margin:4px auto 0}
+.ps .ps-lockup{text-align:center;margin-top:8px}
+.ps .ps-lockup .ps-nom{font-family:'Anton',sans-serif;font-size:24px;letter-spacing:.04em;line-height:1}
+.ps .ps-lockup .ps-lema{font-size:10px;font-weight:700;letter-spacing:.34em;color:var(--brillo);margin-top:4px}
+.ps .ps-h1{font-size:clamp(50px,15.4vw,64px);text-align:center;margin-top:12px}
+.ps .ps-bajada{text-align:center;font-size:15px;color:var(--cr200);margin-top:8px}
+.ps .ps-cenan{display:block;text-align:center;font-size:12px;line-height:1.35;color:var(--cr400);margin-top:6px}
+.ps .ps-zona{margin-top:auto;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-top:14px}
+
+/* Hombres y mujeres reales (carrusel) */
+.ps .ps-reales{margin-top:12px}
+.ps .ps-reales .ps-carr-pista{padding-top:4px;padding-bottom:4px}
+.ps .ps-reales .ps-carr-item{width:88%}
+.ps .ps-real{display:flex;gap:10px;margin:0;padding:7px;border-radius:16px;background:linear-gradient(160deg,rgba(74,28,3,.55),rgba(27,20,14,.94) 60%);border:1px solid var(--aji700);box-shadow:0 0 18px -6px rgba(255,112,32,.5)}
+.ps .ps-real-fotos{display:flex;gap:4px;flex:none}
+.ps .ps-real-foto{position:relative;width:64px;height:104px;border-radius:10px;overflow:hidden;background:var(--c800)}
+.ps .ps-real-foto img{width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.ps .ps-real-foto span{position:absolute;left:0;right:0;bottom:0;padding:8px 0 3px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--crema);background:linear-gradient(to top,rgba(22,17,13,.9),rgba(22,17,13,0))}
+.ps .ps-real-foto+.ps-real-foto span{color:var(--brillo)}
+.ps .ps-real-txt{display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:0}
+.ps .ps-real-logro{align-self:flex-start;background:var(--aji);color:var(--carbon);border-radius:9px;padding:2px 9px;font-size:24px;line-height:1.15}
+.ps .ps-real-nombre{font-size:12.5px;font-weight:600;color:var(--crema);line-height:1.25}
+.ps .ps-reales-ley{font-size:11.5px;color:var(--cr300);line-height:1.25;text-align:left}
+
+/* Buscador y fichas */
+.ps .ps-buscador{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:8px 16px;border-radius:18px;
+  background:rgba(27,20,14,.92);border:1.5px solid var(--aji);text-align:left;box-shadow:0 0 0 1px rgba(255,112,32,.15),0 0 22px -4px rgba(255,112,32,.55)}
+.ps .ps-t1{display:block;font-size:14px;font-weight:700;color:var(--crema);line-height:1.15}
+.ps .ps-t2{display:block;font-size:12.5px;color:var(--cr400);line-height:1.2;margin-top:2px;white-space:nowrap;overflow:hidden}
+.ps .ps-cursor{display:inline-block;width:1.5px;height:12px;background:var(--brillo);vertical-align:-1px;margin-left:1px;animation:ps-parpadeo 1s steps(1) infinite}
+@keyframes ps-parpadeo{50%{opacity:0}}
+.ps .ps-ir{margin-left:auto;font-weight:700;font-size:13px;color:var(--brillo)}
+.ps .ps-fichas{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 6px;scrollbar-width:none}
+.ps .ps-fichas::-webkit-scrollbar{display:none}
+.ps .ps-ficha{flex:none;width:156px;scroll-snap-align:start;text-align:left;border-radius:14px;padding:9px 11px;background:var(--c900);border:1px solid var(--c700);transition:border-color .2s}
+.ps .ps-ficha:hover{border-color:var(--aji)}
+.ps .ps-ficha .ps-k{font-family:'Anton',sans-serif;font-size:21px;color:var(--brillo);line-height:1}
+
+/* Franja */
+.ps .ps-franja-caja{position:relative;z-index:5;overflow:hidden;margin-top:-26px;padding:14px 0}
+.ps .ps-franja{position:relative;background:var(--aji);color:var(--carbon);overflow:hidden;transform:rotate(-2deg);margin:0 -10px;box-shadow:0 10px 30px -10px rgba(232,89,12,.7)}
+.ps .ps-pista{display:flex;width:max-content;animation:ps-corre 16s linear infinite;will-change:transform}
+.ps .ps-pista span{font-family:'Anton',sans-serif;font-size:24px;letter-spacing:.06em;padding:9px 0;white-space:nowrap}
+.ps .ps-pista span::after{content:"✦";margin:0 18px;font-size:16px;vertical-align:3px}
+@keyframes ps-corre{to{transform:translateX(-50%)}}
+
+@media (max-width:899px){.ps .ps-solo-pc{display:none}}
+@media (min-width:900px){
+  .ps .ps-solo-cel{display:none}
+  .ps .ps-hero-wrap{display:grid;grid-template-columns:1.1fr .9fr;column-gap:56px;align-items:center;padding-top:56px;padding-bottom:56px}
+  .ps .ps-col-izq{grid-column:1;grid-row:1}
+  .ps .ps-col-der{grid-column:2;grid-row:1}
+  .ps .ps-col-der .ps-logo{width:300px;margin:0 auto}
+  .ps .ps-lockup,.ps .ps-h1,.ps .ps-bajada,.ps .ps-cenan{text-align:left}
+  .ps .ps-lockup{margin-top:0}
+  .ps .ps-h1{font-size:84px}
+  .ps .ps-bajada{font-size:17px}
+  .ps .ps-reales,.ps .ps-zona{max-width:540px}
+  .ps .ps-reales .ps-carr-item{width:300px}
+  .ps .ps-zona{margin-top:20px}
+  .ps .ps-fichas{margin:0;padding:2px 0 6px;flex-wrap:wrap;overflow:visible}
+  .ps .ps-ficha{width:calc(33.33% - 6px)}
+  .ps .ps-entrar{right:40px;top:28px}
+  .ps .ps-menu-boton{left:40px;top:28px}
+}
+`;
 
 /* ------------------------------------------------------------------ */
 /* AUTH SCREENS                                                        */
@@ -7372,6 +7480,8 @@ export default function App() {
 }
 
 export {
+  POR_QUE_FILAS,
+  POR_QUE_INTRO,
   ALIMENTOS_RETIRADOS,
   FichasPlatos,
   registrarEventoEmbudo,

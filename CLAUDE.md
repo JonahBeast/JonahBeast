@@ -24,6 +24,14 @@
   3. **Valídalo varias veces antes de entregar:** que las calorías cuadren con proteína, carbos y grasa; que la porción por defecto sume algo real para un plato servido en Perú; que el total del ejemplo de Jonah (o de un alumno) dé lo que debe; y que la foto, el buscador, los favoritos, la voz y Beast den el mismo número.
   4. **Si no estás seguro, no lo inventes:** pregunta o di qué falta. Y cuando te equivoques, dilo claro y arréglalo en todos los lugares con la misma causa.
 
+- **"Pedido grande" (pedido de Jonah, 17 de octubre).** Cuando Jonah escriba "pedido grande" (o pegue el texto "PEDIDO GRANDE"), antes de hacer nada respóndele en palabras simples estos 5 puntos y **espera su OK para empezar**:
+  1. **Lo que no está pidiendo:** qué haría aquí un profesional top de ese tema que a él no se le ocurrió pedir.
+  2. **De dónde partirías:** los datos o fuentes originales (los números reales de la base, la Tabla Peruana del CENAN, la etiqueta, la consola de anuncios), no resúmenes de internet.
+  3. **Cómo lo harías:** pasos y herramientas concretas.
+  4. **Cómo sabremos que está bien:** qué lo demostraría sin depender de la palabra de Claude ni de la de Jonah (un número que cuadra, una prueba en la app, una medición con fecha).
+  5. **Lo que no sabes:** qué falta o habría que suponer; si falta algo, pregúntalo en vez de inventarlo.
+  Cierra con 3 líneas de cómo quedaría su pedido bien hecho. Sirve para decisiones grandes (precios, campañas, funciones nuevas, socio o financiamiento); para mensajes o arreglos chicos no hace falta.
+
 ## App de Android (Google Play)
 
 - **Mientras la app esté en prueba cerrada, cada semana con mejoras se sube una versión nueva a Google Play** (subir `appVersionCode` y `appVersionName` en `android/twa-manifest.json`), con notas de novedades que digan qué se mejoró gracias a los verificadores. Aunque la app de Play Store muestra jonahbeast.com y los cambios se ven solos, Google solo cuenta las versiones subidas a la prueba (lo pidió al rechazar el acceso a producción el 11 de octubre). Claude avisa a Jonah cuándo toca, compila el `.aab` y lo firma con la llave del Drive (con su permiso cada vez); Jonah lo sube. Pasos en `android/LEEME.md`.

@@ -6,8 +6,9 @@
 // la revisión de cada hora (api/cron/alertas-admin.js), que sigue como
 // respaldo si este aviso no sale (por ejemplo, si el alumno cierra la app).
 //
-// De noche (10pm a 7am, hora Perú) no avisa: igual que las demás alertas,
-// esos pagos los recuerda la revisión de cada hora.
+// De noche (11pm a 7am, hora Perú) no avisa: Jonah activa pagos de 7am a
+// 11pm (decisión del 17 oct); lo de la noche lo recuerda la revisión de
+// cada hora a partir de las 7am.
 //
 // Seguridad: solo con la sesión del alumno (su token de Supabase), y solo
 // avisa de SU último pago pendiente de los últimos 15 minutos. Anota el pago
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
   if (errSesion || !sesion?.user) return res.status(401).json({ error: 'No autorizado' });
 
   const { horaPeru } = horaYFechaPeru();
-  if (horaPeru >= 22 || horaPeru < 7) return res.status(200).json({ ok: true, enviado: false, motivo: 'de noche' });
+  if (horaPeru >= 23 || horaPeru < 7) return res.status(200).json({ ok: true, enviado: false, motivo: 'de noche' });
 
   try {
     const { data: alumno } = await supabase.from('alumnos').select('username').eq('user_id', sesion.user.id).maybeSingle();

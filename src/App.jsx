@@ -6102,7 +6102,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
             <p className="jb-body text-sm text-amber-200 font-semibold">Tu pago está en revisión</p>
             <p className="jb-body text-xs text-amber-300/80 mt-0.5">
               Recibimos tu comprobante por {fmtS(pendiente.monto)} ({pendiente.plan_meses} mes(es)).
-              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 10pm). Te llega una notificación cuando esté listo.
+              Jonah ya recibió el aviso y lo activa apenas lo vea (de 7am a 11pm). Te llega una notificación cuando esté listo.
             </p>
           </div>
         </div>
@@ -6358,7 +6358,7 @@ function PlanesTab({ username, nombre, userRecord, onPagoEnviado, ocultarEstado 
               {enviando ? <Loader2 className="animate-spin" size={18} /> : 'YA PAGUÉ · ENVIAR'}
             </button>
             <p className="jb-body text-[11px] text-zinc-500 text-center">
-              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 10pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
+              Me llega el aviso al celular y activo tu plan apenas lo vea (de 7am a 11pm; si pagas de noche, a primera hora). Te avisa una notificación cuando esté listo.
             </p>
           </div>
           </>

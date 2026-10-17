@@ -937,8 +937,8 @@ Problemas:
 2. En "1 · REALIZA TU PAGO" elige **Yape**, **Plin** o **Transferencia**. Aparecen el número o cuenta, el titular y el **monto exacto**. Al lado de cada dato (número de Yape/Plin, cuenta, CCI y monto) hay un botón **"Copiar"**: lo copia sin espacios y sale "✓ Copiado", para pegarlo en tu app del banco sin escribirlo.
 3. Paga desde tu app del banco (pega el número y el monto que copiaste).
 4. En **"2 · ¿YA PAGASTE? MÁNDAME LA CAPTURA"** toca **"📸 Toca aquí y elige la captura de tu pago"** (imagen o PDF). **Con la captura basta.** Si no tienes la captura, escribe el **"Número de operación"** (sale solo mientras no hay captura). Si falta, también pide "Tu celular (WhatsApp)" (9 dígitos) y la fecha de nacimiento (opcional, con las **ruedas de día, mes y año**).
-5. Toca **"YA PAGUÉ · ENVIAR"**. Sale "¡Listo! Ya le llegó el aviso a Jonah 💪": a Jonah le llega un aviso al celular en ese momento (de 7am a 10pm).
-6. Verás **"Tu pago está en revisión"**: Jonah lo activa **apenas lo ve** (de 7am a 10pm; si pagas de noche, a primera hora) y el acceso se activa solo.
+5. Toca **"YA PAGUÉ · ENVIAR"**. Sale "¡Listo! Ya le llegó el aviso a Jonah 💪": a Jonah le llega un aviso al celular en ese momento (de 7am a 11pm).
+6. Verás **"Tu pago está en revisión"**: Jonah lo activa **apenas lo ve** (de 7am a 11pm; si pagas de noche, a primera hora) y el acceso se activa solo.
 7. Cuando se aprueba, llega una notificación: "✅ ¡Listo! Tu pago fue aprobado y tu plan está activo hasta el DD/MM/AAAA." (solo si activaste las notificaciones; si no, lo ves en "MIS PAGOS").
 
 - En **"MIS PAGOS"** ves cada pago: "En revisión" (amarillo), "Aprobado" (verde) o "Rechazado" (rojo).
@@ -1139,7 +1139,7 @@ Tocar un aviso de comida abre el chat de Beast con ese aviso y el botón "📝 A
 | ¿La prueba pide tarjeta? | No. La app es gratis para siempre y trae 7 días de Premium, sin tarjeta. |
 | ¿Qué pasa cuando terminan mis 7 días? | Sigues gratis, no se bloquea nada de lo gratis (13.8). Premium se activa con un plan. |
 | ¿Pierdo mis datos si no renuevo? | No, el historial y las fotos se guardan. |
-| ¿Cuánto tarda la aprobación de Yape/Plin? | A Jonah le llega el aviso al momento y lo activa apenas lo ve (de 7am a 10pm; de noche, a primera hora). El acceso se activa solo. |
+| ¿Cuánto tarda la aprobación de Yape/Plin? | A Jonah le llega el aviso al momento y lo activa apenas lo ve (de 7am a 11pm; de noche, a primera hora). El acceso se activa solo. |
 | ¿Mercado Pago se activa al instante? | Sí, en cuanto se aprueba el pago. |
 | ¿Cómo cancelo la suscripción? | Si pagó con Mercado Pago: su cuenta de Mercado Pago → Suscripciones. Si pagó en la app de Play Store: Google Play → Suscripciones. Si pagó en la app de iPhone: Planes → "Administrar mi suscripción" (o Ajustes del iPhone → su nombre → Suscripciones). |
 | No se guardan mis comidas | Revisar el indicador de arriba a la derecha y seguir la sección 8.8. |

@@ -66,7 +66,7 @@ La portada web se ve igual que la bienvenida de la app instalada:
   - 📸 **Anota como te quede fácil:** foto, voz, escribiendo o código de barras (la voz y las fotos de todos los días, con Premium). · Afuera: muchas también; a veces solo en inglés o en el plan pagado.
   - 🦍 **Un compañero que te guía:** Beast dice cómo encaja cada comida en tu día y qué comer después. · Afuera: algunas tienen chat con IA, muchas veces en inglés o con consejos genéricos.
   - 🙋 **Una persona real detrás:** Jonah, con su historia (hace unos años bajó 37 kg, y ahora de 104 a 90 kg en 2 meses y medio con su app, sumándole entrenamiento algunos días y disciplina). · Afuera: por lo general, una empresa.
-  - 💳 **Pagas en soles, como quieras:** Premium con Yape, Plin, tarjeta o transferencia, y si no pagas sigues gratis. · Afuera: por lo general, con tarjeta o la tienda del celular. **Esta tarjeta no sale dentro de la app de Play Store ni de iPhone** (ahí se paga con Google o Apple).
+  - 💳 **Pagas en soles, como quieras:** Premium con tarjeta de crédito o débito, Yape, Plin o transferencia, y si no pagas sigues gratis. · Afuera: por lo general, con tarjeta o la tienda del celular. **Esta tarjeta no sale dentro de la app de Play Store ni de iPhone** (ahí se paga con Google o Apple).
   - Cierra con "Cada cuerpo va a su ritmo: el cambio llega poco a poco, comida a comida. **Cómo contamos las calorías →**" (abre /contador-de-calorias), el botón **"EMPEZAR AHORA"** (el mismo recorrido de siempre) y "Gratis para siempre · 7 días de Premium incluidos · Sin tarjeta".
   - Si alguien pregunta por una app en particular, no se habla mal de ninguna: se explica qué hace distinta esta app.
 - **Más abajo (desde el 17 de octubre), en este orden:**

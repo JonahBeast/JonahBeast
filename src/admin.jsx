@@ -122,6 +122,44 @@ function linkWhatsApp(telefono, texto) {
   const full = num ? (num.length <= 9 ? '51' + num : num) : '';
   return full ? `https://wa.me/${full}?text=${encodeURIComponent(texto)}` : `https://wa.me/?text=${encodeURIComponent(texto)}`;
 }
+// Mensaje de bienvenida a Premium (texto general elegido por Jonah el 17 de
+// octubre): sin kilos ni halagos, con el cierre de "días buenos y difíciles".
+const NOMBRE_PLAN = { 1: 'mensual', 3: 'trimestral', 6: 'semestral', 12: 'anual' };
+function mensajeBienvenidaPremium(nombre, meses, vence) {
+  const pila = String(nombre || '').trim().split(/\s+/)[0] || '';
+  const fecha = vence
+    ? new Date(`${vence}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  return [
+    `¡${pila ? pila + ', ya' : 'Ya'} eres Premium! 🦍🔥`,
+    '',
+    `Soy Jonah y te quiero dar las gracias por confiar en la app y quedarte con el *plan ${NOMBRE_PLAN[meses] || `de ${meses} meses`}*.`,
+    ...(fecha ? ['', `📅 Tu Premium está activo hasta el *${fecha}*.`] : []),
+    '',
+    'Desde hoy tienes todo:',
+    '📸 Fotos de tus platos sin límite',
+    '🍽️ Tu menú del día armado para ti',
+    '🦍 Beast, tu compañero, para preguntarle qué comer o cómo vas',
+    '🙋 Y si un alimento no está en la app, me lo pides y yo te lo agrego calculado',
+    '',
+    'Habrá días buenos y días difíciles; en los dos, aquí estoy para ayudarte a seguir. Vamos juntos, *comida a comida* 💪',
+    '',
+    'Cualquier duda me escribes aquí, que yo te leo.',
+    '— Jonah',
+  ].join('\n');
+}
+// Marca en este celular a quién ya se le mandó la bienvenida (solo para que
+// el botón diga "✓ Enviado"; si se borra, no pasa nada).
+const CLAVE_BIENVENIDAS = 'jb_bienvenida_premium_enviada';
+function bienvenidasEnviadas() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_BIENVENIDAS) || '{}') || {}; } catch { return {}; }
+}
+function marcarBienvenidaEnviada(pagoId) {
+  try {
+    const m = bienvenidasEnviadas(); m[pagoId] = Date.now();
+    localStorage.setItem(CLAVE_BIENVENIDAS, JSON.stringify(m));
+  } catch {}
+}
 function CuponesPanel({ users }) {
   const [cupones, setCupones] = useState(null);
   const [usos, setUsos] = useState([]);
@@ -12488,7 +12526,37 @@ function PagosPanel({ onAprobado, onCambio }) {
   const [procesando, setProcesando] = useState(null);
   const [verGrande, setVerGrande] = useState(null);
   const [filtro, setFiltro] = useState('pendiente');
+  const [alumnosPago, setAlumnosPago] = useState({});
+  const [enviadas, setEnviadas] = useState(() => bienvenidasEnviadas());
+  const [recienAprobado, setRecienAprobado] = useState(null);
   const yaAbrio = useRef(false);
+
+  // El pago que activó el plan vigente de cada alumno (el aprobado más nuevo,
+  // con dinero real y que no sea un extra como el de fotos).
+  function esPagoDePlan(p) {
+    return p.estado === 'aprobado' && Number(p.monto) > 0 && !/add-on/i.test(p.metodo || '');
+  }
+  function ultimosDePlan(lista) {
+    const vistos = new Set();
+    return lista.filter(p => {
+      if (!esPagoDePlan(p) || vistos.has(p.username)) return false;
+      vistos.add(p.username);
+      return true;
+    });
+  }
+  // Pagos de los últimos 14 días que todavía no tienen su bienvenida.
+  function sinBienvenida(lista) {
+    const limite = Date.now() - 14 * 86400000;
+    return ultimosDePlan(lista).filter(p => new Date(p.creado_en).getTime() >= limite && !enviadas[p.id]);
+  }
+  function linkBienvenida(p) {
+    const a = alumnosPago[p.username] || {};
+    return linkWhatsApp(a.telefono, mensajeBienvenidaPremium(a.nombre || p.nombre, p.plan_meses, a.fecha_vencimiento));
+  }
+  function marcarEnviada(p) {
+    marcarBienvenidaEnviada(p.id);
+    setEnviadas(bienvenidasEnviadas());
+  }
 
   useEffect(() => { cargar(); }, []);
 
@@ -12501,7 +12569,17 @@ function PagosPanel({ onAprobado, onCambio }) {
       setPagos(lista);
       // Al entrar, abierta solo si hay algo que aprobar; si no, queda como
       // una línea arriba que no estorba.
-      if (!yaAbrio.current) { yaAbrio.current = true; setOpen(lista.some(p => p.estado === 'pendiente')); }
+      // Nombre, celular y vencimiento de quienes pagaron, para el mensaje de
+      // bienvenida a Premium.
+      const nombresPago = [...new Set(lista.filter(p => p.estado === 'aprobado').map(p => p.username))];
+      if (nombresPago.length) {
+        const { data: als } = await supabase.from('alumnos').select('username, nombre, telefono, fecha_vencimiento')
+          .in('username', nombresPago);
+        const m = {};
+        (als || []).forEach(a => { m[a.username] = a; });
+        setAlumnosPago(m);
+      }
+      if (!yaAbrio.current) { yaAbrio.current = true; setOpen(lista.some(p => p.estado === 'pendiente') || sinBienvenida(lista).length > 0); }
       if (onCambio) onCambio();
       const rutas = lista.filter(p => p.comprobante_ruta).map(p => p.comprobante_ruta);
       if (rutas.length) {
@@ -12589,6 +12667,7 @@ function PagosPanel({ onAprobado, onCambio }) {
         }).catch(() => {});
       } catch {}
       await cargar();
+      if (!/add-on/i.test(pago.metodo || '') && Number(pago.monto) > 0) setRecienAprobado(pago);
       if (onAprobado) onAprobado();
     } catch (e) { alert('No se pudo completar la acción: ' + (e?.message || 'Intenta de nuevo.')); }
     setProcesando(null);
@@ -12648,6 +12727,9 @@ function PagosPanel({ onAprobado, onCambio }) {
   const horasEsperando = p => (Date.now() - new Date(p.creado_en).getTime()) / 3600000;
   const atrasados = pendientes.filter(p => horasEsperando(p) >= 12);
   const visibles = filtro === 'todos' ? pagos : pagos.filter(p => p.estado === filtro);
+  const faltaBienvenida = sinBienvenida(pagos).filter(p => p.id !== recienAprobado?.id);
+  const idsConBienvenida = new Set(ultimosDePlan(pagos).map(p => p.id));
+  const telDe = p => alumnosPago[p.username]?.telefono;
 
   return (
     <div className={`rounded-2xl overflow-hidden border ${pendientes.length ? 'bg-zinc-900 border-orange-500/50' : 'bg-zinc-900 border-zinc-800'}`}>
@@ -12659,6 +12741,9 @@ function PagosPanel({ onAprobado, onCambio }) {
           {atrasados.length > 0 && (
             <span className="ml-1.5 bg-red-500 text-zinc-50 text-xs px-2 py-0.5 rounded-full">⏰ {atrasados.length} +12 h</span>
           )}
+          {faltaBienvenida.length > 0 && (
+            <span className="ml-1.5 bg-emerald-600 text-zinc-50 text-xs px-2 py-0.5 rounded-full">📋 {faltaBienvenida.length} sin bienvenida</span>
+          )}
         </h2>
         <ChevronRight size={18} className={`text-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
@@ -12669,6 +12754,48 @@ function PagosPanel({ onAprobado, onCambio }) {
             <div className="bg-red-950/40 border border-red-700/60 rounded-lg px-3 py-2.5 mb-3 jb-body text-xs text-zinc-200">
               <span className="font-semibold text-red-300">⏰ {atrasados.length === 1 ? '1 pago espera' : `${atrasados.length} pagos esperan`} más de 12 horas.</span>{' '}
               {atrasados.length === 1 ? 'Ese alumno está' : 'Esos alumnos están'} sin acceso hasta que apruebes. Los +7 días del bono se respetan igual: cuenta cuándo se envió el comprobante.
+            </div>
+          )}
+
+          {recienAprobado && (
+            <div className="bg-emerald-950/40 border border-emerald-700/60 rounded-xl px-4 py-3 mb-3 jb-body text-sm text-zinc-200">
+              <div className="font-semibold text-emerald-300">
+                ✓ Listo: {(alumnosPago[recienAprobado.username]?.nombre || recienAprobado.username).split(' ')[0]} ya es Premium
+                {alumnosPago[recienAprobado.username]?.fecha_vencimiento && ` hasta el ${new Date(`${alumnosPago[recienAprobado.username].fecha_vencimiento}T12:00:00`).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}`}.
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">Ahora mándale su bienvenida: el mensaje ya va con su nombre, su plan y su fecha.</p>
+              <div className="flex gap-2 mt-2.5 flex-wrap">
+                <a href={linkBienvenida(recienAprobado)} target="_blank" rel="noreferrer"
+                  onClick={() => { marcarEnviada(recienAprobado); setRecienAprobado(null); }}
+                  className={btnPrimary + ' py-2 px-4 text-sm'}>📋 Mandar bienvenida por WhatsApp</a>
+                <button onClick={() => setRecienAprobado(null)} className={btnGhost + ' py-2 px-3 text-xs'}>Después</button>
+              </div>
+              {!tieneCelular(telDe(recienAprobado)) && (
+                <p className="text-xs text-amber-400 mt-2">No tiene celular guardado: WhatsApp se abre para que elijas a quién mandarlo.</p>
+              )}
+            </div>
+          )}
+
+          {faltaBienvenida.length > 0 && (
+            <div className="bg-zinc-950 border border-emerald-800/50 rounded-xl px-4 py-3 mb-3 jb-body">
+              <div className="text-sm text-zinc-200 font-semibold">
+                📋 {faltaBienvenida.length === 1 ? '1 alumno nuevo espera' : `${faltaBienvenida.length} alumnos nuevos esperan`} su mensaje de bienvenida
+              </div>
+              <p className="text-xs text-zinc-500 mt-0.5">También los que pagan solos por Google Play o App Store, que no pasan por tu aprobación.</p>
+              <div className="flex flex-col gap-2 mt-2.5">
+                {faltaBienvenida.map(p => (
+                  <div key={p.id} className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs text-zinc-300">
+                      {alumnosPago[p.username]?.nombre || p.username} · plan {NOMBRE_PLAN[p.plan_meses] || `${p.plan_meses} meses`} · {p.metodo}
+                    </span>
+                    <div className="flex gap-1.5">
+                      <a href={linkBienvenida(p)} target="_blank" rel="noreferrer" onClick={() => marcarEnviada(p)}
+                        className={btnPrimary + ' py-1.5 px-3 text-xs'}>📋 Mandar bienvenida</a>
+                      <button onClick={() => marcarEnviada(p)} className={btnGhost + ' py-1.5 px-2 text-xs'}>Ya se lo mandé</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -12789,6 +12916,12 @@ function PagosPanel({ onAprobado, onCambio }) {
                         {p.revisado_en && ` · ${new Date(p.revisado_en).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}`}
                       </span>
                       {p.nota_admin && <span className="jb-body text-xs text-zinc-500">{p.nota_admin}</span>}
+                      {idsConBienvenida.has(p.id) && (
+                        <a href={linkBienvenida(p)} target="_blank" rel="noreferrer" onClick={() => marcarEnviada(p)}
+                          className={(enviadas[p.id] ? btnGhost : btnPrimary) + ' py-1.5 px-3 text-xs w-full mt-1'}>
+                          {enviadas[p.id] ? '✓ Bienvenida enviada · mandar otra vez' : '📋 Mandar mensaje de bienvenida'}
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
